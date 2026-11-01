@@ -1,4 +1,5 @@
 import { isImagePath, toLocalFileUrl } from "./promptContent";
+import { isAbsoluteFsPath } from "./pathUtils";
 import { chatVideoFilePath, isChatVideoSource, isVideoPath } from "./chatVideo";
 import { chatFileLocalPath, isChatDownloadPath, isChatFileSource } from "./chatFile";
 
@@ -127,7 +128,7 @@ export function resolveMarkdownImageUrl(
   }
 
   // Windows drive, UNC (`\\` / `//`), or POSIX absolute.
-  if (/^[A-Za-z]:[\\/]/.test(trimmed) || trimmed.startsWith("\\\\") || trimmed.startsWith("/")) {
+  if (isAbsoluteFsPath(trimmed)) {
     return toLocalFileUrl(trimmed);
   }
 
@@ -167,7 +168,7 @@ export function resolveMarkdownFileUrl(
   if (/^file:\/\//iu.test(trimmed)) return toLocalFileUrl(path);
 
   // Windows drive, UNC (`\\` / `//`), or POSIX absolute.
-  if (/^[A-Za-z]:[\\/]/.test(path) || path.startsWith("\\\\") || path.startsWith("/")) {
+  if (isAbsoluteFsPath(path)) {
     return toLocalFileUrl(path);
   }
 

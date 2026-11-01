@@ -54,11 +54,9 @@ export class PlaybackGrants<T> {
       hardAuthorityExpiresAtMs,
       holds: 0,
       controller: new AbortController(),
-      timer: setTimeout(() => undefined, 0),
+      timer: this.arm(key, expiresAtMs),
       ...(onRetire ? { onRetire } : {}),
     };
-    clearTimeout(entry.timer);
-    entry.timer = this.arm(entry, key, expiresAtMs);
     this.grants.set(key, entry);
     return { ticket, expiresAt: new Date(expiresAtMs).toISOString() };
   }
@@ -68,8 +66,7 @@ export class PlaybackGrants<T> {
    * keeps running until the last hold is released or the hard session-authority
    * expiry. Without holds, or at hard expiry, retirement is immediate.
    */
-  private arm(entry: PlaybackGrant<T>, key: string, atMs: number) {
-    clearTimeout(entry.timer);
+  private arm(key: string, atMs: number) {
     const timer = setTimeout(() => this.expire(key), Math.max(0, atMs - Date.now()));
     timer.unref();
     return timer;
@@ -90,7 +87,8 @@ export class PlaybackGrants<T> {
     // Alive: the next boundary is admission expiry, or the hard expiry when a
     // held transfer survives past admission.
     const next = entry.expiresAtMs > now ? entry.expiresAtMs : entry.hardAuthorityExpiresAtMs;
-    entry.timer = this.arm(entry, key, next);
+    clearTimeout(entry.timer);
+    entry.timer = this.arm(key, next);
   }
 
   read(ticket: string): { value: T; sessionId: string; signal: AbortSignal; expiresAtMs: number } {
@@ -155,7 +153,7 @@ export class PlaybackGrants<T> {
     clearTimeout(entry.timer);
     entry.expiresAtMs = expiresAtMs;
     entry.hardAuthorityExpiresAtMs = authorityExpiresAtMs;
-    entry.timer = this.arm(entry, key, expiresAtMs);
+    entry.timer = this.arm(key, expiresAtMs);
     // The controller, value, and retirement hook stay owned by the original ticket.
     return { ticket, expiresAt: new Date(expiresAtMs).toISOString() };
   }

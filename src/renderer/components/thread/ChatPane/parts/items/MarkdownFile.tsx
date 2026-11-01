@@ -3,17 +3,12 @@ import { useLingui } from "@lingui/react/macro";
 import { Button, toast } from "@heroui/react";
 import { Download } from "lucide-react";
 import { friendlyError } from "@/shared/messages";
-import {
-  chatFileLocalPath,
-  chatFileName,
-  isChatFileSource,
-  type ChatFileSource,
-} from "@/shared/chatFile";
+import { chatFileLocalPath, chatFileName, type ChatFileSource } from "@/shared/chatFile";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { downloadChatFile } from "@/renderer/components/media/fileMediaSource";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import type { ProjectLocation } from "@/shared/contracts";
-import { useChatPaneActions } from "../../chatPaneActionsContext";
+import { useChatPaneActions, type ChatPaneActions } from "../../chatPaneActionsContext";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 
 /**
@@ -29,6 +24,7 @@ export function MarkdownFile(props: ChatFileSource) {
   return (
     <FileDownloadCard
       key={`${JSON.stringify(location)}\0${props.src}`}
+      actions={actions}
       location={location}
       {...props}
     />
@@ -38,15 +34,15 @@ export function MarkdownFile(props: ChatFileSource) {
 function FileDownloadCard({
   src,
   name,
+  actions,
   location,
-}: ChatFileSource & { location: ProjectLocation | null }) {
+}: ChatFileSource & { location: ProjectLocation | null; actions: ChatPaneActions | null }) {
   const { t } = useLingui();
   const webUrl = /^https?:\/\//iu.test(src);
   const path = webUrl ? "" : (chatFileLocalPath(src) ?? "");
   const fileName = chatFileName(webUrl ? src : path || src, name);
-  const valid = webUrl || (isChatFileSource(src) && path.length > 0);
+  const valid = webUrl || path.length > 0;
   const canDownload = webUrl || location !== null;
-  const actions = useChatPaneActions();
   // Documents the editor already previews keep their open action on the name;
   // archives/installers never try the text editor.
   const previewable = /\.(txt|csv|tsv|pdf)$/iu.test(fileName);
@@ -74,8 +70,11 @@ function FileDownloadCard({
     abortRef.current = controller;
     setPending(true);
     downloadChatFile(location!, path, controller.signal)
-      .catch(() => {
-        if (!controller.signal.aborted) toast.danger(t`Unable to download the file.`);
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted)
+          toast.danger(t`Unable to download the file.`, {
+            description: friendlyError(error),
+          });
       })
       .finally(() => {
         if (abortRef.current === controller) abortRef.current = null;

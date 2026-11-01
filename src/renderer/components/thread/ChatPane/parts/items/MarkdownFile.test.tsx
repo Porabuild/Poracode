@@ -10,6 +10,7 @@ import { MarkdownFile } from "./MarkdownFile";
 import ItemMarkdownInner from "./ItemMarkdownInner";
 import { AssistantMessage } from "./AssistantMessage";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import type { ProjectLocation } from "@/shared/contracts";
 
 vi.mock("@/renderer/components/media/fileMediaSource", () => ({
   createEditorMediaSource: vi.fn<() => Promise<never>>(),
@@ -71,6 +72,21 @@ describe("chat file download card", () => {
     expect(path.endsWith(shown)).toBe(true);
   });
 
+  it("downloads through the media owner when it differs from the project location", async () => {
+    const media: ProjectLocation = { kind: "posix", path: "/media-root" };
+    const project: ProjectLocation = { kind: "posix", path: "/project-root" };
+    const view = render(
+      pane(<MarkdownFile src="release.zip" />, {
+        mediaLocation: media,
+        projectLocation: project,
+      }),
+    );
+    fireEvent.click(view.getByRole("button", { name: /Download/ }));
+    await waitFor(() =>
+      expect(downloadChatFile).toHaveBeenCalledWith(media, "release.zip", expect.any(AbortSignal)),
+    );
+  });
+
   it("resolves a project-relative artifact path against the owner", async () => {
     const view = render(pane(<MarkdownFile src="dist/release.zip" />));
     fireEvent.click(view.getByRole("button", { name: /Download release\.zip/ }));
@@ -99,9 +115,18 @@ describe("chat file download card", () => {
     expect(downloadChatFile).toHaveBeenCalledOnce();
 
     const danger = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
-    vi.mocked(downloadChatFile).mockRejectedValueOnce(new Error("403"));
+    vi.mocked(downloadChatFile).mockRejectedValueOnce(
+      new Error("The file path is outside the project."),
+    );
     fireEvent.click(button);
-    await waitFor(() => expect(danger).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(danger).toHaveBeenCalledWith(
+        "Unable to download the file.",
+        expect.objectContaining({
+          description: expect.stringContaining("outside the project"),
+        }),
+      ),
+    );
     vi.mocked(downloadChatFile).mockResolvedValueOnce(undefined);
     fireEvent.click(button);
     await waitFor(() => expect(downloadChatFile).toHaveBeenCalledTimes(3));

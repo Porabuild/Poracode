@@ -283,9 +283,7 @@ export async function writeFileMedia(
       "content-type": value.contentType,
       "cache-control": "private, no-store",
       "accept-ranges": "bytes",
-      "x-poracode-media-expires-at": new Date(
-        fileMediaGrants(ctx.auth).read(ticket).expiresAtMs,
-      ).toISOString(),
+      "x-poracode-media-expires-at": new Date(grant.expiresAtMs).toISOString(),
       "x-content-type-options": "nosniff",
       "content-security-policy": "sandbox; default-src 'none'",
       "referrer-policy": "no-referrer",

@@ -7,7 +7,7 @@ import type {
   MediaSource,
 } from "@/shared/remote/media";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
-import { getBasename } from "@/shared/pathUtils";
+import { getBasename, isAbsoluteFsPath } from "@/shared/pathUtils";
 import { readBridge } from "@/renderer/bridge";
 import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -47,10 +47,7 @@ export async function createEditorMediaSource(
 ): Promise<EditorMediaSource> {
   const { remoteServerId: _remoteServerId, ...projectLocation } = location;
   const file = {
-    access:
-      path.startsWith("/") || path.startsWith("\\\\") || /^[A-Za-z]:[\\/]/u.test(path)
-        ? ("external" as const)
-        : ("project" as const),
+    access: isAbsoluteFsPath(path) ? ("external" as const) : ("project" as const),
     projectLocation,
     path,
   };
@@ -66,15 +63,6 @@ export async function createEditorMediaSource(
     };
   };
   return withOwningMediaClient(location, create);
-}
-
-function isAbsoluteFsPath(path: string): boolean {
-  return path.startsWith("/") || path.startsWith("\\\\") || /^[A-Za-z]:[\\/]/u.test(path);
-}
-
-/** Case folding follows the owning filesystem's root semantics. */
-function isCaseInsensitiveLocation(location: ProjectLocation): boolean {
-  return location.kind === "windows";
 }
 
 /**
@@ -107,7 +95,7 @@ function containedRelativePath(location: ProjectLocation, absolute: string): str
           { root: location.linuxPath, insensitive: false },
           { root: location.uncPath, insensitive: false },
         ]
-      : [{ root: location.path, insensitive: isCaseInsensitiveLocation(location) }];
+      : [{ root: location.path, insensitive: location.kind === "windows" }];
   for (const { root: rawRoot, insensitive } of roots) {
     const root = normalizeSeparators(rawRoot).replace(/\/+$/u, "") || "/";
     const haystack = insensitive ? normalized.toLowerCase() : normalized;
