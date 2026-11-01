@@ -301,7 +301,7 @@ describe("environment image consumers through rebuilds (C1 F6/R3)", () => {
     // 3. The gallery panel still offers its resolved image; open the lightbox
     // while the host-held image is pending.
     expect(screen.getByTestId("gallery-count").textContent).toBe("1");
-    fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
+    // The images dock starts expanded, so the tile is already mounted.
     fireEvent.click(screen.getByRole("button", { name: /Open image 1 of 1/ }));
     expect(screen.getByRole("dialog")).toBeTruthy();
 

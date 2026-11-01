@@ -4259,6 +4259,10 @@ msgstr "折叠后台任务"
 msgid "Collapse composer"
 msgstr "折叠输入框"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Collapse context window"
+msgstr "折叠上下文窗口"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "折叠错误"
@@ -4290,8 +4294,12 @@ msgid "Collapse terminal composer"
 msgstr "折叠终端输入框"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Collapse thread context"
-msgstr "折叠线程上下文"
+#~ msgid "Collapse thread context"
+#~ msgstr "折叠线程上下文"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread info"
+msgstr "折叠线程信息"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -4889,6 +4897,11 @@ msgstr "上下文转移到{targetLabel}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context usage"
 msgstr "上下文使用"
+
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Context window"
+msgstr "上下文窗口"
 
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
@@ -7520,6 +7533,10 @@ msgstr "全部展开"
 msgid "Expand background tasks"
 msgstr "展开后台任务"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Expand context window"
+msgstr "展开上下文窗口"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
 msgstr "展开错误"
@@ -7546,8 +7563,12 @@ msgid "Expand images"
 msgstr "展开图像"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Expand thread context"
-msgstr "展开线程上下文"
+#~ msgid "Expand thread context"
+#~ msgstr "展开线程上下文"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread info"
+msgstr "展开线程信息"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -20514,8 +20535,8 @@ msgstr "线程已存在。"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-msgid "Thread context"
-msgstr "线程上下文"
+#~ msgid "Thread context"
+#~ msgstr "线程上下文"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -20554,6 +20575,8 @@ msgstr "线程目标停靠栏"
 msgid "Thread images"
 msgstr "线程图片"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

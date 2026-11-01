@@ -4259,6 +4259,10 @@ msgstr "Zwiń zadania w tle"
 msgid "Collapse composer"
 msgstr "Zwiń kompozytor"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Collapse context window"
+msgstr "Zwiń okno kontekstu"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "Zwiń błąd"
@@ -4290,8 +4294,12 @@ msgid "Collapse terminal composer"
 msgstr "Zwiń kompozytor terminala"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Collapse thread context"
-msgstr "Zwiń kontekst wątku"
+#~ msgid "Collapse thread context"
+#~ msgstr "Zwiń kontekst wątku"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread info"
+msgstr "Zwiń informacje o wątku"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -4889,6 +4897,11 @@ msgstr "Kontekst przeniesiony do {targetLabel}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context usage"
 msgstr "Użycie kontekstu"
+
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Context window"
+msgstr "Okno kontekstu"
 
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
@@ -7520,6 +7533,10 @@ msgstr "Rozwiń wszystko"
 msgid "Expand background tasks"
 msgstr "Rozwiń zadania w tle"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Expand context window"
+msgstr "Rozwiń okno kontekstu"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
 msgstr "Rozwiń błąd"
@@ -7546,8 +7563,12 @@ msgid "Expand images"
 msgstr "Rozwiń obrazy"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Expand thread context"
-msgstr "Rozwiń kontekst wątku"
+#~ msgid "Expand thread context"
+#~ msgstr "Rozwiń kontekst wątku"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread info"
+msgstr "Rozwiń informacje o wątku"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -20515,8 +20536,8 @@ msgstr "Wątek już istnieje."
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-msgid "Thread context"
-msgstr "Kontekst wątku"
+#~ msgid "Thread context"
+#~ msgstr "Kontekst wątku"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -20555,6 +20576,8 @@ msgstr "Stacja dokująca celu wątku"
 msgid "Thread images"
 msgstr "Obrazy wątku"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

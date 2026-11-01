@@ -4259,6 +4259,10 @@ msgstr "Згорнути фонові завдання"
 msgid "Collapse composer"
 msgstr "Згорнути Composer"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Collapse context window"
+msgstr "Згорнути контекстне вікно"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "Згорнути помилку"
@@ -4290,8 +4294,12 @@ msgid "Collapse terminal composer"
 msgstr "Згорнути поле вводу термінала"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Collapse thread context"
-msgstr "Згорнути контекст треду"
+#~ msgid "Collapse thread context"
+#~ msgstr "Згорнути контекст треду"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread info"
+msgstr "Згорнути відомості про тред"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -4889,6 +4897,11 @@ msgstr "Контекст передано до {targetLabel}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context usage"
 msgstr "Використання контексту"
+
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Context window"
+msgstr "Контекстне вікно"
 
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
@@ -7520,6 +7533,10 @@ msgstr "Розгорнути все"
 msgid "Expand background tasks"
 msgstr "Розгорнути фонові завдання"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Expand context window"
+msgstr "Розгорнути контекстне вікно"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
 msgstr "Розгорнути помилку"
@@ -7546,8 +7563,12 @@ msgid "Expand images"
 msgstr "Розгорнути зображення"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Expand thread context"
-msgstr "Розгорнути контекст треду"
+#~ msgid "Expand thread context"
+#~ msgstr "Розгорнути контекст треду"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread info"
+msgstr "Розгорнути відомості про тред"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -20515,8 +20536,8 @@ msgstr "Тред уже існує."
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-msgid "Thread context"
-msgstr "Контекст треду"
+#~ msgid "Thread context"
+#~ msgstr "Контекст треду"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -20555,6 +20576,8 @@ msgstr "Панель мети треда"
 msgid "Thread images"
 msgstr "Зображення потоку"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

@@ -4259,6 +4259,10 @@ msgstr "Hintergrundaufgaben einklappen"
 msgid "Collapse composer"
 msgstr "Composer einklappen"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Collapse context window"
+msgstr "Kontextfenster einklappen"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "Fehler einklappen"
@@ -4290,8 +4294,12 @@ msgid "Collapse terminal composer"
 msgstr "Terminal-Composer einklappen"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Collapse thread context"
-msgstr "Thread-Kontext einklappen"
+#~ msgid "Collapse thread context"
+#~ msgstr "Thread-Kontext einklappen"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread info"
+msgstr "Thread-Info einklappen"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -4889,6 +4897,11 @@ msgstr "Kontext an {targetLabel} übertragen"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context usage"
 msgstr "Kontextverwendung"
+
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Context window"
+msgstr "Kontextfenster"
 
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
@@ -7520,6 +7533,10 @@ msgstr "Alles erweitern"
 msgid "Expand background tasks"
 msgstr "Hintergrundaufgaben ausklappen"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Expand context window"
+msgstr "Kontextfenster ausklappen"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
 msgstr "Fehler erweitern"
@@ -7546,8 +7563,12 @@ msgid "Expand images"
 msgstr "Bilder ausklappen"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Expand thread context"
-msgstr "Thread-Kontext ausklappen"
+#~ msgid "Expand thread context"
+#~ msgstr "Thread-Kontext ausklappen"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread info"
+msgstr "Thread-Info ausklappen"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -20515,8 +20536,8 @@ msgstr "Der Thread existiert bereits."
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-msgid "Thread context"
-msgstr "Thread-Kontext"
+#~ msgid "Thread context"
+#~ msgstr "Thread-Kontext"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -20555,6 +20576,8 @@ msgstr "Thread-Zieldock"
 msgid "Thread images"
 msgstr "Thread-Bilder"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

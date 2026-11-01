@@ -6,6 +6,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { ThreadContextWindowDock } from "./ThreadContextWindowDock";
 import {
   ThreadAgentUsageDock as AgentUsageDock,
   ThreadWorkspaceDock,
@@ -72,7 +73,7 @@ beforeEach(() => {
 });
 
 describe("Thread details", () => {
-  it("expands context inline from its compact summary and collapses it independently", () => {
+  it("expands the context window inline from its compact summary and collapses it independently", () => {
     useAppStore.setState({
       runtimeContextByThread: {
         t1: {
@@ -87,11 +88,11 @@ describe("Thread details", () => {
     });
     render(
       <AppProvider>
-        <ThreadWorkspaceDock threadId="t1" />
+        <ThreadContextWindowDock threadId="t1" />
       </AppProvider>,
     );
-    const context = within(screen.getByRole("region", { name: "Thread context" }));
-    const header = context.getByRole("button", { name: "Thread context" });
+    const context = within(screen.getByRole("region", { name: "Context window" }));
+    const header = context.getByRole("button", { name: "Context window" });
     expect(header).toHaveTextContent("20K / 100K tokens");
     expect(context.queryByText("Messages")).not.toBeInTheDocument();
     fireEvent.click(header);
@@ -100,7 +101,7 @@ describe("Thread details", () => {
     expect(context.getByText("15,000")).toBeInTheDocument();
     expect(context.getByText("Tools")).toBeInTheDocument();
     expect(context.getByText("5,000")).toBeInTheDocument();
-    fireEvent.click(context.getByRole("button", { name: "Collapse thread context" }));
+    fireEvent.click(context.getByRole("button", { name: "Collapse context window" }));
     expect(context.queryByText("Messages")).not.toBeInTheDocument();
     expect(header).toHaveAttribute("aria-expanded", "false");
   });
@@ -113,14 +114,106 @@ describe("Thread details", () => {
     });
     render(
       <AppProvider>
-        <ThreadWorkspaceDock threadId="t1" />
+        <ThreadContextWindowDock threadId="t1" />
       </AppProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Thread context" }));
-    const details = within(screen.getByRole("region", { name: "Thread context" }));
+    fireEvent.click(screen.getByRole("button", { name: "Context window" }));
+    const details = within(screen.getByRole("region", { name: "Context window" }));
     expect(details.getByText("Tools")).toBeInTheDocument();
     expect(details.getByText("0")).toBeInTheDocument();
     expect(details.getByText("Unknown limit")).toBeInTheDocument();
+  });
+
+  it("keeps thread info and the context window independent when both are mounted", () => {
+    useAppStore.setState({
+      runtimeContextByThread: {
+        t1: {
+          usedTokens: 20000,
+          maxTokens: 100000,
+          breakdown: [{ id: "messages", label: "Messages", tokens: 15000 }],
+        },
+      },
+    });
+    render(
+      <AppProvider>
+        <ThreadWorkspaceDock threadId="t1" />
+        <ThreadContextWindowDock threadId="t1" />
+      </AppProvider>,
+    );
+    const info = within(screen.getByRole("region", { name: "Thread info" }));
+    const context = within(screen.getByRole("region", { name: "Context window" }));
+    const infoHeader = info.getByRole("button", { name: "Thread info" });
+    const contextHeader = context.getByRole("button", { name: "Context window" });
+    expect(infoHeader).toHaveAttribute("aria-expanded", "false");
+    expect(contextHeader).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(infoHeader);
+    expect(infoHeader).toHaveAttribute("aria-expanded", "true");
+    expect(contextHeader).toHaveAttribute("aria-expanded", "false");
+    expect(info.getByText("session-one")).toBeInTheDocument();
+    // Token breakdown lives only in the context window; workspace metadata
+    // only in thread info.
+    expect(info.queryByText("Messages")).not.toBeInTheDocument();
+    expect(info.queryByText(/tokens/)).not.toBeInTheDocument();
+    expect(context.queryByText("session-one")).not.toBeInTheDocument();
+    expect(context.queryByText("C:/repo/worktree")).not.toBeInTheDocument();
+
+    fireEvent.click(contextHeader);
+    expect(contextHeader).toHaveAttribute("aria-expanded", "true");
+    expect(infoHeader).toHaveAttribute("aria-expanded", "true");
+    expect(context.getByText("Messages")).toBeInTheDocument();
+
+    fireEvent.click(info.getByRole("button", { name: "Collapse thread info" }));
+    expect(infoHeader).toHaveAttribute("aria-expanded", "false");
+    expect(contextHeader).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(context.getByRole("button", { name: "Collapse context window" }));
+    expect(contextHeader).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("renders the context window's explanatory empty state without reported usage", () => {
+    render(
+      <AppProvider>
+        <ThreadContextWindowDock threadId="t1" />
+      </AppProvider>,
+    );
+    const header = screen.getByRole("button", { name: "Context window" });
+    expect(header).toHaveTextContent("Provider has not reported token usage.");
+    fireEvent.click(header);
+    const context = within(screen.getByRole("region", { name: "Context window" }));
+    expect(context.getByText("Unknown used")).toBeInTheDocument();
+    expect(context.getByText("Unknown limit")).toBeInTheDocument();
+    expect(context.getByText("Provider has not reported token usage.")).toBeInTheDocument();
+  });
+
+  it("renders nothing for a missing thread", () => {
+    render(
+      <AppProvider>
+        <ThreadWorkspaceDock threadId="missing" />
+        <ThreadContextWindowDock threadId="missing" />
+      </AppProvider>,
+    );
+    expect(screen.queryByRole("region", { name: "Thread info" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Context window" })).not.toBeInTheDocument();
+  });
+
+  it("updates the context window on runtime reports without touching thread info", () => {
+    render(
+      <AppProvider>
+        <ThreadWorkspaceDock threadId="t1" />
+        <ThreadContextWindowDock threadId="t1" />
+      </AppProvider>,
+    );
+    const infoHeader = screen.getByRole("button", { name: "Thread info" });
+    expect(infoHeader).toHaveTextContent("feature");
+
+    act(() => {
+      useAppStore.setState({
+        runtimeContextByThread: { t1: { usedTokens: 123 } },
+      });
+    });
+    expect(screen.getByRole("button", { name: "Context window" })).toHaveTextContent("123 tokens");
+    expect(infoHeader).toHaveTextContent("feature");
+    expect(infoHeader).not.toHaveTextContent(/tokens/);
   });
 
   it("respects the estimated cost preference while preserving reported tokens", () => {
@@ -201,20 +294,20 @@ describe("Thread details", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand agent usage" }));
     expect(screen.getByText("Host offline. Showing last known usage.")).toBeInTheDocument();
   });
-  it("starts context collapsed and exposes the selected thread's workspace, branch and session", () => {
+  it("starts thread info collapsed and exposes the selected thread's workspace, branch and session", () => {
     render(
       <AppProvider>
         <ThreadWorkspaceDock threadId="t1" />
       </AppProvider>,
     );
     expect(screen.queryByText("session-one")).not.toBeInTheDocument();
-    const header = screen.getByRole("button", { name: "Thread context" });
+    const header = screen.getByRole("button", { name: "Thread info" });
     expect(header).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(header);
     for (const value of ["Repository", "C:/repo", "C:/repo/worktree", "feature", "session-one"])
       expect(screen.getByText(value)).toBeInTheDocument();
     expect(header).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Collapse thread context" }));
+    fireEvent.click(screen.getByRole("button", { name: "Collapse thread info" }));
     expect(screen.queryByText("session-one")).not.toBeInTheDocument();
   });
 
@@ -224,12 +317,12 @@ describe("Thread details", () => {
         <ThreadWorkspaceDock threadId="t1" />
       </AppProvider>,
     );
-    const header = screen.getByRole("button", { name: "Thread context" });
+    const header = screen.getByRole("button", { name: "Thread info" });
     expect(header).toHaveClass(
       "[--button-bg-hover:transparent]",
       "[--button-bg-pressed:transparent]",
     );
-    expect(within(header).getByText("Thread context").className).not.toContain("hover:");
+    expect(within(header).getByText("Thread info").className).not.toContain("hover:");
   });
 
   it("cancels the button icon margin so collapsible headers align with static ones", () => {
@@ -238,7 +331,7 @@ describe("Thread details", () => {
         <ThreadWorkspaceDock threadId="t1" />
       </AppProvider>,
     );
-    expect(screen.getByRole("button", { name: "Thread context" })).toHaveClass("[&_svg]:mx-0");
+    expect(screen.getByRole("button", { name: "Thread info" })).toHaveClass("[&_svg]:mx-0");
   });
 
   it("shows the provider icon and compact usage, then expands account details", () => {
@@ -315,10 +408,10 @@ describe("Thread details", () => {
     useAppStore.setState({ runtimeContextByThread: { t1: { usedTokens: 0 } } });
     render(
       <AppProvider>
-        <ThreadWorkspaceDock threadId="t1" />
+        <ThreadContextWindowDock threadId="t1" />
       </AppProvider>,
     );
-    expect(screen.getByRole("button", { name: "Thread context" })).toHaveTextContent("0 tokens");
+    expect(screen.getByRole("button", { name: "Context window" })).toHaveTextContent("0 tokens");
     expect(screen.queryByText(/limit|Unknown|account usage/)).not.toBeInTheDocument();
   });
 

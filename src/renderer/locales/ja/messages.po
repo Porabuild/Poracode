@@ -4258,6 +4258,10 @@ msgstr "バックグラウンドタスクを折りたたむ"
 msgid "Collapse composer"
 msgstr "コンポーザーを折りたたむ"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Collapse context window"
+msgstr "コンテキストウィンドウを折りたたむ"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "エラーを折りたたむ"
@@ -4289,8 +4293,12 @@ msgid "Collapse terminal composer"
 msgstr "ターミナルコンポーザーを折りたたむ"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Collapse thread context"
-msgstr "スレッドのコンテキストを折りたたむ"
+#~ msgid "Collapse thread context"
+#~ msgstr "スレッドのコンテキストを折りたたむ"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread info"
+msgstr "スレッド情報を折りたたむ"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -4888,6 +4896,11 @@ msgstr "{targetLabel}に転送されたコンテキスト"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context usage"
 msgstr "コンテキストの使用量"
+
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Context window"
+msgstr "コンテキストウィンドウ"
 
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
@@ -7519,6 +7532,10 @@ msgstr "すべて展開"
 msgid "Expand background tasks"
 msgstr "バックグラウンドタスクを展開"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Expand context window"
+msgstr "コンテキストウィンドウを展開"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
 msgstr "エラーを展開"
@@ -7545,8 +7562,12 @@ msgid "Expand images"
 msgstr "画像を展開"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Expand thread context"
-msgstr "スレッドのコンテキストを展開"
+#~ msgid "Expand thread context"
+#~ msgstr "スレッドのコンテキストを展開"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread info"
+msgstr "スレッド情報を展開"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -20513,8 +20534,8 @@ msgstr "スレッドはすでに存在します。"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-msgid "Thread context"
-msgstr "スレッドのコンテキスト"
+#~ msgid "Thread context"
+#~ msgstr "スレッドのコンテキスト"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -20553,6 +20574,8 @@ msgstr "スレッドゴールドック"
 msgid "Thread images"
 msgstr "スレッドの画像"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

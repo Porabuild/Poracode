@@ -4268,6 +4268,10 @@ msgstr "Collapse background tasks"
 msgid "Collapse composer"
 msgstr "Collapse composer"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Collapse context window"
+msgstr "Collapse context window"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "Collapse error"
@@ -4299,8 +4303,12 @@ msgid "Collapse terminal composer"
 msgstr "Collapse terminal composer"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Collapse thread context"
-msgstr "Collapse thread context"
+#~ msgid "Collapse thread context"
+#~ msgstr "Collapse thread context"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread info"
+msgstr "Collapse thread info"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -4898,6 +4906,11 @@ msgstr "Context transferred to {targetLabel}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context usage"
 msgstr "Context usage"
+
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Context window"
+msgstr "Context window"
 
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
@@ -7529,6 +7542,10 @@ msgstr "Expand all"
 msgid "Expand background tasks"
 msgstr "Expand background tasks"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Expand context window"
+msgstr "Expand context window"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
 msgstr "Expand error"
@@ -7555,8 +7572,12 @@ msgid "Expand images"
 msgstr "Expand images"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Expand thread context"
-msgstr "Expand thread context"
+#~ msgid "Expand thread context"
+#~ msgstr "Expand thread context"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread info"
+msgstr "Expand thread info"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -20524,8 +20545,8 @@ msgstr "Thread already exists."
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-msgid "Thread context"
-msgstr "Thread context"
+#~ msgid "Thread context"
+#~ msgstr "Thread context"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -20564,6 +20585,8 @@ msgstr "Thread goal dock"
 msgid "Thread images"
 msgstr "Thread images"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

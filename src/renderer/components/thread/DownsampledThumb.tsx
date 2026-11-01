@@ -1,4 +1,5 @@
 import { useDownsampledImageSrc } from "./useDownsampledImageSrc";
+import type { ImageThumbOptions } from "./imageThumbDownsample";
 
 /** Device-pixel thumbnail after load so oversized rasters do not alias in a tiny tile. */
 export function DownsampledThumb({
@@ -8,6 +9,8 @@ export function DownsampledThumb({
   className,
   loading = "lazy",
   decoding = "async",
+  fit,
+  resolutionScale,
 }: {
   src: string;
   alt: string;
@@ -16,8 +19,11 @@ export function DownsampledThumb({
   className?: string;
   loading?: "eager" | "lazy";
   decoding?: "async" | "auto" | "sync";
-}) {
-  const { displaySrc, onLoad } = useDownsampledImageSrc(src, cssPx);
+} & ImageThumbOptions) {
+  const { displaySrc, onLoad } = useDownsampledImageSrc(src, cssPx, {
+    ...(fit ? { fit } : {}),
+    ...(resolutionScale !== undefined ? { resolutionScale } : {}),
+  });
   return (
     <img
       src={displaySrc}
