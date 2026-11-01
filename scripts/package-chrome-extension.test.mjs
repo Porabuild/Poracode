@@ -46,6 +46,10 @@ void test("the independently shipped worker mirrors the host protocol and pinned
     allowedIds?.includes(`"${id}"`),
     "native-host allowlist must include the manifest identity",
   );
+  assert.ok(
+    allowedIds?.includes('"nebjdbpljbmgchnecchddbiondbcdbbd"'),
+    "unpacked 0.2.x installs keep the development key's identity",
+  );
   verifyStoreIdentity(manifest, id);
   assert.throws(() => verifyStoreIdentity(manifest, undefined));
   assert.throws(() => verifyStoreIdentity(manifest, "a".repeat(32)));
