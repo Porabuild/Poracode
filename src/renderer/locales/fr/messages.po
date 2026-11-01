@@ -5716,9 +5716,21 @@ msgstr "Cursor"
 #~ msgid "Cursor ACP logged out."
 #~ msgstr "Déconnexion de Cursor ACP effectuée."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cursor can't summarize the conversation while a turn is running. Send /summarize again once it finishes."
+msgstr "Cursor ne peut pas résumer la conversation pendant qu'un tour est en cours. Renvoyez /summarize une fois qu'il est terminé."
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Cursor CLI (ACP)"
 msgstr "Cursor CLI (ACP)"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cursor couldn't summarize the conversation, so it was left unchanged."
+msgstr "Cursor n'a pas pu résumer la conversation, elle a donc été laissée inchangée."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cursor couldn't write a summary, so it saved a trimmed copy of the conversation instead."
+msgstr "Cursor n'a pas pu rédiger de résumé, il a donc enregistré une copie tronquée de la conversation."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Cursor GUI runtime updated."

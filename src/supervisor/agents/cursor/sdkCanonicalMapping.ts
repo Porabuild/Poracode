@@ -13,6 +13,7 @@
  */
 
 import type { RuntimeEvent } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import type { CursorSdkSteerInput } from "./sdkSteering";
 import { newItemId } from "../contextUsage";
@@ -48,9 +49,11 @@ export function startCursorSdkTurn(
   state: CursorSdkMapperState,
   turnId: string,
   optimisticUserItemId?: string,
+  options?: { summarize?: boolean },
 ): RuntimeEvent[] {
   const events = closeCursorSdkOpenItems(state);
   state.currentTurnId = turnId;
+  state.turnKind = options?.summarize ? "summarize" : "message";
   delete state.currentRunId;
   delete state.model;
   state.userEchoSeen = false;
@@ -65,6 +68,7 @@ export function startCursorSdkTurn(
   state.pendingRawThinkingDeltas.length = 0;
   state.pendingRawThinkingCompletions.length = 0;
   state.pendingRawTaskTexts.length = 0;
+  state.pendingRawSummaryStatuses.length = 0;
   state.pendingRawUsageFingerprints.length = 0;
   state.pendingNormalizedUsageFingerprints.length = 0;
   state.usageSequence = 0;
@@ -144,6 +148,8 @@ export function mapCursorSdkMessage(
     case "task":
       if (message.text && consumeQueuedText(state.pendingRawTaskTexts, message.text)) return [];
       return mapTaskMessage(state, message.status, message.text);
+    case "summary":
+      return mapNormalizedSummaryMessage(message.status, message.fallback, state);
     case "request":
       // @cursor/sdk 1.0.24 exposes neither request details nor a response
       // method. Opening a canonical request would strand the UI forever.
@@ -193,13 +199,27 @@ export function mapCursorSdkInteractionUpdate(
     }
     case "user-message-appended":
       return mapUserEcho(update.userMessage.text, state);
-    case "summary-started":
-      return ensureSummaryItem(state);
-    case "summary":
+    case "summary-started": {
+      // Queue the lifecycle token the normalized `summary` message echoes;
+      // a consumed echo is what proves 1.2.0 raw/normalized parity.
+      state.pendingRawSummaryStatuses.push("running");
+      return ensureCompactionItem(state);
+    }
+    case "summary": {
+      // Latest summary text becomes the completed row's result; pushing to
+      // the task queue keeps a 1.0.x `task` echo of the same text swallowed.
       state.pendingRawTaskTexts.push(update.summary);
-      return updateSummaryItem(state, update.summary);
-    case "summary-completed":
-      return completeSummaryItem(state);
+      const events = ensureCompactionItem(state);
+      state.compactionItem!.text = update.summary;
+      return events;
+    }
+    case "summary-completed": {
+      state.pendingRawSummaryStatuses.push(update.failed ? "error" : "completed");
+      const events = ensureCompactionItem(state);
+      events.push(...summaryWarnings(state, update.failed === true, update.fallback === true));
+      events.push(...completeCompactionItem(state, update.failed ? "error" : "success"));
+      return events;
+    }
     case "shell-output-delta":
       return mapCursorSdkShellOutputDelta(state, update.event);
     case "tool-requests-listed":
@@ -224,8 +244,14 @@ export function mapCursorSdkRunResult(
     !state.assistantOutputSeen &&
     !state.terminalRunIds.has(result.id)
   ) {
-    events.push(...appendTopLevelTextDelta(state, "assistant", result.result, false));
-    closeTextItem(state, "assistant", events);
+    // A summarize run's result is the written summary: it belongs on the
+    // compaction row, not in a phantom assistant message.
+    if (state.turnKind === "summarize") {
+      if (state.compactionItem) state.compactionItem.text = result.result;
+    } else {
+      events.push(...appendTopLevelTextDelta(state, "assistant", result.result, false));
+      closeTextItem(state, "assistant", events);
+    }
   }
   // `RunResult.usage` is cumulative across its SDK turns. Only use it when no
   // per-turn usage event reached us, otherwise it would double-count spend.
@@ -254,10 +280,17 @@ export function mapCursorSdkRunResult(
  * rollback, or before a new turn.
  */
 export function closeCursorSdkOpenItems(state: CursorSdkMapperState): RuntimeEvent[] {
+  return closeCursorSdkOpenItemsAs(state, "error");
+}
+
+function closeCursorSdkOpenItemsAs(
+  state: CursorSdkMapperState,
+  compactionStatus: "success" | "error",
+): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
   closeTextItem(state, "assistant", events);
   closeTextItem(state, "thinking", events);
-  closeTextItem(state, "summary", events);
+  closeCompactionItem(state, compactionStatus, events);
   closeTextItem(state, "task", events);
   events.push(...closeCursorSdkToolItems(state));
   return events;
@@ -370,7 +403,7 @@ function closeTopLevelTextForStep(state: CursorSdkMapperState): RuntimeEvent[] {
 
 function closeTextItem(
   state: CursorSdkMapperState,
-  kind: "assistant" | "thinking" | "summary" | "task",
+  kind: "assistant" | "thinking" | "task",
   events: RuntimeEvent[],
 ): void {
   const item =
@@ -378,14 +411,11 @@ function closeTextItem(
       ? state.assistantItem
       : kind === "thinking"
         ? state.thinkingItem
-        : kind === "summary"
-          ? state.summaryItem
-          : state.taskItem;
+        : state.taskItem;
   if (!item) return;
   events.push({ type: "item.completed", threadId: state.threadId, itemId: item.itemId });
   if (kind === "assistant") delete state.assistantItem;
   else if (kind === "thinking") delete state.thinkingItem;
-  else if (kind === "summary") delete state.summaryItem;
   else delete state.taskItem;
 }
 
@@ -406,38 +436,122 @@ function mapUserEcho(text: string, state: CursorSdkMapperState): RuntimeEvent[] 
   ];
 }
 
-function ensureSummaryItem(state: CursorSdkMapperState): RuntimeEvent[] {
-  if (state.summaryItem) return [];
-  const itemId = newItemId("summary");
-  state.summaryItem = { itemId, text: "" };
+function compactionPayload(
+  item: { trigger: "manual" | "auto"; text: string },
+  status: "running" | "success" | "error",
+): Record<string, unknown> {
+  return {
+    name: "ContextCompaction",
+    kind: "other",
+    status,
+    args: { trigger: item.trigger },
+    ...(status !== "running" && item.text ? { result: item.text } : {}),
+  };
+}
+
+function ensureCompactionItem(state: CursorSdkMapperState): RuntimeEvent[] {
+  if (state.compactionItem) return [];
+  const itemId = newItemId("compact");
+  const item = {
+    itemId,
+    trigger: state.turnKind === "summarize" ? ("manual" as const) : ("auto" as const),
+    text: "",
+    warnedFailed: false,
+    warnedFallback: false,
+  };
+  state.compactionItem = item;
   return [
     {
       type: "item.started",
       threadId: state.threadId,
       itemId,
-      itemType: "reasoning",
-      payload: { summary: "" },
+      itemType: "tool_call",
+      payload: compactionPayload(item, "running"),
     },
   ];
 }
 
-function updateSummaryItem(state: CursorSdkMapperState, summary: string): RuntimeEvent[] {
-  const events = ensureSummaryItem(state);
-  const item = state.summaryItem!;
-  if (item.text === summary) return events;
-  item.text = summary;
+function completeCompactionItem(
+  state: CursorSdkMapperState,
+  status: "success" | "error",
+): RuntimeEvent[] {
+  const events = ensureCompactionItem(state);
+  const item = state.compactionItem!;
   events.push({
-    type: "item.updated",
+    type: "item.completed",
     threadId: state.threadId,
     itemId: item.itemId,
-    payload: { summary },
+    payload: compactionPayload(item, status),
   });
+  delete state.compactionItem;
   return events;
 }
 
-function completeSummaryItem(state: CursorSdkMapperState): RuntimeEvent[] {
+/**
+ * Close an open compaction row without synthesizing one: disposal and
+ * turn-end cleanup only settle what actually started.
+ */
+function closeCompactionItem(
+  state: CursorSdkMapperState,
+  status: "success" | "error",
+  events: RuntimeEvent[],
+): void {
+  if (!state.compactionItem) return;
+  const item = state.compactionItem;
+  events.push({
+    type: "item.completed",
+    threadId: state.threadId,
+    itemId: item.itemId,
+    payload: compactionPayload(item, status),
+  });
+  delete state.compactionItem;
+}
+
+/**
+ * The normalized 1.2.0 `summary` lifecycle message. Raw deltas stay
+ * authoritative: when the status matches the head of the queued raw echo it
+ * is consumed without emitting; otherwise this is the only source (a
+ * `summarize()` run has no `onDelta`).
+ */
+function mapNormalizedSummaryMessage(
+  status: "running" | "completed" | "error",
+  fallback: boolean | undefined,
+  state: CursorSdkMapperState,
+): RuntimeEvent[] {
+  if (state.pendingRawSummaryStatuses[0] === status) {
+    state.pendingRawSummaryStatuses.shift();
+    return [];
+  }
+  if (status === "running") return ensureCompactionItem(state);
+  const events = ensureCompactionItem(state);
+  events.push(...summaryWarnings(state, status === "error", fallback === true));
+  events.push(...completeCompactionItem(state, status === "completed" ? "success" : "error"));
+  return events;
+}
+
+function summaryWarnings(
+  state: CursorSdkMapperState,
+  failed: boolean,
+  fallback: boolean,
+): RuntimeEvent[] {
+  const item = state.compactionItem;
   const events: RuntimeEvent[] = [];
-  closeTextItem(state, "summary", events);
+  if (failed && item && !item.warnedFailed) {
+    item.warnedFailed = true;
+    events.push({
+      type: "warning",
+      threadId: state.threadId,
+      message: msg("cursor.compactFailed"),
+    });
+  }
+  if (fallback && item && !item.warnedFallback) {
+    item.warnedFallback = true;
+    events.push({
+      type: "warning",
+      threadId: state.threadId,
+      message: msg("cursor.compactFallback"),
+    });
+  }
   return events;
 }
 
@@ -526,7 +640,7 @@ function finishCursorSdkRun(
 ): RuntimeEvent[] {
   if (state.terminalRunIds.has(runId)) return [];
   state.terminalRunIds.add(runId);
-  const events = closeCursorSdkOpenItems(state);
+  const events = closeCursorSdkOpenItemsAs(state, turnState === "completed" ? "success" : "error");
   if (errorMessage && !state.emittedErrors.has(errorMessage)) {
     state.emittedErrors.add(errorMessage);
     events.push({ type: "error", threadId: state.threadId, message: errorMessage });

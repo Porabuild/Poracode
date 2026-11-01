@@ -72,6 +72,9 @@ export class FakeWorker {
   readonly start = vi.fn<(input: CursorSdkWorkerStartInput) => Promise<CursorSdkWorkerStartResult>>(
     async (_input) => ({ runId: "run-1" }),
   );
+  readonly summarize = vi.fn<() => Promise<CursorSdkWorkerStartResult>>(async () => ({
+    runId: "run-1",
+  }));
   readonly steer = vi.fn<(runId: string, text: string) => Promise<CursorSdkWorkerSteerResult>>(
     async () => "complete_delivered",
   );

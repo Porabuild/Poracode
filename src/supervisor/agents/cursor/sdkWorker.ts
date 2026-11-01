@@ -73,6 +73,7 @@ let disposed = false;
 const workerMethods = new Set([
   "initialize",
   "start",
+  "summarize",
   "steer",
   "cancel",
   "reload",
@@ -128,6 +129,8 @@ async function dispatch(request: CursorSdkWorkerRequest): Promise<unknown> {
       return initialize(request.params);
     case "start":
       return startRun(request.id, request.params);
+    case "summarize":
+      return summarizeRun(request.id);
     case "steer":
       return steerRun(request.params.runId, request.params.text);
     case "cancel":
@@ -196,12 +199,20 @@ async function initialize(
       ? { stateRoot: loaded.getDefaultSdkStateRoot(cwd) }
       : {}),
     ...(opened.recoveredExisting ? { recoveredExisting: true } : {}),
+    ...(typeof agent.summarize === "function" ? { supportsSummarize: true } : {}),
   };
 }
 
-async function startRun(
+/**
+ * Shared run launch for `start` and `summarize`: one busy guard, one
+ * `activeRun`, one `pumpRun` loop. `launch` performs the SDK call that
+ * produces the run handle; `onAccepted` runs once the run id is known (used
+ * to flush deltas that arrived before `send` resolved).
+ */
+async function launchRun(
   requestId: string,
-  input: CursorSdkWorkerStartInput,
+  launch: () => Promise<RuntimeRun>,
+  onAccepted?: (runId: string) => void,
 ): Promise<CursorSdkWorkerStartResult> {
   if (activeRun || startInFlight) {
     throw new WorkerDiagnosticError(
@@ -209,59 +220,92 @@ async function startRun(
       "The Cursor SDK agent already has an active run.",
     );
   }
-  const currentAgent = requireAgent();
-  diagnostics.rememberMcpSecrets(input.options?.mcpServers);
   startInFlight = true;
-  const bufferedDeltas: unknown[] = [];
-  let runId: string | undefined;
   try {
-    const model = input.options?.model ?? currentAgent.model ?? agentModel;
-    await sdkRuntime.prepareModelSelection(model, agentApiKey);
-    const options: CursorSdkWorkerSendOptions & {
-      onDelta: (args: { update: unknown }) => void;
-    } = {
-      ...(input.options ?? {}),
-      // The resolved selection is always sent qualified so a send without a
-      // per-send override still qualifies a model resumed before the catalog
-      // was available.
-      ...(model ? { model: sdkRuntime.qualifyModelSelection(model) } : {}),
-      onDelta: ({ update }) => {
-        const transportUpdate = sanitizeInteractionUpdate(update);
-        if (runId) {
-          emitRunEvent({
-            type: "delta",
-            requestId,
-            runId,
-            update: transportUpdate,
-          });
-        } else {
-          bufferedDeltas.push(transportUpdate);
-        }
-      },
-    };
-    const run = await currentAgent.send(input.message, options);
+    const run = await launch();
     if (!run || typeof run.id !== "string" || !run.id) {
       throw new WorkerDiagnosticError(
         "module_api_incompatible",
         "The installed Cursor SDK returned an invalid run handle.",
       );
     }
-    runId = run.id;
-    agentModel = model;
+    const runId = run.id;
     activeRun = { requestId, run };
-    for (const update of bufferedDeltas) {
-      emitRunEvent({
-        type: "delta",
-        requestId,
-        runId,
-        update: update as CursorSdkInteractionUpdate,
-      });
-    }
+    onAccepted?.(runId);
     void pumpRun(activeRun);
     return { runId };
   } finally {
     startInFlight = false;
   }
+}
+
+async function startRun(
+  requestId: string,
+  input: CursorSdkWorkerStartInput,
+): Promise<CursorSdkWorkerStartResult> {
+  const currentAgent = requireAgent();
+  diagnostics.rememberMcpSecrets(input.options?.mcpServers);
+  const bufferedDeltas: unknown[] = [];
+  let runId: string | undefined;
+  return launchRun(
+    requestId,
+    async () => {
+      const model = input.options?.model ?? currentAgent.model ?? agentModel;
+      await sdkRuntime.prepareModelSelection(model, agentApiKey);
+      const options: CursorSdkWorkerSendOptions & {
+        onDelta: (args: { update: unknown }) => void;
+      } = {
+        ...(input.options ?? {}),
+        // The resolved selection is always sent qualified so a send without a
+        // per-send override still qualifies a model resumed before the catalog
+        // was available.
+        ...(model ? { model: sdkRuntime.qualifyModelSelection(model) } : {}),
+        onDelta: ({ update }) => {
+          const transportUpdate = sanitizeInteractionUpdate(update);
+          if (runId) {
+            emitRunEvent({
+              type: "delta",
+              requestId,
+              runId,
+              update: transportUpdate,
+            });
+          } else {
+            bufferedDeltas.push(transportUpdate);
+          }
+        },
+      };
+      const run = await currentAgent.send(input.message, options);
+      runId = run?.id;
+      agentModel = model;
+      return run;
+    },
+    (acceptedRunId) => {
+      for (const update of bufferedDeltas) {
+        emitRunEvent({
+          type: "delta",
+          requestId,
+          runId: acceptedRunId,
+          update: update as CursorSdkInteractionUpdate,
+        });
+      }
+    },
+  );
+}
+
+/**
+ * `agent.summarize()` (1.2.0) issues no `onDelta` stream, so there is nothing
+ * to buffer: the normalized `summary`/`task` lifecycle arrives through
+ * `run.stream()` like any other run.
+ */
+async function summarizeRun(requestId: string): Promise<CursorSdkWorkerStartResult> {
+  const currentAgent = requireAgent();
+  if (typeof currentAgent.summarize !== "function") {
+    throw new WorkerDiagnosticError(
+      "summarize_unsupported",
+      "Summarizing a Cursor SDK conversation requires @cursor/sdk 1.2.0 or later.",
+    );
+  }
+  return launchRun(requestId, () => currentAgent.summarize!());
 }
 
 /**
