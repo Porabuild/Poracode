@@ -94,13 +94,17 @@ export const chromeSidebarClientIssueSchema = z.object({
 });
 
 /**
- * Extension IDs Poracode trusts. The first is derived from the public `key` in
- * `chrome-extension/manifest.json`, so every unpacked build shares it; append
- * the published Web Store ID when it differs. Chrome itself enforces these on
- * the native messaging host (`allowed_origins`), which is what proves identity:
- * a WebSocket `Origin` header alone is client-asserted.
+ * Extension IDs Poracode trusts. The first is the Chrome Web Store item, whose
+ * public key is the `key` in `chrome-extension/manifest.json`, so unpacked
+ * builds share its ID. The second is the development key's ID that unpacked
+ * 0.2.x installs still carry. Chrome itself enforces these on the native
+ * messaging host (`allowed_origins`), which is what proves identity: a
+ * WebSocket `Origin` header alone is client-asserted.
  */
-export const CHROME_SIDEBAR_EXTENSION_IDS: readonly string[] = ["nebjdbpljbmgchnecchddbiondbcdbbd"];
+export const CHROME_SIDEBAR_EXTENSION_IDS: readonly string[] = [
+  "idhpcefbiobbcccipohielcldnhobcgm",
+  "nebjdbpljbmgchnecchddbiondbcdbbd",
+];
 
 /** Development override: comma-separated extra extension IDs. */
 export const CHROME_SIDEBAR_EXTENSION_IDS_ENV = "PORACODE_CHROME_EXTENSION_IDS";
