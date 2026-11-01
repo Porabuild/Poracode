@@ -6,6 +6,7 @@ import { Button } from "./components/common/Button";
 import { readBridge } from "./bridge";
 import { captureRendererException } from "./diagnostics/sentry";
 import { i18n } from "./i18n/i18n";
+import { isStaleBuildReloadPending, reloadForStaleBuild } from "./staleBuildRecovery";
 
 export type RendererCrashKind = "bootstrap" | "react" | "uncaught" | "unhandled-rejection";
 
@@ -221,6 +222,7 @@ export class RendererErrorBoundary extends Component<
   };
 
   static getDerivedStateFromError(error: unknown): RendererErrorBoundaryState {
+    reloadForStaleBuild(error);
     return {
       report: createRendererCrashReport({
         kind: "react",
@@ -230,6 +232,7 @@ export class RendererErrorBoundary extends Component<
   }
 
   override componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
+    if (isStaleBuildReloadPending()) return;
     if (this.props.captureCaughtErrors ?? true) {
       captureRendererException(error, { featureArea: "react" }, errorInfo.componentStack?.trim());
     }
@@ -244,6 +247,8 @@ export class RendererErrorBoundary extends Component<
 
   override render() {
     if (this.state.report) {
+      // A stale-build reload is replacing the page; avoid flashing the crash screen.
+      if (isStaleBuildReloadPending()) return null;
       return <RendererCrashScreen report={this.state.report} />;
     }
 

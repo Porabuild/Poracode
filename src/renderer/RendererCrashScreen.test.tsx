@@ -30,6 +30,7 @@ import {
   RendererErrorBoundary,
 } from "./RendererCrashScreen";
 import { captureRendererException } from "./diagnostics/sentry";
+import { resetStaleBuildRecoveryForTest } from "./staleBuildRecovery";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -86,6 +87,30 @@ describe("RendererCrashScreen", () => {
     expect(screen.getByText("Renderer hit a React error")).toBeInTheDocument();
     expect(screen.getByText(/Message: render failed/)).toBeInTheDocument();
     expect(sentry.captureException).toHaveBeenCalledOnce();
+  });
+
+  it("reloads instead of showing the crash screen when a stale build misses a chunk", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const reload = vi.fn<() => void>();
+    window.sessionStorage.clear();
+    resetStaleBuildRecoveryForTest(reload);
+
+    function StaleChunk(): ReactNode {
+      throw new TypeError(
+        "Failed to fetch dynamically imported module: https://app.test/assets/ItemMarkdownInner-old.js",
+      );
+    }
+
+    const { container } = render(
+      <RendererErrorBoundary>
+        <StaleChunk />
+      </RendererErrorBoundary>,
+    );
+
+    expect(reload).toHaveBeenCalledOnce();
+    expect(container).toBeEmptyDOMElement();
+    expect(sentry.captureException).not.toHaveBeenCalled();
+    resetStaleBuildRecoveryForTest(reload);
   });
 
   it("lets the desktop root capture a boundary failure exactly once with safe component context", () => {
