@@ -47,6 +47,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   "@dnd-kit/react/sortable",
   "@git-diff-view/react",
   "@heroui/react",
+  "@heroui/styles",
   "@legendapp/list/react",
   "@lingui/core",
   "@lingui/core/macro",
