@@ -926,6 +926,59 @@ describe("ThreadDraftView", () => {
     );
   });
 
+  it("defaults a new worktree to the project default branch, not the current checkout", () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "perf/dev-server",
+          tracking: "origin/perf/dev-server",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "perf/dev-server",
+          defaultBranch: "origin/main",
+          branches: [
+            { name: "perf/dev-server", current: true, commit: "a", isRemote: false },
+            {
+              name: "perf/dev-server",
+              current: false,
+              commit: "a",
+              isRemote: true,
+              remote: "origin",
+            },
+            { name: "main", current: false, commit: "b", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeBaseBranch: "origin/main",
+        worktreeIsNewBranch: true,
+      }),
+    );
+  });
+
   it("keeps the uncommitted-changes worktree option after selecting a tracking branch", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useGitStore.setState({
@@ -965,6 +1018,61 @@ describe("ThreadDraftView", () => {
       expect.objectContaining({
         worktreeBaseBranch: "main",
         worktreeIsNewBranch: true,
+        worktreeTransferUncommitted: true,
+      }),
+    );
+  });
+
+  it("keeps worktree + changes available after a dirty feature branch defaults to the project branch", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "perf/dev-server",
+          tracking: "origin/perf/dev-server",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [
+            { path: "src/file.ts", status: "M", staged: false, insertions: 1, deletions: 0 },
+          ],
+          totalInsertions: 1,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "perf/dev-server",
+          defaultBranch: "origin/main",
+          branches: [
+            { name: "perf/dev-server", current: true, commit: "a", isRemote: false },
+            { name: "main", current: false, commit: "b", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Run in a separate worktree/ }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Worktree \+ changes/ }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(
+      "perf/dev-server",
+    );
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeBaseBranch: "perf/dev-server",
         worktreeTransferUncommitted: true,
       }),
     );
@@ -1024,6 +1132,46 @@ describe("ThreadDraftView", () => {
         worktreeTransferUncommitted: true,
       }),
     );
+  });
+
+  it("keeps experiments on the local checkout instead of the project default branch", () => {
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "feat",
+          tracking: "",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "feat",
+          defaultBranch: "origin/main",
+          branches: [
+            { name: "feat", current: true, commit: "a", isRemote: false },
+            { name: "main", current: false, commit: "b", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    const composer = composerSpy.mock.lastCall?.[0] as {
+      afterControls: ReactElement<{ experiment?: { onToggle: (enabled: boolean) => void } }>;
+    };
+    act(() => composer.afterControls.props.experiment?.onToggle(true));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("feat");
   });
 
   it.each([false, true])(

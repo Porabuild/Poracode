@@ -247,7 +247,14 @@ function mergeSummaryStatus(
 
 export function areBranchListsEqual(a: GitBranchListResult | undefined, b: GitBranchListResult) {
   if (a === b) return true;
-  if (!a || a.current !== b.current || a.branches.length !== b.branches.length) return false;
+  if (
+    !a ||
+    a.current !== b.current ||
+    a.defaultBranch !== b.defaultBranch ||
+    a.branches.length !== b.branches.length
+  ) {
+    return false;
+  }
   for (let i = 0; i < a.branches.length; i += 1) {
     const left = a.branches[i]!;
     const right = b.branches[i]!;

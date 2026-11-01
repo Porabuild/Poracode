@@ -623,3 +623,17 @@ describe("summaryBackfillMissed", () => {
     expect(summaryBackfillMissed(previous, incoming)).toBe(true);
   });
 });
+
+describe("setBranches", () => {
+  it("publishes a branch list whose only change is the remote default branch", () => {
+    const list: GitBranchListResult = {
+      current: "main",
+      branches: [{ name: "main", current: true, commit: "abc", isRemote: false }],
+    };
+    useGitStore.setState({ branches: { p1: list } });
+
+    useGitStore.getState().setBranches("p1", { ...list, defaultBranch: "origin/main" });
+
+    expect(useGitStore.getState().branches.p1?.defaultBranch).toBe("origin/main");
+  });
+});

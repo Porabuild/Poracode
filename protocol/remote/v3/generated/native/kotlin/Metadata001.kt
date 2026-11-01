@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:cb30c9797a3b5e420aa282c3b3f083bda5d15673a9b103016c43c68496184f52"
+    const val sourceHash = "sha256:5af8e9263ab268eac0ee0b23cfd42cc79c13e29fb80a29bfb6fd8a40a7d56d54"
     const val manifestHash = "sha256:0cc3d41e33fa8b3fb6138c2027ed9da3c42ab15c24b3e1a3723e73c8e9a15d8f"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -111,7 +111,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("schedules-read", "GET", "/api/schedules", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteschedulesU2DCommandResponse_bc1920595e", listOf()),
         RemoteRouteDescriptor("settings-read", "GET", "/api/settings", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutesettingsU2DReadResponse_f87159e788", listOf()),
         RemoteRouteDescriptor("settings-write", "POST", "/api/settings", "bearer", listOf("session:operate"), "json", "json", 200, "RoutesettingsU2DWriteRequest_c641a53243", "RoutesettingsU2DReadResponse_f87159e788", listOf()),
-        RemoteRouteDescriptor("shell-snapshot", "GET", "/api/snapshot", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteshellU2DSnapshotResponse_cc9f9333ba", listOf(RemoteQueryParameterDescriptor("reads", "string", true, false), RemoteQueryParameterDescriptor("threadLimit", "int", true, false), RemoteQueryParameterDescriptor("order", "string", true, false), RemoteQueryParameterDescriptor("projectLimit", "int", true, false), RemoteQueryParameterDescriptor("summaries", "0-or-1", true, false), RemoteQueryParameterDescriptor("maxBytes", "int", true, false), RemoteQueryParameterDescriptor("maxDecodeBytes", "int", true, false))),
+        RemoteRouteDescriptor("shell-snapshot", "GET", "/api/snapshot", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteshellU2DSnapshotResponse_b370c42275", listOf(RemoteQueryParameterDescriptor("reads", "string", true, false), RemoteQueryParameterDescriptor("threadLimit", "int", true, false), RemoteQueryParameterDescriptor("order", "string", true, false), RemoteQueryParameterDescriptor("projectLimit", "int", true, false), RemoteQueryParameterDescriptor("summaries", "0-or-1", true, false), RemoteQueryParameterDescriptor("maxBytes", "int", true, false), RemoteQueryParameterDescriptor("maxDecodeBytes", "int", true, false))),
         RemoteRouteDescriptor("terminal-close", "POST", "/api/threads/{threadId}/terminal/close", "bearer", listOf("terminal:operate"), "json", "json", 200, "RoutehostU2DUpdateU2DInstallResponse_81055c9199", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("terminal-resize", "POST", "/api/threads/{threadId}/terminal/resize", "bearer", listOf("terminal:operate"), "json", "json", 200, "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("terminal-start", "POST", "/api/terminal/start", "bearer", listOf("terminal:operate"), "json", "json", 200, "RouteterminalU2DStartRequest_b03238f553", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
@@ -238,10 +238,10 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("gitGetWorktreeOwner", "session:read", "projectLocation", "json", "ProcedureghGetPrChecksRequest_50e8e4265c", "ProceduregitGetWorktreeOwnerResult_3a27703aea"),
         RemoteProcedureDescriptor("gitGetWorktreeSourceBranch", "session:read", "projectLocation", "json", "ProceduregitGetWorktreeSourceBranchRequest_6900ba2bd9", "ProceduregitGetWorktreeSourceBranchResult_4864c5f65a"),
         RemoteProcedureDescriptor("gitInit", "session:operate", "projectLocation", "omitted", "ProceduredetectSetupScriptRequest_5e3a19fb85", "RemoteUnit"),
-        RemoteProcedureDescriptor("gitListBranches", "session:read", "projectLocation", "json", "ProceduregitListBranchesRequest_632568cf23", "ProceduregitListBranchesResult_458a450839"),
+        RemoteProcedureDescriptor("gitListBranches", "session:read", "projectLocation", "json", "ProceduregitListBranchesRequest_632568cf23", "ProceduregitListBranchesResult_cbe0ba2411"),
         RemoteProcedureDescriptor("gitListWorktrees", "session:read", "projectLocation", "json", "ProceduredetectSetupScriptRequest_5e3a19fb85", "ProceduregitListWorktreesResult_70e5b904af"),
         RemoteProcedureDescriptor("gitMergeToSource", "session:operate", "projectLocation", "json", "ProceduregitMergeToSourceRequest_e41b25797e", "ProceduregitMergeToSourceResult_0bd6eab0e2"),
-        RemoteProcedureDescriptor("gitProjectSnapshot", "session:read", "projectLocation", "json", "ProceduregitProjectSnapshotRequest_7e2ac4b648", "ProceduregitProjectSnapshotResult_35889b09eb"),
+        RemoteProcedureDescriptor("gitProjectSnapshot", "session:read", "projectLocation", "json", "ProceduregitProjectSnapshotRequest_7e2ac4b648", "ProceduregitProjectSnapshotResult_d581274b50"),
         RemoteProcedureDescriptor("gitPruneWorktrees", "session:operate", "projectLocation", "omitted", "ProceduregitPruneWorktreesRequest_922ae6d8b3", "RemoteUnit"),
         RemoteProcedureDescriptor("gitPull", "session:operate", "projectLocation", "omitted", "ProceduregitPullRebaseRequest_78a16ea622", "RemoteUnit"),
         RemoteProcedureDescriptor("gitPullFromSource", "session:operate", "worktreeLocation", "json", "ProceduregitPullFromSourceRequest_d7cf7473af", "ProceduregitPullFromSourceResult_920e2e5db2"),

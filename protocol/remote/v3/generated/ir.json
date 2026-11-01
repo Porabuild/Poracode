@@ -23365,6 +23365,9 @@
             },
             "current": {
               "type": "string"
+            },
+            "defaultBranch": {
+              "type": "string"
             }
           },
           "required": [
@@ -23858,6 +23861,9 @@
                       "type": "array"
                     },
                     "current": {
+                      "type": "string"
+                    },
+                    "defaultBranch": {
                       "type": "string"
                     }
                   },
@@ -65128,6 +65134,9 @@
                           },
                           "current": {
                             "type": "string"
+                          },
+                          "defaultBranch": {
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -78773,7 +78782,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:cb30c9797a3b5e420aa282c3b3f083bda5d15673a9b103016c43c68496184f52",
+  "sourceHash": "sha256:5af8e9263ab268eac0ee0b23cfd42cc79c13e29fb80a29bfb6fd8a40a7d56d54",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

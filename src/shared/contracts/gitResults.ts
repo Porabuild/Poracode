@@ -105,6 +105,7 @@ export const gitBranchInfoSchema = z.object({
 export const gitBranchListResultSchema = z.object({
   current: z.string(),
   branches: z.array(gitBranchInfoSchema),
+  defaultBranch: z.string().optional(),
 });
 
 export const gitWorktreeInfoSchema = z.object({

@@ -1,7 +1,7 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
-  static let routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_cc9f9333ba> = .init(id: "route.shell-snapshot.response", schema: RemoteSchemas.schema_cc9f9333ba81f5d3)
+  static let routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_b370c42275> = .init(id: "route.shell-snapshot.response", schema: RemoteSchemas.schema_b370c4227543a5a8)
 }
 
 public extension RemoteRootCodecs {

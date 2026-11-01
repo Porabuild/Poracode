@@ -47,8 +47,8 @@ val RemoteRootCodecs.procedureU2EGitInitU2ERequest: RemoteRootCodec<Proceduredet
 val RemoteRootCodecs.procedureU2EGitListBranchesU2ERequest: RemoteRootCodec<ProceduregitListBranchesRequest_632568cf23>
     get() = RemoteRootCodec("procedure.gitListBranches.request", serializer<ProceduregitListBranchesRequest_632568cf23>(), schema_632568cf23c893da)
 
-val RemoteRootCodecs.procedureU2EGitListBranchesU2EResult: RemoteRootCodec<ProceduregitListBranchesResult_458a450839>
-    get() = RemoteRootCodec("procedure.gitListBranches.result", serializer<ProceduregitListBranchesResult_458a450839>(), schema_458a4508393abce2)
+val RemoteRootCodecs.procedureU2EGitListBranchesU2EResult: RemoteRootCodec<ProceduregitListBranchesResult_cbe0ba2411>
+    get() = RemoteRootCodec("procedure.gitListBranches.result", serializer<ProceduregitListBranchesResult_cbe0ba2411>(), schema_cbe0ba241100dba5)
 
 val RemoteRootCodecs.procedureU2EGitListWorktreesU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85>
     get() = RemoteRootCodec("procedure.gitListWorktrees.request", serializer<ProceduredetectSetupScriptRequest_5e3a19fb85>(), schema_5e3a19fb856f8915)
@@ -65,8 +65,8 @@ val RemoteRootCodecs.procedureU2EGitMergeToSourceU2EResult: RemoteRootCodec<Proc
 val RemoteRootCodecs.procedureU2EGitProjectSnapshotU2ERequest: RemoteRootCodec<ProceduregitProjectSnapshotRequest_7e2ac4b648>
     get() = RemoteRootCodec("procedure.gitProjectSnapshot.request", serializer<ProceduregitProjectSnapshotRequest_7e2ac4b648>(), schema_7e2ac4b6482d3bf6)
 
-val RemoteRootCodecs.procedureU2EGitProjectSnapshotU2EResult: RemoteRootCodec<ProceduregitProjectSnapshotResult_35889b09eb>
-    get() = RemoteRootCodec("procedure.gitProjectSnapshot.result", serializer<ProceduregitProjectSnapshotResult_35889b09eb>(), schema_35889b09eb72e208)
+val RemoteRootCodecs.procedureU2EGitProjectSnapshotU2EResult: RemoteRootCodec<ProceduregitProjectSnapshotResult_d581274b50>
+    get() = RemoteRootCodec("procedure.gitProjectSnapshot.result", serializer<ProceduregitProjectSnapshotResult_d581274b50>(), schema_d581274b5086148c)
 
 val RemoteRootCodecs.procedureU2EGitPruneWorktreesU2ERequest: RemoteRootCodec<ProceduregitPruneWorktreesRequest_922ae6d8b3>
     get() = RemoteRootCodec("procedure.gitPruneWorktrees.request", serializer<ProceduregitPruneWorktreesRequest_922ae6d8b3>(), schema_922ae6d8b34c9e29)

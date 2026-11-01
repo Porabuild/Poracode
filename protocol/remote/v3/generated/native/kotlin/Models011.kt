@@ -25,14 +25,16 @@ data class ProceduregitListBranchesResultU2DBranchesU2DItem_6602e9e9c3(
 }
 
 @Serializable
-data class ProceduregitListBranchesResult_458a450839(
+data class ProceduregitListBranchesResult_cbe0ba2411(
     @SerialName("branches") val branches: List<ProceduregitListBranchesResultU2DBranchesU2DItem_6602e9e9c3>,
     @SerialName("current") val current: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
+    @SerialName("defaultBranch") val defaultBranch: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("branches", "List<ProceduregitListBranchesResultU2DBranchesU2DItem_6602e9e9c3>", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("current", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("defaultBranch", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
@@ -116,7 +118,7 @@ data class ProceduregitProjectSnapshotRequest_7e2ac4b648(
     }
 }
 
-typealias ProceduregitProjectSnapshotResultU2DBranches_d715cb198a = ProceduregitListBranchesResult_458a450839?
+typealias ProceduregitProjectSnapshotResultU2DBranches_86a79adde4 = ProceduregitListBranchesResult_cbe0ba2411?
 
 typealias ProceduregitProjectSnapshotResultU2DGhAvailable_78c0e367e5 = Boolean?
 
@@ -125,15 +127,15 @@ typealias ProceduregitProjectSnapshotResultU2DStatus_98139abfca = ProceduregetGi
 typealias ProceduregitProjectSnapshotResultU2DWorktrees_694e88722e = List<ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6>?
 
 @Serializable
-data class ProceduregitProjectSnapshotResult_35889b09eb(
-    @SerialName("branches") val branches: RemoteField<ProceduregitListBranchesResult_458a450839>,
+data class ProceduregitProjectSnapshotResult_d581274b50(
+    @SerialName("branches") val branches: RemoteField<ProceduregitListBranchesResult_cbe0ba2411>,
     @SerialName("ghAvailable") val ghAvailable: RemoteField<Boolean>,
     @SerialName("status") val status: RemoteField<ProceduregetGitStatusResult_c1d4a9f752>,
     @SerialName("worktrees") val worktrees: RemoteField<List<ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6>>,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("branches", "ProceduregitListBranchesResult_458a450839", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("branches", "ProceduregitListBranchesResult_cbe0ba2411", true, true, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("ghAvailable", "Boolean", true, true, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("status", "ProceduregetGitStatusResult_c1d4a9f752", true, true, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("worktrees", "List<ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6>", true, true, null, null, null, null, null, null, null, null, listOf()),
