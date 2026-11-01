@@ -38,6 +38,10 @@ msgstr "(немає гілки)"
 #~ msgid "(no message)"
 #~ msgstr "(немає повідомлення)"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "(optional)"
+msgstr "(необов’язково)"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -1035,6 +1039,10 @@ msgstr "3D-перегляд без керування. Перетягуйте а
 msgid "4K"
 msgstr "4K"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "5 files · 10 MB each"
+msgstr "5 файлів · до 10 МБ кожен"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "7d"
 msgstr "7 дн"
@@ -1419,6 +1427,10 @@ msgstr "Додайте облікові дані, перш ніж цей тре�
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Add fallback"
 msgstr "Додати резервний варіант"
+
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Add files, drop here, or paste an image"
+msgstr "Додайте файли, перетягніть сюди або вставте зображення"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
@@ -2294,6 +2306,10 @@ msgstr "Прикріпити до треду"
 msgid "Attached browser selection."
 msgstr "Вибір у браузері прикріплено."
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Attachments"
+msgstr "Вкладення"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Attempt"
 msgstr "Спроба"
@@ -2896,6 +2912,10 @@ msgstr "Вхід через браузер"
 msgid "Budget limit reached"
 msgstr "Досягнуто ліміту бюджету"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Bug"
+msgstr "Помилка"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Builder"
 msgstr "Розробник"
@@ -3017,6 +3037,7 @@ msgstr "Цей вибір моделі не можна використовув�
 
 #: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -3544,6 +3565,10 @@ msgstr "Виберіть робочу область для нових хмар�
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "Виберіть тред для прикріплення"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Choose up to 5 supported files, 10 MB each."
+msgstr "Виберіть до 5 підтримуваних файлів розміром до 10 МБ кожен."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Choose what happens after a scheduled time was missed."
@@ -7283,6 +7308,10 @@ msgstr "Виконання"
 msgid "Execution mode"
 msgstr "Режим виконання"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Existing issues"
+msgstr "Наявні звернення"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Existing or edited native entry; left unchanged"
 msgstr "Наявний або змінений запис CLI залишено без змін"
@@ -7679,6 +7708,22 @@ msgstr "Вибране"
 msgid "Featured"
 msgstr "Рекомендовані"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not be sent. Your draft is kept."
+msgstr "Не вдалося надіслати відгук. Чернетку збережено."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not load. Please try again later."
+msgstr "Не вдалося завантажити форму. Спробуйте пізніше."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback is temporarily unavailable. Please try again later."
+msgstr "Відгуки тимчасово недоступні. Спробуйте пізніше."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback sent"
+msgstr "Відгук надіслано"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Fetch"
 msgstr "Отримати"
@@ -7895,6 +7940,10 @@ msgstr "Завершено · Очікується ваш ввід"
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
 #~ msgstr "Першокласна інтеграція Antigravity CLI з використанням нативного середовища виконання Poracode."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Finishing your report on GitHub…"
+msgstr "Завершуємо створення звернення на GitHub…"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Antigravity integration using the agy terminal CLI and Google's official ACP Chat runtime."
@@ -8883,6 +8932,10 @@ msgstr "Колір іконки: {label}"
 msgid "ID: {0}"
 msgstr "ID: {0}"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Idea"
+msgstr "Ідея"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Identifier"
 msgstr "Ідентифікатор"
@@ -9124,6 +9177,10 @@ msgstr "Сканування камерою в застосунку працює
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "Неактивно"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Include basic diagnostics"
+msgstr "Додати базову діагностику"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
@@ -12733,6 +12790,10 @@ msgstr "Відкрити експеримент"
 msgid "Open experiment board"
 msgstr "Відкрити дошку експерименту"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Open feedback on website"
+msgstr "Відкрити форму на сайті"
+
 #: src/renderer/commands/registry.ts
 msgid "Open File"
 msgstr "Відкрити файл"
@@ -13980,6 +14041,10 @@ msgstr "Підготовка віддаленого середовища…"
 #~ msgid "Presentation"
 #~ msgstr "Представлення"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Preparing your report…"
+msgstr "Готуємо звернення…"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Presets"
 msgstr "Пресети"
@@ -14020,6 +14085,7 @@ msgstr "Натисніть пробіл, щоб почати змінювати 
 msgid "Prevent system sleep"
 msgstr "Запобігати сну системи"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Попередній перегляд"
@@ -14362,6 +14428,10 @@ msgstr "Постачальники"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
 #~ msgid "Providers & models"
 #~ msgstr "Провайдери та моделі"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Public on GitHub."
+msgstr "Публічно на GitHub."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -15013,8 +15083,9 @@ msgid "Remove “{removingTarget}” from OpenCode 2? You can install it again f
 msgstr "Видалити «{removingTarget}» з OpenCode 2? Ви зможете встановити його знову в розділі «Огляд»."
 
 #. placeholder {0}: att.name
+#. placeholder {0}: file.name
 #. placeholder {0}: pkg.target
-#. placeholder {0}: removeProject.name
+#: src/renderer/components/common/FeedbackAttachments.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
@@ -15351,6 +15422,10 @@ msgstr "Зміну порядку скасовано."
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
 msgstr "Повторювати"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Report a bug or suggest an idea."
+msgstr "Повідомте про помилку або запропонуйте ідею."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Report an Issue"
@@ -16896,6 +16971,7 @@ msgstr "Вибрано"
 msgid "Selected sidebar row"
 msgstr "Вибраний рядок бічної панелі"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatComposer.tsx
@@ -16906,6 +16982,11 @@ msgstr "Надіслати"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Send a message..."
 msgstr "Надіслати повідомлення..."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Send feedback"
+msgstr "Надіслати відгук"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Send generic text instead of conversation titles through Apple's push service."
@@ -18107,6 +18188,10 @@ msgstr "Коригування скасовано до надсилання по
 msgid "Steer was replaced by a newer message."
 msgstr "Коригування замінено новішим повідомленням."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Still processing. Send again to check the same report."
+msgstr "Ще обробляється. Надішліть знову, щоб перевірити те саме звернення."
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -19141,6 +19226,10 @@ msgstr "Віддалений сервер не повернув облікові
 msgid "The replacement message could not be sent."
 msgstr "Не вдалося надіслати повідомлення на заміну."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "The report could not be confirmed yet. Please retry."
+msgstr "Звернення ще не підтверджено. Спробуйте знову."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Розташування репозиторію на диску. Оновіть його, якщо ви перемістили папку."
@@ -19837,6 +19926,10 @@ msgstr "Вибраний емулятор завершить роботу, ус�
 msgid "This source host does not support safe automatic merge."
 msgstr "Цей вихідний сервер не підтримує безпечне автоматичне злиття."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "This submission has expired. Your draft is kept."
+msgstr "Термін надсилання минув. Чернетку збережено."
+
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
 msgstr "Не вдалося відобразити цей SVG."
@@ -20075,6 +20168,7 @@ msgstr "Тайм-аут (мс)"
 msgid "Timeout must be a positive whole number."
 msgstr "Тайм-аут має бути додатним цілим числом."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrTitleBlock.tsx
 msgid "Title"
 msgstr "Назва"
@@ -21182,6 +21276,11 @@ msgstr "Оновити власника середовища"
 msgid "Upgrade owner"
 msgstr "Оновити власника"
 
+#. placeholder {0}: progress.upload
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Uploading attachment {0}…"
+msgstr "Завантажуємо вкладення {0}…"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Upside down"
 msgstr "Догори дриґом"
@@ -21448,6 +21547,14 @@ msgstr "значення"
 #~ msgid "Verify SSH host key"
 #~ msgstr "Перевірити ключ SSH-хоста"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Verification"
+msgstr "Перевірка"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Verification could not load. Please try again."
+msgstr "Не вдалося завантажити перевірку. Спробуйте знову."
+
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
@@ -21455,6 +21562,10 @@ msgstr "значення"
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Version"
 msgstr "Версія"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Version and platform only. No chat history, code, or project paths."
+msgstr "Лише версія та платформа. Без історії чату, коду й шляхів проєктів."
 
 #. placeholder {0}: metadata.authMethod
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
@@ -21491,6 +21602,10 @@ msgstr "Усі випуски на GitHub"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "Відкрити повний список змін"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "View GitHub issue"
+msgstr "Переглянути звернення на GitHub"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "View only"
@@ -21794,6 +21909,10 @@ msgstr "Щотижневий огляд"
 #~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 #~ msgstr "Чого Crossagents навчилися з явних виборів. Редагуйте теги або видаляйте записи, щоб змінити маршрутизацію."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What happened?"
+msgstr "Що сталося?"
+
 #: src/renderer/components/providers/devin/sessionReviseForm.tsx
 msgid "What should change? (optional)"
 msgstr "Що має змінитися? (необов'язково)"
@@ -21814,6 +21933,10 @@ msgstr "Що робить кнопка створення PR за замовчу
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "What this server provides"
 msgstr "Що надає цей сервер"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What would you like to see?"
+msgstr "Що ви хотіли б побачити?"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
@@ -22239,6 +22362,14 @@ msgstr "Ваші плагіни"
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatComposer.tsx
 msgid "Your question is kept. Use Retry above to send it again."
 msgstr "Ваше запитання збережено. Натисніть «Повторити» вище, щоб надіслати його знову."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments are now on GitHub."
+msgstr "Ваше звернення та вкладення тепер на GitHub."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments will be visible to everyone."
+msgstr "Ваше звернення та вкладення будуть видимі всім."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"

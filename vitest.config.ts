@@ -61,7 +61,7 @@ export default defineConfig({
     projects: [
       rendererProject({
         name: "renderer",
-        include: ["src/renderer/**/*.test.{ts,tsx}"],
+        include: ["src/renderer/**/*.test.{ts,tsx}", "website/src/**/*.test.tsx"],
         exclude: ["**/*.perf.test.ts", ...monacoTestFiles],
       }),
       rendererProject({
@@ -94,7 +94,7 @@ export default defineConfig({
           // Protocol conformance lives under protocol/ but needs the same node
           // environment and `@` alias as src. Folded into this project so
           // `pnpm run test --shard=N/4` never shards a one-file project.
-          include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts"],
+          include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts", "website/src/**/*.test.ts"],
           // Project-level exclude replaces the inherited root exclude, so the
           // perf-suite pattern is restated here.
           exclude: ["src/renderer/**/*.test.{ts,tsx}", "**/*.perf.test.ts", ...coreShardExcludes],

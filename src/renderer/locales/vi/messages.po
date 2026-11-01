@@ -38,6 +38,10 @@ msgstr "(không có nhánh)"
 #~ msgid "(no message)"
 #~ msgstr "(không có tin nhắn)"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "(optional)"
+msgstr "(không bắt buộc)"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -1035,6 +1039,10 @@ msgstr "Xem trước 3D, chỉ xem. Kéo hoặc dùng phím mũi tên để xoay
 msgid "4K"
 msgstr "4K"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "5 files · 10 MB each"
+msgstr "5 tệp · mỗi tệp 10 MB"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "7d"
 msgstr "7 ngày"
@@ -1419,6 +1427,10 @@ msgstr "Thêm thông tin xác thực trước khi chuỗi này có thể chạy.
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Add fallback"
 msgstr "Thêm phương án dự phòng"
+
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Add files, drop here, or paste an image"
+msgstr "Thêm tệp, thả vào đây hoặc dán hình ảnh"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
@@ -2294,6 +2306,10 @@ msgstr "Gắn vào chủ đề"
 msgid "Attached browser selection."
 msgstr "Lựa chọn trình duyệt đính kèm."
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Attachments"
+msgstr "Tệp đính kèm"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Attempt"
 msgstr "Lần thử"
@@ -2896,6 +2912,10 @@ msgstr "Đăng nhập bằng trình duyệt"
 msgid "Budget limit reached"
 msgstr "Đã đạt đến giới hạn ngân sách"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Bug"
+msgstr "Lỗi"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Builder"
 msgstr "Người xây dựng"
@@ -3017,6 +3037,7 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 
 #: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -3544,6 +3565,10 @@ msgstr "Chọn workspace cho các cuộc trò chuyện đám mây mới. Các ph
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "Chọn chủ đề để đính kèm"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Choose up to 5 supported files, 10 MB each."
+msgstr "Chọn tối đa 5 tệp được hỗ trợ, mỗi tệp 10 MB."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Choose what happens after a scheduled time was missed."
@@ -7283,6 +7308,10 @@ msgstr "Thực thi"
 msgid "Execution mode"
 msgstr "Chế độ thực thi"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Existing issues"
+msgstr "Các vấn đề hiện có"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Existing or edited native entry; left unchanged"
 msgstr "Mục cấu hình gốc đã tồn tại hoặc đã được chỉnh sửa; giữ nguyên"
@@ -7679,6 +7708,22 @@ msgstr "Yêu thích"
 msgid "Featured"
 msgstr "Nổi bật"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not be sent. Your draft is kept."
+msgstr "Không thể gửi phản hồi. Bản nháp đã được giữ lại."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not load. Please try again later."
+msgstr "Không thể tải biểu mẫu phản hồi. Vui lòng thử lại sau."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback is temporarily unavailable. Please try again later."
+msgstr "Phản hồi tạm thời không khả dụng. Vui lòng thử lại sau."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback sent"
+msgstr "Đã gửi phản hồi"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Fetch"
 msgstr "Tìm nạp"
@@ -7895,6 +7940,10 @@ msgstr "Đã hoàn tất · Đang chờ bạn nhập"
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
 #~ msgstr "Tích hợp CLI Antigravity hạng nhất bằng thời gian chạy gốc của Poracode."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Finishing your report on GitHub…"
+msgstr "Đang hoàn tất báo cáo trên GitHub…"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Antigravity integration using the agy terminal CLI and Google's official ACP Chat runtime."
@@ -8883,6 +8932,10 @@ msgstr "Màu biểu tượng: {label}"
 msgid "ID: {0}"
 msgstr "Mã số: {0}"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Idea"
+msgstr "Ý tưởng"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Identifier"
 msgstr "Định danh"
@@ -9124,6 +9177,10 @@ msgstr "Quét bằng camera trong ứng dụng chỉ hoạt động qua HTTPS ho
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "Không hoạt động"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Include basic diagnostics"
+msgstr "Bao gồm thông tin chẩn đoán cơ bản"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
@@ -12733,6 +12790,10 @@ msgstr "Mở thử nghiệm"
 msgid "Open experiment board"
 msgstr "Mở bảng thử nghiệm"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Open feedback on website"
+msgstr "Mở phản hồi trên trang web"
+
 #: src/renderer/commands/registry.ts
 msgid "Open File"
 msgstr "Mở tệp"
@@ -13980,6 +14041,10 @@ msgstr "Đang chuẩn bị môi trường từ xa…"
 #~ msgid "Presentation"
 #~ msgstr "Cách trình bày"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Preparing your report…"
+msgstr "Đang chuẩn bị báo cáo…"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Presets"
 msgstr "Cấu hình sẵn"
@@ -14020,6 +14085,7 @@ msgstr "Nhấn phím cách để bắt đầu sắp xếp lại. Dùng các phí
 msgid "Prevent system sleep"
 msgstr "Ngăn hệ thống chuyển sang chế độ ngủ"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Xem trước"
@@ -14362,6 +14428,10 @@ msgstr "Nhà cung cấp"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
 #~ msgid "Providers & models"
 #~ msgstr "Nhà cung cấp & mô hình"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Public on GitHub."
+msgstr "Công khai trên GitHub."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -15013,8 +15083,9 @@ msgid "Remove “{removingTarget}” from OpenCode 2? You can install it again f
 msgstr "Xóa “{removingTarget}” khỏi OpenCode 2? Bạn có thể cài lại từ mục “Khám phá”."
 
 #. placeholder {0}: att.name
+#. placeholder {0}: file.name
 #. placeholder {0}: pkg.target
-#. placeholder {0}: removeProject.name
+#: src/renderer/components/common/FeedbackAttachments.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
@@ -15351,6 +15422,10 @@ msgstr "Đã hủy sắp xếp lại."
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
 msgstr "Lặp lại"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Report a bug or suggest an idea."
+msgstr "Báo lỗi hoặc đề xuất ý tưởng."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Report an Issue"
@@ -16896,6 +16971,7 @@ msgstr "Đã chọn"
 msgid "Selected sidebar row"
 msgstr "Hàng được chọn ở thanh bên"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatComposer.tsx
@@ -16906,6 +16982,11 @@ msgstr "Gửi"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Send a message..."
 msgstr "Gửi tin nhắn..."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Send feedback"
+msgstr "Gửi phản hồi"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Send generic text instead of conversation titles through Apple's push service."
@@ -18107,6 +18188,10 @@ msgstr "Việc điều hướng đã bị hủy trước khi tin nhắn được
 msgid "Steer was replaced by a newer message."
 msgstr "Việc điều hướng đã được thay bằng một tin nhắn mới hơn."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Still processing. Send again to check the same report."
+msgstr "Vẫn đang xử lý. Gửi lại để kiểm tra cùng báo cáo này."
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -19141,6 +19226,10 @@ msgstr "Máy chủ từ xa không trả về thông tin xác thực ghép nối.
 msgid "The replacement message could not be sent."
 msgstr "Không thể gửi tin nhắn thay thế."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "The report could not be confirmed yet. Please retry."
+msgstr "Chưa thể xác nhận báo cáo. Vui lòng thử lại."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Vị trí của kho lưu trữ trên đĩa. Hãy cập nhật nếu bạn đã di chuyển thư mục."
@@ -19837,6 +19926,10 @@ msgstr "Thao tác này tắt trình giả lập đã chọn và ngắt mọi ng�
 msgid "This source host does not support safe automatic merge."
 msgstr "Máy chủ nguồn này không hỗ trợ hợp nhất tự động an toàn."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "This submission has expired. Your draft is kept."
+msgstr "Lần gửi này đã hết hạn. Bản nháp đã được giữ lại."
+
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
 msgstr "Không thể hiển thị SVG này."
@@ -20075,6 +20168,7 @@ msgstr "Thời gian chờ (ms)"
 msgid "Timeout must be a positive whole number."
 msgstr "Thời gian chờ phải là số nguyên dương."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrTitleBlock.tsx
 msgid "Title"
 msgstr "Tiêu đề"
@@ -21182,6 +21276,11 @@ msgstr "Nâng cấp chủ sở hữu môi trường"
 msgid "Upgrade owner"
 msgstr "Nâng cấp chủ sở hữu"
 
+#. placeholder {0}: progress.upload
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Uploading attachment {0}…"
+msgstr "Đang tải tệp đính kèm {0}…"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Upside down"
 msgstr "Lộn ngược"
@@ -21448,6 +21547,14 @@ msgstr "giá trị"
 #~ msgid "Verify SSH host key"
 #~ msgstr "Xác minh khóa máy chủ SSH"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Verification"
+msgstr "Xác minh"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Verification could not load. Please try again."
+msgstr "Không thể tải xác minh. Vui lòng thử lại."
+
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
@@ -21455,6 +21562,10 @@ msgstr "giá trị"
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Version"
 msgstr "Phiên bản"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Version and platform only. No chat history, code, or project paths."
+msgstr "Chỉ phiên bản và nền tảng. Không có lịch sử trò chuyện, mã hay đường dẫn dự án."
 
 #. placeholder {0}: metadata.authMethod
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
@@ -21491,6 +21602,10 @@ msgstr "Xem tất cả bản phát hành trên GitHub"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "Xem toàn bộ nhật ký thay đổi"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "View GitHub issue"
+msgstr "Xem vấn đề trên GitHub"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "View only"
@@ -21794,6 +21909,10 @@ msgstr "Đánh giá hằng tuần"
 #~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 #~ msgstr "Những gì Crossagents học được từ các lựa chọn rõ ràng. Chỉnh sửa thẻ hoặc xóa mục để định hình lại định tuyến."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What happened?"
+msgstr "Điều gì đã xảy ra?"
+
 #: src/renderer/components/providers/devin/sessionReviseForm.tsx
 msgid "What should change? (optional)"
 msgstr "Cần thay đổi gì? (tùy chọn)"
@@ -21814,6 +21933,10 @@ msgstr "Chức năng của nút Tạo PR theo mặc định: mở hộp thoại 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "What this server provides"
 msgstr "Nội dung mà máy chủ này cung cấp"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What would you like to see?"
+msgstr "Bạn muốn thấy điều gì?"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
@@ -22239,6 +22362,14 @@ msgstr "Plugin của bạn"
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatComposer.tsx
 msgid "Your question is kept. Use Retry above to send it again."
 msgstr "Câu hỏi của bạn được giữ lại. Dùng Thử lại ở trên để gửi lại."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments are now on GitHub."
+msgstr "Báo cáo và tệp đính kèm của bạn hiện đã có trên GitHub."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments will be visible to everyone."
+msgstr "Báo cáo và tệp đính kèm của bạn sẽ hiển thị với mọi người."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"

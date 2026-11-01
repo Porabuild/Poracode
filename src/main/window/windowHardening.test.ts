@@ -21,6 +21,7 @@ function createWindowHarness() {
   const window = {
     isDestroyed: vi.fn<() => boolean>(() => false),
     webContents: {
+      mainFrame: { url: "file:///app/index.html", parent: null },
       on: vi.fn<(event: string, handler: Handler) => void>((event, handler) => {
         handlers.set(event, handler);
       }),
@@ -40,6 +41,33 @@ function createWindowHarness() {
 const killed = { reason: "killed", exitCode: 9 } satisfies RenderProcessGoneDetails;
 
 describe("inline visual frame navigation", () => {
+  it("admits only the feedback frame and challenges inside it, including redirects", () => {
+    const { window, handlers } = createWindowHarness();
+    installAppNavigationGuards(window, { isDev: false });
+    const main = window.webContents.mainFrame;
+    const feedback = { url: "https://poracode.com/feedback/verify", parent: main };
+    const challenge = { url: "https://challenges.cloudflare.com/widget", parent: feedback };
+    for (const event of ["will-frame-navigate", "will-redirect"]) {
+      for (const [url, frame, allowed] of [
+        [feedback.url, feedback, true],
+        [challenge.url, challenge, true],
+        [challenge.url, { parent: challenge }, true],
+        [challenge.url, { parent: main }, false],
+        [feedback.url, { parent: challenge }, false],
+        ["https://poracode.com/feedback/verify?other=1", feedback, false],
+        ["https://challenges.cloudflare.com.evil.test/widget", challenge, false],
+        ["https://evil.test/", feedback, false],
+      ] as const) {
+        const preventDefault = vi.fn<() => void>();
+        handlers.get(event)!({ url, frame, isMainFrame: false, preventDefault }, url);
+        expect(preventDefault).toHaveBeenCalledTimes(allowed ? 0 : 1);
+      }
+    }
+    const preventDefault = vi.fn<() => void>();
+    handlers.get("will-redirect")!({ isMainFrame: true, preventDefault }, feedback.url);
+    expect(preventDefault).toHaveBeenCalledOnce();
+  });
+
   it("blocks subframe file, host, and network navigations while allowing srcdoc", () => {
     const { window, handlers } = createWindowHarness();
     installAppNavigationGuards(window, { isDev: true, devServerUrl: "http://localhost:3100" });

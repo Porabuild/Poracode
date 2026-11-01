@@ -38,6 +38,10 @@ msgstr "(브랜치 없음)"
 #~ msgid "(no message)"
 #~ msgstr "(메시지 없음)"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "(optional)"
+msgstr "(선택 사항)"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -1035,6 +1039,10 @@ msgstr "3D 미리보기, 보기 전용입니다. 드래그하거나 화살표 �
 msgid "4K"
 msgstr "4K"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "5 files · 10 MB each"
+msgstr "파일 5개 · 각 10 MB"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "7d"
 msgstr "7일"
@@ -1419,6 +1427,10 @@ msgstr "이 스레드를 실행하려면 먼저 자격 증명을 추가하세요
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Add fallback"
 msgstr "대체 항목 추가"
+
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Add files, drop here, or paste an image"
+msgstr "파일을 추가하거나 여기에 놓거나 이미지를 붙여넣으세요"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
@@ -2294,6 +2306,10 @@ msgstr "스레드에 연결"
 msgid "Attached browser selection."
 msgstr "브라우저 선택 항목을 첨부했습니다."
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Attachments"
+msgstr "첨부 파일"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Attempt"
 msgstr "시도"
@@ -2896,6 +2912,10 @@ msgstr "브라우저로 로그인"
 msgid "Budget limit reached"
 msgstr "예산 한도 도달"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Bug"
+msgstr "버그"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Builder"
 msgstr "빌더"
@@ -3017,6 +3037,7 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 
 #: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -3544,6 +3565,10 @@ msgstr "새 클라우드 채팅의 작업 영역을 선택하세요. 기존 클�
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "첨부할 스레드를 선택하세요."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Choose up to 5 supported files, 10 MB each."
+msgstr "지원되는 파일을 최대 5개, 각 10 MB까지 선택하세요."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Choose what happens after a scheduled time was missed."
@@ -7283,6 +7308,10 @@ msgstr "실행"
 msgid "Execution mode"
 msgstr "실행 모드"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Existing issues"
+msgstr "기존 이슈"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Existing or edited native entry; left unchanged"
 msgstr "기존 또는 수정된 네이티브 항목을 변경하지 않음"
@@ -7679,6 +7708,22 @@ msgstr "즐겨찾기"
 msgid "Featured"
 msgstr "추천"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not be sent. Your draft is kept."
+msgstr "피드백을 보내지 못했습니다. 초안은 유지됩니다."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not load. Please try again later."
+msgstr "피드백을 불러오지 못했습니다. 나중에 다시 시도하세요."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback is temporarily unavailable. Please try again later."
+msgstr "피드백을 일시적으로 사용할 수 없습니다. 나중에 다시 시도하세요."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback sent"
+msgstr "피드백을 보냈습니다"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Fetch"
 msgstr "가져오기"
@@ -7895,6 +7940,10 @@ msgstr "완료됨 · 귀하의 의견을 기다리는 중"
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
 #~ msgstr "Poracode의 네이티브 런타임을 사용한 최고 수준의 Antigravity CLI 통합."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Finishing your report on GitHub…"
+msgstr "GitHub에서 보고서를 마무리하는 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Antigravity integration using the agy terminal CLI and Google's official ACP Chat runtime."
@@ -8883,6 +8932,10 @@ msgstr "아이콘 색상: {label}"
 msgid "ID: {0}"
 msgstr "ID:{0}"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Idea"
+msgstr "아이디어"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Identifier"
 msgstr "식별자"
@@ -9124,6 +9177,10 @@ msgstr "앱 내 카메라 스캔은 HTTPS 또는 localhost에서만 작동합니
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "비활성"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Include basic diagnostics"
+msgstr "기본 진단 정보 포함"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
@@ -12733,6 +12790,10 @@ msgstr "실험 열기"
 msgid "Open experiment board"
 msgstr "실험 보드 열기"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Open feedback on website"
+msgstr "웹사이트에서 피드백 열기"
+
 #: src/renderer/commands/registry.ts
 msgid "Open File"
 msgstr "파일 열기"
@@ -13980,6 +14041,10 @@ msgstr "원격 환경 준비 중…"
 #~ msgid "Presentation"
 #~ msgstr "표시 방식"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Preparing your report…"
+msgstr "보고서를 준비하는 중…"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Presets"
 msgstr "프리셋"
@@ -14020,6 +14085,7 @@ msgstr "스페이스 키를 눌러 순서 변경을 시작하세요. 방향키�
 msgid "Prevent system sleep"
 msgstr "시스템 절전 방지"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "미리 보기"
@@ -14362,6 +14428,10 @@ msgstr "공급자"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
 #~ msgid "Providers & models"
 #~ msgstr "제공자 및 모델"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Public on GitHub."
+msgstr "GitHub에 공개됩니다."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -15013,8 +15083,9 @@ msgid "Remove “{removingTarget}” from OpenCode 2? You can install it again f
 msgstr "OpenCode 2에서 “{removingTarget}”을(를) 제거할까요? ‘탐색’에서 다시 설치할 수 있습니다."
 
 #. placeholder {0}: att.name
+#. placeholder {0}: file.name
 #. placeholder {0}: pkg.target
-#. placeholder {0}: removeProject.name
+#: src/renderer/components/common/FeedbackAttachments.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
@@ -15351,6 +15422,10 @@ msgstr "순서 변경을 취소했습니다."
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
 msgstr "반복"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Report a bug or suggest an idea."
+msgstr "버그를 신고하거나 아이디어를 제안하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Report an Issue"
@@ -16896,6 +16971,7 @@ msgstr "선택됨"
 msgid "Selected sidebar row"
 msgstr "선택된 사이드바 행"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatComposer.tsx
@@ -16906,6 +16982,11 @@ msgstr "보내기"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Send a message..."
 msgstr "메시지 보내기..."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Send feedback"
+msgstr "피드백 보내기"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Send generic text instead of conversation titles through Apple's push service."
@@ -18107,6 +18188,10 @@ msgstr "메시지를 보내기 전에 방향 수정이 취소되었습니다."
 msgid "Steer was replaced by a newer message."
 msgstr "방향 수정이 새 메시지로 대체되었습니다."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Still processing. Send again to check the same report."
+msgstr "아직 처리 중입니다. 같은 보고서를 확인하려면 다시 보내세요."
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -19141,6 +19226,10 @@ msgstr "원격 서버에서 페어링 자격 증명을 반환하지 않았습니
 msgid "The replacement message could not be sent."
 msgstr "대체 메시지를 보낼 수 없습니다."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "The report could not be confirmed yet. Please retry."
+msgstr "아직 보고서를 확인하지 못했습니다. 다시 시도하세요."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "디스크에 있는 저장소 위치입니다. 폴더를 옮겼다면 업데이트하세요."
@@ -19837,6 +19926,10 @@ msgstr "선택한 에뮬레이터를 종료하고 모든 뷰어의 연결을 끊
 msgid "This source host does not support safe automatic merge."
 msgstr "이 소스 호스트는 안전한 자동 병합을 지원하지 않습니다."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "This submission has expired. Your draft is kept."
+msgstr "이 제출은 만료되었습니다. 초안은 유지됩니다."
+
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
 msgstr "이 SVG를 표시할 수 없습니다."
@@ -20075,6 +20168,7 @@ msgstr "제한 시간(ms)"
 msgid "Timeout must be a positive whole number."
 msgstr "제한 시간은 양의 정수여야 합니다."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrTitleBlock.tsx
 msgid "Title"
 msgstr "제목"
@@ -21182,6 +21276,11 @@ msgstr "환경 소유자 업그레이드"
 msgid "Upgrade owner"
 msgstr "소유자 업그레이드"
 
+#. placeholder {0}: progress.upload
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Uploading attachment {0}…"
+msgstr "첨부 파일 {0} 업로드 중…"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Upside down"
 msgstr "상하 반전"
@@ -21448,6 +21547,14 @@ msgstr "값"
 #~ msgid "Verify SSH host key"
 #~ msgstr "SSH 호스트 키 확인"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Verification"
+msgstr "인증"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Verification could not load. Please try again."
+msgstr "인증을 불러오지 못했습니다. 다시 시도하세요."
+
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
@@ -21455,6 +21562,10 @@ msgstr "값"
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Version"
 msgstr "버전"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Version and platform only. No chat history, code, or project paths."
+msgstr "버전과 플랫폼만 포함됩니다. 채팅 기록, 코드, 프로젝트 경로는 포함되지 않습니다."
 
 #. placeholder {0}: metadata.authMethod
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
@@ -21491,6 +21602,10 @@ msgstr "GitHub에서 모든 릴리스 보기"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "전체 변경 내역 보기"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "View GitHub issue"
+msgstr "GitHub 이슈 보기"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "View only"
@@ -21794,6 +21909,10 @@ msgstr "주간 검토"
 #~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 #~ msgstr "Crossagents가 명시적 선택에서 학습한 내용입니다. 태그를 편집하거나 항목을 삭제하여 라우팅을 다시 구성하세요."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What happened?"
+msgstr "무슨 일이 있었나요?"
+
 #: src/renderer/components/providers/devin/sessionReviseForm.tsx
 msgid "What should change? (optional)"
 msgstr "무엇을 변경할까요?(선택 사항)"
@@ -21814,6 +21933,10 @@ msgstr "PR 만들기 버튼의 기본 기능: 대화 상자를 열어 제목과 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "What this server provides"
 msgstr "이 서버가 제공하는 기능"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What would you like to see?"
+msgstr "어떤 기능을 원하시나요?"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
@@ -22239,6 +22362,14 @@ msgstr "내 플러그인"
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatComposer.tsx
 msgid "Your question is kept. Use Retry above to send it again."
 msgstr "질문은 유지됩니다. 위의 다시 시도를 사용해 다시 보내세요."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments are now on GitHub."
+msgstr "보고서와 첨부 파일이 이제 GitHub에 있습니다."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments will be visible to everyone."
+msgstr "보고서와 첨부 파일은 모든 사람에게 공개됩니다."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"
