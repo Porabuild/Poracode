@@ -12,6 +12,16 @@ import { sidebarTransportPolicy } from "./installTransportPolicy";
 import { sidebarWorkerMessage } from "./transportPolicy";
 import { installRemoteServerLifecycle } from "@/renderer/state/remoteServers/lifecycle";
 
+const takeOverRequests = new Set<() => void>();
+
+/**
+ * Takes the app's connection back from another browser's extension. Only this
+ * user action does: automatic retries leave the other browser connected.
+ */
+export function takeOverSidebarConnection(): void {
+  for (const request of takeOverRequests) request();
+}
+
 /** Discovery stays in the worker; credentials are never logged or put in page URLs. */
 export function installSidebarAutoConnect(onStatus: (error: unknown | null) => void): () => void {
   const stopRetirement = sidebarTransportPolicy.onRetire(() => {
@@ -30,6 +40,7 @@ export function installSidebarAutoConnect(onStatus: (error: unknown | null) => v
   });
   let disposed = false;
   let running = false;
+  let takeOver = false;
   const attempt = async () => {
     if (disposed || running) return;
     running = true;
@@ -41,7 +52,11 @@ export function installSidebarAutoConnect(onStatus: (error: unknown | null) => v
         }
       }
       sidebarTransportPolicy.retire();
-      const response = await sidebarWorkerMessage("getChatBootstrap");
+      const response = await sidebarWorkerMessage(
+        "getChatBootstrap",
+        takeOver ? { takeOver: true } : {},
+      );
+      takeOver = false;
       if (disposed) return;
       const issue = chromeSidebarClientIssueSchema.safeParse(response);
       if (issue.success) {
@@ -69,11 +84,17 @@ export function installSidebarAutoConnect(onStatus: (error: unknown | null) => v
       running = false;
     }
   };
+  const requestTakeOver = () => {
+    takeOver = true;
+    void attempt();
+  };
+  takeOverRequests.add(requestTakeOver);
   void attempt();
   const stopLifecycle = installRemoteServerLifecycle(attempt);
   const interval = setInterval(() => void attempt(), 4000);
   return () => {
     disposed = true;
+    takeOverRequests.delete(requestTakeOver);
     clearInterval(interval);
     stopLifecycle();
     sidebarTransportPolicy.retire();

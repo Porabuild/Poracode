@@ -14214,6 +14214,10 @@ msgstr "Poracode Helper 尚未就绪（HTTP {status}）。"
 msgid "Poracode Helper returned an invalid response."
 msgstr "Poracode Helper 返回了无效响应。"
 
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Poracode is connected to another browser."
+msgstr "Poracode 已连接到另一个浏览器。"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode 可能正在等待已保存的数据或后台服务。你可以继续等待、重新启动，或安装可用的更新。"
@@ -21944,6 +21948,10 @@ msgstr "使用检测到的会话？"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use ignore files"
 msgstr "使用忽略文件"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Use in this browser"
+msgstr "在此浏览器中使用"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."

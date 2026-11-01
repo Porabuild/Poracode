@@ -37,6 +37,13 @@ export const CHROME_BRIDGE_SERVER_PROOF_DOMAIN = "poracode-chrome-bridge/server-
 /** 32 random bytes as lowercase hex; also the shape of every proof. */
 export const CHROME_BRIDGE_HEX_256 = /^[0-9a-f]{64}$/;
 
+/**
+ * Close code the bridge sends to the extension connection a newer one
+ * replaced (another browser or profile). That worker stands by instead of
+ * reconnecting, so two browsers never take turns displacing each other.
+ */
+export const CHROME_BRIDGE_REPLACED_CLOSE_CODE = 4001;
+
 export function chromeBridgeClientProofMessage(port: number, nonce: string): string {
   return [CHROME_BRIDGE_CLIENT_PROOF_DOMAIN, port, nonce].join("\n");
 }
@@ -76,8 +83,10 @@ export type ChromeSidebarHelloAck = z.infer<typeof chromeSidebarHelloAckSchema>;
  * Worker → sidebar answer to `getChatBootstrap` when no credential can come
  * from this app, as opposed to a bootstrap or `null` (retry later).
  * `upgradeRequired`: the running app does not speak this sidebar protocol.
+ * `inUseElsewhere`: another browser's extension replaced this one's bridge
+ * connection; the worker reconnects only when the user takes it back.
  */
-export const CHROME_SIDEBAR_RUNTIME_ISSUES = ["upgradeRequired"] as const;
+export const CHROME_SIDEBAR_RUNTIME_ISSUES = ["upgradeRequired", "inUseElsewhere"] as const;
 export const chromeSidebarRuntimeIssueSchema = z.enum(CHROME_SIDEBAR_RUNTIME_ISSUES);
 export type ChromeSidebarRuntimeIssue = z.infer<typeof chromeSidebarRuntimeIssueSchema>;
 export const chromeSidebarClientIssueSchema = z.object({
