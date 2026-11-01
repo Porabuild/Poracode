@@ -59,7 +59,7 @@ function DoneSectionLabel(props: { row: Extract<SidebarRow, { kind: "section-lab
         <span aria-hidden className="h-px min-w-0 flex-1 bg-[var(--hairline)]" />
         {hasRemoveAction ? <span aria-hidden className="w-[18px] shrink-0" /> : null}
         <ChevronDown
-          className={`size-3.5 shrink-0 transition-transform ${row.collapsed ? "" : "rotate-180"}`}
+          className={`size-3.5 shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none ${row.collapsed ? "" : "rotate-180"}`}
         />
       </button>
       {hasRemoveAction ? (

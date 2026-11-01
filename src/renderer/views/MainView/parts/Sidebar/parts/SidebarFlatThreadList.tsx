@@ -30,6 +30,7 @@ import {
 } from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
+import { SidebarDoneRows } from "./SidebarDoneRows";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { MobileQuickCompose } from "./MobileQuickCompose";
 import { useFlatListProjectFilterModel } from "./useFlatListProjectFilterModel";
@@ -246,9 +247,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         // Sized to its rows up to half the column; past that the rows scroll.
         <div className="poracode-flat-done-section flex max-h-[50%] shrink-0 flex-col">
           {renderRow(doneHeader)}
-          {doneRows.length > 0 ? (
-            <div className={sidebarBodyScrollClass()}>{doneRows.map(renderRow)}</div>
-          ) : null}
+          <div className={sidebarBodyScrollClass()}>
+            <SidebarDoneRows rows={doneRows} renderRow={renderRow} />
+          </div>
         </div>
       ) : null}
       {compactLayout && latestProjectId ? <MobileQuickCompose projectId={latestProjectId} /> : null}
