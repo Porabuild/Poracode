@@ -1,5 +1,6 @@
-import { createServer, isIPv4 } from "node:net";
+import { connect, createServer, isIPv4 } from "node:net";
 import { networkInterfaces } from "node:os";
+import { setTimeout as delay } from "node:timers/promises";
 
 export const DEFAULT_REMOTE_ACCESS_PORT = 49152;
 const MAX_AUTO_REMOTE_ACCESS_PORT = 65535;
@@ -366,7 +367,31 @@ export function remoteAccessPort(): number | undefined {
     : undefined;
 }
 
-function canListen(port: number, host: string): Promise<boolean> {
+async function canListen(port: number, host: string): Promise<boolean> {
+  if (!(await canBind(port, host))) return false;
+  // Windows and BSD admit a specific-address listener beside another
+  // process's wildcard listener on the same port, which would then take that
+  // process's traffic on this address. A trial bind cannot see it; a connect
+  // can.
+  return isWildcardBindHost(host) || !(await acceptsConnections(port, host));
+}
+
+const ACCEPT_PROBE_TIMEOUT_MS = 250;
+
+function acceptsConnections(port: number, host: string): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const socket = connect({ port, host });
+    const finish = (accepted: boolean) => {
+      socket.destroy();
+      resolve(accepted);
+    };
+    socket.setTimeout(ACCEPT_PROBE_TIMEOUT_MS, () => finish(false));
+    socket.once("connect", () => finish(true));
+    socket.once("error", () => finish(false));
+  });
+}
+
+function canBind(port: number, host: string): Promise<boolean> {
   return new Promise<boolean>((resolve, reject) => {
     const server = createServer();
     const onError = (error: NodeJS.ErrnoException) => {
@@ -387,12 +412,29 @@ function canListen(port: number, host: string): Promise<boolean> {
   });
 }
 
+/**
+ * How long startup keeps retrying the preferred port before scanning the
+ * range. Long enough for a restarting host's previous process to release its
+ * listener; short, because the wait only happens when that port is busy.
+ */
+export const PREFERRED_REMOTE_ACCESS_PORT_WAIT_MS = 5_000;
+const PREFERRED_REMOTE_ACCESS_PORT_POLL_MS = 250;
+
 export async function resolveRemoteAccessPort(input?: {
   readonly host?: string;
   readonly port?: number;
+  /**
+   * The port paired clients already know (see `remoteAccessPortMemory.ts`).
+   * Tried first and retried while busy for up to `preferredPortWaitMs`; only
+   * then does the range scan pick another port.
+   */
+  readonly preferredPort?: number;
+  readonly preferredPortWaitMs?: number;
   readonly rangeStart?: number;
   readonly rangeEnd?: number;
   readonly isAvailable?: (port: number, host: string) => Promise<boolean>;
+  readonly sleep?: (ms: number) => Promise<void>;
+  readonly now?: () => number;
 }): Promise<number> {
   const explicitPort = input?.port ?? remoteAccessPort();
   if (explicitPort !== undefined) return explicitPort;
@@ -401,15 +443,33 @@ export async function resolveRemoteAccessPort(input?: {
   const rangeStart = input?.rangeStart ?? DEFAULT_REMOTE_ACCESS_PORT;
   const rangeEnd = input?.rangeEnd ?? MAX_AUTO_REMOTE_ACCESS_PORT;
   const isAvailable = input?.isAvailable ?? canListen;
-  for (let port = rangeStart; port <= rangeEnd; port += 1) {
-    if (!(await isAvailable(port, host))) continue;
+  const isUsable = async (port: number): Promise<boolean> => {
+    if (!(await isAvailable(port, host))) return false;
     // Windows can admit a wildcard listener beside another host's loopback
     // listener. The managed renderer must reach this same server on loopback.
     if (isWildcardBindHost(host)) {
-      if (!(await isAvailable(port, DEFAULT_REMOTE_ACCESS_HOST))) continue;
-      if (host.includes(":") && !(await isAvailable(port, "::1"))) continue;
+      if (!(await isAvailable(port, DEFAULT_REMOTE_ACCESS_HOST))) return false;
+      if (host.includes(":") && !(await isAvailable(port, "::1"))) return false;
     }
-    return port;
+    return true;
+  };
+
+  const preferredPort = input?.preferredPort;
+  if (preferredPort !== undefined) {
+    const sleep = input?.sleep ?? ((ms: number) => delay(ms));
+    const now = input?.now ?? Date.now;
+    const deadline = now() + (input?.preferredPortWaitMs ?? PREFERRED_REMOTE_ACCESS_PORT_WAIT_MS);
+    for (;;) {
+      if (await isUsable(preferredPort)) return preferredPort;
+      const remaining = deadline - now();
+      if (remaining <= 0) break;
+      await sleep(Math.min(PREFERRED_REMOTE_ACCESS_PORT_POLL_MS, remaining));
+    }
+  }
+
+  for (let port = rangeStart; port <= rangeEnd; port += 1) {
+    if (port === preferredPort) continue;
+    if (await isUsable(port)) return port;
   }
 
   throw Object.assign(new Error(`listen EADDRINUSE: address already in use ${host}:${rangeEnd}`), {

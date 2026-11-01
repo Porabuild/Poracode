@@ -127,6 +127,7 @@ export function resyncOpenThread(
   const promise = (async (): Promise<boolean> => {
     let restored = true;
     const snapshotReads: ReturnType<typeof beginHistorySnapshotRead>[] = [];
+    let failedReads = 0;
     try {
       // Fetch all interested threads concurrently (N−1 RTTs saved on
       // server-restart resync), then apply in the original order so
@@ -176,13 +177,13 @@ export function resyncOpenThread(
             };
           } catch {
             resumeRead.cancel();
+            failedReads += 1;
             return null;
           }
         }),
       );
       for (const result of fetched) {
         if (!result) {
-          restored = false;
           continue;
         }
         const { threadId, followUpQueueSnapshotGuard } = result;
@@ -267,7 +268,12 @@ export function resyncOpenThread(
           else forgetBoundedHistoryThread(connectionKey, threadId);
         } else {
           result.resumeRead.cancel();
-          restored = false;
+          // A streaming thread's live tail usually runs past the host's
+          // debounced snapshot, so the installer rightly declines it. That is
+          // not a failed recovery: reconnecting cannot produce a fresher
+          // snapshot, and treating it as one force-closed the socket about
+          // once a second for as long as the open thread kept working.
+          if (!applied.declinedForNewerLiveTail) restored = false;
         }
         bumpRemoteServerSnapshotSeq(connectionKey, nextSnapshot.snapshotSeq, resumeFence);
         const currentOpen = get().openThread;
@@ -278,6 +284,12 @@ export function resyncOpenThread(
         }
       }
       if (recovery.overflowed) restored = false;
+      // A per-thread read failure (a deleted or persistently erroring thread)
+      // is quarantined: it must not force-close a healthy socket into a
+      // reconnect loop. Only a recovery where EVERY read failed is
+      // connection-level trouble (a transient outage) and keeps the reconnect
+      // path; the empty-interest case returned early above.
+      if (failedReads >= threadIds.size) restored = false;
       if (restored) {
         // The runtime queue may be holding a bounded tail that
         // arrived after the snapshots were read. Resume it before

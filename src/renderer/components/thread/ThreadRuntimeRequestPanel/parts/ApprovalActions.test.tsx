@@ -1,4 +1,4 @@
-import { fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { ApprovalActions } from "./ApprovalActions";
@@ -95,5 +95,52 @@ describe("numbered approval actions", () => {
     rerender(view(true));
     fireEvent.keyDown(getByRole("button", { name: "Deny" }), { key: "1" });
     expect(onSelect).not.toHaveBeenCalled();
+  });
+});
+
+describe("long approval labels", () => {
+  it("truncates a long scope label and shows it in full on focus", async () => {
+    const label = `Allow directories /Users/example/${"nested/".repeat(20)}notes`;
+    const { getByRole, findByRole } = render(
+      <AppProvider>
+        <ApprovalActions
+          requestType="tool_call_approval"
+          isDisabled={false}
+          showAllOptions
+          options={[
+            { optionId: "accept", label: "Allow once" },
+            { optionId: "dirs", label },
+          ]}
+          onSelect={() => {}}
+        />
+      </AppProvider>,
+    );
+    const button = getByRole("button", { name: label });
+    expect(button).toHaveClass("max-w-[min(100%,28rem)]");
+    const text = button.querySelector(".truncate")!;
+    expect(text).toHaveTextContent(label);
+    Object.defineProperty(text, "scrollWidth", { configurable: true, value: 900 });
+    Object.defineProperty(text, "clientWidth", { configurable: true, value: 440 });
+    fireEvent.keyDown(document.body, { key: "Tab" });
+    button.focus();
+    expect(await findByRole("tooltip")).toHaveTextContent(label);
+  });
+
+  it("opens no tooltip for a short label without a description", async () => {
+    const { getByRole, queryByRole } = render(
+      <AppProvider>
+        <ApprovalActions
+          requestType="tool_call_approval"
+          isDisabled={false}
+          showAllOptions
+          options={permissionOptions}
+          onSelect={() => {}}
+        />
+      </AppProvider>,
+    );
+    fireEvent.keyDown(document.body, { key: "Tab" });
+    getByRole("button", { name: "Allow once" }).focus();
+    await act(async () => {});
+    expect(queryByRole("tooltip")).toBeNull();
   });
 });

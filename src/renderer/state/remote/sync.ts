@@ -42,6 +42,7 @@ import {
 import {
   planRuntimeHistorySnapshot,
   mergeMissedOlderSnapshotItems,
+  existingTailMonotonicallyCoversSnapshot,
   snapshotMonotonicallyCoversExistingTail,
 } from "../runtimeHistorySnapshot";
 import { invalidateRuntimeHistoryRead, runtimeHistoryBoundary } from "../runtimeHistoryBoundary";
@@ -115,6 +116,11 @@ export interface ApplyThreadSnapshotResult {
    * Stale snapshots and additive missing-older-history splices return false
    * so callers never record a truncation-suppression baseline from them. */
   readonly installedAuthoritativeHistory: boolean;
+  /** Declined because the resident transcript is already newer than the
+   * snapshot: the snapshot is older than the applied sequence, or the thread
+   * is streaming and its live tail runs past the host's (debounced) snapshot.
+   * Nothing is missing that a fresher read could add yet. */
+  readonly declinedForNewerLiveTail?: boolean;
 }
 
 /**
@@ -331,7 +337,16 @@ export function applyThreadSnapshot(
 
   if (!options.preserveRuntimeHistory)
     syncRuntimeRequestsFromSnapshot(snapshot, options.lastSeenEventSeq);
-  return { installedAuthoritativeHistory: shouldReplaceItems };
+  return {
+    installedAuthoritativeHistory: shouldReplaceItems,
+    ...(!shouldReplaceItems &&
+    !options.preserveRuntimeHistory &&
+    options.fromServer &&
+    (snapshotStale ||
+      existingTailMonotonicallyCoversSnapshot(existingIds, existingItems, snapshotItems))
+      ? { declinedForNewerLiveTail: true }
+      : {}),
+  };
 }
 
 /**

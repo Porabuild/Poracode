@@ -177,6 +177,8 @@ export function BrowserMenu(props: {
           aria-label={t`Browser menu`}
           onAction={onMenuAction}
           disabledKeys={[
+            // A remote client mirrors the host's browser; these act on a local
+            // browser view, profile, or its device-only settings.
             ...(!nativeBrowser
               ? [
                   "find",
@@ -186,6 +188,13 @@ export function BrowserMenu(props: {
                   "importData",
                   "passwordsMenu",
                   "downloads",
+                  "screenshot",
+                  "hardReload",
+                  "bookmarkBar",
+                  "clearHistory",
+                  "clearCookies",
+                  "clearCache",
+                  "settings",
                 ]
               : []),
             ...(pageDisabled

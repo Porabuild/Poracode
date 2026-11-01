@@ -1,4 +1,5 @@
-import { useState, type ComponentProps, type ReactNode } from "react";
+import { useId, useState, type ComponentProps, type ReactNode } from "react";
+import { selectVariants } from "@heroui/styles";
 import {
   Description,
   Label,
@@ -9,7 +10,7 @@ import {
   Virtualizer,
 } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Check, ChevronDown } from "lucide-react";
+import { Check } from "lucide-react";
 import {
   LARGE_DROPDOWN_VIRTUALIZATION_THRESHOLD,
   SELECT_DROPDOWN_ROW_HEIGHT,
@@ -40,17 +41,34 @@ export function Select(props: SelectProps) {
   const { label, onChange, options, popoverProps, value, ...rest } = props;
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
+  const labelId = useId();
   const [isOpen, setIsOpen] = useState(false);
+  const [focusState, setFocusState] = useState({ isFocused: false, isFocusVisible: false });
   const selectedValue = value && options.some((option) => option.id === value) ? value : null;
   const selectedOption = options.find((option) => option.id === selectedValue);
   const isVirtualized = options.length > LARGE_DROPDOWN_VIRTUALIZATION_THRESHOLD;
+  const selectedContent = selectedOption ? (
+    <span className="flex min-w-0 items-center gap-2">
+      {selectedOption.icon}
+      <span className="min-w-0 truncate">{selectedOption.label}</span>
+    </span>
+  ) : null;
 
-  // Mobile PWA: a HeroUI select-listbox popover anchored to a small trigger is
-  // cramped on a phone. Render an input-styled trigger that opens a bottom
-  // drawer of finger-sized rows instead. The runtime surface, not its
-  // transport, decides which presentation is appropriate.
+  // Share HeroUI's trigger components and slots; only the menu surface changes.
   if (mobile) {
+    const slots = selectVariants({ variant: rest.variant, fullWidth: rest.fullWidth });
     const placeholder = typeof rest.placeholder === "string" ? rest.placeholder : t`Select…`;
+    const style =
+      typeof rest.style === "function"
+        ? rest.style({
+            ...focusState,
+            isDisabled: rest.isDisabled ?? false,
+            isOpen,
+            isInvalid: rest.isInvalid ?? false,
+            isRequired: rest.isRequired ?? false,
+            defaultStyle: {},
+          })
+        : rest.style;
     // Settings pass the field name via `aria-label` (the visible label lives on
     // the surrounding SettingRow), so fall back to it for the trigger + heading.
     const accessibleName = label ?? (rest["aria-label"] as string | undefined);
@@ -60,22 +78,65 @@ export function Select(props: SelectProps) {
         onOpenChange={setIsOpen}
         label={accessibleName ?? t`Select an option`}
         trigger={
-          <button
-            type="button"
-            className="m-field-picker"
-            {...(accessibleName ? { "aria-label": accessibleName } : {})}
-            aria-expanded={isOpen}
-            disabled={rest.isDisabled}
-            onClick={() => {
-              if (!rest.isDisabled) setIsOpen(true);
+          <div
+            className={slots.base({
+              className: ["m-field-picker", typeof rest.className === "string" && rest.className],
+            })}
+            id={rest.id}
+            style={style}
+            data-invalid={rest.isInvalid || undefined}
+            onFocus={(event) => {
+              setFocusState({
+                isFocused: true,
+                isFocusVisible:
+                  event.target instanceof HTMLElement && event.target.matches(":focus-visible"),
+              });
+              rest.onFocus?.(event);
+            }}
+            onBlur={(event) => {
+              if (
+                event.relatedTarget instanceof Node &&
+                event.currentTarget.contains(event.relatedTarget)
+              ) {
+                return;
+              }
+              setFocusState({ isFocused: false, isFocusVisible: false });
+              rest.onBlur?.(event);
             }}
           >
-            {selectedOption?.icon}
-            <span className={`min-w-0 flex-1 truncate ${selectedOption ? "" : "text-muted"}`}>
-              {selectedOption?.label ?? placeholder}
-            </span>
-            <ChevronDown className="size-4 shrink-0 text-muted" />
-          </button>
+            {label ? <Label id={labelId}>{label}</Label> : null}
+            <HeroSelect.Trigger
+              className={slots.trigger()}
+              {...(accessibleName ? { "aria-label": accessibleName } : {})}
+              {...(label
+                ? { "aria-labelledby": labelId }
+                : rest["aria-labelledby"] !== undefined
+                  ? { "aria-labelledby": rest["aria-labelledby"] }
+                  : {})}
+              {...(rest["aria-describedby"] !== undefined
+                ? { "aria-describedby": rest["aria-describedby"] }
+                : {})}
+              aria-haspopup="dialog"
+              aria-expanded={isOpen}
+              {...(rest.isDisabled !== undefined ? { isDisabled: rest.isDisabled } : {})}
+              onPress={() => setIsOpen(true)}
+              onKeyDown={(event) => {
+                if (!rest.isDisabled && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+                  event.preventDefault();
+                  setIsOpen(true);
+                }
+              }}
+            >
+              <span
+                className={slots.value({ className: "min-w-0" })}
+                data-slot="select-value"
+                data-placeholder={!selectedOption || undefined}
+              >
+                {selectedContent ?? placeholder}
+              </span>
+              <HeroSelect.Indicator className={slots.indicator()} data-open={isOpen || undefined} />
+            </HeroSelect.Trigger>
+          </div>
         }
       >
         <div className="m-sheet-list">
@@ -110,12 +171,8 @@ export function Select(props: SelectProps) {
       </ResponsiveMenuSurface>
     );
   }
-  const disabledKeys = options.filter((option) => option.isDisabled).map((option) => option.id);
   const listBox = (
-    <ListBox
-      {...(disabledKeys.length > 0 ? { disabledKeys } : {})}
-      {...(isVirtualized ? { className: "max-h-60 overflow-y-auto" } : {})}
-    >
+    <ListBox {...(isVirtualized ? { className: "max-h-60 overflow-y-auto" } : {})}>
       {options.map((option) => (
         // HeroUI's select popover sets `px-2.5` on items with the same
         // specificity as the base `:has(.list-box-item__indicator) { pe-7 }`
@@ -126,6 +183,9 @@ export function Select(props: SelectProps) {
           key={option.id}
           id={option.id}
           textValue={option.label}
+          // Inside a Select the collection ignores the ListBox's disabledKeys,
+          // so each item carries its own disabled state.
+          {...(option.isDisabled ? { isDisabled: true } : {})}
           className="relative pe-7"
         >
           {option.icon || option.detail ? (
@@ -163,12 +223,7 @@ export function Select(props: SelectProps) {
         <HeroSelect.Value className="min-w-0">
           {({ defaultChildren, isPlaceholder }) => {
             if (isPlaceholder || !selectedOption) return defaultChildren;
-            return (
-              <span className="flex min-w-0 items-center gap-2">
-                {selectedOption.icon}
-                <span className="min-w-0 truncate">{selectedOption.label}</span>
-              </span>
-            );
+            return selectedContent;
           }}
         </HeroSelect.Value>
         <HeroSelect.Indicator />

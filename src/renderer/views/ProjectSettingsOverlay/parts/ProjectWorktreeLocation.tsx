@@ -85,6 +85,7 @@ export function ProjectWorktreeLocation(props: { projectId: string }) {
             value={override?.basePath ?? ""}
             defaultPath={inheritedBase}
             onChange={(value) => persist("global", value.trim() || undefined)}
+            {...(project.remoteServerId ? { remoteDesktopId: project.remoteServerId } : {})}
           />
         </div>
       ) : null}

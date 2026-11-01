@@ -269,6 +269,8 @@ const agentPresentationCapabilityOverrideSchema = z
     fastModels: z.array(z.string().min(1)).optional(),
     fastDisabledReason: z.string().optional(),
     thinkingModels: z.array(z.string().min(1)).optional(),
+    workflowModels: z.array(z.string().min(1)).optional(),
+    workflowLabel: z.string().min(1).optional(),
     modes: z.array(threadModeSchema),
     approvalPolicies: z.array(labeledOptionSchema),
     sandboxModes: z.array(labeledOptionSchema),
@@ -390,6 +392,13 @@ export const agentCapabilitySchema = z.object({
   fastDisabledReason: z.string().optional(),
   /** Model ids that support a thinking/reasoning toggle separate from effort level. */
   thinkingModels: z.array(z.string().min(1)).optional(),
+  /**
+   * Model ids that can run a standing multi-agent workflow mode, toggled per
+   * thread (`ThreadConfig.workflows`) independently of the effort level.
+   */
+  workflowModels: z.array(z.string().min(1)).optional(),
+  /** Provider-native name for that workflow mode; shared UI falls back to "Workflows". */
+  workflowLabel: z.string().min(1).optional(),
   modes: z.array(threadModeSchema).default([]),
   approvalPolicies: z.array(labeledOptionSchema).default([]),
   sandboxModes: z.array(labeledOptionSchema).default([]),

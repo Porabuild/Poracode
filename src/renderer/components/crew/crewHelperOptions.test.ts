@@ -3,17 +3,23 @@ import type { AgentStatus } from "@/shared/contracts";
 import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import { buildCrewHelperOptions } from "./crewHelperOptions";
 
-function status(kind: string, label: string, model: string, defaultEffort: string): AgentStatus {
+function status(
+  kind: string,
+  label: string,
+  model: string | readonly string[],
+  defaultEffort: string,
+): AgentStatus {
+  const models = typeof model === "string" ? [model] : model;
   return {
     kind,
     label,
     installed: true,
     authState: "authenticated",
     capabilities: {
-      models: [{ id: model, label }],
+      models: models.map((id) => ({ id, label: models.length === 1 ? label : id })),
       efforts: [defaultEffort],
-      modelEfforts: { [model]: [defaultEffort] },
-      modelDefaultEfforts: { [model]: defaultEffort },
+      modelEfforts: Object.fromEntries(models.map((id) => [id, [defaultEffort]])),
+      modelDefaultEfforts: Object.fromEntries(models.map((id) => [id, defaultEffort])),
       modes: ["agent"],
       approvalPolicies: [],
       sandboxModes: [],
@@ -36,7 +42,7 @@ const settings = {
 };
 
 describe("buildCrewHelperOptions", () => {
-  it("uses the first ranked non-lead model and its model-default effort", () => {
+  it("skips the lead's own model and uses the next ranked model's default effort", () => {
     const routing: CrossagentRoutingState = {
       providers: [
         { kind: "codex", label: "Codex", execution: "structured" },
@@ -76,7 +82,7 @@ describe("buildCrewHelperOptions", () => {
       settings,
       routing,
     });
-    expect(options.defaultSelectionFor("codex")).toEqual({
+    expect(options.defaultSelectionFor({ agentKind: "codex", model: "gpt-5.5" })).toEqual({
       agentKind: "claude",
       model: "opus-5.5",
       effort: "medium",
@@ -110,5 +116,63 @@ describe("buildCrewHelperOptions", () => {
     });
     expect(options.providers).toEqual([]);
     expect(options.modelLabelOf({ agentKind: "claude", model: "opus-5.5" })).toBe("Claude");
+  });
+
+  it("prefers the cheapest tier, then the lead's provider within that tier", () => {
+    const options = buildCrewHelperOptions({
+      statuses: [
+        status("alpha", "Alpha", ["alpha-pro", "alpha-core", "alpha-mini"], "medium"),
+        status("beta", "Beta", ["beta-flash", "beta-core"], "low"),
+      ],
+      settings,
+    });
+    expect(options.defaultSelectionFor({ agentKind: "alpha", model: "alpha-pro" })).toEqual({
+      agentKind: "alpha",
+      model: "alpha-mini",
+      effort: "medium",
+    });
+    expect(options.defaultSelectionFor({ agentKind: "beta", model: "beta-core" })).toEqual({
+      agentKind: "beta",
+      model: "beta-flash",
+      effort: "low",
+    });
+  });
+
+  it("takes a cheaper tier from another provider before a pricier one from the lead's", () => {
+    const options = buildCrewHelperOptions({
+      statuses: [
+        status("alpha", "Alpha", ["alpha-pro", "alpha-core"], "medium"),
+        status("beta", "Beta", ["beta-max", "beta-nano"], "low"),
+      ],
+      settings,
+    });
+    expect(options.defaultSelectionFor({ agentKind: "alpha", model: "alpha-pro" })).toEqual({
+      agentKind: "beta",
+      model: "beta-nano",
+      effort: "low",
+    });
+    expect(
+      buildCrewHelperOptions({
+        statuses: [status("alpha", "Alpha", ["alpha-pro", "alpha-core"], "medium")],
+        settings,
+      }).defaultSelectionFor({ agentKind: "alpha", model: "alpha-pro" }),
+    ).toEqual({ agentKind: "alpha", model: "alpha-core", effort: "medium" });
+  });
+
+  it("avoids the lead's exact model unless it is the only one", () => {
+    const options = buildCrewHelperOptions({
+      statuses: [status("alpha", "Alpha", "alpha-mini", "medium")],
+      settings,
+    });
+    expect(options.defaultSelectionFor({ agentKind: "alpha", model: "alpha-mini" })).toEqual({
+      agentKind: "alpha",
+      model: "alpha-mini",
+      effort: "medium",
+    });
+    expect(options.defaultSelectionFor({ agentKind: "beta", model: "beta-pro" })).toEqual({
+      agentKind: "alpha",
+      model: "alpha-mini",
+      effort: "medium",
+    });
   });
 });

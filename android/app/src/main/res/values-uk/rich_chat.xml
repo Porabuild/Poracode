@@ -107,6 +107,7 @@
     <string name="rich_chat_context">Контекст</string>
     <string name="rich_chat_fast_mode">Швидкий режим</string>
     <string name="rich_chat_thinking">Міркування</string>
+    <string name="rich_chat_workflows">Робочі процеси</string>
     <string name="rich_chat_mode">Режим</string>
     <string name="rich_chat_permissions">Дозволи</string>
     <string name="rich_chat_mcp_servers">Сервери MCP</string>

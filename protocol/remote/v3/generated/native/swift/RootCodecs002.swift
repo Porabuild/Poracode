@@ -325,6 +325,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EHexVoiceU2ERequest: RemoteRootCodec<ProcedurehexVoiceRequest_2ae8d538fe> = .init(id: "procedure.hexVoice.request", schema: RemoteSchemas.schema_2ae8d538fe55c35d)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EHexVoiceU2EResult: RemoteRootCodec<ProcedurehexVoiceResult_46060d35e2> = .init(id: "procedure.hexVoice.result", schema: RemoteSchemas.schema_46060d35e2ab13d1)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EImportSkillsU2ERequest: RemoteRootCodec<ProcedureimportSkillsRequest_8a62b43ffe> = .init(id: "procedure.importSkills.request", schema: RemoteSchemas.schema_8a62b43ffe3b4668)
 }
 
@@ -354,6 +362,14 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EListFileCheckpointsU2EResult: RemoteRootCodec<ProcedurelistFileCheckpointsResult_df7fa3d1be> = .init(id: "procedure.listFileCheckpoints.result", schema: RemoteSchemas.schema_df7fa3d1be8ffbea)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EListImportableSessionsU2ERequest: RemoteRootCodec<ProcedurelistImportableSessionsRequest_b5ff559bbe> = .init(id: "procedure.listImportableSessions.request", schema: RemoteSchemas.schema_b5ff559bbe30e3ad)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EListImportableSessionsU2EResult: RemoteRootCodec<ProcedurelistImportableSessionsResult_078fcc8515> = .init(id: "procedure.listImportableSessions.result", schema: RemoteSchemas.schema_078fcc85154eb644)
 }
 
 public extension RemoteRootCodecs {
@@ -401,7 +417,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EQueueThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurequeueThreadFollowUpRequest_2193287e3b> = .init(id: "procedure.queueThreadFollowUp.request", schema: RemoteSchemas.schema_2193287e3b057c98)
+  static let procedureU2EQueueThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurequeueThreadFollowUpRequest_b6f2d95e2b> = .init(id: "procedure.queueThreadFollowUp.request", schema: RemoteSchemas.schema_b6f2d95e2bc1e84c)
 }
 
 public extension RemoteRootCodecs {
@@ -430,20 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EReadTerminalScrollbackU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.readTerminalScrollback.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadTerminalScrollbackU2EResult: RemoteRootCodec<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .init(id: "procedure.readTerminalScrollback.result", schema: RemoteSchemas.schema_bf0b727f7b1c6d07)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadTerminalSizeU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.readTerminalSize.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadTerminalSizeU2EResult: RemoteRootCodec<ProcedurereadTerminalSizeResult_2d2a48957e> = .init(id: "procedure.readTerminalSize.result", schema: RemoteSchemas.schema_2d2a48957e54670a)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadTerminalSnapshotU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.readTerminalSnapshot.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
 }

@@ -4,9 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
+import { useSettingsHostStore } from "@/renderer/state/settingsHostStore";
+import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 import { UsageSettings } from "./UsageSettings";
 
-const session = vi.hoisted(() => ({ remote: false, owner: null as string | null }));
+const session = vi.hoisted(() => ({
+  remote: false,
+  compact: true,
+  owner: null as string | null,
+  bridgeHost: undefined as RemoteServerRecord | undefined,
+}));
 const getProviderUsage = vi.hoisted(() =>
   vi.fn<() => Promise<{ snapshots: []; fromCache: boolean }>>(),
 );
@@ -19,9 +26,16 @@ vi.mock("@/renderer/state/remoteServersStore", async () => {
   return {
     useRemoteServersStore: create(() => ({ servers: [] })),
     getStandaloneOwnerDesktopId: () => session.owner,
-    selectBrowserBridgeServer: () => undefined,
   };
 });
+vi.mock("@/renderer/state/settingsHostStore", async () => {
+  const { create } = await import("zustand");
+  return {
+    useSettingsHostStore: create(() => ({ desktopId: null as string | null })),
+    useSettingsHostServer: () => session.bridgeHost,
+  };
+});
+vi.mock("@/renderer/adaptiveLayout", () => ({ useCompactLayout: () => session.compact }));
 vi.mock("./HostUsageSettings", () => ({
   HostUsageSettings: (props: { connectionId: string; selector: ReactNode }) => (
     <div>
@@ -73,7 +87,11 @@ function host(connectionId: string): RemoteServerRecord {
 describe("usage host selection", () => {
   beforeEach(() => {
     session.remote = false;
+    session.compact = true;
     session.owner = null;
+    session.bridgeHost = undefined;
+    useUsageScopeStore.setState({ desktopId: null });
+    useSettingsHostStore.setState({ desktopId: null });
     getProviderUsage.mockResolvedValue({ snapshots: [], fromCache: true });
     useRemoteServersStore.setState({
       servers: [
@@ -115,25 +133,33 @@ describe("usage host selection", () => {
     expect(screen.queryByTestId("host-view")).toBeNull();
   });
 
+  it("follows the scope the Usage panel shares and leaves the wide layout to the host bar", () => {
+    session.compact = false;
+    useUsageScopeStore.setState({ desktopId: "parent" });
+    render(<UsageSettings />);
+    expect(screen.getByTestId("host-view").textContent).toBe("parent");
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+
   it("defaults attached Electron to its owner rather than the first paired host", () => {
     session.remote = true;
     session.owner = "environment";
+    session.bridgeHost = host("parent");
     render(<UsageSettings />);
     expect(screen.getByTestId("host-view").textContent).toBe("environment");
-    expect(screen.queryByRole("option", { name: "This host" })).toBeNull();
+    expect(screen.queryByRole("combobox")).toBeNull();
     expect(getProviderUsage).not.toHaveBeenCalled();
   });
 
-  it("selects the actual owning connection when remote records hydrate after mount", async () => {
+  it("shows the chosen settings host in a remote client", () => {
     session.remote = true;
-    useRemoteServersStore.setState({ servers: [] });
+    session.owner = "environment";
+    session.bridgeHost = host("parent");
+    useSettingsHostStore.setState({ desktopId: "parent" });
     render(<UsageSettings />);
-    await act(() => useRemoteServersStore.setState({ servers: [host("parent")] }));
     expect(screen.getByTestId("host-view").textContent).toBe("parent");
-    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe(
-      JSON.stringify(["connection", "parent"]),
-    );
   });
+
   it("keeps a connection named current distinct from the local sentinel", () => {
     useRemoteServersStore.setState({ servers: [host("current")] });
     render(<UsageSettings />);

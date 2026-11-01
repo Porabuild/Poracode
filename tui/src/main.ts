@@ -1,6 +1,7 @@
 import { readTuiBootstrap, UnsupportedTuiBootstrapVersionError } from "./bootstrap";
 import { TuiReauthRequiredError } from "./adapter/connection";
 import { TUI_REPAIR_EXIT_CODE } from "@/shared/tuiSession";
+import { TUI_SWITCH_SERVER_EXIT_CODE } from "@/shared/tuiServers";
 
 try {
   const bootstrap = readTuiBootstrap();
@@ -34,7 +35,10 @@ try {
           ...(bootstrap.args.prompt !== undefined ? { prompt: bootstrap.args.prompt } : {}),
           ...(bootstrap.args.auto !== undefined ? { auto: bootstrap.args.auto } : {}),
         },
-        config: createTuiConfigStore(bootstrap.home),
+        config: createTuiConfigStore(
+          bootstrap.home,
+          adapter.launch.home ? { tabsScope: "global" } : {},
+        ),
         packages: {
           prepare: async () => {
             throw new Error("Plugins are not supported in this TUI build");
@@ -50,6 +54,8 @@ try {
   } finally {
     await adapter.dispose();
   }
+  // The server picker exits the TUI; the CLI relaunches against the target.
+  if (adapter.serverSwitchRequested) process.exitCode = TUI_SWITCH_SERVER_EXIT_CODE;
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode =

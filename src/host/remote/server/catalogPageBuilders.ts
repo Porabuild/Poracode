@@ -6,7 +6,11 @@ import {
   encodeCatalogThreadPaintCursor,
   type CatalogPaintOrder,
 } from "@/shared/remote/catalogReadContract";
-import type { RemoteShellSnapshot, RemoteThreadListPage } from "@/shared/remote";
+import type {
+  RemoteHostWorkspace,
+  RemoteShellSnapshot,
+  RemoteThreadListPage,
+} from "@/shared/remote";
 import {
   boundedShellSnapshotSchema,
   boundedThreadListPageSchema,
@@ -53,10 +57,24 @@ type CatalogReadContext = Pick<RemoteServerContext, "seq"> & {
       NonNullable<RemoteServerContext["options"]["gitState"]>,
       "getSnapshot"
     >;
+    readonly settings?: Pick<
+      NonNullable<RemoteServerContext["options"]["settings"]>,
+      "readWorkspaces"
+    >;
   };
 };
 
+/** The host's workspace names; a failed settings read must not fail the page. */
+function readCatalogHostWorkspaces(ctx: CatalogReadContext): RemoteHostWorkspace[] | undefined {
+  try {
+    return ctx.options.settings?.readWorkspaces?.();
+  } catch {
+    return undefined;
+  }
+}
+
 export function captureCatalogReadProjection(ctx: CatalogReadContext, includeGitState = false) {
+  const workspaces = includeGitState ? readCatalogHostWorkspaces(ctx) : undefined;
   return {
     seq: ctx.seq,
     ...(includeGitState ? { snapshotEpoch: ctx.snapshotEpoch ?? eventStreamEpochOf(ctx) } : {}),
@@ -64,6 +82,7 @@ export function captureCatalogReadProjection(ctx: CatalogReadContext, includeGit
     ...(includeGitState && ctx.options.gitState
       ? { gitState: projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot()) }
       : {}),
+    ...(workspaces ? { workspaces } : {}),
   };
 }
 
@@ -407,6 +426,7 @@ export function readCatalogShellSnapshotPage(
         : ({} as RemoteShellSnapshot["runtimeSummariesByThread"]),
       gitSummariesByThread: gitSummariesFor(projection.gitSummaries, threadSlice),
       ...(gitState ? { gitState } : {}),
+      ...(projection.workspaces ? { workspaces: projection.workspaces } : {}),
       updatedAt: CATALOG_SHELL_TIMESTAMP_PLACEHOLDER,
     });
 

@@ -1,4 +1,5 @@
 import type { Server } from "node:http";
+import type { Server as NetServer } from "node:net";
 import type { WebSocket, WebSocketServer } from "ws";
 import { matchEnvironmentProxyPath } from "@/shared/environments";
 import type { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
@@ -6,6 +7,7 @@ import type { HttpServerConnections } from "@/shared/httpServerConnections";
 import type {
   RemoteGitSummaries,
   RemoteHostMode,
+  RemoteHostWorkspace,
   RemoteHostUpdateStatus,
   RemotePushRegistration,
   RemotePushRegistrationRouting,
@@ -586,6 +588,8 @@ export interface RemoteAccessServerOptions {
    */
   readonly settings?: {
     read(): RemoteSettings;
+    /** The host's workspaces for shell snapshots; hosts without it omit the field. */
+    readWorkspaces?(): RemoteHostWorkspace[];
     /** Update implementations may commit asynchronously (the settings
      * authority persists on its own queue); the route awaits the result. */
     update(patch: RemoteSettingsPatch): RemoteSettings | Promise<RemoteSettings>;
@@ -751,6 +755,8 @@ export interface RemoteAccessServerHost {
   seq: number;
   info: RemoteAccessServerInfo | null;
   activePairingCredential: string | null;
+  /** Loopback guard of a wildcard bind (see `reserveLoopbackPort`). */
+  loopbackGuard: NetServer | null;
   readonly stopping: boolean;
   readonly listenCancellation: AbortController;
   starting: Promise<RemoteAccessServerInfo> | undefined;

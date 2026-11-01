@@ -20,11 +20,6 @@ export const themeOptions = [
   { id: "dark", label: msg`Dark` },
 ] as const satisfies readonly LocalizedOption[];
 
-export const threadDocksPlacementOptions = [
-  { id: "composer", label: msg`Above the composer` },
-  { id: "right", label: msg`Right panel` },
-] as const satisfies readonly LocalizedOption[];
-
 export const followUpBehaviorOptions = [
   { id: "queue", label: msg`Queue` },
   { id: "steer", label: msg`Steer` },

@@ -56,9 +56,12 @@ function mutating<const Spec extends RemoteProcedureSpec>(spec: Spec) {
  * controls which desktop must execute the operation.
  */
 export const REMOTE_PROCEDURE_SPECS = {
+  hexVoice: mutating(operate("desktop")),
   // Host-owned usage: collection and credentials stay on the addressed host.
   getProviderUsage: read("desktop"),
   refreshProviderUsage: operate("desktop"),
+  // Host CLI transcripts: paths and first prompts, so project-management scope.
+  listImportableSessions: manageProjects("desktop"),
 
   listThreadSessionActions: read("thread"),
   invokeThreadSessionAction: mutating(operate("thread")),

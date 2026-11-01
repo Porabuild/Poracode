@@ -39,6 +39,7 @@ export function createFacade(ctx: RouterContext) {
     const model = current?.model ?? remote?.config.model;
     const fastModels = caps?.fastModels ?? status?.capabilities.fastModels ?? [];
     const thinkingModels = caps?.thinkingModels ?? status?.capabilities.thinkingModels ?? [];
+    const workflowModels = caps?.workflowModels ?? status?.capabilities.workflowModels ?? [];
     return {
       approvalPolicies: (caps?.approvalPolicies ??
         status?.capabilities.approvalPolicies ??
@@ -52,6 +53,10 @@ export function createFacade(ctx: RouterContext) {
         disabledReason: caps?.fastDisabledReason ?? status?.capabilities.fastDisabledReason,
       },
       thinking: { offered: model !== undefined && thinkingModels.includes(model) },
+      workflows: {
+        offered: model !== undefined && workflowModels.includes(model),
+        label: caps?.workflowLabel ?? status?.capabilities.workflowLabel ?? "Workflows",
+      },
       contextSizes: (caps?.contextSizes ?? status?.capabilities.contextSizes ?? []) as readonly {
         id: string;
         label: string;
@@ -70,6 +75,7 @@ export function createFacade(ctx: RouterContext) {
       sandboxMode?: string;
       fast?: boolean;
       thinking?: boolean;
+      workflows?: boolean;
       contextSize?: string;
     },
   ) => {
@@ -94,6 +100,11 @@ export function createFacade(ctx: RouterContext) {
         error: "Thinking mode is not offered for this session's model",
         status: 400,
       };
+    if (choice.workflows !== undefined && !offered.workflows.offered)
+      return {
+        error: `${offered.workflows.label} is not offered for this session's model`,
+        status: 400,
+      };
     if (
       choice.contextSize &&
       offered.contextSizes.length > 0 &&
@@ -107,6 +118,7 @@ export function createFacade(ctx: RouterContext) {
       ...(choice.sandboxMode ? { sandboxMode: choice.sandboxMode } : {}),
       ...(choice.fast !== undefined ? { fast: choice.fast } : {}),
       ...(choice.thinking !== undefined ? { thinking: choice.thinking } : {}),
+      ...(choice.workflows !== undefined ? { workflows: choice.workflows } : {}),
       ...(choice.contextSize ? { contextSize: choice.contextSize } : {}),
     };
     sessions.set(session, updated);

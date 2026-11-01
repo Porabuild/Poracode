@@ -96,6 +96,7 @@ import {
 } from "../workspaceScope";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
+import { launchMayReceiveContextSteers } from "../crewLeadEditNudge";
 import { formatTurnClientContext, structuredTurnTextOptions } from "../turnClientContext";
 import {
   buildProviderHandoffInstruction,
@@ -162,6 +163,8 @@ export interface SpawnThreadInput {
   threadMentionToolsAvailable?: boolean;
   launchConfig?: ThreadConfig;
   crewBriefDelivered?: string;
+  /** A replacement keeps the next prompt's crew edit reminder (`SessionRuntime.crewLeadEditedFiles`). */
+  crewLeadEditedFiles?: boolean;
   crossagentsMcpAttached?: boolean;
   crossagentsMcpAvailable?: boolean;
   nativePlugins?: readonly AgentNativePlugin[];
@@ -1327,6 +1330,7 @@ export class SpawnPipeline {
           ...(session.pendingInitialInstructions
             ? { initialInstructions: session.pendingInitialInstructions }
             : {}),
+          ...(session.crewLeadEditedFiles ? { crewLeadEditedFiles: true } : {}),
           initialAttention: hasPrompt ? "working" : "none",
           suppressInitialStructuredIdle: hasPrompt,
           resourceLease,
@@ -1680,6 +1684,7 @@ export class SpawnPipeline {
       ...(input.crewBriefDelivered !== undefined
         ? { crewBriefDelivered: input.crewBriefDelivered }
         : {}),
+      ...(input.crewLeadEditedFiles ? { crewLeadEditedFiles: true } : {}),
       ...(input.crossagentsMcpAttached !== undefined
         ? { crossagentsMcpAttached: input.crossagentsMcpAttached }
         : {}),
@@ -2073,6 +2078,13 @@ export class SpawnPipeline {
         },
         ...(sessionRef ? { sessionRef } : {}),
         ...(presentationMode ? { presentationMode } : {}),
+        ...(launchMayReceiveContextSteers(
+          config,
+          presentationMode ?? adapter.capabilities.presentationMode,
+          hasCrossagentsMcp(mcpServers),
+        )
+          ? { mayReceiveContextSteers: true }
+          : {}),
         ...(this.ctx.options.readHostDiagnostics
           ? {
               readHostDiagnostics: bindHostDiagnosticsReader(

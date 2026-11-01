@@ -142,6 +142,9 @@ function AttachmentImage(props: {
     activeReadiness,
     activeReadiness ? "" : attachmentImageUrl(attachment, imageUrlForPath),
     priority,
+    // A 32px thumbnail never needs the original: the host's downscaled card
+    // variant keeps a screenshot-heavy message from pulling full-size bytes.
+    "card",
   );
   // A full-size screenshot in this small box flickers: whenever a neighbor
   // repaints (a turn's working indicator), an async decode is re-rastered

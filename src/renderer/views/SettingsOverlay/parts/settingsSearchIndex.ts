@@ -133,7 +133,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Show voice input button`,
     description: msg`Show the microphone button in the composer.`,
     keywords: "mic microphone dictation speech composer",
-    desktopOnly: true,
   },
   {
     section: "audio",
@@ -141,7 +140,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Microphone`,
     description: msg`Device used by the composer voice input button.`,
     keywords: "mic input device audio source",
-    desktopOnly: true,
   },
   {
     section: "audio",
@@ -149,7 +147,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Test microphone`,
     description: msg`Check the live input level from the selected device.`,
     keywords: "mic check level meter input test",
-    desktopOnly: true,
   },
   {
     section: "audio",
@@ -157,7 +154,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Voice input language`,
     description: msg`Language the speech model should expect when transcribing composer dictation.`,
     keywords: "transcription dictation speech locale",
-    desktopOnly: true,
   },
   {
     section: "audio",
@@ -165,7 +161,28 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Voice input model`,
     description: msg`Fastest uses Whisper tiny; Better uses Whisper base.`,
     keywords: "whisper transcription speech model tiny base quality speed",
-    desktopOnly: true,
+  },
+  {
+    section: "audio",
+    anchor: "audio.transcriptionBackend",
+    title: msg`Transcription engine`,
+    description: msg`Built-in runs on this device. Hex uses a native engine on the connected host.`,
+    keywords: "hex transformers transcription dictation speech parakeet whisper native backend",
+  },
+  {
+    section: "audio",
+    anchor: "audio.hexModel",
+    title: msg`Hex voice model`,
+    description: msg`Models available on the connected host for the selected language.`,
+    keywords: "hex native model install setup download prepare parakeet whisper",
+    conditional: true,
+  },
+  {
+    section: "audio",
+    anchor: "audio.testDictation",
+    title: msg`Test dictation`,
+    description: msg`Use the microphone to try your selected engine and model.`,
+    keywords: "audio speech microphone test transcription preview",
   },
   {
     section: "audio",
@@ -173,7 +190,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Use WebGPU acceleration`,
     description: msg`Run local transcription on the GPU when available.`,
     keywords: "gpu acceleration hardware transcription performance",
-    desktopOnly: true,
   },
 
   // Appearance
@@ -190,14 +206,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Theme`,
     description: msg`Popular editor themes adapted to Poracode. Each follows the light or dark mode above.`,
     keywords: "color preset editor theme gallery swatch palette",
-  },
-  {
-    section: "appearance",
-    anchor: "appearance.threadDocksPlacement",
-    title: msg`Thread docks`,
-    description: msg`Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them.`,
-    keywords:
-      "docks plan goal agents subagents background tasks right panel composer bubbles layout",
   },
   {
     section: "appearance",
@@ -574,7 +582,8 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     anchor: "crews.list",
     title: msg`Crews`,
     description: msg`Saved crews: a lead and the helpers it hands work to. Pick one under Poracode in any model picker.`,
-    keywords: "crews crew lead roles builder reviewer scout helpers crossagents fusion team",
+    keywords:
+      "crews crew lead roles sidekick builder reviewer scout helpers crossagents fusion team",
   },
 
   // Browser

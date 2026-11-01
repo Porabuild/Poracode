@@ -49,6 +49,30 @@ describe("event-stream epoch mirror (eventEpoch=v1)", () => {
     current.ws.close();
   });
 
+  it("binds a first connect to the snapshot's epoch so it is not refused", async () => {
+    harness = await startLab();
+    const { accessToken } = await pairAndAuth(harness, ["session:read"]);
+    // A skipped-store publish leaves the ring past 0 with nothing to replay,
+    // as the native journey's sequence-gap fault does for the second host.
+    harness.lab.setFault({ kind: "sequence-gap" });
+    harness.lab.publishEvent({ type: "thread-state", threadId: "a" });
+    const response = await fetch(new URL("/api/snapshot", harness.httpBaseUrl), {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    const snapshot = (await response.json()) as { snapshotSeq: number; snapshotEpoch?: string };
+    expect(snapshot.snapshotSeq).toBe(1);
+    expect(snapshot.snapshotEpoch).toEqual(expect.any(String));
+
+    const first = await openReadySocket(harness, accessToken, {
+      lastSeenSeq: snapshot.snapshotSeq,
+      eventEpoch: snapshot.snapshotEpoch!,
+    });
+    expect(first.ready).toEqual({ type: "ready", seq: 1, epoch: snapshot.snapshotEpoch });
+    harness.lab.publishEvent({ type: "thread-state", threadId: "b" });
+    expect(await first.next()).toMatchObject({ type: "event", seq: 2 });
+    first.ws.close();
+  });
+
   it("refuses an undeclared session's first positive resume once, then replays", async () => {
     harness = await startLab();
     const { accessToken } = await pairAndAuth(harness, ["session:read"]);

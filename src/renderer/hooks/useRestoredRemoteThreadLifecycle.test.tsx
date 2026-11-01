@@ -379,6 +379,36 @@ describe("useRestoredRemoteThreadLifecycle", () => {
     expect(interestsFrames(sockets[0])).toEqual([["rt-1"]]);
   });
 
+  it("shares an explicit open still in flight instead of reading the history twice", async () => {
+    const held = deferred<RemoteThreadHistorySnapshot>();
+    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(() => held.promise);
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
+    useRemoteServersStore.setState({ servers: [serverRecord] });
+    await act(async () => {
+      await useRemoteServersStore.getState().connectAll();
+    });
+    seedRestoredView();
+    useAppStore.setState({ view: { kind: "home" } });
+
+    // A sidebar click starts the open; the view switches before its history lands.
+    const explicitOpen = useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    act(() => {
+      useAppStore.setState({ view: { kind: "thread", panes: [projectedThreadId] } });
+    });
+    renderHook(() => useRestoredRemoteThreadLifecycle(true));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(threadHistory).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      held.resolve(remoteThreadSnapshot());
+      await explicitOpen;
+    });
+    await waitFor(() => expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-1"));
+    expect(threadHistory).toHaveBeenCalledTimes(1);
+  });
+
   it("waits for the restored server to come online before reattaching", async () => {
     const sockets: RemoteSocketLike[] = [];
     const connectInterests: Array<readonly string[] | undefined> = [];

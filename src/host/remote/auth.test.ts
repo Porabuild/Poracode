@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,6 +15,7 @@ import {
   RemoteHttpError,
   RefreshTokenReuseError,
   RemoteAuthStore,
+  MANAGED_RENDERER_ACCESS_TTL_MS,
   createPersistentRemoteAuthStore,
   parseBearerAuthorizationHeader,
   readRemoteAccessAuthFile,
@@ -648,5 +650,130 @@ describe("RemoteAuthStore", () => {
     expect(upgraded.authenticateBearerToken(other.accessToken).sessionId).toBe(other.sessionId);
     upgraded.markSessionConnected(managed.sessionId!);
     expect(rewritten.accessSessions.map((session) => session.id).sort()).toEqual(previousIds);
+  });
+
+  it("warns a refused bearer with the failure reason and a hash prefix, throttled", () => {
+    const warns = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const store = new RemoteAuthStore();
+    const token = store.exchangePairingCredential({
+      credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      ttlMs: 0,
+    });
+    const hashPrefix = createHash("sha256").update(token.accessToken).digest("hex").slice(0, 12);
+
+    // Expired: the reason names the deadline failure, and the id is only the
+    // hash prefix — never the token value.
+    expect(() => store.authenticateBearerToken(token.accessToken)).toThrow("Invalid access token");
+    expect(warns).toHaveBeenCalledTimes(1);
+    expect(warns.mock.lastCall![0]).toContain("expired");
+    expect(warns.mock.lastCall![0]).toContain(hashPrefix);
+    expect(warns.mock.lastCall![0]).not.toContain(token.accessToken);
+
+    // A retry storm stays throttled: no second line inside the interval.
+    expect(() => store.authenticateBearerToken(token.accessToken)).toThrow("Invalid access token");
+    expect(warns).toHaveBeenCalledTimes(1);
+    vi.restoreAllMocks();
+
+    // An unknown token says so — the server-side session state was rebuilt
+    // while the client kept presenting its bearer.
+    const warnsLater = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(() => new RemoteAuthStore().authenticateBearerToken(token.accessToken)).toThrow(
+      "Invalid access token",
+    );
+    expect(warnsLater).toHaveBeenCalledTimes(1);
+    expect(warnsLater.mock.lastCall![0]).toContain("unknown_token");
+    vi.restoreAllMocks();
+  });
+
+  it("yields the grant's extended access TTL for a managed renderer exchange", () => {
+    const store = new RemoteAuthStore();
+    const managed = store.exchangePairingCredential({
+      credential: store.issuePairingCredential({
+        scopes: ["session:read"],
+        ephemeral: true,
+        sessionTtlMs: MANAGED_RENDERER_ACCESS_TTL_MS,
+      }).credential,
+    });
+    // The co-located window's session outlives any realistic host uptime: no
+    // renewal ladder, no expiry close mid-session (the session is memory-only
+    // and dies with the host process anyway).
+    expect(Date.parse(managed.expiresAt)).toBeGreaterThan(
+      Date.now() + MANAGED_RENDERER_ACCESS_TTL_MS - 60_000,
+    );
+    // A grant without the extension keeps the 24-hour default.
+    const daily = store.exchangePairingCredential({
+      credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+    });
+    expect(Date.parse(daily.expiresAt)).toBeLessThanOrEqual(Date.now() + 24 * 60 * 60 * 1000);
+  });
+
+  it("re-arms the grant's TTL, not the daily default, when a managed session rotates", () => {
+    const store = new RemoteAuthStore();
+    const managed = store.exchangePairingCredential({
+      credential: store.issuePairingCredential({
+        scopes: ["session:read"],
+        ephemeral: true,
+        sessionTtlMs: MANAGED_RENDERER_ACCESS_TTL_MS,
+      }).credential,
+    });
+    // The backstop refresh path (a transient refusal healed on reconnect) must
+    // not silently collapse the leg onto the 24-hour renewal ladder.
+    const rotated = store.refreshAccessToken({ refreshToken: managed.refreshToken! });
+    expect(rotated.sessionId).toBe(managed.sessionId);
+    expect(Date.parse(rotated.expiresAt)).toBeGreaterThan(
+      Date.now() + MANAGED_RENDERER_ACCESS_TTL_MS - 60_000,
+    );
+  });
+
+  it("slides the refresh inactivity window on every rotation, so an active device never re-pairs", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-30T00:00:00.000Z"));
+    try {
+      const store = new RemoteAuthStore();
+      const paired = store.exchangePairingCredential({
+        credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      });
+      const initialDeadline = Date.parse(paired.refreshTokenExpiresAt!);
+      expect(initialDeadline - Date.now()).toBe(90 * 24 * 60 * 60 * 1000);
+
+      // A device that keeps refreshing (daily bearer expiries) stays paired
+      // far past any fixed pairing-date deadline: each rotation re-arms the
+      // window from NOW.
+      vi.setSystemTime(new Date("2026-12-25T00:00:00.000Z"));
+      const rotated = store.refreshAccessToken({ refreshToken: paired.refreshToken! });
+      expect(Date.parse(rotated.refreshTokenExpiresAt!) - Date.now()).toBe(
+        90 * 24 * 60 * 60 * 1000,
+      );
+      expect(Date.parse(rotated.refreshTokenExpiresAt!)).toBeGreaterThan(initialDeadline);
+
+      // …and the chain continues: rotate again a month later.
+      vi.setSystemTime(new Date("2027-01-25T00:00:00.000Z"));
+      const rotatedAgain = store.refreshAccessToken({ refreshToken: rotated.refreshToken! });
+      expect(Date.parse(rotatedAgain.refreshTokenExpiresAt!) - Date.now()).toBe(
+        90 * 24 * 60 * 60 * 1000,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("refuses a refresh token whose inactivity window has lapsed", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-30T00:00:00.000Z"));
+    try {
+      const store = new RemoteAuthStore();
+      const paired = store.exchangePairingCredential({
+        credential: store.issuePairingCredential({ scopes: ["session:read"] }).credential,
+      });
+      // Unused for the whole window: the grant lapses and the pairing must be
+      // redone (surfaced to the client as a dead grant, which retires the
+      // connection instead of looping).
+      vi.setSystemTime(new Date("2027-01-30T00:00:01.000Z"));
+      expect(() => store.refreshAccessToken({ refreshToken: paired.refreshToken! })).toThrow(
+        "Invalid refresh token.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

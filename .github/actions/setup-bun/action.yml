@@ -3,9 +3,34 @@ description: Install the exact npm Bun build used by the workspace
 runs:
   using: composite
   steps:
+    # Defender's real-time scan of every written file made Windows jobs several
+    # times slower than Linux (npm installs and the cache restore below). On these
+    # single-use hosted runners, exclude the workspace, temp folders and package
+    # and toolchain caches; scanning stays on everywhere else.
+    - name: Exclude build folders from Defender scanning (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $paths = @(
+          $env:GITHUB_WORKSPACE,
+          $env:RUNNER_TEMP,
+          $env:RUNNER_TOOL_CACHE,
+          $env:TEMP,
+          (Join-Path $env:LOCALAPPDATA 'npm-cache'),
+          (Join-Path $env:LOCALAPPDATA 'electron'),
+          (Join-Path $env:LOCALAPPDATA 'electron-builder'),
+          (Join-Path $env:USERPROFILE '.bun'),
+          (Join-Path $env:USERPROFILE '.cargo')
+        ) | Where-Object { $_ }
+        try {
+          Add-MpPreference -ExclusionPath $paths -ErrorAction Stop
+          Write-Host "Defender exclusions: $($paths -join ', ')"
+        } catch {
+          Write-Host "::warning::Could not add Defender exclusions: $($_.Exception.Message)"
+        }
     - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
       with:
-        node-version: "24"
+        node-version: "26"
     - name: Read pinned Bun version
       id: bun-version
       shell: bash

@@ -201,6 +201,9 @@ export const audioTranscriptionModelSchema = z.preprocess(
 );
 export type AudioTranscriptionModel = z.infer<typeof audioTranscriptionModelSchema>;
 
+export const audioTranscriptionBackendSchema = z.enum(["transformers", "hex"]);
+export type AudioTranscriptionBackend = z.infer<typeof audioTranscriptionBackendSchema>;
+
 const audioSettingsSchema = z.object({
   /** Show the composer microphone button. */
   showVoiceInputButton: z.boolean().default(true),
@@ -210,6 +213,10 @@ const audioSettingsSchema = z.object({
   transcriptionLanguage: z.string().default("en"),
   /** Model used for local composer dictation. */
   transcriptionModel: audioTranscriptionModelSchema.default("tiny"),
+  /** Native Hex or the built-in Transformers.js voice backend. */
+  transcriptionBackend: audioTranscriptionBackendSchema.default("transformers"),
+  /** Native Hex model selected for voice input. */
+  hexModel: z.string().min(1).default("parakeet_v3"),
   /** Prefer WebGPU acceleration for local speech-to-text when available. */
   useWebGpu: z.boolean().default(true),
 });
@@ -660,9 +667,9 @@ export const sharedSettingsSchema = z.object({
    * Which one is *active* is not stored here but per-window (see the renderer's
    * `workspaceStore`), so switching in one window leaves the others alone.
    *
-   * Not part of `remoteSettingsSchema`, so paired browser clients receive no
-   * workspace list and therefore show every project — add it to that allowlist if
-   * workspaces should scope remote sessions too.
+   * Not part of `remoteSettingsSchema`: browser clients keep their own list.
+   * Shell snapshots carry each workspace's id and name instead, so a browser
+   * client can place a host project in its same-named workspace.
    */
   workspaces: workspaceListSchema,
   /** Additive field: older settings files omit it and normalize to an empty list. */
@@ -913,6 +920,8 @@ export const defaultSharedSettings: SharedSettings = {
     microphoneDeviceId: "",
     transcriptionLanguage: "en",
     transcriptionModel: "tiny",
+    transcriptionBackend: "transformers",
+    hexModel: "parakeet_v3",
     useWebGpu: true,
   },
   usage: {

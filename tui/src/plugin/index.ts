@@ -2,6 +2,7 @@ import { Plugin } from "@opencode/plugin/tui";
 import { createComponent, createSignal } from "solid-js";
 import type { Adapter } from "../adapter";
 import { registerCrewUi } from "./crew";
+import { registerServerUi } from "./servers";
 import { SlotText } from "./slotText";
 
 /**
@@ -30,6 +31,7 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
       };
 
       registerCrewUi(context, adapter);
+      registerServerUi(context, adapter);
       const [goalTick, setGoalTick] = createSignal(0);
       adapter.subscribeGoal(() => setGoalTick((value) => value + 1));
       // A compact goal line in the prompt footer; hidden without a goal.
@@ -149,7 +151,7 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
           },
           {
             id: "poracode.session.toggles",
-            title: "Thread fast/thinking/context",
+            title: "Thread fast/thinking/workflows/context",
             group: "Thread",
             palette: true,
             run: async () => {
@@ -159,6 +161,7 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
               const choice: {
                 fast?: boolean;
                 thinking?: boolean;
+                workflows?: boolean;
                 contextSize?: string;
               } = {};
               if (offered.fast.offered) {
@@ -181,6 +184,17 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
                 });
                 if (thinking === "on" || thinking === "off") choice.thinking = thinking === "on";
               }
+              if (offered.workflows.offered) {
+                const workflows = await context.ui.dialog.select<string>({
+                  title: offered.workflows.label,
+                  options: [
+                    { title: "On", value: "on" },
+                    { title: "Off", value: "off" },
+                  ],
+                });
+                if (workflows === "on" || workflows === "off")
+                  choice.workflows = workflows === "on";
+              }
               if (offered.contextSizes.length) {
                 const contextSize = await context.ui.dialog.select<string>({
                   title: "Context size",
@@ -194,7 +208,8 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
               if (!Object.keys(choice).length) {
                 void context.ui.dialog.alert({
                   title: "Thread toggles",
-                  message: "This provider offers no fast, thinking, or context-size options.",
+                  message:
+                    "This provider offers no fast, thinking, workflow, or context-size options.",
                 });
                 return;
               }

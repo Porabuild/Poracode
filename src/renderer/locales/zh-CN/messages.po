@@ -178,6 +178,11 @@ msgstr "{0} — 编写器"
 msgid "{0} — Terminal"
 msgstr "{0} — 终端"
 
+#. placeholder {0}: item.name
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} · Installed"
+msgstr "{0}·已安装"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} ({envName}) is already up to date."
@@ -314,6 +319,11 @@ msgstr "{0}限制"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} logged out."
 msgstr "{0}已注销。"
+
+#. placeholder {0}: Math.ceil(item.downloadBytes / 1_000_000)
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} MB download"
+msgstr "{0} MB 下载"
 
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -561,6 +571,10 @@ msgstr "{days}天"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "{days}d ago"
 msgstr "{days}天前"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{downloadSize} MB download"
+msgstr "下载 {downloadSize} MB"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
@@ -1073,7 +1087,7 @@ msgstr "冻结的工作树源需要完整的提交哈希"
 #~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 #~ msgstr "屏幕锁定后将无法进行任何桌面操作，因此在计算机操作会话运行期间会保持显示器常亮。你仍然可以自行锁定屏幕。"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "无法确认一条消息删除。请刷新以重新同步此对话。"
 
@@ -1101,6 +1115,10 @@ msgstr "一次审查最多可包含 100 条行评论。"
 msgid "A review or comment body is required."
 msgstr "必须提供评审或评论正文。"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A scout maps the code, a builder implements and verifies, and a reviewer checks the diff; the lead plans and decides."
+msgstr "侦察员梳理代码，构建者实现并验证，审查者检查 diff；主模型负责规划和决策。"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
 msgstr "无法启动某个服务器，已跳过。"
@@ -1118,8 +1136,12 @@ msgid "a supported coding agent"
 msgstr "支持的编码代理"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "A tester writes failing tests; a builder makes them pass."
-msgstr "测试者编写失败的测试，构建者让它们通过。"
+msgid "A tester writes and runs failing tests, and a builder makes them pass; the lead sets the cases."
+msgstr "测试者编写并运行失败的测试，构建者让它们通过；测试用例由主模型确定。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "A tester writes failing tests; a builder makes them pass."
+#~ msgstr "测试者编写失败的测试，构建者让它们通过。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
@@ -1147,8 +1169,8 @@ msgid "About usage"
 msgstr "关于用量"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "输入框上方"
+#~ msgid "Above the composer"
+#~ msgstr "输入框上方"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -1894,6 +1916,10 @@ msgstr "请在浏览器设置中允许此站点访问摄像头后重试，或改
 msgid "Allow eval"
 msgstr "允许评估"
 
+#: src/renderer/components/composer/voiceError.ts
+msgid "Allow microphone access in your browser's site settings, then try again."
+msgstr "请在浏览器的网站设置中允许麦克风访问，然后重试。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
 #~ msgstr "允许已配对的设备通过局域网和 Tailscale IP 地址连接。未配置 TLS 时，连接使用 HTTP。请仅在可信网络上启用。"
@@ -1953,6 +1979,10 @@ msgstr "代理正在修复此 PR。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "预期的工作树所有者需要指定分支"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
+msgstr "调查者找出根本原因，修复者落地修复并附回归测试。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
@@ -2321,13 +2351,22 @@ msgid "Attempt {0} · Iteration {1}"
 msgstr "尝试 {0} · 迭代 {1}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Audio"
 msgstr "音频"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Audio is sent only to your selected host, not to a cloud transcription service. Recordings are limited to five minutes. Models have separate licenses; download size is not memory usage."
+msgstr "音频仅发送到您选择的主机，而不发送到云转录服务。录音仅限五分钟。模型有单独的许可证；下载大小不是内存使用量。"
+
 #: src/renderer/components/media/NativeMediaView.tsx
 msgid "Audio preview"
 msgstr "音频预览"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Audio settings"
+msgstr "音频设置"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
@@ -2337,7 +2376,6 @@ msgstr "身份验证"
 msgid "Authenticated"
 msgstr "已通过身份验证"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "认证"
@@ -2522,6 +2560,10 @@ msgstr "可用"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Available ACP Agents"
 msgstr "可用的 ACP 代理"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Available models will appear after the engine is installed."
+msgstr "安装发动机后会出现可用型号。"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -2932,6 +2974,14 @@ msgstr "正在生成差异…"
 msgid "Built-in"
 msgstr "内置"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Built-in · This device"
+msgstr "内置·本装置"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Built-in (Transformers.js)"
+#~ msgstr "内置（Transformers.js）"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Built-in and plugin skills"
 #~ msgstr "内置和插件技能"
@@ -2943,6 +2993,11 @@ msgstr "内置 MCP 服务器"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "内置顺序"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Built-in runs on this device. Hex uses a native engine on the connected host."
+msgstr "内置方案在此设备上运行。Hex 使用已连接主机上的原生引擎。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
@@ -3089,8 +3144,13 @@ msgid "Cancel agent discovery"
 msgstr "取消智能体发现"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Cancel download"
 msgstr "取消下载"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Cancel installation"
+msgstr "取消安装"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -3123,6 +3183,10 @@ msgstr "取消运行"
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Cancel sign-in"
 msgstr "取消登录"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Cancel transcription"
+msgstr "取消转录"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Cancel voice connection"
@@ -3162,6 +3226,10 @@ msgstr "无法切换分支 - 首先提交或存储您的更改"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Capture and view controls"
 msgstr "捕获与视图控制"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Capture audio from this device."
+msgstr "从此设备捕获音频。"
 
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
@@ -3381,6 +3449,10 @@ msgstr "请检查{invalidPaletteName}配色中是否有无效颜色。"
 msgid "Check the live input level from the selected device."
 msgstr "检查所选设备的实时输入电平。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Check the supported languages before downloading."
+msgstr "下载前检查支持的语言。"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Checked"
 msgstr "已选中"
@@ -3472,6 +3544,7 @@ msgid "Choose a photo"
 msgstr "选择照片"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "为文件夹已不存在的会话选择一个项目。"
 
@@ -3482,6 +3555,10 @@ msgstr "选择项目图标图片"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Choose a saved credential to sign out."
 msgstr "请选择要退出登录的已保存凭据。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Choose a voice model"
+msgstr "选择语音模型"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Choose an available conversation in this project."
@@ -3528,6 +3605,10 @@ msgstr "选择 Poracode 执行手动合并和 PR 自动合并的方式。"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #~ msgid "Choose how to sign in."
 #~ msgstr "选择登录方式。"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Choose how you record and where your speech is transcribed."
+msgstr "选择录音方式以及语音转录位置。"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
@@ -3743,6 +3824,10 @@ msgstr "清除搜索"
 #~ msgid "Clear thread search"
 #~ msgstr "清除线程搜索"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Clear transcript"
+msgstr "清晰的文字记录"
+
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -3801,6 +3886,7 @@ msgstr "克隆…"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Close"
 msgstr "关闭"
 
@@ -4657,6 +4743,10 @@ msgstr "连接到远程服务器"
 #~ msgid "Connect to Your Desktop"
 #~ msgstr "连接到你的桌面端"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Connect to your host to set up Hex."
+msgstr "连接到您的主机以设置 Hex。"
+
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
@@ -4686,6 +4776,7 @@ msgid "Connecting to the device…"
 msgstr "正在连接设备…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "正在连接语音…"
 
@@ -6486,6 +6577,10 @@ msgstr "放弃实验？"
 msgid "Discard outdated"
 msgstr "放弃已过时项"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Discard recording"
+msgstr "放弃录音"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -6536,7 +6631,7 @@ msgstr "正在发现编码代理……"
 msgid "Discovery complete"
 msgstr "发现完成"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6593,6 +6688,10 @@ msgstr "停靠面板"
 msgid "Docs"
 msgstr "文档"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
+msgstr "负责大范围搜索：找出任务涉及的文件、调用方、测试和约定，报告路径和事实，而不是审查意见。"
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
@@ -6614,7 +6713,6 @@ msgstr "完成"
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
@@ -6649,9 +6747,25 @@ msgstr "下载记录"
 msgid "Download image"
 msgstr "下载图片"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model"
+msgstr "下载模型"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model · {downloadSize} MB"
+msgstr "下载型号·{downloadSize} MB"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download progress"
 msgstr "下载进度"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Download required"
+#~ msgstr "需要下载"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download size unavailable"
+msgstr "下载大小不可用"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Downloading"
@@ -6672,6 +6786,10 @@ msgstr "正在下载更新"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
 msgstr "下载语音模型{0}%"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Downloading voice model {progress}%"
+#~ msgstr "正在下载语音模型 {progress}%"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model..."
@@ -6940,6 +7058,10 @@ msgstr "思考级别"
 msgid "Effort levels for {modelName}"
 msgstr "{modelName} 的思考级别"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Egyptian Arabic speech with English terms."
+msgstr "带有英语术语的埃及阿拉伯语语音。"
+
 #. About page label: Electron framework version
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
@@ -7053,6 +7175,23 @@ msgstr "结束语音聊天"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Endpoint, e.g. http://192.168.1.20:49152/"
 #~ msgstr "端点，例如 http://192.168.1.20:49152/"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Engine installation progress"
+msgstr "发动机安装进度"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation based on Parakeet."
+msgstr "基于Parakeet的英语听写。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation with filler-word removal."
+msgstr "删除填充词的英语听写。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English speech recognition."
+msgstr "英语语音识别。"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -7210,7 +7349,6 @@ msgstr "错误"
 #. Notification status: agent error
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -7521,12 +7659,16 @@ msgid "Explore and plan"
 msgstr "探索与规划"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Explore, build and review a feature."
-msgstr "探索、构建并审查一个功能。"
+#~ msgid "Explore, build and review a feature."
+#~ msgstr "探索、构建并审查一个功能。"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 #~ msgid "Explores code and docs"
 #~ msgstr "探索代码和文档"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence."
+msgstr "探索代码库，端到端完成主模型的任务，运行范围最小的检查，并附证据报告改动。"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7910,16 +8052,16 @@ msgid "Find in terminal"
 msgstr "在终端中查找"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Find the root cause first, then fix it with a regression test."
-msgstr "先找到根本原因，再附带回归测试进行修复。"
+#~ msgid "Find the root cause first, then fix it with a regression test."
+#~ msgstr "先找到根本原因，再附带回归测试进行修复。"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "发现项状态"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
-msgstr "找出任务涉及的文件、调用方和测试，并附简短摘要报告路径。"
+#~ msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+#~ msgstr "找出任务涉及的文件、调用方和测试，并附简短摘要报告路径。"
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -7937,13 +8079,13 @@ msgstr "完成"
 msgid "Finished · Waiting for your input"
 msgstr "已完成·等待您的输入"
 
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-#~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
-#~ msgstr "使用 Poracode 的本机运行时实现一流的 Antigravity CLI 集成。"
-
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Finishing your report on GitHub…"
 msgstr "正在 GitHub 上完成报告…"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+#~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
+#~ msgstr "使用 Poracode 的本机运行时实现一流的 Antigravity CLI 集成。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Antigravity integration using the agy terminal CLI and Google's official ACP Chat runtime."
@@ -8668,9 +8810,50 @@ msgstr "助手"
 msgid "Helpers join when this chat restarts."
 msgstr "重新启动此聊天后，助手将加入。"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Hex · Host engine"
+msgstr "Hex·主机引擎"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Hex (native)"
+#~ msgstr "Hex（原生）"
+
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "十六进制颜色"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex could not process this request. Check the model and language in Audio settings."
+msgstr "Hex 无法处理此请求。请在音频设置中检查模型和语言。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Hex documentation and licenses"
+msgstr "Hex 文档和许可证"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Hex installation"
+#~ msgstr "Hex 安装"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is busy with another voice request. Try again shortly."
+msgstr "Hex 正在处理其他语音请求，请稍后重试。"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is unavailable on this host. Install a compatible Hex executable and restart Poracode, or choose the built-in backend."
+msgstr "此主机上无法使用 Hex。请安装兼容的 Hex 可执行文件并重启 Poracode，或选择内置后端。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Hex setup"
+msgstr "Hex 设置"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex timed out. Please try again."
+msgstr "Hex 请求超时，请重试。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Hex voice model"
+msgstr "Hex 语音模型"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -8957,7 +9140,6 @@ msgid "Identity file path"
 msgstr "身份文件路径"
 
 #. Microphone input level when not testing
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -9000,12 +9182,20 @@ msgstr "图片"
 #~ msgstr "实现更改并运行测试"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the fix with a regression test and confirms the reproduction now passes."
-msgstr "附带回归测试实现修复，并确认复现步骤现已通过。"
+msgid "Implements the fix the lead settles, adds a regression test, and confirms the reproduction now passes with the narrowest check."
+msgstr "实现主模型确定的修复，添加回归测试，并用范围最小的检查确认复现现已通过。"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
-msgstr "端到端完成主模型的任务：编辑文件、运行构建和测试，并报告改动。"
+#~ msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+#~ msgstr "附带回归测试实现修复，并确认复现步骤现已通过。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations."
+msgstr "端到端完成主模型的任务，并用范围最小的构建和测试验证；报告改动的文件、检查结果和偏差。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+#~ msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+#~ msgstr "端到端完成主模型的任务：编辑文件、运行构建和测试，并报告改动。"
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9470,6 +9660,22 @@ msgstr "安装 Cursor SDK"
 msgid "Install Cursor SDK in {environment}"
 msgstr "在 {environment} 中安装 Cursor SDK"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex"
+msgstr "安装Hex"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex · {engineSize} MB"
+#~ msgstr "安装 Hex·{engineSize} MB"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex · {size} MB"
+msgstr "安装 Hex · {size} MB"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex on the connected host first. Poracode uses its native service, not its dictation app. Model downloads may be large and have their own licenses."
+#~ msgstr "请先在已连接的主机上安装 Hex。Poracode 使用其原生服务，而非听写应用。模型下载可能很大，且受各自许可证约束。"
+
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install in {0}"
@@ -9525,6 +9731,10 @@ msgstr "安装 Tailscale"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "安装 Tailscale 以通过 MagicDNS 启用 HTTPS 访问。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Install the engine"
+msgstr "安装发动机"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Install the package to add its API key."
 msgstr "安装该包后即可添加其 API 密钥。"
@@ -9557,6 +9767,10 @@ msgstr "请在此主机上安装 Xcode 和 iOS Simulator 运行时。"
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "远程设备暂不支持安装、更新和登录。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Installation continues when you close this dialog."
+msgstr "关闭此对话框后，安装仍会继续。"
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -9583,6 +9797,11 @@ msgstr "此客户端不支持选择已安装的字体。"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
 msgstr "安装中"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Installing engine…"
+msgstr "正在安装引擎..."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Installing in this terminal. Closes when finished."
@@ -9738,6 +9957,10 @@ msgstr "开机启动时将 Poracode 保持在系统托盘中。"
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "计算机操作期间保持 Mac 唤醒"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Keep the same microphone button. Choose the engine behind it."
+msgstr "保留相同的麦克风按钮。选择其背后的引擎。"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
 msgstr "只要 Poracode 仍在运行（包括在后台运行），就保持系统唤醒。 显示器仍可关闭。屏幕锁定行为保持不变。"
@@ -9818,6 +10041,10 @@ msgstr "横向右侧"
 msgid "Language"
 msgstr "语言"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Language and sidebar shortcuts"
+msgstr "语言和侧边栏快捷方式"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. Thread titles always follow the app language."
@@ -9827,6 +10054,11 @@ msgstr "AI 生成的提交信息和拉取请求摘要所使用的语言。线程
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "语音模型在转录编辑器口述输入时应预期的语言。"
+
+#. placeholder {0}: selected.languages.join(", ")
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Languages: {0}"
+msgstr "语言：{0}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop"
@@ -9920,8 +10152,12 @@ msgid "Lead + 1 helper"
 msgstr "负责人 + 1 位助手"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Lead + Builder"
-msgstr "主模型 + 构建者"
+#~ msgid "Lead + Builder"
+#~ msgstr "主模型 + 构建者"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Sidekick"
+msgstr "主模型 + 辅助模型"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -10044,6 +10280,10 @@ msgstr "列出包"
 msgid "List tasks"
 msgstr "列出任务"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "正在聆听 — 说话或输入消息"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "在线"
@@ -10157,6 +10397,14 @@ msgstr "正在加载媒体预览…"
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Loading messages…"
 msgstr "正在加载消息…"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Loading model…"
+msgstr "正在加载模型..."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Loading models…"
+#~ msgstr "正在加载模型…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
@@ -10426,6 +10674,14 @@ msgstr "管理"
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "管理全局和项目智能体技能，包括从其他提供商导入的技能。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Manage Hex"
+msgstr "管理 Hex"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Manage Hex…"
+msgstr "管理 Hex…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
 msgstr "管理 MCP 服务器"
@@ -10505,6 +10761,11 @@ msgstr "由 {pluginName} 管理"
 msgid "Managed by Poracode"
 msgstr "由 Poracode 管理"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Managed by Poracode. No separate app to open."
+msgstr "由 Poracode 管理。无需打开单独的应用程序。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Managed by provider"
 msgstr "由提供商托管"
@@ -10512,6 +10773,14 @@ msgstr "由提供商托管"
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed by the provider or plugin."
 #~ msgstr "由提供商或插件托管。"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Managed Hex installation is not available on this host."
+msgstr "托管 Hex 安装在此主机上不可用。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
+msgstr "托管安装在此主机上不可用。使用兼容的外部 Hex 引擎或内置后端。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
@@ -10988,6 +11257,15 @@ msgstr "麦克风{fallbackNumber}"
 msgid "Microphone access is off."
 msgstr "麦克风访问已关闭。"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Microphone access requires HTTPS or localhost. Open Poracode over a secure connection."
+msgstr "麦克风访问需要 HTTPS 或 localhost。请通过安全连接打开 Poracode。"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Microphone and voice input backend"
+msgstr "麦克风和语音输入后端"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Microphone input level"
 msgstr "麦克风输入电平"
@@ -10995,6 +11273,10 @@ msgstr "麦克风输入电平"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Microphone muted"
 msgstr "麦克风已静音"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "麦克风已静音 — 输入消息"
 
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
@@ -11124,6 +11406,14 @@ msgstr "模型标签"
 msgid "Model pairing"
 msgstr "模型组合"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model preparation progress"
+msgstr "模型准备进度"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model ready. Try a short recording below."
+msgstr "模型准备就绪。尝试下面的一段简短录音。"
+
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
 msgstr "已将模型从收藏夹中删除"
@@ -11149,6 +11439,10 @@ msgstr "模型用量"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "模型"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Models available on the connected host for the selected language."
+msgstr "已连接主机上适用于所选语言的模型。"
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11361,6 +11655,14 @@ msgstr "已将您的更改移至“{newBranch}”上的新工作树中。“{cur
 msgid "Moving changes…"
 msgstr "正在移动更改…"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual dictation for the supported languages."
+msgstr "支持的语言的多语言听写。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual speech recognition."
+msgstr "多语言语音识别。"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
 msgstr "在一个登录下管理多个 Devin 配置——不同的配置文件、组织或审批默认值——或独立的第二个登录。绝不会复制原生凭据。"
@@ -11376,6 +11678,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "将麦克风静音"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "静音语音回复"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -12103,6 +12409,7 @@ msgid "No microphone found."
 msgstr "找不到麦克风。"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} 没有可用的模型。请在设置中检查该代理。"
 
@@ -13851,9 +14158,18 @@ msgstr "Poracode 无法创建此插件的数据文件夹。"
 msgid "Poracode could not start"
 msgstr "Poracode 无法启动"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "Poracode does not have permission to install or run the Hex engine."
+msgstr "Poracode 无权安装或运行 Hex 引擎。"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode 不会以明文形式在设置中存储市场凭据。打开目录即可浏览经过安全扫描的技能。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Poracode downloads and verifies Hex on this host. No administrator access is needed."
+msgstr "Poracode 在此主机上下载并验证 Hex。无需管理员访问权限。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode failed to start:\n"
@@ -14032,17 +14348,33 @@ msgstr "预提交挂钩失败"
 #~ msgid "Preferred routing order"
 #~ msgstr "首选路由顺序"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparation continues when you leave settings. You can return here to check progress."
+msgstr "离开设置后，准备工作将继续。您可以返回此处查看进度。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Prepare model"
+#~ msgstr "准备模型"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Prepare the selected Hex model in Audio settings before recording."
+msgstr "录音前，请在音频设置中准备所选的 Hex 模型。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparing model…"
+msgstr "正在准备模型…"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
 msgstr "正在准备远程环境…"
 
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-#~ msgid "Presentation"
-#~ msgstr "呈现方式"
-
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Preparing your report…"
 msgstr "正在准备报告…"
+
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+#~ msgid "Presentation"
+#~ msgstr "呈现方式"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Presets"
@@ -14150,6 +14482,10 @@ msgstr "打印"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "隐私政策"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Privacy, licenses and engine management"
+#~ msgstr "隐私、许可证和引擎管理"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Private key"
@@ -14514,6 +14850,10 @@ msgstr "拉取请求 #{number} 已创建，但标记为草稿失败。请刷新�
 msgid "Pull request created, but its default automation could not be enabled: {0}"
 msgstr "拉取请求已创建，但无法启用其默认自动化：{0}"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Pull request defaults"
+msgstr "拉取请求默认设置"
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "Pull request details"
 msgstr "拉取请求详情"
@@ -14739,10 +15079,18 @@ msgstr "正在读取每个候选的更改…"
 msgid "Reading each candidate's chat response…"
 msgstr "正在读取每个候选项的聊天回复…"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line."
+msgstr "阅读完整 diff 及其涉及的代码，运行有针对性的检查，按文件和行报告缺陷、回归和缺失的测试。"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "就绪"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Ready for dictation"
+msgstr "准备听写"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Ready for review"
@@ -14849,6 +15197,26 @@ msgstr "根据本地日志按公开 API 费率重建，不代表订阅套餐中�
 msgid "Recorded token categories"
 msgstr "已记录的令牌分类"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording"
+msgstr "录音"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording stops automatically at five minutes."
+msgstr "录音在五分钟后自动停止。"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording will stop in less than fifteen seconds."
+msgstr "录音将在十五秒内停止。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed locally on this host."
+msgstr "录音在此主机上本地处理。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed on {hostName}, not on this device."
+msgstr "录音是在 {hostName} 上处理的，而不是在此设备上处理的。"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
 msgstr "红色"
@@ -14869,7 +15237,7 @@ msgstr "引用"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -14883,6 +15251,7 @@ msgstr "引用"
 #: src/renderer/views/PullRequestsOverlay/list/PrCompactListBar.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -14920,6 +15289,10 @@ msgstr "刷新设备"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
 msgstr "刷新 MCP 服务器来源"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Refresh models"
+#~ msgstr "刷新模型"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
@@ -15164,6 +15537,10 @@ msgstr "移除连接和环境"
 msgid "Remove Cursor SDK API key"
 msgstr "移除 Cursor SDK API 密钥"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove engine"
+msgstr "拆下发动机"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "移除环境变量"
@@ -15191,6 +15568,14 @@ msgstr "从面板上移除"
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "从最近使用中移除"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove Hex engine?"
+msgstr "删除 Hex 引擎？"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Remove managed engine"
+msgstr "删除托管引擎"
 
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 msgid "Remove marketplace"
@@ -15459,8 +15844,12 @@ msgid "Repository URL"
 msgstr "存储库网址"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
-msgstr "复现缺陷并追溯到根本原因，然后报告证据和出错的代码路径。"
+#~ msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+#~ msgstr "复现缺陷并追溯到根本原因，然后报告证据和出错的代码路径。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence, the failing code path and a suggested fix."
+msgstr "复现缺陷并追踪到根本原因，然后报告证据、出错的代码路径和建议的修复。"
 
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
@@ -15699,11 +16088,11 @@ msgstr "仅显示此主机保留的用量。"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -15770,6 +16159,10 @@ msgstr "重试会话控件"
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "Retry session settings"
 #~ msgstr "重试会话设置"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Retry transcription"
+msgstr "重试转录"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry when a run fails before it completes."
@@ -16004,8 +16397,8 @@ msgstr "审查和评论"
 #~ msgstr "审查差异并查找错误"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
-msgstr "审查最终 diff 中的缺陷、回归和缺失的测试，并按文件和行报告。"
+#~ msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+#~ msgstr "审查最终 diff 中的缺陷、回归和缺失的测试，并按文件和行报告。"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -16033,7 +16426,6 @@ msgid "Right"
 msgstr "右"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "右面板"
 
@@ -16535,6 +16927,10 @@ msgstr "计划"
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "已配对桌面上的计划、AI、代理和已归档线程"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Schedules, AI, agents, crews, and Git on the paired desktop"
+msgstr "已配对桌面上的计划、AI、代理、团队和 Git"
+
 #: src/renderer/utils/projectIcons.ts
 msgid "Science & education"
 msgstr "科学与教育"
@@ -16552,8 +16948,12 @@ msgid "Scout"
 msgstr "侦察员"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Scouts map an unfamiliar codebase before anything changes."
-msgstr "侦察员在任何改动前摸清陌生代码库。"
+#~ msgid "Scouts map an unfamiliar codebase before anything changes."
+#~ msgstr "侦察员在任何改动前摸清陌生代码库。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase so the lead can plan without reading it all."
+msgstr "侦察员梳理陌生的代码库，让主模型无需通读即可规划。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -16916,6 +17316,10 @@ msgstr "选择所有适用项"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "选择一个代理以查看其提示和结果。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Select an available model for this language."
+msgstr "请选择适用于此语言的可用模型。"
+
 #: src/renderer/components/common/Select.tsx
 msgid "Select an option"
 msgstr "选择一个选项"
@@ -17038,7 +17442,7 @@ msgstr "服务器 {target} 在本机运行，WSL 项目无法使用。"
 msgid "Server base URL"
 msgstr "服务器基础 URL"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "服务器离线——此对话可能不是最新。"
 
@@ -17100,6 +17504,10 @@ msgstr "设置或查看会话目标"
 msgid "Set shortcut"
 msgstr "设置快捷键"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Set up Hex…"
+msgstr "设置 Hex…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Set when this session started — start a new thread to change MCP servers"
 msgstr "在本会话启动时已固定 — 如需更改 MCP 服务器，请开始新线程"
@@ -17135,6 +17543,10 @@ msgstr "设置尚不可用，因此无法保存您的更改。请重试。"
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "设置"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Setup required"
+msgstr "需要设置"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
@@ -17488,6 +17900,7 @@ msgstr "侧边栏磨砂效果"
 msgid "Sidebar shortcuts"
 msgstr "侧边栏快捷方式"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sidekick"
@@ -17870,6 +18283,10 @@ msgstr "指定角色"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "指定仓库"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Speech recognition for supported East Asian languages and English."
+msgstr "支持东亚语言和英语的语音识别。"
 
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Spend"
@@ -18605,6 +19022,10 @@ msgstr "Tailscale URL"
 msgid "Take Screenshot"
 msgstr "截图"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Takes any hands-on task the lead hands off: exploring, editing and running checks, then reports back with evidence."
+msgstr "承接主模型交出的任何实际任务：探索、编辑和运行检查，然后附证据汇报。"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "代理点击或输入时会接管桌面"
@@ -18676,7 +19097,6 @@ msgstr "告诉目标提供商下一步该做什么..."
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
@@ -18743,8 +19163,8 @@ msgid "Terminal position"
 msgstr "终端位置"
 
 #: src/renderer/components/terminal/TerminalProgramStatus.tsx
-msgid "Terminal program status"
-msgstr "终端程序状态"
+#~ msgid "Terminal program status"
+#~ msgstr "终端程序状态"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -18765,6 +19185,11 @@ msgstr "终端选项卡"
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "Test and fix"
 msgstr "测试与修复"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Test dictation"
+msgstr "测试听写"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -18917,6 +19342,10 @@ msgstr "所选文件夹"
 msgid "The completion check failed; the schedule was paused."
 msgstr "完成检查失败，计划任务已暂停。"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The connected Poracode host is unavailable. Reconnect and try again."
+msgstr "连接的 Poracode 主机不可用。重新连接并重试。"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
 msgstr "对话已不可用，但仍可查看此已保存的结果。"
@@ -18983,6 +19412,10 @@ msgstr "桌面自身的服务器拒绝了该更改。"
 #: src/renderer/components/devices/deviceClient.ts
 msgid "The device host is unavailable."
 msgstr "设备主机不可用。"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The downloaded Hex engine failed its integrity or signature check."
+msgstr "下载的 Hex 引擎未通过完整性或签名检查。"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
@@ -19064,6 +19497,14 @@ msgstr "心跳对话已不存在。"
 msgid "The heartbeat conversation uses a different agent."
 msgstr "心跳对话使用了其他代理。"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine download failed. Check your connection and try again."
+msgstr "Hex 引擎下载失败。检查您的连接并重试。"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine is incompatible with this host or Poracode version."
+msgstr "Hex 引擎与此主机或 Poracode 版本不兼容。"
+
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
 msgid "The history notice could not be read from the server."
@@ -19111,8 +19552,16 @@ msgid "The launch was cancelled."
 msgstr "启动已取消。"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
-msgstr "主模型负责规划和审查，更便宜的构建者负责动手工作。"
+#~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+#~ msgstr "主模型负责规划和审查，更便宜的构建者负责动手工作。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper sidekick explores, builds and verifies."
+msgstr "主模型负责规划和审查，更便宜的辅助模型负责探索、构建和验证。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead splits the work; up to three builders implement and verify independent tasks at once."
+msgstr "主模型拆分工作；最多三个构建者同时实现并验证相互独立的任务。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -19454,6 +19903,10 @@ msgstr "语音连接超时，请重试。"
 msgid "The voice connection was cancelled."
 msgstr "语音连接已取消。"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The voice request is invalid or has expired. Please try again."
+msgstr "语音请求无效或已过期，请重试。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The watched pull request changed. Review the watch before continuing."
 msgstr "正在监控的拉取请求已更改。请在继续前检查监控设置。"
@@ -19664,6 +20117,10 @@ msgstr "此文件夹为空。"
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "此指南已过期。请重写以查看当前更改的摘录。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "This Hex release requires glibc 2.39 or newer on Linux."
+msgstr "此 Hex 版本需要 Linux 上的 glibc 2.39 或更高版本。"
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
 msgstr "此主机"
@@ -19842,6 +20299,10 @@ msgstr "此排队的后续消息已在发送中。"
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "当检查点快照可用时，这会删除稍后的消息并恢复文件。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "This removes only the engine installed by Poracode. Downloaded models and external Hex installations are kept."
+msgstr "这仅删除 Poracode 安装的引擎。保留下载的模型和外部 Hex 安装。"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "This removes the environment from the host. The server's child workspace is not deleted."
@@ -20042,14 +20503,12 @@ msgid "Thread dock"
 msgstr "线程停靠栏"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "会话停靠面板"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "会话停靠面板位置"
+#~ msgid "Thread docks placement"
+#~ msgstr "会话停靠面板位置"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -20315,6 +20774,15 @@ msgstr "追踪关闭"
 msgid "Transcribing voice"
 msgstr "正在转录语音"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Transcription"
+msgstr "转录"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Transcription engine"
+msgstr "转录引擎"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
@@ -20375,8 +20843,12 @@ msgid "Turn tracking on or off per provider. Disabled providers are skipped by t
 msgstr "打开或关闭每个提供商的跟踪。自动刷新会跳过已禁用的提供商。"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Two independent read-only reviews of a change."
-msgstr "对一个改动的两次独立只读审查。"
+msgid "Two independent read-only reviews of a change, and a sidekick applies the fixes."
+msgstr "对一个改动的两次独立只读审查，并由辅助模型应用修复。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "Two independent read-only reviews of a change."
+#~ msgstr "对一个改动的两次独立只读审查。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
@@ -20531,6 +21003,10 @@ msgstr "无法加载已保存的密码。"
 #~ msgid "Unable to load thread."
 #~ msgstr "无法加载线程。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to load voice models."
+msgstr "无法加载语音模型。"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
@@ -20575,6 +21051,10 @@ msgstr "无法在编辑器中打开文件"
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "无法与该桌面配对。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to prepare voice model."
+msgstr "无法准备语音模型。"
 
 #: src/renderer/actions/browserActions.ts
 msgid "Unable to print this page."
@@ -20954,6 +21434,10 @@ msgstr "取消标记完成"
 msgid "Unmute microphone"
 msgstr "取消麦克风静音"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "取消静音语音回复"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"
 msgstr "未命名设备"
@@ -21038,8 +21522,8 @@ msgid "Up one level"
 msgstr "上一级"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Up to three builders work on independent tasks at once."
-msgstr "最多三名构建者同时处理彼此独立的任务。"
+#~ msgid "Up to three builders work on independent tasks at once."
+#~ msgstr "最多三名构建者同时处理彼此独立的任务。"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -21072,6 +21556,10 @@ msgstr "更新 {0}（{env}）"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "将{0}更新为{updateLabel}"
+
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "请更新 {host} 以导入其会话。"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
@@ -21123,6 +21611,10 @@ msgstr "更新 {environment} 中的 Cursor SDK"
 msgid "Update Cursor SDK to v{availableVersion}"
 msgstr "将 Cursor SDK 更新到 v{availableVersion}"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Update engine"
+msgstr "更新引擎"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
 msgstr "更新错误：{detail}"
@@ -21158,6 +21650,10 @@ msgstr "请更新主机以创建对话分支。"
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "请更新远程主机，以使用带有隐藏上下文的旁聊。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "请更新此主机以导入其会话。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."
@@ -21280,6 +21776,10 @@ msgstr "升级所有者"
 msgid "Uploading attachment {0}…"
 msgstr "正在上传附件 {0}…"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Uploading audio…"
+msgstr "正在上传音频..."
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Upside down"
 msgstr "倒置"
@@ -21387,6 +21887,10 @@ msgstr "使用现有文件夹"
 msgid "Use an image from the project folder..."
 msgstr "使用项目文件夹中的图片..."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Use built-in transcription"
+msgstr "使用内置转录"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."
 msgstr "当任务需要已有的浏览器会话时安全地使用 Chrome。"
@@ -21452,6 +21956,11 @@ msgstr "使用 {name} 技能。"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Use the ID of a persona available in your Devin cloud organization."
 msgstr "使用你的 Devin 云端组织中可用的角色 ID。"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use the microphone to try your selected engine and model."
+msgstr "使用麦克风尝试您选择的引擎和型号。"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
@@ -21525,6 +22034,11 @@ msgstr "使用本机上 Devin 自己的登录。请从 Devin 基础页面登录�
 msgid "Using the built-in Claude model list."
 msgstr "正在使用内置的Claude模型列表。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Using your existing Hex installation. Poracode will not modify it."
+msgstr "使用现有的 Hex 安装。 Poracode 不会修改它。"
+
 #. placeholder {0}: status.bundledVersion
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "v{0} available"
@@ -21538,14 +22052,6 @@ msgstr "值"
 #~ msgid "Value"
 #~ msgstr "值"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Verify host key"
-#~ msgstr "验证主机密钥"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Verify SSH host key"
-#~ msgstr "验证 SSH 主机密钥"
-
 #: src/renderer/components/common/FeedbackDialog.tsx
 #~ msgid "Verification"
 #~ msgstr "验证"
@@ -21553,6 +22059,18 @@ msgstr "值"
 #: src/renderer/components/common/FeedbackDialog.tsx
 #~ msgid "Verification could not load. Please try again."
 #~ msgstr "无法加载验证。请重试。"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Verify host key"
+#~ msgstr "验证主机密钥"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Verify model"
+msgstr "验证型号"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Verify SSH host key"
+#~ msgstr "验证 SSH 主机密钥"
 
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -21698,14 +22216,18 @@ msgstr "可视化"
 msgid "Visual sections"
 msgstr "可视化分区"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Voice input backend"
+msgstr "语音输入后端"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "在此环境中无法使用语音输入。"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Voice input is unavailable on remote sessions."
-msgstr "远程会话中无法使用语音输入。"
+#~ msgid "Voice input is unavailable on remote sessions."
+#~ msgstr "远程会话中无法使用语音输入。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -21716,6 +22238,14 @@ msgstr "语音输入语言"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "语音输入模型"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Voice input needs attention"
+msgstr "语音输入需要注意"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Voice transcription cancelled."
+msgstr "语音转录已取消。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
@@ -21757,7 +22287,6 @@ msgstr "请等待线程启动完成，然后再将其移至工作树。"
 msgid "Wait for the thread to finish starting."
 msgstr "等待线程完成启动。"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "等待中"
@@ -21786,7 +22315,6 @@ msgstr "正在等待预览"
 msgid "waiting for agent to stop"
 msgstr "等待代理停止"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -21842,6 +22370,7 @@ msgstr "正在预热 WSL shell 环境..."
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
@@ -21981,8 +22510,8 @@ msgstr "在终端原生线程中，浏览器元素选择器的选择内容流向
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "会话的目标、计划、智能体和后台任务的显示位置。在右侧面板模式下，输入框上方的紧凑气泡可打开它们。"
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "会话的目标、计划、智能体和后台任务的显示位置。在右侧面板模式下，输入框上方的紧凑气泡可打开它们。"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"
@@ -22004,6 +22533,10 @@ msgstr "终端面板出现的位置。"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "While working"
 msgstr "工作时"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Whisper with broad multilingual support."
+msgstr "Whisper 具有广泛的多语言支持。"
 
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -22034,6 +22567,10 @@ msgstr "Windows shell"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Winner merged."
 msgstr "已合并优胜者。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "With Hex, recordings are sent to your connected Poracode host for processing, not to a cloud transcription service. Recordings are limited to five minutes."
+#~ msgstr "使用 Hex 时，录音会发送到已连接的 Poracode 主机进行处理，而不会发送到云端转录服务。录音时长限制为五分钟。"
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -22107,6 +22644,7 @@ msgid "Workflow: {description}"
 msgstr "工作流程：{description}"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -22117,7 +22655,6 @@ msgstr "工作流程"
 msgid "Workflows added under .github/workflows will appear here."
 msgstr "添加到 .github/workflows 的工作流将显示在此处。"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "工作中"
@@ -22256,8 +22793,12 @@ msgid "Write notes for this project…"
 msgstr "为这个项目写笔记..."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
-msgstr "为改动编写并运行测试，复现报告的缺陷，并附带确切命令报告失败。"
+#~ msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+#~ msgstr "为改动编写并运行测试，复现报告的缺陷，并附带确切命令报告失败。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs the tests for the change, reproduces reported bugs, and reports each failure with the exact command and failing assertion."
+msgstr "为改动编写并运行测试，复现已报告的缺陷，并为每个失败附上确切命令和失败的断言。"
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."
@@ -22362,6 +22903,10 @@ msgstr "你的插件"
 msgid "Your question is kept. Use Retry above to send it again."
 msgstr "你的问题已保留。使用上方的“重试”可再次发送。"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Your recording is kept in memory for two minutes. Retry uses the same model and host."
+msgstr "您的录音将在内存中保存两分钟。重试使用相同的型号和主机。"
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Your report and attachments are now on GitHub."
 msgstr "您的报告和附件现已保存到 GitHub。"
@@ -22377,6 +22922,10 @@ msgstr "已请求你进行审查"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "您贮藏的本地更改已重新应用。"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Your test transcript will appear here. It is not sent to a conversation."
+msgstr "您的测试成绩单将显示在此处。它不会发送到对话。"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "z.ai"

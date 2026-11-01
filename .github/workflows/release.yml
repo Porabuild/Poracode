@@ -16,6 +16,8 @@ on:
 
 permissions:
   contents: write
+  # Build jobs poll this run's artifacts for the TUI manifest (wait-for-run-artifact).
+  actions: read
 
 concurrency:
   group: release-stable
@@ -105,7 +107,7 @@ jobs:
 
   # ── Step 2: Build installers for each platform ───────────────────
   build:
-    needs: [prepare, tui_binaries]
+    needs: prepare
     if: ${{ !inputs.dry_run }}
     uses: ./.github/workflows/_build.yml
     with:
@@ -137,7 +139,7 @@ jobs:
   # Plan D3: the release promotes the exact bytes this job qualified; it never
   # rebuilds the tarball after tests.
   server_artifact:
-    needs: [prepare, tui_binaries]
+    needs: prepare
     if: ${{ !inputs.dry_run }}
     uses: ./.github/workflows/_server-artifact.yml
     with:
@@ -386,7 +388,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: Download the aggregate qualified artifact
         uses: actions/download-artifact@v8

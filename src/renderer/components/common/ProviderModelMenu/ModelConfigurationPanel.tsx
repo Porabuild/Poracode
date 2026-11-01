@@ -68,7 +68,7 @@ export function ModelConfigurationPanel(props: ModelConfigurationPanelProps) {
           />
         </section>
       ) : null}
-      {props.contextSizes.length > 0 || props.thinkingSupported ? (
+      {props.contextSizes.length > 0 || props.thinkingSupported || props.workflows ? (
         <div className="border-t border-border p-1">
           <EffortContextMenu
             efforts={[]}
@@ -84,6 +84,7 @@ export function ModelConfigurationPanel(props: ModelConfigurationPanelProps) {
               : {})}
             {...(props.thinkingValue !== undefined ? { thinkingValue: props.thinkingValue } : {})}
             {...(props.onThinkingChange ? { onThinkingChange: props.onThinkingChange } : {})}
+            {...(props.workflows ? { workflows: props.workflows } : {})}
             isDisabled={props.isDisabled ?? false}
           />
         </div>

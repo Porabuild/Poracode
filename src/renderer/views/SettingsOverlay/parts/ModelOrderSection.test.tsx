@@ -37,6 +37,7 @@ const settingsState = {
 };
 
 const appState = { projects: [] as Project[] };
+const session = { remote: false };
 
 const bridge = {
   getLatestAgentVersion:
@@ -78,6 +79,7 @@ vi.mock("@/renderer/state/appStore", () => ({
 }));
 
 vi.mock("@/renderer/bridge", () => ({
+  isRemoteSession: () => session.remote,
   readBridge: () => bridge,
 }));
 
@@ -149,6 +151,7 @@ function makeStatus(overrides: Partial<AgentStatus> & { kind: string }): AgentSt
 
 describe("ModelOrderSection provider updates", () => {
   beforeEach(() => {
+    session.remote = false;
     statusesState.agentStatuses = [];
     statusesState.wslAgentStatuses = [];
     settingsState.providerOrder = [];
@@ -175,6 +178,20 @@ describe("ModelOrderSection provider updates", () => {
 
     expect(await screen.findByText("v1.2.3")).toBeTruthy();
     expect(screen.getByText("—")).toBeTruthy();
+  });
+
+  it("never probes for updates from a remote client, which has no supervisor", async () => {
+    // A remote client labels its bridge host as the local machine.
+    session.remote = true;
+    statusesState.agentStatuses = [
+      makeStatus({ kind: "claude", label: "Claude Code", version: "1.2.3" }),
+    ];
+
+    render(<ModelOrderSection />);
+
+    expect(await screen.findByText("v1.2.3")).toBeTruthy();
+    expect(bridge.getLatestAgentVersion).not.toHaveBeenCalled();
+    expect(bridge.listAcpRegistry).not.toHaveBeenCalled();
   });
 
   it("scopes each provider row's version to the selected machine", async () => {

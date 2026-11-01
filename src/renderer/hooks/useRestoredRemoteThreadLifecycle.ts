@@ -3,7 +3,8 @@ import { useShallow } from "zustand/shallow";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isDraftPaneId } from "@/shared/paneId";
 import { useAppStore, type AppStoreState } from "@/renderer/state/appStore";
-import { remoteOwner, type RemoteOwner } from "@/renderer/state/remoteProjection";
+import { remoteOwner, remoteThreadId, type RemoteOwner } from "@/renderer/state/remoteProjection";
+import { pendingRemoteThreadOpen } from "@/renderer/state/remoteServers/pendingRemoteThreadOpens";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServerStatus, RemoteServersState } from "@/renderer/state/remoteServers/types";
@@ -253,11 +254,15 @@ export function useRestoredRemoteThreadLifecycle(enabled: boolean): void {
           }
           return;
         }
-        const opened = await remote.openRemoteThread(owner.desktopId, owner.remoteId, {
-          focus: false,
-          quiet: true,
-          preserveLoadedHistory: true,
-        });
+        // An explicit open (a sidebar click) is still reading this thread's
+        // history: share its outcome instead of starting a second full read.
+        const inFlight = pendingRemoteThreadOpen(remoteThreadId(owner.desktopId, owner.remoteId));
+        const opened = await (inFlight ??
+          remote.openRemoteThread(owner.desktopId, owner.remoteId, {
+            focus: false,
+            quiet: true,
+            preserveLoadedHistory: true,
+          }));
         if (!isCurrentRun(ownerRun)) return;
         if (opened) {
           if (claimIsOwned(key, ownerRun)) {

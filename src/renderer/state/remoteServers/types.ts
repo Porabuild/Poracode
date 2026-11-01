@@ -11,6 +11,7 @@ import type {
   RemoteAgentStatuses,
   RemoteHostUpdateState,
   RemoteHostMode,
+  RemoteHostWorkspace,
   RemoteImageRefValue,
   RemoteProjectCommand,
   RemoteShellSnapshot,
@@ -232,6 +233,14 @@ export interface RemoteServersState {
   excludedProjectIds: Record<string, readonly string[]>;
   /** Local workspace overrides for mirrored projects; null explicitly means unfiled. */
   projectWorkspaceIds: Record<string, Readonly<Record<string, string | null>>>;
+  /**
+   * Which `projectWorkspaceIds` entries the user set by moving the project.
+   * Browser clients also pin defaults there; a browser ranks the host's own
+   * workspace above those, but never above a filing listed here.
+   */
+  explicitProjectWorkspaceIds: Record<string, Readonly<Record<string, true>>>;
+  /** Each connection's workspace names from its latest shell snapshot (session only). */
+  hostWorkspaces: Record<string, readonly RemoteHostWorkspace[]>;
   /** Local display-name overrides for mirrored projects, keyed by desktop and remote project id. */
   projectNameOverrides: Record<string, Readonly<Record<string, string>>>;
   /** Last discovered host projects, retained so offline servers keep their sidebar rows. */
@@ -319,7 +328,18 @@ export interface RemoteServersState {
     desktopId: string,
     options?: { readonly includeAgentStatuses?: boolean },
   ): void;
+  /**
+   * Connects every saved server that is not live. A server that is online with
+   * an open event socket is left alone unless `forceTransportReconnect` asks
+   * for every transport to be replaced.
+   */
   connectAll(options?: { readonly forceTransportReconnect?: boolean }): Promise<void>;
+  /**
+   * Resume check for an ordinary tab or app switch: health-probes each live
+   * event socket (a dead one reconnects through its own monitor) and connects
+   * only the servers that are not live, without downgrading healthy ones.
+   */
+  verifyConnections(): Promise<void>;
   reconnectServer(desktopId: string): Promise<void>;
   getHostUpdateState(desktopId: string): ReturnType<RemoteDesktopClient["hostUpdateState"]>;
   checkHostUpdate(desktopId: string): ReturnType<RemoteDesktopClient["checkHostUpdate"]>;

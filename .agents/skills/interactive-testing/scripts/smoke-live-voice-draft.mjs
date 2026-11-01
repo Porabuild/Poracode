@@ -40,6 +40,9 @@ export async function mockDraftVoicePermissionGate({
         const s = window.__liveVoiceSmoke;
         const app = window.__poracodeDev.stores.app;
         app.getState().clearDraftContent(${projectId});
+        // Background provider detection can replace the hydrated fixture
+        // provider during the thread phase; the draft needs its voice capability.
+        window.__poracodeDev.stores.agentStatuses.getState().hydrateFromCache({ windows: [s.candidate], wsl: [] });
         s.draftStopped = 0;
         s.grant = null;
         navigator.mediaDevices.getUserMedia = () => new Promise(resolve => { s.grant = resolve; });

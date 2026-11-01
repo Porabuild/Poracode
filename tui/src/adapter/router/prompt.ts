@@ -384,14 +384,24 @@ export function createPrompt(ctx: RouterContext) {
     const base: ThreadConfig | Record<string, never> =
       remoteThread && sameProvider ? remoteThread.config : {};
     const modelChanged = "model" in base && base.model !== selectedModel;
-    const { selectionBinding: _droppedBinding, ...baseRest } = base as ThreadConfig;
+    const {
+      selectionBinding: _droppedBinding,
+      workflows: baseWorkflows,
+      ...baseRest
+    } = base as ThreadConfig;
+    // A model change also drops a workflow mode the new model does not offer.
+    const keepsWorkflows =
+      baseWorkflows !== undefined && (guiCapabilities.workflowModels ?? []).includes(selectedModel);
     const config: ThreadConfig = {
-      ...(modelChanged ? baseRest : base),
+      ...(modelChanged
+        ? { ...baseRest, ...(keepsWorkflows ? { workflows: baseWorkflows } : {}) }
+        : base),
       model: selectedModel,
       ...(crewForConfig !== undefined ? { crew: crewForConfig } : {}),
       ...(effort ? { effort } : {}),
       ...(savedConfigMatches && raw?.fast !== undefined ? { fast: raw.fast } : {}),
       ...(savedConfigMatches && raw?.thinking !== undefined ? { thinking: raw.thinking } : {}),
+      ...(savedConfigMatches && raw?.workflows !== undefined ? { workflows: raw.workflows } : {}),
       ...(savedConfigMatches && raw?.contextSize ? { contextSize: raw.contextSize } : {}),
       mode,
       approvalPolicy:

@@ -57,6 +57,14 @@ export interface ListImportableSessionsResult {
   superseded?: true;
 }
 
+/** Authoritative listing result, required to serve the listing to remote clients. */
+export const listImportableSessionsResultSchema = z.object({
+  sessions: z.array(importableSessionSchema),
+  facets: z.object({ agentKinds: z.array(z.string()), folders: z.array(z.string()) }),
+  truncated: z.boolean(),
+  superseded: z.literal(true).optional(),
+});
+
 export const importSessionTranscriptPayloadSchema = z.object({
   /** Thread the renderer already created; the transcript is replayed into it. */
   threadId: z.string().min(1),

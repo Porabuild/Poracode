@@ -578,6 +578,33 @@ final class RichChatSessionConfigControlsTests: XCTestCase {
     XCTAssertFalse(pending.supportsThinking("adaptive"))
   }
 
+  /// Workflow mode has no live negotiated variant: the static `workflowModels`
+  /// list gates it even for the negotiated model, whatever roles the live
+  /// inventory carries, and a live inventory never grants it on its own.
+  func testWorkflowGateIgnoresTheNegotiatedInventory() throws {
+    let staticModels: JSONValue = .array([
+      .object(["id": .string("adaptive"), "label": .string("Adaptive")])
+    ])
+    let live: JSONValue = .array([Self.model(currentValue: Self.pairHigh)])
+    let listed = try makeCatalog(
+      configuration: ThreadConfig(model: Self.pairHigh),
+      capabilities: [
+        "models": staticModels,
+        "workflowModels": .array([.string(Self.pairHigh)]),
+      ],
+      sessionConfigOptions: live
+    )
+    XCTAssertTrue(listed.supportsWorkflows(Self.pairHigh))
+    XCTAssertFalse(listed.supportsWorkflows("adaptive"))
+
+    let unlisted = try makeCatalog(
+      configuration: ThreadConfig(model: Self.pairHigh),
+      capabilities: ["models": staticModels],
+      sessionConfigOptions: live
+    )
+    XCTAssertFalse(unlisted.supportsWorkflows(Self.pairHigh))
+  }
+
   // MARK: - Retain / retire / replace on the thread row
 
   /// The live row merge honors the tri-state contract: absent leaves the

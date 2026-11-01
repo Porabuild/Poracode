@@ -98,6 +98,7 @@ import {
 } from "@/renderer/state/remoteServers/snapshotProjection";
 
 export {
+  selectBrowserBridgeClientServer,
   selectBrowserBridgeDesktop,
   selectBrowserBridgeServer,
   selectBrowserPanelAvailable,
@@ -140,6 +141,7 @@ const remoteServersStorage = createSecureRemoteServersStorage<
   servers,
   excludedProjectIds: {},
   projectWorkspaceIds: {},
+  explicitProjectWorkspaceIds: {},
   projectNameOverrides: {},
   lastKnownProjects: {},
 }));
@@ -278,6 +280,8 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         hostUpdateRestarts: {},
         excludedProjectIds: {},
         projectWorkspaceIds: {},
+        explicitProjectWorkspaceIds: {},
+        hostWorkspaces: {},
         projectNameOverrides: {},
         lastKnownProjects: {},
         openThread: null,
@@ -326,6 +330,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           scheduleRemoteServerRefresh(get, desktopId, options);
         },
         connectAll: session.connectAll,
+        verifyConnections: session.verifyConnections,
         reconnectServer: session.reconnectServer,
         getHostUpdateState: session.getHostUpdateState,
         checkHostUpdate: session.checkHostUpdate,
@@ -456,6 +461,8 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // Browser default filings reuse the released string/null project pins.
       // v2 documents, including explicit unfiling and cached projects, remain
       // valid; workspaceFilings.test covers delayed hydration and reload.
+      // `explicitProjectWorkspaceIds` is additive: a document without it reads
+      // as no user moves recorded, and older apps ignore the key.
       // Token rotation updates existing bearer slots through secure storage;
       // v1/v2 records and encrypted vault keys remain valid without a bump.
       version: 2,

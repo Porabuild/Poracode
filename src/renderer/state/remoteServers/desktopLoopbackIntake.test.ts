@@ -1536,6 +1536,129 @@ describe("desktop loopback socket policy (A4)", () => {
     ).toEqual(["ticket", "exchange", "ticket"]);
   });
 
+  it("falls through to a fresh pairing exchange when a reported renewal still leaves the bearer refused", async () => {
+    // The renewal REPORTS a rotation (the "already rotated" adoption shape),
+    // yet the host refuses the rotated bearer too: the dead grant must exit
+    // through a fresh pairing exchange, never retry the unusable token in a
+    // 401 loop.
+    let ticketCalls = 0;
+    const { fetchImpl, calls } = createFakeFetch({
+      ticket: () => {
+        ticketCalls += 1;
+        return ticketCalls <= 2 ? jsonResponse(401, {}) : jsonResponse(200, { ticket: "fresh" });
+      },
+    });
+    const exhausted = vi.fn<() => void>();
+    const urls: string[] = [];
+    const fake = makeFakeSocket();
+    const renewSession = vi.fn<() => Promise<boolean>>(async () => {
+      intake.applyTokens({ accessToken: "renewed" });
+      return true;
+    });
+    const intake: DesktopLoopbackIntake = new DesktopLoopbackIntake(
+      baseIntakeDeps({
+        fetchImpl,
+        onCredentialExhausted: exhausted,
+        renewSession,
+        socketFactory: (url) => {
+          urls.push(url);
+          return fake.socket;
+        },
+      }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({ accessToken: "retained" });
+    const activation = intake.activate();
+    await vi.waitFor(() => expect(urls).toHaveLength(1));
+    fake.emitOpen();
+    await expect(activation).resolves.toBe(true);
+
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(
+      calls.map((call) => (call.url.endsWith("/oauth/token") ? "exchange" : "ticket")),
+    ).toEqual(["ticket", "ticket", "exchange", "ticket"]);
+    expect(calls.at(-1)!.authorization).toBe("Bearer access-1");
+    expect(exhausted).not.toHaveBeenCalled();
+  });
+
+  it("escalates to a fresh bootstrap when the renewed bearer is refused and the credential is spent", async () => {
+    const { fetchImpl } = createFakeFetch({
+      ticket: () => jsonResponse(401, {}),
+      exchange: () => jsonResponse(401, {}),
+    });
+    const exhausted = vi.fn<() => void>();
+    const renewSession = vi.fn<() => Promise<boolean>>(async () => {
+      intake.applyTokens({ accessToken: "renewed" });
+      return true;
+    });
+    const intake: DesktopLoopbackIntake = new DesktopLoopbackIntake(
+      baseIntakeDeps({
+        fetchImpl,
+        onCredentialExhausted: exhausted,
+        renewSession,
+        socketFactory: () => makeFakeSocket().socket,
+      }),
+    );
+    intakes.push(intake);
+    intake.applyTokens({ accessToken: "retained" });
+    await expect(intake.activate()).resolves.toBe(false);
+
+    // Exactly one renewal, then the fall-through exchange refused the spent
+    // credential ONCE — credential exhaustion reports to the owner (which
+    // re-bootstraps), and nothing keeps hammering the dead grant.
+    expect(renewSession).toHaveBeenCalledTimes(1);
+    expect(exhausted).toHaveBeenCalledTimes(1);
+    expect(intake.isActive()).toBe(false);
+  });
+
+  it("re-proves the leg when the request path reports a refused bearer", async () => {
+    const { fetchImpl } = createFakeFetch();
+    const sockets: FakeSocketHarness[] = [];
+    const intake = new DesktopLoopbackIntake(
+      baseIntakeDeps({
+        fetchImpl,
+        retryDelayMs: 100,
+        socketFactory: () => {
+          const harness = makeFakeSocket();
+          sockets.push(harness);
+          return harness.socket;
+        },
+      }),
+    );
+    intakes.push(intake);
+    const activation = intake.activate();
+    await vi.advanceTimersByTimeAsync(1);
+    sockets[0]!.emitOpen();
+    await expect(activation).resolves.toBe(true);
+    expect(intake.isActive()).toBe(true);
+
+    // One escalation tears the open leg down and schedules the local retry,
+    // which re-proves the retained credential and re-opens.
+    intake.noteBearerRefused();
+    expect(intake.isActive()).toBe(false);
+    expect(sockets[0]!.closeCount).toBe(1);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(sockets).toHaveLength(2);
+    sockets[1]!.emitOpen();
+    expect(intake.isActive()).toBe(true);
+
+    // Inside the escalation interval further refusals are no-ops: recovery,
+    // not a reconnect loop.
+    intake.noteBearerRefused();
+    intake.noteBearerRefused();
+    expect(sockets[1]!.closeCount).toBe(0);
+    expect(sockets).toHaveLength(2);
+
+    // Past the interval the leg re-proves again (a second dead session must
+    // still heal), and the interval re-arms.
+    await vi.advanceTimersByTimeAsync(10_100);
+    intake.noteBearerRefused();
+    expect(sockets[1]!.closeCount).toBe(1);
+    intake.noteBearerRefused();
+    expect(sockets[1]!.closeCount).toBe(1);
+    expect(sockets).toHaveLength(2);
+  });
+
   it("retries locally without re-pairing when renewal fails transport-class", async () => {
     const { fetchImpl, calls } = createFakeFetch({ ticket: () => jsonResponse(401, {}) });
     const exhausted = vi.fn<() => void>();

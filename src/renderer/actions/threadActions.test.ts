@@ -48,7 +48,14 @@ const { hydrateThreadRuntimeItems } = vi.hoisted(() => ({
 }));
 const { deleteWorktreeGroup } = vi.hoisted(() => ({
   deleteWorktreeGroup:
-    vi.fn<(projectId: string, worktreePath: string, threadIds: string[]) => void>(),
+    vi.fn<
+      (
+        projectId: string,
+        worktreePath: string,
+        threadIds: string[],
+        onThreadsChanged?: () => void,
+      ) => void
+    >(),
 }));
 const { refreshServer, sendThreadCommand, toast } = vi.hoisted(() => ({
   refreshServer: vi.fn<(desktopId: string) => Promise<void>>(),
@@ -1151,6 +1158,7 @@ describe("threadActions", () => {
       firstThread.projectId,
       worktreePath,
       [firstThread.id, secondThread.id],
+      expect.any(Function),
     );
     expect(useAppStore.getState().threads.map((thread) => thread.id)).toEqual([
       firstThread.id,
@@ -1280,7 +1288,12 @@ describe("threadActions", () => {
 
     deleteThread(thread.id, worktreePath, project.id);
 
-    expect(deleteWorktreeGroup).toHaveBeenCalledWith(project.id, worktreePath, [thread.id]);
+    expect(deleteWorktreeGroup).toHaveBeenCalledWith(
+      project.id,
+      worktreePath,
+      [thread.id],
+      expect.any(Function),
+    );
     expect(bridge.closeThread).not.toHaveBeenCalled();
   });
 
@@ -1306,7 +1319,12 @@ describe("threadActions", () => {
 
     deleteThread(thread.id, worktreePath, project.id);
 
-    expect(deleteWorktreeGroup).toHaveBeenCalledWith(project.id, worktreePath, [thread.id]);
+    expect(deleteWorktreeGroup).toHaveBeenCalledWith(
+      project.id,
+      worktreePath,
+      [thread.id],
+      expect.any(Function),
+    );
     expect(bridge.closeThread).not.toHaveBeenCalled();
   });
 

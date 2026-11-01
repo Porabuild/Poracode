@@ -34,6 +34,8 @@ class WsClientState {
      */
     val gitInterests = AtomicReference<List<GitInterest>>(emptyList())
     val pendingPingId = AtomicReference<String?>(null)
+    /** Wall-clock time of the last inbound frame on the current socket. */
+    val lastInboundAtMs = java.util.concurrent.atomic.AtomicLong(Long.MIN_VALUE)
     val readyReceived = AtomicBoolean(false)
     val snapshotSucceeded = AtomicBoolean(false)
     /** Generation that already saw a sync failure/close before install completed. */

@@ -2,10 +2,17 @@ import { chmod, mkdir } from "node:fs/promises";
 import { readFileSync, statSync } from "node:fs";
 import { spawn as spawnProcess, type ChildProcess } from "node:child_process";
 import { join, resolve } from "node:path";
-import { hostAdminRequest } from "@/shared/hostAdminProtocol";
+import { z } from "zod";
+import {
+  HOST_ADMIN_PAIRING_DEFAULT_TTL_MS,
+  hostAdminRequest,
+  type HostAdminCommand,
+} from "@/shared/hostAdminProtocol";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
-import { callHostControl } from "@/backend/ownership/hostControlClient";
-import { hostProjectAdditionSchema } from "@/shared/contracts/hostProjects";
+import {
+  callHostControl,
+  type HostControlCallOptions,
+} from "@/backend/ownership/hostControlClient";
 import {
   TUI_BOOTSTRAP_VERSION,
   TUI_HOME_DIRECTORY,
@@ -13,16 +20,24 @@ import {
   type TuiBootstrap,
 } from "@/shared/tuiBootstrap";
 import type { HostBuildIdentity } from "@/shared/hostControlProtocol";
-import {
-  requestPairingFromRunningServer,
-  type PairingControlResponse,
-  type RequestPairingOptions,
-} from "./pairingControl";
+import type { PairingControlResponse, RequestPairingOptions } from "./pairingControl";
 import { resolveServerInstallLayout, type ServerInstallLayout } from "./serverInstallLayout";
 import { resolveServerVersion } from "./serverVersion";
 import { ensureCliOwner } from "./cliOwner";
 import { ensureTuiBinaryDownload } from "./cliTuiDownload";
 import type { TuiCliOptions } from "./cliParse";
+import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+import {
+  findTuiServer,
+  readTuiServers,
+  saveTuiServer,
+  takeTuiServerSwitch,
+  tuiServerIdForEndpoint,
+  tuiSessionDirectory,
+  TUI_SWITCH_SERVER_EXIT_CODE,
+  type TuiServer,
+  type TuiServerSwitchTarget,
+} from "@/shared/tuiServers";
 import {
   parseTuiSession,
   TUI_REPAIR_EXIT_CODE,
@@ -53,11 +68,11 @@ export function createTuiBootstrap(
     readonly appVersion: string;
     readonly home: string;
     readonly directory: string;
-    readonly projectId: string;
     readonly args: TuiBootstrap["args"];
+    readonly server?: { readonly id: string; readonly name: string };
   } & ({ readonly pairingUrl: string } | { readonly session: TuiSession }),
 ): TuiBootstrap {
-  const { appVersion, home, directory, projectId, args } = input;
+  const { appVersion, home, directory, args, server } = input;
   const auth =
     "session" in input
       ? { auth: "session" as const }
@@ -67,15 +82,17 @@ export function createTuiBootstrap(
     appVersion,
     home,
     directory,
-    projectId,
     args,
+    ...(server ? { server: { id: server.id, name: server.name } } : {}),
     ...auth,
   });
 }
 
-function readSavedTuiSession(home: string): TuiSession | undefined {
+function readSavedTuiSession(sessionDirectory: string): TuiSession | undefined {
   try {
-    return parseTuiSession(JSON.parse(readFileSync(join(home, TUI_SESSION_FILE_NAME), "utf8")));
+    return parseTuiSession(
+      JSON.parse(readFileSync(join(sessionDirectory, TUI_SESSION_FILE_NAME), "utf8")),
+    );
   } catch {
     return undefined;
   }
@@ -203,15 +220,13 @@ export async function runCliTui(
     readonly fetchImpl?: typeof fetch;
     readonly resolveLaunch?: typeof resolveTuiLaunchForRun;
     readonly cwd?: string;
+    /** A reopened console-input descriptor when stdin itself is not the terminal. */
+    readonly stdin?: number;
     readonly requestPairing?: (
       profileNamespace: string,
       options: RequestPairingOptions,
     ) => Promise<PairingControlResponse>;
-    readonly registerProject?: (
-      profileNamespace: string,
-      ownerGeneration: string,
-      directory: string,
-    ) => Promise<unknown>;
+    readonly log?: (line: string) => void;
     readonly revokeClientSession?: (
       profileNamespace: string,
       ownerGeneration: string,
@@ -223,7 +238,7 @@ export async function runCliTui(
   const directory = resolve(
     input.directory ?? options.directory ?? dependencies.cwd ?? process.cwd(),
   );
-  // Resolve the launch before starting the owner or registering the project:
+  // Resolve the launch before starting the owner:
   // an install with no TUI binary should fail without leaving state behind.
   const layout = dependencies.layout ?? resolveServerInstallLayout({ libDir: __dirname });
   const appVersion =
@@ -240,37 +255,21 @@ export async function runCliTui(
     ...(dependencies.fileExists !== undefined ? { fileExists: dependencies.fileExists } : {}),
     ...(dependencies.fetchImpl !== undefined ? { fetchImpl: dependencies.fetchImpl } : {}),
   });
-  const owner = await (dependencies.ensureOwner ?? ensureCliOwner)(input.profileNamespace, {
-    ...(input.baseDir !== undefined ? { baseDir: input.baseDir } : {}),
-    ...(input.capturedBuild !== undefined ? { capturedBuild: input.capturedBuild } : {}),
-  });
   const home = resolve(input.profileNamespace, TUI_HOME_DIRECTORY);
   await mkdir(home, { recursive: true, mode: 0o700 });
   if ((dependencies.platform ?? process.platform) !== "win32") await chmod(home, 0o700);
-  const project = hostProjectAdditionSchema.parse(
-    await (dependencies.registerProject ?? addProject)(
-      input.profileNamespace,
-      owner.ownerGeneration,
-      directory,
-    ),
-  );
-  const requestPairing = dependencies.requestPairing ?? requestPairingFromRunningServer;
-  // A saved session skips pairing entirely — one dedicated client entry per
-  // profile. The TUI exits 77 when the host rejects it; pair once and relaunch.
-  const savedSession = readSavedTuiSession(home);
-  const bootstrapArgs = {
-    ...(options.continue !== undefined ? { continue: options.continue } : {}),
-    ...(options.sessionId !== undefined ? { sessionId: options.sessionId } : {}),
-    ...(options.prompt !== undefined ? { prompt: options.prompt } : {}),
-    ...(options.auto !== undefined ? { auto: options.auto } : {}),
-  };
-  const run = async (auth: { session: TuiSession } | { pairingUrl: string }) => {
+  const log = dependencies.log ?? ((line: string) => process.stderr.write(`${line}\n`));
+  const launchTui = (
+    args: TuiBootstrap["args"],
+    auth: { session: TuiSession } | { pairingUrl: string },
+    server?: TuiServer,
+  ) => {
     const bootstrap = createTuiBootstrap({
       appVersion,
       home,
       directory,
-      projectId: project.project.id,
-      args: bootstrapArgs,
+      args,
+      ...(server ? { server } : {}),
       ...auth,
     });
     const child = (dependencies.spawn ?? spawnProcess)(launch.command, launch.args, {
@@ -280,28 +279,151 @@ export async function runCliTui(
         PORACODE_TUI_BOOTSTRAP: JSON.stringify(bootstrap),
         PORACODE_TUI_HOME: home,
       },
-      stdio: "inherit",
+      stdio:
+        dependencies.stdin === undefined ? "inherit" : [dependencies.stdin, "inherit", "inherit"],
       windowsHide: true,
     });
     return waitForTui(child);
   };
-  if (savedSession) {
-    const exitCode = await run({ session: savedSession });
-    if (exitCode !== TUI_REPAIR_EXIT_CODE) return exitCode;
+
+  // The local host: start or attach to this profile's owner. The TUI binds
+  // its project itself once connected, so nothing is registered here.
+  const runLocal = async (args: TuiBootstrap["args"]) => {
+    const owner = await (dependencies.ensureOwner ?? ensureCliOwner)(input.profileNamespace, {
+      ...(input.baseDir !== undefined ? { baseDir: input.baseDir } : {}),
+      ...(input.capturedBuild !== undefined ? { capturedBuild: input.capturedBuild } : {}),
+    });
+    const requestPairing = dependencies.requestPairing ?? requestTuiPairing;
+    // A saved session skips pairing entirely — one dedicated client entry per
+    // profile. The TUI exits 77 when the host rejects it; pair once and relaunch.
+    const savedSession = readSavedTuiSession(home);
+    if (savedSession) {
+      const exitCode = await launchTui(args, { session: savedSession });
+      if (exitCode !== TUI_REPAIR_EXIT_CODE) return exitCode;
+    }
+    const pairing = await requestPairing(input.profileNamespace, {
+      preset: "operator",
+      expectedGeneration: owner.ownerGeneration,
+    });
+    // The rejected session is dead; revoke only its exact id — never other
+    // clients, and never before the replacement pairing exists.
+    if (savedSession?.sessionId)
+      await (dependencies.revokeClientSession ?? revokeClientSession)(
+        input.profileNamespace,
+        owner.ownerGeneration,
+        savedSession.sessionId,
+      ).catch(() => undefined);
+    return launchTui(args, { pairingUrl: pairing.pairingUrl });
+  };
+
+  // A paired remote host can only be re-paired from that host, so a rejected
+  // or expired session ends the launch with instructions instead.
+  const repairHint = (server: TuiServer) =>
+    `The saved session for ${server.name} expired or was revoked. Create a pairing link on that host and run: poracode tui --pair <link>`;
+  const runSaved = async (server: TuiServer, args: TuiBootstrap["args"]) => {
+    const savedSession = readSavedTuiSession(tuiSessionDirectory(home, server.id));
+    if (!savedSession) {
+      log(repairHint(server));
+      return TUI_REPAIR_EXIT_CODE;
+    }
+    const exitCode = await launchTui(args, { session: savedSession }, server);
+    if (exitCode === TUI_REPAIR_EXIT_CODE) log(repairHint(server));
+    return exitCode;
+  };
+  const runPaired = async (
+    pairingUrl: string,
+    name: string | undefined,
+    args: TuiBootstrap["args"],
+  ) => {
+    if (!parsePairingUrlParts(pairingUrl))
+      throw new Error(
+        "That is not a Poracode pairing link. Copy a fresh link from the other host.",
+      );
+    const endpoint = normalizePairingEndpoint(pairingUrl);
+    const server: TuiServer = {
+      id: tuiServerIdForEndpoint(endpoint),
+      name: name ?? new URL(endpoint).hostname,
+      endpoint,
+      addedAt: new Date().toISOString(),
+    };
+    saveTuiServer(home, server);
+    const exitCode = await launchTui(args, { pairingUrl }, server);
+    if (exitCode === TUI_REPAIR_EXIT_CODE) log(repairHint(server));
+    return exitCode;
+  };
+
+  const bootstrapArgs = {
+    ...(options.continue !== undefined ? { continue: options.continue } : {}),
+    ...(options.sessionId !== undefined ? { sessionId: options.sessionId } : {}),
+    ...(options.prompt !== undefined ? { prompt: options.prompt } : {}),
+    ...(options.auto !== undefined ? { auto: options.auto } : {}),
+  };
+  const named = options.server ? findTuiServer(readTuiServers(home), options.server) : undefined;
+  if (options.server && !named)
+    throw new Error(
+      `No saved server named ${options.server}. Pair it first with poracode tui --pair <link>.`,
+    );
+  let target: TuiServerSwitchTarget = options.pairingUrl
+    ? {
+        kind: "pair",
+        pairingUrl: options.pairingUrl,
+        ...(options.serverName ? { name: options.serverName } : {}),
+      }
+    : named
+      ? { kind: "server", id: named.id }
+      : { kind: "local" };
+  let args: TuiBootstrap["args"] = bootstrapArgs;
+  // The in-TUI server picker exits with TUI_SWITCH_SERVER_EXIT_CODE after
+  // recording its target; relaunch there without replaying one-shot args.
+  for (;;) {
+    let exitCode: number;
+    if (target.kind === "local") exitCode = await runLocal(args);
+    else if (target.kind === "pair")
+      exitCode = await runPaired(target.pairingUrl, target.name, args);
+    else {
+      const id = target.id;
+      const server = readTuiServers(home).find((value) => value.id === id);
+      if (!server) throw new Error("The selected server is no longer saved.");
+      exitCode = await runSaved(server, args);
+    }
+    if (exitCode !== TUI_SWITCH_SERVER_EXIT_CODE) return exitCode;
+    const next = takeTuiServerSwitch(home);
+    if (!next) return exitCode;
+    target = next;
+    args = {};
   }
-  const pairing = await requestPairing(input.profileNamespace, {
-    preset: "operator",
-    expectedGeneration: owner.ownerGeneration,
-  });
-  // The rejected session is dead; revoke only its exact id — never other
-  // clients, and never before the replacement pairing exists.
-  if (savedSession?.sessionId)
-    await (dependencies.revokeClientSession ?? revokeClientSession)(
-      input.profileNamespace,
-      owner.ownerGeneration,
-      savedSession.sessionId,
-    ).catch(() => undefined);
-  return run({ pairingUrl: pairing.pairingUrl });
+}
+
+const tuiPairingGrantSchema = z.object({
+  pairingUrl: z.url(),
+  localPairingUrl: z.url().optional(),
+});
+
+/**
+ * Mints the TUI's one-time pairing through the owner's local administration.
+ * Desktop and headless owners both serve `pairings-create`; the desktop owner
+ * refuses the attach-only `issue-pairing` operation. The TUI runs beside the
+ * owner, so it redeems the grant on the owner's own listener; an owner that
+ * predates `localPairingUrl` still returns its advertised link.
+ */
+async function requestTuiPairing(
+  profileNamespace: string,
+  options: RequestPairingOptions,
+): Promise<PairingControlResponse> {
+  const { preset, ...callOptions } = options;
+  const { requestId, data } = await administer(
+    profileNamespace,
+    {
+      action: "pairings-create",
+      label: "Terminal UI",
+      ttlMs: HOST_ADMIN_PAIRING_DEFAULT_TTL_MS,
+      ...(preset !== undefined ? { preset } : {}),
+    },
+    // Minting is immediate; keep the bound the attach-only issue-pairing had.
+    { timeoutMs: 5_000, ...callOptions },
+  );
+  const grant = tuiPairingGrantSchema.parse(data);
+  return { requestId, pairingUrl: grant.localPairingUrl ?? grant.pairingUrl };
 }
 
 async function revokeClientSession(
@@ -309,20 +431,24 @@ async function revokeClientSession(
   ownerGeneration: string,
   sessionId: string,
 ) {
-  const response = await callHostControl(resolveHostRootPaths(profileNamespace), "admin", {
-    expectedGeneration: ownerGeneration,
-    payload: hostAdminRequest({ action: "clients-revoke", sessionId }),
-  });
-  if (!response.result.outcome.ok) throw new Error(response.result.outcome.error);
+  await administer(
+    profileNamespace,
+    { action: "clients-revoke", sessionId },
+    { expectedGeneration: ownerGeneration },
+  );
 }
 
-async function addProject(profileNamespace: string, ownerGeneration: string, directory: string) {
+async function administer(
+  profileNamespace: string,
+  command: HostAdminCommand,
+  options: HostControlCallOptions,
+) {
   const response = await callHostControl(resolveHostRootPaths(profileNamespace), "admin", {
-    expectedGeneration: ownerGeneration,
-    payload: hostAdminRequest({ action: "projects-add", path: directory }),
+    ...options,
+    payload: hostAdminRequest(command),
   });
   if (!response.result.outcome.ok) throw new Error(response.result.outcome.error);
-  return response.result.outcome.data;
+  return { requestId: response.requestId, data: response.result.outcome.data };
 }
 
 function waitForTui(child: ChildProcess) {

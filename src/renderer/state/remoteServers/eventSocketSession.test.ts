@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
-import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { RemoteClientError, type RemoteDesktopClient } from "@/shared/remote/client";
 import type { RemoteClientFactory, RemoteServersState } from "./types";
 import {
+  CLIENT_ENGINE_LANE_MAX_PENDING,
   CLIENT_ENGINE_PROTOCOL_VERSION,
   type ClientEngineRequest,
   type ClientEngineResponse,
@@ -21,11 +22,17 @@ import {
   __resetEventSocketRegistryForTest,
   bumpRemoteServerSnapshotSeq,
   deleteRemoteServerEventSocketEntry,
+  getRemoteServerEventSocketEntry,
   remoteServerResumeFence,
   remoteServerSnapshotEpoch,
   remoteServerSnapshotSeq,
   setRemoteServerSnapshotSeq,
 } from "./eventSocketRegistry";
+import {
+  connectionRefreshSubject,
+  forgetRefreshTokenForSubject,
+  rememberRefreshToken,
+} from "./refreshTokens";
 import {
   startRemoteServerEventStream,
   type StartRemoteServerEventStreamDeps,
@@ -469,6 +476,58 @@ afterEach(async () => {
 // ── Tests ────────────────────────────────────────────────────────────
 
 describe("remote event socket session (V5 2.1)", () => {
+  it("retires the session instead of looping when a refused connect has no grant", async () => {
+    const { deps, store } = makeHarness();
+    const refused = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new RemoteClientError("Expired bearer.", 401, "unauthorized");
+        },
+      },
+    );
+    store.clientFactory = () => refused as unknown as RemoteDesktopClient;
+
+    await startRemoteServerEventStream(deps);
+    await flushAsync(60);
+
+    // The stable re-pair state, and the ladder is retired — a dead grant
+    // never recovers by retrying, so the entry must not re-arm (the visible
+    // "keeps reconnecting" loop). Exactly one failure line: a re-arm loop
+    // would re-fire it on each cycle.
+    expect(deps.setRemoteServerFailure).toHaveBeenCalledTimes(1);
+    expect(deps.setRemoteServerFailure).toHaveBeenCalledWith(
+      DESKTOP_ID,
+      "error",
+      expect.anything(),
+    );
+    expect(getRemoteServerEventSocketEntry(DESKTOP_ID)).toBeUndefined();
+    expect(FakeSocket.instances).toHaveLength(0);
+  });
+
+  it("keeps the session when a refused connect still holds a grant", async () => {
+    const { deps, store } = makeHarness();
+    rememberRefreshToken(DESKTOP_ID, "grant-1");
+    const refused = new Proxy(
+      {},
+      {
+        get: () => {
+          throw new RemoteClientError("Expired bearer.", 401, "unauthorized");
+        },
+      },
+    );
+    store.clientFactory = () => refused as unknown as RemoteDesktopClient;
+
+    await startRemoteServerEventStream(deps);
+    await flushAsync(30);
+
+    // A held grant means the next attempt can recover (its refresh may win):
+    // no terminal state, the session stays installed for the slow retry.
+    expect(deps.setRemoteServerFailure).not.toHaveBeenCalled();
+    expect(getRemoteServerEventSocketEntry(DESKTOP_ID)).not.toBeUndefined();
+    forgetRefreshTokenForSubject(connectionRefreshSubject(DESKTOP_ID));
+  });
+
   it("advances the resume cursor only after frames are applied", async () => {
     const { deps, dispatch } = makeHarness();
     await startRemoteServerEventStream(deps);
@@ -746,6 +805,40 @@ describe("remote event socket session (V5 2.1)", () => {
     expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(2);
   });
 
+  it("keeps the socket and applies in order when a UI-thread stall delays the decode replies", async () => {
+    // A stalled main thread still receives every frame; ~3 s of a 60 frames/s
+    // stream is admitted before the first worker reply is handled. That must
+    // not be reported as frame loss (a reconnect replays into the next stall).
+    const { deps } = makeHarness();
+    const engine = getRemoteSocketEngine();
+    expect(engine.isWorkerActive()).toBe(true);
+    const worker = FakeEngineWorker.instances[0]!;
+    worker.autoRespond = false;
+
+    await startRemoteServerEventStream(deps);
+    const socket = FakeSocket.instances[0]!;
+    const burst = 180;
+    // One synchronous burst, as a stalled UI thread receives it.
+    for (let seq = 1; seq <= burst; seq += 1) {
+      socket.deliver(runtimeEventFrame(seq));
+    }
+    await flushAsync(0);
+    expect(socket.closed).toBe(false);
+    expect(remoteState.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
+
+    respondToDecodeRequests(worker);
+    await flushAsync();
+    expect(socket.closed).toBe(false);
+    expect(remoteState.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(burst);
+    expect(
+      remoteState.dispatchRemoteSupervisorEvent.mock.calls.map((call) => {
+        const forward = call[0] as { batches: { events: { seq: number }[] }[] };
+        return forward.batches[0]!.events[0]!.seq;
+      }),
+    ).toEqual(Array.from({ length: burst }, (_, index) => index + 1));
+    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(burst);
+  });
+
   it("keeps host B online and ordered while host A floods its lane budget", async () => {
     const { deps } = makeHarness();
     const hostB = makeHarness("d2");
@@ -763,9 +856,11 @@ describe("remote event socket session (V5 2.1)", () => {
 
     await deliver(socketA, runtimeEventFrame(1));
     await deliver(socketB, runtimeEventFrame(1));
-    for (let seq = 2; seq <= 70; seq += 1) {
-      await deliver(socketA, runtimeEventFrame(seq));
+    // One synchronous burst, as a stalled UI thread receives it.
+    for (let seq = 2; seq <= CLIENT_ENGINE_LANE_MAX_PENDING + 6; seq += 1) {
+      socketA.deliver(runtimeEventFrame(seq));
     }
+    await flushAsync(0);
 
     // Host A exceeded its lane budget: only A's socket is torn down and
     // force-reconnected; B is untouched.

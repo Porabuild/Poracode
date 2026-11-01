@@ -6,8 +6,8 @@ import { formatReasoningLabel } from "@/shared/modelLabels";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import { SubagentSpawnError } from "./errors";
 import { buildUnrestrictedChildConfig, resolveSubagentExecution } from "./types";
-import type { ModelTier, SpawnAgentRequest, SpawnAgentSelection } from "./types";
-import { classifyModelTier } from "./modelTier";
+import type { SpawnAgentRequest, SpawnAgentSelection } from "./types";
+import { classifyModelTier, type ModelTier } from "@/shared/modelTier";
 import { compactResultPrompt } from "./compactResult";
 import { snapshotDispatchTrace, type DispatchTraceSnapshot } from "./dispatchTrace";
 
@@ -101,11 +101,16 @@ function crewRolePreamble(
 ): string {
   const brief = role.brief?.trim().replace(/\s+/g, " ");
   const normalizedBrief = brief && !/[.!?]$/.test(brief) ? `${brief}.` : brief;
+  const reportSubject = role.noEdits
+    ? "your findings by file and line"
+    : "what you changed (files)";
+  const diffNote = role.noEdits ? "" : "; the lead reads the diff itself";
   return (
     `Crew role: ${role.label}.` +
     (normalizedBrief ? ` ${normalizedBrief}` : "") +
+    // Checks and evidence capture stay allowed; only the repository is off limits.
     (role.noEdits
-      ? " This role is told not to edit files: do not create, modify or delete files; report what you find instead."
+      ? " This role is told not to edit project files: do not create, modify or delete files in the repository; running checks is fine, and screenshots or logs go outside it, such as the system temp directory. Report what you find instead. Report facts with file and line evidence, and mark what you verified versus what you infer."
       : "") +
     " Do this work yourself: do not start subagents, including your own built-in subagent or task tools, and do not hand it to other agents." +
     // Pushback helps when the helper is as strong as the lead; a smaller
@@ -113,7 +118,13 @@ function crewRolePreamble(
     (tier === "max-capability"
       ? " If the task looks wrong or incomplete, say so and suggest a fix before implementing."
       : " Follow the task as written; if it cannot work, stop and report why instead of changing the plan.") +
-    " Finish with a short report for the lead (under 15 lines): what you changed (files), the checks you ran with pass/fail, and anything left open. Do not paste full logs or whole files; the lead reads the diff itself."
+    " Treat the values, interfaces and files the lead specifies as settled. Make minor calls yourself and note them in your report; stop only for a real blocker, and ask all your questions at once." +
+    (role.noEdits
+      ? ""
+      : " Do not run checks between edits: verify once at the end with the narrowest command that covers your change.") +
+    " If the same approach fails two or three times, stop and report what you tried." +
+    " Do not commit, push, open pull requests or contact the user, and do not revert or discard changes you did not make." +
+    ` Finish with a short report the lead can act on without other context (under 15 lines): ${reportSubject}, the checks you ran with pass/fail and paths to any screenshots or other evidence, any deviation from the task, and open questions. Do not paste full logs or whole files${diffNote}.`
   );
 }
 

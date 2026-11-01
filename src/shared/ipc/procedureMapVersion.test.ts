@@ -117,9 +117,18 @@ import { isRemoteProcedure } from "../remote/procedures";
 // allowlist (the browser bridge answers empty), and an older supervisor rejects
 // the name before effects; Settings treats that as "no config.toml hints", so
 // hop 18 stays compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:7871e068dfdceaccb3901cba969e90d573de38c397470145cd7b2f80228c20f2`;
+// Hex voice is another additive supervisor-owned name. Old peers reject the
+// unknown name before dispatch; existing payloads and the hop remain unchanged.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:782ca49a6e280fe86a1ddb1d516532202a471c0302d5d6b5a93d6ae823cdbd0d`;
 
 describe("IPC procedure map versioning", () => {
+  it("routes Hex voice through the supervisor as an additive procedure", () => {
+    expect(ipcProcedureMap.hexVoice.transport).toBe("supervisor");
+    expect(
+      ipcProcedureMap.hexVoice.payloadSchema.safeParse({ action: "list", language: "en" }).success,
+    ).toBe(true);
+  });
+
   it("keeps nonce reservations local, closed and distinct from legacy execution control", () => {
     const procedure = ipcProcedureMap.reserveThreadExecution;
     expect(procedure.transport).toBe("supervisor");

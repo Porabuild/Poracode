@@ -5,10 +5,11 @@ import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { agentStatusSchema } from "@/shared/contracts";
 import { remoteProjectSchema } from "@/shared/remote/protocol/resources";
 import type { TuiBootstrap } from "../../bootstrap";
+import { TUI_BOOTSTRAP_VERSION } from "@/shared/tuiBootstrap";
 import { EventStreamHub, createEventTranslator, type ThreadEventContext } from "../events";
 import { createRouter } from "../router";
 export const bootstrap: TuiBootstrap = {
-  version: 2,
+  version: TUI_BOOTSTRAP_VERSION,
   auth: "pairing",
   appVersion: "0.0.0",
   home: "C:/poracode-tui",
@@ -107,7 +108,11 @@ export const promptFixture = {
     capabilities: {
       presentationMode: "gui",
       presentationModes: ["gui"],
-      models: [{ id: "m1", label: "M1" }],
+      // A second, cheaper model gives a new crew's helper somewhere to go.
+      models: [
+        { id: "m1", label: "M1" },
+        { id: "m1-mini", label: "M1 Mini" },
+      ],
       modes: ["agent"],
       defaultApprovalPolicy: "ask",
       defaultSandboxMode: "read",

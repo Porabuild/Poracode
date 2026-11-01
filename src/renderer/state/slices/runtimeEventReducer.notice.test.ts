@@ -44,3 +44,28 @@ describe("warning notices", () => {
     );
   });
 });
+
+describe("error reasons", () => {
+  it("keeps the provider-reported reason on the error item and its dock state", () => {
+    const store = makeStore();
+    store.getState().applyRuntimeEvents("t1", [
+      { type: "error", threadId: "t1", message: "token expired", reason: "auth_required" },
+      { type: "error", threadId: "t1", message: "boom" },
+    ]);
+
+    const ids = store.getState().runtimeItemIdsByThread["t1"] ?? [];
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.[ids[0]!]?.payload).toEqual({
+      message: "token expired",
+      reason: "auth_required",
+    });
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.[ids[1]!]?.payload).toEqual({
+      message: "boom",
+    });
+    expect(selectThreadErrorDockStates(store.getState() as unknown as AppStoreState, "t1")).toEqual(
+      [
+        { sourceItemId: ids[0], message: "token expired", reason: "auth_required" },
+        { sourceItemId: ids[1], message: "boom" },
+      ],
+    );
+  });
+});

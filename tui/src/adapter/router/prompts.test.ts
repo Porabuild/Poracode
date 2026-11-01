@@ -570,6 +570,7 @@ test("send preserves host config fields; model change drops selectionBinding; ne
       approvalsReviewer: { model: "r1" },
       importedFrom: "import-1",
       selectionBinding: { model: "m1" },
+      workflows: true,
     },
   };
   const statusB = agentStatusSchema.parse({
@@ -583,6 +584,7 @@ test("send preserves host config fields; model change drops selectionBinding; ne
         { id: "m1", label: "M1" },
         { id: "m2", label: "M2" },
       ],
+      workflowModels: ["m1"],
     },
   });
   const client = S.promptClient({
@@ -622,16 +624,18 @@ test("send preserves host config fields; model change drops selectionBinding; ne
       approvalsReviewer: { model: "r1" },
       importedFrom: "import-1",
       selectionBinding: { model: "m1" },
+      workflows: true,
     },
   });
 
-  // Model change drops the stale binding but keeps the rest.
+  // Model change drops the stale binding (and a workflow mode m2 lacks) but keeps the rest.
   expect(
     (await post({ text: "steer me again", model: { providerID: "codex", id: "m2" } })).status,
   ).toBe(200);
   const changed = steered.at(-1) as { config: Record<string, unknown> };
   expect(changed.config.crossagentMcp).toBe(true);
   expect(changed.config).not.toHaveProperty("selectionBinding");
+  expect(changed.config).not.toHaveProperty("workflows");
 
   // New thread gets the desktop standing MCP defaults.
   const fresh = await post({ text: "brand new" }, "ses_thread-new");
@@ -1256,7 +1260,7 @@ test("a new-crew prompt carries the session binding and the current lead", async
       crew: {
         version: 1,
         policy: "crew-only",
-        roles: [{ id: "builder", label: "Builder" }],
+        roles: [{ id: "sidekick", label: "Sidekick" }],
       },
     },
   });

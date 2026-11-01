@@ -23,6 +23,16 @@ import { clearFolderSelectionFixture, mockNextFolderSelection } from "./devFolde
 
 type UpdateStoreState = ReturnType<typeof useUpdateStore.getState>;
 
+// The lazy diagnostic imports below make this module an importer of much of
+// the renderer. Without a boundary here, editing any of those modules reloads
+// the page through main.tsx. Accept the update and reinstall from the new module.
+if (import.meta.hot) {
+  import.meta.hot.accept((next) => {
+    delete (globalThis as { __poracodeDev?: unknown }).__poracodeDev;
+    (next as typeof import("./devBridge") | undefined)?.installDevBridge();
+  });
+}
+
 export function installDevBridge(): void {
   if (!import.meta.env.DEV) return;
 

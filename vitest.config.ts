@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { defineConfig, type TestProjectInlineConfiguration } from "vitest/config";
 import babel from "@rolldown/plugin-babel";
 import { lingui } from "@lingui/vite-plugin";
+import { DurationShardSequencer } from "./src/build/durationShardSequencer.ts";
 import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
 
 // Core CI shards exclude compiler fixtures in the project that collects them.
@@ -49,6 +50,8 @@ export default defineConfig({
     // the suite; per-test timeouts can still override.
     testTimeout: 15_000,
     hookTimeout: 15_000,
+    // `--shard` balances files by recorded CI duration instead of by count.
+    sequence: { sequencer: DurationShardSequencer },
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],

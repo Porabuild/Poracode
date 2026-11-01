@@ -12,6 +12,7 @@ const selectionKeys: Array<keyof ThreadConfig> = [
   "contextSize",
   "fast",
   "thinking",
+  "workflows",
   "selectionBinding",
 ];
 

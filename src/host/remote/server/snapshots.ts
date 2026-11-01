@@ -38,6 +38,7 @@ import {
   type RemoteRuntimeHistoryNotice,
   type RemoteRuntimeItemsPage,
   type RemoteRuntimeItemsPageRequest,
+  type RemoteHostWorkspace,
   type RemoteShellSnapshot,
   type RemoteThreadListPage,
   type RemoteThreadSnapshot,
@@ -187,6 +188,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       },
       conversationSnapshots: { versions: [REMOTE_CONVERSATION_SNAPSHOTS_VERSION] },
       threadForks: { versions: [1] },
+      sessionImport: { versions: [1] },
       // Managed-root bounded project-command results: the existing project
       // command route honors the exact per-request bounded declaration.
       projectCommandResults: {
@@ -255,6 +257,7 @@ function projectShellSnapshot(
   const gitState = ctx.options.gitState
     ? projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot())
     : undefined;
+  const workspaces = readHostWorkspaces(ctx);
   // Async readers pin before dispatch. Never move the cursor past mutations
   // that may have occurred after the worker took its SQLite snapshot.
   return remoteShellSnapshotSchema.parse(
@@ -267,8 +270,20 @@ function projectShellSnapshot(
       runtimeSummariesByThread: summariesByThread,
       gitSummariesByThread,
       ...(gitState ? { gitState } : {}),
+      ...(workspaces ? { workspaces } : {}),
     }),
   );
+}
+
+/** The host's workspace names for snapshot readers; absent when unavailable. */
+export function readHostWorkspaces(ctx: RemoteServerContext): RemoteHostWorkspace[] | undefined {
+  try {
+    return ctx.options.settings?.readWorkspaces?.();
+  } catch {
+    // Workspace names only place projects; a settings read failure must not
+    // fail the snapshot.
+    return undefined;
+  }
 }
 
 /**

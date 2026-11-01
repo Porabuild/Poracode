@@ -149,9 +149,9 @@ export async function runEverythingSearchScenario({
     await read("window.__poracodeDev.closeSettings(); document.activeElement?.blur()");
     await key("g", shortcutModifier);
     await wait(
-      `Boolean(document.querySelector(${JSON.stringify(inputSelector)}))`,
+      `(() => { const input = document.querySelector(${JSON.stringify(inputSelector)}); return Boolean(input && input === document.activeElement); })()`,
       Boolean,
-      "legacy search shortcut",
+      "legacy search shortcut and focus",
     );
     await key("Escape");
     await wait(

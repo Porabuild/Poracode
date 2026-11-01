@@ -47,7 +47,6 @@ export interface SettingsDestination {
 // hides them and instead surfaces "Models" in place of the Agents tree. Single
 // source of truth for both the collapsed icon rail and the expanded list.
 const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
-  "audio",
   "search",
   "threads",
   "shortcuts",
@@ -62,15 +61,21 @@ const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
   "about",
 ]);
 
+/** Whether this client shows `id`; the sidebar and every settings search share it. */
+export function isSettingsSectionVisible(id: SettingsSection, remoteSession: boolean): boolean {
+  return (
+    (id !== "remoteAccess" || hasClientCapability("localBackend")) &&
+    (!remoteSession ||
+      !DESKTOP_ONLY_SECTIONS.has(id) ||
+      (id === "remoteServers" && hasClientCapability("manageRemoteEnvironments")))
+  );
+}
+
 export function useSettingsNavigation() {
   const { t } = useLingui();
   const devMode = isDevApp();
   const remoteSession = isRemoteSession();
-  const isSectionVisible = (id: SettingsSection) =>
-    (id !== "remoteAccess" || hasClientCapability("localBackend")) &&
-    (!remoteSession ||
-      !DESKTOP_ONLY_SECTIONS.has(id) ||
-      (id === "remoteServers" && hasClientCapability("manageRemoteEnvironments")));
+  const isSectionVisible = (id: SettingsSection) => isSettingsSectionVisible(id, remoteSession);
 
   // Grouped section model — single source of truth for sidebar order in both
   // the expanded list (with group headers) and the collapsed icon rail. The

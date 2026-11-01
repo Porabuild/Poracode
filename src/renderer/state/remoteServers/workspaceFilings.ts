@@ -9,15 +9,35 @@ interface ProjectWorkspaceFiling {
   readonly workspaceId: string | undefined;
 }
 
-/** Browser/desktop-local pins; null records an explicit unfiling. */
-export function pinRemoteProjectWorkspaces(filings: readonly ProjectWorkspaceFiling[]): void {
+/**
+ * Browser/desktop-local pins; null records an explicit unfiling. `explicit`
+ * marks a filing the user made by moving the project, which a browser client
+ * keeps even when the host files the project elsewhere.
+ */
+export function pinRemoteProjectWorkspaces(
+  filings: readonly ProjectWorkspaceFiling[],
+  options: { readonly explicit?: boolean } = {},
+): void {
   if (filings.length === 0) return;
   useRemoteServersStore.setState((state) => {
     let projectWorkspaceIds = state.projectWorkspaceIds;
+    let explicitProjectWorkspaceIds = state.explicitProjectWorkspaceIds;
     const copiedServers = new Map<string, Record<string, string | null>>();
     for (const filing of filings) {
       const workspaceId = filing.workspaceId ?? null;
       if (projectWorkspaceIds[filing.desktopId]?.[filing.remoteId] === workspaceId) continue;
+      if (
+        options.explicit &&
+        explicitProjectWorkspaceIds[filing.desktopId]?.[filing.remoteId] !== true
+      ) {
+        explicitProjectWorkspaceIds = {
+          ...explicitProjectWorkspaceIds,
+          [filing.desktopId]: {
+            ...explicitProjectWorkspaceIds[filing.desktopId],
+            [filing.remoteId]: true,
+          },
+        };
+      }
       if (projectWorkspaceIds === state.projectWorkspaceIds) {
         projectWorkspaceIds = { ...projectWorkspaceIds };
       }
@@ -29,7 +49,10 @@ export function pinRemoteProjectWorkspaces(filings: readonly ProjectWorkspaceFil
       }
       nextForServer[filing.remoteId] = workspaceId;
     }
-    return projectWorkspaceIds === state.projectWorkspaceIds ? {} : { projectWorkspaceIds };
+    if (projectWorkspaceIds === state.projectWorkspaceIds) return {};
+    return explicitProjectWorkspaceIds === state.explicitProjectWorkspaceIds
+      ? { projectWorkspaceIds }
+      : { projectWorkspaceIds, explicitProjectWorkspaceIds };
   });
 }
 

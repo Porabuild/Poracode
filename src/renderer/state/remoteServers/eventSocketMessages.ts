@@ -270,6 +270,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
 
   socket.onmessage = (event) => {
     if (!isCurrent() || entry.socket !== socket) return;
+    entry.health?.noteActivity();
     const raw = String(event.data);
     const dispatchParsed = (message: ReturnType<RemoteDesktopClient["parseSocketMessage"]>) => {
       try {

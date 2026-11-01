@@ -1317,6 +1317,11 @@
   ],
   "procedures": [
     {
+      "name": "hexVoice",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
       "name": "getProviderUsage",
       "owner": "desktop",
       "scope": "session:read"
@@ -1325,6 +1330,11 @@
       "name": "refreshProviderUsage",
       "owner": "desktop",
       "scope": "session:operate"
+    },
+    {
+      "name": "listImportableSessions",
+      "owner": "desktop",
+      "scope": "projects:manage"
     },
     {
       "name": "listThreadSessionActions",

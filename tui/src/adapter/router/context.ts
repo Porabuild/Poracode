@@ -71,6 +71,8 @@ export type SessionRecord = {
   effort?: string;
   fast?: boolean;
   thinking?: boolean;
+  /** Per-thread workflow mode; never written to the saved last-model choice. */
+  workflows?: boolean;
   contextSize?: string;
   approvalPolicy?: string;
   sandboxMode?: string;
@@ -170,6 +172,17 @@ export interface RouterContext {
   statusSignature: (list: AgentStatus[]) => string;
   handleAgentStatusEvent: (value: Record<string, unknown>) => boolean;
 
+  // projects.ts
+  launchProject: () => Promise<RemoteProject>;
+  projectInventory: (refresh?: boolean) => Promise<Map<string, RemoteProject>>;
+  projectById: (id: string) => Promise<RemoteProject | undefined>;
+  threadProjects: () => Promise<(value: Thread) => RemoteProject>;
+  projectOfThread: (value: Thread) => Promise<RemoteProject>;
+  projectForSession: (session: string) => Promise<RemoteProject>;
+  projectForDirectory: (directory: string) => Promise<RemoteProject>;
+  runInRequestScope: <T>(url: URL, run: () => Promise<T>) => Promise<T>;
+  runInSessionScope: <T>(session: string, run: () => Promise<T>) => Promise<T>;
+
   // checkpoints.ts
   captureFileCheckpoint: (
     rawThreadId: string,
@@ -267,6 +280,7 @@ export interface RouterContext {
     sandboxModes: readonly { id: string; label: string }[];
     fast: { offered: boolean; disabledReason: string | undefined };
     thinking: { offered: boolean };
+    workflows: { offered: boolean; label: string };
     contextSizes: readonly { id: string; label: string }[];
     defaults: { approvalPolicy: string | undefined; sandboxMode: string | undefined };
   }>;
@@ -277,6 +291,7 @@ export interface RouterContext {
       sandboxMode?: string;
       fast?: boolean;
       thinking?: boolean;
+      workflows?: boolean;
       contextSize?: string;
     },
   ) => Promise<{ error: string; status: number } | { ok: true }>;

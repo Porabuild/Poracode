@@ -1,7 +1,8 @@
 import { createReadStream, existsSync, readdirSync, readFileSync } from "node:fs";
-import { basename, extname, join, resolve } from "node:path";
-import { defineConfig, loadEnv, normalizePath, type Plugin } from "vite";
-import babel from "@rolldown/plugin-babel";
+import { availableParallelism } from "node:os";
+import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { Worker } from "node:worker_threads";
+import { defineConfig, loadEnv, type Plugin, type Rollup } from "vite";
 import react from "@vitejs/plugin-react";
 import { lingui, linguiTransformerBabelPreset } from "@lingui/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
@@ -9,19 +10,36 @@ import tailwindcss from "@tailwindcss/vite";
 const linguiPreset = linguiTransformerBabelPreset();
 const CLIENT_SOURCE_RE = /[\\/]src[\\/]renderer[\\/].*\.[tj]sx?(?:$|\?)/;
 const REACT_PLUGIN_EXCLUDE_RE = [/[\\/]node_modules[\\/]/, /[?&]worker(?:_file)?(?:&|$)/];
-const linguiBabel = babel({
-  include: CLIENT_SOURCE_RE,
-  presets: [linguiPreset],
-});
+// Lingui macro worker threads. Dev keeps two: more slowed the Electron runtime
+// build and main-process boot that start alongside the dev server. Four measured
+// fastest for a production build (13.4 s -> 9.1 s; six was slower).
+const DEV_LINGUI_WORKERS = Math.max(1, Math.min(2, availableParallelism() - 1));
+const BUILD_LINGUI_WORKERS = Math.max(1, Math.min(4, availableParallelism() - 1));
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 const MATERIAL_ICON_DIR = resolve(import.meta.dirname, "node_modules/material-icon-theme/icons");
 const MATERIAL_ICON_ASSET_PREFIX = "/assets/material-icons/";
-const MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(import.meta.dirname, ".poracode/worktrees"))}/**`;
-const LEGACY_MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(import.meta.dirname, ".lightcode/worktrees"))}/**`;
-const ELECTRON_OUTPUT_GLOB = `${normalizePath(resolve(import.meta.dirname, "dist/main"))}/**`;
-const TEMP_OUTPUT_GLOBS = ["tmp", ".tmp"].map(
-  (directory) => `${normalizePath(resolve(import.meta.dirname, directory))}/**`,
-);
+// Vite's chokidar watcher opens one native fs.watch per file and directory, and
+// its initial scan runs on the dev server's main thread while the first page
+// loads. Watching the whole checkout (agent worktrees, Android/iOS build output,
+// dist, docs, tooling caches) took tens of seconds on Windows. Watch only the
+// top-level directories the client graph imports from, plus root files such as
+// index.html, configs and .env files, and skip tests, which no client imports.
+// Paths outside the root (linked packages) are still added on demand by Vite.
+const CLIENT_WATCH_ROOTS = new Set(["src", "packages", "build", "resources", "public"]);
+const TEST_FILE_RE = /\.test\.[cm]?[jt]sx?$/;
+
+function isUnwatchedClientPath(path: string): boolean {
+  const relativePath = relative(import.meta.dirname, path);
+  if (
+    !relativePath ||
+    relativePath === ".." ||
+    relativePath.startsWith(`..${sep}`) ||
+    isAbsolute(relativePath)
+  )
+    return false;
+  const [topLevel, ...rest] = relativePath.split(sep);
+  return rest.length > 0 && (!CLIENT_WATCH_ROOTS.has(topLevel!) || TEST_FILE_RE.test(relativePath));
+}
 const CLIENT_OPTIMIZED_DEPS = [
   "@chenglou/pretext",
   "@dnd-kit/dom",
@@ -29,6 +47,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   "@dnd-kit/react/sortable",
   "@git-diff-view/react",
   "@heroui/react",
+  "@heroui/styles",
   "@legendapp/list/react",
   "@lingui/core",
   "@lingui/core/macro",
@@ -49,6 +68,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   "@xterm/addon-clipboard",
   "@xterm/addon-fit",
   "@xterm/addon-image",
+  "@xterm/addon-program-status",
   "@xterm/addon-search",
   "@xterm/addon-unicode11",
   "@xterm/addon-webgl",
@@ -67,8 +87,10 @@ const CLIENT_OPTIMIZED_DEPS = [
   "react/compiler-runtime",
   "react/jsx-dev-runtime",
   "react/jsx-runtime",
+  "rehype-katex",
   "rehype-raw",
   "remark-gfm",
+  "remark-math-extended",
   "remark-parse",
   "streamdown",
   "style-to-js",
@@ -159,6 +181,81 @@ function reactDevtoolsStandalone(): Plugin {
           injectTo: "head-prepend",
         },
       ];
+    },
+  };
+}
+
+// The Lingui macro Babel transform @rolldown/plugin-babel would apply with the
+// preset, run in worker threads. Babel is single-threaded: on the main thread it
+// was about a third of the dev server's warmup (which also answers the window's
+// module requests) and half of a production renderer build. Output is identical.
+function linguiMacroWorkers(size: number): Plugin {
+  type Reply = {
+    id: number;
+    code: string | null;
+    map: Rollup.SourceMapInput;
+    error?: BabelWorkerError;
+  };
+  type BabelWorkerError = { message: string; loc?: unknown; pos?: number; code?: string };
+  type Pending = { resolve: (reply: Reply) => void; reject: (error: Error) => void };
+  // The preset's own filter: only files that import a Lingui macro.
+  const macroImport = linguiPreset.rolldown.filter?.code;
+  const workerUrl = resolve(import.meta.dirname, "scripts/vite-lingui-macro-worker.mjs");
+  const workers: { worker: Worker; pending: Map<number, Pending> }[] = [];
+  let nextId = 0;
+  let closed = false;
+
+  const spawn = (index: number) => {
+    const pending = new Map<number, Pending>();
+    const worker = new Worker(workerUrl);
+    worker.unref();
+    worker.on("message", (reply: Reply) => {
+      pending.get(reply.id)?.resolve(reply);
+      pending.delete(reply.id);
+    });
+    let failure: Error | undefined;
+    worker.on("error", (error: Error) => {
+      failure = error;
+    });
+    worker.on("exit", () => {
+      const error = failure ?? new Error("Lingui macro worker exited.");
+      for (const task of pending.values()) task.reject(error);
+      if (!closed) spawn(index);
+    });
+    workers[index] = { worker, pending };
+  };
+  const run = (code: string, filename: string) => {
+    if (workers.length === 0) for (let index = 0; index < size; index++) spawn(index);
+    const slot = workers.reduce((least, next) =>
+      next.pending.size < least.pending.size ? next : least,
+    );
+    const id = nextId++;
+    return new Promise<Reply>((resolveReply, reject) => {
+      slot.pending.set(id, { resolve: resolveReply, reject });
+      slot.worker.postMessage({ id, code, filename });
+    });
+  };
+
+  return {
+    name: "poracode:lingui-macro-workers",
+    enforce: "pre",
+    transform: {
+      filter: { id: CLIENT_SOURCE_RE, ...(macroImport ? { code: macroImport } : {}) },
+      async handler(code, id) {
+        const reply = await run(code, id);
+        if (reply.error) {
+          this.error({
+            message: `[BabelError] ${reply.error.message}`,
+            ...(reply.error.pos === undefined ? {} : { pos: reply.error.pos }),
+            ...(reply.error.code ? { pluginCode: reply.error.code } : {}),
+          });
+        }
+        return reply.code === null ? null : { code: reply.code, map: reply.map };
+      },
+    },
+    closeBundle() {
+      closed = true;
+      for (const { worker } of workers.splice(0)) void worker.terminate();
     },
   };
 }
@@ -341,7 +438,7 @@ function materialIconAssets(): Plugin[] {
   ];
 }
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ command, mode }) => ({
   plugins: [
     tailwindcss(),
     resizeObserverLoopErrorFilter(),
@@ -350,11 +447,11 @@ export default defineConfig(({ mode }) => ({
     webDevIndex(),
     reactDevtoolsStandalone(),
     // Lingui must expand macros before React Compiler analyzes the component.
-    // The Babel plugin is forced into the pre phase so it runs before the
+    // The macro plugin is forced into the pre phase so it runs before the
     // native Oxc React Compiler transform inside react().
     // We use the Babel macro (not the SWC plugin) because this project transforms
     // with Babel, sidestepping the SWC-plugin/runtime version-matching pitfalls.
-    linguiBabel,
+    linguiMacroWorkers(command === "serve" ? DEV_LINGUI_WORKERS : BUILD_LINGUI_WORKERS),
     react({
       compiler: true,
       include: CLIENT_SOURCE_RE,
@@ -506,12 +603,18 @@ export default defineConfig(({ mode }) => ({
   server: {
     forwardConsole: true,
     watch: {
-      ignored: [
-        MANAGED_WORKTREES_GLOB,
-        LEGACY_MANAGED_WORKTREES_GLOB,
-        ELECTRON_OUTPUT_GLOB,
-        ...TEMP_OUTPUT_GLOBS,
-        "**/ios/DerivedData/**",
+      ignored: [isUnwatchedClientPath],
+    },
+    // Transform the startup graph as soon as the server listens, so it is ready
+    // when the Electron window (which waits for the runtime build) or a browser
+    // first loads. main.tsx and its startup modules are dynamic imports, which
+    // warmup does not follow from bootstrap.ts.
+    warmup: {
+      clientFiles: [
+        "./src/renderer/bootstrap.ts",
+        "./src/renderer/main.tsx",
+        "./src/renderer/app.tsx",
+        "./src/renderer/components/providers/bootstrap.ts",
       ],
     },
     // Bind all interfaces so phones on the LAN can load the canonical app

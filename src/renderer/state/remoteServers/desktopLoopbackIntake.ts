@@ -211,6 +211,9 @@ const RENEWAL_LEAD_MS = 5 * 60_000;
 /** A transport-class renewal failure retries this long before the deadline; a
  * refused grant does not retry (the close path re-pairs). */
 const RENEWAL_RETRY_MS = 60_000;
+/** Minimum spacing between bearer-refused escalations (see
+ * {@link DesktopLoopbackIntake.noteBearerRefused}). */
+const BEARER_REFUSED_ESCALATION_INTERVAL_MS = 10_000;
 /** setTimeout's maximum representable delay; longer waits are re-armed. */
 const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
 
@@ -290,6 +293,8 @@ export class DesktopLoopbackIntake {
    * proactive renewal (null = no armed window). */
   private renewalExpiresAtMs: number | null = null;
   private renewalTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Last bearer-refused escalation time; bounds the force-reconnect cadence. */
+  private lastBearerRefusedEscalationAtMs = 0;
   /** Whether the CURRENT socket's upgrade carried the bounded-catalog-changes
    * declaration (read by the wiring to re-open on a capability change). */
   private declaredBoundedCatalogChanges = false;
@@ -353,6 +358,28 @@ export class DesktopLoopbackIntake {
   /** True while the OPEN socket's upgrade declared `catalogChanges=bounded-v1`. */
   boundedCatalogChangesDeclared(): boolean {
     return this.open && this.declaredBoundedCatalogChanges;
+  }
+
+  /**
+   * A routed request ended 401 with the client's own refresh exhausted (see
+   * {@link RemoteTokenLifecycle.onUnauthorized}). The socket can stay open in
+   * exactly that state — the host only reaps it at the session's deadline —
+   * so without this the leg would serve host 401s to the UI forever while
+   * looking healthy. Force the socket closed: the close path renews the same
+   * session with the refresh token, re-pairs when the grant is dead, and the
+   * exhausted launch credential escalates to a fresh bootstrap. Rate-limited:
+   * one re-proof per interval is the recovery, not a reconnect loop.
+   */
+  noteBearerRefused(): void {
+    if (this.disposed || !this.active) return;
+    const now = Date.now();
+    if (now - this.lastBearerRefusedEscalationAtMs < BEARER_REFUSED_ESCALATION_INTERVAL_MS) return;
+    this.lastBearerRefusedEscalationAtMs = now;
+    console.warn(
+      "[loopback] bearer refused with refresh exhausted; re-proving the leg (renew → re-pair → re-bootstrap)",
+    );
+    const socket = this.socket;
+    if (socket) this.forceReconnect(socket);
   }
 
   /**
@@ -440,11 +467,17 @@ export class DesktopLoopbackIntake {
     try {
       // A successful rotation re-arms through `applyTokens`; a refused grant
       // returns false and is the expiry-close/re-pair path's to handle.
-      await this.deps.renewSession?.();
+      const renewed = await this.deps.renewSession?.();
+      if (renewed === false) {
+        console.warn(
+          "[loopback] proactive renewal refused (grant dead); the expiry close will re-pair",
+        );
+      }
     } catch {
       // Transport-class (429, network): retry shortly while the retained
       // bearer is still live. The request-401 refresh and the expiry-close
       // reconnect remain the fallback at the deadline itself.
+      console.warn("[loopback] proactive renewal failed (transport); retrying before the deadline");
       this.scheduleRenewalRetry();
     }
   }
@@ -551,7 +584,21 @@ export class DesktopLoopbackIntake {
           if (this.deps.renewSession && (await this.deps.renewSession())) {
             if (!this.canContinue()) return false;
             if (this.accessToken) {
-              return await this.openWithTicket(base, this.accessToken, controller);
+              try {
+                return await this.openWithTicket(base, this.accessToken, controller);
+              } catch (retryError) {
+                if (isLoopbackCredentialExhaustedError(retryError)) throw retryError;
+                if (!isLoopbackTicketUnauthorizedError(retryError)) throw retryError;
+                // The renewal reported success (a rotation, or the "already
+                // rotated" short-circuit) yet the host still refuses the
+                // bearer: the grant is unrecoverable and retrying it would
+                // loop 401s forever. Fall through to a fresh pairing
+                // exchange — a spent credential then escalates to a fresh
+                // bootstrap, which is the only exit from a dead session.
+                console.warn(
+                  "[loopback] bearer still refused after a reported renewal; falling through to re-pair",
+                );
+              }
             }
           }
           // No renewal port, or the host refused the grant: fall through to a
@@ -700,6 +747,7 @@ export class DesktopLoopbackIntake {
     };
     socket.onmessage = (event) => {
       if (!isCurrent()) return;
+      this.liveness.noteActivity();
       this.drain.push(String(event.data));
     };
     socket.onclose = (event) => {
@@ -719,10 +767,16 @@ export class DesktopLoopbackIntake {
     // SAME session with its refresh token, so this is a transport event, not
     // credential exhaustion (re-pairing would register another host session).
     if (event?.reason === REMOTE_ACCESS_SESSION_EXPIRED_REASON) {
+      console.warn(
+        `[loopback] socket closed at the session deadline (code ${event.code ?? "?"}); renewing on reconnect`,
+      );
       this.liveness.noteTransportFailure();
       return;
     }
     if (isUnauthorizedRemoteSocketClose(event?.code ?? 0, event?.reason ?? "")) {
+      console.warn(
+        `[loopback] socket closed unauthorized (code ${event?.code ?? 0}); the credential is exhausted`,
+      );
       this.noteCredentialExhausted();
       return;
     }
@@ -862,6 +916,7 @@ export class DesktopLoopbackIntake {
   private noteCredentialExhausted(): void {
     if (this.credentialExhaustionNotified) return;
     this.credentialExhaustionNotified = true;
+    console.warn("[loopback] pairing credential exhausted; requesting a fresh bootstrap");
     if (this.deps.onCredentialExhausted) {
       this.deps.onCredentialExhausted();
       return;

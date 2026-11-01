@@ -35,6 +35,8 @@ actor RemoteWebSocketClient {
     /// True while the session is unauthorized; reconnect uses the 60s floor.
     private var sessionExpired = false
     private var pendingPingId: String?
+    /// Wall-clock time (ms) of the last inbound frame on the current socket.
+    private var lastInboundAtMs: Double?
     var generationGate = SocketGenerationGate()
     var readyReceived = false
     /// The declarations of the most recent connect attempt, recorded from the
@@ -283,6 +285,7 @@ actor RemoteWebSocketClient {
             do {
                 let message = try await socket.receive()
                 guard generationGate.isCurrent(gen) else { return }
+                lastInboundAtMs = Date().timeIntervalSince1970 * 1_000
                 switch message {
                 case .string(let text):
                     await handleText(text)
@@ -470,9 +473,26 @@ actor RemoteWebSocketClient {
                 await forceReconnect(reason: "ping send failed")
                 return
             }
-            try? await Task.sleep(for: .milliseconds(Int64(RemoteSocketPolicy.healthPingTimeoutMs)))
-            if generationGate.decision(callbackGeneration: gen, kind: .healthTimeout) == .proceed,
-               pendingPingId == id {
+            var windowStartedAtMs = Date().timeIntervalSince1970 * 1_000
+            var extensions = 0
+            while true {
+                try? await Task.sleep(for: .milliseconds(Int64(RemoteSocketPolicy.healthPingTimeoutMs)))
+                if Task.isCancelled { return }
+                guard generationGate.decision(callbackGeneration: gen, kind: .healthTimeout) == .proceed,
+                      pendingPingId == id
+                else { break }
+                let nowMs = Date().timeIntervalSince1970 * 1_000
+                if RemoteSocketPolicy.shouldExtendHealthDeadline(
+                    nowMs: nowMs,
+                    deadlineAtMs: windowStartedAtMs + RemoteSocketPolicy.healthPingTimeoutMs,
+                    windowStartedAtMs: windowStartedAtMs,
+                    lastInboundAtMs: lastInboundAtMs,
+                    extensions: extensions
+                ) {
+                    extensions += 1
+                    windowStartedAtMs = nowMs
+                    continue
+                }
                 pendingPingId = nil
                 await forceReconnect(reason: "health ping timeout")
                 return

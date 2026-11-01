@@ -1,6 +1,6 @@
 import type { McpServer } from "@/shared/contracts";
 import type { RemoteSettings, RemoteSettingsPatch } from "@/shared/remote";
-import { pickRemoteSettings } from "@/shared/remote";
+import { pickRemoteSettings, remoteHostWorkspaces } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
 import type { SettingsMutationResult, SettingsOwnerEdit } from "@/shared/settingsTransactions";
 import { reportSettingsError } from "@/backend/BackendSettingsNotifications";
@@ -110,6 +110,7 @@ export async function composeHeadlessSettingsAuthority(
     mcpSettings,
     remoteSettingsGateway: (mcp) => ({
       read: () => pickRemoteSettings(options.readSettings()),
+      readWorkspaces: () => remoteHostWorkspaces(options.readSettings()),
       update: async (patch) => pickRemoteSettings(await writes.commitCompatPatch(patch)),
       readMcpServers: () => mcp.read(),
       commandMcpServers: (command) => mcp.command(command),

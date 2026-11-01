@@ -182,6 +182,23 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     persistRehydrate,
   } = deps;
 
+  /** Online with an open event socket on the record's current endpoint: the
+   * live stream already keeps this server current, so a reconnect pass that is
+   * not forced must not downgrade it to "connecting" or re-snapshot it. */
+  const isLiveConnection = (server: RemoteServerRecord): boolean => {
+    const connectionKey = remoteConnectionKey(server);
+    if (get().runtime[connectionKey]?.status !== "online") return false;
+    const entry = getRemoteServerEventSocketEntry(connectionKey);
+    const socket = entry?.socket;
+    return (
+      entry?.serverKey === server.endpoint &&
+      socket !== null &&
+      socket !== undefined &&
+      typeof socket.send === "function" &&
+      (socket.readyState === undefined || socket.readyState === 1)
+    );
+  };
+
   const setServersConnecting = (servers: readonly RemoteServerRecord[]) => {
     if (servers.length === 0) return;
     set((state) => {
@@ -462,7 +479,9 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         const connectPass = async (forceTransportReconnect: boolean): Promise<void> => {
           connectAllInFlightForce = forceTransportReconnect;
           const servers = get().servers.filter(
-            (server) => get().hostUpdateRestarts[remoteConnectionKey(server)] === undefined,
+            (server) =>
+              get().hostUpdateRestarts[remoteConnectionKey(server)] === undefined &&
+              (forceTransportReconnect || !isLiveConnection(server)),
           );
           if (forceTransportReconnect) {
             for (const server of servers) {
@@ -493,6 +512,16 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         connectAllForceRequested = false;
       });
       return connectAllInFlight;
+    },
+
+    verifyConnections: async () => {
+      for (const server of get().servers) {
+        if (!isLiveConnection(server)) continue;
+        const entry = getRemoteServerEventSocketEntry(remoteConnectionKey(server));
+        if (entry?.socket) entry.health?.probe(entry.socket);
+      }
+      // The pass skips every live server, so only the dropped ones reconnect.
+      await get().connectAll();
     },
 
     reconnectServer: async (connectionKey: string) => {

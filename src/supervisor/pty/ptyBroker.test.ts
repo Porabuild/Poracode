@@ -45,7 +45,6 @@ Module._load = function(id, ...args) {
     execArgv: [
       "--require",
       preload,
-      "--experimental-transform-types",
       "--disable-warning=ExperimentalWarning",
       "--import",
       pathToFileURL(resolve("scripts/remote-v3-ts-register.mjs")).href,

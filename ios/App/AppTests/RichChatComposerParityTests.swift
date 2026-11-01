@@ -214,6 +214,100 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertEqual(configuration.thinking, false)
   }
 
+  func testWorkflowToggleIsOfferedOnlyForAdvertisedModelsWithProviderOrFallbackLabel() throws {
+    let configuration = ThreadConfig(model: "model-a")
+    let generic = try workflowCatalog(configuration: configuration)
+    XCTAssertTrue(generic.supportsWorkflows("model-a"))
+    XCTAssertFalse(generic.supportsWorkflows("model-b"))
+    XCTAssertFalse(generic.supportsWorkflows("unknown"))
+    XCTAssertEqual(generic.workflowsLabel, RichChatStrings.workflows)
+
+    let named = try workflowCatalog(configuration: configuration, label: .string("Provider Flows"))
+    XCTAssertEqual(named.workflowsLabel, "Provider Flows")
+    let blank = try workflowCatalog(configuration: configuration, label: .string("  "))
+    XCTAssertEqual(blank.workflowsLabel, RichChatStrings.workflows)
+
+    // A catalog whose provider advertises nothing never offers the toggle.
+    let none = RichChatComposerControlCatalog(
+      agentStatus: try agentStatus(), presentationMode: .gui, configuration: configuration)
+    XCTAssertFalse(none.supportsWorkflows("model-a"))
+  }
+
+  func testPresentationOverridesScopeTheWorkflowCapabilities() throws {
+    let agent = try AgentStatusRecord(wire: .object([
+      "kind": .string("provider"), "label": .string("Provider"),
+      "installed": .bool(true), "authState": .string("authenticated"),
+      "capabilities": .object([
+        "models": .array([.object(["id": .string("model-a"), "label": .string("Model A")])]),
+        "workflowModels": .array([.string("model-a")]),
+        "workflowLabel": .string("Root Flows"),
+        "presentationCapabilities": .object([
+          "gui": .object([
+            "models": .array([.object(["id": .string("model-a"), "label": .string("Model A")])]),
+            "workflowModels": .array([.string("model-a")]),
+            "workflowLabel": .string("GUI Flows"),
+          ]),
+          "terminal": .object([
+            "models": .array([.object(["id": .string("model-a"), "label": .string("Model A")])])
+          ]),
+        ]),
+      ]),
+    ]))
+
+    let gui = HomeComposerCatalog.capabilities(for: agent, presentationMode: .gui)
+    XCTAssertTrue(HomeComposerCatalog.supportsWorkflows(capabilities: gui, modelID: "model-a"))
+    XCTAssertEqual(HomeComposerCatalog.workflowLabel(capabilities: gui), "GUI Flows")
+    let terminal = HomeComposerCatalog.capabilities(for: agent, presentationMode: .terminal)
+    XCTAssertFalse(
+      HomeComposerCatalog.supportsWorkflows(capabilities: terminal, modelID: "model-a"),
+      "a surface override that omits the capability never inherits the root list")
+    XCTAssertNil(HomeComposerCatalog.workflowLabel(capabilities: terminal))
+  }
+
+  func testModelChangeClearsWorkflowsOnUnsupportedModelsAndNeverDefaultsThemOn() throws {
+    var configuration = ThreadConfig(model: "model-a", workflows: true)
+    let catalog = try workflowCatalog(configuration: configuration)
+
+    catalog.applyModel("model-a", to: &configuration)
+    XCTAssertEqual(configuration.workflows, true, "a supported model keeps the choice")
+
+    catalog.applyModel("model-b", to: &configuration)
+    XCTAssertEqual(configuration.model, "model-b")
+    XCTAssertEqual(configuration.workflows, false)
+
+    catalog.applyModel("model-a", to: &configuration)
+    XCTAssertEqual(configuration.workflows, false, "switching back never turns the mode on")
+
+    var absent = ThreadConfig(model: "model-a")
+    catalog.applyModel("model-b", to: &absent)
+    XCTAssertNil(absent.workflows, "an absent choice stays absent")
+    catalog.applyModel("model-a", to: &absent)
+    XCTAssertNil(absent.workflows)
+
+    var exact = ThreadConfig(model: "model-a", workflows: true)
+    catalog.applyExactModelSelection("model-b", to: &exact)
+    XCTAssertEqual(exact.workflows, false)
+  }
+
+  func testWorkflowsRoundTripThroughThreadConfigAndLaunchBridges() throws {
+    let configuration = ThreadConfig(model: "model-a", workflows: true)
+    XCTAssertEqual(configuration.richChatObject["workflows"], .bool(true))
+    XCTAssertEqual(ThreadLaunchConfiguration(configuration).workflows, true)
+    XCTAssertEqual(ThreadConfig(ThreadLaunchConfiguration(configuration)), configuration)
+    XCTAssertEqual(configuration.lifecycleLaunchConfiguration.workflows, true)
+
+    let decoded = try JSONDecoder().decode(
+      ThreadConfig.self, from: Data(#"{"model":"model-a","workflows":true}"#.utf8))
+    XCTAssertEqual(decoded.workflows, true)
+    let legacy = try JSONDecoder().decode(
+      ThreadConfig.self, from: Data(#"{"model":"model-a","thinking":true}"#.utf8))
+    XCTAssertNil(legacy.workflows, "a config written before the toggle decodes as absent")
+    XCTAssertNil(ThreadConfig(model: "model-a").richChatObject["workflows"])
+
+    let launch = try JSONEncoder().encode(ThreadLaunchConfiguration(model: "model-a"))
+    XCTAssertFalse(String(decoding: launch, as: UTF8.self).contains("workflows"))
+  }
+
   func testThreadConfigProjectsLosslesslyIntoTheNextSend() {
     let configuration = ThreadConfig(
       model: "model-a",
@@ -276,6 +370,7 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(support.contains("configuredConfiguration = ThreadLaunchConfiguration"))
     XCTAssertTrue(support.contains("contextSize: configuration.contextSize"))
     XCTAssertTrue(support.contains("thinking: configuration.thinking"))
+    XCTAssertTrue(support.contains("workflows: configuration.workflows"))
     XCTAssertTrue(support.contains("mode: configuration.mode"))
     XCTAssertTrue(support.contains("approvalPolicy: configuration.approvalPolicy"))
     XCTAssertTrue(support.contains("approvalsReviewer: configuration.approvalsReviewer"))
@@ -286,6 +381,28 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(mentions.contains("mentionedMCPs.append(selection)"))
     XCTAssertTrue(actions.contains("ThreadPromptSegment.file(path:"))
     XCTAssertTrue(actions.contains(".mcp(id: $0.id, name: $0.name)"))
+  }
+
+  /// Workflow mode is a per-draft choice on quick compose: it starts off, is
+  /// never restored from a saved draft or an earlier thread, is reset with the
+  /// other per-draft toggles, and reaches the launch config only while the
+  /// selected model offers it.
+  func testHomeComposerKeepsWorkflowModePerDraftAndGatedByTheModel() throws {
+    let composer = try Self.source("App/Features/Home/Pages/HomeQuickComposeView.swift")
+    let selectors = try Self.source("App/Features/Home/HomeComposerSelectorSheets.swift")
+    let support = try Self.source("App/Features/Home/HomeComposerSupport.swift")
+
+    XCTAssertTrue(composer.contains("@State var workflows = false"))
+    XCTAssertEqual(composer.components(separatedBy: "workflows = false").count - 1, 3)
+    XCTAssertTrue(selectors.contains("workflows = false"))
+    XCTAssertTrue(support.contains("private func draftWorkflows("))
+    XCTAssertTrue(support.contains("configuration.workflows = draftWorkflows(for: agent, model: model)"))
+    XCTAssertTrue(support.contains("workflows: draftWorkflows(for: agent, model: model)"))
+    XCTAssertTrue(support.contains("workflows = configuration.workflows == true"))
+    XCTAssertFalse(
+      support.contains(#"object["workflows"]"#),
+      "a saved draft never restores workflow mode")
+    XCTAssertTrue(support.contains(#""workflowModels", "workflowLabel""#))
   }
 
   func testComposerSurfaceOffersNativeControlsAndAllAttachmentSources() throws {
@@ -312,6 +429,8 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(controls.contains("Picker(HomeStrings.model"))
     XCTAssertTrue(controls.contains("Toggle(HomeStrings.fast"))
     XCTAssertTrue(controls.contains("Toggle(RichChatStrings.thinking"))
+    XCTAssertTrue(controls.contains("Toggle(catalog.workflowsLabel"))
+    XCTAssertTrue(controls.contains("optionalBooleanBinding(\\.workflows)"))
     XCTAssertTrue(controls.contains("optionalBooleanBinding(\\.browserMcp)"))
     XCTAssertTrue(controls.contains("optionalBooleanBinding(\\.crossagentMcp)"))
     XCTAssertTrue(controls.contains("optionalBooleanBinding(\\.chromeMcp)"))
@@ -1003,6 +1122,29 @@ final class RichChatComposerParityTests: XCTestCase {
         )
       }
     }
+  }
+
+  /// A provider that offers workflow mode on `model-a` only; `label` is the
+  /// provider's own name for it when it advertises one.
+  private func workflowCatalog(
+    configuration: ThreadConfig,
+    label: JSONValue? = nil
+  ) throws -> RichChatComposerControlCatalog {
+    var capabilities: [String: JSONValue] = [
+      "models": .array([
+        .object(["id": .string("model-a"), "label": .string("Model A")]),
+        .object(["id": .string("model-b"), "label": .string("Model B")]),
+      ]),
+      "workflowModels": .array([.string("model-a")]),
+    ]
+    if let label { capabilities["workflowLabel"] = label }
+    let agent = try AgentStatusRecord(wire: .object([
+      "kind": .string("provider"), "label": .string("Provider"),
+      "installed": .bool(true), "authState": .string("authenticated"),
+      "capabilities": .object(capabilities),
+    ]))
+    return RichChatComposerControlCatalog(
+      agentStatus: agent, presentationMode: .gui, configuration: configuration)
   }
 
   private func agentStatus() throws -> AgentStatusRecord {

@@ -178,6 +178,11 @@ msgstr "{0} — Composer"
 msgid "{0} — Terminal"
 msgstr "{0} — Терминал"
 
+#. placeholder {0}: item.name
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} · Installed"
+msgstr "{0} · Установлено"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} ({envName}) is already up to date."
@@ -314,6 +319,11 @@ msgstr "Лимит {0}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} logged out."
 msgstr "{0} вышел из системы."
+
+#. placeholder {0}: Math.ceil(item.downloadBytes / 1_000_000)
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} MB download"
+msgstr "Загрузка: {0} МБ"
 
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -561,6 +571,10 @@ msgstr "{days} дн."
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "{days}d ago"
 msgstr "{days}д назад"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{downloadSize} MB download"
+msgstr "Загрузка: {downloadSize} МБ"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
@@ -1073,7 +1087,7 @@ msgstr "Для замороженного источника worktree требу
 #~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 #~ msgstr "Заблокированный экран полностью останавливает управление рабочим столом, поэтому во время сеанса управления компьютером дисплей остаётся включённым. Вы по-прежнему можете заблокировать экран вручную."
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "Не удалось подтвердить удаление сообщений. Обновите, чтобы пересинхронизировать переписку."
 
@@ -1101,6 +1115,10 @@ msgstr "Ревью может содержать не более 100 комме�
 msgid "A review or comment body is required."
 msgstr "Требуется текст проверки или комментария."
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A scout maps the code, a builder implements and verifies, and a reviewer checks the diff; the lead plans and decides."
+msgstr "Исследователь изучает код, разработчик реализует и проверяет, ревьюер просматривает diff; основная модель планирует и принимает решения."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
 msgstr "Не удалось запустить сервер, он пропущен."
@@ -1118,8 +1136,12 @@ msgid "a supported coding agent"
 msgstr "поддерживаемый агент кодирования"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "A tester writes failing tests; a builder makes them pass."
-msgstr "Тестировщик пишет падающие тесты, разработчик добивается их прохождения."
+msgid "A tester writes and runs failing tests, and a builder makes them pass; the lead sets the cases."
+msgstr "Тестировщик пишет и запускает падающие тесты, разработчик добивается их прохождения; основная модель задаёт сценарии."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "A tester writes failing tests; a builder makes them pass."
+#~ msgstr "Тестировщик пишет падающие тесты, разработчик добивается их прохождения."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
@@ -1147,8 +1169,8 @@ msgid "About usage"
 msgstr "О статистике использования"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "Над полем ввода"
+#~ msgid "Above the composer"
+#~ msgstr "Над полем ввода"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -1894,6 +1916,10 @@ msgstr "Разрешите доступ к камере для этого сай
 msgid "Allow eval"
 msgstr "Разрешить eval"
 
+#: src/renderer/components/composer/voiceError.ts
+msgid "Allow microphone access in your browser's site settings, then try again."
+msgstr "Разрешите доступ к микрофону в настройках сайта браузера и повторите попытку."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
 #~ msgstr "Разрешить сопряжённым устройствам подключаться по IP-адресам локальной сети и Tailscale. Если TLS не настроен, используется HTTP. Включайте только в доверенных сетях."
@@ -1953,6 +1979,10 @@ msgstr "Агент исправляет этот PR."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Для ожидаемого владельца worktree требуется ветка"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
+msgstr "Следователь находит первопричину, а исправитель вносит исправление с регрессионным тестом."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
@@ -2321,13 +2351,22 @@ msgid "Attempt {0} · Iteration {1}"
 msgstr "Попытка {0} · Итерация {1}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Audio"
 msgstr "Звук"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Audio is sent only to your selected host, not to a cloud transcription service. Recordings are limited to five minutes. Models have separate licenses; download size is not memory usage."
+msgstr "Аудио отправляется только на выбранный вами хост, а не в облачный сервис транскрипции. Запись ограничена пятью минутами. У моделей отдельные лицензии; размер загрузки не показывает, сколько памяти нужно для работы модели."
+
 #: src/renderer/components/media/NativeMediaView.tsx
 msgid "Audio preview"
 msgstr "Предпросмотр аудио"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Audio settings"
+msgstr "Настройки звука"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
@@ -2337,7 +2376,6 @@ msgstr "Войти"
 msgid "Authenticated"
 msgstr "Аутентифицировано"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "Аутентификация"
@@ -2522,6 +2560,10 @@ msgstr "доступно"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Available ACP Agents"
 msgstr "Доступные агенты ACP"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Available models will appear after the engine is installed."
+msgstr "Доступные модели появятся после установки движка."
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -2932,6 +2974,14 @@ msgstr "Построение diff…"
 msgid "Built-in"
 msgstr "Встроенный"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Built-in · This device"
+msgstr "Встроенный · Это устройство"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Built-in (Transformers.js)"
+#~ msgstr "Встроенный (Transformers.js)"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Built-in and plugin skills"
 #~ msgstr "Встроенные навыки и навыки плагинов"
@@ -2943,6 +2993,11 @@ msgstr "Встроенные серверы MCP"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "Встроенный порядок"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Built-in runs on this device. Hex uses a native engine on the connected host."
+msgstr "Встроенная обработка выполняется на этом устройстве. Hex использует нативный движок на подключённом хосте."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
@@ -3089,8 +3144,13 @@ msgid "Cancel agent discovery"
 msgstr "Отменить поиск агентов"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Cancel download"
 msgstr "Отменить загрузку"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Cancel installation"
+msgstr "Отменить установку"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -3123,6 +3183,10 @@ msgstr "Отменить запуск"
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Cancel sign-in"
 msgstr "Отменить вход"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Cancel transcription"
+msgstr "Отменить транскрипцию"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Cancel voice connection"
@@ -3162,6 +3226,10 @@ msgstr "Невозможно переключить ветки — сначал�
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Capture and view controls"
 msgstr "Элементы управления захватом и видом"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Capture audio from this device."
+msgstr "Запись аудио с этого устройства."
 
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
@@ -3381,6 +3449,10 @@ msgstr "Проверьте палитру «{invalidPaletteName}» на неко
 msgid "Check the live input level from the selected device."
 msgstr "Проверить уровень входного сигнала с выбранного устройства в реальном времени."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Check the supported languages before downloading."
+msgstr "Проверьте список поддерживаемых языков перед загрузкой."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Checked"
 msgstr "Отмечено"
@@ -3472,6 +3544,7 @@ msgid "Choose a photo"
 msgstr "Выбрать фото"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Выберите проект для сессий, папка которых больше не существует."
 
@@ -3482,6 +3555,10 @@ msgstr "Выберите изображение значка проекта"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Choose a saved credential to sign out."
 msgstr "Выберите сохранённые учётные данные для выхода."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Choose a voice model"
+msgstr "Выберите модель распознавания речи"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Choose an available conversation in this project."
@@ -3528,6 +3605,10 @@ msgstr "Выберите, как Poracode выполняет ручное и а�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #~ msgid "Choose how to sign in."
 #~ msgstr "Выберите способ входа."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Choose how you record and where your speech is transcribed."
+msgstr "Выберите, как записывать аудио и где распознавать речь."
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
@@ -3743,6 +3824,10 @@ msgstr "Очистить поиск"
 #~ msgid "Clear thread search"
 #~ msgstr "Очистить поиск тредов"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Clear transcript"
+msgstr "Очистить расшифровку"
+
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -3801,6 +3886,7 @@ msgstr "Клонирование…"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Close"
 msgstr "Закрыть"
 
@@ -4657,6 +4743,10 @@ msgstr "Подключиться к удалённому серверу"
 #~ msgid "Connect to Your Desktop"
 #~ msgstr "Подключитесь к компьютеру"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Connect to your host to set up Hex."
+msgstr "Подключитесь к хосту, чтобы настроить Hex."
+
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
@@ -4686,6 +4776,7 @@ msgid "Connecting to the device…"
 msgstr "Подключение к устройству…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "Подключение голосового чата…"
 
@@ -6486,6 +6577,10 @@ msgstr "Отменить эксперимент?"
 msgid "Discard outdated"
 msgstr "Удалить устаревшие"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Discard recording"
+msgstr "Удалить запись"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -6536,7 +6631,7 @@ msgstr "Поиск агентов для кодирования…"
 msgid "Discovery complete"
 msgstr "Поиск завершён"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6593,6 +6688,10 @@ msgstr "Доки"
 msgid "Docs"
 msgstr "Документация"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
+msgstr "Ведёт широкий поиск: находит файлы, вызовы, тесты и соглашения задачи и сообщает пути и факты, а не ревью."
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
@@ -6614,7 +6713,6 @@ msgstr "готово"
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
@@ -6649,9 +6747,25 @@ msgstr "История загрузок"
 msgid "Download image"
 msgstr "Скачать изображение"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model"
+msgstr "Скачать модель"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model · {downloadSize} MB"
+msgstr "Скачать модель · {downloadSize} МБ"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download progress"
 msgstr "Ход загрузки"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Download required"
+#~ msgstr "Требуется загрузка"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download size unavailable"
+msgstr "Размер загрузки недоступен"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Downloading"
@@ -6672,6 +6786,10 @@ msgstr "Загрузка обновления"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
 msgstr "Загрузка голосовой модели {0}%"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Downloading voice model {progress}%"
+#~ msgstr "Загрузка голосовой модели: {progress}%"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model..."
@@ -6940,6 +7058,10 @@ msgstr "Уровни рассуждений"
 msgid "Effort levels for {modelName}"
 msgstr "Уровни рассуждений для {modelName}"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Egyptian Arabic speech with English terms."
+msgstr "Речь на египетском арабском с английскими терминами."
+
 #. About page label: Electron framework version
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
@@ -7053,6 +7175,23 @@ msgstr "Завершить голосовой чат"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Endpoint, e.g. http://192.168.1.20:49152/"
 #~ msgstr "Адрес, напр. http://192.168.1.20:49152/"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Engine installation progress"
+msgstr "Ход установки движка"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation based on Parakeet."
+msgstr "Диктовка на английском на основе Parakeet."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation with filler-word removal."
+msgstr "Диктовка на английском с удалением слов-паразитов."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English speech recognition."
+msgstr "Распознавание английской речи."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -7210,7 +7349,6 @@ msgstr "ошибка"
 #. Notification status: agent error
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -7521,12 +7659,16 @@ msgid "Explore and plan"
 msgstr "Изучить и спланировать"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Explore, build and review a feature."
-msgstr "Изучить, реализовать и проверить функцию."
+#~ msgid "Explore, build and review a feature."
+#~ msgstr "Изучить, реализовать и проверить функцию."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 #~ msgid "Explores code and docs"
 #~ msgstr "Изучает код и документацию"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence."
+msgstr "Изучает код, выполняет задачу основной модели целиком, запускает минимально нужные проверки и сообщает об изменениях с доказательствами."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7910,16 +8052,16 @@ msgid "Find in terminal"
 msgstr "Найти в терминале"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Find the root cause first, then fix it with a regression test."
-msgstr "Сначала найти первопричину, затем исправить с регрессионным тестом."
+#~ msgid "Find the root cause first, then fix it with a regression test."
+#~ msgstr "Сначала найти первопричину, затем исправить с регрессионным тестом."
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "Состояние результата"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
-msgstr "Находит файлы, вызовы и тесты задачи и сообщает их пути с кратким описанием."
+#~ msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+#~ msgstr "Находит файлы, вызовы и тесты задачи и сообщает их пути с кратким описанием."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -7937,13 +8079,13 @@ msgstr "Завершено"
 msgid "Finished · Waiting for your input"
 msgstr "Завершено · Ожидается ваш ввод"
 
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-#~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
-#~ msgstr "Первоклассная интеграция Antigravity CLI с использованием нативной среды выполнения Poracode."
-
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Finishing your report on GitHub…"
 msgstr "Завершаем создание обращения на GitHub…"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+#~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
+#~ msgstr "Первоклассная интеграция Antigravity CLI с использованием нативной среды выполнения Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Antigravity integration using the agy terminal CLI and Google's official ACP Chat runtime."
@@ -8668,9 +8810,50 @@ msgstr "Помощник"
 msgid "Helpers join when this chat restarts."
 msgstr "Помощники подключатся после перезапуска чата."
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Hex · Host engine"
+msgstr "Hex · Движок на хосте"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Hex (native)"
+#~ msgstr "Hex (нативный)"
+
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "HEX-цвет"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex could not process this request. Check the model and language in Audio settings."
+msgstr "Не удалось обработать запрос в Hex. Проверьте модель и язык в настройках звука."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Hex documentation and licenses"
+msgstr "Документация и лицензии Hex"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Hex installation"
+#~ msgstr "Установка Hex"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is busy with another voice request. Try again shortly."
+msgstr "Hex обрабатывает другой голосовой запрос. Повторите попытку чуть позже."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is unavailable on this host. Install a compatible Hex executable and restart Poracode, or choose the built-in backend."
+msgstr "Hex недоступен на этом хосте. Установите совместимый исполняемый файл Hex и перезапустите Poracode или выберите встроенную транскрипцию."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Hex setup"
+msgstr "Настройка Hex"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex timed out. Please try again."
+msgstr "Время ожидания Hex истекло. Повторите попытку."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Hex voice model"
+msgstr "Модель распознавания речи Hex"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -8957,7 +9140,6 @@ msgid "Identity file path"
 msgstr "Путь к файлу идентификации"
 
 #. Microphone input level when not testing
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -9000,12 +9182,20 @@ msgstr "Изображения"
 #~ msgstr "Вносит изменения и запускает тесты"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the fix with a regression test and confirms the reproduction now passes."
-msgstr "Вносит исправление с регрессионным тестом и подтверждает, что воспроизведение теперь проходит."
+msgid "Implements the fix the lead settles, adds a regression test, and confirms the reproduction now passes with the narrowest check."
+msgstr "Вносит исправление, выбранное основной моделью, добавляет регрессионный тест и минимальной проверкой подтверждает, что воспроизведение проходит."
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
-msgstr "Выполняет задачу основной модели целиком: правит файлы, запускает сборку и тесты, сообщает об изменениях."
+#~ msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+#~ msgstr "Вносит исправление с регрессионным тестом и подтверждает, что воспроизведение теперь проходит."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations."
+msgstr "Выполняет задачу основной модели целиком и проверяет её минимальной сборкой и тестами; сообщает изменённые файлы, итоги проверок и отклонения."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+#~ msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+#~ msgstr "Выполняет задачу основной модели целиком: правит файлы, запускает сборку и тесты, сообщает об изменениях."
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9470,6 +9660,22 @@ msgstr "Установить Cursor SDK"
 msgid "Install Cursor SDK in {environment}"
 msgstr "Установить Cursor SDK в {environment}"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex"
+msgstr "Установить Hex"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex · {engineSize} MB"
+#~ msgstr "Установить Hex · {engineSize} МБ"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex · {size} MB"
+msgstr "Установить Hex · {size} МБ"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex on the connected host first. Poracode uses its native service, not its dictation app. Model downloads may be large and have their own licenses."
+#~ msgstr "Сначала установите Hex на подключённом хосте. Poracode использует нативную службу, а не приложение для диктовки. Модели могут быть большими и распространяться по собственным лицензиям."
+
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install in {0}"
@@ -9525,6 +9731,10 @@ msgstr "Установить Tailscale"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Установите Tailscale, чтобы включить HTTPS-доступ через MagicDNS."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Install the engine"
+msgstr "Установить движок"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Install the package to add its API key."
 msgstr "Установите пакет, чтобы добавить его API-ключ."
@@ -9557,6 +9767,10 @@ msgstr "Установите Xcode и среду выполнения симул
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Установка, обновление и вход пока недоступны на удалённых компьютерах."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Installation continues when you close this dialog."
+msgstr "Установка продолжится, даже если закрыть это диалоговое окно."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -9583,6 +9797,11 @@ msgstr "Выбор установленных шрифтов недоступе�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
 msgstr "Установка"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Installing engine…"
+msgstr "Установка движка…"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Installing in this terminal. Closes when finished."
@@ -9738,6 +9957,10 @@ msgstr "При запуске вместе с системой оставлят�
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "Не давать Mac уснуть во время управления компьютером"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Keep the same microphone button. Choose the engine behind it."
+msgstr "Кнопка микрофона останется прежней. Выберите движок распознавания речи."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
 msgstr "Не давать системе засыпать, пока Poracode запущен, в том числе в фоновом режиме. Экран по-прежнему может выключаться. Блокировка экрана не меняется."
@@ -9818,6 +10041,10 @@ msgstr "Альбомная вправо"
 msgid "Language"
 msgstr "Язык"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Language and sidebar shortcuts"
+msgstr "Язык и ярлыки боковой панели"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. Thread titles always follow the app language."
@@ -9827,6 +10054,11 @@ msgstr "Язык сообщений коммитов и сводок pull reques
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "Язык, который должна ожидать модель распознавания речи при транскрибировании диктовки в поле ввода."
+
+#. placeholder {0}: selected.languages.join(", ")
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Languages: {0}"
+msgstr "Языки: {0}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop"
@@ -9920,8 +10152,12 @@ msgid "Lead + 1 helper"
 msgstr "Лидер + 1 помощник"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Lead + Builder"
-msgstr "Основная модель + Разработчик"
+#~ msgid "Lead + Builder"
+#~ msgstr "Основная модель + Разработчик"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Sidekick"
+msgstr "Основная модель + Вспомогательная модель"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -10044,6 +10280,10 @@ msgstr "Список пакетов"
 msgid "List tasks"
 msgstr "Список задач"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "Слушаю — говорите или введите сообщение"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Онлайн"
@@ -10157,6 +10397,14 @@ msgstr "Загрузка предпросмотра медиа…"
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Loading messages…"
 msgstr "Загрузка сообщений…"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Loading model…"
+msgstr "Загрузка модели…"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Loading models…"
+#~ msgstr "Загрузка моделей…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
@@ -10426,6 +10674,14 @@ msgstr "Управление"
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "Управляйте глобальными навыками агентов и навыками проекта, включая импортированные из других провайдеров."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Manage Hex"
+msgstr "Управление Hex"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Manage Hex…"
+msgstr "Управлять Hex…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
 msgstr "Управление серверами MCP"
@@ -10505,6 +10761,11 @@ msgstr "Управляется {pluginName}"
 msgid "Managed by Poracode"
 msgstr "Управляется Poracode"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Managed by Poracode. No separate app to open."
+msgstr "Управляется Poracode. Отдельное приложение запускать не нужно."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Managed by provider"
 msgstr "Управляется провайдером"
@@ -10512,6 +10773,14 @@ msgstr "Управляется провайдером"
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed by the provider or plugin."
 #~ msgstr "Управляется провайдером или плагином."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Managed Hex installation is not available on this host."
+msgstr "Управляемая установка Hex недоступна на этом хосте."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
+msgstr "Управляемая установка недоступна на этом хосте. Используйте совместимый внешний движок Hex или выберите встроенную транскрипцию."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
@@ -10989,6 +11258,15 @@ msgstr "Микрофон {fallbackNumber}"
 msgid "Microphone access is off."
 msgstr "Доступ к микрофону отключён."
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Microphone access requires HTTPS or localhost. Open Poracode over a secure connection."
+msgstr "Для доступа к микрофону требуется HTTPS или localhost. Откройте Poracode через защищённое соединение."
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Microphone and voice input backend"
+msgstr "Микрофон и движок голосового ввода"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Microphone input level"
 msgstr "Уровень сигнала микрофона"
@@ -10996,6 +11274,10 @@ msgstr "Уровень сигнала микрофона"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Microphone muted"
 msgstr "Микрофон выключен"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "Микрофон выключен — введите сообщение"
 
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
@@ -11125,6 +11407,14 @@ msgstr "Метка модели"
 msgid "Model pairing"
 msgstr "Пара моделей"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model preparation progress"
+msgstr "Ход подготовки модели"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model ready. Try a short recording below."
+msgstr "Модель готова. Сделайте короткую запись ниже."
+
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
 msgstr "Модель удалена из избранного"
@@ -11150,6 +11440,10 @@ msgstr "Использование моделей"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "Модели"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Models available on the connected host for the selected language."
+msgstr "Модели, доступные на подключённом хосте для выбранного языка."
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11362,6 +11656,14 @@ msgstr "Ваши изменения перемещены в новый worktree 
 msgid "Moving changes…"
 msgstr "Перемещение изменений…"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual dictation for the supported languages."
+msgstr "Диктовка на поддерживаемых языках."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual speech recognition."
+msgstr "Многоязычное распознавание речи."
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
 msgstr "Несколько конфигураций Devin под одним входом — разные файлы конфигурации, организации или политики одобрения — либо изолированный второй вход. Нативные учетные данные никогда не копируются."
@@ -11377,6 +11679,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "Выключить микрофон"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "Выключить звук ответов"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -12104,6 +12410,7 @@ msgid "No microphone found."
 msgstr "Микрофон не найден."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "Для {agent} нет доступной модели. Проверьте агента в настройках."
 
@@ -13852,9 +14159,18 @@ msgstr "Poracode не смог создать папку данных этого
 msgid "Poracode could not start"
 msgstr "Не удалось запустить Poracode"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "Poracode does not have permission to install or run the Hex engine."
+msgstr "У Poracode нет разрешения на установку или запуск движка Hex."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode не хранит учётные данные маркетплейса в настройках в открытом виде. Откройте каталог, чтобы просмотреть навыки, прошедшие проверку безопасности."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Poracode downloads and verifies Hex on this host. No administrator access is needed."
+msgstr "Poracode загружает и проверяет Hex на этом хосте. Доступ администратора не требуется."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode failed to start:\n"
@@ -14033,17 +14349,33 @@ msgstr "Сбой хука pre-commit"
 #~ msgid "Preferred routing order"
 #~ msgstr "Предпочтительный порядок маршрутизации"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparation continues when you leave settings. You can return here to check progress."
+msgstr "Подготовка продолжается, когда вы выходите из настроек. Вы можете вернуться сюда, чтобы проверить прогресс."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Prepare model"
+#~ msgstr "Подготовить модель"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Prepare the selected Hex model in Audio settings before recording."
+msgstr "Перед записью подготовьте выбранную модель Hex в настройках звука."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparing model…"
+msgstr "Подготовка модели…"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
 msgstr "Подготовка удалённой среды…"
 
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-#~ msgid "Presentation"
-#~ msgstr "Представление"
-
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Preparing your report…"
 msgstr "Подготавливаем обращение…"
+
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+#~ msgid "Presentation"
+#~ msgstr "Представление"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Presets"
@@ -14151,6 +14483,10 @@ msgstr "Печать"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "Политика конфиденциальности"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Privacy, licenses and engine management"
+#~ msgstr "Конфиденциальность, лицензии и управление движком"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Private key"
@@ -14515,6 +14851,10 @@ msgstr "Пул-реквест #{number} создан, но пометить ег
 msgid "Pull request created, but its default automation could not be enabled: {0}"
 msgstr "Pull request создан, но не удалось включить автоматизацию по умолчанию: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Pull request defaults"
+msgstr "Настройки pull request по умолчанию"
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "Pull request details"
 msgstr "Сведения о pull request"
@@ -14740,10 +15080,18 @@ msgstr "Чтение изменений каждого кандидата…"
 msgid "Reading each candidate's chat response…"
 msgstr "Чтение ответа каждого кандидата в чате…"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line."
+msgstr "Читает весь diff и затронутый код, запускает точечные проверки и сообщает об ошибках, регрессиях и недостающих тестах с файлом и строкой."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "Готово"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Ready for dictation"
+msgstr "Готово к диктовке"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Ready for review"
@@ -14850,6 +15198,26 @@ msgstr "Восстановлено из локальных журналов по
 msgid "Recorded token categories"
 msgstr "Записанные категории токенов"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording"
+msgstr "Запись"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording stops automatically at five minutes."
+msgstr "Запись автоматически остановится через пять минут."
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording will stop in less than fifteen seconds."
+msgstr "Запись закончится менее чем через пятнадцать секунд."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed locally on this host."
+msgstr "Записи обрабатываются локально на этом хосте."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed on {hostName}, not on this device."
+msgstr "Записи обрабатываются на {hostName}, а не на этом устройстве."
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
 msgstr "Красный"
@@ -14870,7 +15238,7 @@ msgstr "Ссылка на версию"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -14884,6 +15252,7 @@ msgstr "Ссылка на версию"
 #: src/renderer/views/PullRequestsOverlay/list/PrCompactListBar.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -14921,6 +15290,10 @@ msgstr "Обновить устройства"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
 msgstr "Обновить источники MCP-серверов"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Refresh models"
+#~ msgstr "Обновить модели"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
@@ -15165,6 +15538,10 @@ msgstr "Удалить подключение и среды"
 msgid "Remove Cursor SDK API key"
 msgstr "Удалить API-ключ Cursor SDK"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove engine"
+msgstr "Удалить движок"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "Удалить переменную окружения"
@@ -15192,6 +15569,14 @@ msgstr "Удалить с панели"
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "Удалить из недавних"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove Hex engine?"
+msgstr "Удалить движок Hex?"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Remove managed engine"
+msgstr "Удалить управляемый движок"
 
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 msgid "Remove marketplace"
@@ -15460,8 +15845,12 @@ msgid "Repository URL"
 msgstr "URL репозитория"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
-msgstr "Воспроизводит ошибку, находит первопричину и сообщает доказательства и сбойный путь в коде."
+#~ msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+#~ msgstr "Воспроизводит ошибку, находит первопричину и сообщает доказательства и сбойный путь в коде."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence, the failing code path and a suggested fix."
+msgstr "Воспроизводит ошибку и прослеживает её до первопричины, затем сообщает доказательства, сбойный путь в коде и предлагаемое исправление."
 
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
@@ -15700,11 +16089,11 @@ msgstr "Только использование, сохранённое на э�
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -15771,6 +16160,10 @@ msgstr "Повторить элементы управления сессией"
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "Retry session settings"
 #~ msgstr "Повторить настройки сессии"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Retry transcription"
+msgstr "Повторить распознавание"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry when a run fails before it completes."
@@ -16005,8 +16398,8 @@ msgstr "Ревью и комментарии"
 #~ msgstr "Проверяет diff и ищет ошибки"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
-msgstr "Проверяет готовый diff на ошибки, регрессии и пропущенные тесты, указывая файл и строку."
+#~ msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+#~ msgstr "Проверяет готовый diff на ошибки, регрессии и пропущенные тесты, указывая файл и строку."
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -16034,7 +16427,6 @@ msgid "Right"
 msgstr "Справа"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "Панель справа"
 
@@ -16536,6 +16928,10 @@ msgstr "Расписания"
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Расписания, ИИ, агенты и архивные потоки на сопряжённом компьютере"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Schedules, AI, agents, crews, and Git on the paired desktop"
+msgstr "Расписания, ИИ, агенты, команды и Git на сопряжённом компьютере"
+
 #: src/renderer/utils/projectIcons.ts
 msgid "Science & education"
 msgstr "Наука и образование"
@@ -16553,8 +16949,12 @@ msgid "Scout"
 msgstr "Исследователь"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Scouts map an unfamiliar codebase before anything changes."
-msgstr "Исследователи изучают незнакомый код до любых изменений."
+#~ msgid "Scouts map an unfamiliar codebase before anything changes."
+#~ msgstr "Исследователи изучают незнакомый код до любых изменений."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase so the lead can plan without reading it all."
+msgstr "Исследователи изучают незнакомый код, чтобы основная модель могла планировать, не читая всё сама."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -16917,6 +17317,10 @@ msgstr "Выберите все подходящие варианты"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "Выберите агента, чтобы увидеть его промпт и результат."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Select an available model for this language."
+msgstr "Выберите модель, доступную для этого языка."
+
 #: src/renderer/components/common/Select.tsx
 msgid "Select an option"
 msgstr "Выберите вариант"
@@ -17039,7 +17443,7 @@ msgstr "Сервер {target} работает на этом компьютер�
 msgid "Server base URL"
 msgstr "Базовый URL сервера"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Сервер офлайн — эта переписка может быть устаревшей."
 
@@ -17101,6 +17505,10 @@ msgstr "Задать или просмотреть цель сеанса"
 msgid "Set shortcut"
 msgstr "Назначить сочетание клавиш"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Set up Hex…"
+msgstr "Настроить Hex…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Set when this session started — start a new thread to change MCP servers"
 msgstr "Зафиксировано при запуске этой сессии — чтобы изменить серверы MCP, начните новый тред"
@@ -17136,6 +17544,10 @@ msgstr "Настройки пока недоступны, поэтому не у
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "настройка"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Setup required"
+msgstr "Требуется установка"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
@@ -17489,6 +17901,7 @@ msgstr "Матовость боковой панели"
 msgid "Sidebar shortcuts"
 msgstr "Ярлыки боковой панели"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sidekick"
@@ -17871,6 +18284,10 @@ msgstr "Конкретная персона"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "Конкретные репозитории"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Speech recognition for supported East Asian languages and English."
+msgstr "Распознавание речи для поддерживаемых восточноазиатских языков и английского языка."
 
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Spend"
@@ -18606,6 +19023,10 @@ msgstr "URL Tailscale"
 msgid "Take Screenshot"
 msgstr "Сделать снимок экрана"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Takes any hands-on task the lead hands off: exploring, editing and running checks, then reports back with evidence."
+msgstr "Берёт любую практическую задачу от основной модели: изучает код, вносит правки и запускает проверки, затем отчитывается с доказательствами."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "Захватывает рабочий стол, пока агент кликает или печатает"
@@ -18677,7 +19098,6 @@ msgstr "Укажите целевому провайдеру, что делат�
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
@@ -18744,8 +19164,8 @@ msgid "Terminal position"
 msgstr "Положение терминала"
 
 #: src/renderer/components/terminal/TerminalProgramStatus.tsx
-msgid "Terminal program status"
-msgstr "Состояние программы в терминале"
+#~ msgid "Terminal program status"
+#~ msgstr "Состояние программы в терминале"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -18766,6 +19186,11 @@ msgstr "Вкладки терминала"
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "Test and fix"
 msgstr "Тесты и исправления"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Test dictation"
+msgstr "Проверка диктовки"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -18918,6 +19343,10 @@ msgstr "выбранная папка"
 msgid "The completion check failed; the schedule was paused."
 msgstr "Проверка завершения не удалась; расписание приостановлено."
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The connected Poracode host is unavailable. Reconnect and try again."
+msgstr "Подключенный хост Poracode недоступен. Подключитесь и повторите попытку."
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
 msgstr "Беседа больше недоступна. Сохранённый результат по-прежнему можно прочитать."
@@ -18984,6 +19413,10 @@ msgstr "Собственный сервер рабочего стола откл
 #: src/renderer/components/devices/deviceClient.ts
 msgid "The device host is unavailable."
 msgstr "Хост устройства недоступен."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The downloaded Hex engine failed its integrity or signature check."
+msgstr "Загруженный движок Hex не прошёл проверку целостности или подписи."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
@@ -19065,6 +19498,14 @@ msgstr "Диалог пульса больше не существует."
 msgid "The heartbeat conversation uses a different agent."
 msgstr "Диалог пульса использует другого агента."
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine download failed. Check your connection and try again."
+msgstr "Не удалось загрузить движок Hex. Проверьте подключение и повторите попытку."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine is incompatible with this host or Poracode version."
+msgstr "Движок Hex несовместим с этим хостом или версией Poracode."
+
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
 msgid "The history notice could not be read from the server."
@@ -19112,8 +19553,16 @@ msgid "The launch was cancelled."
 msgstr "Запуск отменён."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
-msgstr "Основная модель планирует и проверяет, более дешёвый разработчик выполняет работу."
+#~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+#~ msgstr "Основная модель планирует и проверяет, более дешёвый разработчик выполняет работу."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper sidekick explores, builds and verifies."
+msgstr "Основная модель планирует и проверяет результат, более дешёвая вспомогательная модель изучает код, реализует и тестирует изменения."
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead splits the work; up to three builders implement and verify independent tasks at once."
+msgstr "Основная модель делит работу; до трёх разработчиков одновременно реализуют и проверяют независимые задачи."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -19455,6 +19904,10 @@ msgstr "Время ожидания голосового подключения 
 msgid "The voice connection was cancelled."
 msgstr "Голосовое подключение отменено."
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The voice request is invalid or has expired. Please try again."
+msgstr "Голосовой запрос недействителен или срок его действия истёк. Повторите попытку."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The watched pull request changed. Review the watch before continuing."
 msgstr "Отслеживаемый пул-реквест изменился. Проверьте отслеживание перед продолжением."
@@ -19665,6 +20118,10 @@ msgstr "Эта папка пуста."
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "Это руководство устарело. Перепишите его, чтобы увидеть фрагменты текущего изменения."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "This Hex release requires glibc 2.39 or newer on Linux."
+msgstr "Для этого выпуска Hex требуется glibc 2.39 или новее в Linux."
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
 msgstr "Этот хост"
@@ -19843,6 +20300,10 @@ msgstr "Это сообщение из очереди уже отправляе�
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "Это удаляет последующие сообщения и восстанавливает файлы, если доступен снимок контрольной точки."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "This removes only the engine installed by Poracode. Downloaded models and external Hex installations are kept."
+msgstr "Удаляется только движок, установленный Poracode. Загруженные модели и внешние установки Hex сохраняются."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "This removes the environment from the host. The server's child workspace is not deleted."
@@ -20043,14 +20504,12 @@ msgid "Thread dock"
 msgstr "Панель треда"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "Доки треда"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "Расположение доков треда"
+#~ msgid "Thread docks placement"
+#~ msgstr "Расположение доков треда"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -20316,6 +20775,15 @@ msgstr "Отслеживание выключено"
 msgid "Transcribing voice"
 msgstr "Транскрибирование голоса"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Transcription"
+msgstr "Транскрипция"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Transcription engine"
+msgstr "Движок распознавания речи"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
@@ -20376,8 +20844,12 @@ msgid "Turn tracking on or off per provider. Disabled providers are skipped by t
 msgstr "Включайте или выключайте отслеживание для каждого провайдера. Отключённые провайдеры пропускаются при автообновлении."
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Two independent read-only reviews of a change."
-msgstr "Две независимые проверки изменения только для чтения."
+msgid "Two independent read-only reviews of a change, and a sidekick applies the fixes."
+msgstr "Две независимые проверки изменения только для чтения, а вспомогательная модель вносит исправления."
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "Two independent read-only reviews of a change."
+#~ msgstr "Две независимые проверки изменения только для чтения."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
@@ -20532,6 +21004,10 @@ msgstr "Не удалось загрузить сохранённые парол
 #~ msgid "Unable to load thread."
 #~ msgstr "Не удалось загрузить поток."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to load voice models."
+msgstr "Не удалось загрузить модели распознавания речи."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
@@ -20576,6 +21052,10 @@ msgstr "Не удалось открыть файл в редакторе"
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Не удалось связать с этим десктопом."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to prepare voice model."
+msgstr "Не удалось подготовить модель распознавания речи."
 
 #: src/renderer/actions/browserActions.ts
 msgid "Unable to print this page."
@@ -20955,6 +21435,10 @@ msgstr "Снять отметку «готово»"
 msgid "Unmute microphone"
 msgstr "Включить микрофон"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "Включить звук ответов"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"
 msgstr "Устройство без имени"
@@ -21039,8 +21523,8 @@ msgid "Up one level"
 msgstr "На уровень вверх"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Up to three builders work on independent tasks at once."
-msgstr "До трёх разработчиков одновременно работают над независимыми задачами."
+#~ msgid "Up to three builders work on independent tasks at once."
+#~ msgstr "До трёх разработчиков одновременно работают над независимыми задачами."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -21073,6 +21557,10 @@ msgstr "Обновить {0} ({env})"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "Обновить {0} до {updateLabel}"
+
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "Обновите {host}, чтобы импортировать его сессии."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
@@ -21124,6 +21612,10 @@ msgstr "Обновить Cursor SDK в {environment}"
 msgid "Update Cursor SDK to v{availableVersion}"
 msgstr "Обновить Cursor SDK до v{availableVersion}"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Update engine"
+msgstr "Обновить движок"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
 msgstr "Ошибка обновления: {detail}"
@@ -21159,6 +21651,10 @@ msgstr "Обновите хост, чтобы создавать ответвл�
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "Обновите удалённый хост, чтобы использовать дополнительный чат со скрытым контекстом."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "Обновите этот хост, чтобы импортировать его сессии."
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."
@@ -21281,6 +21777,10 @@ msgstr "Обновить владельца"
 msgid "Uploading attachment {0}…"
 msgstr "Загружаем вложение {0}…"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Uploading audio…"
+msgstr "Загрузка аудио…"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Upside down"
 msgstr "Перевёрнутая"
@@ -21388,6 +21888,10 @@ msgstr "Использовать существующую папку"
 msgid "Use an image from the project folder..."
 msgstr "Использовать изображение из папки проекта..."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Use built-in transcription"
+msgstr "Использовать встроенную транскрипцию"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."
 msgstr "Используйте Chrome безопасно, когда задаче нужна существующая сессия браузера."
@@ -21453,6 +21957,11 @@ msgstr "Использовать навык {name}."
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Use the ID of a persona available in your Devin cloud organization."
 msgstr "Используйте ID персоны, доступной в вашей облачной организации Devin."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use the microphone to try your selected engine and model."
+msgstr "Используйте микрофон, чтобы проверить выбранный движок и модель."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
@@ -21526,6 +22035,11 @@ msgstr "Использует собственный вход Devin на этой
 msgid "Using the built-in Claude model list."
 msgstr "Используется встроенный список моделей Claude."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Using your existing Hex installation. Poracode will not modify it."
+msgstr "Используется существующая установка Hex. Poracode не будет её изменять."
+
 #. placeholder {0}: status.bundledVersion
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "v{0} available"
@@ -21539,14 +22053,6 @@ msgstr "значение"
 #~ msgid "Value"
 #~ msgstr "Значение"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Verify host key"
-#~ msgstr "Проверить ключ хоста"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Verify SSH host key"
-#~ msgstr "Проверить ключ SSH-хоста"
-
 #: src/renderer/components/common/FeedbackDialog.tsx
 #~ msgid "Verification"
 #~ msgstr "Проверка"
@@ -21554,6 +22060,18 @@ msgstr "значение"
 #: src/renderer/components/common/FeedbackDialog.tsx
 #~ msgid "Verification could not load. Please try again."
 #~ msgstr "Не удалось загрузить проверку. Попробуйте снова."
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Verify host key"
+#~ msgstr "Проверить ключ хоста"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Verify model"
+msgstr "Проверить модель"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Verify SSH host key"
+#~ msgstr "Проверить ключ SSH-хоста"
 
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -21699,14 +22217,18 @@ msgstr "Визуализация"
 msgid "Visual sections"
 msgstr "Разделы визуализации"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Voice input backend"
+msgstr "Движок голосового ввода"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "Голосовой ввод недоступен в этой среде."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Voice input is unavailable on remote sessions."
-msgstr "Голосовой ввод недоступен в удалённых сессиях."
+#~ msgid "Voice input is unavailable on remote sessions."
+#~ msgstr "Голосовой ввод недоступен в удалённых сессиях."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -21717,6 +22239,14 @@ msgstr "Язык голосового ввода"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "Модель голосового ввода"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Voice input needs attention"
+msgstr "Голосовой ввод требует внимания"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Voice transcription cancelled."
+msgstr "Распознавание речи отменено."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
@@ -21758,7 +22288,6 @@ msgstr "Дождитесь завершения запуска треда, пр�
 msgid "Wait for the thread to finish starting."
 msgstr "Подождите, пока тред завершит запуск."
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "Ожидание"
@@ -21787,7 +22316,6 @@ msgstr "Ожидание предпросмотра"
 msgid "waiting for agent to stop"
 msgstr "ожидание остановки агента"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -21843,6 +22371,7 @@ msgstr "Подготовка окружения оболочки WSL…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
@@ -21982,8 +22511,8 @@ msgstr "Куда направляется выбор элемента брауз
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "Где отображаются цель, план, агенты и фоновые задачи треда. В правой панели их открывают компактные пузырьки над полем ввода."
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "Где отображаются цель, план, агенты и фоновые задачи треда. В правой панели их открывают компактные пузырьки над полем ввода."
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"
@@ -22005,6 +22534,10 @@ msgstr "Где появляется панель терминала."
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "While working"
 msgstr "Во время работы"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Whisper with broad multilingual support."
+msgstr "Whisper с широкой многоязычной поддержкой."
 
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -22035,6 +22568,10 @@ msgstr "Оболочки Windows"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Winner merged."
 msgstr "Изменения победителя слиты."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "With Hex, recordings are sent to your connected Poracode host for processing, not to a cloud transcription service. Recordings are limited to five minutes."
+#~ msgstr "При использовании Hex записи отправляются для обработки на подключённый хост Poracode, а не в облачную службу распознавания речи. Длительность записи ограничена пятью минутами."
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -22108,6 +22645,7 @@ msgid "Workflow: {description}"
 msgstr "Рабочий процесс: {description}"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -22118,7 +22656,6 @@ msgstr "Рабочие процессы"
 msgid "Workflows added under .github/workflows will appear here."
 msgstr "Workflow, добавленные в .github/workflows, появятся здесь."
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "Работает"
@@ -22257,8 +22794,12 @@ msgid "Write notes for this project…"
 msgstr "Напишите заметки для этого проекта…"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
-msgstr "Пишет и запускает тесты изменения, воспроизводит ошибки и сообщает о сбоях с точной командой."
+#~ msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+#~ msgstr "Пишет и запускает тесты изменения, воспроизводит ошибки и сообщает о сбоях с точной командой."
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs the tests for the change, reproduces reported bugs, and reports each failure with the exact command and failing assertion."
+msgstr "Пишет и запускает тесты для изменения, воспроизводит ошибки из отчётов и сообщает о каждом сбое с точной командой и упавшей проверкой."
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."
@@ -22363,6 +22904,10 @@ msgstr "Ваши плагины"
 msgid "Your question is kept. Use Retry above to send it again."
 msgstr "Ваш вопрос сохранён. Нажмите «Повторить» выше, чтобы отправить его снова."
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Your recording is kept in memory for two minutes. Retry uses the same model and host."
+msgstr "Ваша запись хранится в памяти в течение двух минут. Повторная попытка использует ту же модель и хост."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Your report and attachments are now on GitHub."
 msgstr "Ваше обращение и вложения теперь на GitHub."
@@ -22378,6 +22923,10 @@ msgstr "Запрошено ваше ревью"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "Ваши локальные изменения из stash были применены повторно."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Your test transcript will appear here. It is not sent to a conversation."
+msgstr "Здесь появится распознанный текст. Он не будет отправлен в беседу."
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "z.ai"

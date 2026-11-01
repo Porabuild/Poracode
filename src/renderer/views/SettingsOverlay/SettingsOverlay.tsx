@@ -48,13 +48,11 @@ import { MobileSettingsIndex } from "./parts/MobileSettingsIndex";
 import { WorkspacesSettings } from "./parts/WorkspacesSettings";
 import { AgentSettingsEmpty, SingleAgentSettings } from "./parts/SingleAgentSettings";
 import { AgentsMachineBar } from "./parts/machineScope/AgentsMachineBar";
+import { SettingsHostBar, UsageHostBar } from "./parts/machineScope/SettingsHostBar";
 import type { SettingsSection } from "./parts/types";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
-import {
-  selectBrowserBridgeDesktop,
-  selectBrowserBridgeServer,
-  useRemoteServersStore,
-} from "@/renderer/state/remoteServersStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useSettingsHostServer, useSettingsHostStore } from "@/renderer/state/settingsHostStore";
 
 type MobileSettingsScreen = "root" | "desktop" | "detail";
 type MobileSettingsParent = "main" | "root" | "desktop";
@@ -109,6 +107,20 @@ const MACHINE_BACKED_SECTIONS = new Set<SettingsSection>([
   "skills",
   "mcpServers",
   "usage",
+  "import",
+]);
+
+/** Pages that edit one host's settings; a remote client scopes them with the host bar. */
+const HOST_SCOPED_SECTIONS = new Set<SettingsSection>([
+  "profile",
+  "git",
+  "worktrees",
+  "ai",
+  "skills",
+  "mcpServers",
+  "usage",
+  "crews",
+  "import",
 ]);
 
 function renderSection(
@@ -185,13 +197,9 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     requestedSection === null ? "root" : "main",
   );
   const [mobileDesktopParent, setMobileDesktopParent] = useState<"root" | "connections">("root");
-  const servers = useRemoteServersStore((state) => state.servers);
-  const defaultDesktop = useRemoteServersStore(
-    (state) => selectBrowserBridgeServer(state) ?? state.servers[0],
-  );
-  const [mobileDesktopId, setMobileDesktopId] = useState<string | null>(null);
-  const selectedDesktop =
-    servers.find((server) => remoteConnectionKey(server) === mobileDesktopId) ?? defaultDesktop;
+  const firstServer = useRemoteServersStore((state) => state.servers[0]);
+  const chooseSettingsHost = useSettingsHostStore((state) => state.choose);
+  const selectedDesktop = useSettingsHostServer() ?? firstServer;
   useProductViewTracking(
     {
       ...settingsSectionProductProperties(activeSection),
@@ -229,19 +237,8 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     }
   }
 
-  // Drop a disconnected desktop selection during render so the picker never
-  // paints a frame for a desktop that is no longer paired.
-  if (
-    mobileDesktopId &&
-    !servers.some((server) => remoteConnectionKey(server) === mobileDesktopId)
-  ) {
-    setMobileDesktopId(null);
-  }
-
   const changeMobileDesktop = (desktopId: string | null) => {
-    if (!desktopId) return;
-    setMobileDesktopId(desktopId);
-    selectBrowserBridgeDesktop(desktopId);
+    if (desktopId) chooseSettingsHost(desktopId);
   };
 
   useEffect(() => {
@@ -308,13 +305,25 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       .filter(agentStatusNeedsAuthAttention)
       .map((status) => status.kind),
   );
+  const remoteSession = isRemoteSession();
   const isMachineScopedSection =
     activeSection === "agentsGeneral" || activeSection.startsWith("agents:");
-  // Mirrors `AgentsMachineBar`'s own render condition: the floating pill only
-  // appears once a second machine exists, and only then does the scroll area
-  // need to reserve room so its last rows are not covered by it.
+  const scopeBar = isMachineScopedSection ? (
+    <AgentsMachineBar />
+  ) : remoteSession && HOST_SCOPED_SECTIONS.has(activeSection) ? (
+    <SettingsHostBar />
+  ) : !remoteSession && activeSection === "usage" ? (
+    <UsageHostBar />
+  ) : null;
+  // Mirrors the bars' own render condition: a floating pill only appears once
+  // there is a second machine (or host) to pick, and only then does the scroll
+  // area need to reserve room so its last rows are not covered by it.
   const machines = useMachines();
-  const showsMachineBar = isMachineScopedSection && machines.length > 1;
+  const showsScopeBar =
+    scopeBar !== null &&
+    (isMachineScopedSection
+      ? machines.length > 1
+      : machines.filter((machine) => machine.ref.env.kind === "native").length > 1);
   const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
   const section = renderSection(
     activeSection,
@@ -325,7 +334,6 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       setMobileScreen("desktop");
     },
   );
-  const remoteSession = isRemoteSession();
   const showMobileDesktopPicker =
     compactLayout && remoteSession && selectedDesktop !== undefined && mobileScreen === "desktop";
   const openSchedules = useAppStore((state) => state.openSchedules);
@@ -390,18 +398,23 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     ) : (
       <div className="relative flex h-full min-h-0 flex-col">
         <div
-          key={activeSection}
+          // A remote client remounts the page when its host changes, so it
+          // reads the newly bound host instead of the previous one.
+          key={
+            remoteSession && selectedDesktop
+              ? `${activeSection}:${remoteConnectionKey(selectedDesktop)}`
+              : activeSection
+          }
           data-settings-scroll-area="true"
           className={`relative min-h-0 flex-1 overflow-y-auto px-6 pt-4 [overflow-anchor:none] [scrollbar-gutter:stable] ${
-            showsMachineBar ? "pb-20" : "pb-8"
+            showsScopeBar ? "pb-20" : "pb-8"
           }`}
         >
           {section}
         </div>
         {/* Floats over the scroll area rather than living in the section's
-            flow, so it keeps its position and state across agent-section
-            remounts (`key={activeSection}`). */}
-        {isMachineScopedSection ? <AgentsMachineBar /> : null}
+            flow, so it keeps its position and state across section remounts. */}
+        {scopeBar}
       </div>
     );
 

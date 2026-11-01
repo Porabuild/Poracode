@@ -178,6 +178,11 @@ msgstr "{0} — コンポーザー"
 msgid "{0} — Terminal"
 msgstr "{0} — ターミナル"
 
+#. placeholder {0}: item.name
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} · Installed"
+msgstr "{0} · インストール済み"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} ({envName}) is already up to date."
@@ -314,6 +319,11 @@ msgstr "{0}制限"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} logged out."
 msgstr "{0}がログアウトしました。"
+
+#. placeholder {0}: Math.ceil(item.downloadBytes / 1_000_000)
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} MB download"
+msgstr "{0} MB ダウンロード"
 
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -561,6 +571,10 @@ msgstr "{days}日"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "{days}d ago"
 msgstr "{days}日前"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{downloadSize} MB download"
+msgstr "{downloadSize} MB のダウンロード"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
@@ -1072,7 +1086,7 @@ msgstr "固定されたワークツリーのソースには完全なコミット
 #~ msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 #~ msgstr "画面がロックされるとデスクトップ操作は一切できなくなるため、コンピュータ操作のセッション中はディスプレイをオンのままにします。自分で画面をロックすることは引き続き可能です。"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "メッセージの削除を確認できませんでした。更新してこの会話を再同期してください。"
 
@@ -1100,6 +1114,10 @@ msgstr "1 回のレビューに含められる行コメントは最大 100 件�
 msgid "A review or comment body is required."
 msgstr "レビューまたはコメントの本文が必要です。"
 
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "A scout maps the code, a builder implements and verifies, and a reviewer checks the diff; the lead plans and decides."
+msgstr "スカウトがコードを把握し、ビルダーが実装と検証を行い、レビュアーが差分を確認します。主モデルは計画と判断を担当します。"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "A server could not be started and was skipped."
 msgstr "サーバーを起動できなかったためスキップしました。"
@@ -1117,8 +1135,12 @@ msgid "a supported coding agent"
 msgstr "サポートされているコーディング エージェント"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "A tester writes failing tests; a builder makes them pass."
-msgstr "テスターが失敗するテストを書き、ビルダーが通るようにします。"
+msgid "A tester writes and runs failing tests, and a builder makes them pass; the lead sets the cases."
+msgstr "テスターが失敗するテストを書いて実行し、ビルダーが通るようにします。ケースは主モデルが決めます。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "A tester writes failing tests; a builder makes them pass."
+#~ msgstr "テスターが失敗するテストを書き、ビルダーが通るようにします。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A voice conversation is already active."
@@ -1146,8 +1168,8 @@ msgid "About usage"
 msgstr "使用量について"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Above the composer"
-msgstr "コンポーザーの上"
+#~ msgid "Above the composer"
+#~ msgstr "コンポーザーの上"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Accent"
@@ -1893,6 +1915,10 @@ msgstr "ブラウザ設定でこのサイトのカメラアクセスを許可し
 msgid "Allow eval"
 msgstr "評価を許可する"
 
+#: src/renderer/components/composer/voiceError.ts
+msgid "Allow microphone access in your browser's site settings, then try again."
+msgstr "ブラウザーのサイト設定でマイクへのアクセスを許可して、もう一度お試しください。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
 #~ msgstr "ペアリング済みのデバイスがLANおよびTailscaleのIPアドレスで接続できるようにします。TLSが設定されていない場合、接続にはHTTPが使用されます。信頼できるネットワークでのみ有効にしてください。"
@@ -1952,6 +1978,10 @@ msgstr "エージェントがこのPRを修正しています。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "想定するワークツリー所有者にはブランチが必要です"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
+msgstr "調査担当が根本原因を突き止め、修正担当が回帰テスト付きで修正を入れます。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #~ msgid "An MCP server with the name {serverName} already exists."
@@ -2320,13 +2350,22 @@ msgid "Attempt {0} · Iteration {1}"
 msgstr "試行 {0} · 反復 {1}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Audio"
 msgstr "オーディオ"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Audio is sent only to your selected host, not to a cloud transcription service. Recordings are limited to five minutes. Models have separate licenses; download size is not memory usage."
+msgstr "音声は、クラウド文字起こしサービスではなく、選択したホストにのみ送信されます。録音は 5 分間に制限されます。モデルには個別のライセンスがあります。ダウンロードサイズはメモリ使用量ではありません。"
+
 #: src/renderer/components/media/NativeMediaView.tsx
 msgid "Audio preview"
 msgstr "音声プレビュー"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Audio settings"
+msgstr "オーディオ設定"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
@@ -2336,7 +2375,6 @@ msgstr "認証"
 msgid "Authenticated"
 msgstr "認証済み"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Authentication"
 msgstr "認証"
@@ -2521,6 +2559,10 @@ msgstr "利用可能"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Available ACP Agents"
 msgstr "利用可能なACPエージェント"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Available models will appear after the engine is installed."
+msgstr "エンジン搭載後に利用可能なモデルが表示されます。"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -2931,6 +2973,14 @@ msgstr "差分を作成中…"
 msgid "Built-in"
 msgstr "組み込み"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Built-in · This device"
+msgstr "本機に内蔵"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Built-in (Transformers.js)"
+#~ msgstr "内蔵（Transformers.js）"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Built-in and plugin skills"
 #~ msgstr "組み込みスキルとプラグインスキル"
@@ -2942,6 +2992,11 @@ msgstr "組み込みMCPサーバー"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "組み込み順"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Built-in runs on this device. Hex uses a native engine on the connected host."
+msgstr "内蔵バックエンドはこのデバイスで動作します。Hex は接続先ホストのネイティブエンジンを使用します。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
@@ -3088,8 +3143,13 @@ msgid "Cancel agent discovery"
 msgstr "エージェントの検出をキャンセル"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Cancel download"
 msgstr "ダウンロードをキャンセル"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Cancel installation"
+msgstr "インストールをキャンセルします"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -3122,6 +3182,10 @@ msgstr "実行をキャンセル"
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Cancel sign-in"
 msgstr "ログインをキャンセル"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Cancel transcription"
+msgstr "転写をキャンセルします"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Cancel voice connection"
@@ -3161,6 +3225,10 @@ msgstr "ブランチを切り替えることはできません - 最初に変更
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Capture and view controls"
 msgstr "キャプチャと表示のコントロール"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Capture audio from this device."
+msgstr "このデバイスからオーディオをキャプチャします。"
 
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
@@ -3380,6 +3448,10 @@ msgstr "{invalidPaletteName}パレットに無効な色がないか確認して�
 msgid "Check the live input level from the selected device."
 msgstr "選択したデバイスからのライブ入力レベルを確認します。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Check the supported languages before downloading."
+msgstr "ダウンロードする前にサポートされている言語を確認してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Checked"
 msgstr "チェック済み"
@@ -3471,6 +3543,7 @@ msgid "Choose a photo"
 msgstr "写真を選択"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "フォルダーが存在しなくなったセッションのインポート先プロジェクトを選択してください。"
 
@@ -3481,6 +3554,10 @@ msgstr "プロジェクトアイコンの画像を選択"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Choose a saved credential to sign out."
 msgstr "ログアウトする保存済み認証情報を選択してください。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Choose a voice model"
+msgstr "音声モデルを選択してください"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Choose an available conversation in this project."
@@ -3527,6 +3604,10 @@ msgstr "Poracode が手動マージと PR の自動マージを行う方法を�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #~ msgid "Choose how to sign in."
 #~ msgstr "サインイン方法を選択します。"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Choose how you record and where your speech is transcribed."
+msgstr "音声を録音する方法と、音声を文字に起こす場所を選択します。"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
@@ -3742,6 +3823,10 @@ msgstr "検索をクリア"
 #~ msgid "Clear thread search"
 #~ msgstr "スレッド検索をクリア"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Clear transcript"
+msgstr "明確なトランスクリプト"
+
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -3800,6 +3885,7 @@ msgstr "クローン作成中…"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Close"
 msgstr "閉じる"
 
@@ -4656,6 +4742,10 @@ msgstr "リモートサーバーに接続"
 #~ msgid "Connect to Your Desktop"
 #~ msgstr "デスクトップに接続"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Connect to your host to set up Hex."
+msgstr "ホストに接続して Hex をセットアップします。"
+
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
@@ -4685,6 +4775,7 @@ msgid "Connecting to the device…"
 msgstr "デバイスに接続しています…"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Connecting voice…"
 msgstr "音声に接続中…"
 
@@ -6485,6 +6576,10 @@ msgstr "実験を破棄しますか？"
 msgid "Discard outdated"
 msgstr "古いものを破棄"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Discard recording"
+msgstr "録画を破棄"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -6535,7 +6630,7 @@ msgstr "コーディング エージェントを発見中…"
 msgid "Discovery complete"
 msgstr "発見が完了しました"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6592,6 +6687,10 @@ msgstr "ドック"
 msgid "Docs"
 msgstr "ドキュメント"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
+msgstr "広範な検索を担当します。タスクに関わるファイル、呼び出し元、テスト、規約を見つけ、レビューではなくパスと事実を報告します。"
+
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
@@ -6613,7 +6712,6 @@ msgstr "完了しました"
 #. Notification status: thread is done
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
@@ -6648,9 +6746,25 @@ msgstr "ダウンロード履歴"
 msgid "Download image"
 msgstr "画像をダウンロード"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model"
+msgstr "ダウンロードモデル"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model · {downloadSize} MB"
+msgstr "ダウンロードモデル・{downloadSize} MB"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download progress"
 msgstr "ダウンロードの進行状況"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Download required"
+#~ msgstr "ダウンロードが必要です"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download size unavailable"
+msgstr "ダウンロード サイズを利用できません"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Downloading"
@@ -6671,6 +6785,10 @@ msgstr "アップデートをダウンロード中"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
 msgstr "音声モデルをダウンロード中{0}%"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Downloading voice model {progress}%"
+#~ msgstr "音声モデルをダウンロード中 {progress}%"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model..."
@@ -6939,6 +7057,10 @@ msgstr "推論レベル"
 msgid "Effort levels for {modelName}"
 msgstr "{modelName} の推論レベル"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Egyptian Arabic speech with English terms."
+msgstr "英語用語を含むエジプトのアラビア語音声。"
+
 #. About page label: Electron framework version
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
@@ -7052,6 +7174,23 @@ msgstr "音声チャットを終了"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Endpoint, e.g. http://192.168.1.20:49152/"
 #~ msgstr "エンドポイント（例: http://192.168.1.20:49152/）"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Engine installation progress"
+msgstr "エンジンの取り付け進行状況"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation based on Parakeet."
+msgstr "Parakeet に基づいた英語のディクテーション。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation with filler-word removal."
+msgstr "フィラーワードを削除した英語のディクテーション。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English speech recognition."
+msgstr "英語音声認識。"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -7209,7 +7348,6 @@ msgstr "エラー"
 #. Notification status: agent error
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ErrorItem.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
@@ -7520,12 +7658,16 @@ msgid "Explore and plan"
 msgstr "調査と計画"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Explore, build and review a feature."
-msgstr "機能を調査し、実装し、レビューします。"
+#~ msgid "Explore, build and review a feature."
+#~ msgstr "機能を調査し、実装し、レビューします。"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 #~ msgid "Explores code and docs"
 #~ msgstr "コードとドキュメントを調査"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Explores the codebase, implements the lead's task end to end, runs the narrowest checks, and reports what changed with evidence."
+msgstr "コードベースを調査し、主モデルのタスクを最後まで実装し、必要最小限のチェックを実行して、変更点を根拠とともに報告します。"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Exponential backoff"
@@ -7909,16 +8051,16 @@ msgid "Find in terminal"
 msgstr "ターミナル内を検索"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Find the root cause first, then fix it with a regression test."
-msgstr "まず根本原因を突き止め、回帰テスト付きで修正します。"
+#~ msgid "Find the root cause first, then fix it with a regression test."
+#~ msgstr "まず根本原因を突き止め、回帰テスト付きで修正します。"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Finding status"
 msgstr "検出結果の状態"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
-msgstr "タスクに関わるファイル、呼び出し元、テストを見つけ、パスと短い要約を報告します。"
+#~ msgid "Finds the files, callers and tests a task touches, and reports their paths with a short summary."
+#~ msgstr "タスクに関わるファイル、呼び出し元、テストを見つけ、パスと短い要約を報告します。"
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrGuidePanel.tsx
 msgid "Finish review"
@@ -7936,13 +8078,13 @@ msgstr "完了しました"
 msgid "Finished · Waiting for your input"
 msgstr "完了しました · 入力を待っています"
 
-#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-#~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
-#~ msgstr "Poracode のネイティブ ランタイムを使用したファーストクラスの Antigravity CLI 統合。"
-
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Finishing your report on GitHub…"
 msgstr "GitHub で報告を完了しています…"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+#~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
+#~ msgstr "Poracode のネイティブ ランタイムを使用したファーストクラスの Antigravity CLI 統合。"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class Antigravity integration using the agy terminal CLI and Google's official ACP Chat runtime."
@@ -8667,9 +8809,50 @@ msgstr "ヘルパー"
 msgid "Helpers join when this chat restarts."
 msgstr "このチャットを再開するとヘルパーが参加します。"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Hex · Host engine"
+msgstr "Hex · ホストエンジン"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Hex (native)"
+#~ msgstr "Hex（ネイティブ）"
+
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "16進カラー"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex could not process this request. Check the model and language in Audio settings."
+msgstr "Hex でリクエストを処理できませんでした。Audio 設定でモデルと言語を確認してください。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Hex documentation and licenses"
+msgstr "Hex のドキュメントとライセンス"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Hex installation"
+#~ msgstr "Hex のインストール"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is busy with another voice request. Try again shortly."
+msgstr "Hex は別の音声リクエストを処理中です。しばらくしてからもう一度お試しください。"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is unavailable on this host. Install a compatible Hex executable and restart Poracode, or choose the built-in backend."
+msgstr "このホストでは Hex を利用できません。互換性のある Hex 実行ファイルをインストールして Poracode を再起動するか、内蔵バックエンドを選択してください。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Hex setup"
+msgstr "Hex セットアップ"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex timed out. Please try again."
+msgstr "Hex がタイムアウトしました。もう一度お試しください。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Hex voice model"
+msgstr "Hex 音声モデル"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -8956,7 +9139,6 @@ msgid "Identity file path"
 msgstr "秘密鍵ファイルのパス"
 
 #. Microphone input level when not testing
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Idle"
@@ -8999,12 +9181,20 @@ msgstr "画像"
 #~ msgstr "変更を実装してテストを実行"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the fix with a regression test and confirms the reproduction now passes."
-msgstr "回帰テスト付きで修正を実装し、再現手順が通ることを確認します。"
+msgid "Implements the fix the lead settles, adds a regression test, and confirms the reproduction now passes with the narrowest check."
+msgstr "主モデルが決めた修正を実装し、回帰テストを追加して、必要最小限のチェックで再現が通るようになったことを確認します。"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
-msgstr "主モデルのタスクを最後まで実装します。ファイルを編集し、ビルドとテストを実行し、変更点を報告します。"
+#~ msgid "Implements the fix with a regression test and confirms the reproduction now passes."
+#~ msgstr "回帰テスト付きで修正を実装し、再現手順が通ることを確認します。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations."
+msgstr "主モデルのタスクを最後まで実装し、必要最小限のビルドとテストで検証します。変更ファイル、チェック結果、タスクとの差異を報告します。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+#~ msgid "Implements the lead's task end to end: edits files, runs the build and tests, and reports what changed."
+#~ msgstr "主モデルのタスクを最後まで実装します。ファイルを編集し、ビルドとテストを実行し、変更点を報告します。"
 
 #. Settings section: import existing CLI sessions as threads
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
@@ -9469,6 +9659,22 @@ msgstr "Cursor SDK をインストール"
 msgid "Install Cursor SDK in {environment}"
 msgstr "{environment} に Cursor SDK をインストール"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex"
+msgstr "Hex をインストールする"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex · {engineSize} MB"
+#~ msgstr "Hex・{engineSize} MB をインストールする"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex · {size} MB"
+msgstr "Hex をインストール · {size} MB"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex on the connected host first. Poracode uses its native service, not its dictation app. Model downloads may be large and have their own licenses."
+#~ msgstr "まず接続先ホストに Hex をインストールしてください。Poracode は音声入力アプリではなくネイティブサービスを使用します。モデルのダウンロードは大容量の場合があり、独自のライセンスが適用されます。"
+
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install in {0}"
@@ -9524,6 +9730,10 @@ msgstr "Tailscaleをインストール"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "MagicDNS 経由の HTTPS アクセスを有効にするには Tailscale をインストールしてください。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Install the engine"
+msgstr "エンジンを取り付ける"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Install the package to add its API key."
 msgstr "パッケージをインストールしてAPIキーを追加してください。"
@@ -9556,6 +9766,10 @@ msgstr "このホストに Xcode と iOS Simulator ランタイムをインス�
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "リモートマシンでのインストール・更新・サインインはまだ利用できません。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Installation continues when you close this dialog."
+msgstr "このダイアログを閉じてもインストールは続行されます。"
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -9582,6 +9796,11 @@ msgstr "このクライアントではインストール済みフォントを選
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
 msgstr "インストール中"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Installing engine…"
+msgstr "エンジンを取り付けています…"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Installing in this terminal. Closes when finished."
@@ -9737,6 +9956,10 @@ msgstr "スタートアップ時は Poracode をシステムトレイに格納�
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "コンピュータ操作中は Mac をスリープさせない"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Keep the same microphone button. Choose the engine behind it."
+msgstr "同じマイク ボタンを維持します。その後ろのエンジンを選択してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
 msgstr "バックグラウンドを含め、Poracode の実行中はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
@@ -9817,6 +10040,10 @@ msgstr "横向き（右）"
 msgid "Language"
 msgstr "言語"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Language and sidebar shortcuts"
+msgstr "言語とサイドバーのショートカット"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. Thread titles always follow the app language."
@@ -9826,6 +10053,11 @@ msgstr "AI が生成するコミットメッセージとプルリクエストの
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "コンポーザーでの音声入力を文字起こしする際に音声モデルが想定する言語。"
+
+#. placeholder {0}: selected.languages.join(", ")
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Languages: {0}"
+msgstr "言語: {0}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop"
@@ -9919,8 +10151,12 @@ msgid "Lead + 1 helper"
 msgstr "リード + ヘルパー 1 人"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Lead + Builder"
-msgstr "主モデル + ビルダー"
+#~ msgid "Lead + Builder"
+#~ msgstr "主モデル + ビルダー"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Lead + Sidekick"
+msgstr "主モデル + 補助モデル"
 
 #: src/renderer/components/providers/devin/modelPricing.ts
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
@@ -10043,6 +10279,10 @@ msgstr "パッケージを一覧表示"
 msgid "List tasks"
 msgstr "タスクを一覧表示"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Listening — speak or type a message"
+msgstr "聞き取り中 — 話すかメッセージを入力"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "ライブ"
@@ -10156,6 +10396,14 @@ msgstr "メディアのプレビューを読み込み中…"
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "Loading messages…"
 msgstr "メッセージを読み込み中…"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Loading model…"
+msgstr "モデルを読み込み中…"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Loading models…"
+#~ msgstr "モデルを読み込み中…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
@@ -10425,6 +10673,14 @@ msgstr "管理"
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "他のプロバイダーからインポートしたスキルを含む、グローバルおよびプロジェクトのエージェントスキルを管理します。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Manage Hex"
+msgstr "Hex の管理"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Manage Hex…"
+msgstr "Hex を管理…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
 msgstr "MCPサーバーを管理"
@@ -10504,6 +10760,11 @@ msgstr "{pluginName} が管理"
 msgid "Managed by Poracode"
 msgstr "Poracode による管理"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Managed by Poracode. No separate app to open."
+msgstr "Poracode によって管理されます。別のアプリを開く必要はありません。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Managed by provider"
 msgstr "プロバイダーが管理"
@@ -10511,6 +10772,14 @@ msgstr "プロバイダーが管理"
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed by the provider or plugin."
 #~ msgstr "プロバイダーまたはプラグインが管理しています。"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Managed Hex installation is not available on this host."
+msgstr "管理対象 Hex インストールは、このホストでは使用できません。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
+msgstr "このホストでは管理インストールを使用できません。互換性のある外部 Hex エンジンまたは組み込みバックエンドを使用します。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
@@ -10987,6 +11256,15 @@ msgstr "マイク{fallbackNumber}"
 msgid "Microphone access is off."
 msgstr "マイクアクセスがオフになっています。"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Microphone access requires HTTPS or localhost. Open Poracode over a secure connection."
+msgstr "マイクへのアクセスには HTTPS または localhost が必要です。安全な接続で Poracode を開いてください。"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Microphone and voice input backend"
+msgstr "マイクと音声入力バックエンド"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Microphone input level"
 msgstr "マイク入力レベル"
@@ -10994,6 +11272,10 @@ msgstr "マイク入力レベル"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Microphone muted"
 msgstr "マイクはミュート中"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Microphone muted — type a message"
+msgstr "マイクはミュート中 — メッセージを入力"
 
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
@@ -11123,6 +11405,14 @@ msgstr "モデルラベル"
 msgid "Model pairing"
 msgstr "モデルの組み合わせ"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model preparation progress"
+msgstr "モデルの準備の進捗状況"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model ready. Try a short recording below."
+msgstr "モデルの準備ができました。以下の短い録音を試してください。"
+
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
 msgstr "モデルをお気に入りから削除しました"
@@ -11148,6 +11438,10 @@ msgstr "モデルの使用状況"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "モデル"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Models available on the connected host for the selected language."
+msgstr "選択した言語で接続先ホストから利用できるモデル。"
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11360,6 +11654,14 @@ msgstr "変更内容を「{newBranch}」の新しいワークツリーに移動�
 msgid "Moving changes…"
 msgstr "変更を移動中…"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual dictation for the supported languages."
+msgstr "サポートされている言語の多言語ディクテーション。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual speech recognition."
+msgstr "多言語音声認識。"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
 msgstr "1 つのログイン配下に複数の Devin 設定 — 異なる設定ファイル、組織、承認デフォルト — または分離された第 2 ログイン。ネイティブの資格情報は決してコピーされません。"
@@ -11375,6 +11677,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "マイクをミュート"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute voice replies"
+msgstr "音声の返答をミュート"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "My crew"
@@ -12102,6 +12408,7 @@ msgid "No microphone found."
 msgstr "マイクが見つかりません。"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} で利用できるモデルがありません。設定でエージェントを確認してください。"
 
@@ -13850,9 +14157,18 @@ msgstr "Poracode はこのプラグインのデータフォルダを作成でき
 msgid "Poracode could not start"
 msgstr "Poracode を起動できませんでした"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "Poracode does not have permission to install or run the Hex engine."
+msgstr "Poracode には、Hex エンジンをインストールまたは実行する権限がありません。"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode はマーケットプレイスの認証情報を設定に平文で保存しません。カタログを開いて、セキュリティスキャン済みのスキルを確認してください。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Poracode downloads and verifies Hex on this host. No administrator access is needed."
+msgstr "Poracode は、このホスト上の Hex をダウンロードして検証します。管理者アクセスは必要ありません。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode failed to start:\n"
@@ -14031,17 +14347,33 @@ msgstr "コミット前のフックが失敗しました"
 #~ msgid "Preferred routing order"
 #~ msgstr "優先ルーティング順"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparation continues when you leave settings. You can return here to check progress."
+msgstr "設定を終了すると準備が続行されます。ここに戻って進行状況を確認できます。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Prepare model"
+#~ msgstr "モデルを準備"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Prepare the selected Hex model in Audio settings before recording."
+msgstr "録音を始める前に Audio 設定で選択した Hex モデルを準備してください。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparing model…"
+msgstr "モデルを準備中…"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
 msgstr "リモート環境を準備中…"
 
-#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
-#~ msgid "Presentation"
-#~ msgstr "表示形式"
-
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Preparing your report…"
 msgstr "報告を準備しています…"
+
+#: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
+#~ msgid "Presentation"
+#~ msgstr "表示形式"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Presets"
@@ -14149,6 +14481,10 @@ msgstr "印刷"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "プライバシーポリシー"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Privacy, licenses and engine management"
+#~ msgstr "プライバシー、ライセンス、エンジン管理"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Private key"
@@ -14513,6 +14849,10 @@ msgstr "プルリクエスト #{number} は作成されましたが、下書き�
 msgid "Pull request created, but its default automation could not be enabled: {0}"
 msgstr "プルリクエストは作成されましたが、デフォルトの自動化を有効にできませんでした: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Pull request defaults"
+msgstr "プルリクエストのデフォルト"
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "Pull request details"
 msgstr "プルリクエストの詳細"
@@ -14738,10 +15078,18 @@ msgstr "各候補の変更を読み込んでいます…"
 msgid "Reading each candidate's chat response…"
 msgstr "各候補のチャット回答を読み取っています…"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line."
+msgstr "差分全体と関連コードを読み、対象を絞ったチェックを実行して、バグ、リグレッション、不足しているテストをファイルと行で報告します。"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Ready"
 msgstr "準備完了"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Ready for dictation"
+msgstr "ディクテーションの準備ができました"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Ready for review"
@@ -14848,6 +15196,26 @@ msgstr "ローカルログから公開 API 料金で再構成した値です。�
 msgid "Recorded token categories"
 msgstr "記録済みトークンのカテゴリ"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording"
+msgstr "録音"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording stops automatically at five minutes."
+msgstr "録画は 5 分で自動的に停止します。"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording will stop in less than fifteen seconds."
+msgstr "録画は 15 秒以内に停止します。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed locally on this host."
+msgstr "録画はこのホスト上でローカルに処理されます。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed on {hostName}, not on this device."
+msgstr "録画はこのデバイスではなく {hostName} で処理されます。"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
 msgstr "レッド"
@@ -14868,7 +15236,7 @@ msgstr "参照"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -14882,6 +15250,7 @@ msgstr "参照"
 #: src/renderer/views/PullRequestsOverlay/list/PrCompactListBar.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -14919,6 +15288,10 @@ msgstr "デバイスを更新"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
 msgstr "MCP サーバーのソースを更新"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Refresh models"
+#~ msgstr "モデルを更新"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
@@ -15163,6 +15536,10 @@ msgstr "接続と環境を削除"
 msgid "Remove Cursor SDK API key"
 msgstr "Cursor SDK API キーを削除"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove engine"
+msgstr "エンジンを取り外します"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "環境変数を削除"
@@ -15190,6 +15567,14 @@ msgstr "パネルから削除"
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "最近使用したモデルから削除"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove Hex engine?"
+msgstr "Hex エンジンを削除しますか?"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Remove managed engine"
+msgstr "管理対象エンジンの削除"
 
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 msgid "Remove marketplace"
@@ -15458,8 +15843,12 @@ msgid "Repository URL"
 msgstr "リポジトリURL"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
-msgstr "バグを再現して根本原因まで追跡し、証拠と失敗するコードパスを報告します。"
+#~ msgid "Reproduces the bug and traces it to the root cause, then reports the evidence and the failing code path."
+#~ msgstr "バグを再現して根本原因まで追跡し、証拠と失敗するコードパスを報告します。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Reproduces the bug and traces it to the root cause, then reports the evidence, the failing code path and a suggested fix."
+msgstr "バグを再現して根本原因まで追跡し、根拠、失敗するコードパス、修正案を報告します。"
 
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 msgid "Request a reviewer"
@@ -15698,11 +16087,11 @@ msgstr "このホストに保存された使用量のみです。"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
@@ -15769,6 +16158,10 @@ msgstr "セッションコントロールを再試行"
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "Retry session settings"
 #~ msgstr "セッション設定を再試行"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Retry transcription"
+msgstr "転写を再試行します"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry when a run fails before it completes."
@@ -16003,8 +16396,8 @@ msgstr "レビューとコメント"
 #~ msgstr "差分をレビューしてバグを探す"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
-msgstr "完成した差分のバグ、回帰、不足しているテストを確認し、ファイルと行ごとに報告します。"
+#~ msgid "Reviews the finished diff for bugs, regressions and missing tests, and reports findings by file and line."
+#~ msgstr "完成した差分のバグ、回帰、不足しているテストを確認し、ファイルと行ごとに報告します。"
 
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
@@ -16032,7 +16425,6 @@ msgid "Right"
 msgstr "右"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Right panel"
 msgstr "右パネル"
 
@@ -16534,6 +16926,10 @@ msgstr "スケジュール"
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "ペアリングしたデスクトップのスケジュール、AI、エージェント、アーカイブ済みスレッド"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Schedules, AI, agents, crews, and Git on the paired desktop"
+msgstr "ペアリングしたデスクトップのスケジュール、AI、エージェント、クルー、Git"
+
 #: src/renderer/utils/projectIcons.ts
 msgid "Science & education"
 msgstr "科学と教育"
@@ -16551,8 +16947,12 @@ msgid "Scout"
 msgstr "スカウト"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Scouts map an unfamiliar codebase before anything changes."
-msgstr "スカウトが変更前に未知のコードベースを把握します。"
+#~ msgid "Scouts map an unfamiliar codebase before anything changes."
+#~ msgstr "スカウトが変更前に未知のコードベースを把握します。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "Scouts map an unfamiliar codebase so the lead can plan without reading it all."
+msgstr "スカウトが未知のコードベースを把握し、主モデルがすべてを読まずに計画できるようにします。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
@@ -16915,6 +17315,10 @@ msgstr "当てはまるものをすべて選択"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "エージェントを選択すると、そのプロンプトと結果が表示されます。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Select an available model for this language."
+msgstr "この言語で利用できるモデルを選択してください。"
+
 #: src/renderer/components/common/Select.tsx
 msgid "Select an option"
 msgstr "オプションを選択"
@@ -17037,7 +17441,7 @@ msgstr "サーバー {target} はこのコンピューターで動作するた�
 msgid "Server base URL"
 msgstr "サーバーのベースURL"
 
-#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "サーバーがオフラインです。この会話は最新でない可能性があります。"
 
@@ -17099,6 +17503,10 @@ msgstr "セッションの目標を設定または表示する"
 msgid "Set shortcut"
 msgstr "ショートカットを設定"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Set up Hex…"
+msgstr "Hex をセットアップ…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Set when this session started — start a new thread to change MCP servers"
 msgstr "このセッションの開始時に確定されます — MCPサーバーを変更するには新しいスレッドを開始してください"
@@ -17134,6 +17542,10 @@ msgstr "設定はまだ利用できないため、変更を保存できません
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "セットアップ"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Setup required"
+msgstr "セットアップが必要です"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
@@ -17487,6 +17899,7 @@ msgstr "サイドバーのすりガラス効果"
 msgid "Sidebar shortcuts"
 msgstr "サイドバーのショートカット"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
 #: src/renderer/components/providers/devin/modelPricing.ts
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sidekick"
@@ -17869,6 +18282,10 @@ msgstr "特定のペルソナ"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "特定のリポジトリ"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Speech recognition for supported East Asian languages and English."
+msgstr "サポートされている東アジア言語と英語の音声認識。"
 
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Spend"
@@ -18604,6 +19021,10 @@ msgstr "Tailscale URL"
 msgid "Take Screenshot"
 msgstr "スクリーンショットを撮る"
 
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Takes any hands-on task the lead hands off: exploring, editing and running checks, then reports back with evidence."
+msgstr "主モデルから渡された実作業を何でも引き受けます。調査、編集、チェック実行を行い、根拠とともに報告します。"
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "エージェントがクリックや入力をしている間、デスクトップを占有します"
@@ -18675,7 +19096,6 @@ msgstr "ターゲットプロバイダーに次に何をすべきかを伝えま
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
@@ -18742,8 +19162,8 @@ msgid "Terminal position"
 msgstr "ターミナルの位置"
 
 #: src/renderer/components/terminal/TerminalProgramStatus.tsx
-msgid "Terminal program status"
-msgstr "ターミナルのプログラム状態"
+#~ msgid "Terminal program status"
+#~ msgstr "ターミナルのプログラム状態"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -18764,6 +19184,11 @@ msgstr "ターミナルタブ"
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "Test and fix"
 msgstr "テストと修正"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Test dictation"
+msgstr "ディクテーションのテスト"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -18916,6 +19341,10 @@ msgstr "選択したフォルダー"
 msgid "The completion check failed; the schedule was paused."
 msgstr "完了確認に失敗したため、スケジュールを一時停止しました。"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The connected Poracode host is unavailable. Reconnect and try again."
+msgstr "接続された Poracode ホストが使用できません。再接続してもう一度お試しください。"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
 msgstr "会話は利用できなくなりましたが、保存された結果は引き続き確認できます。"
@@ -18982,6 +19411,10 @@ msgstr "デスクトップ自身のサーバーが変更を拒否しました。
 #: src/renderer/components/devices/deviceClient.ts
 msgid "The device host is unavailable."
 msgstr "デバイスホストを利用できません。"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The downloaded Hex engine failed its integrity or signature check."
+msgstr "ダウンロードされた Hex エンジンは、整合性チェックまたは署名チェックに失敗しました。"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
@@ -19063,6 +19496,14 @@ msgstr "ハートビートの会話は存在しません。"
 msgid "The heartbeat conversation uses a different agent."
 msgstr "ハートビートの会話では別のエージェントが使用されています。"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine download failed. Check your connection and try again."
+msgstr "Hex エンジンのダウンロードに失敗しました。接続を確認して、もう一度試してください。"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine is incompatible with this host or Poracode version."
+msgstr "Hex エンジンは、このホストまたは Poracode バージョンと互換性がありません。"
+
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
 msgid "The history notice could not be read from the server."
@@ -19110,8 +19551,16 @@ msgid "The launch was cancelled."
 msgstr "起動はキャンセルされました。"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
-msgstr "主モデルが計画とレビューを行い、安価なビルダーが実作業を担当します。"
+#~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
+#~ msgstr "主モデルが計画とレビューを行い、安価なビルダーが実作業を担当します。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead plans and reviews; a cheaper sidekick explores, builds and verifies."
+msgstr "主モデルが計画とレビューを行い、安価な補助モデルが調査、実装、検証を担当します。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+msgid "The lead splits the work; up to three builders implement and verify independent tasks at once."
+msgstr "主モデルが作業を分割し、最大 3 つのビルダーが独立したタスクを同時に実装・検証します。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -19453,6 +19902,10 @@ msgstr "音声接続がタイムアウトしました。もう一度お試しく
 msgid "The voice connection was cancelled."
 msgstr "音声接続がキャンセルされました。"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The voice request is invalid or has expired. Please try again."
+msgstr "音声リクエストが無効か期限切れです。もう一度お試しください。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The watched pull request changed. Review the watch before continuing."
 msgstr "監視中のプルリクエストが変更されました。続行する前に監視設定を確認してください。"
@@ -19663,6 +20116,10 @@ msgstr "このフォルダーは空です。"
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "このガイドは古くなっています。現在の変更の抜粋を見るには書き直してください。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "This Hex release requires glibc 2.39 or newer on Linux."
+msgstr "この Hex リリースでは、Linux 上で glibc 2.39 以降が必要です。"
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
 msgstr "このホスト"
@@ -19841,6 +20298,10 @@ msgstr "このキューに入ったフォローアップはすでに送信中で
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "これにより、後続のメッセージが削除され、チェックポイント スナップショットが利用可能な場合はファイルが復元されます。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "This removes only the engine installed by Poracode. Downloaded models and external Hex installations are kept."
+msgstr "これにより、Poracode によってインストールされたエンジンのみが削除されます。ダウンロードしたモデルと外部 Hex インストールは保持されます。"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "This removes the environment from the host. The server's child workspace is not deleted."
@@ -20041,14 +20502,12 @@ msgid "Thread dock"
 msgstr "スレッドドック"
 
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Thread docks"
 msgstr "スレッドのドック"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
-msgid "Thread docks placement"
-msgstr "スレッドのドックの配置"
+#~ msgid "Thread docks placement"
+#~ msgstr "スレッドのドックの配置"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Thread failed to start."
@@ -20314,6 +20773,15 @@ msgstr "追跡オフ"
 msgid "Transcribing voice"
 msgstr "音声の文字起こし"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Transcription"
+msgstr "転写"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Transcription engine"
+msgstr "転写エンジン"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
@@ -20374,8 +20842,12 @@ msgid "Turn tracking on or off per provider. Disabled providers are skipped by t
 msgstr "プロバイダーごとに追跡をオンまたはオフにします。無効化されたプロバイダーは自動更新によってスキップされます。"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Two independent read-only reviews of a change."
-msgstr "変更に対する 2 つの独立した読み取り専用レビュー。"
+msgid "Two independent read-only reviews of a change, and a sidekick applies the fixes."
+msgstr "変更に対する 2 つの独立した読み取り専用レビューと、修正を適用する補助モデル。"
+
+#: src/renderer/components/crew/crewTemplates.ts
+#~ msgid "Two independent read-only reviews of a change."
+#~ msgstr "変更に対する 2 つの独立した読み取り専用レビュー。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
@@ -20530,6 +21002,10 @@ msgstr "保存済みパスワードを読み込めませんでした。"
 #~ msgid "Unable to load thread."
 #~ msgstr "スレッドを読み込めません。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to load voice models."
+msgstr "音声モデルを読み込めません。"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
@@ -20574,6 +21050,10 @@ msgstr "エディターでファイルを開けませんでした"
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "そのデスクトップとペアリングできません。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to prepare voice model."
+msgstr "音声モデルを準備できません。"
 
 #: src/renderer/actions/browserActions.ts
 msgid "Unable to print this page."
@@ -20953,6 +21433,10 @@ msgstr "完了のマークを外す"
 msgid "Unmute microphone"
 msgstr "マイクのミュートを解除"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute voice replies"
+msgstr "音声の返答のミュートを解除"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"
 msgstr "名前なしのデバイス"
@@ -21037,8 +21521,8 @@ msgid "Up one level"
 msgstr "一つ上の階層へ"
 
 #: src/renderer/components/crew/crewTemplates.ts
-msgid "Up to three builders work on independent tasks at once."
-msgstr "最大 3 人のビルダーが独立したタスクを同時に進めます。"
+#~ msgid "Up to three builders work on independent tasks at once."
+#~ msgstr "最大 3 人のビルダーが独立したタスクを同時に進めます。"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "update"
@@ -21071,6 +21555,10 @@ msgstr "{0}を更新（{env}）"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0} to {updateLabel}"
 msgstr "{0}を{updateLabel}に更新します"
+
+#: src/renderer/components/sessionImport/remoteSessionImport.ts
+msgid "Update {host} to import its sessions."
+msgstr "セッションをインポートするには {host} を更新してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
@@ -21122,6 +21610,10 @@ msgstr "{environment} の Cursor SDK を更新"
 msgid "Update Cursor SDK to v{availableVersion}"
 msgstr "Cursor SDK を v{availableVersion} に更新"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Update engine"
+msgstr "アップデート エンジン"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
 msgstr "更新エラー:{detail}"
@@ -21157,6 +21649,10 @@ msgstr "会話を分岐するにはホストを更新してください。"
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "非表示のコンテキストでサイドチャットを使用するには、リモートホストを更新してください。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Update this host to import its sessions."
+msgstr "セッションをインポートするには、このホストを更新してください。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
 msgid "Update this host to refresh usage remotely. Cached usage can still be read."
@@ -21279,6 +21775,10 @@ msgstr "所有者をアップグレード"
 msgid "Uploading attachment {0}…"
 msgstr "添付ファイル {0} をアップロードしています…"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Uploading audio…"
+msgstr "オーディオをアップロードしています…"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Upside down"
 msgstr "上下反転"
@@ -21386,6 +21886,10 @@ msgstr "既存のフォルダーを使用する"
 msgid "Use an image from the project folder..."
 msgstr "プロジェクトフォルダの画像を使用..."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Use built-in transcription"
+msgstr "組み込みの文字起こしを使用する"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."
 msgstr "既存のブラウザーセッションが必要なタスクでは Chrome を安全に使用します。"
@@ -21451,6 +21955,11 @@ msgstr "{name} スキルを使用します。"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Use the ID of a persona available in your Devin cloud organization."
 msgstr "Devin クラウド組織で利用できるペルソナの ID を使用してください。"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use the microphone to try your selected engine and model."
+msgstr "マイクを使用して、選択したエンジンとモデルを試してください。"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
@@ -21524,6 +22033,11 @@ msgstr "このマシンでは Devin 自身のログインを使用します。De
 msgid "Using the built-in Claude model list."
 msgstr "組み込みのClaudeモデル一覧を使用しています。"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Using your existing Hex installation. Poracode will not modify it."
+msgstr "既存の Hex インストールを使用します。 Poracode はそれを変更しません。"
+
 #. placeholder {0}: status.bundledVersion
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "v{0} available"
@@ -21537,14 +22051,6 @@ msgstr "値"
 #~ msgid "Value"
 #~ msgstr "値"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Verify host key"
-#~ msgstr "ホストキーを確認"
-
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "Verify SSH host key"
-#~ msgstr "SSH ホストキーを確認"
-
 #: src/renderer/components/common/FeedbackDialog.tsx
 #~ msgid "Verification"
 #~ msgstr "認証"
@@ -21552,6 +22058,18 @@ msgstr "値"
 #: src/renderer/components/common/FeedbackDialog.tsx
 #~ msgid "Verification could not load. Please try again."
 #~ msgstr "認証を読み込めませんでした。再試行してください。"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Verify host key"
+#~ msgstr "ホストキーを確認"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Verify model"
+msgstr "モデルを確認してください"
+
+#: src/mobile/views/DesktopsView.tsx
+#~ msgid "Verify SSH host key"
+#~ msgstr "SSH ホストキーを確認"
 
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -21697,14 +22215,18 @@ msgstr "ビジュアル"
 msgid "Visual sections"
 msgstr "ビジュアルのセクション"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Voice input backend"
+msgstr "音声入力バックエンド"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "この環境では音声入力は利用できません。"
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Voice input is unavailable on remote sessions."
-msgstr "リモートセッションでは音声入力は利用できません。"
+#~ msgid "Voice input is unavailable on remote sessions."
+#~ msgstr "リモートセッションでは音声入力は利用できません。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -21715,6 +22237,14 @@ msgstr "音声入力言語"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "音声入力モデル"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Voice input needs attention"
+msgstr "音声入力には注意が必要です"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Voice transcription cancelled."
+msgstr "音声文字起こしをキャンセルしました。"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
@@ -21756,7 +22286,6 @@ msgstr "ワークツリーに移動する前に、スレッドの起動が完了
 msgid "Wait for the thread to finish starting."
 msgstr "スレッドの開始が完了するまで待ちます。"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "待機中"
@@ -21785,7 +22314,6 @@ msgstr "プレビューを待機中"
 msgid "waiting for agent to stop"
 msgstr "エージェントが停止するのを待っています"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/views/SchedulesView/parts/scheduleRunStatus.ts
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
@@ -21841,6 +22369,7 @@ msgstr "WSL シェル環境をウォームアップしています…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
+#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"
@@ -21980,8 +22509,8 @@ msgstr "ターミナルネイティブのスレッドで、ブラウザーの要
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
-msgstr "スレッドのゴール、プラン、エージェント、バックグラウンドタスクの表示場所。右パネルの場合はコンポーザー上のコンパクトなバブルから開きます。"
+#~ msgid "Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them."
+#~ msgstr "スレッドのゴール、プラン、エージェント、バックグラウンドタスクの表示場所。右パネルの場合はコンポーザー上のコンパクトなバブルから開きます。"
 
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Where do you want to begin?"
@@ -22003,6 +22532,10 @@ msgstr "ターミナルパネルが表示される場所。"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "While working"
 msgstr "作業中"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Whisper with broad multilingual support."
+msgstr "広範な多言語サポートを備えた Whisper。"
 
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -22033,6 +22566,10 @@ msgstr "Windows シェル"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Winner merged."
 msgstr "勝者をマージしました。"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "With Hex, recordings are sent to your connected Poracode host for processing, not to a cloud transcription service. Recordings are limited to five minutes."
+#~ msgstr "Hex では、録音データはクラウド文字起こしサービスではなく、処理のため接続先の Poracode ホストに送信されます。録音は最大 5 分です。"
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -22106,6 +22643,7 @@ msgid "Workflow: {description}"
 msgstr "ワークフロー:{description}"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/thread/buildModelPickerControls.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -22116,7 +22654,6 @@ msgstr "ワークフロー"
 msgid "Workflows added under .github/workflows will appear here."
 msgstr ".github/workflows に追加されたワークフローはここに表示されます。"
 
-#: src/renderer/components/terminal/TerminalProgramStatus.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Working"
 msgstr "実行中"
@@ -22255,8 +22792,12 @@ msgid "Write notes for this project…"
 msgstr "このプロジェクトのメモを書いてください…"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
-msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
-msgstr "変更のテストを書いて実行し、報告されたバグを再現し、失敗を正確なコマンド付きで報告します。"
+#~ msgid "Writes and runs tests for the change, reproduces reported bugs, and reports failures with the exact command."
+#~ msgstr "変更のテストを書いて実行し、報告されたバグを再現し、失敗を正確なコマンド付きで報告します。"
+
+#: src/renderer/components/crew/crewRoleTemplates.ts
+msgid "Writes and runs the tests for the change, reproduces reported bugs, and reports each failure with the exact command and failing assertion."
+msgstr "変更のテストを書いて実行し、報告されたバグを再現して、失敗ごとに正確なコマンドと失敗したアサーションを報告します。"
 
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Writing guide. You can leave this review and return when it is ready."
@@ -22361,6 +22902,10 @@ msgstr "あなたのプラグイン"
 msgid "Your question is kept. Use Retry above to send it again."
 msgstr "質問は保持されています。上の「再試行」でもう一度送信できます。"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Your recording is kept in memory for two minutes. Retry uses the same model and host."
+msgstr "録音は 2 分間メモリに保存されます。再試行では同じモデルとホストが使用されます。"
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Your report and attachments are now on GitHub."
 msgstr "報告と添付ファイルは GitHub に保存されました。"
@@ -22376,6 +22921,10 @@ msgstr "あなたのレビューがリクエストされています"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "スタッシュされていたローカルの変更が再適用されました。"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Your test transcript will appear here. It is not sent to a conversation."
+msgstr "テストの成績証明書がここに表示されます。会話には送信されません。"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "z.ai"

@@ -1,4 +1,4 @@
-import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import type { ProjectLocation, RuntimeErrorReason, ThreadConfig } from "@/shared/contracts";
 import { probeAcpCapabilities } from "../acp";
 import { buildAgentCommand, type DetectProbeCtx } from "../base";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
@@ -40,4 +40,20 @@ export async function probeCommandCodeAcp(ctx: DetectProbeCtx & { executablePath
     preserveEmptyModelEfforts: true,
     label: "commandcode",
   });
+}
+
+/**
+ * Command Code rejects `session/prompt` with JSON-RPC -32603 and puts the API's
+ * HTTP status in `data.status`. A 401 means the key `command-code login`
+ * stored was rejected, so the thread needs sign-in rather than a retry.
+ * Captured from 1.82.4: `{ code: -32603, message: "POST /alpha/generate → 401
+ * error: Invalid 'Authorization' header or token.", data: { status: 401 } }`.
+ */
+export function resolveCommandCodePromptErrorReason(
+  error: unknown,
+): RuntimeErrorReason | undefined {
+  if (typeof error !== "object" || error === null || !("data" in error)) return undefined;
+  const data = (error as { data: unknown }).data;
+  if (typeof data !== "object" || data === null) return undefined;
+  return (data as { status?: unknown }).status === 401 ? "auth_required" : undefined;
 }

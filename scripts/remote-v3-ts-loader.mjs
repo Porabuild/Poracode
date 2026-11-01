@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { transformSync } from "esbuild";
 import { dirname, extname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -42,5 +43,19 @@ export async function resolve(specifier, context, nextResolve) {
 export async function load(url, context, nextLoad) {
   const projection = loadRuntimePayloadProjectionModule(url, repositoryRoot);
   if (projection) return projection;
+  if (url.endsWith(".ts")) {
+    const loaded = await nextLoad(url, context);
+    return {
+      ...loaded,
+      format: "module",
+      source: transformSync(loaded.source.toString(), {
+        loader: "ts",
+        format: "esm",
+        target: "node26",
+        sourcefile: fileURLToPath(url),
+        sourcemap: "inline",
+      }).code,
+    };
+  }
   return nextLoad(url, context);
 }

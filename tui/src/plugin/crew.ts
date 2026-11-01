@@ -18,15 +18,31 @@ import { SlotText } from "./slotText";
 import {
   CREW_PROVIDER_ID,
   NEW_CREW_MODEL_ID,
+  SIDEKICK_ROLE,
   crewModelLabel,
   defaultHelperSelection,
   type CrewModelChoice,
 } from "../adapter/router/crews";
 
 const ROLE_TEMPLATES: readonly { label: string; brief?: string; noEdits?: true }[] = [
-  { label: "Builder", brief: "Implements changes and runs tests" },
-  { label: "Reviewer", brief: "Reviews diffs and finds bugs" },
-  { label: "Scout", brief: "Explores code and docs", noEdits: true },
+  { label: SIDEKICK_ROLE.label, brief: SIDEKICK_ROLE.brief },
+  {
+    label: "Builder",
+    brief:
+      "Implements the lead's task end to end and verifies it with the narrowest build and tests; reports changed files, check results and deviations.",
+  },
+  {
+    label: "Reviewer",
+    brief:
+      "Reads the full diff and the code it touches, runs targeted checks, and reports bugs, regressions and missing tests by file and line.",
+    noEdits: true,
+  },
+  {
+    label: "Scout",
+    brief:
+      "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review.",
+    noEdits: true,
+  },
 ];
 
 const SEPARATOR = "\u0000";
@@ -322,7 +338,7 @@ export function registerCrewUi(context: Plugin.Context, adapter: Adapter) {
 
   const addRole = async (sessionID: string, state: CrewState, binding: ThreadCrewBinding) => {
     const lead = state.lead;
-    const helper = lead ? defaultHelperSelection(state.helperChoices, lead.agentKind) : undefined;
+    const helper = lead ? defaultHelperSelection(state.helperChoices, lead) : undefined;
     if (!helper) return void (await alert("No helper models are available."));
     const pickedTemplate = await context.ui.dialog.select<number>({
       title: "Add role",
@@ -483,7 +499,7 @@ export function registerCrewUi(context: Plugin.Context, adapter: Adapter) {
           {
             title: "New crew",
             value: "new",
-            description: "Your current model leads, plus one Builder",
+            description: `Your current model leads, plus one ${SIDEKICK_ROLE.label} on a cheaper model`,
           },
         ],
       });

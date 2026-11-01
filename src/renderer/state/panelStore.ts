@@ -166,9 +166,7 @@ interface PanelState {
   sideChatPanelOpen: boolean;
   /**
    * Session-scoped: whether the focused thread's Docks tab (goal, plan, agents,
-   * background tasks, or images in the right panel) is showing. Informational
-   * docks require `threadDocksPlacement` to be "right"; images can explicitly
-   * open it in either mode. Closing it leaves the placement mode alone.
+   * background tasks, or images in the right panel) is showing.
    */
   threadDocksPanelOpen: boolean;
   /** Keep a returned Thread Info page available if its last task has finished. */

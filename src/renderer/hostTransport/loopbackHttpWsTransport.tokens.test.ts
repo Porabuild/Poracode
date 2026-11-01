@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RemoteClientError, type RemoteFetch } from "@/shared/remote/client";
 import {
+  __setManagedLoopbackIntakeForTest,
   createManagedLoopbackClient,
   renewManagedLoopbackSession,
 } from "./loopbackHttpWsTransport";
@@ -107,6 +108,7 @@ function session(options?: { readonly refreshStatus?: number }) {
       custody.accessTokenExpiresAt = tokens.accessTokenExpiresAt ?? null;
     },
     isActive: () => true,
+    noteBearerRefused: vi.fn<() => void>(),
   };
   return {
     host,
@@ -119,6 +121,9 @@ function session(options?: { readonly refreshStatus?: number }) {
 describe("managed loopback bearer sharing", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    // Not the full wiring reset: it disposes the installed intake, and this
+    // suite installs a stub without one.
+    __setManagedLoopbackIntakeForTest(null);
   });
 
   it("clients of one intake share a rotation instead of refreshing in turns", async () => {
@@ -174,6 +179,36 @@ describe("managed loopback bearer sharing", () => {
     // intake's rotated bearer: `access-0` never returns to the wire.
     expect(host.firstPostRotationAuthorization()).toBe(1);
     expect(host.authorizations.slice(1)).toEqual(["Bearer access-1", "Bearer access-1"]);
+  });
+
+  it("escalates a final 401 to the live intake's re-proof, never to a retired one", async () => {
+    // The wiring fence: a request 401 that survives the refresh path reaches
+    // the CURRENT, ACTIVE intake's re-proof; the same 401 on a retired or
+    // inactive intake must not tear down a successor leg.
+    const host = managedHost();
+    vi.stubGlobal("fetch", host.fetch);
+    const bearerRefused = vi.fn<() => void>();
+    let intakeActive = true;
+    const intake = {
+      getAccessToken: () => "access-0",
+      getRefreshToken: () => "refresh-retired",
+      applyTokens: () => {},
+      isActive: () => intakeActive,
+      noteBearerRefused: bearerRefused,
+    };
+    __setManagedLoopbackIntakeForTest(intake);
+    host.expire();
+
+    const client = createManagedLoopbackClient(endpoint, "access-0", intake);
+    await expect(client.websocketTicket()).rejects.toMatchObject({ status: 401 });
+    expect(bearerRefused).toHaveBeenCalledTimes(1);
+
+    // The intake went away (successor activation): the retired client's 401
+    // stays silent.
+    bearerRefused.mockClear();
+    intakeActive = false;
+    await expect(client.websocketTicket()).rejects.toMatchObject({ status: 401 });
+    expect(bearerRefused).not.toHaveBeenCalled();
   });
 });
 

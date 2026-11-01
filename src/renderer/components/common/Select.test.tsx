@@ -35,6 +35,61 @@ describe("Select rich options", () => {
     responsiveMenuState.mobile = false;
   });
 
+  it.each([false, true])("uses HeroUI trigger slots and variants with mobile=%s", (mobile) => {
+    responsiveMenuState.mobile = mobile;
+    render(
+      <Select
+        aria-label="Project"
+        className="w-70"
+        variant="secondary"
+        fullWidth
+        options={options}
+        value="alpha"
+        onChange={vi.fn<(value: string) => void>()}
+      />,
+    );
+
+    const trigger = screen.getByLabelText("Project");
+    expect(trigger).toHaveClass("select__trigger", "select__trigger--full-width");
+    expect(trigger.closest(".select")).toHaveClass("select--secondary", "w-70");
+    expect(trigger.querySelector(".select__value")).toHaveClass("min-w-0");
+    expect(trigger.querySelector('[data-slot="select-default-indicator"]')).toHaveClass(
+      "select__indicator",
+    );
+    expect(trigger.querySelector('[data-testid="alpha-icon"]')).not.toBeNull();
+  });
+
+  it("preserves placeholder and disabled styling, then opens the sheet by keyboard", async () => {
+    responsiveMenuState.mobile = true;
+    const onChange = vi.fn<(value: string) => void>();
+    const { rerender } = render(
+      <Select
+        label="Project"
+        placeholder="Choose project"
+        options={options}
+        isDisabled
+        onChange={onChange}
+      />,
+    );
+    const trigger = screen.getByRole("button", { name: "Project" });
+    expect(trigger).toBeDisabled();
+    expect(trigger.querySelector('.select__value[data-placeholder="true"]')).toHaveTextContent(
+      "Choose project",
+    );
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    rerender(<Select label="Project" options={options} onChange={onChange} />);
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    const beta = await screen.findByRole("button", { name: /Beta/u });
+    expect(trigger).toHaveAttribute("aria-haspopup", "dialog");
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(trigger.querySelector(".select__indicator")).toHaveAttribute("data-open", "true");
+    fireEvent.click(beta);
+    expect(onChange).toHaveBeenCalledWith("beta");
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("renders icon in the desktop trigger and selects a rich option with detail", async () => {
     const onChange = vi.fn<(value: string) => void>();
     render(<Select aria-label="Project" options={options} value="alpha" onChange={onChange} />);
@@ -50,6 +105,24 @@ describe("Select rich options", () => {
     fireEvent.click(beta);
 
     expect(onChange).toHaveBeenCalledWith("beta");
+  });
+
+  it("keeps a disabled option listed but unselectable in the desktop list", async () => {
+    const onChange = vi.fn<(value: string) => void>();
+    render(
+      <Select
+        aria-label="Project"
+        options={[options[0]!, { ...options[1]!, isDisabled: true }]}
+        value="alpha"
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Project"));
+    const beta = await screen.findByRole("option", { name: /Beta/u });
+    expect(beta).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(beta);
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("lets a long selected label shrink inside the trigger so it truncates", () => {

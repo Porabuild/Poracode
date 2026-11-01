@@ -268,6 +268,7 @@ const uninstallAgentHookPluginMock = vi.hoisted(() =>
 vi.mock("@/renderer/bridge", () => ({
   isMac: () => false,
   isWindows: () => true,
+  isRemoteSession: () => false,
   readBridge: () => ({
     refreshAgentStatuses: refreshAgentStatusesMock,
     setAcpRegistryAgentAuth: setAcpRegistryAgentAuthMock,

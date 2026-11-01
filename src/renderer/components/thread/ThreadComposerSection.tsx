@@ -32,7 +32,7 @@ import { sideChatAvailable, showSideChat } from "./SideChat/sideChatActions";
 import { useImplicitMcpServers } from "../composer/implicitMcpServers";
 import { useTurnClientContextCapture } from "../composer/turnClientContext";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
-import { LiveVoiceButton, LiveVoicePanel } from "../composer/LiveVoiceControls";
+import { LiveVoiceButton, LiveVoiceSessionControls } from "../composer/LiveVoiceControls";
 import { liveVoice, useLiveVoice } from "@/renderer/speech/liveVoice";
 import {
   composerMcpServers,
@@ -63,13 +63,13 @@ import {
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
 import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
+import { usesBridgeThreadImages } from "@/renderer/components/thread/threadImageReadiness";
 import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import {
   useComposerInputInbox,
@@ -131,6 +131,7 @@ import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
 import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
+import { ThreadRemoteSyncDock, useThreadRemoteSyncWarning } from "./ThreadRemoteSyncDock";
 import { ThreadHistoryLoadFailureDock } from "./ThreadHistoryLoadFailureDock";
 import {
   usePluginMentionItems,
@@ -286,25 +287,24 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const compactLayout = useCompactLayout();
   const isRemoteSurface = isRemoteSession();
   const browserImageReadiness = useRemoteBridgeImageReadiness();
-  // The remote/mobile surface has no right panel to host the docks.
-  const docksPlacement = isRemoteSurface ? "composer" : requestedDocksPlacement;
+  const docksPlacement = compactLayout ? requestedDocksPlacement : "right";
   const docksInComposer = docksPlacement === "composer";
   const usesRemoteTransport = isRemoteSurface || thread.remoteServerId !== undefined;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
-  // Remote sessions have no local capture path: keep the button visible (when
-  // enabled) but disabled with the reason, instead of hiding it silently.
   const showVoiceInputButton = voiceInputEnabled;
-  const voiceInputUnavailableHint = voiceInputEnabled
-    ? isRemoteSurface
-      ? t`Voice input is unavailable on remote sessions.`
-      : undefined
-    : undefined;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const liveVoiceActive = useLiveVoice((state) => state.phase !== "idle");
-  const threadVoiceActive = useLiveVoice(
-    (state) => state.threadId === thread.id && state.phase !== "idle",
+  const threadVoiceStatus = useLiveVoice((state) =>
+    state.threadId !== thread.id || state.phase === "idle"
+      ? null
+      : state.phase === "connecting"
+        ? "connecting"
+        : state.muted
+          ? "muted"
+          : "listening",
   );
+  const threadVoiceActive = threadVoiceStatus !== null;
   useEffect(() => () => liveVoice.stopThread(thread.id), [thread.id]);
   useEffect(() => {
     if (thread.status === "inactive") liveVoice.stopThread(thread.id);
@@ -325,7 +325,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const attachmentImageUrlForPath = remoteDesktopId
     ? (path: string) =>
-        isRemoteSurface
+        usesBridgeThreadImages(remoteDesktopId)
           ? remoteBridgeLocalImageUrl(path)
           : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
@@ -333,9 +333,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // subscription; direct/ssh keep their synchronous endpoint URL.
   const remoteImageReadiness =
     remoteDesktopId && remoteImageServer
-      ? isRemoteSurface
-        ? (environmentImageReadinessFor(remoteDesktopId) ?? browserImageReadiness)
-        : useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
+      ? useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
       : isRemoteSurface
         ? browserImageReadiness
         : undefined;
@@ -679,7 +677,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     label: t(label),
     ...(brief ? { brief: t(brief) } : {}),
   }));
-  const defaultHelper = helperOptions.defaultSelectionFor(thread.agentKind);
+  const defaultHelper = helperOptions.defaultSelectionFor(lead);
   let crewHandlers: ActiveComposerCrewHandlers | undefined;
   const rawControls = buildControls(
     thread,
@@ -862,11 +860,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     historyNotice && !usesTerminalPresentation ? (
       <ThreadHistoryNoticeDock threadId={thread.id} entry={historyNotice} />
     ) : null;
+  // Remote sync warnings used to sit above the transcript; every chat warning
+  // now lives in the composer's notice stack.
+  const remoteSyncWarning = useThreadRemoteSyncWarning(thread);
+  const showRemoteSyncWarning = remoteSyncWarning !== null && !usesTerminalPresentation;
   const composerNotices =
-    historyNoticeDock || historyLoadFailed || resumeUnavailableNotice ? (
+    historyNoticeDock || historyLoadFailed || showRemoteSyncWarning || resumeUnavailableNotice ? (
       <>
         {historyNoticeDock}
         {historyLoadFailed ? <ThreadHistoryLoadFailureDock threadId={thread.id} /> : null}
+        {showRemoteSyncWarning ? <ThreadRemoteSyncDock thread={thread} /> : null}
         {resumeUnavailableNotice}
       </>
     ) : null;
@@ -1181,7 +1184,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           className="poracode-thread-composer-section relative"
           data-compact-collapsed={(compactLayout && isComposerCollapsed) || undefined}
         >
-          <LiveVoicePanel threadId={thread.id} />
           {!compactLayout ? (
             /* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
                measures the real buttons without adding a line box above the composer. */
@@ -1312,6 +1314,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       isCliThread ? "cli" : "chat",
                       showContextIndicator ? "ctx" : "no-ctx",
                       authRequired ? "auth-required" : "auth-ready",
+                      threadVoiceActive ? "voice" : "no-voice",
                     ].join("|")}
                     fixedContent={
                       composerDockNotice !== null ||
@@ -1415,10 +1418,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               ? ""
                               : thread.status === "inactive" && canRecoverGuiInput && !isConnecting
                                 ? t`Disconnected — send a message to reconnect`
-                                : isServerControlled
-                                  ? (props.composerPlaceholder ??
-                                    t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
-                                  : t`Send a message...`
+                                : threadVoiceStatus === "connecting"
+                                  ? t`Connecting voice…`
+                                  : threadVoiceStatus === "muted"
+                                    ? t`Microphone muted — type a message`
+                                    : threadVoiceStatus === "listening"
+                                      ? t`Listening — speak or type a message`
+                                      : isServerControlled
+                                        ? (props.composerPlaceholder ??
+                                          t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
+                                        : t`Send a message...`
                         }
                         projectLocation={projectLocation}
                         submitOnEnter={props.submitOnEnter ?? !compactLayout}
@@ -1620,22 +1629,25 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           {compactLayout ? contextIndicator : addMenu}
                         </>
                       );
-                      const renderVoiceInput = () => (
-                        <ComposerVoiceInput
-                          key={thread.id}
-                          show={showVoiceInputButton && !liveVoiceActive}
-                          isDisabled={
-                            authRequired ||
-                            isSubmitting ||
-                            !(showServerComposer || showTerminalComposer)
-                          }
-                          {...(voiceInputUnavailableHint !== undefined
-                            ? { unavailableHint: voiceInputUnavailableHint }
-                            : {})}
-                          mentionRef={mentionRef}
-                          voiceInputRef={voiceInputRef}
-                        />
-                      );
+                      const renderVoiceInput = () =>
+                        threadVoiceActive ? (
+                          <LiveVoiceSessionControls
+                            threadId={thread.id}
+                            hasDraft={hasContent || attachments.attachments.length > 0}
+                          />
+                        ) : (
+                          <ComposerVoiceInput
+                            key={thread.id}
+                            show={showVoiceInputButton && !liveVoiceActive}
+                            isDisabled={
+                              authRequired ||
+                              isSubmitting ||
+                              !(showServerComposer || showTerminalComposer)
+                            }
+                            mentionRef={mentionRef}
+                            voiceInputRef={voiceInputRef}
+                          />
+                        );
                       return isCliThread || compactLayout
                         ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
                         : {

@@ -190,6 +190,8 @@ function parseNamespacedRequestId(
  */
 export class SubagentRunManager {
   private readonly runs = new Map<string, RunRecord>();
+  /** Runs ever started per parent thread; see {@link memberRunActivity}. */
+  private readonly startedRunCounts = new Map<string, number>();
   private readonly lifecycle = new RunLifecycle();
   private readonly attemptRunner: SubagentAttemptRunner;
 
@@ -235,6 +237,19 @@ export class SubagentRunManager {
 
   subscribe(parentThreadId: string, listener: (event: RunLifecycleEvent) => void): () => void {
     return this.lifecycle.subscribe(parentThreadId, listener);
+  }
+
+  /**
+   * Member runs of a parent thread: how many are running or still hold child
+   * resources, and how many were ever started (continuations included). The
+   * start count only grows while the thread is open, so comparing two reads
+   * reveals a run that started and finished in between.
+   */
+  memberRunActivity(parentThreadId: string): { active: number; started: number } {
+    return {
+      active: this.activeCountForParent(parentThreadId),
+      started: this.startedRunCounts.get(parentThreadId) ?? 0,
+    };
   }
 
   roleRunningCount(parentThreadId: string, roleId: string): number {
@@ -377,6 +392,7 @@ export class SubagentRunManager {
       resolveSettled,
     };
     this.runs.set(runId, record);
+    this.startedRunCounts.set(parentThreadId, (this.startedRunCounts.get(parentThreadId) ?? 0) + 1);
 
     // Emit the synthetic parent tile so the delegated-agent renderer picks it up.
     const startPayload: ToolCallPayload = {
@@ -566,7 +582,9 @@ export class SubagentRunManager {
     for (const record of this.runs.values()) {
       if (record.parentThreadId !== parentThreadId || record.plan.crewRole?.id !== roleId) continue;
       if (!record.settled) return undefined;
-      if (!latest || record.createdAt > latest.createdAt) latest = record;
+      // `runs` iterates in creation order. `createdAt` is a millisecond clock, so
+      // a continuation can tie with its predecessor and must still win.
+      latest = record;
     }
     if (!latest || latest.status !== "completed" || latest.continuedBy || latest.resuming)
       return undefined;
@@ -751,6 +769,7 @@ export class SubagentRunManager {
    */
   cancelAllForThread(parentThreadId: string): void {
     this.lifecycle.emit(parentThreadId, "closed");
+    this.startedRunCounts.delete(parentThreadId);
     for (const record of [...this.runs.values()]) {
       if (record.parentThreadId !== parentThreadId) continue;
       record.cancelRequested = true;

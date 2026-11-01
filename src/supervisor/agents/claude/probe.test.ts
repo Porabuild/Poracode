@@ -299,9 +299,32 @@ describe("claudeCapabilitiesFromSdkModels", () => {
       "high",
       "xHigh",
       "max",
-      "ultracode",
     ]);
     expect(capabilities?.fastModels).toContain("claude-opus-5");
+    expect(capabilities?.workflowModels).toContain("claude-opus-5");
+  });
+
+  it("offers ultracode only on models that report xhigh effort", () => {
+    const capabilities = claudeCapabilitiesFromSdkModels([
+      {
+        value: "claude-fable-5-2",
+        displayName: "Fable 5.2",
+        description: "",
+        supportsEffort: true,
+        supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+      },
+      {
+        value: "claude-sonnet-5-1",
+        displayName: "Sonnet 5.1",
+        description: "",
+        supportsEffort: true,
+        supportedEffortLevels: ["low", "medium", "high", "max"],
+      },
+    ]);
+
+    expect(capabilities?.workflowModels).toContain("claude-fable-5-2");
+    expect(capabilities?.workflowModels).not.toContain("claude-sonnet-5-1");
+    expect(capabilities?.modelEfforts["claude-fable-5-2"]).not.toContain("ultracode");
   });
 
   it("does not erase explicit historical models absent from the current SDK catalog", () => {

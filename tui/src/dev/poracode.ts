@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 import { deriveLocationFromPath } from "@/shared/createProject";
 import { projectIdentityKey } from "@/shared/projectIdentity";
 import type { Project } from "@/shared/contracts";
+import { TUI_BOOTSTRAP_VERSION } from "@/shared/tuiBootstrap";
 import { resolveTargetDirectory } from "./target-directory";
 
 const baseDir = process.env.PORACODE_BASE_DIR;
@@ -64,7 +65,8 @@ const parsedArgs = parseArgs({
 });
 process.env.PORACODE_TUI_HOME = home;
 process.env.PORACODE_TUI_BOOTSTRAP = JSON.stringify({
-  version: 1,
+  version: TUI_BOOTSTRAP_VERSION,
+  auth: "pairing",
   appVersion: String(packageInfo.version ?? "0.0.0"),
   home,
   pairingUrl,
