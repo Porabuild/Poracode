@@ -28,6 +28,8 @@ export interface ProjectRow {
   worktree_location: string | null;
   mcp_servers: string | null;
   gh_account: string | null;
+  worktree_base_branch: string | null;
+  pinned_branches: string | null;
   workspace_id: string | null;
   disabled: number;
   sort_order: number;
@@ -95,6 +97,8 @@ export function projectMutableRow(project: Project) {
     worktreeLocation: project.worktreeLocation ? JSON.stringify(project.worktreeLocation) : null,
     mcpServers: project.mcpServers ? JSON.stringify(project.mcpServers) : null,
     ghAccount: project.ghAccount ? JSON.stringify(project.ghAccount) : null,
+    worktreeBaseBranch: project.worktreeBaseBranch ?? null,
+    pinnedBranches: project.pinnedBranches?.length ? JSON.stringify(project.pinnedBranches) : null,
     workspaceId: project.workspaceId ?? null,
     disabled: (project.disabled ? 1 : 0) as SqliteBool,
   };
@@ -138,6 +142,8 @@ export function rowToProject(row: ProjectRow): Project {
     ...(row.worktree_location ? { worktreeLocation: JSON.parse(row.worktree_location) } : {}),
     ...(row.mcp_servers ? { mcpServers: JSON.parse(row.mcp_servers) } : {}),
     ...(row.gh_account ? { ghAccount: JSON.parse(row.gh_account) } : {}),
+    ...(row.worktree_base_branch ? { worktreeBaseBranch: row.worktree_base_branch } : {}),
+    ...(row.pinned_branches ? { pinnedBranches: JSON.parse(row.pinned_branches) } : {}),
     ...(row.workspace_id ? { workspaceId: row.workspace_id } : {}),
     ...(row.disabled ? { disabled: true } : {}),
     createdAt: row.created_at,

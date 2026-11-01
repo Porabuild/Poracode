@@ -2767,6 +2767,10 @@ msgstr "Gałąź <0>{0}</0> zawiera niescalone zmiany:"
 #~ msgid "Branch name"
 #~ msgstr "Nazwa gałęzi"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Branch new worktrees fork from. You can also star one in the composer's branch picker."
+msgstr "Gałąź, od której odgałęziają się nowe drzewa robocze. Możesz ją też oznaczyć gwiazdką w selektorze gałęzi w kompozytorze."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Gałąź nie została w pełni scalona"
@@ -5817,6 +5821,10 @@ msgstr "Domyślny agent programowania"
 msgid "Default Create PR action"
 msgstr "Domyślna akcja Utwórz PR"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Default for new worktrees"
+msgstr "Domyślna dla nowych drzew roboczych"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
@@ -5840,6 +5848,10 @@ msgstr "Domyślne usuwanie wątku"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Default Windows shell"
 #~ msgstr "Domyślna powłoka Windows"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Default worktree base"
+msgstr "Domyślna baza drzew roboczych"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
@@ -11685,6 +11697,10 @@ msgstr "Nowy obszar roboczy"
 msgid "New worktree"
 msgstr "Nowe drzewo robocze"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+#~ msgid "New worktrees fork from this branch. Pin one from the branch picker in the composer; unpin to use the repository's default branch."
+#~ msgstr "Nowe drzewa robocze odgałęziają się od tej gałęzi. Przypnij gałąź w selektorze gałęzi w kompozytorze; odepnij, aby używać domyślnej gałęzi repozytorium."
+
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Newest first"
@@ -13671,6 +13687,17 @@ msgstr "Selektor nie powiódł się"
 msgid "Picker returned no attachment"
 msgstr "Selektor nie zwrócił żadnego załącznika"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Pin {0} as default worktree base"
+#~ msgstr "Przypnij {0} jako domyślną bazę drzew roboczych"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Pin {0} to top"
+msgstr "Przypnij {0} na górze"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
@@ -13685,6 +13712,7 @@ msgstr "Przypnij przepływ pracy"
 msgid "Pink"
 msgstr "Różowy"
 
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
@@ -15423,6 +15451,10 @@ msgstr "repozytorium"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "Repozytorium"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Repository default branch"
+msgstr "Domyślna gałąź repozytorium"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Repository entries must be unique."
@@ -18224,6 +18256,11 @@ msgstr "Zatrzymaj uruchomione wątki projektu przed zmianą jego folderu."
 msgid "Stop the run when this total time is reached."
 msgstr "Zatrzymaj uruchomienie po osiągnięciu tego łącznego czasu."
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Stop using {0} as default worktree base"
+#~ msgstr "Przestań używać {0} jako domyślnej bazy drzew roboczych"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "Zatrzymaj wprowadzanie głosowe"
@@ -20952,10 +20989,25 @@ msgstr "Urządzenie bez nazwy"
 msgid "Unphased:"
 msgstr "Bez fazy:"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "Odepnij"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Unpin {0}"
+#~ msgstr "Odepnij {0}"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Unpin {0} as default worktree base"
+#~ msgstr "Odepnij {0} jako domyślną bazę drzew roboczych"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+#~ msgid "Unpin default worktree base"
+#~ msgstr "Odepnij domyślną bazę drzew roboczych"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -21344,6 +21396,11 @@ msgstr "Użycie: /goal edit <objective>"
 msgid "USD per million tokens"
 msgstr "USD za milion tokenów"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use {0} as default worktree base"
+msgstr "Użyj {0} jako domyślnej bazy drzew roboczych"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Use {crewName} in this project"
 msgstr "Użyj {crewName} w tym projekcie"
@@ -21379,6 +21436,10 @@ msgstr "Użyj istniejącego folderu"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "Użyj obrazu z folderu projektu..."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use as default for new worktrees"
+msgstr "Użyj jako domyślnej dla nowych drzew roboczych"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."

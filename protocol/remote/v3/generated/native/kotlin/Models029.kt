@@ -402,6 +402,8 @@ typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DGhAccount_eb2798e
 
 typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DMcpServers_637f685cb2 = List<ProcedurebeginMcpServerOauthRequestU2DServer_c04b1452d1>?
 
+typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DPinnedBranches_f26d9689fe = List<String>?
+
 @Serializable
 data class RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DScriptsU2DOptionU2D1U2DActionsU2DItem_1544bc59ff(
     @SerialName("command") val command: String,

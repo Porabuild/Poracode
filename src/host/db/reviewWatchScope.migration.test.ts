@@ -105,7 +105,7 @@ describe.skipIf(!sqliteAvailable)("persisted review watch scope schema65", () =>
     expect(rawScope()).toBeNull();
     expect(
       upgraded.prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "68" });
+    ).toEqual({ value: "69" });
   });
 
   it.each(["account", "repository"])(

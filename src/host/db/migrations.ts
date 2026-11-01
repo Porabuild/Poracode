@@ -1057,6 +1057,16 @@ export const DATABASE_MIGRATIONS = [
       addColumnIfMissing(sqlite, "usage_token_samples", "counted_tokens", "TEXT");
     },
   },
+  {
+    version: 69,
+    name: "project branch pins",
+    // Additive nullable columns; older app versions ignore them.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "projects", "worktree_base_branch", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "pinned_branches", "TEXT");
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1184,6 +1194,8 @@ const SAFE_COLUMN_REPAIRS = [
   ["projects", "worktree_location", "TEXT"],
   ["projects", "mcp_servers", "TEXT"],
   ["projects", "gh_account", "TEXT"],
+  ["projects", "worktree_base_branch", "TEXT"],
+  ["projects", "pinned_branches", "TEXT"],
   ["projects", "workspace_id", "TEXT"],
   ["projects", "disabled", "INTEGER NOT NULL DEFAULT 0"],
   ["threads", "done", "INTEGER NOT NULL DEFAULT 0"],
@@ -1259,6 +1271,8 @@ const REQUIRED_COLUMNS = {
     "worktree_location",
     "mcp_servers",
     "gh_account",
+    "worktree_base_branch",
+    "pinned_branches",
     "workspace_id",
     "disabled",
     "sort_order",

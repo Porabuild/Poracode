@@ -2767,6 +2767,10 @@ msgstr "Branch <0>{0}</0> weist nicht zusammengeführte Änderungen auf:"
 #~ msgid "Branch name"
 #~ msgstr "Zweigname"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Branch new worktrees fork from. You can also star one in the composer's branch picker."
+msgstr "Branch, von dem neue Worktrees abzweigen. Du kannst ihn auch in der Branch-Auswahl des Composers mit einem Stern markieren."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Branch nicht vollständig zusammengeführt"
@@ -5817,6 +5821,10 @@ msgstr "Standard-Coding-Agent"
 msgid "Default Create PR action"
 msgstr "Standardmäßige „PR erstellen“-Aktion"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Default for new worktrees"
+msgstr "Standard für neue Worktrees"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
@@ -5840,6 +5848,10 @@ msgstr "Standardmäßiges Entfernen von Threads"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Default Windows shell"
 #~ msgstr "Standardmäßige Windows-Shell"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Default worktree base"
+msgstr "Standard-Worktree-Basis"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
@@ -11685,6 +11697,10 @@ msgstr "Neuer Arbeitsbereich"
 msgid "New worktree"
 msgstr "Neuer Arbeitsbaum"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+#~ msgid "New worktrees fork from this branch. Pin one from the branch picker in the composer; unpin to use the repository's default branch."
+#~ msgstr "Neue Worktrees zweigen von diesem Branch ab. Hefte einen Branch in der Branch-Auswahl des Composers an; löse ihn, um den Standard-Branch des Repositorys zu verwenden."
+
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Newest first"
@@ -13671,6 +13687,17 @@ msgstr "Auswahl fehlgeschlagen"
 msgid "Picker returned no attachment"
 msgstr "Die Auswahl hat keinen Anhang zurückgegeben"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Pin {0} as default worktree base"
+#~ msgstr "{0} als Standard-Worktree-Basis anheften"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Pin {0} to top"
+msgstr "{0} oben anheften"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
@@ -13685,6 +13712,7 @@ msgstr "Workflow anheften"
 msgid "Pink"
 msgstr "Pink"
 
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
@@ -15423,6 +15451,10 @@ msgstr "Repository"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "Repository"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Repository default branch"
+msgstr "Standard-Branch des Repositorys"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Repository entries must be unique."
@@ -18224,6 +18256,11 @@ msgstr "Stoppen Sie die laufenden Threads des Projekts, bevor Sie dessen Ordner 
 msgid "Stop the run when this total time is reached."
 msgstr "Die Ausführung beenden, wenn diese Gesamtzeit erreicht ist."
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Stop using {0} as default worktree base"
+#~ msgstr "{0} nicht mehr als Standard-Worktree-Basis verwenden"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "Spracheingabe stoppen"
@@ -20952,10 +20989,25 @@ msgstr "Unbenanntes Gerät"
 msgid "Unphased:"
 msgstr "Ohne Phase:"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "Lösen"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Unpin {0}"
+#~ msgstr "{0} lösen"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Unpin {0} as default worktree base"
+#~ msgstr "{0} als Standard-Worktree-Basis lösen"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+#~ msgid "Unpin default worktree base"
+#~ msgstr "Standard-Worktree-Basis lösen"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -21344,6 +21396,11 @@ msgstr "Verwendung: /goal edit <objective>"
 msgid "USD per million tokens"
 msgstr "USD pro Million Tokens"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use {0} as default worktree base"
+msgstr "{0} als Standard-Worktree-Basis verwenden"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Use {crewName} in this project"
 msgstr "{crewName} in diesem Projekt verwenden"
@@ -21379,6 +21436,10 @@ msgstr "Verwenden Sie einen vorhandenen Ordner"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "Bild aus dem Projektordner verwenden..."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use as default for new worktrees"
+msgstr "Als Standard für neue Worktrees verwenden"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."

@@ -6,6 +6,23 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RouteprojectU2DListResponse_08e2c02f46(
+    @SerialName("inventoryFrontier") val inventoryFrontier: RemoteField<String> = RemoteField.Missing,
+    @SerialName("projects") val projects: List<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e>,
+    @SerialName("projectsNextCursor") val projectsNextCursor: RemoteField<String>,
+    @SerialName("reads") val reads: RouteprojectU2DListQueryU2DReads_4659e6d395,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("inventoryFrontier", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projects", "List<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectsNextCursor", "String", true, true, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class RouteprojectU2DNotesU2DReadPath_05812a27bb(
     @SerialName("projectId") val projectId: String,
 ) {
@@ -428,17 +445,6 @@ data class RoutescheduleU2DRunU2DCommandResponse_6f4c2b2449(
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("cancelled", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("run", "RouteautomationsU2DSnapshotResponseU2DRunsU2DItem_38754692c8", false, true, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RoutescheduleU2DRunU2DInboxResponse_d9b927ff80(
-    @SerialName("runs") val runs: List<RouteautomationsU2DSnapshotResponseU2DRunsU2DItem_38754692c8>,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("runs", "List<RouteautomationsU2DSnapshotResponseU2DRunsU2DItem_38754692c8>", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

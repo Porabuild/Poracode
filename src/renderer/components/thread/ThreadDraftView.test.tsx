@@ -1023,6 +1023,113 @@ describe("ThreadDraftView", () => {
     );
   });
 
+  it.each([
+    { pin: "develop", expected: "origin/develop" },
+    { pin: "gone-branch", expected: "origin/main" },
+  ])("defaults a new worktree to the pinned base $pin when it exists", ({ pin, expected }) => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "feature",
+          tracking: "origin/feature",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "feature",
+          defaultBranch: "origin/main",
+          branches: [
+            { name: "feature", current: true, commit: "a", isRemote: false },
+            { name: "develop", current: false, commit: "b", isRemote: false },
+            { name: "develop", current: false, commit: "b", isRemote: true, remote: "origin" },
+            { name: "main", current: false, commit: "c", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    render(
+      <ThreadDraftView
+        project={{ ...project, worktreeBaseBranch: pin }}
+        agentStatuses={[codexStatus]}
+        onStart={onStart}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(expected);
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ worktreeBaseBranch: expected }));
+  });
+
+  it("sets a branch from the picker as the project's default worktree base and selects it", async () => {
+    const previousProjects = useAppStore.getState().projects;
+    useAppStore.setState({ projects: [project] });
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "main",
+          defaultBranch: "origin/main",
+          branches: [
+            { name: "main", current: true, commit: "a", isRemote: false },
+            { name: "develop", current: false, commit: "b", isRemote: false },
+            { name: "main", current: false, commit: "a", isRemote: true, remote: "origin" },
+            { name: "develop", current: false, commit: "b", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    try {
+      render(<StoreBackedThreadDraftView onStart={() => {}} />);
+      fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+
+      fireEvent.click(screen.getByRole("button", { name: "Select branch" }));
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Use develop as default worktree base" }),
+      );
+      expect(useAppStore.getState().projects[0]?.worktreeBaseBranch).toBe("develop");
+      // The picker stays open after setting the default, which hides the trigger from the a11y tree.
+      expect(screen.getByRole("button", { name: "Select branch", hidden: true })).toHaveTextContent(
+        "origin/develop",
+      );
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Use develop as default worktree base" }),
+      );
+      expect(useAppStore.getState().projects[0]).not.toHaveProperty("worktreeBaseBranch");
+    } finally {
+      useAppStore.setState({ projects: previousProjects });
+    }
+  });
+
   it("keeps worktree + changes available after a dirty feature branch defaults to the project branch", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useGitStore.setState({

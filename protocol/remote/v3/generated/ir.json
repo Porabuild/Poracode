@@ -54365,6 +54365,20 @@
                       "minLength": 1,
                       "type": "string"
                     },
+                    "pinnedBranches": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "scripts": {
                       "anyOf": [
                         {
@@ -54442,6 +54456,17 @@
                           },
                           "type": "object",
                           "x-poracode-unknownFields": "strip"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "worktreeBaseBranch": {
+                      "anyOf": [
+                        {
+                          "minLength": 1,
+                          "type": "string"
                         },
                         {
                           "type": "null"
@@ -55420,6 +55445,13 @@
                   "minLength": 1,
                   "type": "string"
                 },
+                "pinnedBranches": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
                 "remoteId": {
                   "minLength": 1,
                   "type": "string"
@@ -55501,6 +55533,10 @@
                   "x-poracode-unknownFields": "strip"
                 },
                 "workspaceId": {
+                  "type": "string"
+                },
+                "worktreeBaseBranch": {
+                  "minLength": 1,
                   "type": "string"
                 },
                 "worktreeLocation": {
@@ -56344,6 +56380,13 @@
                     "minLength": 1,
                     "type": "string"
                   },
+                  "pinnedBranches": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
                   "remoteId": {
                     "minLength": 1,
                     "type": "string"
@@ -56425,6 +56468,10 @@
                     "x-poracode-unknownFields": "strip"
                   },
                   "workspaceId": {
+                    "type": "string"
+                  },
+                  "worktreeBaseBranch": {
+                    "minLength": 1,
                     "type": "string"
                   },
                   "worktreeLocation": {
@@ -66050,6 +66097,13 @@
                     "minLength": 1,
                     "type": "string"
                   },
+                  "pinnedBranches": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
                   "remoteId": {
                     "minLength": 1,
                     "type": "string"
@@ -66131,6 +66185,10 @@
                     "x-poracode-unknownFields": "strip"
                   },
                   "workspaceId": {
+                    "type": "string"
+                  },
+                  "worktreeBaseBranch": {
+                    "minLength": 1,
                     "type": "string"
                   },
                   "worktreeLocation": {
@@ -78782,7 +78840,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:5af8e9263ab268eac0ee0b23cfd42cc79c13e29fb80a29bfb6fd8a40a7d56d54",
+  "sourceHash": "sha256:217a33f5074e810ea0a0ac1140f446e767bcb709e0ab131e6af9589263730171",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

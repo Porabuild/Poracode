@@ -80,7 +80,10 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { resolveModelLabel } from "@/renderer/components/providers/modelDisplay";
 import { launchExperiment } from "@/renderer/actions/experimentActions";
 import { openMcpServersSettings } from "@/renderer/actions/panelActions";
-import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
+import {
+  updateProjectMcpServers,
+  updateProjectWorktreeBaseBranch,
+} from "@/renderer/actions/projectActions";
 import {
   ExperimentDraftTargets,
   type ExperimentDraftCandidate,
@@ -119,6 +122,7 @@ import { useDraftLiveVoice } from "./useDraftLiveVoice";
 import {
   isCurrentCheckoutRef,
   localBranchNameFromRef,
+  qualifiedRemoteName,
   resolveWorktreeOriginRef,
 } from "@/renderer/components/common/BranchSelector/parts/worktreeBaseRef";
 
@@ -623,10 +627,22 @@ export function ThreadDraftComposerArea(props: {
     projectStatus.tracking
       ? projectStatus.tracking
       : undefined;
-  // New worktrees fork from the project's default branch (the remote HEAD,
-  // e.g. `origin/main`) rather than whatever the main checkout is on. Fall
-  // back to the current checkout only when no remote default is known.
-  const implicitWorktreeBase = projectDefaultBranch ?? trackingWorktreeBase;
+  // New worktrees fork from the project's pinned base, else the repository's
+  // default branch (the remote HEAD, e.g. `origin/main`), rather than whatever
+  // the main checkout is on. Fall back to the checkout only when neither is
+  // known. A pin whose branch no longer exists is ignored.
+  const pinnedWorktreeBranch = props.project.worktreeBaseBranch;
+  const pinnedWorktreeBase =
+    pinnedWorktreeBranch &&
+    (projectBranches.length === 0 ||
+      projectBranches.some(
+        (branch) =>
+          branch.name === pinnedWorktreeBranch ||
+          qualifiedRemoteName(branch) === pinnedWorktreeBranch,
+      ))
+      ? resolveWorktreeOriginRef(pinnedWorktreeBranch, projectBranches, projectStatus?.tracking)
+      : undefined;
+  const implicitWorktreeBase = pinnedWorktreeBase ?? projectDefaultBranch ?? trackingWorktreeBase;
   const defaultWorktreeBase = implicitWorktreeBase ?? props.gitBranch;
   // Experiments launch from a local branch, so they keep the checkout's base.
   const experimentDefaultBase = trackingWorktreeBase ?? props.gitBranch;
@@ -683,6 +699,13 @@ export function ThreadDraftComposerArea(props: {
       ...(baseBranch ? { baseBranch } : {}),
       transferUncommitted: mode === "new-with-changes",
     });
+  }
+
+  // Setting a default also makes it this draft's base; clearing it keeps the
+  // current selection.
+  function handleDefaultWorktreeBranchChange(branch: string | undefined) {
+    updateProjectWorktreeBaseBranch(props.project.id, branch);
+    if (branch) handleBranchSelect({ branch, baseBranch: branch, isWorktree: true });
   }
 
   function handleBranchSelect(selection: BranchSelection) {
@@ -1545,11 +1568,11 @@ export function ThreadDraftComposerArea(props: {
                     onToggle: (next: boolean) => {
                       setExperimentMode(next);
                       if (next) {
-                        // The worktree default is a remote ref; experiments
-                        // keep their checkout-based default instead.
+                        // The worktree default (pin or remote HEAD) may be a
+                        // remote ref; experiments keep their checkout default.
                         const rawBase =
                           selectedWorktreeBase !== undefined &&
-                          selectedWorktreeBase !== projectDefaultBranch
+                          selectedWorktreeBase !== implicitWorktreeBase
                             ? selectedWorktreeBase
                             : experimentDefaultBase;
                         setExperimentBaseBranch(rawBase ? resolveOriginBase(rawBase) : null);
@@ -1609,7 +1632,13 @@ export function ThreadDraftComposerArea(props: {
                   : branchSelection?.baseBranch
             }
             worktreeMode={experimentMode || props.worktreeMode}
-            {...(!experimentMode ? { onWorktreeModeChange: props.onWorktreeModeChange } : {})}
+            {...(!experimentMode
+              ? {
+                  onWorktreeModeChange: props.onWorktreeModeChange,
+                  defaultWorktreeBranch: pinnedWorktreeBranch,
+                  onDefaultWorktreeBranchChange: handleDefaultWorktreeBranchChange,
+                }
+              : {})}
             onSelect={
               experimentMode
                 ? (selection) =>

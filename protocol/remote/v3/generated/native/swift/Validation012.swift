@@ -1,14 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
-  static let schema_d2613d4b01184321 = RemoteSchema(type: "array", minItems: 1, maxItems: 6, items: RemoteSchemas.schema_236f000609716d3a, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_d2a18aed5ce077b0 = RemoteSchema(type: "string", literals: [.string("APPROVED"), .string("CHANGES_REQUESTED"), .string("COMMENTED"), .string("DISMISSED"), .string("PENDING")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_d2dd3595e1b5e5dc = RemoteSchema(type: "boolean", literals: [.bool(true)], unknownPolicy: .strip)
 }
 
@@ -182,6 +174,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_da76232259cbe6bb = RemoteSchema(type: "object", required: Set(["avatarColor", "handle", "name"]), properties: ["avatarColor": RemoteSchemas.schema_8f8e73cb353005a1, "handle": RemoteSchemas.schema_485fa06696a88681, "name": RemoteSchemas.schema_c8709e27df818d5b, "plan": RemoteSchemas.schema_485fa06696a88681], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_da96a7918fef3ffb = RemoteSchema(type: "object", required: Set(["kind", "patch", "projectId"]), properties: ["kind": RemoteSchemas.schema_cbc64d14585e9a92, "patch": RemoteSchemas.schema_c6ebfd6404db800a, "projectId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -446,4 +442,8 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_e82ae39cda9f878d = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_f9e7f90793023053, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_e841af2cbd75708d = RemoteSchema(type: "string", literals: [.string("toggle")], unknownPolicy: .strip)
 }

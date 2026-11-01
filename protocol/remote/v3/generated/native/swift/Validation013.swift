@@ -1,10 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
-  static let schema_e841af2cbd75708d = RemoteSchema(type: "string", literals: [.string("toggle")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_e847e321fbb6435b = RemoteSchema(type: "string", maxLength: 120, unknownPolicy: .strip)
 }
 
@@ -265,6 +261,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_f26d9689fe341b94 = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_515482d2104d1efa, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_f2b9759b60404656 = RemoteSchema(type: "object", properties: ["force": RemoteSchemas.schema_feeb8bb50144d96d, "providerIds": RemoteSchemas.schema_0f732b9fceb2c6ac], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -393,6 +393,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_f82c2aa6f629e6fe = RemoteSchema(type: "object", required: Set(["projects"]), properties: ["created": RemoteSchemas.schema_feeb8bb50144d96d, "project": RemoteSchemas.schema_37cd292a9ef1a3c6, "projects": RemoteSchemas.schema_9e0169cfe7876c1e], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_f86171557f2ff456 = RemoteSchema(type: "array", items: RemoteSchemas.schema_11f20430355ec49c, unknownPolicy: .strip)
 }
 
@@ -442,8 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_f9e7f90793023053 = RemoteSchema(type: "integer", minimum: 1.0, maximum: 100.0, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_fa41f0033e95da89 = RemoteSchema(type: "object", required: Set(["distro", "kind", "linuxPath", "uncPath"]), properties: ["distro": RemoteSchemas.schema_36fea325bf1aca70, "kind": RemoteSchemas.schema_2d8274eae552cc51, "linuxPath": RemoteSchemas.schema_36fea325bf1aca70, "remoteServerId": RemoteSchemas.schema_36fea325bf1aca70, "uncPath": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }

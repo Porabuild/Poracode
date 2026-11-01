@@ -2767,6 +2767,10 @@ msgstr "La branche <0>{0}</0> comporte des modifications non fusionnées :"
 #~ msgid "Branch name"
 #~ msgstr "Nom de la branche"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Branch new worktrees fork from. You can also star one in the composer's branch picker."
+msgstr "Branche dont partent les nouveaux arbres de travail. Vous pouvez aussi la marquer d'une étoile dans le sélecteur de branches du compositeur."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Branche pas complètement fusionnée"
@@ -5817,6 +5821,10 @@ msgstr "Agent de codage par défaut"
 msgid "Default Create PR action"
 msgstr "Action Créer une PR par défaut"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Default for new worktrees"
+msgstr "Par défaut pour les nouveaux arbres de travail"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
@@ -5840,6 +5848,10 @@ msgstr "Suppression du fil par défaut"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Default Windows shell"
 #~ msgstr "Shell Windows par défaut"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Default worktree base"
+msgstr "Base par défaut des arbres de travail"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
@@ -11684,6 +11696,10 @@ msgstr "Nouvel espace de travail"
 msgid "New worktree"
 msgstr "Nouvel arbre de travail"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+#~ msgid "New worktrees fork from this branch. Pin one from the branch picker in the composer; unpin to use the repository's default branch."
+#~ msgstr "Les nouveaux arbres de travail partent de cette branche. Épinglez-en une depuis le sélecteur de branches du compositeur ; désépinglez-la pour utiliser la branche par défaut du dépôt."
+
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Newest first"
@@ -13670,6 +13686,17 @@ msgstr "Échec du sélecteur"
 msgid "Picker returned no attachment"
 msgstr "Le sélecteur n'a renvoyé aucune pièce jointe"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Pin {0} as default worktree base"
+#~ msgstr "Épingler {0} comme base par défaut des arbres de travail"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Pin {0} to top"
+msgstr "Épingler {0} en haut"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
@@ -13684,6 +13711,7 @@ msgstr "Épingler le workflow"
 msgid "Pink"
 msgstr "Rose"
 
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
@@ -15422,6 +15450,10 @@ msgstr "dépôt"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "Dépôt"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Repository default branch"
+msgstr "Branche par défaut du dépôt"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Repository entries must be unique."
@@ -18223,6 +18255,11 @@ msgstr "Arrêtez les fils de discussion en cours du projet avant de changer son 
 msgid "Stop the run when this total time is reached."
 msgstr "Arrêtez l’exécution lorsque cette durée totale est atteinte."
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Stop using {0} as default worktree base"
+#~ msgstr "Ne plus utiliser {0} comme base par défaut des arbres de travail"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "Arrêter la saisie vocale"
@@ -20951,10 +20988,25 @@ msgstr "Appareil sans nom"
 msgid "Unphased:"
 msgstr "Sans phase :"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "Désépingler"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Unpin {0}"
+#~ msgstr "Désépingler {0}"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Unpin {0} as default worktree base"
+#~ msgstr "Désépingler {0} comme base par défaut des arbres de travail"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+#~ msgid "Unpin default worktree base"
+#~ msgstr "Désépingler la base par défaut des arbres de travail"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -21343,6 +21395,11 @@ msgstr "Utilisation : /goal edit <objective>"
 msgid "USD per million tokens"
 msgstr "USD par million de tokens"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use {0} as default worktree base"
+msgstr "Utiliser {0} comme base par défaut des arbres de travail"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Use {crewName} in this project"
 msgstr "Utiliser {crewName} dans ce projet"
@@ -21378,6 +21435,10 @@ msgstr "Utiliser un dossier existant"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "Utiliser une image du dossier du projet..."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use as default for new worktrees"
+msgstr "Utiliser par défaut pour les nouveaux arbres de travail"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."

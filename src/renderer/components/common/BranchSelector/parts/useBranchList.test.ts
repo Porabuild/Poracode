@@ -1,6 +1,9 @@
+import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
-import { getActiveWorktreeBranchNames } from "./useBranchList";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useGitStore } from "@/renderer/state/gitStore";
+import { getActiveWorktreeBranchNames, useBranchList } from "./useBranchList";
 
 function makeThread(overrides: Partial<Thread> & Pick<Thread, "id" | "projectId">): Thread {
   return {
@@ -45,5 +48,54 @@ describe("getActiveWorktreeBranchNames", () => {
     expect(getActiveWorktreeBranchNames(updatedThreads, "p1")).toEqual(
       getActiveWorktreeBranchNames(threads, "p1"),
     );
+  });
+});
+
+describe("useBranchList pinned branches", () => {
+  it("lists pinned branches first in pin order and filters them by search", () => {
+    useAppStore.setState({
+      projects: [
+        {
+          id: "p1",
+          name: "Repo",
+          location: { kind: "posix", path: "/repo" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+          pinnedBranches: ["release", "develop", "gone"],
+        },
+      ],
+      threads: [],
+    });
+    useGitStore.setState({
+      branches: {
+        p1: {
+          current: "main",
+          branches: [
+            { name: "main", current: true, commit: "a", isRemote: false },
+            { name: "develop", current: false, commit: "b", isRemote: false },
+            { name: "release", current: false, commit: "c", isRemote: true, remote: "origin" },
+            { name: "feature", current: false, commit: "d", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    const { result, rerender } = renderHook(
+      ({ search }) => useBranchList({ projectId: "p1", search }),
+      {
+        initialProps: { search: "" },
+      },
+    );
+    expect(result.current.items.map((item) => item.id)).toEqual([
+      "header-pinned",
+      "release",
+      "develop",
+      "header-local",
+      "main",
+      "header-remote",
+      "feature",
+    ]);
+
+    rerender({ search: "dev" });
+    expect(result.current.items.map((item) => item.id)).toEqual(["header-pinned", "develop"]);
   });
 });

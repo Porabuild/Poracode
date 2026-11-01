@@ -2767,6 +2767,10 @@ msgstr "Nhánh <0>{0}</0> có các thay đổi chưa được hợp nhất:"
 #~ msgid "Branch name"
 #~ msgstr "Tên nhánh"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Branch new worktrees fork from. You can also star one in the composer's branch picker."
+msgstr "Nhánh mà cây làm việc mới tách ra từ đó. Bạn cũng có thể gắn sao cho nhánh trong bộ chọn nhánh của trình soạn thảo."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Nhánh chưa được hợp nhất hoàn toàn"
@@ -5817,6 +5821,10 @@ msgstr "Tác nhân lập trình mặc định"
 msgid "Default Create PR action"
 msgstr "Hành động Tạo PR mặc định"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Default for new worktrees"
+msgstr "Mặc định cho cây làm việc mới"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
@@ -5840,6 +5848,10 @@ msgstr "Hành vi xóa chủ đề mặc định"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Default Windows shell"
 #~ msgstr "Shell Windows mặc định"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Default worktree base"
+msgstr "Nhánh gốc mặc định của cây làm việc"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
@@ -11685,6 +11697,10 @@ msgstr "Không gian làm việc mới"
 msgid "New worktree"
 msgstr "Cây làm việc mới"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+#~ msgid "New worktrees fork from this branch. Pin one from the branch picker in the composer; unpin to use the repository's default branch."
+#~ msgstr "Cây làm việc mới sẽ tách ra từ nhánh này. Ghim một nhánh từ bộ chọn nhánh trong trình soạn thảo; bỏ ghim để dùng nhánh mặc định của kho lưu trữ."
+
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Newest first"
@@ -13671,6 +13687,17 @@ msgstr "Bộ chọn không thành công"
 msgid "Picker returned no attachment"
 msgstr "Bộ chọn không trả về tệp đính kèm nào"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Pin {0} as default worktree base"
+#~ msgstr "Ghim {0} làm nhánh gốc mặc định của cây làm việc"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Pin {0} to top"
+msgstr "Ghim {0} lên đầu"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
@@ -13685,6 +13712,7 @@ msgstr "Ghim quy trình làm việc"
 msgid "Pink"
 msgstr "Hồng"
 
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
@@ -15423,6 +15451,10 @@ msgstr "kho lưu trữ"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "Kho lưu trữ"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Repository default branch"
+msgstr "Nhánh mặc định của kho lưu trữ"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Repository entries must be unique."
@@ -18224,6 +18256,11 @@ msgstr "Dừng các luồng đang chạy của dự án trước khi thay đổi
 msgid "Stop the run when this total time is reached."
 msgstr "Dừng lượt chạy khi đạt tổng thời gian này."
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Stop using {0} as default worktree base"
+#~ msgstr "Ngừng dùng {0} làm nhánh gốc mặc định của cây làm việc"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "Dừng nhập bằng giọng nói"
@@ -20952,10 +20989,25 @@ msgstr "Thiết bị chưa đặt tên"
 msgid "Unphased:"
 msgstr "Không phân giai đoạn:"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "Bỏ ghim"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Unpin {0}"
+#~ msgstr "Bỏ ghim {0}"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Unpin {0} as default worktree base"
+#~ msgstr "Bỏ ghim {0} làm nhánh gốc mặc định của cây làm việc"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+#~ msgid "Unpin default worktree base"
+#~ msgstr "Bỏ ghim nhánh gốc mặc định của cây làm việc"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -21344,6 +21396,11 @@ msgstr "Cách dùng: /goal edit <objective>"
 msgid "USD per million tokens"
 msgstr "USD trên một triệu token"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use {0} as default worktree base"
+msgstr "Dùng {0} làm nhánh gốc mặc định của cây làm việc"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Use {crewName} in this project"
 msgstr "Sử dụng {crewName} trong dự án này"
@@ -21379,6 +21436,10 @@ msgstr "Sử dụng thư mục hiện có"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "Dùng ảnh từ thư mục dự án..."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use as default for new worktrees"
+msgstr "Dùng làm mặc định cho cây làm việc mới"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."

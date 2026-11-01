@@ -2766,6 +2766,10 @@ msgstr "ブランチ <0>{0}</0> にはマージされていない変更があり
 #~ msgid "Branch name"
 #~ msgstr "ブランチ名"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Branch new worktrees fork from. You can also star one in the composer's branch picker."
+msgstr "新しいワークツリーの分岐元ブランチです。コンポーザーのブランチ選択で星を付けて指定することもできます。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "ブランチが完全にマージされていません"
@@ -5816,6 +5820,10 @@ msgstr "デフォルトのコーディングエージェント"
 msgid "Default Create PR action"
 msgstr "デフォルトの PR 作成アクション"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Default for new worktrees"
+msgstr "新しいワークツリーのデフォルト"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
@@ -5839,6 +5847,10 @@ msgstr "デフォルトのスレッドの削除"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Default Windows shell"
 #~ msgstr "既定の Windows シェル"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Default worktree base"
+msgstr "デフォルトのワークツリーのベース"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
@@ -11683,6 +11695,10 @@ msgstr "新しいワークスペース"
 msgid "New worktree"
 msgstr "新しいワークツリー"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+#~ msgid "New worktrees fork from this branch. Pin one from the branch picker in the composer; unpin to use the repository's default branch."
+#~ msgstr "新しいワークツリーはこのブランチから分岐します。コンポーザーのブランチ選択でブランチを固定し、固定を解除するとリポジトリのデフォルトブランチを使用します。"
+
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Newest first"
@@ -13669,6 +13685,17 @@ msgstr "ピッカーが失敗しました"
 msgid "Picker returned no attachment"
 msgstr "ピッカーは添付ファイルを返しませんでした"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Pin {0} as default worktree base"
+#~ msgstr "{0} をデフォルトのワークツリーのベースとして固定"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Pin {0} to top"
+msgstr "{0} を上部に固定"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
@@ -13683,6 +13710,7 @@ msgstr "ワークフローをピン留め"
 msgid "Pink"
 msgstr "ピンク"
 
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
@@ -15421,6 +15449,10 @@ msgstr "リポジトリ"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "リポジトリ"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Repository default branch"
+msgstr "リポジトリのデフォルトブランチ"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Repository entries must be unique."
@@ -18222,6 +18254,11 @@ msgstr "フォルダーを変更する前に、プロジェクトの実行中の
 msgid "Stop the run when this total time is reached."
 msgstr "合計時間がこの値に達したら実行を停止します。"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Stop using {0} as default worktree base"
+#~ msgstr "{0} をデフォルトのワークツリーのベースとして使用しない"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Stop voice input"
 msgstr "音声入力を停止する"
@@ -20950,10 +20987,25 @@ msgstr "名前なしのデバイス"
 msgid "Unphased:"
 msgstr "フェーズなし:"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
 msgstr "固定を解除する"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Unpin {0}"
+#~ msgstr "{0} の固定を解除"
+
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+#~ msgid "Unpin {0} as default worktree base"
+#~ msgstr "{0} のデフォルトのワークツリーのベースとしての固定を解除"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+#~ msgid "Unpin default worktree base"
+#~ msgstr "デフォルトのワークツリーのベースの固定を解除"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -21342,6 +21394,11 @@ msgstr "使用法: /goal edit <objective>"
 msgid "USD per million tokens"
 msgstr "100万トークンあたりのUSD"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use {0} as default worktree base"
+msgstr "{0} をデフォルトのワークツリーのベースとして使用"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Use {crewName} in this project"
 msgstr "このプロジェクトで {crewName} を使用"
@@ -21377,6 +21434,10 @@ msgstr "既存のフォルダーを使用する"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "プロジェクトフォルダの画像を使用..."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use as default for new worktrees"
+msgstr "新しいワークツリーのデフォルトとして使用"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."

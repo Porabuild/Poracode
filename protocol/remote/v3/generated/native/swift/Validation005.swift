@@ -1,10 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
-  static let schema_4721d11b498e9a74 = RemoteSchema(type: "string", literals: [.string("npm-global"), .string("pnpm-global"), .string("bun-global")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_473e9b7f4728cf72 = RemoteSchema(type: "object", properties: ["gui": RemoteSchemas.schema_feeb8bb50144d96d, "terminal": RemoteSchemas.schema_feeb8bb50144d96d], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -382,6 +378,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_58317133a27c74f8 = RemoteSchema(type: "array", items: RemoteSchemas.schema_9c01de6b080eca40, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_585d7373f6c647fe = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_f82c2aa6f629e6fe, RemoteSchemas.schema_c2b3b7b2742027d9], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

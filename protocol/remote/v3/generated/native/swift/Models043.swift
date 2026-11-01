@@ -270,10 +270,10 @@ public struct RouteshellU2DSnapshotResponseU2DWorkspacesU2DItem_33250cfe65: Coda
   }
 }
 
-public struct RouteshellU2DSnapshotResponse_b370c42275: Codable, Sendable, RemoteModelMetadata {
+public struct RouteshellU2DSnapshotResponse_89c3e54d73: Codable, Sendable, RemoteModelMetadata {
   public var gitState: RemoteField<RouteshellU2DSnapshotResponseU2DGitState_039d29a220> = .missing
   public var gitSummariesByThread: RemoteField<RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78> = .missing
-  public var projects: [RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_0f8ade0d27]
+  public var projects: [RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e]
   public var projectsNextCursor: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
   public var reads: RemoteField<RouteprojectU2DListQueryU2DReads_4659e6d395> = .missing
   public var runtimeSummariesByThread: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26
@@ -287,7 +287,7 @@ public struct RouteshellU2DSnapshotResponse_b370c42275: Codable, Sendable, Remot
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "gitState", typeName: "RouteshellU2DSnapshotResponseU2DGitState_039d29a220", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "gitSummariesByThread", typeName: "RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "projects", typeName: "[RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_0f8ade0d27]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projects", typeName: "[RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "projectsNextCursor", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "reads", typeName: "RouteprojectU2DListQueryU2DReads_4659e6d395", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "runtimeSummariesByThread", typeName: "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),

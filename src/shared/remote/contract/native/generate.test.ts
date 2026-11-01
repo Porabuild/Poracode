@@ -86,7 +86,7 @@ describe("remote v3 native binding generator", () => {
         // parameters move both hashes without changing counts or wire versions.
         // The optional shell snapshotEpoch moves the source hash only.
         // The optional open-string runtime error `reason` moves the source hash only.
-        sourceHash: "sha256:5af8e9263ab268eac0ee0b23cfd42cc79c13e29fb80a29bfb6fd8a40a7d56d54",
+        sourceHash: "sha256:217a33f5074e810ea0a0ac1140f446e767bcb709e0ab131e6af9589263730171",
         manifestHash: "sha256:0cc3d41e33fa8b3fb6138c2027ed9da3c42ab15c24b3e1a3723e73c8e9a15d8f",
         counts: {
           routes: 119,

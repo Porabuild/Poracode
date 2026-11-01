@@ -130,6 +130,7 @@ const PROJECT_PHASE1_RAW_COLUMNS = [
   "p.location_distro",
   "p.location_linux_path",
   "p.location_unc_path",
+  "p.worktree_base_branch",
   "p.workspace_id",
   "p.created_at",
 ] as const;
@@ -140,6 +141,7 @@ const PROJECT_PHASE1_JSON_COLUMNS = [
   "p.search_settings",
   "p.worktree_location",
   "p.gh_account",
+  "p.pinned_branches",
 ] as const;
 
 /** Every field `rowToThread` reads except `terminal_prompt`, which the wire
@@ -197,6 +199,8 @@ const PROJECT_PHASE2_COLUMNS = [
   "search_settings",
   "worktree_location",
   "gh_account",
+  "worktree_base_branch",
+  "pinned_branches",
   "workspace_id",
   "disabled",
   "sort_order",
