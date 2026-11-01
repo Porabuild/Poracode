@@ -22,15 +22,12 @@ import {
   formatWindowValue,
   usageWindowDisplayLabel,
 } from "@/renderer/components/providers/usageFormat";
-import { ThreadContextUsageDetails } from "./ThreadContextDock";
-import { resolveThreadContextUsageSummary } from "./threadContextUsage";
 import { ThreadDockCollapseButton, ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
 export function ThreadWorkspaceDock({ threadId }: { threadId: string }) {
   const { t } = useLingui();
   const [collapsed, setCollapsed] = useState(true);
   const selectedThread = useThread(threadId);
-  const context = useAppStore((state) => state.runtimeContextByThread[threadId]);
   const projectId = useAppStore(
     (state) => state.threads.find((thread) => thread.id === threadId)?.projectId,
   );
@@ -60,15 +57,6 @@ export function ThreadWorkspaceDock({ threadId }: { threadId: string }) {
           : undefined,
     ) ?? worktreeBranch;
   if (!selectedThread || !projectId) return null;
-  const hasContext =
-    context?.usedTokens !== undefined ||
-    context?.maxTokens !== undefined ||
-    Boolean(context?.breakdown?.length);
-  const contextSummary = resolveThreadContextUsageSummary({
-    thread: selectedThread,
-    agentStatus: undefined,
-    reportedUsage: context,
-  });
   const rows = [
     { label: t`Workspace`, value: projectName },
     { label: t`Path`, value: projectPath },
@@ -77,37 +65,34 @@ export function ThreadWorkspaceDock({ threadId }: { threadId: string }) {
     { label: t`Session ID`, value: sessionId },
   ].filter((row) => row.value !== undefined && row.value !== null);
   return (
-    <ThreadDockSection placement="right" collapsed={collapsed} ariaLabel={t`Thread context`}>
+    <ThreadDockSection placement="right" collapsed={collapsed} ariaLabel={t`Thread info`}>
       <ThreadDockHeader
         icon={FolderGit2}
-        title={t`Thread context`}
+        title={t`Thread info`}
         collapse={{ collapsed, onToggle: () => setCollapsed(!collapsed) }}
         actions={
           <ThreadDockCollapseButton
             collapsed={collapsed}
-            label={collapsed ? t`Expand thread context` : t`Collapse thread context`}
+            label={collapsed ? t`Expand thread info` : t`Collapse thread info`}
             onPress={() => setCollapsed(!collapsed)}
           />
         }
       >
         {collapsed ? (
           <span className="ml-auto min-w-0 truncate text-right text-[0.85em] tabular-nums text-muted">
-            {hasContext ? contextSummary.detail : (branch ?? projectName)}
+            {branch ?? projectName}
           </span>
         ) : null}
       </ThreadDockHeader>
       {!collapsed ? (
-        <>
-          {hasContext ? <ThreadContextUsageDetails summary={contextSummary} /> : null}
-          <dl className="space-y-2 px-3 pb-3">
-            {rows.map((row) => (
-              <div key={row.label} className="min-w-0">
-                <dt className="text-[0.6875rem] text-muted">{row.label}</dt>
-                <dd className="select-text break-all leading-5 text-foreground">{row.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </>
+        <dl className="space-y-2 px-3 pb-3">
+          {rows.map((row) => (
+            <div key={row.label} className="min-w-0">
+              <dt className="text-[0.6875rem] text-muted">{row.label}</dt>
+              <dd className="select-text break-all leading-5 text-foreground">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
       ) : null}
     </ThreadDockSection>
   );

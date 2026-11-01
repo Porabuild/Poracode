@@ -9,6 +9,16 @@
  * source pixel.
  */
 
+export interface ImageThumbOptions {
+  /**
+   * `cover` center-crops the source to the tile aspect (default); `contain`
+   * keeps the full source rect and letterboxes it inside the budget instead.
+   */
+  fit?: "cover" | "contain";
+  /** Multiplies the device-pixel budget for sharper previews. Defaults to 1. */
+  resolutionScale?: number;
+}
+
 const DOWNSAMPLE_CONCURRENCY = 2;
 
 let running = 0;
@@ -61,6 +71,25 @@ export function thumbPixelSize(
   return {
     width: Math.max(1, Math.round(cssWidth * scale)),
     height: Math.max(1, Math.round(cssHeight * scale)),
+  };
+}
+
+/**
+ * Largest full-source thumbnail that fits the device-pixel budget for
+ * `fit: "contain"`. Never enlarges: returns null when the source already fits.
+ */
+export function containPixelSize(
+  srcW: number,
+  srcH: number,
+  destW: number,
+  destH: number,
+): { width: number; height: number } | null {
+  if (srcW <= 0 || srcH <= 0 || destW <= 0 || destH <= 0) return null;
+  const ratio = Math.min(destW / srcW, destH / srcH, 1);
+  if (ratio >= 1) return null;
+  return {
+    width: Math.max(1, Math.round(srcW * ratio)),
+    height: Math.max(1, Math.round(srcH * ratio)),
   };
 }
 
@@ -180,12 +209,21 @@ async function bitmapToBlob(bitmap: ImageBitmap): Promise<Blob | null> {
   });
 }
 
+function validResolutionScale(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) && value > 0 ? value : 1;
+}
+
 /**
- * Build a blob: URL for a cover-cropped, high-quality thumbnail of an already
- * decoded <img>. Returns null when downsampling is unnecessary or unavailable
- * so the caller can keep painting the original source.
+ * Build a blob: URL for a high-quality thumbnail of an already decoded <img>.
+ * `fit: "cover"` (default) center-crops the source to the tile; `"contain"`
+ * keeps the whole source inside the budget without cropping or upscaling.
+ * Returns null when downsampling is unnecessary or unavailable so the caller
+ * can keep painting the original source.
  */
-export async function downsampleLoadedImage(img: HTMLImageElement): Promise<string | null> {
+export async function downsampleLoadedImage(
+  img: HTMLImageElement,
+  options: ImageThumbOptions = {},
+): Promise<string | null> {
   if (typeof createImageBitmap !== "function") return null;
   const src = img.currentSrc || img.src;
   if (!isRasterDownsampleCandidate(src)) return null;
@@ -193,15 +231,28 @@ export async function downsampleLoadedImage(img: HTMLImageElement): Promise<stri
   const srcH = img.naturalHeight;
   const display = readDisplaySize(img);
   if (display.width < 1 || display.height < 1) return null;
-  const dest = thumbPixelSize(display.width, display.height, window.devicePixelRatio || 1);
-  if (!shouldDownsample(srcW, srcH, dest.width, dest.height)) return null;
+  const scale = validResolutionScale(options.resolutionScale);
+  const dest = thumbPixelSize(
+    display.width,
+    display.height,
+    (window.devicePixelRatio || 1) * scale,
+  );
+  const contain = options.fit === "contain";
+  const crop = contain
+    ? { sx: 0, sy: 0, sw: srcW, sh: srcH }
+    : coverCropRect(srcW, srcH, dest.width, dest.height);
+  const output = contain
+    ? containPixelSize(srcW, srcH, dest.width, dest.height)
+    : { width: dest.width, height: dest.height };
+  if (!output || (!contain && !shouldDownsample(srcW, srcH, dest.width, dest.height))) {
+    return null;
+  }
 
   return enqueueDownsample(async () => {
     try {
-      const crop = coverCropRect(srcW, srcH, dest.width, dest.height);
       const cropped = await createImageBitmap(img, crop.sx, crop.sy, crop.sw, crop.sh);
       try {
-        const resized = await stepwiseResize(cropped, dest.width, dest.height);
+        const resized = await stepwiseResize(cropped, output.width, output.height);
         try {
           const blob = await bitmapToBlob(resized);
           if (!blob) return null;

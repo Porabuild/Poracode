@@ -4265,6 +4265,10 @@ msgstr "Recolher tarefas em segundo plano"
 msgid "Collapse composer"
 msgstr "Recolher compositor"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Collapse context window"
+msgstr "Recolher janela de contexto"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "Recolher erro"
@@ -4296,8 +4300,12 @@ msgid "Collapse terminal composer"
 msgstr "Recolher o compositor do terminal"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Collapse thread context"
-msgstr "Recolher contexto do tópico"
+#~ msgid "Collapse thread context"
+#~ msgstr "Recolher contexto do tópico"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread info"
+msgstr "Recolher informações da conversa"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -4895,6 +4903,11 @@ msgstr "Contexto transferido para {targetLabel}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context usage"
 msgstr "Uso de contexto"
+
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Context window"
+msgstr "Janela de contexto"
 
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
@@ -7539,6 +7552,10 @@ msgstr "Expandir tudo"
 msgid "Expand background tasks"
 msgstr "Expandir tarefas em segundo plano"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Expand context window"
+msgstr "Expandir janela de contexto"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
 msgstr "Expandir erro"
@@ -7565,8 +7582,12 @@ msgid "Expand images"
 msgstr "Expandir imagens"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Expand thread context"
-msgstr "Expandir contexto do tópico"
+#~ msgid "Expand thread context"
+#~ msgstr "Expandir contexto do tópico"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread info"
+msgstr "Expandir informações da conversa"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -20534,8 +20555,8 @@ msgstr "O tópico já existe."
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-msgid "Thread context"
-msgstr "Contexto do tópico"
+#~ msgid "Thread context"
+#~ msgstr "Contexto do tópico"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -20574,6 +20595,8 @@ msgstr "Doca de meta do tópico"
 msgid "Thread images"
 msgstr "Imagens da conversa"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

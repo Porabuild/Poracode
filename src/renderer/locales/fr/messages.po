@@ -4265,6 +4265,10 @@ msgstr "Réduire les tâches en arrière-plan"
 msgid "Collapse composer"
 msgstr "Réduire le compositeur"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Collapse context window"
+msgstr "Réduire la fenêtre de contexte"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "Réduire l'erreur"
@@ -4296,8 +4300,12 @@ msgid "Collapse terminal composer"
 msgstr "Réduire le compositeur du terminal"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Collapse thread context"
-msgstr "Réduire le contexte du fil de discussion"
+#~ msgid "Collapse thread context"
+#~ msgstr "Réduire le contexte du fil de discussion"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread info"
+msgstr "Réduire les infos du fil"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -4895,6 +4903,11 @@ msgstr "Contexte transféré à {targetLabel}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context usage"
 msgstr "Utilisation du contexte"
+
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Context window"
+msgstr "Fenêtre de contexte"
 
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
@@ -7539,6 +7552,10 @@ msgstr "Tout développer"
 msgid "Expand background tasks"
 msgstr "Développer les tâches en arrière-plan"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Expand context window"
+msgstr "Développer la fenêtre de contexte"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
 msgstr "Développer l'erreur"
@@ -7565,8 +7582,12 @@ msgid "Expand images"
 msgstr "Développer les images"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Expand thread context"
-msgstr "Développer le contexte du fil de discussion"
+#~ msgid "Expand thread context"
+#~ msgstr "Développer le contexte du fil de discussion"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread info"
+msgstr "Développer les infos du fil"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -20533,8 +20554,8 @@ msgstr "Le fil de discussion existe déjà."
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-msgid "Thread context"
-msgstr "Contexte du fil de discussion"
+#~ msgid "Thread context"
+#~ msgstr "Contexte du fil de discussion"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -20573,6 +20594,8 @@ msgstr "Dock d'objectif du fil"
 msgid "Thread images"
 msgstr "Images du fil"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

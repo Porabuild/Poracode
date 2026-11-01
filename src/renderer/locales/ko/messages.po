@@ -4265,6 +4265,10 @@ msgstr "백그라운드 작업 접기"
 msgid "Collapse composer"
 msgstr "작성기 접기"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Collapse context window"
+msgstr "컨텍스트 창 접기"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "오류 접기"
@@ -4296,8 +4300,12 @@ msgid "Collapse terminal composer"
 msgstr "터미널 작성기 접기"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Collapse thread context"
-msgstr "스레드 컨텍스트 접기"
+#~ msgid "Collapse thread context"
+#~ msgstr "스레드 컨텍스트 접기"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread info"
+msgstr "스레드 정보 접기"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -4895,6 +4903,11 @@ msgstr "컨텍스트가 {targetLabel}(으)로 전송되었습니다."
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context usage"
 msgstr "컨텍스트 사용량"
+
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Context window"
+msgstr "컨텍스트 창"
 
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
@@ -7539,6 +7552,10 @@ msgstr "모두 펼치기"
 msgid "Expand background tasks"
 msgstr "백그라운드 작업 펼치기"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Expand context window"
+msgstr "컨텍스트 창 펼치기"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
 msgstr "확장 오류"
@@ -7565,8 +7582,12 @@ msgid "Expand images"
 msgstr "이미지 펼치기"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Expand thread context"
-msgstr "스레드 컨텍스트 펼치기"
+#~ msgid "Expand thread context"
+#~ msgstr "스레드 컨텍스트 펼치기"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread info"
+msgstr "스레드 정보 펼치기"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -20534,8 +20555,8 @@ msgstr "스레드가 이미 존재합니다."
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-msgid "Thread context"
-msgstr "스레드 컨텍스트"
+#~ msgid "Thread context"
+#~ msgstr "스레드 컨텍스트"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -20574,6 +20595,8 @@ msgstr "스레드 목표 도크"
 msgid "Thread images"
 msgstr "스레드 이미지"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"

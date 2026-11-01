@@ -238,6 +238,7 @@ describe("shared settings defaults", () => {
       "agents",
       "backgroundTasks",
       "images",
+      "info",
       "context",
       "usage",
     ]);
@@ -251,10 +252,16 @@ describe("shared settings defaults", () => {
     ).toEqual(["goal", "images", "agents", "plan", "backgroundTasks"]);
   });
 
-  it("preserves existing saved dock order and appends context and usage on upgrade", () => {
+  it("preserves existing saved dock order and appends new docks on upgrade", () => {
     const priorOrder = ["images", "plan", "agents", "goal", "backgroundTasks"];
     const upgraded = normalizeSharedSettings({ threadDocksOrder: priorOrder });
-    expect(upgraded.threadDocksOrder).toEqual([...priorOrder, "vision", "context", "usage"]);
+    expect(upgraded.threadDocksOrder).toEqual([
+      ...priorOrder,
+      "vision",
+      "info",
+      "context",
+      "usage",
+    ]);
     expect(
       reorderVisibleThreadDocks(
         upgraded.threadDocksOrder,
@@ -269,9 +276,70 @@ describe("shared settings defaults", () => {
       "goal",
       "backgroundTasks",
       "vision",
+      "info",
       "plan",
       "context",
     ]);
+  });
+
+  it("inserts the info dock beside a prior-release context slot without moving saved positions", () => {
+    // Orders saved before the unversioned "info" dock existed remain valid:
+    // the new dock lands next to the old combined section.
+    const priorOrder = [
+      "vision",
+      "goal",
+      "plan",
+      "agents",
+      "backgroundTasks",
+      "images",
+      "context",
+      "usage",
+    ] as const;
+    expect(normalizeThreadDocksOrder(priorOrder)).toEqual([
+      "vision",
+      "goal",
+      "plan",
+      "agents",
+      "backgroundTasks",
+      "images",
+      "info",
+      "context",
+      "usage",
+    ]);
+    // A legacy order without context/usage keeps its relative order and gets
+    // the new docks appended in default order.
+    expect(normalizeThreadDocksOrder(["usage", "images", "plan"])).toEqual([
+      "usage",
+      "images",
+      "plan",
+      "vision",
+      "goal",
+      "agents",
+      "backgroundTasks",
+      "info",
+      "context",
+    ]);
+    // An explicitly saved info position is never rewritten.
+    expect(normalizeThreadDocksOrder(["info", "context", "images"])).toEqual([
+      "info",
+      "context",
+      "images",
+      "vision",
+      "goal",
+      "plan",
+      "agents",
+      "backgroundTasks",
+      "usage",
+    ]);
+    // Reordering context or info does not move hidden slot positions.
+    expect(
+      reorderVisibleThreadDocks(
+        ["vision", "info", "context", "usage", "goal"],
+        ["info", "context"],
+        0,
+        1,
+      ),
+    ).toEqual(["vision", "context", "info", "usage", "goal"]);
   });
 
   it("enables notifications and displays them for visible threads by default", () => {

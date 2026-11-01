@@ -19,9 +19,9 @@ const EMPTY_ARTIFACTS: readonly ThreadArtifact[] = [];
  * Right-panel "Images" section: a 2-row horizontal mosaic of every renderable
  * image in the thread's loaded history, newest first. Thumbnails lazy-load
  * (`loading="lazy"` + `decoding="async"`) so opening the panel never fetches
- * off-screen bytes up front, then downsample to the tile's device-pixel box.
- * Clicking any tile opens the fullscreen lightbox at that image with prev/next
- * across the whole thread.
+ * off-screen bytes up front, then downsample to a 2x device-pixel contain
+ * rect so each tile shows the full, sharp image. Clicking any tile opens the
+ * fullscreen lightbox at that image with prev/next across the whole thread.
  */
 export function ThreadImagesDock({
   gallery,
@@ -34,7 +34,7 @@ export function ThreadImagesDock({
   artifacts?: readonly ThreadArtifact[];
 }) {
   const { t } = useLingui();
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   if (gallery.length === 0 && artifacts.length === 0) return null;
   const label = artifacts.length > 0 ? t`Files & artifacts` : t`Images`;
 
@@ -133,15 +133,17 @@ export function ThreadImagesDock({
                       type="button"
                       aria-label={t`Open image ${index + 1} of ${gallery.length}`}
                       title={img.alt || t`Open image preview`}
-                      className="group relative block h-16 w-24 overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[var(--composer-surface)] focus-visible:outline-2 focus-visible:outline-accent"
+                      className="group relative block h-24 w-40 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[var(--composer-surface)] focus-visible:outline-2 focus-visible:outline-accent"
                       onClick={() => openThreadGallery(gallery, undefined, index, threadId)}
                     >
                       {img.src ? (
                         <DownsampledThumb
                           src={img.src}
                           alt={img.alt || ""}
-                          cssPx={96}
-                          className="size-full rounded-[inherit] object-cover [image-rendering:high-quality]"
+                          cssPx={160}
+                          fit="contain"
+                          resolutionScale={2}
+                          className="size-full rounded-[inherit] object-contain [image-rendering:high-quality]"
                         />
                       ) : null}
                       <span
