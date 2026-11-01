@@ -5470,7 +5470,7 @@ msgstr "Cria uma conversa independente até um turno concluído. Os arquivos per
 msgid "Creating PR…"
 msgstr "Criando PR…"
 
-#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Creating worktree…"

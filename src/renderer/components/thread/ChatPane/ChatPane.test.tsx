@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "@heroui/react";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { useThreadForkStore } from "@/renderer/state/threadForkStore";
 import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
 import { useRevertedPromptStore } from "../revertedPrompt";
@@ -3204,6 +3205,127 @@ describe("ChatPane", () => {
 
     expect(screen.queryByText("Revert to checkpoint?")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("Another prompt")).not.toBeInTheDocument());
+  });
+
+  describe("live status bubble", () => {
+    let slot: HTMLDivElement;
+
+    beforeEach(() => {
+      slot = document.createElement("div");
+      document.body.appendChild(slot);
+      useComposerBubbleSlotStore.getState().setSlot("status", "thread-gui", slot);
+    });
+
+    afterEach(() => {
+      useComposerBubbleSlotStore.getState().setSlot("status", "thread-gui", null);
+      slot.remove();
+      useAppStore.setState({
+        runtimeOpenTurnByThread: {},
+        runtimeBackgroundTasksByThread: {},
+      });
+    });
+
+    it("rides the bubble row's leading edge while the turn is working", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-05-01T12:01:10.000Z"));
+
+      const { container } = renderChatPane({
+        ...makeThread(),
+        activeTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      });
+
+      const label = within(slot).getByText("Working for 1m 10s");
+      const bubble = label.closest("[data-chat-status-bubble]");
+      expect(bubble).not.toBeNull();
+      expect(bubble).toHaveClass("poracode-floating-chrome--bubble");
+      expect(container).not.toContainElement(label);
+      expect(container.querySelector("[data-chat-status-placeholder]")).not.toBeNull();
+    });
+
+    it("shows worktree provisioning in the slot only", () => {
+      const thread = { ...makeThread(), status: "launching" as const };
+      useAppStore.setState({
+        threads: [thread],
+        provisioningWorktreeThreadIds: { [thread.id]: true },
+      });
+      seedUserMessage(thread.id, "Build the feature");
+
+      const { container } = renderChatPane(thread);
+
+      expect(within(slot).getByText("Creating worktree…")).toBeInTheDocument();
+      expect(within(container).queryByText("Creating worktree…")).not.toBeInTheDocument();
+    });
+
+    it("shows the background-wait status in the slot", () => {
+      const thread = { ...makeThread(), status: "working" as const };
+      useAppStore.setState({
+        threads: [thread],
+        runtimeOpenTurnByThread: { [thread.id]: false },
+        runtimeBackgroundTasksByThread: {
+          [thread.id]: [{ taskId: "server", kind: "command", description: "Admin server" }],
+        },
+      });
+
+      renderChatPane(thread);
+
+      expect(within(slot).getByText("Waiting for background tasks")).toBeInTheDocument();
+    });
+
+    it("keeps a completed turn's duration in the transcript and the slot empty", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-05-01T12:02:00.000Z"));
+
+      const { container } = renderChatPane({
+        ...makeThread(),
+        status: "idle",
+        activeTurnStartedAt: undefined,
+        lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+        lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+      });
+
+      expect(within(container).getByText("Worked for 1m 15s")).toBeInTheDocument();
+      expect(slot).toBeEmptyDOMElement();
+      expect(container.querySelector("[data-chat-status-placeholder]")).toBeNull();
+    });
+
+    it("moves the reconnect status into the bubble and keeps the fork row", () => {
+      const thread = { ...makeThread(), status: "idle" as const };
+      useAppStore.setState({ threads: [thread] });
+      useAppStore.getState().applyRuntimeEvent(thread.id, {
+        type: "item.started",
+        threadId: thread.id,
+        itemId: "tool-1",
+        itemType: "tool_call",
+        payload: { name: "Read", status: "completed", args: { file_path: "hello.txt" } },
+      });
+      useAppStore
+        .getState()
+        .hydrateThreadCompletedTurns(thread.id, [
+          { startedAt: 1000, endedAt: 76000, anchorItemId: "tool-1" },
+        ]);
+      useAppStore.setState({
+        threads: [thread],
+        connectingThreadIds: { [thread.id]: "connection-1" },
+      });
+
+      const { container } = renderChatPane(thread);
+
+      expect(within(slot).getByText("Resuming session…")).toBeInTheDocument();
+      expect(
+        within(slot).getByText("Resuming session…").closest("[data-chat-status-bubble]"),
+      ).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+      expect(container.querySelector("[data-chat-status-placeholder]")).not.toBeNull();
+
+      act(() => {
+        useAppStore.getState().finishThreadConnecting(thread.id, "connection-1");
+      });
+
+      expect(slot).toBeEmptyDOMElement();
+      expect(container.querySelector("[data-chat-status-placeholder]")).toBeNull();
+      expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+    });
   });
 });
 

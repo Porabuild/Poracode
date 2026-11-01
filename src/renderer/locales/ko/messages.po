@@ -5470,7 +5470,7 @@ msgstr "완료된 턴까지의 독립적인 대화를 만듭니다. 파일은 �
 msgid "Creating PR…"
 msgstr "PR 생성 중…"
 
-#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Creating worktree…"
