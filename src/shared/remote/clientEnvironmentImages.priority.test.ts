@@ -189,3 +189,38 @@ it("promotes an already queued image when it gains focus", async () => {
   await vi.waitFor(() => expect(h.snapshot("/b").url).not.toBe(""));
   expect(h.fetches).toHaveLength(2);
 });
+
+it("starts queued transcript images bottom to top whatever order the rows requested in", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  h.cache.localImageResolution("/busy", "foreground");
+  // Rows mount in stages: a lower window first, then rows above it.
+  h.cache.localImageResolution("/row-8", "foreground", undefined, 8);
+  h.cache.localImageResolution("/row-9", "foreground", undefined, 9);
+  h.cache.localImageResolution("/row-3", "foreground", undefined, 3);
+  h.cache.localImageResolution("/row-5", "foreground", undefined, 5);
+
+  const started: string[] = [];
+  for (let index = 0; index < 4; index++) {
+    h.resolve(index, [index]);
+    await vi.waitFor(() => expect(h.fetches).toHaveLength(index + 2));
+    started.push(decodeURIComponent(h.fetches[index + 1]!.requestPath.split("path=")[1]!));
+  }
+  expect(started).toEqual(["/row-9", "/row-8", "/row-5", "/row-3"]);
+});
+
+it("starts unranked demand before ranked transcript images and refreshes a re-requested rank", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  h.cache.localImageResolution("/busy", "foreground");
+  h.cache.localImageResolution("/row-4", "foreground", undefined, 4);
+  h.cache.localImageResolution("/row-2", "foreground", undefined, 2);
+  h.cache.localImageResolution("/composer", "foreground");
+  // History above loaded and shifted this row down to index 6.
+  h.cache.localImageResolution("/row-2", "foreground", undefined, 6);
+
+  h.resolve(0, [1]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(2));
+  expect(h.fetches[1]!.requestPath).toContain("composer");
+  h.resolve(1, [2]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
+  expect(h.fetches[2]!.requestPath).toContain("row-2");
+});

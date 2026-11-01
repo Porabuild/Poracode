@@ -1,7 +1,6 @@
 import {
   memo,
   useEffect,
-  useReducer,
   useRef,
   useState,
   useSyncExternalStore,
@@ -13,6 +12,7 @@ import { useLingui } from "@lingui/react/macro";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
 import { ImageLightboxActions } from "./ImageLightboxActions";
 import { useThreadGalleryImages } from "../thread/useThreadGalleryImages";
+import { useRenderOnNotify } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 
 /** A pre-resolved image for the lightbox: a renderable URL plus an accessible label. */
 export interface LightboxImage {
@@ -204,18 +204,9 @@ export function ImageLightboxView(props: {
   } | null>(null);
   const selected = images[index];
   const resource = selected?.resource;
-  // Render on every resource notification: a failed image's retry window
-  // lapses with its URL still "", which the snapshot alone would not render,
-  // so the request effect below would never retry it.
-  const [, renderOnNotify] = useReducer((count: number) => count + 1, 0);
+  const onNotify = useRenderOnNotify();
   const resolvedSrc = useSyncExternalStore(
-    resource
-      ? (listener) =>
-          resource.subscribe(() => {
-            renderOnNotify();
-            listener();
-          })
-      : subscribeEmptyImage,
+    resource ? (listener) => resource.subscribe(onNotify(listener)) : subscribeEmptyImage,
     resource?.getSnapshot ?? emptyImageSnapshot,
   );
   const current = selected

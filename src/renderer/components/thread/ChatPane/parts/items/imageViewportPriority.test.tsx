@@ -177,3 +177,73 @@ it.each(
   expect(observer.elements.size).toBe(0);
   expect(observer.disconnect).toHaveBeenCalledOnce();
 });
+
+it("loads queued transcript images from the bottom row up", async () => {
+  const fetches: { path: string; done: (bytes: RemoteEnvironmentImageBytes) => void }[] = [];
+  const imageCache = new RemoteEnvironmentImageCache({
+    maxConcurrentFetches: 1,
+    fetchBytes: (path) =>
+      new Promise((resolve) => {
+        fetches.push({ path, done: resolve });
+      }),
+    createObjectUrl: () => "blob:row",
+    revokeObjectUrl: () => undefined,
+  });
+  cache = imageCache;
+  const readiness = createCacheImageReadiness(imageCache);
+  const items: RuntimeChatItem[] = [0, 1, 2, 3].map((index) => ({
+    id: `row-image-${index}`,
+    type: "image_view",
+    state: "completed",
+    streams: {},
+    payload: {
+      name: "images",
+      status: "success",
+      args: {},
+      images: [
+        remoteImageRef({
+          threadId: "ranked-rows",
+          itemId: `row-image-${index}`,
+          path: ["images", 0],
+          mime: "image/png",
+          bytes: 4,
+          width: 800,
+          height: 600,
+        }),
+      ],
+    },
+  }));
+  const view = render(
+    <AppProvider syncWindowChrome={false}>
+      <ChatPaneActionsContext.Provider value={{ remoteImageReadiness: readiness }}>
+        {items.map((item, index) => (
+          <div key={item.id} data-chat-virtual-row="true" data-index={index}>
+            <ImageView item={item} />
+          </div>
+        ))}
+      </ChatPaneActionsContext.Provider>
+    </AppProvider>,
+  );
+  const cards = [...view.container.querySelectorAll("[data-poracode-image-card]")];
+  const show = (...rows: number[]) =>
+    act(() =>
+      ImageObserver.instances[0]!.visibility(
+        ...rows.map((row): [Element, boolean] => [cards[row]!, true]),
+      ),
+    );
+  // Like the transcript opening at its end: the bottom window shows first,
+  // then rows above it, so the most recent demand is not the newest row.
+  show(2, 3);
+  show(0, 1);
+  // The top row took the only free slot as it mounted; the rest queued.
+  expect(fetches).toHaveLength(1);
+  expect(fetches[0]!.path).toContain("row-image-0");
+  for (const expected of ["row-image-3", "row-image-2", "row-image-1"]) {
+    const index = fetches.length;
+    await act(async () => {
+      fetches[index - 1]!.done({ bytes: new Uint8Array([index]), contentType: "image/png" });
+    });
+    await waitFor(() => expect(fetches).toHaveLength(index + 1));
+    expect(fetches[index]!.path).toContain(expected);
+  }
+});

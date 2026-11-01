@@ -3,8 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RemoteImageRefValue } from "@/shared/remote";
 import { RemoteEnvironmentImageCache } from "@/shared/remote/clientEnvironmentImages";
 import { createCacheImageReadiness } from "@/renderer/state/cacheImageReadiness";
+import { galleryImageResource } from "@/renderer/components/thread/ChatPane/parts/items/threadGalleryImageReadiness";
 import type { RemoteImageReadiness } from "./environmentSessions";
-import { useRemoteImagePathUrl, useRemoteImageRefUrl } from "./useRemoteImageReadiness";
+import {
+  fetchRemoteImagePathUrl,
+  useRemoteImagePathUrl,
+  useRemoteImageRefUrl,
+} from "./useRemoteImageReadiness";
 
 const RETRY_WINDOW_MS = 1_000;
 const REF: RemoteImageRefValue = {
@@ -77,4 +82,43 @@ describe("remote image readiness hooks", () => {
       cache.dispose();
     },
   );
+});
+
+describe("explicitly viewed images", () => {
+  // One slot, held by a transcript image, with more transcript images queued.
+  function busyCache() {
+    const requested: string[] = [];
+    const cache = new RemoteEnvironmentImageCache({
+      fetchBytes: (requestPath) => {
+        requested.push(requestPath);
+        return new Promise(() => undefined);
+      },
+      createObjectUrl: () => "blob:unused",
+      revokeObjectUrl: () => undefined,
+      maxConcurrentFetches: 1,
+    });
+    for (const path of ["/held.png", "/queued-a.png", "/queued-b.png"])
+      cache.localImageResolution(path);
+    expect(requested).toHaveLength(1);
+    return { cache, requested, readiness: createCacheImageReadiness(cache) };
+  }
+
+  it("starts the open lightbox image in the reserved slot", () => {
+    const { cache, requested, readiness } = busyCache();
+    const resource = galleryImageResource(readiness, "/lightbox.png");
+    const unsubscribe = resource.subscribe(() => undefined);
+    resource.request();
+    expect(requested).toHaveLength(2);
+    expect(requested[1]).toContain("lightbox.png");
+    unsubscribe();
+    cache.dispose();
+  });
+
+  it("starts the full-resolution fetch for preview, copy, or download in the reserved slot", () => {
+    const { cache, requested, readiness } = busyCache();
+    void fetchRemoteImagePathUrl("/original.png", readiness);
+    expect(requested).toHaveLength(2);
+    expect(requested[1]).toContain("original.png");
+    cache.dispose();
+  });
 });

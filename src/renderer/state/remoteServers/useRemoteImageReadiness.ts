@@ -10,12 +10,12 @@ const noopSubscribe = () => () => undefined;
 const emptySnapshot = () => "";
 
 /**
- * Renders on every keyed notification, not only on URL changes. A failed or
- * evicted key notifies when its retry window lapses, but its URL is "" on both
- * sides, so `useSyncExternalStore` alone would skip the render whose effect
- * requests the retry and the slot would stay blank until an unrelated render.
+ * Wraps `useSyncExternalStore` listeners so every notification renders, not
+ * only a changed snapshot. A failed or evicted image notifies when its retry
+ * window lapses with its URL still "" on both sides; without this render the
+ * effect that requests the retry never runs and the slot stays blank.
  */
-function useTransitionRender(): (listener: () => void) => () => void {
+export function useRenderOnNotify(): (listener: () => void) => () => void {
   const [, render] = useReducer((count: number) => count + 1, 0);
   return (listener) => () => {
     render();
@@ -32,7 +32,8 @@ function useTransitionRender(): (listener: () => void) => () => void {
  * `fallback` is used when no environment readiness is supplied (direct/ssh
  * clients keep their existing synchronous resolver, handled by the caller).
  * `variant` selects the host's downscaled display variant coordinate
- * instead of the full-resolution one.
+ * instead of the full-resolution one. `readRank` reports the transcript
+ * position when the fetch is requested, so lower rows load first.
  */
 export function useRemoteImageRefUrl(
   ref: RemoteImageRefValue | undefined,
@@ -40,15 +41,15 @@ export function useRemoteImageRefUrl(
   fallback = "",
   priority: EnvironmentImagePriority = "foreground",
   variant?: EnvironmentImageVariant,
+  readRank?: () => number | undefined,
 ): string {
   const activeReadiness = readiness;
   const activeRef = ref;
   const enabled = activeReadiness !== undefined && activeRef !== undefined;
-  const onTransition = useTransitionRender();
+  const onNotify = useRenderOnNotify();
   const url = useSyncExternalStore(
     enabled && activeReadiness && activeRef
-      ? (listener) =>
-          activeReadiness.subscribeRef(activeRef, onTransition(listener), priority, variant)
+      ? (listener) => activeReadiness.subscribeRef(activeRef, onNotify(listener), priority, variant)
       : noopSubscribe,
     enabled && activeReadiness && activeRef
       ? () => activeReadiness.resolveRef(activeRef, variant)
@@ -56,7 +57,7 @@ export function useRemoteImageRefUrl(
   );
   useEffect(() => {
     if (!enabled || url || !activeReadiness || !activeRef) return;
-    activeReadiness.requestRef(activeRef, priority, variant);
+    activeReadiness.requestRef(activeRef, priority, variant, readRank?.());
   });
   return url || (enabled ? "" : fallback);
 }
@@ -68,16 +69,17 @@ export function useRemoteImagePathUrl(
   fallback = "",
   priority: EnvironmentImagePriority = "foreground",
   variant?: EnvironmentImageVariant,
+  readRank?: () => number | undefined,
 ): string {
   const activeReadiness = readiness;
   const activePath = path;
   const enabled =
     activeReadiness !== undefined && activePath !== undefined && activePath.length > 0;
-  const onTransition = useTransitionRender();
+  const onNotify = useRenderOnNotify();
   const url = useSyncExternalStore(
     enabled && activeReadiness && activePath
       ? (listener) =>
-          activeReadiness.subscribePath(activePath, onTransition(listener), priority, variant)
+          activeReadiness.subscribePath(activePath, onNotify(listener), priority, variant)
       : noopSubscribe,
     enabled && activeReadiness && activePath
       ? () => activeReadiness.resolvePath(activePath, variant)
@@ -85,7 +87,7 @@ export function useRemoteImagePathUrl(
   );
   useEffect(() => {
     if (!enabled || url || !activeReadiness || !activePath) return;
-    activeReadiness.requestPath(activePath, priority, variant);
+    activeReadiness.requestPath(activePath, priority, variant, readRank?.());
   });
   return url || (enabled ? "" : fallback);
 }
