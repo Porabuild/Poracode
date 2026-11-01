@@ -12,7 +12,7 @@ export const metadata: Metadata = createPageMetadata({
   path: "/privacy",
 });
 
-const EFFECTIVE_DATE = "August 10, 2026";
+const EFFECTIVE_DATE = "November 1, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -86,6 +86,34 @@ export default function PrivacyPage() {
                 Connections can use HTTPS or, in native builds, HTTP on a trusted local network.
                 HTTPS encrypts data in transit; plain HTTP does not. Only use an HTTP endpoint on a
                 network you trust.
+              </p>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-xl font-semibold text-white">Browser extension</h2>
+            <div className="space-y-3">
+              <p>
+                The Poracode browser extension connects only to the Poracode app running on the same
+                computer, over a local loopback connection. It finds the app through a small helper
+                that Poracode installs for your browser, and both sides prove a per-launch secret
+                before chat or browser control starts. The extension does not send data to
+                Poracode&apos;s servers and sends no analytics or crash reports.
+              </p>
+              <p>
+                Each message you send from the extension&apos;s side panel includes the active
+                tab&apos;s id and title and its address without the query or fragment, so the agent
+                knows which tab you mean; page content is not included. When an agent uses browser
+                tools, the extension relays its requests to your tabs through Chrome&apos;s
+                debugger, and Chrome shows its own &quot;started debugging this browser&quot; banner
+                while it does. Page content an agent reads becomes part of that conversation and is
+                processed by the agent provider you chose, under that provider&apos;s terms.
+              </p>
+              <p>
+                The extension stores the last port that worked, which tab groups belong to which
+                conversation, whether another browser currently holds the connection, and the same
+                client preferences and caches as the web app. A saved sign-in is never reused: each
+                side panel signs in afresh through the local app.
               </p>
             </div>
           </section>
