@@ -46095,6 +46095,15 @@
               "x-poracode-unknownFields": "strip"
             }
           ]
+        },
+        "__schema1": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema2": {
+          "const": "attachment",
+          "type": "string"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -46106,10 +46115,11 @@
               "const": "project",
               "type": "string"
             },
+            "disposition": {
+              "$ref": "#/$defs/__schema2"
+            },
             "path": {
-              "maxLength": 4096,
-              "minLength": 1,
-              "type": "string"
+              "$ref": "#/$defs/__schema1"
             },
             "projectLocation": {
               "$ref": "#/$defs/__schema0"
@@ -46130,10 +46140,11 @@
               "const": "external",
               "type": "string"
             },
+            "disposition": {
+              "$ref": "#/$defs/__schema2"
+            },
             "path": {
-              "maxLength": 4096,
-              "minLength": 1,
-              "type": "string"
+              "$ref": "#/$defs/__schema1"
             },
             "projectLocation": {
               "$ref": "#/$defs/__schema0"
@@ -75265,5 +75276,5 @@
   },
   "manifestHash": "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0",
   "protocolVersion": 14,
-  "sourceHash": "sha256:45d0365bbedc67cdcc5a13fb43076ff34d8148675cd1741787db331f161cbd84"
+  "sourceHash": "sha256:423b4bcfdfa465e98a02878055196717382862961321a2911bf092980c4f16a8"
 }

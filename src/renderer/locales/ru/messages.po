@@ -6777,6 +6777,10 @@ msgstr "Готово ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Готово ({remainingSeconds}с)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Download {fileName}"
+msgstr "Скачать {fileName}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "Ошибка загрузки"
@@ -19516,6 +19520,10 @@ msgstr "Не удалось проверить состояние экспери
 msgid "The experiment state is too large to load or change safely."
 msgstr "Состояние эксперимента слишком велико для безопасной загрузки или изменения."
 
+#: src/renderer/components/media/fileMediaSource.ts
+msgid "The file path is outside the project."
+msgstr "Путь к файлу находится вне проекта."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The finding is no longer available."
 msgstr "Результат больше недоступен."
@@ -21024,6 +21032,10 @@ msgstr "Не удалось удалить сохранённый пароль."
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "Не удалось определить исходную ветку эксперимента."
+
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Unable to download the file."
+msgstr "Не удалось скачать файл."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Unable to edit the saved password."

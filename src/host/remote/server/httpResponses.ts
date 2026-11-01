@@ -69,7 +69,7 @@ const IMAGE_RESPONSE_FILENAMES: Readonly<Record<string, string>> = {
 };
 
 /**
- * `Content-Disposition: inline` carrying a real file name, for responses
+ * `Content-Disposition` carrying a real file name, for responses
  * whose holder already knows that name (a ticketed media grant names one
  * exact file its requester opened). Only the base name is ever passed in, so
  * no directory leaks. The browser's media Download/Save action takes its
@@ -77,9 +77,13 @@ const IMAGE_RESPONSE_FILENAMES: Readonly<Record<string, string>> = {
  * extension: the quoted form carries an ASCII fallback and `filename*`
  * (RFC 5987) the exact name, with quotes, separators, and control
  * characters neutralized so a hostile on-disk name cannot break out of the
- * header.
+ * header. `inline` (the default) keeps in-page playback; `attachment` marks
+ * an explicit download grant.
  */
-export function inlineContentDisposition(fileName: string): string {
+export function inlineContentDisposition(
+  fileName: string,
+  disposition: "inline" | "attachment" = "inline",
+): string {
   const cleaned = fileName.toWellFormed().replace(/[/\\\p{Cc}]/gu, "_");
   const name = cleaned.length > 0 ? cleaned : "preview";
   const ascii = name.replace(/[^\u0020-\u007e]/gu, "_").replace(/["\\]/gu, "_");
@@ -87,7 +91,7 @@ export function inlineContentDisposition(fileName: string): string {
     /['()*]/gu,
     (char) => `%${char.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`,
   );
-  return `inline; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+  return `${disposition}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
 /**

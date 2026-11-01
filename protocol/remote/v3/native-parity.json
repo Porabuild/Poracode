@@ -3181,7 +3181,7 @@
           "ui": {
             "disposition": "planned",
             "evidence": [],
-            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "note": "Generated wire codecs are available; native transport, editor UI, and chat file-download adoption (the additive attachment disposition) are planned. Issue #806 implements the shared desktop and adaptive web editor."
           }
         },
         "android": {
@@ -3192,7 +3192,7 @@
           "ui": {
             "disposition": "planned",
             "evidence": [],
-            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "note": "Generated wire codecs are available; native transport, editor UI, and chat file-download adoption (the additive attachment disposition) are planned. Issue #806 implements the shared desktop and adaptive web editor."
           }
         }
       },
@@ -3208,7 +3208,7 @@
           "ui": {
             "disposition": "planned",
             "evidence": [],
-            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "note": "Generated wire codecs are available; native transport, editor UI, and chat file-download adoption (the additive attachment disposition) are planned. Issue #806 implements the shared desktop and adaptive web editor."
           }
         },
         "android": {
@@ -3219,7 +3219,7 @@
           "ui": {
             "disposition": "planned",
             "evidence": [],
-            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "note": "Generated wire codecs are available; native transport, editor UI, and chat file-download adoption (the additive attachment disposition) are planned. Issue #806 implements the shared desktop and adaptive web editor."
           }
         }
       },

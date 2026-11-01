@@ -3,6 +3,8 @@ import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { isChatVideoSource } from "@/shared/chatVideo";
+import { isChatFileSource } from "@/shared/chatFile";
+import { MarkdownFile } from "./MarkdownFile";
 import { MarkdownVideo } from "./MarkdownVideo";
 import { splitInlineVisuals } from "@/shared/inlineVisuals";
 import { RUNTIME_STREAM_ELISION_NOTICE_PREFIX } from "@/shared/runtimeStreamRetentionPolicy";
@@ -116,6 +118,14 @@ export const AssistantMessage = memo(function AssistantMessage({
   const videos = (payload?.content ?? []).filter(
     (block) => block.kind === "file" && isChatVideoSource(block.path, block.mimeType),
   );
+  // Canonical file blocks explicitly declare a file, so any safe local ref
+  // (any extension) becomes a download card; unsafe refs stay inert.
+  const fileCards = (payload?.content ?? []).filter(
+    (block) =>
+      block.kind === "file" &&
+      !isChatVideoSource(block.path, block.mimeType) &&
+      (isChatFileSource(block.path) || /^https?:\/\//iu.test(block.path)),
+  );
   // The tail answer's copy action becomes available only once its turn
   // settles. Reserve the same strip while the answer is still a candidate so
   // revealing the button cannot grow the virtual row and move the transcript
@@ -148,6 +158,16 @@ export const AssistantMessage = memo(function AssistantMessage({
             />
           ) : null,
         )}
+        {fileCards.map((block, index) =>
+          block.kind === "file" ? (
+            <MarkdownFile
+              key={`${block.path}:${index}`}
+              src={block.path}
+              {...(block.name ? { name: block.name } : {})}
+              {...(block.mimeType ? { mimeType: block.mimeType } : {})}
+            />
+          ) : null,
+        )}
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
             {imageSources.map((source, index) => (
@@ -158,7 +178,11 @@ export const AssistantMessage = memo(function AssistantMessage({
             ))}
           </div>
         ) : null}
-        {isStreaming && rawText.length === 0 && imageSources.length === 0 && videos.length === 0 ? (
+        {isStreaming &&
+        rawText.length === 0 &&
+        imageSources.length === 0 &&
+        videos.length === 0 &&
+        fileCards.length === 0 ? (
           <div className="text-foreground-muted">
             <PixelLoader size="xxs" />
           </div>

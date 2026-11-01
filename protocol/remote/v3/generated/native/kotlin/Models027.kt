@@ -5,25 +5,25 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-@Serializable(with = RoutefileU2DMediaU2DTicketRequest_687b136989.Serializer::class)
-sealed interface RoutefileU2DMediaU2DTicketRequest_687b136989 {
-    data class Option1(val value: RoutefileU2DMediaU2DTicketRequestU2DOptionU2D1_08f2de57fa) : RoutefileU2DMediaU2DTicketRequest_687b136989
-    data class Option2(val value: RoutefileU2DMediaU2DTicketRequestU2DOptionU2D2_47a6c99702) : RoutefileU2DMediaU2DTicketRequest_687b136989
-    object Serializer : KSerializer<RoutefileU2DMediaU2DTicketRequest_687b136989> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutefileU2DMediaU2DTicketRequest_687b136989")
-        override fun deserialize(decoder: Decoder): RoutefileU2DMediaU2DTicketRequest_687b136989 {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutefileU2DMediaU2DTicketRequest_687b136989 supports JSON only")
+@Serializable(with = RoutefileU2DMediaU2DTicketRequest_4e4370de43.Serializer::class)
+sealed interface RoutefileU2DMediaU2DTicketRequest_4e4370de43 {
+    data class Option1(val value: RoutefileU2DMediaU2DTicketRequestU2DOptionU2D1_a627cf0d12) : RoutefileU2DMediaU2DTicketRequest_4e4370de43
+    data class Option2(val value: RoutefileU2DMediaU2DTicketRequestU2DOptionU2D2_543fbae99d) : RoutefileU2DMediaU2DTicketRequest_4e4370de43
+    object Serializer : KSerializer<RoutefileU2DMediaU2DTicketRequest_4e4370de43> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutefileU2DMediaU2DTicketRequest_4e4370de43")
+        override fun deserialize(decoder: Decoder): RoutefileU2DMediaU2DTicketRequest_4e4370de43 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutefileU2DMediaU2DTicketRequest_4e4370de43 supports JSON only")
             val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<RoutefileU2DMediaU2DTicketRequest_687b136989>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "access", listOf(JsonPrimitive("project")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutefileU2DMediaU2DTicketRequestU2DOptionU2D1_08f2de57fa>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "access", listOf(JsonPrimitive("external")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutefileU2DMediaU2DTicketRequestU2DOptionU2D2_47a6c99702>(element)) }
-            return RemoteUnionCodec.single("RoutefileU2DMediaU2DTicketRequest_687b136989", matches)
+            val matches = mutableListOf<RemoteUnionMatch<RoutefileU2DMediaU2DTicketRequest_4e4370de43>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "access", listOf(JsonPrimitive("project")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutefileU2DMediaU2DTicketRequestU2DOptionU2D1_a627cf0d12>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "access", listOf(JsonPrimitive("external")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutefileU2DMediaU2DTicketRequestU2DOptionU2D2_543fbae99d>(element)) }
+            return RemoteUnionCodec.single("RoutefileU2DMediaU2DTicketRequest_4e4370de43", matches)
         }
-        override fun serialize(encoder: Encoder, value: RoutefileU2DMediaU2DTicketRequest_687b136989) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutefileU2DMediaU2DTicketRequest_687b136989 supports JSON only")
+        override fun serialize(encoder: Encoder, value: RoutefileU2DMediaU2DTicketRequest_4e4370de43) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutefileU2DMediaU2DTicketRequest_4e4370de43 supports JSON only")
             val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutefileU2DMediaU2DTicketRequestU2DOptionU2D1_08f2de57fa>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutefileU2DMediaU2DTicketRequestU2DOptionU2D2_47a6c99702>(value.value)
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutefileU2DMediaU2DTicketRequestU2DOptionU2D1_a627cf0d12>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutefileU2DMediaU2DTicketRequestU2DOptionU2D2_543fbae99d>(value.value)
             }
             jsonEncoder.encodeJsonElement(element)
         }

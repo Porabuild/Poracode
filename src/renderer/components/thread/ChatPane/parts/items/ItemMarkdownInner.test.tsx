@@ -951,16 +951,16 @@ describe("ItemMarkdownInner", () => {
     render(
       <AppProvider>
         <ChatPaneActionsContext.Provider value={actions}>
-          <ItemMarkdownInner text={"Read [outside.txt](/tmp/outside.txt)"} />
+          <ItemMarkdownInner text={"Read [outside.md](/tmp/outside.md)"} />
         </ChatPaneActionsContext.Provider>
       </AppProvider>,
     );
 
-    const chip = screen.getByRole("button", { name: /outside\.txt/ });
-    expect(chip).toHaveAttribute("title", "/tmp/outside.txt");
+    const chip = screen.getByRole("button", { name: /outside\.md/ });
+    expect(chip).toHaveAttribute("title", "/tmp/outside.md");
 
     fireEvent.click(chip);
-    expect(actions.openProjectRelativePath).toHaveBeenCalledWith("/tmp/outside.txt", undefined);
+    expect(actions.openProjectRelativePath).toHaveBeenCalledWith("/tmp/outside.md", undefined);
   });
 
   it("does not leave a malformed table as raw piped text", () => {
@@ -1033,6 +1033,54 @@ describe("ItemMarkdownInner", () => {
     expect(container.querySelector('a[href="/"]')).toBeNull();
     expect(container).toHaveTextContent("Changed styles.css");
     expect(screen.queryByText(/\[blocked\]/)).not.toBeInTheDocument();
+  });
+
+  it("marks artifact-only unordered lists while other lists keep bullets", async () => {
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider
+          value={makeActions({
+            mediaLocation: { kind: "posix", path: "/Users/serhiivecherenko/work/poracode" },
+          })}
+        >
+          <ItemMarkdownInner
+            text={
+              "- [ZIP](dist/a.zip)\n- [PDF](docs/a.pdf)\n\nProse between.\n\n- first\n- second\n\nMore prose.\n\n- explanation\n- [ZIP](dist/a.zip)\n\n1. [ZIP](dist/a.zip)"
+            }
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    await waitFor(() =>
+      expect(container.querySelectorAll("[data-testid=chat-file]").length).toBe(4),
+    );
+    const lists = [...container.querySelectorAll("ul")];
+    const fileList = container.querySelector("ul.poracode-chat-file-list");
+    expect(fileList).not.toBeNull();
+    expect(fileList!.querySelectorAll("[data-testid=chat-file]")).toHaveLength(2);
+    const others = lists.filter((ul) => ul !== fileList);
+    expect(others.length).toBeGreaterThan(0);
+    for (const ul of others) expect(ul.className).not.toContain("poracode-chat-file-list");
+    expect(container.querySelector("ol.poracode-chat-file-list")).toBeNull();
+  });
+
+  it("keeps task lists and nested/source lists off the file-only class", () => {
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider
+          value={makeActions({
+            mediaLocation: { kind: "posix", path: "/Users/serhiivecherenko/work/poracode" },
+          })}
+        >
+          <ItemMarkdownInner
+            text={
+              "- [x] [ZIP](dist/a.zip)\n- [ ] todo\n\n- [ZIP](dist/a.zip)\n  - nested note\n\n- [src](src/file.ts)\n- [app](dist/a.zip)"
+            }
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    expect(container.querySelector("ul.poracode-chat-file-list")).toBeNull();
   });
 
   it("reports failed markdown link opens", async () => {

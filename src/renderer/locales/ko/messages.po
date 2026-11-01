@@ -6777,6 +6777,10 @@ msgstr "완료({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "완료 ({remainingSeconds}초)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Download {fileName}"
+msgstr "{fileName} 다운로드"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "다운로드 실패"
@@ -19516,6 +19520,10 @@ msgstr "실험 상태를 확인하지 못했습니다."
 msgid "The experiment state is too large to load or change safely."
 msgstr "실험 상태가 너무 커서 안전하게 불러오거나 변경할 수 없습니다."
 
+#: src/renderer/components/media/fileMediaSource.ts
+msgid "The file path is outside the project."
+msgstr "파일 경로가 프로젝트 외부에 있습니다."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The finding is no longer available."
 msgstr "발견 항목을 더 이상 사용할 수 없습니다."
@@ -21024,6 +21032,10 @@ msgstr "저장된 암호를 삭제할 수 없습니다."
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "실험의 소스 브랜치를 확인할 수 없습니다."
+
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Unable to download the file."
+msgstr "파일을 다운로드할 수 없습니다."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Unable to edit the saved password."

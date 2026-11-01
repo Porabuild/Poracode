@@ -6786,6 +6786,10 @@ msgstr "Done ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Done ({remainingSeconds}s)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Download {fileName}"
+msgstr "Download {fileName}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "Download failed"
@@ -19525,6 +19529,10 @@ msgstr "The experiment state could not be verified."
 msgid "The experiment state is too large to load or change safely."
 msgstr "The experiment state is too large to load or change safely."
 
+#: src/renderer/components/media/fileMediaSource.ts
+msgid "The file path is outside the project."
+msgstr "The file path is outside the project."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The finding is no longer available."
 msgstr "The finding is no longer available."
@@ -21033,6 +21041,10 @@ msgstr "Unable to delete the saved password."
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "Unable to determine the experiment's source branch."
+
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Unable to download the file."
+msgstr "Unable to download the file."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Unable to edit the saved password."

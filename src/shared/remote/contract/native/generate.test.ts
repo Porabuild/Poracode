@@ -87,7 +87,8 @@ describe("remote v3 native binding generator", () => {
         // The optional shell snapshotEpoch moves the source hash only.
         // The optional open-string runtime error `reason` moves the source hash only.
         // Host-owned Hex voice transcription adds one typed procedure and schema roots.
-        sourceHash: "sha256:45d0365bbedc67cdcc5a13fb43076ff34d8148675cd1741787db331f161cbd84",
+        // The optional mediaFileRequest `disposition` attachment literal moves the source hash.
+        sourceHash: "sha256:423b4bcfdfa465e98a02878055196717382862961321a2911bf092980c4f16a8",
         manifestHash: "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0",
         counts: {
           routes: 119,

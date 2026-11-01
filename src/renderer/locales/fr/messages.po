@@ -6777,6 +6777,10 @@ msgstr "Terminé ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Terminé ({remainingSeconds}s)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Download {fileName}"
+msgstr "Télécharger {fileName}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "Échec du téléchargement"
@@ -19515,6 +19519,10 @@ msgstr "L’état de l’expérience n’a pas pu être vérifié."
 msgid "The experiment state is too large to load or change safely."
 msgstr "L’état de l’expérience est trop volumineux pour être chargé ou modifié en toute sécurité."
 
+#: src/renderer/components/media/fileMediaSource.ts
+msgid "The file path is outside the project."
+msgstr "Le chemin du fichier est en dehors du projet."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The finding is no longer available."
 msgstr "Le résultat n’est plus disponible."
@@ -21023,6 +21031,10 @@ msgstr "Impossible de supprimer le mot de passe enregistré."
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "Impossible de déterminer la branche source de l’expérience."
+
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Unable to download the file."
+msgstr "Impossible de télécharger le fichier."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Unable to edit the saved password."

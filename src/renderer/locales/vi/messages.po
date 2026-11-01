@@ -6777,6 +6777,10 @@ msgstr "Xong ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Xong ({remainingSeconds} giây)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Download {fileName}"
+msgstr "Tải xuống {fileName}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "Tải xuống không thành công"
@@ -19516,6 +19520,10 @@ msgstr "Không thể xác minh trạng thái của thử nghiệm."
 msgid "The experiment state is too large to load or change safely."
 msgstr "Trạng thái thử nghiệm quá lớn để tải hoặc thay đổi một cách an toàn."
 
+#: src/renderer/components/media/fileMediaSource.ts
+msgid "The file path is outside the project."
+msgstr "Đường dẫn tệp nằm ngoài dự án."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The finding is no longer available."
 msgstr "Kết quả không còn khả dụng."
@@ -21024,6 +21032,10 @@ msgstr "Không thể xóa mật khẩu đã lưu."
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "Không thể xác định nhánh nguồn của thử nghiệm."
+
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Unable to download the file."
+msgstr "Không thể tải xuống tệp."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Unable to edit the saved password."

@@ -6777,6 +6777,10 @@ msgstr "完成（{doneCount}）"
 msgid "Done ({remainingSeconds}s)"
 msgstr "完成（{remainingSeconds}秒）"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Download {fileName}"
+msgstr "下载 {fileName}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "下载失败"
@@ -19515,6 +19519,10 @@ msgstr "无法验证实验状态。"
 msgid "The experiment state is too large to load or change safely."
 msgstr "实验状态过大，无法安全地加载或更改。"
 
+#: src/renderer/components/media/fileMediaSource.ts
+msgid "The file path is outside the project."
+msgstr "文件路径位于项目之外。"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The finding is no longer available."
 msgstr "该发现项已不可用。"
@@ -21023,6 +21031,10 @@ msgstr "无法删除已保存的密码。"
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "无法确定实验的源分支。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Unable to download the file."
+msgstr "无法下载文件。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Unable to edit the saved password."
