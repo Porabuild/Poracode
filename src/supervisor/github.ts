@@ -42,6 +42,7 @@ import { withPrMetadata } from "./githubPrMetadata";
 import { GitHubPrMetadataCommands } from "./githubPrMetadataCommands";
 import { getGitHubViewedFiles, setGitHubFileViewed } from "./githubViewedFiles";
 import { msg as sharedMsg } from "@/shared/messages";
+import { parseGitRemoteFetchLine } from "@/shared/forgeRemote";
 
 // Re-export the pure mappers previously defined inline here so the module's
 // public surface stays identical for github.test.ts and bridge consumers.
@@ -353,9 +354,9 @@ function repositoryScopeForAccount(
 
   const repositories = new Set<string>();
   for (const line of remoteOutput.split(/\r?\n/)) {
-    const match = /^(\S+)\s+(\S+)\s+\(fetch\)$/.exec(line);
-    if (!match) continue;
-    const parsed = repositoryFromRemoteUrl(match[2]!);
+    const fetchLine = parseGitRemoteFetchLine(line);
+    if (!fetchLine) continue;
+    const parsed = repositoryFromRemoteUrl(fetchLine.url);
     if (!parsed || parsed.host.toLowerCase() !== account.host.toLowerCase()) continue;
     repositories.add(parsed.repository);
   }
