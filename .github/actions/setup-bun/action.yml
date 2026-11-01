@@ -3,6 +3,31 @@ description: Install the exact npm Bun build used by the workspace
 runs:
   using: composite
   steps:
+    # Defender's real-time scan of every extracted file made Windows jobs several
+    # times slower than Linux: one `npm install` of the server runtime took 3 min
+    # (9 s on a developer machine), the cache restore below ~2 min. Exclude only
+    # the build folders on these single-use runners; scanning stays on elsewhere.
+    - name: Exclude build folders from Defender scanning (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $paths = @(
+          $env:GITHUB_WORKSPACE,
+          $env:RUNNER_TEMP,
+          $env:RUNNER_TOOL_CACHE,
+          $env:TEMP,
+          (Join-Path $env:LOCALAPPDATA 'npm-cache'),
+          (Join-Path $env:LOCALAPPDATA 'electron'),
+          (Join-Path $env:LOCALAPPDATA 'electron-builder'),
+          (Join-Path $env:USERPROFILE '.bun'),
+          (Join-Path $env:USERPROFILE '.cargo')
+        ) | Where-Object { $_ }
+        try {
+          Add-MpPreference -ExclusionPath $paths -ErrorAction Stop
+          Write-Host "Defender exclusions: $($paths -join ', ')"
+        } catch {
+          Write-Host "::warning::Could not add Defender exclusions: $($_.Exception.Message)"
+        }
     - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
       with:
         node-version: "26"

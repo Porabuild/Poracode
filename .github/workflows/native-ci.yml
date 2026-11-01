@@ -329,6 +329,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
+      # The emulator system image, AVD and APK builds filled the hosted runner's
+      # disk ("No space left on device"). Drop preinstalled toolchains these jobs
+      # never use; the Android SDK, Java and Node stay.
+      - name: Free runner disk for the emulator
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost             /usr/share/swift "$AGENT_TOOLSDIRECTORY/CodeQL"
+          df -h /
+
       - name: Setup Java
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
@@ -488,6 +497,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      # The emulator system image, AVD and APK builds filled the hosted runner's
+      # disk ("No space left on device"). Drop preinstalled toolchains these jobs
+      # never use; the Android SDK, Java and Node stay.
+      - name: Free runner disk for the emulator
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost             /usr/share/swift "$AGENT_TOOLSDIRECTORY/CodeQL"
+          df -h /
 
       - name: Setup Java
         uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
@@ -681,6 +699,11 @@ jobs:
     # Plan D3: qualification runs the one reusable artifact workflow, on the
     # exact bytes the release job promotes (release.yml calls the same file).
     uses: ./.github/workflows/_server-artifact.yml
+    # The reusable workflow requests `actions: read` (release callers wait on
+    # the TUI manifest artifact); a call cannot grant less than it requests.
+    permissions:
+      contents: read
+      actions: read
     with:
       ref: ${{ github.sha }}
       artifact_name: poracode-server-artifact

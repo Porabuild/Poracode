@@ -53,6 +53,8 @@ on:
 
 permissions:
   contents: read
+  # wait-for-run-artifact.mjs reads this run's artifacts and jobs.
+  actions: read
 
 env:
   # Release runners are disposable single checkouts; keep native rebuilds on
@@ -159,17 +161,12 @@ jobs:
             sh -c "cp -R /work/dist/server-native-cross/node-pty /armbuild/np && cd /armbuild/np && node -p 'require(\"node-addon-api\").include_dir' >/dev/null && rm -rf build && npm rebuild --offline && cp build/Release/pty.node /work/dist/server-native-cross/linux-arm64/pty.node"
         shell: bash
 
-      - name: Stage the TUI download manifest
-        if: ${{ inputs.tui_manifest }}
-        uses: actions/download-artifact@v8
-        with:
-          name: tui-manifest
-          path: resources/tui
-
       - name: Build and assemble the server artifact
         env:
           REQUIRE_TARGETS: ${{ matrix.require_targets }}
           PORACODE_NODE_PTY_CROSS_BINDINGS: ${{ github.workspace }}/dist/server-native-cross
+          TUI_MANIFEST: ${{ inputs.tui_manifest }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           bun run codex-protocol:gen
@@ -189,6 +186,11 @@ jobs:
           if [ "${RUNNER_OS}" = "Windows" ]; then
             bun run prepare:service-launcher
             node --test scripts/prepare-service-launcher.test.mjs
+          fi
+          if [ "${TUI_MANIFEST}" = "true" ]; then
+            # The TUI binaries build alongside this job (it no longer `needs:`
+            # them); only the tarball reads their manifest.
+            node scripts/wait-for-run-artifact.mjs tui-manifest resources/tui "tui_binaries /"
           fi
           node scripts/assemble-server-tarball.mjs "${TARGET_ARGS[@]}"
           ls -lh dist/poracode-server-*.tar.gz dist/server-artifact.json
@@ -246,10 +248,11 @@ jobs:
       - name: Upgrade a running install from the real tarball (vitest)
         # Required mode: the real-artifact upgrade gate must fail when the
         # freshly assembled tarball is missing or not D4-capable, never skip to
-        # green (src/server/serverUpgrade.integration.test.ts).
+        # green (src/server/serverUpgrade.integration.test.ts). Its tests share
+        # process-wide state, so each runs in its own process, concurrently.
         env:
           PORACODE_REQUIRE_SERVER_IT: "1"
-        run: bun run vitest run --configLoader runner src/server/serverUpgrade.integration.test.ts
+        run: node scripts/run-vitest-tests-in-parallel.mjs src/server/serverUpgrade.integration.test.ts
 
       - name: Verify systemd unit
         if: runner.os == 'Linux'
