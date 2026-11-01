@@ -12791,8 +12791,8 @@ msgid "Open experiment board"
 msgstr "Deney panosunu aç"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Open feedback on website"
-msgstr "Geri bildirimi web sitesinde aç"
+#~ msgid "Open feedback on website"
+#~ msgstr "Geri bildirimi web sitesinde aç"
 
 #: src/renderer/commands/registry.ts
 msgid "Open File"
@@ -21548,12 +21548,12 @@ msgstr "değer"
 #~ msgstr "SSH ana makine anahtarını doğrula"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Verification"
-msgstr "Doğrulama"
+#~ msgid "Verification"
+#~ msgstr "Doğrulama"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Verification could not load. Please try again."
-msgstr "Doğrulama yüklenemedi. Lütfen tekrar deneyin."
+#~ msgid "Verification could not load. Please try again."
+#~ msgstr "Doğrulama yüklenemedi. Lütfen tekrar deneyin."
 
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx

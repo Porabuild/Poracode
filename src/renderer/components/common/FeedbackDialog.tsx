@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Checkbox, Input, Label, Modal, TextField } from "@heroui/react";
 import { Bug, Globe, Lightbulb, Search } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -34,20 +34,12 @@ export function FeedbackDialog({
   const setFiles = (value: File[]) => updateFeedbackDraft({ files: value });
   const setDiagnostics = (value: boolean) => updateFeedbackDraft({ diagnostics: value });
   const [preview, setPreview] = useState(false);
-  const [token, setToken] = useState("");
   const [enabled, setEnabled] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState("");
   const hasDelivery = Boolean(delivery);
-  const [verificationKey, setVerificationKey] = useState(0);
-  const [verificationHeight, setVerificationHeight] = useState(70);
-  const verification = useRef<HTMLIFrameElement>(null);
   const environment = `Poracode ${bridge.appVersion}; ${bridge.platform}`;
-  const verificationSupported =
-    location.protocol === "file:" ||
-    location.origin === SERVICE ||
-    (location.protocol === "http:" && ["localhost", "127.0.0.1"].includes(location.hostname));
   useEffect(() => {
     let disposed = false;
     void fetch(`${SERVICE}/api/feedback`, {
@@ -67,29 +59,6 @@ export function FeedbackDialog({
     return () => {
       disposed = true;
     };
-  }, [t]);
-  useEffect(() => {
-    const receive = (event: MessageEvent) => {
-      if (event.origin !== SERVICE || event.source !== verification.current?.contentWindow) return;
-      if (event.data?.type === "poracode.feedback.verification.ready") {
-        if (event.data.height === 65 || event.data.height === 140)
-          setVerificationHeight(event.data.height);
-        verification.current?.contentWindow?.postMessage(
-          { type: "poracode.feedback.verify" },
-          SERVICE,
-        );
-      }
-      if (
-        event.data?.type === "poracode.feedback.verification" &&
-        typeof event.data.token === "string" &&
-        event.data.token.length <= 2048
-      )
-        setToken(event.data.token);
-      if (event.data?.type === "poracode.feedback.verification" && event.data.error === true)
-        setMessage(t`Verification could not load. Please try again.`);
-    };
-    window.addEventListener("message", receive);
-    return () => window.removeEventListener("message", receive);
   }, [t]);
   const locked = busy || hasDelivery;
   function add(selected: File[]) {
@@ -118,11 +87,9 @@ export function FeedbackDialog({
         base: SERVICE,
         draft: { kind, title, details, diagnostics: diagnostics ? environment : "" },
         files,
-        token,
         delivery,
         onDelivery: (value) => {
           updateFeedbackDraft({ delivery: value });
-          setToken("");
         },
         onProgress: (progress) =>
           setMessage(
@@ -156,8 +123,6 @@ export function FeedbackDialog({
             ? error.message
             : t`Feedback could not be sent. Your draft is kept.`,
       );
-      setToken("");
-      setVerificationKey((value) => value + 1);
     } finally {
       setBusy(false);
     }
@@ -314,35 +279,6 @@ export function FeedbackDialog({
                     <Trans>Your report and attachments will be visible to everyone.</Trans>
                   </span>
                 </p>
-                {enabled && verificationSupported && !hasDelivery && (
-                  <iframe
-                    key={verificationKey}
-                    ref={verification}
-                    title={t`Verification`}
-                    src={`${SERVICE}/feedback/verify`}
-                    referrerPolicy="no-referrer"
-                    className="min-w-0 w-full border-0"
-                    style={{ height: verificationHeight }}
-                    // The cross-origin frame contains only Turnstile; native fields never enter it.
-                    // eslint-disable-next-line react/iframe-missing-sandbox
-                    sandbox="allow-scripts allow-same-origin"
-                    onLoad={() =>
-                      verification.current?.contentWindow?.postMessage(
-                        { type: "poracode.feedback.verify" },
-                        SERVICE,
-                      )
-                    }
-                  />
-                )}
-                {enabled && !verificationSupported && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onPress={() => void bridge.openExternal(`${SERVICE}/feedback`)}
-                  >
-                    <Trans>Open feedback on website</Trans>
-                  </Button>
-                )}
                 <p role="status" className="text-xs text-muted empty:hidden">
                   {message}
                 </p>
@@ -374,11 +310,7 @@ export function FeedbackDialog({
                   size="sm"
                   isPending={busy}
                   isDisabled={
-                    busy ||
-                    !enabled ||
-                    (!token && !hasDelivery) ||
-                    title.trim().length < 5 ||
-                    details.trim().length < 20
+                    busy || !enabled || title.trim().length < 5 || details.trim().length < 20
                   }
                   className="text-xs"
                 >

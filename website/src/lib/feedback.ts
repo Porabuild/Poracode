@@ -1,9 +1,9 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { BlobNotFoundError, del, get, head } from "@vercel/blob";
 import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
 
-// New, independently deployed intake contract and temporary records; no older writers exist.
+// The v1 schema remains valid; older callers' optional challenge token is ignored.
 export const FEEDBACK_VERSION = 1;
 const PREFIX = "feedback:v1:";
 const REPO = "Porabuild/Poracode";
@@ -52,8 +52,6 @@ export function configured() {
     "UPSTASH_REDIS_REST_TOKEN",
     "BLOB_READ_WRITE_TOKEN",
     "FEEDBACK_GITHUB_TOKEN",
-    "TURNSTILE_SECRET_KEY",
-    "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
     "CRON_SECRET",
   ].every((key) => Boolean(process.env[key]));
 }
@@ -117,9 +115,7 @@ export function validateFeedback(value: unknown) {
 }
 export async function limitFeedbackRequests(ip: string) {
   const db = redis();
-  const hash = createHash("sha256")
-    .update(process.env.TURNSTILE_SECRET_KEY! + ip)
-    .digest("hex");
+  const hash = createHmac("sha256", process.env.CRON_SECRET!).update(ip).digest("hex");
   const key = PREFIX + "requests:" + hash + ":" + new Date().toISOString().slice(0, 13);
   const count = await db.incr(key);
   await db.expire(key, 3600);
@@ -128,33 +124,8 @@ export async function limitFeedbackRequests(ip: string) {
 export async function startFeedback(value: unknown, ip: string) {
   const db = redis();
   const submission = validateFeedback(value);
-  const token = (value as Record<string, unknown>).token;
-  if (typeof token !== "string" || token.length > 2048)
-    throw new FeedbackError("Complete the verification.");
-  const verification = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-    method: "POST",
-    body: new URLSearchParams({
-      secret: process.env.TURNSTILE_SECRET_KEY!,
-      response: token,
-      remoteip: ip,
-    }),
-    signal: AbortSignal.timeout(10000),
-  });
-  const result = (await verification.json()) as {
-    success: boolean;
-    hostname: string;
-    action: string;
-  };
-  if (
-    !result.success ||
-    result.action !== "feedback" ||
-    result.hostname !== (process.env.FEEDBACK_HOSTNAME ?? "poracode.com")
-  )
-    throw new FeedbackError("Verification failed. Please try again.");
   const now = new Date();
-  const hash = createHash("sha256")
-    .update(process.env.TURNSTILE_SECRET_KEY! + ip)
-    .digest("hex");
+  const hash = createHmac("sha256", process.env.CRON_SECRET!).update(ip).digest("hex");
   const keys = [
     PREFIX + "hour:" + hash + ":" + now.toISOString().slice(0, 13),
     PREFIX + "day:" + now.toISOString().slice(0, 10),
@@ -428,7 +399,7 @@ export async function feedbackStatus(input: unknown) {
   return { pending: true };
 }
 export async function cleanupFeedback() {
-  // Disabling intake or rotating GitHub/Turnstile keys must not disable expiry cleanup.
+  // Disabling intake or rotating GitHub keys must not disable expiry cleanup.
   const db = Redis.fromEnv();
   const ids = await db.zrange<string[]>(PREFIX + "expiry", 0, Date.now(), {
     byScore: true,

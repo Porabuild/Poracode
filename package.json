@@ -210,7 +210,6 @@
     "@testing-library/react": "16.3.3",
     "@types/better-sqlite3": "9.6.0",
     "@types/cross-spawn": "6.0.6",
-    "@types/jsdom": "^30.0.0",
     "@types/micromatch": "^4.0.10",
     "@types/node": "26.4.1",
     "@types/proper-lockfile": "4.1.4",

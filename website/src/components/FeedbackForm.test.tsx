@@ -36,7 +36,7 @@ it("retries the same receipt after a delivery failure and honors diagnostics opt
   const receipt = "12345678-1234-1234-1234-123456789012";
   const fetcher = vi
     .fn<typeof fetch>()
-    .mockResolvedValueOnce(Response.json({ enabled: true, siteKey: "test" }))
+    .mockResolvedValueOnce(Response.json({ enabled: true }))
     .mockResolvedValueOnce(Response.json({ receipt, grants: [] }))
     .mockResolvedValueOnce(Response.json({ error: "Please retry delivery." }, { status: 502 }))
     .mockResolvedValueOnce(Response.json({ receipt, grants: [], uploaded: [] }))
@@ -44,14 +44,6 @@ it("retries the same receipt after a delivery failure and honors diagnostics opt
       Response.json({ url: "https://github.com/Porabuild/Poracode/issues/42" }),
     );
   vi.stubGlobal("fetch", fetcher);
-  vi.stubGlobal("turnstile", {
-    render: (_element: HTMLElement, options: { callback: (token: string) => void }) => {
-      options.callback("verified");
-      return "widget";
-    },
-    reset: vi.fn<() => void>(),
-    remove: vi.fn<() => void>(),
-  });
   render(<FeedbackForm />);
   fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Changes stay stale" } });
   fireEvent.change(screen.getByLabelText("What happened?"), {
@@ -59,6 +51,8 @@ it("retries the same receipt after a delivery failure and honors diagnostics opt
   });
   fireEvent.click(screen.getByLabelText("Include basic diagnostics"));
   await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+  expect(document.querySelector("iframe")).toBeNull();
+  expect(document.querySelector('script[src*="cloudflare"]')).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
   await screen.findByText("Please retry delivery.");
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
@@ -67,6 +61,7 @@ it("retries the same receipt after a delivery failure and honors diagnostics opt
     diagnostics: "",
     title: "Changes stay stale",
   });
+  expect(JSON.parse(String(fetcher.mock.calls[1]![1]!.body))).not.toHaveProperty("token");
   expect(JSON.parse(String(fetcher.mock.calls[3]![1]!.body))).toEqual({
     action: "resume",
     receipt,

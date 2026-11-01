@@ -35,7 +35,6 @@ export async function deliverFeedback(options: {
   base: string;
   draft: FeedbackDraft;
   files: File[];
-  token: string;
   delivery: FeedbackDelivery | null;
   onDelivery: (delivery: FeedbackDelivery) => void;
   onProgress: (progress: FeedbackProgress) => void;
@@ -57,7 +56,6 @@ export async function deliverFeedback(options: {
       ...(await feedbackRequest(options.base, {
         version: 1,
         ...options.draft,
-        token: options.token,
         files: options.files.map((file) => ({ name: file.name, size: file.size })),
       })),
       uploaded: [],

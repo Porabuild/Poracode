@@ -12791,8 +12791,8 @@ msgid "Open experiment board"
 msgstr "실험 보드 열기"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Open feedback on website"
-msgstr "웹사이트에서 피드백 열기"
+#~ msgid "Open feedback on website"
+#~ msgstr "웹사이트에서 피드백 열기"
 
 #: src/renderer/commands/registry.ts
 msgid "Open File"
@@ -21548,12 +21548,12 @@ msgstr "값"
 #~ msgstr "SSH 호스트 키 확인"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Verification"
-msgstr "인증"
+#~ msgid "Verification"
+#~ msgstr "인증"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Verification could not load. Please try again."
-msgstr "인증을 불러오지 못했습니다. 다시 시도하세요."
+#~ msgid "Verification could not load. Please try again."
+#~ msgstr "인증을 불러오지 못했습니다. 다시 시도하세요."
 
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx

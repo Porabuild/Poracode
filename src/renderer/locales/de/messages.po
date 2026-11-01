@@ -12791,8 +12791,8 @@ msgid "Open experiment board"
 msgstr "Experiment-Board öffnen"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Open feedback on website"
-msgstr "Feedback auf der Website öffnen"
+#~ msgid "Open feedback on website"
+#~ msgstr "Feedback auf der Website öffnen"
 
 #: src/renderer/commands/registry.ts
 msgid "Open File"
@@ -21548,12 +21548,12 @@ msgstr "Wert"
 #~ msgstr "SSH-Hostschlüssel prüfen"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Verification"
-msgstr "Verifizierung"
+#~ msgid "Verification"
+#~ msgstr "Verifizierung"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Verification could not load. Please try again."
-msgstr "Die Verifizierung konnte nicht geladen werden. Versuche es erneut."
+#~ msgid "Verification could not load. Please try again."
+#~ msgstr "Die Verifizierung konnte nicht geladen werden. Versuche es erneut."
 
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx

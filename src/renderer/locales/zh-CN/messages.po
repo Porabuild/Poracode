@@ -12790,8 +12790,8 @@ msgid "Open experiment board"
 msgstr "打开实验面板"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Open feedback on website"
-msgstr "在网站上打开反馈"
+#~ msgid "Open feedback on website"
+#~ msgstr "在网站上打开反馈"
 
 #: src/renderer/commands/registry.ts
 msgid "Open File"
@@ -21547,12 +21547,12 @@ msgstr "值"
 #~ msgstr "验证 SSH 主机密钥"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Verification"
-msgstr "验证"
+#~ msgid "Verification"
+#~ msgstr "验证"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Verification could not load. Please try again."
-msgstr "无法加载验证。请重试。"
+#~ msgid "Verification could not load. Please try again."
+#~ msgstr "无法加载验证。请重试。"
 
 #. About page label: app version row
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx

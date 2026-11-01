@@ -3,11 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { Bug, Globe, Lightbulb, Paperclip, Search, X } from "lucide-react";
 import Image from "next/image";
 import { put } from "@vercel/blob/client";
-type Turnstile = {
-  render: (element: HTMLElement, options: Record<string, unknown>) => string;
-  reset: (id: string) => void;
-  remove: (id: string) => void;
-};
 import {
   deliverFeedback,
   FeedbackDeliveryError,
@@ -75,7 +70,6 @@ export function FeedbackForm() {
   const [files, setFiles] = useState<File[]>([]);
   const [diagnostics, setDiagnostics] = useState(true);
   const [preview, setPreview] = useState(false);
-  const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [url, setUrl] = useState("");
@@ -83,12 +77,9 @@ export function FeedbackForm() {
   const delivery = useRef<FeedbackDelivery | null>(null);
   const [hasDelivery, setHasDelivery] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const challenge = useRef<HTMLDivElement>(null);
-  const widget = useRef("");
   const environment = typeof navigator === "undefined" ? "" : navigator.userAgent;
   useEffect(() => {
     let disposed = false;
-    let script: HTMLScriptElement | undefined;
     void fetch("/api/feedback")
       .then((r) => r.json())
       .then((config) => {
@@ -97,33 +88,11 @@ export function FeedbackForm() {
           setMessage("Feedback is temporarily unavailable. Please try again later.");
           return;
         }
-        const render = () => {
-          const turnstile = (window as unknown as { turnstile: Turnstile }).turnstile;
-          if (disposed || !challenge.current) return;
-          widget.current = turnstile.render(challenge.current, {
-            sitekey: config.siteKey,
-            action: "feedback",
-            callback: (value: string) => setToken(value),
-            "expired-callback": () => setToken(""),
-            "error-callback": () => setToken(""),
-          });
-          setReady(true);
-        };
-        if ((window as unknown as { turnstile?: Turnstile }).turnstile) render();
-        else {
-          script = document.createElement("script");
-          script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-          script.onload = render;
-          script.onerror = () => setMessage("Verification could not load. Please try again.");
-          document.head.append(script);
-        }
+        setReady(true);
       })
       .catch(() => setMessage("Feedback could not load. Please try again later."));
     return () => {
       disposed = true;
-      script?.remove();
-      if (widget.current)
-        (window as unknown as { turnstile?: Turnstile }).turnstile?.remove(widget.current);
     };
   }, []);
   function add(selected: File[]) {
@@ -150,12 +119,10 @@ export function FeedbackForm() {
         base: "",
         draft: { kind, title, details, diagnostics: diagnostics ? environment : "" },
         files,
-        token,
         delivery: delivery.current,
         onDelivery: (value) => {
           delivery.current = value;
           setHasDelivery(true);
-          setToken("");
         },
         onProgress: (progress) =>
           setMessage(
@@ -192,8 +159,6 @@ export function FeedbackForm() {
             ? error.message
             : "Feedback could not be sent. Your draft is kept.",
       );
-      (window as unknown as { turnstile?: Turnstile }).turnstile?.reset(widget.current);
-      setToken("");
     } finally {
       setBusy(false);
     }
@@ -357,7 +322,6 @@ export function FeedbackForm() {
           attachments will be visible to everyone.
         </span>
       </p>
-      <div ref={challenge} className="empty:hidden" />
       <p role="status" className="text-xs text-[#c8c8d2] empty:hidden">
         {message}
       </p>
@@ -374,7 +338,7 @@ export function FeedbackForm() {
         </a>
 
         <button
-          disabled={busy || !ready || (!token && !hasDelivery)}
+          disabled={busy || !ready}
           type="submit"
           className="rounded-[7px] border border-[#626272] bg-[#444451] px-4 py-2 text-xs font-semibold hover:bg-[#50505f] disabled:opacity-40"
         >

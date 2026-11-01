@@ -52,8 +52,6 @@ beforeEach(() => {
     "UPSTASH_REDIS_REST_TOKEN",
     "BLOB_READ_WRITE_TOKEN",
     "FEEDBACK_GITHUB_TOKEN",
-    "TURNSTILE_SECRET_KEY",
-    "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
     "CRON_SECRET",
   ])
     vi.stubEnv(key, "test-only");
@@ -154,7 +152,6 @@ describe("feedback trust and delivery", () => {
   });
   it("keeps expiry cleanup working when intake credentials are disabled", async () => {
     vi.stubEnv("FEEDBACK_GITHUB_TOKEN", "");
-    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
     mocks.db.zrange.mockResolvedValue([id]);
     await cleanupFeedback();
     expect(mocks.remove).toHaveBeenCalledOnce();
@@ -166,7 +163,7 @@ describe("feedback trust and delivery", () => {
     await expect(resumeFeedback(id)).resolves.toEqual({ url });
     expect(mocks.token).not.toHaveBeenCalled();
   });
-  it("limits incoming calls before external verification or uploads", async () => {
+  it("limits incoming calls before granting uploads", async () => {
     mocks.db.incr.mockResolvedValue(121);
     await expect(limitFeedbackRequests("127.0.0.1")).rejects.toMatchObject({ status: 429 });
     expect(mocks.token).not.toHaveBeenCalled();
@@ -178,23 +175,33 @@ describe("feedback trust and delivery", () => {
   });
   it("issues no upload permissions if the shared budget refuses the reservation", async () => {
     mocks.db.eval.mockResolvedValue(0);
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn<(...args: unknown[]) => Promise<unknown>>()
-        .mockResolvedValue(
-          Response.json({ success: true, action: "feedback", hostname: "poracode.com" }),
-        ),
-    );
     await expect(
-      startFeedback(
-        { ...form, token: "challenge", files: [{ name: "a.png", size: 8 }] },
-        "127.0.0.1",
-      ),
+      startFeedback({ ...form, files: [{ name: "a.png", size: 8 }] }, "127.0.0.1"),
     ).rejects.toMatchObject({ status: 429 });
     expect(mocks.token).not.toHaveBeenCalled();
     expect(mocks.db.zadd).not.toHaveBeenCalled();
   });
+  it.each([{}, { token: "legacy-challenge" }])(
+    "accepts v1 reports without a challenge service and keeps IP quotas private: %j",
+    async (legacy) => {
+      const fetcher = vi.fn<typeof fetch>();
+      vi.stubGlobal("fetch", fetcher);
+      mocks.token.mockResolvedValue("upload-grant");
+      const ip = "192.0.2.1";
+      await limitFeedbackRequests(ip);
+      await expect(
+        startFeedback({ ...form, ...legacy, files: [{ name: "a.png", size: 8 }] }, ip),
+      ).resolves.toMatchObject({ grants: [{ token: "upload-grant" }] });
+      expect(fetcher).not.toHaveBeenCalled();
+      const requestKey = String(mocks.db.incr.mock.calls[0]![0]);
+      const quotaKeys = mocks.db.eval.mock.calls[0]![1] as string[];
+      const hash = requestKey.split(":")[3];
+      expect(hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(quotaKeys[0]).toContain(`:hour:${hash}:`);
+      expect(requestKey).not.toContain(ip);
+      expect(quotaKeys[0]).not.toContain(ip);
+    },
+  );
   it("reconciles an uncertain creation without posting a second issue", async () => {
     const marker = `<!-- poracode-feedback:${id} -->`;
     mocks.db.get.mockResolvedValue({ ...form, created: Date.now(), creating: true });

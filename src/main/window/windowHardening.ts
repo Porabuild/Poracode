@@ -1,4 +1,4 @@
-import type { BrowserWindow, RenderProcessGoneDetails, WebFrameMain } from "electron";
+import type { BrowserWindow, RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeWindowKind } from "@/shared/ipc";
 import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
@@ -46,19 +46,6 @@ export function installAppNavigationGuards(
       event.preventDefault();
     }
   };
-  const feedbackUrl = "https://poracode.com/feedback/verify";
-  const allowsFeedbackFrame = (target: string, frame: WebFrameMain | null): boolean => {
-    if (!frame?.parent) return false;
-    if (target === feedbackUrl) return frame.parent === window.webContents.mainFrame;
-    if (!target.startsWith("https://challenges.cloudflare.com/")) return false;
-    let parent: WebFrameMain | null = frame.parent;
-    while (parent && parent !== window.webContents.mainFrame) {
-      if (parent.url === feedbackUrl) return parent.parent === window.webContents.mainFrame;
-      if (!parent.url.startsWith("https://challenges.cloudflare.com/")) return false;
-      parent = parent.parent;
-    }
-    return false;
-  };
   window.webContents.setWindowOpenHandler(({ url, frameName }) => {
     if (
       options.allowDevicePreviewWindow &&
@@ -100,18 +87,10 @@ export function installAppNavigationGuards(
     });
   }
   window.webContents.on("will-navigate", blockOffAppNavigation);
-  window.webContents.on("will-redirect", (event, target) => {
-    if (!event.isMainFrame && allowsFeedbackFrame(target, event.frame)) return;
-    blockOffAppNavigation(event, target);
-  });
-  // Only the isolated feedback verifier and its nested challenge may load remotely.
+  window.webContents.on("will-redirect", blockOffAppNavigation);
+  // Block non-local subframe navigations in the privileged app renderer.
   window.webContents.on("will-frame-navigate", (event) => {
-    if (
-      !event.isMainFrame &&
-      event.url !== "about:blank" &&
-      event.url !== "about:srcdoc" &&
-      !allowsFeedbackFrame(event.url, event.frame)
-    ) {
+    if (!event.isMainFrame && event.url !== "about:blank" && event.url !== "about:srcdoc") {
       event.preventDefault();
     }
   });

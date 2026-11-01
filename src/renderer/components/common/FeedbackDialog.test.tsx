@@ -33,7 +33,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it("unlocks an expired receipt while preserving the draft for fresh verification", async () => {
+it("unlocks an expired receipt while preserving the draft for another send", async () => {
   updateFeedbackDraft({
     title: "Changes stay stale",
     details: "Previous branch files remain after switching branches.",
@@ -53,8 +53,8 @@ it("unlocks an expired receipt while preserving the draft for fresh verification
   expect(screen.getByRole("textbox", { name: "Title" })).toBeEnabled();
   expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Changes stay stale");
   expect(useFeedbackDraftStore.getState().draft.delivery).toBeNull();
-  expect(await screen.findByTitle("Verification")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+  expect(document.querySelector("iframe")).toBeNull();
+  expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
 });
 
 it("renders native fields, keeps the service error visible, and adds/removes local attachments", async () => {
@@ -79,7 +79,7 @@ it("renders native fields, keeps the service error visible, and adds/removes loc
   expect(screen.getByText("Poracode 2.0.0; win32")).toBeInTheDocument();
 });
 
-it("accepts verification only from its trusted challenge frame and retries the same receipt", async () => {
+it("sends without a challenge and retries the same receipt after reopening", async () => {
   const receipt = "12345678-1234-1234-1234-123456789012";
   const fetcher = vi
     .fn<typeof fetch>()
@@ -100,28 +100,8 @@ it("accepts verification only from its trusted challenge frame and retries the s
   fireEvent.change(screen.getByRole("textbox", { name: "What happened?" }), {
     target: { value: "Previous branch files remain after switching branches." },
   });
-  const frame = (await screen.findByTitle("Verification")) as HTMLIFrameElement;
-  expect(frame).toHaveAttribute("src", "https://poracode.com/feedback/verify");
-  for (const [origin, source] of [
-    ["https://evil.test", frame.contentWindow],
-    ["https://poracode.com", window],
-  ] as const)
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        origin,
-        source,
-        data: { type: "poracode.feedback.verification", token: "forged" },
-      }),
-    );
-  expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
-  window.dispatchEvent(
-    new MessageEvent("message", {
-      origin: "https://poracode.com",
-      source: frame.contentWindow,
-      data: { type: "poracode.feedback.verification", token: "verified" },
-    }),
-  );
   await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+  expect(document.querySelector("iframe")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
   await screen.findByText("Retry delivery");
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -138,6 +118,6 @@ it("accepts verification only from its trusted challenge frame and retries the s
   });
   expect(JSON.parse(String(fetcher.mock.calls[1]![1]!.body))).toMatchObject({
     diagnostics: "Poracode 2.0.0; win32",
-    token: "verified",
   });
+  expect(JSON.parse(String(fetcher.mock.calls[1]![1]!.body))).not.toHaveProperty("token");
 });

@@ -10,7 +10,7 @@ import {
 } from "../../../lib/feedback";
 
 export const maxDuration = 120;
-// Anonymous clients use bearer receipts and Turnstile, never ambient cookies.
+// Anonymous clients use bearer receipts and shared quotas, never ambient cookies.
 const headers = {
   "Cache-Control": "no-store",
   "Access-Control-Allow-Origin": "*",
@@ -28,12 +28,9 @@ export async function GET(request: NextRequest) {
       await limitFeedbackRequests(
         request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ?? "unknown",
       );
-    return NextResponse.json(
-      id
-        ? await feedbackStatus(id)
-        : { enabled: configured(), siteKey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "" },
-      { headers },
-    );
+    return NextResponse.json(id ? await feedbackStatus(id) : { enabled: configured() }, {
+      headers,
+    });
   } catch (error) {
     return failure(error);
   }
