@@ -325,6 +325,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EHexVoiceU2ERequest: RemoteRootCodec<ProcedurehexVoiceRequest_2ae8d538fe> = .init(id: "procedure.hexVoice.request", schema: RemoteSchemas.schema_2ae8d538fe55c35d)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EHexVoiceU2EResult: RemoteRootCodec<ProcedurehexVoiceResult_46060d35e2> = .init(id: "procedure.hexVoice.result", schema: RemoteSchemas.schema_46060d35e2ab13d1)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EImportSkillsU2ERequest: RemoteRootCodec<ProcedureimportSkillsRequest_8a62b43ffe> = .init(id: "procedure.importSkills.request", schema: RemoteSchemas.schema_8a62b43ffe3b4668)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EReadTerminalScrollbackU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.readTerminalScrollback.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadTerminalScrollbackU2EResult: RemoteRootCodec<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .init(id: "procedure.readTerminalScrollback.result", schema: RemoteSchemas.schema_bf0b727f7b1c6d07)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadTerminalSizeU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.readTerminalSize.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
 }

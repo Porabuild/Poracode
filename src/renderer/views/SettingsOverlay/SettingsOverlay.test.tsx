@@ -559,7 +559,7 @@ describe("SettingsOverlay", () => {
     const headers = [...container.querySelectorAll("aside p")].map((el) => el.textContent);
     expect(headers).toEqual(["Personal", "Workspace", "Agents", "About"]);
     expect(screen.getByRole("button", { name: "Models" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Audio" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Audio" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remote Access" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Browser" })).not.toBeInTheDocument();
   });

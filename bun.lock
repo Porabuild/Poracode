@@ -20,6 +20,7 @@
         "@heroui/react": "3.2.4",
         "@heroui/styles": "3.2.4",
         "@huggingface/transformers": "^4.2.0",
+        "@kitlangton/hex": "0.3.1",
         "@legendapp/list": "3.3.3",
         "@lingui/core": "6.6.0",
         "@lingui/react": "6.6.0",
@@ -194,9 +195,9 @@
   ],
   "patchedDependencies": {
     "@legendapp/list@3.3.3": "patches/@legendapp__list@3.3.3.patch",
-    "micromark-extension-math-extended@3.2.2": "patches/micromark-extension-math-extended@3.2.2.patch",
     "@expo/hub-client@1.5.0": "patches/@expo__hub-client@1.5.0.patch",
     "monaco-editor@0.56.0": "patches/monaco-editor@0.56.0.patch",
+    "micromark-extension-math-extended@3.2.2": "patches/micromark-extension-math-extended@3.2.2.patch",
     "@agentclientprotocol/sdk@1.4.0": "patches/@agentclientprotocol__sdk@1.4.0.patch",
     "bun@1.4.3-canary.20261021.1": "patches/bun@1.4.3-canary.20261021.1.patch",
   },
@@ -611,6 +612,8 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.6.0", "", {}, "sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "3.1.2", "@jridgewell/sourcemap-codec": "1.6.0" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
+
+    "@kitlangton/hex": ["@kitlangton/hex@0.3.1", "", { "peerDependencies": { "effect": ">=4.0.0-rc.112 <5.0.0" }, "optionalPeers": ["effect"] }, "sha512-jsj72A9Ipefn3MZZK1TuYpzUNB1kd7W9jBDKpk3qrTKmY1mR8kRvFfCll7MXFuExrLJ9rkNXzlrkrK4D+qAMxw=="],
 
     "@legendapp/list": ["@legendapp/list@3.3.3", "", { "dependencies": { "use-sync-external-store": "1.6.0" }, "peerDependencies": { "react": "*", "react-dom": "*", "react-native": "*" }, "optionalPeers": ["react-dom", "react-native"] }, "sha512-p3g4xG6f//s4XQKhuus2189GCQgOHEIbJXHePqeDxj+6UQQQyij4YBjyArNSCgqoP0c03sxDPSOuCFB128Ql6g=="],
 

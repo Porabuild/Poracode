@@ -66,6 +66,7 @@ const workflowRun = {
  * the shared omitted codec (`undefined` on the wire).
  */
 export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
+  hexVoice: { kind: "catalog", models: [] },
   forgeGetPrReviewGuide: { status: "empty", guide: null, stale: false },
   forgeWritePrReviewGuide: { status: "generating", guide: null, stale: false },
   forgeEditPrComment: undefined,

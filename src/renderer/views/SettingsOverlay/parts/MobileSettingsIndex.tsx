@@ -11,6 +11,7 @@ import {
   GitFork,
   LifeBuoy,
   MonitorCog,
+  Mic,
   Palette,
   Settings2,
   ShieldCheck,
@@ -162,6 +163,12 @@ export function MobileSettingsIndex(props: {
       icon: Palette,
       label: t`Appearance`,
       hint: t`Theme and chat font size`,
+    },
+    {
+      section: "audio",
+      icon: Mic,
+      label: t`Audio`,
+      hint: t`Microphone and voice input backend`,
     },
     {
       section: "notifications",

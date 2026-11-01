@@ -140,6 +140,12 @@ val RemoteRootCodecs.procedureU2EGitWorktreeStatusBatchU2ERequest: RemoteRootCod
 val RemoteRootCodecs.procedureU2EGitWorktreeStatusBatchU2EResult: RemoteRootCodec<ProceduregitWorktreeStatusBatchResult_1b23732705>
     get() = RemoteRootCodec("procedure.gitWorktreeStatusBatch.result", serializer<ProceduregitWorktreeStatusBatchResult_1b23732705>(), schema_1b2373270569d6e5)
 
+val RemoteRootCodecs.procedureU2EHexVoiceU2ERequest: RemoteRootCodec<ProcedurehexVoiceRequest_2ae8d538fe>
+    get() = RemoteRootCodec("procedure.hexVoice.request", serializer<ProcedurehexVoiceRequest_2ae8d538fe>(), schema_2ae8d538fe55c35d)
+
+val RemoteRootCodecs.procedureU2EHexVoiceU2EResult: RemoteRootCodec<ProcedurehexVoiceResult_46060d35e2>
+    get() = RemoteRootCodec("procedure.hexVoice.result", serializer<ProcedurehexVoiceResult_46060d35e2>(), schema_46060d35e2ab13d1)
+
 val RemoteRootCodecs.procedureU2EImportSkillsU2ERequest: RemoteRootCodec<ProcedureimportSkillsRequest_8a62b43ffe>
     get() = RemoteRootCodec("procedure.importSkills.request", serializer<ProcedureimportSkillsRequest_8a62b43ffe>(), schema_8a62b43ffe3b4668)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DApiU2EPath: RemoteRoot
 
 val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DApiU2EQuery: RemoteRootCodec<RoutedeviceU2DPreviewU2DAndroidU2DApiQuery_bb755d8d8c>
     get() = RemoteRootCodec("route.device-preview-android-api.query", serializer<RoutedeviceU2DPreviewU2DAndroidU2DApiQuery_bb755d8d8c>(), schema_bb755d8d8c6227a7)
-
-val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DApiU2EResponse: RemoteRootCodec<RoutedeviceU2DPreviewU2DAndroidU2DApiResponse_0b7e529d3a>
-    get() = RemoteRootCodec("route.device-preview-android-api.response", serializer<RoutedeviceU2DPreviewU2DAndroidU2DApiResponse_0b7e529d3a>(), schema_0b7e529d3af3c3cd)
-
-val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DDevicesU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7>
-    get() = RemoteRootCodec("route.device-preview-android-devices.path", serializer<RoutedeviceU2DActionPath_eef64882a7>(), schema_eef64882a7b017fb)

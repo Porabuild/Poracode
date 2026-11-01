@@ -174,6 +174,11 @@ msgstr "{0} — Kompozytor"
 msgid "{0} — Terminal"
 msgstr "{0} — Terminal"
 
+#. placeholder {0}: item.name
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} · Installed"
+msgstr "{0} · Zainstalowano"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} ({envName}) is already up to date."
@@ -310,6 +315,11 @@ msgstr "{0} – limit"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} logged out."
 msgstr "{0} – wylogowano."
+
+#. placeholder {0}: Math.ceil(item.downloadBytes / 1_000_000)
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} MB download"
+msgstr "Pobieranie {0} MB"
 
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -557,6 +567,10 @@ msgstr "{days} dni"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "{days}d ago"
 msgstr "{days} dni temu"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{downloadSize} MB download"
+msgstr "Pobieranie: {downloadSize} MB"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
@@ -1890,6 +1904,10 @@ msgstr "Zezwól tej stronie na dostęp do kamery w ustawieniach przeglądarki i 
 msgid "Allow eval"
 msgstr "Zezwól na ewaluację"
 
+#: src/renderer/components/composer/voiceError.ts
+msgid "Allow microphone access in your browser's site settings, then try again."
+msgstr "Zezwól na dostęp do mikrofonu w ustawieniach witryny przeglądarki i spróbuj ponownie."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
 #~ msgstr "Zezwalaj sparowanym urządzeniom na łączenie się przez adresy IP sieci LAN i Tailscale. Połączenia używają HTTP, jeśli nie skonfigurowano TLS. Włączaj tylko w zaufanych sieciach."
@@ -2317,13 +2335,22 @@ msgid "Attempt {0} · Iteration {1}"
 msgstr "Próba {0} · Iteracja {1}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Audio"
 msgstr "Dźwięk"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Audio is sent only to your selected host, not to a cloud transcription service. Recordings are limited to five minutes. Models have separate licenses; download size is not memory usage."
+msgstr "Dźwięk jest wysyłany tylko do wybranego hosta, a nie do usługi transkrypcji w chmurze. Nagrania są ograniczone do pięciu minut. Modelki mają osobne licencje; Rozmiar pobierania nie jest zużyciem pamięci."
+
 #: src/renderer/components/media/NativeMediaView.tsx
 msgid "Audio preview"
 msgstr "Podgląd dźwięku"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Audio settings"
+msgstr "Ustawienia audio"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
@@ -2517,6 +2544,10 @@ msgstr "dostępne"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Available ACP Agents"
 msgstr "Dostępni agenci ACP"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Available models will appear after the engine is installed."
+msgstr "Dostępne modele pojawią się po zainstalowaniu silnika."
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -2923,6 +2954,14 @@ msgstr "Budowanie różnic…"
 msgid "Built-in"
 msgstr "Wbudowany"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Built-in · This device"
+msgstr "Wbudowane · To urządzenie"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Built-in (Transformers.js)"
+#~ msgstr "Wbudowany (Transformers.js)"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Built-in and plugin skills"
 #~ msgstr "Wbudowane umiejętności i umiejętności wtyczek"
@@ -2934,6 +2973,11 @@ msgstr "Wbudowane serwery MCP"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "Kolejność wbudowana"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Built-in runs on this device. Hex uses a native engine on the connected host."
+msgstr "Wbudowany mechanizm działa na tym urządzeniu. Hex używa natywnego silnika na połączonym hoście."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
@@ -3079,8 +3123,13 @@ msgid "Cancel agent discovery"
 msgstr "Anuluj wykrywanie agentów"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Cancel download"
 msgstr "Anuluj pobieranie"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Cancel installation"
+msgstr "Anuluj instalację"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -3113,6 +3162,10 @@ msgstr "Anuluj uruchomienie"
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Cancel sign-in"
 msgstr "Anuluj logowanie"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Cancel transcription"
+msgstr "Anuluj transkrypcję"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Cancel voice connection"
@@ -3152,6 +3205,10 @@ msgstr "Nie można przełączać gałęzi — najpierw zatwierdź lub ukryj zmia
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Capture and view controls"
 msgstr "Elementy sterujące przechwytywaniem i widokiem"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Capture audio from this device."
+msgstr "Przechwytuj dźwięk z tego urządzenia."
 
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
@@ -3371,6 +3428,10 @@ msgstr "Sprawdź paletę „{invalidPaletteName}” pod kątem nieprawidłowych 
 msgid "Check the live input level from the selected device."
 msgstr "Sprawdź poziom sygnału wejściowego na żywo z wybranego urządzenia."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Check the supported languages before downloading."
+msgstr "Przed pobraniem sprawdź obsługiwane języki."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Checked"
 msgstr "Zaznaczone"
@@ -3474,6 +3535,10 @@ msgstr "Wybierz obraz ikony projektu"
 msgid "Choose a saved credential to sign out."
 msgstr "Wybierz zapisane dane uwierzytelniające, aby się wylogować."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Choose a voice model"
+msgstr "Wybierz model głosu"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Choose an available conversation in this project."
 msgstr "Wybierz dostępną rozmowę w tym projekcie."
@@ -3519,6 +3584,10 @@ msgstr "Wybierz sposób wykonywania przez Poracode ręcznych i automatycznych sc
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #~ msgid "Choose how to sign in."
 #~ msgstr "Wybierz sposób logowania."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Choose how you record and where your speech is transcribed."
+msgstr "Wybierz sposób nagrywania i miejsce transkrypcji wypowiedzi."
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
@@ -3730,6 +3799,10 @@ msgstr "Wyczyść wyszukiwanie"
 #~ msgid "Clear thread search"
 #~ msgstr "Wyczyść wyszukiwanie wątków"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Clear transcript"
+msgstr "Wyczyść transkrypcję"
+
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -3788,6 +3861,7 @@ msgstr "Klonowanie…"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Close"
 msgstr "Zamknij"
 
@@ -4643,6 +4717,10 @@ msgstr "Połącz z serwerem zdalnym"
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
 #~ msgid "Connect to Your Desktop"
 #~ msgstr "Połącz z komputerem"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Connect to your host to set up Hex."
+msgstr "Połącz się z hostem, aby skonfigurować Hex."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
@@ -6474,6 +6552,10 @@ msgstr "Odrzucić eksperyment?"
 msgid "Discard outdated"
 msgstr "Odrzuć nieaktualne"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Discard recording"
+msgstr "Odrzuć nagranie"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -6524,6 +6606,7 @@ msgstr "Odkrywanie agentów kodujących…"
 msgid "Discovery complete"
 msgstr "Odkrywanie zakończone"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6639,9 +6722,25 @@ msgstr "Historia pobierania"
 msgid "Download image"
 msgstr "Pobierz obraz"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model"
+msgstr "Pobierz model"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model · {downloadSize} MB"
+msgstr "Pobierz model · {downloadSize} MB"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download progress"
 msgstr "Postęp pobierania"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Download required"
+#~ msgstr "Wymagane pobranie"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download size unavailable"
+msgstr "Rozmiar pobierania jest niedostępny"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Downloading"
@@ -6662,6 +6761,10 @@ msgstr "Pobieranie aktualizacji"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
 msgstr "Pobieranie modelu głosu {0}%"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Downloading voice model {progress}%"
+#~ msgstr "Pobieranie modelu głosu: {progress}%"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model..."
@@ -6930,6 +7033,10 @@ msgstr "Poziomy rozumowania"
 msgid "Effort levels for {modelName}"
 msgstr "Poziomy rozumowania dla modelu {modelName}"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Egyptian Arabic speech with English terms."
+msgstr "Mowa egipsko-arabska z angielskimi terminami."
+
 #. About page label: Electron framework version
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
@@ -7043,6 +7150,23 @@ msgstr "Zakończ rozmowę głosową"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Endpoint, e.g. http://192.168.1.20:49152/"
 #~ msgstr "Adres, np. http://192.168.1.20:49152/"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Engine installation progress"
+msgstr "Postęp instalacji silnika"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation based on Parakeet."
+msgstr "dyktando w języku angielskim oparte na Parakeet."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation with filler-word removal."
+msgstr "Dyktowanie w języku angielskim z usuwaniem słów wypełniających."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English speech recognition."
+msgstr "Rozpoznawanie mowy w języku angielskim."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -8637,9 +8761,50 @@ msgstr "Pomocnik"
 msgid "Helpers join when this chat restarts."
 msgstr "Pomocnicy dołączą po ponownym uruchomieniu tego czatu."
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Hex · Host engine"
+msgstr "Hex · Silnik hosta"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Hex (native)"
+#~ msgstr "Hex (natywny)"
+
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "Kolor hex"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex could not process this request. Check the model and language in Audio settings."
+msgstr "Hex nie może przetworzyć tego żądania. Sprawdź model i język w ustawieniach Audio."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Hex documentation and licenses"
+msgstr "dokumentacja i licencje Hex"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Hex installation"
+#~ msgstr "Instalacja Hex"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is busy with another voice request. Try again shortly."
+msgstr "Hex przetwarza inne żądanie głosowe. Spróbuj ponownie za chwilę."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is unavailable on this host. Install a compatible Hex executable and restart Poracode, or choose the built-in backend."
+msgstr "Hex jest niedostępny na tym hoście. Zainstaluj zgodny plik wykonywalny Hex i uruchom ponownie Poracode albo wybierz wbudowany mechanizm."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Hex setup"
+msgstr "konfiguracja Hex"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex timed out. Please try again."
+msgstr "Przekroczono limit czasu Hex. Spróbuj ponownie."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Hex voice model"
+msgstr "Model głosu Hex"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -9438,6 +9603,22 @@ msgstr "Zainstaluj Cursor SDK"
 msgid "Install Cursor SDK in {environment}"
 msgstr "Zainstaluj Cursor SDK w {environment}"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex"
+msgstr "Zainstaluj Hex"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex · {engineSize} MB"
+#~ msgstr "Zainstaluj Hex · {engineSize} MB"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex · {size} MB"
+msgstr "Zainstaluj Hex · {size} MB"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex on the connected host first. Poracode uses its native service, not its dictation app. Model downloads may be large and have their own licenses."
+#~ msgstr "Najpierw zainstaluj Hex na połączonym hoście. Poracode używa natywnej usługi, a nie aplikacji do dyktowania. Modele mogą być duże i podlegają własnym licencjom."
+
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install in {0}"
@@ -9493,6 +9674,10 @@ msgstr "Zainstaluj Tailscale"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Zainstaluj Tailscale, aby włączyć dostęp HTTPS przez MagicDNS."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Install the engine"
+msgstr "Zainstaluj silnik"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Install the package to add its API key."
 msgstr "Zainstaluj pakiet, aby dodać jego klucz API."
@@ -9525,6 +9710,10 @@ msgstr "Zainstaluj Xcode i środowisko uruchomieniowe symulatora iOS na tym hoś
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Instalacja, aktualizacja i logowanie nie są jeszcze dostępne na zdalnych komputerach."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Installation continues when you close this dialog."
+msgstr "Instalacja będzie kontynuowana po zamknięciu tego okna dialogowego."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -9551,6 +9740,11 @@ msgstr "W tym kliencie nie można wybierać zainstalowanych czcionek."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
 msgstr "Instalowanie"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Installing engine…"
+msgstr "Instalowanie silnika…"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Installing in this terminal. Closes when finished."
@@ -9706,6 +9900,10 @@ msgstr "Po uruchomieniu przy starcie pozostaw Poracode w zasobniku systemowym."
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "Nie usypiaj Maca podczas obsługi komputera"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Keep the same microphone button. Choose the engine behind it."
+msgstr "Zachowaj ten sam przycisk mikrofonu. Wybierz stojący za nim silnik."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
 msgstr "Utrzymuj system w stanie aktywnym, gdy Poracode działa, również w tle. Ekran nadal może się wyłączyć. Blokada ekranu pozostaje bez zmian."
@@ -9795,6 +9993,11 @@ msgstr "Język komunikatów zatwierdzeń i podsumowań żądań ściągnięcia g
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "Język, jakiego powinien spodziewać się model mowy podczas transkrypcji dyktowania w polu wprowadzania."
+
+#. placeholder {0}: selected.languages.join(", ")
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Languages: {0}"
+msgstr "Języki: {0}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop"
@@ -10134,6 +10337,14 @@ msgstr "Wczytywanie podglądu multimediów…"
 msgid "Loading messages…"
 msgstr "Wczytywanie wiadomości…"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Loading model…"
+msgstr "Ładowanie modelu…"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Loading models…"
+#~ msgstr "Ładowanie modeli…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "Ładowanie notatek…"
@@ -10402,6 +10613,14 @@ msgstr "Zarządzaj"
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "Zarządzaj globalnymi umiejętnościami agentów i umiejętnościami projektu, w tym zaimportowanymi od innych dostawców."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Manage Hex"
+msgstr "Zarządzaj Hex"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Manage Hex…"
+msgstr "Zarządzaj Hex…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
 msgstr "Zarządzaj serwerami MCP"
@@ -10481,6 +10700,11 @@ msgstr "Zarządzane przez {pluginName}"
 msgid "Managed by Poracode"
 msgstr "Zarządzane przez Poracode"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Managed by Poracode. No separate app to open."
+msgstr "Zarządzane przez Poracode. Brak osobnej aplikacji do otwarcia."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Managed by provider"
 msgstr "Zarządzana przez dostawcę"
@@ -10488,6 +10712,14 @@ msgstr "Zarządzana przez dostawcę"
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed by the provider or plugin."
 #~ msgstr "Zarządzana przez dostawcę lub wtyczkę."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Managed Hex installation is not available on this host."
+msgstr "Zarządzana instalacja Hex nie jest dostępna na tym hoście."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
+msgstr "Instalacja zarządzana nie jest dostępna na tym hoście. Użyj kompatybilnego zewnętrznego silnika Hex lub wbudowanego backendu."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
@@ -10965,6 +11197,15 @@ msgstr "Mikrofon {fallbackNumber}"
 msgid "Microphone access is off."
 msgstr "Dostęp do mikrofonu jest wyłączony."
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Microphone access requires HTTPS or localhost. Open Poracode over a secure connection."
+msgstr "Dostęp do mikrofonu wymaga HTTPS lub localhost. Otwórz Poracode przez bezpieczne połączenie."
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Microphone and voice input backend"
+msgstr "Mikrofon i mechanizm wprowadzania głosowego"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Microphone input level"
 msgstr "Poziom wejściowy mikrofonu"
@@ -11105,6 +11346,14 @@ msgstr "Etykieta modelu"
 msgid "Model pairing"
 msgstr "Para modeli"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model preparation progress"
+msgstr "Postęp przygotowania modelu"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model ready. Try a short recording below."
+msgstr "Model gotowy. Wypróbuj krótkie nagranie poniżej."
+
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
 msgstr "Model usunięty z ulubionych"
@@ -11130,6 +11379,10 @@ msgstr "Użycie modeli"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "Modele"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Models available on the connected host for the selected language."
+msgstr "Modele dostępne na połączonym hoście dla wybranego języka."
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11341,6 +11594,14 @@ msgstr "Przeniesiono zmiany do nowego drzewa roboczego na „{newBranch}”. „
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
 msgstr "Przenoszenie zmian…"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual dictation for the supported languages."
+msgstr "Wielojęzyczne dyktowanie dla obsługiwanych języków."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual speech recognition."
+msgstr "Wielojęzyczne rozpoznawanie mowy."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
@@ -13833,9 +14094,18 @@ msgstr "Poracode nie mógł utworzyć folderu danych tej wtyczki."
 msgid "Poracode could not start"
 msgstr "Nie udało się uruchomić Poracode"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "Poracode does not have permission to install or run the Hex engine."
+msgstr "Poracode nie ma uprawnień do instalowania lub uruchamiania silnika Hex."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode nie przechowuje danych logowania do marketplace w ustawieniach jako zwykłego tekstu. Otwórz katalog, aby przeglądać skille przeskanowane pod kątem bezpieczeństwa."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Poracode downloads and verifies Hex on this host. No administrator access is needed."
+msgstr "Poracode pobiera i weryfikuje Hex na tym hoście. Nie jest potrzebny dostęp administratora."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode failed to start:\n"
@@ -14014,6 +14284,22 @@ msgstr "Hak pre-commit nie powiódł się"
 #~ msgid "Preferred routing order"
 #~ msgstr "Preferowana kolejność routingu"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparation continues when you leave settings. You can return here to check progress."
+msgstr "Przygotowanie jest kontynuowane po opuszczeniu ustawień. Możesz tu wrócić, aby sprawdzić postęp."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Prepare model"
+#~ msgstr "Przygotuj model"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Prepare the selected Hex model in Audio settings before recording."
+msgstr "Przed nagrywaniem przygotuj wybrany model Hex w ustawieniach Audio."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparing model…"
+msgstr "Przygotowywanie modelu…"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
 msgstr "Przygotowywanie środowiska zdalnego…"
@@ -14127,6 +14413,10 @@ msgstr "Drukuj"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "Polityka prywatności"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Privacy, licenses and engine management"
+#~ msgstr "Prywatność, licencje i zarządzanie silnikiem"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Private key"
@@ -14721,6 +15011,10 @@ msgstr "Czyta cały diff i kod, którego dotyczy, uruchamia celowane testy i zg�
 msgid "Ready"
 msgstr "Gotowy"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Ready for dictation"
+msgstr "Gotowy do dyktowania"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Ready for review"
 msgstr "Gotowe do recenzji"
@@ -14826,6 +15120,26 @@ msgstr "Odtworzone z lokalnych dzienników według publicznych stawek API — ni
 msgid "Recorded token categories"
 msgstr "Zarejestrowane kategorie tokenów"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording"
+msgstr "Nagrywanie"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording stops automatically at five minutes."
+msgstr "Nagrywanie zatrzymuje się automatycznie po pięciu minutach."
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording will stop in less than fifteen seconds."
+msgstr "Nagrywanie zakończy się za mniej niż piętnaście sekund."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed locally on this host."
+msgstr "Nagrania są przetwarzane lokalnie na tym hoście."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed on {hostName}, not on this device."
+msgstr "Nagrania są przetwarzane na {hostName}, a nie na tym urządzeniu."
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
 msgstr "Czerwony"
@@ -14860,6 +15174,7 @@ msgstr "Referencja"
 #: src/renderer/views/PullRequestsOverlay/list/PrCompactListBar.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -14897,6 +15212,10 @@ msgstr "Odśwież urządzenia"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
 msgstr "Odśwież źródła serwerów MCP"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Refresh models"
+#~ msgstr "Odśwież modele"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
@@ -15140,6 +15459,10 @@ msgstr "Usuń połączenie i środowiska"
 msgid "Remove Cursor SDK API key"
 msgstr "Usuń klucz API SDK Cursor"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove engine"
+msgstr "Wymontuj silnik"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "Usuń zmienną środowiskową"
@@ -15167,6 +15490,14 @@ msgstr "Usuń z panelu"
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "Usuń z ostatnich"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove Hex engine?"
+msgstr "Usunąć silnik Hex?"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Remove managed engine"
+msgstr "Usuń silnik zarządzany"
 
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 msgid "Remove marketplace"
@@ -15746,6 +16077,10 @@ msgstr "Ponów elementy sterowania sesją"
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "Retry session settings"
 #~ msgstr "Ponów ustawienia sesji"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Retry transcription"
+msgstr "Ponów transkrypcję"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry when a run fails before it completes."
@@ -16895,6 +17230,10 @@ msgstr "Zaznacz wszystkie pasujące"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "Wybierz agenta, aby zobaczyć jego monit i wynik."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Select an available model for this language."
+msgstr "Wybierz model dostępny dla tego języka."
+
 #: src/renderer/components/common/Select.tsx
 msgid "Select an option"
 msgstr "Wybierz opcję"
@@ -17073,6 +17412,10 @@ msgstr "Ustaw lub wyświetl cel sesji"
 msgid "Set shortcut"
 msgstr "Ustaw skrót"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Set up Hex…"
+msgstr "Skonfiguruj Hex…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Set when this session started — start a new thread to change MCP servers"
 msgstr "Ustalone przy starcie tej sesji — aby zmienić serwery MCP, rozpocznij nowy wątek"
@@ -17108,6 +17451,10 @@ msgstr "Ustawienia nie są jeszcze dostępne, więc nie udało się zapisać zmi
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "instalacja"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Setup required"
+msgstr "Wymagana konfiguracja"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
@@ -17844,6 +18191,10 @@ msgstr "Konkretna persona"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "Konkretne repozytoria"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Speech recognition for supported East Asian languages and English."
+msgstr "Rozpoznawanie mowy w obsługiwanych językach wschodnioazjatyckich i angielskim."
 
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Spend"
@@ -18741,6 +19092,11 @@ msgstr "Testuj i naprawiaj"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Test dictation"
+msgstr "Dyktando testowe"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Przetestuj mikrofon"
 
@@ -18890,6 +19246,10 @@ msgstr "wybrany folder"
 msgid "The completion check failed; the schedule was paused."
 msgstr "Kontrola ukończenia nie powiodła się; harmonogram został wstrzymany."
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The connected Poracode host is unavailable. Reconnect and try again."
+msgstr "Podłączony host Poracode jest niedostępny. Połącz się ponownie i spróbuj ponownie."
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
 msgstr "Rozmowa nie jest już dostępna. Zapisany wynik nadal można odczytać."
@@ -18956,6 +19316,10 @@ msgstr "Własny serwer komputera odrzucił zmianę."
 #: src/renderer/components/devices/deviceClient.ts
 msgid "The device host is unavailable."
 msgstr "Host urządzenia jest niedostępny."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The downloaded Hex engine failed its integrity or signature check."
+msgstr "Pobrany silnik Hex nie przeszedł kontroli integralności lub podpisu."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
@@ -19036,6 +19400,14 @@ msgstr "Rozmowa heartbeat już nie istnieje."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The heartbeat conversation uses a different agent."
 msgstr "Rozmowa heartbeat używa innego agenta."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine download failed. Check your connection and try again."
+msgstr "Pobieranie silnika Hex nie powiodło się. Sprawdź połączenie i spróbuj ponownie."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine is incompatible with this host or Poracode version."
+msgstr "Silnik Hex jest niekompatybilny z tym hostem lub wersją Poracode."
 
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
@@ -19431,6 +19803,10 @@ msgstr "Przekroczono czas oczekiwania na połączenie głosowe. Spróbuj ponowni
 msgid "The voice connection was cancelled."
 msgstr "Połączenie głosowe zostało anulowane."
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The voice request is invalid or has expired. Please try again."
+msgstr "Żądanie głosowe jest nieprawidłowe lub wygasło. Spróbuj ponownie."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The watched pull request changed. Review the watch before continuing."
 msgstr "Obserwowany pull request zmienił się. Sprawdź obserwację przed kontynuowaniem."
@@ -19641,6 +20017,10 @@ msgstr "Ten folder jest pusty."
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "Ten przewodnik jest nieaktualny. Napisz go ponownie, aby zobaczyć fragmenty bieżącej zmiany."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "This Hex release requires glibc 2.39 or newer on Linux."
+msgstr "To wydanie Hex wymaga glibc 2.39 lub nowszego w systemie Linux."
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
 msgstr "Ten host"
@@ -19819,6 +20199,10 @@ msgstr "Ta wiadomość uzupełniająca w kolejce jest już wysyłana."
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "Spowoduje to usunięcie późniejszych wiadomości i przywrócenie plików, gdy dostępna będzie migawka punktu kontrolnego."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "This removes only the engine installed by Poracode. Downloaded models and external Hex installations are kept."
+msgstr "usuwa tylko silnik zainstalowany przez Poracode. Pobrane modele i zewnętrzne instalacje Hex zostaną zachowane."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "This removes the environment from the host. The server's child workspace is not deleted."
@@ -20285,6 +20669,15 @@ msgstr "Śledzenie wyłączone"
 msgid "Transcribing voice"
 msgstr "Transkrypcja głosu"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Transcription"
+msgstr "Transkrypcja"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Transcription engine"
+msgstr "Silnik transkrypcji"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
@@ -20505,6 +20898,10 @@ msgstr "Nie udało się wczytać zapisanych haseł."
 #~ msgid "Unable to load thread."
 #~ msgstr "Nie można załadować wątku."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to load voice models."
+msgstr "Nie można wczytać modeli głosu."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
@@ -20549,6 +20946,10 @@ msgstr "Nie można otworzyć pliku w edytorze"
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Nie można sparować z tym desktopem."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to prepare voice model."
+msgstr "Nie można przygotować modelu głosu."
 
 #: src/renderer/actions/browserActions.ts
 msgid "Unable to print this page."
@@ -21105,6 +21506,10 @@ msgstr "Zaktualizuj Cursor SDK w {environment}"
 msgid "Update Cursor SDK to v{availableVersion}"
 msgstr "Zaktualizuj Cursor SDK do v{availableVersion}"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Update engine"
+msgstr "Aktualizuj silnik"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
 msgstr "Błąd aktualizacji: {detail}"
@@ -21261,6 +21666,10 @@ msgstr "Uaktualnij właściciela środowiska"
 msgid "Upgrade owner"
 msgstr "Uaktualnij właściciela"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Uploading audio…"
+msgstr "Przesyłanie dźwięku…"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Upside down"
 msgstr "Do góry nogami"
@@ -21368,6 +21777,10 @@ msgstr "Użyj istniejącego folderu"
 msgid "Use an image from the project folder..."
 msgstr "Użyj obrazu z folderu projektu..."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Use built-in transcription"
+msgstr "Użyj wbudowanej transkrypcji"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."
 msgstr "Używaj Chrome bezpiecznie, gdy zadanie wymaga istniejącej sesji przeglądarki."
@@ -21433,6 +21846,11 @@ msgstr "Użyj umiejętności {name}."
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Use the ID of a persona available in your Devin cloud organization."
 msgstr "Użyj identyfikatora persony dostępnej w Twojej organizacji chmury Devina."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use the microphone to try your selected engine and model."
+msgstr "Użyj mikrofonu, aby wypróbować wybrany silnik i model."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
@@ -21506,6 +21924,11 @@ msgstr "Używa własnego loginu Devina na tej maszynie. Loguj się i wylogowuj n
 msgid "Using the built-in Claude model list."
 msgstr "Używana jest wbudowana lista modeli Claude."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Using your existing Hex installation. Poracode will not modify it."
+msgstr "Korzystanie z istniejącej instalacji Hex. Poracode nie będzie go modyfikował."
+
 #. placeholder {0}: status.bundledVersion
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "v{0} available"
@@ -21522,6 +21945,10 @@ msgstr "wartość"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify host key"
 #~ msgstr "Sprawdź klucz hosta"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Verify model"
+msgstr "Sprawdź model"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify SSH host key"
@@ -21663,14 +22090,18 @@ msgstr "Wizualizacja"
 msgid "Visual sections"
 msgstr "Sekcje wizualizacji"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Voice input backend"
+msgstr "Mechanizm wprowadzania głosowego"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "Wprowadzanie głosowe nie jest dostępne w tym środowisku."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Voice input is unavailable on remote sessions."
-msgstr "Wprowadzanie głosowe jest niedostępne w sesjach zdalnych."
+#~ msgid "Voice input is unavailable on remote sessions."
+#~ msgstr "Wprowadzanie głosowe jest niedostępne w sesjach zdalnych."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -21681,6 +22112,14 @@ msgstr "Język wprowadzania głosowego"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "Model wprowadzania głosowego"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Voice input needs attention"
+msgstr "Wprowadzanie głosowe wymaga uwagi"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Voice transcription cancelled."
+msgstr "Anulowano transkrypcję głosu."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
@@ -21961,6 +22400,10 @@ msgstr "Gdzie pojawia się panel terminali."
 msgid "While working"
 msgstr "Podczas pracy"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Whisper with broad multilingual support."
+msgstr "Whisper z szeroką obsługą wielu języków."
+
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Will run in {0}:"
@@ -21990,6 +22433,10 @@ msgstr "Powłoki Windows"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Winner merged."
 msgstr "Scalono zmiany zwycięzcy."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "With Hex, recordings are sent to your connected Poracode host for processing, not to a cloud transcription service. Recordings are limited to five minutes."
+#~ msgstr "W przypadku Hex nagrania są wysyłane do połączonego hosta Poracode w celu przetworzenia, a nie do usługi transkrypcji w chmurze. Nagrania są ograniczone do pięciu minut."
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -22322,6 +22769,10 @@ msgstr "Twoje pluginy"
 msgid "Your question is kept. Use Retry above to send it again."
 msgstr "Twoje pytanie zostało zachowane. Użyj Spróbuj ponownie powyżej, aby wysłać je jeszcze raz."
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Your recording is kept in memory for two minutes. Retry uses the same model and host."
+msgstr "Twoje nagranie jest przechowywane w pamięci przez dwie minuty. Ponów próbę, używając tego samego modelu i hosta."
+
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"
 msgstr "Poproszono o Twoją recenzję"
@@ -22329,6 +22780,10 @@ msgstr "Poproszono o Twoją recenzję"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "Twoje lokalne zmiany ze skrytki zostały ponownie zastosowane."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Your test transcript will appear here. It is not sent to a conversation."
+msgstr "Tutaj pojawi się transkrypcja testu. Nie jest wysyłany do rozmowy."
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "z.ai"

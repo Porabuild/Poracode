@@ -174,6 +174,11 @@ msgstr "{0} — 작성기"
 msgid "{0} — Terminal"
 msgstr "{0} — 터미널"
 
+#. placeholder {0}: item.name
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} · Installed"
+msgstr "{0} · 설치됨"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} ({envName}) is already up to date."
@@ -310,6 +315,11 @@ msgstr "{0} 한도"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} logged out."
 msgstr "{0} 로그아웃되었습니다."
+
+#. placeholder {0}: Math.ceil(item.downloadBytes / 1_000_000)
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} MB download"
+msgstr "{0}MB 다운로드"
 
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -557,6 +567,10 @@ msgstr "{days}일"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "{days}d ago"
 msgstr "{days}일 전"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{downloadSize} MB download"
+msgstr "{downloadSize}MB 다운로드"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
@@ -1890,6 +1904,10 @@ msgstr "브라우저 설정에서 이 사이트의 카메라 접근을 허용하
 msgid "Allow eval"
 msgstr "평가 허용"
 
+#: src/renderer/components/composer/voiceError.ts
+msgid "Allow microphone access in your browser's site settings, then try again."
+msgstr "브라우저 사이트 설정에서 마이크 접근을 허용한 다음 다시 시도하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
 #~ msgstr "페어링된 기기가 LAN 및 Tailscale IP 주소로 연결하도록 허용합니다. TLS가 구성되지 않은 경우 HTTP를 사용합니다. 신뢰할 수 있는 네트워크에서만 활성화하세요."
@@ -2317,13 +2335,22 @@ msgid "Attempt {0} · Iteration {1}"
 msgstr "시도 {0} · 반복 {1}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Audio"
 msgstr "오디오"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Audio is sent only to your selected host, not to a cloud transcription service. Recordings are limited to five minutes. Models have separate licenses; download size is not memory usage."
+msgstr "오디오는 클라우드 전사 서비스가 아닌 선택한 호스트로만 전송됩니다. 녹음 시간은 5분으로 제한됩니다. 모델에는 별도의 라이센스가 있습니다. 다운로드 크기는 메모리 사용량이 아닙니다."
+
 #: src/renderer/components/media/NativeMediaView.tsx
 msgid "Audio preview"
 msgstr "오디오 미리보기"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Audio settings"
+msgstr "오디오 설정"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
@@ -2517,6 +2544,10 @@ msgstr "사용 가능"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Available ACP Agents"
 msgstr "사용 가능한 ACP 에이전트"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Available models will appear after the engine is installed."
+msgstr "엔진 설치 후 사용 가능한 모델이 나타납니다."
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -2923,6 +2954,14 @@ msgstr "diff 생성 중…"
 msgid "Built-in"
 msgstr "기본 제공"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Built-in · This device"
+msgstr "내장 · 이 장치"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Built-in (Transformers.js)"
+#~ msgstr "내장형(Transformers.js)"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Built-in and plugin skills"
 #~ msgstr "기본 제공 및 플러그인 스킬"
@@ -2934,6 +2973,11 @@ msgstr "기본 제공 MCP 서버"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "기본 제공 순서"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Built-in runs on this device. Hex uses a native engine on the connected host."
+msgstr "내장형은 이 기기에서 실행됩니다. Hex는 연결된 호스트의 네이티브 엔진을 사용합니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
@@ -3079,8 +3123,13 @@ msgid "Cancel agent discovery"
 msgstr "에이전트 검색 취소"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Cancel download"
 msgstr "다운로드 취소"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Cancel installation"
+msgstr "설치 취소"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -3113,6 +3162,10 @@ msgstr "실행 취소"
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Cancel sign-in"
 msgstr "로그인 취소"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Cancel transcription"
+msgstr "전사 취소"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Cancel voice connection"
@@ -3152,6 +3205,10 @@ msgstr "브랜치를 전환할 수 없습니다. 먼저 변경 사항을 커밋�
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Capture and view controls"
 msgstr "캡처 및 보기 컨트롤"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Capture audio from this device."
+msgstr "이 장치에서 오디오를 캡처합니다."
 
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
@@ -3371,6 +3428,10 @@ msgstr "{invalidPaletteName} 팔레트에 유효하지 않은 색상이 있는�
 msgid "Check the live input level from the selected device."
 msgstr "선택한 장치의 실시간 입력 레벨을 확인하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Check the supported languages before downloading."
+msgstr "다운로드하기 전에 지원되는 언어를 확인하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Checked"
 msgstr "선택됨"
@@ -3474,6 +3535,10 @@ msgstr "프로젝트 아이콘 이미지 선택"
 msgid "Choose a saved credential to sign out."
 msgstr "로그아웃할 저장된 인증 정보를 선택하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Choose a voice model"
+msgstr "음성 모델을 선택하세요"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Choose an available conversation in this project."
 msgstr "이 프로젝트에서 사용 가능한 대화를 선택하세요."
@@ -3519,6 +3584,10 @@ msgstr "Poracode가 수동 병합과 자동 PR 병합을 수행하는 방법을 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #~ msgid "Choose how to sign in."
 #~ msgstr "로그인 방법을 선택하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Choose how you record and where your speech is transcribed."
+msgstr "녹음 방법과 음성이 기록되는 위치를 선택하세요."
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
@@ -3730,6 +3799,10 @@ msgstr "검색 지우기"
 #~ msgid "Clear thread search"
 #~ msgstr "스레드 검색 지우기"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Clear transcript"
+msgstr "기록 지우기"
+
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -3788,6 +3861,7 @@ msgstr "복제 중…"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Close"
 msgstr "닫기"
 
@@ -4643,6 +4717,10 @@ msgstr "원격 서버에 연결"
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/TouchPairing.tsx
 #~ msgid "Connect to Your Desktop"
 #~ msgstr "데스크톱에 연결"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Connect to your host to set up Hex."
+msgstr "Hex를 설정하려면 호스트에 연결하세요."
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
@@ -6474,6 +6552,10 @@ msgstr "실험을 폐기할까요?"
 msgid "Discard outdated"
 msgstr "오래된 항목 삭제"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Discard recording"
+msgstr "녹음 취소"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -6524,6 +6606,7 @@ msgstr "코딩 에이전트 검색 중…"
 msgid "Discovery complete"
 msgstr "검색 완료"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6639,9 +6722,25 @@ msgstr "다운로드 기록"
 msgid "Download image"
 msgstr "이미지 다운로드"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model"
+msgstr "모델 다운로드"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model · {downloadSize} MB"
+msgstr "다운로드 모델 · {downloadSize} MB"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download progress"
 msgstr "다운로드 진행률"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Download required"
+#~ msgstr "다운로드 필요"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download size unavailable"
+msgstr "다운로드 크기를 사용할 수 없음"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Downloading"
@@ -6662,6 +6761,10 @@ msgstr "업데이트 다운로드 중"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
 msgstr "음성 모델 다운로드 중{0}%"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Downloading voice model {progress}%"
+#~ msgstr "음성 모델 다운로드 중 {progress}%"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model..."
@@ -6930,6 +7033,10 @@ msgstr "추론 강도 단계"
 msgid "Effort levels for {modelName}"
 msgstr "{modelName}의 추론 강도 단계"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Egyptian Arabic speech with English terms."
+msgstr "영어 용어가 포함된 이집트 아랍어 연설."
+
 #. About page label: Electron framework version
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
@@ -7043,6 +7150,23 @@ msgstr "음성 채팅 종료"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Endpoint, e.g. http://192.168.1.20:49152/"
 #~ msgstr "엔드포인트, 예: http://192.168.1.20:49152/"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Engine installation progress"
+msgstr "엔진 설치 진행"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation based on Parakeet."
+msgstr "Parakeet를 기반으로 한 영어 받아쓰기입니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation with filler-word removal."
+msgstr "필러 단어가 제거된 영어 받아쓰기."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English speech recognition."
+msgstr "영어 음성 인식."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -8637,9 +8761,50 @@ msgstr "도우미"
 msgid "Helpers join when this chat restarts."
 msgstr "이 채팅을 다시 시작하면 도우미가 참여합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Hex · Host engine"
+msgstr "Hex · 호스트 엔진"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Hex (native)"
+#~ msgstr "Hex(네이티브)"
+
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "16진수 색상"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex could not process this request. Check the model and language in Audio settings."
+msgstr "Hex에서 요청을 처리할 수 없습니다. 오디오 설정에서 모델과 언어를 확인하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Hex documentation and licenses"
+msgstr "Hex 문서 및 라이센스"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Hex installation"
+#~ msgstr "Hex 설치"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is busy with another voice request. Try again shortly."
+msgstr "Hex가 다른 음성 요청을 처리 중입니다. 잠시 후 다시 시도하세요."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is unavailable on this host. Install a compatible Hex executable and restart Poracode, or choose the built-in backend."
+msgstr "이 호스트에서 Hex를 사용할 수 없습니다. 호환되는 Hex 실행 파일을 설치하고 Poracode를 다시 시작하거나 내장형 백엔드를 선택하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Hex setup"
+msgstr "Hex 설정"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex timed out. Please try again."
+msgstr "Hex 요청 시간이 초과되었습니다. 다시 시도하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Hex voice model"
+msgstr "Hex 음성 모델"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -9438,6 +9603,22 @@ msgstr "Cursor SDK 설치"
 msgid "Install Cursor SDK in {environment}"
 msgstr "{environment}에 Cursor SDK 설치"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex"
+msgstr "Hex 설치"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex · {engineSize} MB"
+#~ msgstr "Hex · {engineSize} MB 설치"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex · {size} MB"
+msgstr "Hex 설치 · {size} MB"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex on the connected host first. Poracode uses its native service, not its dictation app. Model downloads may be large and have their own licenses."
+#~ msgstr "먼저 연결된 호스트에 Hex를 설치하세요. Poracode는 받아쓰기 앱이 아닌 네이티브 서비스를 사용합니다. 모델 다운로드는 용량이 클 수 있으며 별도의 라이선스가 적용됩니다."
+
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install in {0}"
@@ -9493,6 +9674,10 @@ msgstr "Tailscale 설치"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "MagicDNS를 통한 HTTPS 액세스를 활성화하려면 Tailscale을 설치하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Install the engine"
+msgstr "엔진 설치"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Install the package to add its API key."
 msgstr "패키지를 설치한 후 API 키를 추가하세요."
@@ -9525,6 +9710,10 @@ msgstr "이 호스트에 Xcode와 iOS Simulator 런타임을 설치하세요."
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "원격 기기에서는 설치, 업데이트, 로그인을 아직 사용할 수 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Installation continues when you close this dialog."
+msgstr "이 대화상자를 닫아도 설치는 계속됩니다."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -9551,6 +9740,11 @@ msgstr "이 클라이언트에서는 설치된 글꼴을 선택할 수 없습니
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
 msgstr "설치 중"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Installing engine…"
+msgstr "엔진 설치 중…"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Installing in this terminal. Closes when finished."
@@ -9706,6 +9900,10 @@ msgstr "시작 시 Poracode를 시스템 트레이에 둡니다."
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "컴퓨터 사용 중 Mac 절전 방지"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Keep the same microphone button. Choose the engine behind it."
+msgstr "동일한 마이크 버튼을 유지합니다. 그 뒤에 있는 엔진을 선택하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
 msgstr "백그라운드를 포함하여 Poracode가 실행 중인 동안 시스템을 깨어 있게 유지합니다. 디스플레이는 계속 꺼질 수 있습니다. 화면 잠금 동작은 변경되지 않습니다."
@@ -9795,6 +9993,11 @@ msgstr "AI가 생성하는 커밋 메시지와 풀 요청 요약에 사용할 �
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "작성기 받아쓰기를 기록할 때 음성 모델이 예상해야 하는 언어입니다."
+
+#. placeholder {0}: selected.languages.join(", ")
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Languages: {0}"
+msgstr "언어: {0}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop"
@@ -10134,6 +10337,14 @@ msgstr "미디어 미리보기 로드 중…"
 msgid "Loading messages…"
 msgstr "메시지 불러오는 중…"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Loading model…"
+msgstr "모델 로드 중…"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Loading models…"
+#~ msgstr "모델 로드 중…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "메모 로드 중…"
@@ -10402,6 +10613,14 @@ msgstr "관리"
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "다른 제공자에서 가져온 스킬을 포함하여 전역 및 프로젝트 에이전트 스킬을 관리합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Manage Hex"
+msgstr "Hex 관리"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Manage Hex…"
+msgstr "Hex 관리…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
 msgstr "MCP 서버 관리"
@@ -10481,6 +10700,11 @@ msgstr "{pluginName}에서 관리"
 msgid "Managed by Poracode"
 msgstr "Poracode에서 관리"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Managed by Poracode. No separate app to open."
+msgstr "Poracode에서 관리합니다. 별도의 앱을 열 필요가 없습니다."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Managed by provider"
 msgstr "제공자가 관리함"
@@ -10488,6 +10712,14 @@ msgstr "제공자가 관리함"
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed by the provider or plugin."
 #~ msgstr "제공자 또는 플러그인이 관리합니다."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Managed Hex installation is not available on this host."
+msgstr "이 호스트에서는 관리형 Hex 설치를 사용할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
+msgstr "이 호스트에서는 관리 설치를 사용할 수 없습니다. 호환 가능한 외부 Hex 엔진 또는 내장 백엔드를 사용하세요."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
@@ -10965,6 +11197,15 @@ msgstr "마이크 {fallbackNumber}"
 msgid "Microphone access is off."
 msgstr "마이크 액세스가 꺼져 있습니다."
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Microphone access requires HTTPS or localhost. Open Poracode over a secure connection."
+msgstr "마이크 접근에는 HTTPS 또는 localhost가 필요합니다. 보안 연결로 Poracode를 여세요."
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Microphone and voice input backend"
+msgstr "마이크 및 음성 입력 백엔드"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Microphone input level"
 msgstr "마이크 입력 레벨"
@@ -11105,6 +11346,14 @@ msgstr "모델 레이블"
 msgid "Model pairing"
 msgstr "모델 조합"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model preparation progress"
+msgstr "모델 준비 진행"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model ready. Try a short recording below."
+msgstr "모델이 준비되었습니다. 아래에서 짧게 녹음해 보세요."
+
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
 msgstr "모델을 즐겨찾기에서 제거함"
@@ -11130,6 +11379,10 @@ msgstr "모델 사용량"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "모델"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Models available on the connected host for the selected language."
+msgstr "선택한 언어로 연결된 호스트에서 사용할 수 있는 모델입니다."
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11341,6 +11594,14 @@ msgstr "변경 사항을 \"{newBranch}\"의 새 작업 트리로 옮겼습니다
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
 msgstr "변경사항 이동 중…"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual dictation for the supported languages."
+msgstr "지원되는 언어에 대한 다국어 받아쓰기."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual speech recognition."
+msgstr "다국어 음성 인식."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
@@ -13833,9 +14094,18 @@ msgstr "Poracode가 이 플러그인의 데이터 폴더를 만들지 못했습�
 msgid "Poracode could not start"
 msgstr "Poracode를 시작할 수 없습니다"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "Poracode does not have permission to install or run the Hex engine."
+msgstr "Poracode에는 Hex 엔진을 설치하거나 실행할 권한이 없습니다."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode는 마켓플레이스 자격 증명을 설정에 일반 텍스트로 저장하지 않습니다. 카탈로그를 열어 보안 검사를 마친 스킬을 살펴보세요."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Poracode downloads and verifies Hex on this host. No administrator access is needed."
+msgstr "Poracode는 이 호스트에서 Hex를 다운로드하고 확인합니다. 관리자 액세스가 필요하지 않습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode failed to start:\n"
@@ -14014,6 +14284,22 @@ msgstr "사전 커밋 후크 실패"
 #~ msgid "Preferred routing order"
 #~ msgstr "선호 라우팅 순서"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparation continues when you leave settings. You can return here to check progress."
+msgstr "설정을 종료해도 준비가 계속됩니다. 여기로 돌아와서 진행 상황을 확인할 수 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Prepare model"
+#~ msgstr "모델 준비"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Prepare the selected Hex model in Audio settings before recording."
+msgstr "녹음 전에 오디오 설정에서 선택한 Hex 모델을 준비하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparing model…"
+msgstr "모델 준비 중…"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
 msgstr "원격 환경 준비 중…"
@@ -14127,6 +14413,10 @@ msgstr "인쇄"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "개인정보 처리방침"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Privacy, licenses and engine management"
+#~ msgstr "개인 정보 보호, 라이선스 및 엔진 관리"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Private key"
@@ -14721,6 +15011,10 @@ msgstr "전체 diff와 관련 코드를 읽고 필요한 검사를 실행해 버
 msgid "Ready"
 msgstr "준비"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Ready for dictation"
+msgstr "받아쓰기 준비 완료"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Ready for review"
 msgstr "리뷰 준비 완료"
@@ -14826,6 +15120,26 @@ msgstr "로컬 로그를 공개 API 요금으로 환산한 값이며, 구독 요
 msgid "Recorded token categories"
 msgstr "기록된 토큰 범주"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording"
+msgstr "녹음 중"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording stops automatically at five minutes."
+msgstr "5분마다 녹음이 자동으로 중지됩니다."
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording will stop in less than fifteen seconds."
+msgstr "녹음이 15초 이내에 중지됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed locally on this host."
+msgstr "녹화는 이 호스트에서 로컬로 처리됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed on {hostName}, not on this device."
+msgstr "녹음은 이 장치가 아닌 {hostName}에서 처리됩니다."
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
 msgstr "볼간"
@@ -14860,6 +15174,7 @@ msgstr "참조"
 #: src/renderer/views/PullRequestsOverlay/list/PrCompactListBar.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -14897,6 +15212,10 @@ msgstr "기기 새로 고침"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
 msgstr "MCP 서버 소스 새로 고침"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Refresh models"
+#~ msgstr "모델 새로고침"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
@@ -15140,6 +15459,10 @@ msgstr "연결 및 환경 제거"
 msgid "Remove Cursor SDK API key"
 msgstr "Cursor SDK API 키 제거"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove engine"
+msgstr "엔진 제거"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "환경 변수 제거"
@@ -15167,6 +15490,14 @@ msgstr "패널에서 제거"
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "최근 모델에서 제거"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove Hex engine?"
+msgstr "Hex 엔진을 제거하시겠습니까?"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Remove managed engine"
+msgstr "관리형 엔진 제거"
 
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 msgid "Remove marketplace"
@@ -15746,6 +16077,10 @@ msgstr "세션 컨트롤 재시도"
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "Retry session settings"
 #~ msgstr "세션 설정 재시도"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Retry transcription"
+msgstr "전사 재시도"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry when a run fails before it completes."
@@ -16895,6 +17230,10 @@ msgstr "해당하는 항목을 모두 선택하세요"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "프롬프트와 결과를 보려면 에이전트를 선택하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Select an available model for this language."
+msgstr "이 언어에 사용할 수 있는 모델을 선택하세요."
+
 #: src/renderer/components/common/Select.tsx
 msgid "Select an option"
 msgstr "옵션을 선택하세요"
@@ -17073,6 +17412,10 @@ msgstr "세션 목표를 설정하거나 보기"
 msgid "Set shortcut"
 msgstr "단축키 설정"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Set up Hex…"
+msgstr "Hex 설정…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Set when this session started — start a new thread to change MCP servers"
 msgstr "이 세션 시작 시 확정됨 — MCP 서버를 변경하려면 새 스레드를 시작하세요"
@@ -17108,6 +17451,10 @@ msgstr "설정을 아직 사용할 수 없어 변경 사항을 저장하지 못�
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "설정"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Setup required"
+msgstr "설정 필요"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
@@ -17844,6 +18191,10 @@ msgstr "특정 페르소나"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "특정 저장소"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Speech recognition for supported East Asian languages and English."
+msgstr "지원되는 동아시아 언어 및 영어에 대한 음성 인식."
 
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Spend"
@@ -18741,6 +19092,11 @@ msgstr "테스트 및 수정"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Test dictation"
+msgstr "테스트 받아쓰기"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "마이크 테스트"
 
@@ -18890,6 +19246,10 @@ msgstr "선택한 폴더"
 msgid "The completion check failed; the schedule was paused."
 msgstr "완료 확인에 실패하여 예약 작업이 일시 중지되었습니다."
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The connected Poracode host is unavailable. Reconnect and try again."
+msgstr "연결된 Poracode 호스트를 사용할 수 없습니다. 다시 연결하고 다시 시도해 보세요."
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
 msgstr "대화를 더 이상 사용할 수 없지만 저장된 결과는 계속 확인할 수 있습니다."
@@ -18956,6 +19316,10 @@ msgstr "데스크톱 자체 서버가 변경을 거부했습니다."
 #: src/renderer/components/devices/deviceClient.ts
 msgid "The device host is unavailable."
 msgstr "기기 호스트를 사용할 수 없습니다."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The downloaded Hex engine failed its integrity or signature check."
+msgstr "다운로드한 Hex 엔진이 무결성 또는 서명 확인에 실패했습니다."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
@@ -19036,6 +19400,14 @@ msgstr "하트비트 대화가 더 이상 존재하지 않습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The heartbeat conversation uses a different agent."
 msgstr "하트비트 대화가 다른 에이전트를 사용합니다."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine download failed. Check your connection and try again."
+msgstr "Hex 엔진 다운로드에 실패했습니다. 연결을 확인하고 다시 시도하세요."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine is incompatible with this host or Poracode version."
+msgstr "Hex 엔진은 이 호스트 또는 Poracode 버전과 호환되지 않습니다."
 
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
@@ -19431,6 +19803,10 @@ msgstr "음성 연결 시간이 초과되었습니다. 다시 시도하세요."
 msgid "The voice connection was cancelled."
 msgstr "음성 연결이 취소되었습니다."
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The voice request is invalid or has expired. Please try again."
+msgstr "음성 요청이 유효하지 않거나 만료되었습니다. 다시 시도하세요."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The watched pull request changed. Review the watch before continuing."
 msgstr "감시 중인 풀 리퀘스트가 변경되었습니다. 계속하기 전에 감시 설정을 검토하세요."
@@ -19641,6 +20017,10 @@ msgstr "이 폴더는 비어 있습니다."
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "이 가이드는 오래되었습니다. 현재 변경의 발췌문을 보려면 다시 작성하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "This Hex release requires glibc 2.39 or newer on Linux."
+msgstr "이 Hex 릴리스에는 Linux에서 glibc 2.39 이상이 필요합니다."
+
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
 msgstr "이 호스트"
@@ -19819,6 +20199,10 @@ msgstr "이 대기 중인 후속 메시지는 이미 전송 중입니다."
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "이렇게 하면 체크포인트 스냅샷을 사용할 수 있을 때 이후 메시지가 제거되고 파일이 복원됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "This removes only the engine installed by Poracode. Downloaded models and external Hex installations are kept."
+msgstr "Poracode가 설치한 엔진만 제거합니다. 다운로드한 모델과 외부 Hex 설치가 유지됩니다."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "This removes the environment from the host. The server's child workspace is not deleted."
@@ -20285,6 +20669,15 @@ msgstr "추적 꺼짐"
 msgid "Transcribing voice"
 msgstr "음성 받아쓰는 중"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Transcription"
+msgstr "전사"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Transcription engine"
+msgstr "전사 엔진"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
@@ -20505,6 +20898,10 @@ msgstr "저장된 암호를 불러올 수 없습니다."
 #~ msgid "Unable to load thread."
 #~ msgstr "스레드를 불러올 수 없습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to load voice models."
+msgstr "음성 모델을 불러올 수 없습니다."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
@@ -20549,6 +20946,10 @@ msgstr "편집기에서 파일을 열 수 없습니다"
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "해당 데스크톱과 페어링할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to prepare voice model."
+msgstr "음성 모델을 준비할 수 없습니다."
 
 #: src/renderer/actions/browserActions.ts
 msgid "Unable to print this page."
@@ -21105,6 +21506,10 @@ msgstr "{environment}에서 Cursor SDK 업데이트"
 msgid "Update Cursor SDK to v{availableVersion}"
 msgstr "Cursor SDK를 v{availableVersion}(으)로 업데이트"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Update engine"
+msgstr "엔진 업데이트"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
 msgstr "업데이트 오류:{detail}"
@@ -21261,6 +21666,10 @@ msgstr "환경 소유자 업그레이드"
 msgid "Upgrade owner"
 msgstr "소유자 업그레이드"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Uploading audio…"
+msgstr "오디오 업로드 중…"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Upside down"
 msgstr "상하 반전"
@@ -21368,6 +21777,10 @@ msgstr "기존 폴더 사용"
 msgid "Use an image from the project folder..."
 msgstr "프로젝트 폴더의 이미지 사용..."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Use built-in transcription"
+msgstr "내장 전사 사용"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."
 msgstr "기존 브라우저 세션이 필요한 작업에서는 Chrome을 안전하게 사용합니다."
@@ -21433,6 +21846,11 @@ msgstr "{name} 스킬을 사용합니다."
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Use the ID of a persona available in your Devin cloud organization."
 msgstr "Devin 클라우드 조직에서 사용할 수 있는 페르소나의 ID를 사용하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use the microphone to try your selected engine and model."
+msgstr "마이크를 사용하여 선택한 엔진과 모델을 시험해 보세요."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
@@ -21506,6 +21924,11 @@ msgstr "이 머신에서는 Devin 자체 로그인을 사용합니다. Devin 기
 msgid "Using the built-in Claude model list."
 msgstr "내장 Claude 모델 목록을 사용합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Using your existing Hex installation. Poracode will not modify it."
+msgstr "기존 Hex 설치를 사용합니다. Poracode는 이를 수정하지 않습니다."
+
 #. placeholder {0}: status.bundledVersion
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "v{0} available"
@@ -21522,6 +21945,10 @@ msgstr "값"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify host key"
 #~ msgstr "호스트 키 확인"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Verify model"
+msgstr "모델 확인"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify SSH host key"
@@ -21663,14 +22090,18 @@ msgstr "시각화"
 msgid "Visual sections"
 msgstr "시각화 섹션"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Voice input backend"
+msgstr "음성 입력 백엔드"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "이 환경에서는 음성 입력을 사용할 수 없습니다."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Voice input is unavailable on remote sessions."
-msgstr "원격 세션에서는 음성 입력을 사용할 수 없습니다."
+#~ msgid "Voice input is unavailable on remote sessions."
+#~ msgstr "원격 세션에서는 음성 입력을 사용할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -21681,6 +22112,14 @@ msgstr "음성 입력 언어"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "음성 입력 모델"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Voice input needs attention"
+msgstr "음성 입력에 주의가 필요함"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Voice transcription cancelled."
+msgstr "음성 전사가 취소되었습니다."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
@@ -21961,6 +22400,10 @@ msgstr "터미널 패널이 나타나는 위치."
 msgid "While working"
 msgstr "작업 중"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Whisper with broad multilingual support."
+msgstr "광범위한 다국어를 지원하는 Whisper."
+
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Will run in {0}:"
@@ -21990,6 +22433,10 @@ msgstr "Windows 셸"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Winner merged."
 msgstr "우승자를 병합했습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "With Hex, recordings are sent to your connected Poracode host for processing, not to a cloud transcription service. Recordings are limited to five minutes."
+#~ msgstr "Hex를 사용하면 녹음이 클라우드 전사 서비스가 아닌 연결된 Poracode 호스트로 전송되어 처리됩니다. 녹음은 최대 5분으로 제한됩니다."
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -22322,6 +22769,10 @@ msgstr "내 플러그인"
 msgid "Your question is kept. Use Retry above to send it again."
 msgstr "질문은 유지됩니다. 위의 다시 시도를 사용해 다시 보내세요."
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Your recording is kept in memory for two minutes. Retry uses the same model and host."
+msgstr "녹음 내용은 2분 동안 메모리에 보관됩니다. 재시도에서는 동일한 모델과 호스트를 사용합니다."
+
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"
 msgstr "내 리뷰가 요청되었습니다"
@@ -22329,6 +22780,10 @@ msgstr "내 리뷰가 요청되었습니다"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "스태시에 저장된 로컬 변경 사항이 다시 적용되었습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Your test transcript will appear here. It is not sent to a conversation."
+msgstr "테스트 기록이 여기에 표시됩니다. 대화로 전송되지 않습니다."
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "z.ai"

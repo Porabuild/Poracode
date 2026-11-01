@@ -238,6 +238,8 @@ describe("sharedSettingsFile", () => {
         microphoneDeviceId: "",
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
+        transcriptionBackend: "transformers",
+        hexModel: "parakeet_v3",
         useWebGpu: true,
       },
       usage: {
@@ -401,6 +403,8 @@ describe("sharedSettingsFile", () => {
         microphoneDeviceId: "",
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
+        transcriptionBackend: "transformers",
+        hexModel: "parakeet_v3",
         useWebGpu: true,
       },
       usage: {
@@ -574,6 +578,8 @@ describe("sharedSettingsFile", () => {
       microphoneDeviceId: "mic-1",
       transcriptionLanguage: "en",
       transcriptionModel: "tiny",
+      transcriptionBackend: "transformers",
+      hexModel: "parakeet_v3",
       useWebGpu: true,
     });
   });
@@ -646,6 +652,8 @@ describe("sharedSettingsFile", () => {
       microphoneDeviceId: "mic-1",
       transcriptionLanguage: "es",
       transcriptionModel: "tiny",
+      transcriptionBackend: "transformers",
+      hexModel: "parakeet_v3",
       useWebGpu: true,
     });
   });

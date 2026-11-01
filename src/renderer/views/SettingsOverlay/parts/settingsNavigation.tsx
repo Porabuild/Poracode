@@ -47,7 +47,6 @@ export interface SettingsDestination {
 // hides them and instead surfaces "Models" in place of the Agents tree. Single
 // source of truth for both the collapsed icon rail and the expanded list.
 const DESKTOP_ONLY_SECTIONS = new Set<SettingsSection>([
-  "audio",
   "search",
   "threads",
   "shortcuts",

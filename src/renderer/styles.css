@@ -2347,19 +2347,9 @@ html[data-compact-layout] .m-pr-tabs[data-pressed="true"] {
   transform: none;
 }
 
-/* The shared mobile Select trigger is only styled inside Settings; here it is a
-   full-width field (commit scope, guide writer and model). */
 html[data-compact-layout] .m-pr-scroll .m-field-picker {
-  display: flex;
   width: 100%;
-  min-height: 2.5rem;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: var(--m-list-row-radius);
-  background: var(--m-list-row-surface);
-  padding-inline: 0.75rem;
-  font-size: 0.8125rem;
-  text-align: left;
+  max-width: 100%;
 }
 
 html[data-compact-layout] .m-mobile-file-editor__actions {
@@ -3432,32 +3422,38 @@ html[data-compact-layout] .m-page-edge-action {
   max-width: 100%;
 }
 
-/* Mobile Select renders a sheet trigger instead of HeroUI's desktop field.
-   Present it as a compact trailing value while retaining a clear focus ring. */
-.m-settings__body .m-field-picker {
-  display: flex;
-  width: auto;
-  min-height: 2rem;
+.m-field-picker {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.m-field-picker .select__trigger {
+  min-height: 2.75rem;
+}
+
+.m-settings__body .audio-settings .settings-row {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.m-settings__body .audio-settings .settings-row > :not(.settings-row__text) {
+  width: 100%;
+  max-width: none;
+}
+
+.m-settings__body .audio-settings .settings-row__text {
+  flex: initial;
+}
+
+.m-settings__body .audio-settings .settings-row:has([role="switch"]) {
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.375rem;
-  border-radius: 0.375rem;
-  padding: 0.25rem 0.125rem 0.25rem 0.5rem;
-  font-size: 0.8125rem;
-  line-height: 1.25;
-  color: inherit;
-  cursor: pointer;
-  text-align: right;
 }
 
-.m-settings__body .m-field-picker:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
-  outline-offset: 1px;
-}
-
-.m-settings__body .m-field-picker svg {
-  width: 0.875rem;
-  height: 0.875rem;
+.m-settings__body .audio-settings .settings-row:has([role="switch"]) > :not(.settings-row__text) {
+  width: auto;
 }
 
 .m-sheet .list-box-item,
