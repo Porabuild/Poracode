@@ -142,6 +142,37 @@ describe("source identity and credential isolation", () => {
       headers: { Authorization: "Bearer uri-fixture" },
     });
   });
+  describe("`git remote -v` output shapes", () => {
+    const url = "https://gitlab.com/team/app.git";
+    it.each([
+      ["a normal clone", `origin\t${url} (fetch)\norigin\t${url} (push)\n`],
+      ["a blob:none partial clone", `origin\t${url} (fetch) [blob:none]\norigin\t${url} (push)\n`],
+      [
+        "a combined-filter partial clone",
+        `origin\t${url} (fetch) [combine:blob:none+tree:0]\norigin\t${url} (push)\n`,
+      ],
+      [
+        "multiple partial-clone remotes",
+        `fork\thttps://gitlab.com/me/app.git (fetch) [blob:none]\n` +
+          `fork\thttps://gitlab.com/me/app.git (push)\n` +
+          `origin\t${url} (fetch) [blob:none]\norigin\t${url} (push)\n`,
+      ],
+    ])("resolves the origin remote of %s", async (_name, remoteOutput) => {
+      const f = fixture(url, { GITLAB_TOKEN: "gitlab-fixture" }, { username: "alice" });
+      const git = f.cli.getMockImplementation()!;
+      f.cli.mockImplementation(async (loc, command, args, env) =>
+        command === "git" && args[0] === "remote" && args[1] === "-v"
+          ? remoteOutput
+          : git(loc, command, args, env),
+      );
+      const result = await f.connections.resolve(location);
+      expect(result?.source).toMatchObject({
+        forge: "gitlab",
+        repository: "team/app",
+        remote: "origin",
+      });
+    });
+  });
   it("never retries an explicit account as another signed-in user", async () => {
     const f = fixture(
       "https://gitlab.com/team/app.git",

@@ -2082,6 +2082,60 @@ on:
       expect(envOf(listCall!)?.GH_REPO).toBe("github.com/me/fork");
     });
 
+    it.each([
+      [
+        "a blob:none partial clone",
+        "origin\thttps://github.com/SDSLeon/lightcode.git (fetch) [blob:none]\n" +
+          "origin\thttps://github.com/SDSLeon/lightcode.git (push)\n",
+      ],
+      [
+        "a combined-filter partial clone",
+        "origin\thttps://github.com/SDSLeon/lightcode.git (fetch) [combine:blob:none+tree:0]\n" +
+          "origin\thttps://github.com/SDSLeon/lightcode.git (push)\n",
+      ],
+    ])("scopes the account to the remote of %s", async (_name, remotes) => {
+      execFileAsyncMock.mockImplementation(async (_cmd, args) => {
+        const a = args as string[];
+        if (isGh(a, "remote", "-v")) return { stdout: remotes };
+        if (isGh(a, "auth", "token")) return { stdout: "gho_override\n" };
+        if (isGh(a, "workflow", "list")) return { stdout: WORKFLOWS_JSON };
+        throw new Error(`unexpected gh ${a.join(" ")}`);
+      });
+
+      const result = await new GitHubService().listWorkflows(location, ym);
+
+      expect(result.account).toEqual(ym);
+      const listCall = execFileAsyncMock.mock.calls.find((call) =>
+        isGh(argsOf(call), "workflow", "list"),
+      );
+      expect(envOf(listCall!)?.GH_REPO).toBe("github.com/SDSLeon/lightcode");
+    });
+
+    it("matches the host of a multi-remote partial clone and leaves the repo to gh", async () => {
+      const remotes = [
+        "origin\thttps://github.com/owner/upstream.git (fetch) [blob:none]",
+        "origin\thttps://github.com/owner/upstream.git (push)",
+        "fork\thttps://github.com/me/fork.git (fetch) [blob:none]",
+        "fork\thttps://github.com/me/fork.git (push)",
+      ].join("\n");
+      execFileAsyncMock.mockImplementation(async (_cmd, args) => {
+        const a = args as string[];
+        if (isGh(a, "remote", "-v")) return { stdout: remotes };
+        if (isGh(a, "auth", "token")) return { stdout: "gho_override\n" };
+        if (isGh(a, "workflow", "list")) return { stdout: WORKFLOWS_JSON };
+        // No gh default repository is configured, so only the remotes decide.
+        throw new Error(`unexpected gh ${a.join(" ")}`);
+      });
+
+      const result = await new GitHubService().listWorkflows(location, ym);
+
+      expect(result.account).toEqual(ym);
+      const listCall = execFileAsyncMock.mock.calls.find((call) =>
+        isGh(argsOf(call), "workflow", "list"),
+      );
+      expect(envOf(listCall!)?.GH_REPO).toBeUndefined();
+    });
+
     it("runs scoped POSIX mutations directly so login profiles cannot replace the account env", async () => {
       buildAgentCommandMock.mockImplementation((_loc, command, args) =>
         command === "gh" ? { command: "login-shell", args: ["login-script"] } : { command, args },
