@@ -37,8 +37,11 @@ const RUN_HELP =
   "    Ctrl+C, caller/pipe loss, the existing 10-minute local-control deadline or a 1 MiB unread-output overflow cancels this exact run.\n" +
   "    History remains under sessions list/inspect/export. Up to four runs may be reserved; unused preparations/results expire after 2 minutes idle.\n";
 const TUI_HELP =
-  "  tui [--continue|-c] [--session SESSION_ID] [--prompt TEXT] [--auto] [DIRECTORY]\n" +
-  "    Open the local terminal UI. It uses the current directory by default and starts a background server if no owner is running.\n" +
+  "  tui [--continue|-c] [--session SESSION_ID] [--prompt TEXT] [--auto] [--pair LINK [--name NAME] | --server NAME] [DIRECTORY]\n" +
+  "    Open the terminal UI on the project for the current directory (or a worktree of one); any other folder opens Home and lists every project's threads.\n" +
+  "    Without --pair/--server it uses the local host and starts a background server if no owner is running.\n" +
+  "    --pair LINK pairs with another host (for example a Mac running Poracode) from its one-time pairing link and saves it; --name labels it.\n" +
+  '    --server NAME reopens a saved host. Switch hosts inside the TUI with the "Switch server" command.\n' +
   "    A checkout requires bun run tui:install; packaged builds use their staged binary or PORACODE_TUI_BIN.\n" +
   "    The server remains running after the TUI exits; stop it with poracode stop and the same --base-dir.\n" +
   "    Each launch pairs a Poracode TUI client. Use clients list/revoke to inspect or remove client entries.\n";

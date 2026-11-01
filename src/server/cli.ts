@@ -604,7 +604,7 @@ function printHelp(args: readonly string[]): void {
       SERVICE_HELP +
       CLI_COMPLETION_HELP +
       "\n" +
-      "Usage: poracode [tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [DIRECTORY] | " +
+      "Usage: poracode [tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [--pair LINK [--name NAME] | --server NAME] [DIRECTORY] | " +
       "-p|--print PROMPT [--provider K] [--model M] [--effort E] [--format text|json] [--directory PATH] | " +
       "serve [--open|--no-open] [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | " +
       "setup [--start|--no-start] [--skip-auth] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | logs [--follow] [--lines N] [--json] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | pair --json [--scope viewer|operator] | status [--details] [--json] | stop [--if-pid PID] | --version | --help]\n" +

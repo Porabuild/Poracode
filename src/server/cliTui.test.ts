@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -16,7 +16,14 @@ import {
 import { TUI_BOOTSTRAP_VERSION, tuiBootstrapSchema } from "@/shared/tuiBootstrap";
 import { parseTuiSession } from "@/shared/tuiSession";
 import { remoteAccessTokenResultSchema } from "@/shared/remote/protocol/core";
-import { hostProjectAdditionSchema } from "@/shared/contracts/hostProjects";
+import {
+  readTuiServers,
+  saveTuiServer,
+  tuiServerIdForEndpoint,
+  tuiSessionDirectory,
+  TUI_SWITCH_SERVER_EXIT_CODE,
+  writeTuiServerSwitch,
+} from "@/shared/tuiServers";
 import type { HostDescription } from "@/shared/hostControlProtocol";
 import type {
   HostStatusResponse,
@@ -37,7 +44,6 @@ const bootstrapInput = {
   home: resolve("tmp/cli-tui-home"),
   pairingUrl: "http://127.0.0.1:49152/#token=temporary",
   directory,
-  projectId: "project-1",
   args: { continue: true, sessionId: "session-1", prompt: "Hello", auto: true },
 };
 
@@ -58,11 +64,18 @@ it("builds the shared versioned TUI bootstrap shape", () => {
     ...bootstrapInput,
   });
   expect(tuiBootstrapSchema.parse(createTuiBootstrap(bootstrapInput))).toMatchObject({
-    version: 2,
+    version: 3,
     auth: "pairing",
     args: { continue: true, sessionId: "session-1", prompt: "Hello", auto: true },
   });
-  expect(tuiBootstrapSchema.safeParse({ ...bootstrapInput, version: 3 }).success).toBe(false);
+  expect(
+    createTuiBootstrap({ ...bootstrapInput, server: { id: "s-0123456789ab", name: "mac" } }),
+  ).toMatchObject({ server: { id: "s-0123456789ab", name: "mac" } });
+  expect(tuiBootstrapSchema.safeParse({ ...bootstrapInput, version: 4 }).success).toBe(false);
+  // A v2 bootstrap from an older CLI refuses rather than running without `server`.
+  expect(
+    tuiBootstrapSchema.safeParse({ ...bootstrapInput, auth: "pairing", version: 2 }).success,
+  ).toBe(false);
   // A v1 bootstrap has no auth discriminator — old payloads refuse, never degrade.
   expect(tuiBootstrapSchema.safeParse({ ...bootstrapInput, version: 1 }).success).toBe(false);
 });
@@ -98,7 +111,7 @@ it("emits a session-mode bootstrap without a pairing URL", () => {
     refreshExpiresAtMs: Date.now() + 86_400_000,
   };
   const bootstrap = createTuiBootstrap({ ...bootstrapInput, session });
-  expect(bootstrap).toMatchObject({ version: 2, auth: "session" });
+  expect(bootstrap).toMatchObject({ version: 3, auth: "session" });
   expect(bootstrap).not.toHaveProperty("pairingUrl");
 });
 
@@ -195,22 +208,6 @@ it("prefers PORACODE_TUI_BIN and propagates the child exit code with a validated
     process.nextTick(() => child.emit("exit", 19, null));
     return child;
   });
-  const registerProject = vi.fn<
-    (profile: string, generation: string, directory: string) => Promise<unknown>
-  >(async () =>
-    hostProjectAdditionSchema.parse({
-      formatVersion: 1,
-      scope: "persisted-profile",
-      project: {
-        id: "project-1",
-        name: "Fixture",
-        location: { kind: "windows", path: directory },
-        disabled: false,
-        createdAt: "2026-10-21T00:00:00.000Z",
-      },
-      created: true,
-    }),
-  );
   const requestPairing = vi.fn<
     (profile: string, options: RequestPairingOptions) => Promise<PairingControlResponse>
   >(async () => ({
@@ -241,14 +238,12 @@ it("prefers PORACODE_TUI_BIN and propagates the child exit code with a validated
         ensureOwner,
         fileExists: (path) => path === resolve("compiled-tui"),
         layout: prefix,
-        registerProject,
         requestPairing,
         spawn: spawn as never,
       },
     );
     expect(exitCode).toBe(19);
     expect(ensureOwner).toHaveBeenCalledOnce();
-    expect(registerProject).toHaveBeenCalledWith(profile, "owner-generation", directory);
     expect(requestPairing).toHaveBeenCalledWith(profile, {
       preset: "operator",
       expectedGeneration: "owner-generation",
@@ -269,14 +264,16 @@ it("prefers PORACODE_TUI_BIN and propagates the child exit code with a validated
       JSON.parse(String(spawnOptions.env.PORACODE_TUI_BOOTSTRAP)),
     );
     expect(bootstrap).toMatchObject({
-      version: 2,
+      version: 3,
       auth: "pairing",
       appVersion: "1.2.3",
       home: join(profile, "tui"),
       directory,
-      projectId: "project-1",
       args: { continue: true, sessionId: "session-1", prompt: "Hello", auto: true },
     });
+    // The TUI binds its project once connected; the launcher registers none.
+    expect(bootstrap).not.toHaveProperty("projectId");
+    expect(bootstrap).not.toHaveProperty("server");
   } finally {
     await rm(profile, { recursive: true, force: true });
   }
@@ -418,7 +415,7 @@ it.each([
     expect(exitCode).toBe(0);
     expect(ownerSpawn).not.toHaveBeenCalled();
     expectOwned(profile);
-    expect(commands).toEqual(["projects-add", "pairings-create"]);
+    expect(commands).toEqual(["pairings-create"]);
     const [, , spawnOptions] = spawn.mock.calls[0]!;
     // The reopened console input reaches the TUI; output stays inherited.
     expect(spawnOptions.stdio).toEqual([7, "inherit", "inherit"]);
@@ -427,11 +424,163 @@ it.each([
     ).toMatchObject({
       auth: "pairing",
       pairingUrl: redeemed,
-      projectId: "project-1",
     });
   } finally {
     await control.dispose();
     lease.release();
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function remoteFixture() {
+  const profile = mkdtempSync(join(tmpdir(), "poracode-cli-tui-remote-"));
+  const home = join(profile, "tui");
+  const exits: number[] = [];
+  const launched: Record<string, unknown>[] = [];
+  const beforeExit: (() => void)[] = [];
+  const spawn = vi.fn<
+    (command: string, args: string[], options: { env: NodeJS.ProcessEnv }) => ChildProcess
+  >((_command, _args, options) => {
+    launched.push(JSON.parse(String(options.env.PORACODE_TUI_BOOTSTRAP)));
+    const child = new EventEmitter() as unknown as ChildProcess;
+    const code = exits.shift() ?? 0;
+    process.nextTick(() => {
+      beforeExit.shift()?.();
+      child.emit("exit", code, null);
+    });
+    return child;
+  });
+  const ensureOwner = vi.fn<typeof ensureCliOwner>(
+    async () =>
+      ({
+        requestId: "status-request",
+        ownerGeneration: "owner-generation",
+        description: {} as HostDescription,
+      }) as HostStatusResponse,
+  );
+  const requestPairing = vi.fn<
+    (profile: string, options: RequestPairingOptions) => Promise<PairingControlResponse>
+  >(async () => ({
+    requestId: "pairing-request",
+    pairingUrl: "http://127.0.0.1:49152/#token=local",
+  }));
+  const logs: string[] = [];
+  const run = (options: TuiCliOptions) =>
+    runCliTui(
+      options,
+      { profileNamespace: profile, directory },
+      {
+        appVersion: "1.2.3",
+        env: { PORACODE_TUI_BIN: "compiled-tui", PATH: "" },
+        ensureOwner,
+        fileExists: (path) => path === resolve("compiled-tui"),
+        layout: layout("prefix", resolve("tui-prefix-fixture")),
+        requestPairing,
+        spawn: spawn as never,
+        log: (line) => logs.push(line),
+      },
+    );
+  const saveSession = (serverId: string) => {
+    const dir = tuiSessionDirectory(home, serverId);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "session.json"),
+      JSON.stringify({
+        version: 1,
+        endpoint: "https://mac.local:49152",
+        certFingerprint: "sha256:00",
+        accessToken: "access",
+        refreshToken: "refresh",
+        refreshExpiresAtMs: Date.now() + 86_400_000,
+      }),
+    );
+  };
+  return {
+    profile,
+    home,
+    exits,
+    launched,
+    beforeExit,
+    spawn,
+    ensureOwner,
+    logs,
+    run,
+    saveSession,
+    dispose: () => rmSync(profile, { recursive: true, force: true }),
+  };
+}
+
+const mac = {
+  id: tuiServerIdForEndpoint("https://mac.local:49152"),
+  name: "mac",
+  endpoint: "https://mac.local:49152",
+  addedAt: "2026-11-01T00:00:00.000Z",
+};
+
+it("pairs a remote host from --pair without touching the local owner", async () => {
+  const fixture = remoteFixture();
+  try {
+    const link = "https://mac.local:49152/#token=one-time&fp=sha256:00";
+    expect(await fixture.run({ pairingUrl: link, serverName: "mac" })).toBe(0);
+    expect(fixture.ensureOwner).not.toHaveBeenCalled();
+    expect(readTuiServers(fixture.home)).toEqual([
+      expect.objectContaining({ id: mac.id, name: "mac", endpoint: "https://mac.local:49152" }),
+    ]);
+    expect(fixture.launched[0]).toMatchObject({
+      auth: "pairing",
+      pairingUrl: link,
+      server: { id: mac.id, name: "mac" },
+    });
+  } finally {
+    fixture.dispose();
+  }
+});
+
+it("reopens a saved server by name and explains an expired session", async () => {
+  const fixture = remoteFixture();
+  try {
+    saveTuiServer(fixture.home, mac);
+    // No saved session: nothing launches, and the hint names the host.
+    expect(await fixture.run({ server: "MAC" })).toBe(77);
+    expect(fixture.spawn).not.toHaveBeenCalled();
+    expect(fixture.logs.join("\n")).toContain("poracode tui --pair");
+
+    fixture.saveSession(mac.id);
+    expect(await fixture.run({ server: "mac" })).toBe(0);
+    expect(fixture.ensureOwner).not.toHaveBeenCalled();
+    expect(fixture.launched[0]).toMatchObject({
+      auth: "session",
+      server: { id: mac.id, name: "mac" },
+    });
+    await expect(fixture.run({ server: "nas" })).rejects.toThrow("No saved server named nas");
+  } finally {
+    fixture.dispose();
+  }
+});
+
+it("relaunches on the server the picker selected, without replaying one-shot args", async () => {
+  const fixture = remoteFixture();
+  try {
+    saveTuiServer(fixture.home, mac);
+    fixture.saveSession(mac.id);
+    // Local first; the picker records the Mac and exits with the switch code.
+    fixture.exits.push(TUI_SWITCH_SERVER_EXIT_CODE, TUI_SWITCH_SERVER_EXIT_CODE, 5);
+    fixture.beforeExit.push(
+      () => writeTuiServerSwitch(fixture.home, { kind: "server", id: mac.id }),
+      () => writeTuiServerSwitch(fixture.home, { kind: "local" }),
+    );
+    expect(await fixture.run({ prompt: "Hello" })).toBe(5);
+    expect(fixture.launched.map((value) => value.server ?? "local")).toEqual([
+      "local",
+      { id: mac.id, name: "mac" },
+      "local",
+    ]);
+    expect(fixture.launched[0]).toMatchObject({ args: { prompt: "Hello" } });
+    expect(fixture.launched[1]).toMatchObject({ args: {} });
+    // The switch request is consumed, so a plain exit 78 later stops the loop.
+    fixture.exits.push(TUI_SWITCH_SERVER_EXIT_CODE);
+    expect(await fixture.run({})).toBe(TUI_SWITCH_SERVER_EXIT_CODE);
+  } finally {
+    fixture.dispose();
   }
 });
