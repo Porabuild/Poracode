@@ -38,6 +38,10 @@ msgstr "(dal yok)"
 #~ msgid "(no message)"
 #~ msgstr "(mesaj yok)"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "(optional)"
+msgstr "(isteğe bağlı)"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -1049,6 +1053,10 @@ msgstr "3B önizleme, salt görüntüleme. Döndürmek için sürükleyin veya o
 msgid "4K"
 msgstr "4K"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "5 files · 10 MB each"
+msgstr "5 dosya · her biri 10 MB"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "7d"
 msgstr "7g"
@@ -1441,6 +1449,10 @@ msgstr "Bu ileti dizisi çalışabilmesi için kimlik bilgilerini ekleyin."
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Add fallback"
 msgstr "Yedek ekle"
+
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Add files, drop here, or paste an image"
+msgstr "Dosya ekleyin, buraya bırakın veya bir görsel yapıştırın"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
@@ -2324,6 +2336,10 @@ msgstr "İleti dizisine ekle"
 msgid "Attached browser selection."
 msgstr "Ekli tarayıcı seçimi."
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Attachments"
+msgstr "Ekler"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Attempt"
 msgstr "Deneme"
@@ -2938,6 +2954,10 @@ msgstr "Tarayıcıyla oturum aç"
 msgid "Budget limit reached"
 msgstr "Bütçe sınırına ulaşıldı"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Bug"
+msgstr "Hata"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Builder"
 msgstr "Uygulayıcı"
@@ -3072,6 +3092,7 @@ msgstr "Bu model seçimi bu arayüzde kullanılamaz"
 
 #: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -3625,6 +3646,10 @@ msgstr "Yeni bulut sohbetleri için çalışma alanını seçin. Mevcut bulut ot
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "Eklenecek konuyu seçin"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Choose up to 5 supported files, 10 MB each."
+msgstr "Her biri 10 MB olan en fazla 5 desteklenen dosya seçin."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Choose what happens after a scheduled time was missed."
@@ -7421,6 +7446,10 @@ msgstr "Çalıştırma"
 msgid "Execution mode"
 msgstr "Çalıştırma modu"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Existing issues"
+msgstr "Mevcut bildirimler"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Existing or edited native entry; left unchanged"
 msgstr "Mevcut veya düzenlenmiş yerel kayıt değiştirilmedi"
@@ -7821,6 +7850,22 @@ msgstr "Favoriler"
 msgid "Featured"
 msgstr "Öne çıkanlar"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not be sent. Your draft is kept."
+msgstr "Geri bildirim gönderilemedi. Taslağınız saklandı."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not load. Please try again later."
+msgstr "Geri bildirim yüklenemedi. Lütfen daha sonra tekrar deneyin."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback is temporarily unavailable. Please try again later."
+msgstr "Geri bildirim geçici olarak kullanılamıyor. Lütfen daha sonra tekrar deneyin."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback sent"
+msgstr "Geri bildirim gönderildi"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Fetch"
 msgstr "Getir"
@@ -8033,6 +8078,10 @@ msgstr "Bitti"
 #: src/renderer/notifications.ts
 msgid "Finished · Waiting for your input"
 msgstr "Bitti · Girişinizi bekliyorum"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Finishing your report on GitHub…"
+msgstr "Bildiriminiz GitHub üzerinde tamamlanıyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
@@ -9066,6 +9115,10 @@ msgstr "Simge rengi: {label}"
 msgid "ID: {0}"
 msgstr "Kimlik: {0}"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Idea"
+msgstr "Fikir"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Identifier"
 msgstr "Tanımlayıcı"
@@ -9314,6 +9367,10 @@ msgstr "Uygulama içi kamera taraması yalnızca HTTPS üzerinden veya localhost
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "Etkin değil"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Include basic diagnostics"
+msgstr "Temel tanılama bilgilerini ekle"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
@@ -13040,6 +13097,10 @@ msgstr "Deneyi aç"
 msgid "Open experiment board"
 msgstr "Deney panosunu aç"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Open feedback on website"
+#~ msgstr "Geri bildirimi web sitesinde aç"
+
 #: src/renderer/commands/registry.ts
 msgid "Open File"
 msgstr "Dosyayı Aç"
@@ -14308,6 +14369,10 @@ msgstr "Model hazırlanıyor…"
 msgid "Preparing remote environment…"
 msgstr "Uzak ortam hazırlanıyor…"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Preparing your report…"
+msgstr "Bildiriminiz hazırlanıyor…"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Presentation"
 #~ msgstr "Sunum"
@@ -14352,6 +14417,7 @@ msgstr "Sıralamayı değiştirmeye başlamak için Boşluk tuşuna basın. Taş
 msgid "Prevent system sleep"
 msgstr "Sistemin uykuya geçmesini önle"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Önizleme"
@@ -14698,6 +14764,10 @@ msgstr "Sağlayıcılar"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
 #~ msgid "Providers & models"
 #~ msgstr "Sağlayıcılar ve modeller"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Public on GitHub."
+msgstr "GitHub üzerinde herkese açık."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -15386,8 +15456,9 @@ msgid "Remove “{removingTarget}” from OpenCode 2? You can install it again f
 msgstr "“{removingTarget}” eklentisi OpenCode 2’den kaldırılsın mı? Daha sonra “Keşfet” bölümünden yeniden yükleyebilirsiniz."
 
 #. placeholder {0}: att.name
+#. placeholder {0}: file.name
 #. placeholder {0}: pkg.target
-#. placeholder {0}: removeProject.name
+#: src/renderer/components/common/FeedbackAttachments.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
@@ -15736,6 +15807,10 @@ msgstr "Yeniden sıralama iptal edildi."
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
 msgstr "Tekrarla"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Report a bug or suggest an idea."
+msgstr "Bir hata bildirin veya fikir önerin."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Report an Issue"
@@ -17300,6 +17375,7 @@ msgstr "Seçili"
 msgid "Selected sidebar row"
 msgstr "Seçili kenar çubuğu satırı"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatComposer.tsx
@@ -17310,6 +17386,11 @@ msgstr "Gönder"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Send a message..."
 msgstr "Mesaj gönder..."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Send feedback"
+msgstr "Geri bildirim gönder"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Send generic text instead of conversation titles through Apple's push service."
@@ -18524,6 +18605,10 @@ msgstr "Mesaj gönderilmeden önce yönlendirme iptal edildi."
 msgid "Steer was replaced by a newer message."
 msgstr "Yönlendirme daha yeni bir mesajla değiştirildi."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Still processing. Send again to check the same report."
+msgstr "İşlem sürüyor. Aynı bildirimi kontrol etmek için tekrar gönderin."
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -19590,6 +19675,10 @@ msgstr "Uzak sunucu eşleştirme kimlik bilgisi döndürmedi."
 msgid "The replacement message could not be sent."
 msgstr "Yerine geçecek mesaj gönderilemedi."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "The report could not be confirmed yet. Please retry."
+msgstr "Bildirim henüz doğrulanamadı. Lütfen tekrar deneyin."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Deponun diskteki konumu. Klasörü taşıdıysanız güncelleyin."
@@ -20298,6 +20387,10 @@ msgstr "Bu, seçili emülatörü kapatır ve tüm izleyicilerin bağlantısını
 msgid "This source host does not support safe automatic merge."
 msgstr "Bu kaynak sunucusu güvenli otomatik birleştirmeyi desteklemiyor."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "This submission has expired. Your draft is kept."
+msgstr "Bu gönderimin süresi doldu. Taslağınız saklandı."
+
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
 msgstr "Bu SVG görüntülenemiyor."
@@ -20534,6 +20627,7 @@ msgstr "Zaman aşımı (ms)"
 msgid "Timeout must be a positive whole number."
 msgstr "Zaman aşımı pozitif bir tam sayı olmalıdır."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrTitleBlock.tsx
 msgid "Title"
 msgstr "Başlık"
@@ -21678,6 +21772,11 @@ msgstr "Ortam sahibini yükselt"
 msgid "Upgrade owner"
 msgstr "Sahibi yükselt"
 
+#. placeholder {0}: progress.upload
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Uploading attachment {0}…"
+msgstr "Ek {0} yükleniyor…"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Uploading audio…"
 msgstr "Ses yükleniyor…"
@@ -21954,6 +22053,14 @@ msgstr "değer"
 #~ msgid "Value"
 #~ msgstr "Değer"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Verification"
+#~ msgstr "Doğrulama"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Verification could not load. Please try again."
+#~ msgstr "Doğrulama yüklenemedi. Lütfen tekrar deneyin."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify host key"
 #~ msgstr "Ana makine anahtarını doğrula"
@@ -21973,6 +22080,10 @@ msgstr "Modeli doğrulayın"
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Version"
 msgstr "Sürüm"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Version and platform only. No chat history, code, or project paths."
+msgstr "Yalnızca sürüm ve platform. Sohbet geçmişi, kod veya proje yolları yok."
 
 #. placeholder {0}: metadata.authMethod
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
@@ -22009,6 +22120,10 @@ msgstr "Tüm sürümleri GitHub'da görüntüle"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "Tüm değişiklik günlüğünü görüntüle"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "View GitHub issue"
+msgstr "GitHub bildirimini görüntüle"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "View only"
@@ -22323,6 +22438,10 @@ msgstr "Haftalık değerlendirme"
 #~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 #~ msgstr "Crossagents'ın açık seçimlerden öğrendikleri. Yönlendirmeyi yeniden şekillendirmek için etiketleri düzenleyin veya girdileri kaldırın."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What happened?"
+msgstr "Ne oldu?"
+
 #: src/renderer/components/providers/devin/sessionReviseForm.tsx
 msgid "What should change? (optional)"
 msgstr "Ne değişmeli? (isteğe bağlı)"
@@ -22343,6 +22462,10 @@ msgstr "PR Oluştur düğmesinin varsayılan olarak yaptığı şey: Önce başl
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "What this server provides"
 msgstr "Bu sunucunun sağladıkları"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What would you like to see?"
+msgstr "Ne görmek istersiniz?"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
@@ -22784,6 +22907,14 @@ msgstr "Sorunuz korundu. Yeniden göndermek için yukarıdaki Tekrar dene'yi kul
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 msgid "Your recording is kept in memory for two minutes. Retry uses the same model and host."
 msgstr "Kaydınız iki dakika boyunca hafızada tutulur. Yeniden dene aynı modeli ve ana bilgisayarı kullanır."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments are now on GitHub."
+msgstr "Bildiriminiz ve ekleriniz artık GitHub üzerinde."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments will be visible to everyone."
+msgstr "Bildiriminiz ve ekleriniz herkes tarafından görülebilecek."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"

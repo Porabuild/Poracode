@@ -63,6 +63,8 @@ const CLIENT_OPTIMIZED_DEPS = [
   "@tiptap/react",
   "@tiptap/react/menus",
   "@tiptap/starter-kit",
+  // The deferred feedback form needs the Blob client's CommonJS browser dependencies bundled.
+  "@vercel/blob/client",
   "@xterm/addon-clipboard",
   "@xterm/addon-fit",
   "@xterm/addon-image",

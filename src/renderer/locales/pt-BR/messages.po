@@ -38,6 +38,10 @@ msgstr "(sem branch)"
 #~ msgid "(no message)"
 #~ msgstr "(sem mensagem)"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "(optional)"
+msgstr "(opcional)"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -1049,6 +1053,10 @@ msgstr "Prévia 3D, somente visualização. Arraste ou use as setas para girar; 
 msgid "4K"
 msgstr "4K"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "5 files · 10 MB each"
+msgstr "5 arquivos · 10 MB cada"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "7d"
 msgstr "7d"
@@ -1441,6 +1449,10 @@ msgstr "Adicione credenciais antes que este tópico possa ser executado."
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Add fallback"
 msgstr "Adicionar alternativa"
+
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Add files, drop here, or paste an image"
+msgstr "Adicione arquivos, solte aqui ou cole uma imagem"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
@@ -2324,6 +2336,10 @@ msgstr "Anexar ao tópico"
 msgid "Attached browser selection."
 msgstr "Seleção de navegador anexada."
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Attachments"
+msgstr "Anexos"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Attempt"
 msgstr "Tentativa"
@@ -2938,6 +2954,10 @@ msgstr "Login pelo navegador"
 msgid "Budget limit reached"
 msgstr "Limite de orçamento atingido"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Bug"
+msgstr "Bug"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Builder"
 msgstr "Construtor"
@@ -3072,6 +3092,7 @@ msgstr "Não é possível usar esta seleção de modelo nesta interface"
 
 #: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -3625,6 +3646,10 @@ msgstr "Escolha o espaço de trabalho para novos chats na nuvem. As sessões na 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "Escolha o tópico ao qual anexar"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Choose up to 5 supported files, 10 MB each."
+msgstr "Escolha até 5 arquivos compatíveis de 10 MB cada."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Choose what happens after a scheduled time was missed."
@@ -7421,6 +7446,10 @@ msgstr "Execução"
 msgid "Execution mode"
 msgstr "Modo de execução"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Existing issues"
+msgstr "Issues existentes"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Existing or edited native entry; left unchanged"
 msgstr "Entrada nativa existente ou editada; mantida sem alterações"
@@ -7821,6 +7850,22 @@ msgstr "Favoritos"
 msgid "Featured"
 msgstr "Destaques"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not be sent. Your draft is kept."
+msgstr "Não foi possível enviar o feedback. Seu rascunho foi mantido."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not load. Please try again later."
+msgstr "Não foi possível carregar o feedback. Tente novamente mais tarde."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback is temporarily unavailable. Please try again later."
+msgstr "O feedback está temporariamente indisponível. Tente novamente mais tarde."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback sent"
+msgstr "Feedback enviado"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Fetch"
 msgstr "Buscar"
@@ -8033,6 +8078,10 @@ msgstr "Concluído"
 #: src/renderer/notifications.ts
 msgid "Finished · Waiting for your input"
 msgstr "Concluído · Aguardando sua resposta"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Finishing your report on GitHub…"
+msgstr "Finalizando seu relato no GitHub…"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
@@ -9066,6 +9115,10 @@ msgstr "Cor do ícone: {label}"
 msgid "ID: {0}"
 msgstr "ID: {0}"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Idea"
+msgstr "Ideia"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Identifier"
 msgstr "Identificador"
@@ -9314,6 +9367,10 @@ msgstr "A leitura pela câmera dentro do app só funciona por HTTPS ou em localh
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "Inativo"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Include basic diagnostics"
+msgstr "Incluir diagnósticos básicos"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
@@ -13040,6 +13097,10 @@ msgstr "Abrir experimento"
 msgid "Open experiment board"
 msgstr "Abrir painel do experimento"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Open feedback on website"
+#~ msgstr "Abrir feedback no site"
+
 #: src/renderer/commands/registry.ts
 msgid "Open File"
 msgstr "Abrir arquivo"
@@ -14308,6 +14369,10 @@ msgstr "Preparando modelo…"
 msgid "Preparing remote environment…"
 msgstr "Preparando o ambiente remoto…"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Preparing your report…"
+msgstr "Preparando seu relato…"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Presentation"
 #~ msgstr "Apresentação"
@@ -14352,6 +14417,7 @@ msgstr "Pressione Espaço para começar a reordenar. Use as setas para mover, Es
 msgid "Prevent system sleep"
 msgstr "Impedir a suspensão do sistema"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Prévia"
@@ -14698,6 +14764,10 @@ msgstr "Provedores"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentProviderModelFilter.tsx
 #~ msgid "Providers & models"
 #~ msgstr "Provedores e modelos"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Public on GitHub."
+msgstr "Público no GitHub."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -15386,8 +15456,9 @@ msgid "Remove “{removingTarget}” from OpenCode 2? You can install it again f
 msgstr "Remover “{removingTarget}” do OpenCode 2? Você pode instalá-lo novamente em “Descobrir”."
 
 #. placeholder {0}: att.name
+#. placeholder {0}: file.name
 #. placeholder {0}: pkg.target
-#. placeholder {0}: removeProject.name
+#: src/renderer/components/common/FeedbackAttachments.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
@@ -15736,6 +15807,10 @@ msgstr "Reordenação cancelada."
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
 msgstr "Repetir"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Report a bug or suggest an idea."
+msgstr "Relate um bug ou sugira uma ideia."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Report an Issue"
@@ -17300,6 +17375,7 @@ msgstr "Selecionada"
 msgid "Selected sidebar row"
 msgstr "Linha selecionada da barra lateral"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatComposer.tsx
@@ -17310,6 +17386,11 @@ msgstr "Enviar"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Send a message..."
 msgstr "Envie uma mensagem..."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Send feedback"
+msgstr "Enviar feedback"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Send generic text instead of conversation titles through Apple's push service."
@@ -18524,6 +18605,10 @@ msgstr "O redirecionamento foi cancelado antes do envio da mensagem."
 msgid "Steer was replaced by a newer message."
 msgstr "O redirecionamento foi substituído por uma mensagem mais recente."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Still processing. Send again to check the same report."
+msgstr "Ainda processando. Envie novamente para verificar o mesmo relato."
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -19590,6 +19675,10 @@ msgstr "O servidor remoto não retornou uma credencial de emparelhamento."
 msgid "The replacement message could not be sent."
 msgstr "Não foi possível enviar a mensagem substituta."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "The report could not be confirmed yet. Please retry."
+msgstr "Ainda não foi possível confirmar o relato. Tente novamente."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "A localização do repositório no disco. Atualize-a se você moveu a pasta."
@@ -20298,6 +20387,10 @@ msgstr "Isso desliga o emulador selecionado e desconecta todos os visualizadores
 msgid "This source host does not support safe automatic merge."
 msgstr "Este servidor de origem não oferece merge automático seguro."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "This submission has expired. Your draft is kept."
+msgstr "Este envio expirou. Seu rascunho foi mantido."
+
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
 msgstr "Não é possível exibir este SVG."
@@ -20534,6 +20627,7 @@ msgstr "Tempo limite (ms)"
 msgid "Timeout must be a positive whole number."
 msgstr "O tempo limite deve ser um número inteiro positivo."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrTitleBlock.tsx
 msgid "Title"
 msgstr "Título"
@@ -21678,6 +21772,11 @@ msgstr "Atualizar proprietário do ambiente"
 msgid "Upgrade owner"
 msgstr "Atualizar proprietário"
 
+#. placeholder {0}: progress.upload
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Uploading attachment {0}…"
+msgstr "Enviando anexo {0}…"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Uploading audio…"
 msgstr "Enviando áudio…"
@@ -21954,6 +22053,14 @@ msgstr "valor"
 #~ msgid "Value"
 #~ msgstr "Valor"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Verification"
+#~ msgstr "Verificação"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Verification could not load. Please try again."
+#~ msgstr "Não foi possível carregar a verificação. Tente novamente."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify host key"
 #~ msgstr "Verificar chave do host"
@@ -21973,6 +22080,10 @@ msgstr "Verifique o modelo"
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Version"
 msgstr "Versão"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Version and platform only. No chat history, code, or project paths."
+msgstr "Apenas versão e plataforma. Sem histórico de chat, código ou caminhos de projetos."
 
 #. placeholder {0}: metadata.authMethod
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
@@ -22009,6 +22120,10 @@ msgstr "Ver todas as versões no GitHub"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "Ver o registro de alterações completo"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "View GitHub issue"
+msgstr "Ver issue no GitHub"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "View only"
@@ -22323,6 +22438,10 @@ msgstr "Revisão semanal"
 #~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 #~ msgstr "O que o Crossagents aprendeu com as seleções explícitas. Edite as tags ou remova entradas para remodelar o roteamento."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What happened?"
+msgstr "O que aconteceu?"
+
 #: src/renderer/components/providers/devin/sessionReviseForm.tsx
 msgid "What should change? (optional)"
 msgstr "O que deve mudar? (opcional)"
@@ -22343,6 +22462,10 @@ msgstr "O que o botão Criar PR faz por padrão: abra uma caixa de diálogo para
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "What this server provides"
 msgstr "O que este servidor oferece"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What would you like to see?"
+msgstr "O que você gostaria de ver?"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
@@ -22784,6 +22907,14 @@ msgstr "Sua pergunta foi mantida. Use Tentar novamente acima para enviá-la de n
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 msgid "Your recording is kept in memory for two minutes. Retry uses the same model and host."
 msgstr "Sua gravação é mantida na memória por dois minutos. A nova tentativa usa o mesmo modelo e host."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments are now on GitHub."
+msgstr "Seu relato e seus anexos agora estão no GitHub."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments will be visible to everyone."
+msgstr "Seu relato e seus anexos ficarão visíveis para todos."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"

@@ -1,10 +1,10 @@
 import { Dropdown, Label } from "@heroui/react";
-import { ChevronsDown, ChevronsUp, Ellipsis, PanelLeftClose, Settings2 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { Bug, ChevronsDown, ChevronsUp, Ellipsis, PanelLeftClose, Settings2 } from "lucide-react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { SidebarButton, sidebarIconButtonClass } from "@/renderer/components/common/SidebarButton";
 import { sidebarFooterNavClass } from "@/renderer/components/layout/sidebarChrome";
-import { DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
+import { DeferredFeedbackDialog, DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
 import { openRemoteAccessSettings, openSettings } from "@/renderer/actions/panelActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { isPanelResizing } from "@/renderer/state/panelResizeSignal";
@@ -64,6 +64,22 @@ export function SidebarFooterNav(props: {
 }) {
   const { remoteAccessStatus, showRemoteAccess = true } = props;
   const { t } = useLingui();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const feedback = (
+    <>
+      <SidebarButton
+        iconOnly
+        icon={<Bug className="size-4" />}
+        label={t`Send feedback`}
+        onPress={() => setFeedbackOpen(true)}
+      />
+      {feedbackOpen && (
+        <Suspense fallback={null}>
+          <DeferredFeedbackDialog isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />
+        </Suspense>
+      )}
+    </>
+  );
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const settingsSection = usePanelStore((s) => s.settingsSection ?? s.activeSettingsSection);
   // Surfaced Settings destinations own their active state instead of the generic entry.
@@ -208,10 +224,10 @@ export function SidebarFooterNav(props: {
       settledWidth === null
         ? Number.POSITIVE_INFINITY
         : Math.floor((settledWidth + 4) / FOOTER_ITEM_PITCH_PX);
-    const totalCount = 2 + specialItems.length + actionItems.length;
+    const totalCount = 3 + specialItems.length + actionItems.length;
     const needsOverflow = totalCount > capacity;
     const visibleActionCount = needsOverflow
-      ? Math.max(0, capacity - 2 - specialItems.length - 1)
+      ? Math.max(0, capacity - 3 - specialItems.length - 1)
       : actionItems.length;
     const visibleActions = actionItems.slice(0, visibleActionCount);
     const overflowedActions = actionItems.slice(visibleActionCount);
@@ -283,6 +299,7 @@ export function SidebarFooterNav(props: {
               </Dropdown.Popover>
             </Dropdown>
           ) : null}
+          {feedback}
           {expandButton}
         </div>
       </div>
@@ -339,6 +356,7 @@ export function SidebarFooterNav(props: {
             onPress={collapse}
           />
         </div>
+        {feedback}
         <SidebarButton
           iconOnly
           icon={<ChevronsDown className="size-4" />}

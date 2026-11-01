@@ -142,6 +142,13 @@ export default function PrivacyPage() {
                 operational or security logs according to their policies.
               </p>
               <p>
+                Feedback submitted through the app or website is published publicly on GitHub,
+                including selected attachments. Temporary intake copies are deleted after verified
+                delivery. Unfinished copies expire after 24 hours and are removed by an hourly
+                cleanup. Short-lived request counters and delivery receipts support spam prevention
+                and retries.
+              </p>
+              <p>
                 If you email support or open a GitHub issue, Poracode receives the information you
                 choose to provide and uses it to investigate the request and respond.
               </p>

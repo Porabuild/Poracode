@@ -147,6 +147,7 @@
     "@tiptap/react": "3.30.5",
     "@tiptap/starter-kit": "3.30.5",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/blob": "^2.8.2",
     "@xterm/addon-clipboard": "0.3.0-beta.314",
     "@xterm/addon-fit": "0.12.0-beta.312",
     "@xterm/addon-image": "0.10.0-beta.311",
