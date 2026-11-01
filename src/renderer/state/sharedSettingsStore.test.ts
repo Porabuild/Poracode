@@ -34,6 +34,8 @@ describe("sharedSettingsStore", () => {
         microphoneDeviceId: "",
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
+        transcriptionBackend: "transformers",
+        hexModel: "parakeet_v3",
         useWebGpu: true,
       },
       providerConfigs: {},

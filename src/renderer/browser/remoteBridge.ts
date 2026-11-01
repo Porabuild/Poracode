@@ -68,6 +68,7 @@ let hostSettingsWriteThrough = true;
 let browserImages: RemoteEnvironmentImageCache | null = null;
 let browserImageReadiness: RemoteImageReadiness | undefined;
 const browserImageListeners = new Set<() => void>();
+const remoteBridgeClientListeners = new Set<() => void>();
 const pendingClientResolvers = new Set<(client: RemoteDesktopClient) => void>();
 const remoteTerminals = new RemoteTerminalOwnership<true>();
 /** Host OS of the paired desktop (`win32`/`darwin`/`linux`), when known. */
@@ -107,7 +108,8 @@ export function setRemoteBridgeClient(
   platform?: NodeJS.Platform | null,
   reviewOwnerKey?: string,
 ): void {
-  if (activeClient !== client) {
+  const clientChanged = activeClient !== client;
+  if (clientChanged) {
     useBrowserPanelStore.getState().resetOwner();
     browserImages?.dispose();
     browserImages =
@@ -123,6 +125,9 @@ export function setRemoteBridgeClient(
     for (const listener of browserImageListeners) listener();
   }
   activeClient = client;
+  if (clientChanged) {
+    for (const listener of remoteBridgeClientListeners) listener();
+  }
   activeReviewOwnerKey = client ? reviewOwnerKey : undefined;
   if (client) {
     for (const resolve of pendingClientResolvers) resolve(client);
@@ -143,6 +148,11 @@ export function setRemoteBridgeClient(
 /** Active paired-desktop client, if any (attached Electron owner sync uses this). */
 export function getRemoteBridgeClient(): RemoteDesktopClient | null {
   return activeClient;
+}
+
+export function subscribeRemoteBridgeClient(listener: () => void): () => void {
+  remoteBridgeClientListeners.add(listener);
+  return () => remoteBridgeClientListeners.delete(listener);
 }
 
 /** Reactive, bounded browser image cache for the paired desktop. */

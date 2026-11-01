@@ -86,21 +86,22 @@ describe("remote v3 native binding generator", () => {
         // parameters move both hashes without changing counts or wire versions.
         // The optional shell snapshotEpoch moves the source hash only.
         // The optional open-string runtime error `reason` moves the source hash only.
-        sourceHash: "sha256:cb30c9797a3b5e420aa282c3b3f083bda5d15673a9b103016c43c68496184f52",
-        manifestHash: "sha256:0cc3d41e33fa8b3fb6138c2027ed9da3c42ab15c24b3e1a3723e73c8e9a15d8f",
+        // Host-owned Hex voice transcription adds one typed procedure and schema roots.
+        sourceHash: "sha256:59381a7db74d39255521d4d6b110e86558eae1516bc57dd687809b3df24e10bb",
+        manifestHash: "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0",
         counts: {
           routes: 119,
-          procedures: 164,
+          procedures: 165,
           voidProcedureResults: 64,
-          jsonProcedureResults: 100,
+          jsonProcedureResults: 101,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 546,
-          structuralTypes: 1217,
+          schemaRoots: 548,
+          structuralTypes: 1261,
           semanticValidators: 25,
-          swiftFiles: 76,
-          kotlinFiles: 65,
+          swiftFiles: 77,
+          kotlinFiles: 67,
           stateMachines: 5,
         },
       });
@@ -372,7 +373,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(546);
+        expect(adapters).toHaveLength(548);
         expect(
           adapters
             .map((adapter) => adapter.id)

@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:cb30c9797a3b5e420aa282c3b3f083bda5d15673a9b103016c43c68496184f52"
-  public static let manifestHash = "sha256:0cc3d41e33fa8b3fb6138c2027ed9da3c42ab15c24b3e1a3723e73c8e9a15d8f"
+  public static let sourceHash = "sha256:59381a7db74d39255521d4d6b110e86558eae1516bc57dd687809b3df24e10bb"
+  public static let manifestHash = "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -256,6 +256,7 @@ public enum RemoteContractMetadata {
     .init(name: "gitWatchProject", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProceduregitWatchProjectRequest_da482300f3", resultType: "RemoteUnit"),
     .init(name: "gitWatchWorktrees", scope: "session:operate", owner: "project", resultKind: "omitted", requestType: "ProceduregitWatchWorktreesRequest_8b52512d7a", resultType: "RemoteUnit"),
     .init(name: "gitWorktreeStatusBatch", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduregitWorktreeStatusBatchRequest_a6f98c7f48", resultType: "ProceduregitWorktreeStatusBatchResult_1b23732705"),
+    .init(name: "hexVoice", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedurehexVoiceRequest_2ae8d538fe", resultType: "ProcedurehexVoiceResult_46060d35e2"),
     .init(name: "importSkills", scope: "session:operate", owner: "skillLocations", resultKind: "json", requestType: "ProcedureimportSkillsRequest_8a62b43ffe", resultType: "ProcedureimportSkillsResult_82088d0ad1"),
     .init(name: "installMarketplaceSkill", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedureinstallMarketplaceSkillRequest_0093611cbb", resultType: "ProcedureinstallMarketplaceSkillResult_d6e0ba68c8"),
     .init(name: "invokeThreadSessionAction", scope: "session:operate", owner: "thread", resultKind: "json", requestType: "ProcedureinvokeThreadSessionActionRequest_f614b14ae0", resultType: "ProcedureinvokeThreadSessionActionRequestU2DPayload_e6958017da"),

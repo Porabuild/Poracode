@@ -201,6 +201,9 @@ export const audioTranscriptionModelSchema = z.preprocess(
 );
 export type AudioTranscriptionModel = z.infer<typeof audioTranscriptionModelSchema>;
 
+export const audioTranscriptionBackendSchema = z.enum(["transformers", "hex"]);
+export type AudioTranscriptionBackend = z.infer<typeof audioTranscriptionBackendSchema>;
+
 const audioSettingsSchema = z.object({
   /** Show the composer microphone button. */
   showVoiceInputButton: z.boolean().default(true),
@@ -210,6 +213,10 @@ const audioSettingsSchema = z.object({
   transcriptionLanguage: z.string().default("en"),
   /** Model used for local composer dictation. */
   transcriptionModel: audioTranscriptionModelSchema.default("tiny"),
+  /** Native Hex or the built-in Transformers.js voice backend. */
+  transcriptionBackend: audioTranscriptionBackendSchema.default("transformers"),
+  /** Native Hex model selected for voice input. */
+  hexModel: z.string().min(1).default("parakeet_v3"),
   /** Prefer WebGPU acceleration for local speech-to-text when available. */
   useWebGpu: z.boolean().default(true),
 });
@@ -913,6 +920,8 @@ export const defaultSharedSettings: SharedSettings = {
     microphoneDeviceId: "",
     transcriptionLanguage: "en",
     transcriptionModel: "tiny",
+    transcriptionBackend: "transformers",
+    hexModel: "parakeet_v3",
     useWebGpu: true,
   },
   usage: {

@@ -12,6 +12,15 @@ import { isSettingsSectionVisible, useSettingsNavigation } from "./settingsNavig
 import { SETTINGS_SEARCH_INDEX } from "./settingsSearchIndex";
 
 describe("Crews settings navigation", () => {
+  it("exposes Audio to PWA clients in the personal group", () => {
+    const { result } = renderHook(() => useSettingsNavigation(), { wrapper: I18nTestWrapper });
+    expect(result.current.isSectionVisible("audio")).toBe(true);
+    expect(
+      result.current.sectionGroups
+        .find((group) => group.id === "personal")
+        ?.sections.some((section) => section.id === "audio"),
+    ).toBe(true);
+  });
   it("keeps Crews visible in the Agents group for remote clients", () => {
     const { result } = renderHook(() => useSettingsNavigation(), { wrapper: I18nTestWrapper });
     const agents = result.current.sectionGroups.find((group) => group.id === "agents");
