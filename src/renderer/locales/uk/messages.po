@@ -9786,6 +9786,10 @@ msgstr "Альбомна праворуч"
 msgid "Language"
 msgstr "Мова"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Language and sidebar shortcuts"
+msgstr "Мова та ярлики бічної панелі"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. Thread titles always follow the app language."
@@ -14487,6 +14491,10 @@ msgstr "Пул-реквест #{number} створено, але позначи�
 msgid "Pull request created, but its default automation could not be enabled: {0}"
 msgstr "Pull request створено, але не вдалося ввімкнути типову автоматизацію: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Pull request defaults"
+msgstr "Типові налаштування pull request"
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "Pull request details"
 msgstr "Відомості про pull request"
@@ -16509,6 +16517,10 @@ msgstr "Розклади"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Розклади, ШІ, агенти й архівовані потоки на спареному комп’ютері"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Schedules, AI, agents, crews, and Git on the paired desktop"
+msgstr "Розклади, ШІ, агенти, команди й Git на спареному комп’ютері"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Science & education"
