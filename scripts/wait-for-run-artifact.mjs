@@ -12,6 +12,10 @@ import { pathToFileURL } from "node:url";
 
 const POLL_MS = 15_000;
 const TIMEOUT_MS = 45 * 60_000;
+/** Consecutive failed GitHub API polls tolerated before giving up. */
+const MAX_POLL_ERRORS = 3;
+/** Polls without any job named after the producer before treating the prefix as wrong. */
+const MAX_POLLS_WITHOUT_PRODUCER = 4;
 
 export async function waitForRunArtifact({
   artifact,
@@ -25,33 +29,58 @@ export async function waitForRunArtifact({
   log = (message) => console.log(message),
 }) {
   if (!repository || !runId) throw new Error("GITHUB_REPOSITORY and GITHUB_RUN_ID are required.");
-  const deadline = now() + TIMEOUT_MS;
+  const started = now();
+  const elapsed = () => `${Math.round((now() - started) / 1000)}s`;
+  let pollErrors = 0;
+  let pollsWithoutProducer = 0;
   for (;;) {
-    const names = gh([
-      "api",
-      `repos/${repository}/actions/runs/${runId}/artifacts?per_page=100`,
-      "--jq",
-      ".artifacts[] | select(.expired | not) | .name",
-    ])
-      .split(/\r?\n/)
-      .filter(Boolean);
-    if (names.includes(artifact)) {
-      gh(["run", "download", runId, "-R", repository, "-n", artifact, "-D", directory]);
-      log(`Downloaded ${artifact} into ${directory}.`);
-      return;
-    }
-    const failed = gh([
-      "api",
-      `repos/${repository}/actions/runs/${runId}/jobs?per_page=100&filter=latest`,
-      "--jq",
-      `.jobs[] | select((.name | startswith(${JSON.stringify(producerPrefix)})) and (.conclusion == "failure" or .conclusion == "cancelled")) | .name`,
-    ]).trim();
-    if (failed)
-      throw new Error(
-        `${artifact} will not arrive: ${failed.split(/\r?\n/).join(", ")} did not succeed.`,
+    let producers;
+    try {
+      const names = gh([
+        "api",
+        `repos/${repository}/actions/runs/${runId}/artifacts?per_page=100`,
+        "--jq",
+        ".artifacts[] | select(.expired | not) | .name",
+      ])
+        .split(/\r?\n/)
+        .filter(Boolean);
+      if (names.includes(artifact)) {
+        gh(["run", "download", runId, "-R", repository, "-n", artifact, "-D", directory]);
+        log(`Downloaded ${artifact} into ${directory} after ${elapsed()}.`);
+        return;
+      }
+      producers = JSON.parse(
+        gh([
+          "api",
+          `repos/${repository}/actions/runs/${runId}/jobs?per_page=100&filter=latest`,
+          "--jq",
+          `[.jobs[] | select(.name | startswith(${JSON.stringify(producerPrefix)})) | {name, conclusion}]`,
+        ]),
       );
-    if (now() > deadline) throw new Error(`Timed out waiting for the ${artifact} artifact.`);
-    log(`Waiting for ${artifact} from ${producerPrefix}…`);
+      pollErrors = 0;
+    } catch (error) {
+      // A transient API or network failure should not fail a long build job.
+      if (++pollErrors >= MAX_POLL_ERRORS) throw error;
+      log(`GitHub API call failed (${pollErrors}/${MAX_POLL_ERRORS}); retrying.`);
+      await sleep(POLL_MS);
+      continue;
+    }
+    const failed = producers.filter(
+      (job) => job.conclusion === "failure" || job.conclusion === "cancelled",
+    );
+    if (failed.length > 0)
+      throw new Error(
+        `${artifact} will not arrive: ${failed.map((job) => job.name).join(", ")} did not succeed.`,
+      );
+    if (producers.length === 0 && ++pollsWithoutProducer >= MAX_POLLS_WITHOUT_PRODUCER)
+      throw new Error(
+        `No job in this run is named "${producerPrefix}…"; check the producer prefix.`,
+      );
+    if (now() - started > TIMEOUT_MS)
+      throw new Error(
+        `Timed out after ${elapsed()} waiting for ${artifact} from "${producerPrefix}".`,
+      );
+    log(`Waiting for ${artifact} from "${producerPrefix}" (${elapsed()} elapsed)…`);
     await sleep(POLL_MS);
   }
 }

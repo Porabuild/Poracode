@@ -336,7 +336,8 @@ jobs:
       - name: Free runner disk for the emulator
         run: |
           df -h /
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost             /usr/share/swift "$AGENT_TOOLSDIRECTORY/CodeQL"
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost \
+            /usr/share/swift "$AGENT_TOOLSDIRECTORY/CodeQL"
           df -h /
 
       - name: Setup Java
@@ -505,7 +506,8 @@ jobs:
       - name: Free runner disk for the emulator
         run: |
           df -h /
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost             /usr/share/swift "$AGENT_TOOLSDIRECTORY/CodeQL"
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost \
+            /usr/share/swift "$AGENT_TOOLSDIRECTORY/CodeQL"
           df -h /
 
       - name: Setup Java

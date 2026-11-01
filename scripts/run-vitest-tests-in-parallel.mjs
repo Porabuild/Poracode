@@ -12,22 +12,13 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const root = resolve(import.meta.dirname, "..");
 const vitest = join(root, "node_modules", "vitest", "vitest.mjs");
-const [file, ...extraArgs] = process.argv.slice(2);
-if (!file) {
-  console.error("usage: run-vitest-tests-in-parallel.mjs <test file> [vitest args...]");
-  process.exit(2);
-}
 
-const reports = mkdtempSync(join(tmpdir(), "vitest-parallel-"));
-
-function escapeRegExp(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function runVitest(label, args, reportPath, { quiet = false } = {}) {
+/** Spawns Vitest on `file` with JSON results in `reportPath`; resolves its exit code and output. */
+function spawnVitest(file, extraArgs, args, reportPath, onLine) {
   return new Promise((resolveRun) => {
     const child = spawn(
       process.execPath,
@@ -47,72 +38,94 @@ function runVitest(label, args, reportPath, { quiet = false } = {}) {
     );
     let pending = "";
     const forward = (chunk) => {
-      if (quiet) return;
       const lines = (pending + chunk).split(/\r?\n/);
       pending = lines.pop() ?? "";
-      for (const line of lines) process.stdout.write(`[${label}] ${line}\n`);
+      for (const line of lines) onLine(line);
     };
     child.stdout.on("data", forward);
     child.stderr.on("data", forward);
     child.on("close", (code) => {
-      if (pending && !quiet) process.stdout.write(`[${label}] ${pending}\n`);
+      if (pending) onLine(pending);
       resolveRun(code ?? 1);
     });
   });
 }
 
-function readReport(reportPath) {
-  const report = JSON.parse(readFileSync(reportPath, "utf8"));
-  return report.testResults.flatMap((result) => result.assertionResults);
+function readResults(reportPath) {
+  try {
+    const report = JSON.parse(readFileSync(reportPath, "utf8"));
+    return report.testResults.flatMap((result) => result.assertionResults);
+  } catch {
+    return [];
+  }
 }
 
-let failed = false;
-try {
+/**
+ * Lists the file's tests, runs each in its own process, and returns whether
+ * every one passed in exactly its own run. `run(label, args)` resolves
+ * `{ code, results }` for one Vitest invocation.
+ */
+export async function runTestsInParallel({ file, run, log = console.log }) {
   // A name pattern that matches nothing still reports every test as skipped,
   // which lists the file's tests without running any of them.
-  const listPath = join(reports, "list.json");
-  const listCode = await runVitest("list", ["-t", "^ poracode-list-only $"], listPath, {
-    quiet: true,
-  });
-  const tests = listCode === 0 ? readReport(listPath) : [];
-  if (tests.length === 0) {
-    console.error(`No tests found in ${file} (vitest exited ${listCode}).`);
-    process.exit(1);
+  const listed = await run("list", ["-t", "^ poracode-list-only $"], { quiet: true });
+  if (listed.code !== 0 || listed.results.length === 0) {
+    for (const line of listed.output ?? []) log(`[list] ${line}`);
+    log(`No tests found in ${file} (vitest exited ${listed.code}).`);
+    return false;
   }
-  console.log(`Running ${tests.length} tests from ${file} in parallel processes.`);
+  log(`Running ${listed.results.length} tests from ${file} in parallel processes.`);
 
   const started = Date.now();
   const outcomes = await Promise.all(
-    tests.map(async (test, index) => {
+    listed.results.map(async (test, index) => {
       const label = String(index + 1);
-      const reportPath = join(reports, `${label}.json`);
       // Vitest matches -t against the describe chain joined with " > ".
       const name = [...(test.ancestorTitles ?? []), test.title].join(" > ");
-      const code = await runVitest(label, ["-t", `^${escapeRegExp(name)}$`], reportPath);
-      let results = [];
-      try {
-        results = readReport(reportPath);
-      } catch {
-        // A missing report is a failure below.
-      }
+      const { code, results } = await run(label, ["-t", `^${RegExp.escape(name)}$`]);
       const passed = results.filter((result) => result.status === "passed");
       const ok =
         code === 0 &&
         passed.length === 1 &&
         passed[0].fullName === test.fullName &&
         results.every((result) => result.status !== "failed");
-      return { label, test, ok, code, passed: passed.length };
+      return { label, title: test.title, ok, code, passed: passed.length };
     }),
   );
 
-  console.log(`\nFinished in ${Math.round((Date.now() - started) / 1000)}s:`);
+  log(`\nFinished in ${Math.round((Date.now() - started) / 1000)}s:`);
   for (const outcome of outcomes) {
-    console.log(
-      `  [${outcome.label}] ${outcome.ok ? "passed" : `FAILED (exit ${outcome.code}, ${outcome.passed} passed)`}  ${outcome.test.title}`,
-    );
-    if (!outcome.ok) failed = true;
+    const status = outcome.ok
+      ? "passed"
+      : `FAILED (exit ${outcome.code}, ${outcome.passed} passed)`;
+    log(`  [${outcome.label}] ${status}  ${outcome.title}`);
   }
-} finally {
-  rmSync(reports, { recursive: true, force: true });
+  return outcomes.every((outcome) => outcome.ok);
 }
-process.exit(failed ? 1 : 0);
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  const [file, ...extraArgs] = process.argv.slice(2);
+  if (!file) {
+    console.error("usage: run-vitest-tests-in-parallel.mjs <test file> [vitest args...]");
+    process.exit(2);
+  }
+  const reports = mkdtempSync(join(tmpdir(), "vitest-parallel-"));
+  let ok = false;
+  try {
+    ok = await runTestsInParallel({
+      file,
+      run: async (label, args, { quiet = false } = {}) => {
+        const reportPath = join(reports, `${label}.json`);
+        const output = [];
+        const code = await spawnVitest(file, extraArgs, args, reportPath, (line) => {
+          if (quiet) output.push(line);
+          else process.stdout.write(`[${label}] ${line}\n`);
+        });
+        return { code, results: readResults(reportPath), output };
+      },
+    });
+  } finally {
+    rmSync(reports, { recursive: true, force: true });
+  }
+  process.exit(ok ? 0 : 1);
+}
