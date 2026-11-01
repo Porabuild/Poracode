@@ -1,6 +1,6 @@
 {
   "name": "poracode",
-  "version": "2.0.0",
+  "version": "2.0.0-nightly.202611011626",
   "description": "Run the Poracode standalone server (foreground) from a version-pinned, checksum-verified runtime artifact.",
   "homepage": "https://poracode.com/",
   "license": "Apache-2.0",
