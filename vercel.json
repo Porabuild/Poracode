@@ -15,7 +15,7 @@
     { "source": "/desktop", "destination": "/", "permanent": true },
     { "source": "/desktop/:path*", "destination": "/", "permanent": true }
   ],
-  "rewrites": [{ "source": "/:path*", "destination": "/index.html" }],
+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/service-worker.js",
