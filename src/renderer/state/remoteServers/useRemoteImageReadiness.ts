@@ -118,7 +118,7 @@ const FULL_RESOLUTION_WAIT_MS = 10_000;
 /**
  * One-shot full-resolution URL for an explicit user action (preview, copy,
  * download) on a card that displays the downscaled variant. Requests the
- * full coordinate at foreground priority and resolves with its URL, or ""
+ * full coordinate at focus priority and resolves with its URL, or ""
  * on timeout/failure so actions can report the unavailable original.
  */
 export function fetchRemoteImageRefUrl(
@@ -127,8 +127,8 @@ export function fetchRemoteImageRefUrl(
 ): Promise<string> {
   return waitForImageUrl(
     () => readiness.resolveRef(ref),
-    (listener) => readiness.subscribeRef(ref, listener, "foreground"),
-    () => readiness.requestRef(ref, "foreground"),
+    (listener) => readiness.subscribeRef(ref, listener, "focus"),
+    () => readiness.requestRef(ref, "focus"),
   );
 }
 
@@ -139,8 +139,8 @@ export function fetchRemoteImagePathUrl(
 ): Promise<string> {
   return waitForImageUrl(
     () => readiness.resolvePath(path),
-    (listener) => readiness.subscribePath(path, listener, "foreground"),
-    () => readiness.requestPath(path, "foreground"),
+    (listener) => readiness.subscribePath(path, listener, "focus"),
+    () => readiness.requestPath(path, "focus"),
   );
 }
 

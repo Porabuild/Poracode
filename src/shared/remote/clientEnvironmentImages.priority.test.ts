@@ -48,7 +48,11 @@ it("bounds a 76-reference gallery burst without aborting or evicting mounted ima
     h.resolve(index, [index]);
   }
   await vi.waitFor(() =>
-    expect(h.cache.resolutionForImageKey(environmentImageRefKey(refs[63]!)).url).not.toBe(""),
+    expect(
+      refs
+        .slice(0, ENVIRONMENT_IMAGE_CACHE_MAX_ENTRIES)
+        .every((ref) => h.cache.resolutionForImageKey(environmentImageRefKey(ref)).url !== ""),
+    ).toBe(true),
   );
   expect(h.cache.resolutionForImageKey(visibleKey).url).toBe("blob:1");
   expect(h.revoked).toEqual([]);
@@ -146,4 +150,42 @@ it("releases foreground priority after the last mounted consumer leaves", async 
   h.cache.localImageResolution("/last");
   expect(h.snapshot("/visible").url).toBe("");
   expect(h.revoked).toContain("blob:1");
+});
+
+it("starts a focused image in a reserved slot ahead of queued mounted images", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  for (const path of ["/a", "/b", "/c"]) h.cache.localImageResolution(path);
+  expect(h.fetches).toHaveLength(1);
+
+  // The open lightbox image does not wait for the busy slot or the queue.
+  h.cache.subscribeImageKey(environmentLocalImageKey("/focus"), () => undefined, "focus");
+  h.cache.localImageResolution("/focus", "focus");
+  expect(h.fetches).toHaveLength(2);
+  expect(h.fetches[1]!.requestPath).toContain("path=%2Ffocus");
+
+  // The reserved slot is for focus only: mounted images keep the normal bound.
+  h.resolve(1, [9]);
+  await vi.waitFor(() => expect(h.snapshot("/focus").url).not.toBe(""));
+  expect(h.fetches).toHaveLength(2);
+  h.resolve(0, [1]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
+  expect(h.fetches[2]!.requestPath).toContain("path=%2Fc");
+});
+
+it("promotes an already queued image when it gains focus", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  for (const path of ["/a", "/b", "/c"]) h.cache.localImageResolution(path);
+  const unsubscribe = h.cache.subscribeImageKey(
+    environmentLocalImageKey("/b"),
+    () => undefined,
+    "focus",
+  );
+  expect(h.fetches).toHaveLength(2);
+  expect(h.fetches[1]!.requestPath).toContain("path=%2Fb");
+  unsubscribe();
+
+  // Once focus leaves, no further key may use the reserved slot.
+  h.resolve(1, [2]);
+  await vi.waitFor(() => expect(h.snapshot("/b").url).not.toBe(""));
+  expect(h.fetches).toHaveLength(2);
 });

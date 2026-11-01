@@ -30,10 +30,11 @@ import {
  *   Foreground requests/subscriptions refresh recency; background gallery
  *   enumeration never displaces admitted work merely to enqueue more keys.
  * - Fetch concurrency is bounded (`maxConcurrentFetches`): excess keys wait in
- *   a FIFO queue within each priority, with mounted consumers first, so the
- *   transient retained model is
+ *   a newest-demand-first queue within each priority, with focused and then
+ *   mounted consumers first, so the transient retained model is
  *   `maxBytes` (unique encoded resources, including comparison pins) +
- *   `maxConcurrentFetches x per-fetch cap` (in-flight byte arrays) + one
+ *   `(maxConcurrentFetches + 1 focus slot) x per-fetch cap` (in-flight byte
+ *   arrays) + one
  *   bounded comparison slice + queue metadata. A queued entry retains no bytes.
  *   Eviction/abort reserves its slot until fetch and admission actually settle.
  * - Independently authenticated successful coordinates may share a Blob/URL
@@ -64,8 +65,16 @@ export const ENVIRONMENT_IMAGE_RETRY_WINDOW_MS = 15_000;
 /** Concurrent authenticated image fetches; queued keys retain no bytes. */
 export const ENVIRONMENT_IMAGE_MAX_CONCURRENT_FETCHES = 4;
 
-/** Instance-local scheduling; persisted references and wire formats stay valid. */
-export type EnvironmentImagePriority = "foreground" | "background";
+/**
+ * Instance-local scheduling; persisted references and wire formats stay valid.
+ * `focus` is foreground demand the user is looking at directly (the open
+ * lightbox image): it starts ahead of every queued key and may use one fetch
+ * slot reserved for it, so it never waits behind transcript or gallery work.
+ */
+export type EnvironmentImagePriority = "focus" | "foreground" | "background";
+type EntryPriority = Exclude<EnvironmentImagePriority, "focus">;
+/** Extra in-flight fetch kept for focused keys beyond `maxConcurrentFetches`. */
+const FOCUS_RESERVED_FETCHES = 1;
 
 /**
  * Downscaled display variant served by the host's image routes
@@ -136,7 +145,7 @@ type ImageEntryStatus = "queued" | "pending" | "ready" | "failed" | "oversized";
 
 interface ImageCacheEntry {
   requestPath: string;
-  priority: EnvironmentImagePriority;
+  priority: EntryPriority;
   status: ImageEntryStatus;
   controller: AbortController | undefined;
   resource: EnvironmentImageBlobResource | undefined;
@@ -148,7 +157,7 @@ interface ImageCacheEntry {
 
 interface EvictionLatch {
   readonly requestPath: string;
-  readonly priority: EnvironmentImagePriority;
+  readonly priority: EntryPriority;
   readonly retryAtMs: number;
   readonly retryTimer: ReturnType<typeof setTimeout>;
 }
@@ -165,6 +174,7 @@ export class RemoteEnvironmentImageCache {
   private readonly latches = new Map<string, EvictionLatch>();
   private readonly listeners = new Map<string, Set<() => void>>();
   private readonly foregroundSubscriptions = new Map<string, number>();
+  private readonly focusSubscriptions = new Map<string, number>();
   private readonly missingSnapshots = new Map<string, RemoteEnvironmentImageResolution>();
   /** Includes evicted/aborted jobs until their fetch and admission finally settle. */
   private readonly jobs = new Set<AbortController>();
@@ -276,11 +286,15 @@ export class RemoteEnvironmentImageCache {
     listener: () => void,
     priority: EnvironmentImagePriority = "foreground",
   ): () => void {
-    if (priority === "foreground") {
+    if (priority !== "background") {
       this.foregroundSubscriptions.set(key, (this.foregroundSubscriptions.get(key) ?? 0) + 1);
       const entry = this.entries.get(key);
-      if (entry) entry.priority = priority;
+      if (entry) entry.priority = "foreground";
       this.touch(key);
+    }
+    if (priority === "focus") {
+      this.focusSubscriptions.set(key, (this.focusSubscriptions.get(key) ?? 0) + 1);
+      if (this.entries.get(key)?.status === "queued") this.pump();
     }
     let listeners = this.listeners.get(key);
     if (!listeners) {
@@ -292,7 +306,12 @@ export class RemoteEnvironmentImageCache {
     return () => {
       if (!subscribed) return;
       subscribed = false;
-      if (priority === "foreground") {
+      if (priority === "focus") {
+        const count = (this.focusSubscriptions.get(key) ?? 1) - 1;
+        if (count > 0) this.focusSubscriptions.set(key, count);
+        else this.focusSubscriptions.delete(key);
+      }
+      if (priority !== "background") {
         const count = (this.foregroundSubscriptions.get(key) ?? 1) - 1;
         if (count > 0) this.foregroundSubscriptions.set(key, count);
         else {
@@ -320,6 +339,7 @@ export class RemoteEnvironmentImageCache {
     this.latches.clear();
     this.listeners.clear();
     this.foregroundSubscriptions.clear();
+    this.focusSubscriptions.clear();
     this.missingSnapshots.clear();
   }
 
@@ -329,7 +349,10 @@ export class RemoteEnvironmentImageCache {
     requestedPriority: EnvironmentImagePriority,
   ): RemoteEnvironmentImageResolution {
     if (this.disposed) return this.missingSnapshot(key);
-    const priority = this.foregroundSubscriptions.has(key) ? "foreground" : requestedPriority;
+    const priority: EntryPriority =
+      requestedPriority !== "background" || this.foregroundSubscriptions.has(key)
+        ? "foreground"
+        : "background";
     if (priority === "foreground") this.touch(key);
     const latch = this.latches.get(key);
     if (latch) {
@@ -343,6 +366,7 @@ export class RemoteEnvironmentImageCache {
     const entry = this.entries.get(key);
     if (entry) {
       if (priority === "foreground") entry.priority = priority;
+      if (requestedPriority === "focus" && entry.status === "queued") this.pump();
       return this.requestEntry(key, entry);
     }
     // A gallery can enumerate more coordinates than fit in the cache. Refuse
@@ -370,11 +394,7 @@ export class RemoteEnvironmentImageCache {
     return entry.snapshot;
   }
 
-  private startOrQueue(
-    key: string,
-    requestPath: string,
-    priority: EnvironmentImagePriority,
-  ): ImageCacheEntry {
+  private startOrQueue(key: string, requestPath: string, priority: EntryPriority): ImageCacheEntry {
     const entry: ImageCacheEntry = {
       requestPath,
       priority,
@@ -392,19 +412,26 @@ export class RemoteEnvironmentImageCache {
     return entry;
   }
 
-  /** Mounted consumers go first; FIFO order is preserved within each priority. */
+  /**
+   * Focused keys go first, then mounted consumers; within each priority the
+   * most recent demand starts first. Transcript rows request in document
+   * order, so a thread opened at its latest message loads its newest images
+   * before older ones. A focused key may also take the reserved extra slot.
+   */
   private pump(): void {
-    if (this.disposed) return;
-    while (!this.disposed && this.jobs.size < this.maxConcurrentFetches) {
-      let candidate: [string, ImageCacheEntry] | undefined;
+    while (!this.disposed) {
+      let focus: [string, ImageCacheEntry] | undefined;
+      let foreground: [string, ImageCacheEntry] | undefined;
+      let background: [string, ImageCacheEntry] | undefined;
       for (const [key, entry] of this.entries) {
         if (entry.status !== "queued") continue;
-        candidate ??= [key, entry];
-        if (entry.priority === "foreground") {
-          candidate = [key, entry];
-          break;
-        }
+        if (this.focusSubscriptions.has(key)) focus = [key, entry];
+        else if (entry.priority === "foreground") foreground = [key, entry];
+        else background = [key, entry];
       }
+      const limit = this.maxConcurrentFetches + (focus ? FOCUS_RESERVED_FETCHES : 0);
+      if (this.jobs.size >= limit) return;
+      const candidate = focus ?? foreground ?? background;
       if (!candidate) return;
       const [key, entry] = candidate;
       this.startFetch(key, entry, entry.requestPath);
@@ -579,7 +606,7 @@ export class RemoteEnvironmentImageCache {
     return foreground;
   }
 
-  private setLatch(key: string, requestPath: string, priority: EnvironmentImagePriority): void {
+  private setLatch(key: string, requestPath: string, priority: EntryPriority): void {
     this.clearLatch(key);
     const latch: EvictionLatch = {
       requestPath,

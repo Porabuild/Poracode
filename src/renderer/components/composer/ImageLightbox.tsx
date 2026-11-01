@@ -1,6 +1,7 @@
 import {
   memo,
   useEffect,
+  useReducer,
   useRef,
   useState,
   useSyncExternalStore,
@@ -203,8 +204,18 @@ export function ImageLightboxView(props: {
   } | null>(null);
   const selected = images[index];
   const resource = selected?.resource;
+  // Render on every resource notification: a failed image's retry window
+  // lapses with its URL still "", which the snapshot alone would not render,
+  // so the request effect below would never retry it.
+  const [, renderOnNotify] = useReducer((count: number) => count + 1, 0);
   const resolvedSrc = useSyncExternalStore(
-    resource?.subscribe ?? subscribeEmptyImage,
+    resource
+      ? (listener) =>
+          resource.subscribe(() => {
+            renderOnNotify();
+            listener();
+          })
+      : subscribeEmptyImage,
     resource?.getSnapshot ?? emptyImageSnapshot,
   );
   const current = selected
