@@ -251,6 +251,9 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
     "1",
     "the upgrade integration test must run with PORACODE_REQUIRE_SERVER_IT=1",
   );
+  // Concurrent upgrade tests starved the Windows runner: npm installs took
+  // 8-9 min each and icacls and daemon-stop timeouts fired. Keep them serial.
+  assert.match(upgrade.run, /^bun run vitest run .*serverUpgrade\.integration\.test\.ts$/u);
 
   // The tarball-content gate follows the overlay manifests for BOTH modules
   // (the host sqlite binding intentionally has a different path from cross
