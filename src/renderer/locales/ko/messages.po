@@ -3424,6 +3424,7 @@ msgstr "업데이트 확인"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
+#: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "업데이트 확인"
@@ -3473,6 +3474,10 @@ msgstr "확인 중"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Checking {serverName}"
 msgstr "{serverName} 확인 중"
+
+#: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
+msgid "Checking for updates…"
+msgstr "업데이트 확인 중…"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Checking host…"
@@ -6802,6 +6807,7 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "“{0}”에 다운로드 중입니다. 대규모 리포지토리의 경우 시간이 걸릴 수 있습니다."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
+#: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Downloading update"
@@ -22909,6 +22915,10 @@ msgstr "소스 호스트에 완료되지 않은 리뷰가 있습니다. 이 리�
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."
 msgstr "모두 확인했습니다."
+
+#: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
+msgid "You're on the latest version"
+msgstr "최신 버전을 사용 중입니다"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrCheckout.ts
 #~ msgid "Your local branch {branch} cannot be fast-forwarded to this pull request's head, so no worktree was created and nothing was changed. To keep its commits and start over, run \"git branch -m {branch} {branch}-old\", then try again."
