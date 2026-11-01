@@ -7,6 +7,7 @@ import { ThreadDocksPanel } from "./ThreadDocksPanel";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
 import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
@@ -272,7 +273,7 @@ describe("ThreadView", () => {
     expect(runtimeActions.changeThreadConfig).not.toHaveBeenCalled();
   });
 
-  it("keeps thread actions reachable without duplicate compact title chrome", () => {
+  it("keeps thread actions reachable without duplicate compact title chrome", async () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn((query: string) => ({
@@ -314,17 +315,14 @@ describe("ThreadView", () => {
     expect(header?.querySelector(".poracode-thread-pane-title")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Mark done" })).toBeInTheDocument();
     const toolsTrigger = screen.getByRole("button", { name: "Show thread tools" });
-    const toolsMenu = toolsTrigger
-      .closest("[data-poracode-thread-tool-rail]")
-      ?.querySelector("[data-poracode-thread-tool-menu]");
-    expect(toolsMenu).toHaveClass("invisible");
+    expect(screen.queryByRole("menu")).toBeNull();
 
     fireEvent.click(toolsTrigger);
 
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
     expect(toolsTrigger).toHaveAttribute("aria-expanded", "true");
-    expect(toolsMenu).toHaveClass("visible");
-    fireEvent.click(screen.getByRole("button", { name: "Terminal" }));
-    expect(toolsMenu).toHaveClass("invisible");
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Terminal" }));
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
   });
 
   it("does not infer MCP enablement from the provider identity", () => {
@@ -2068,87 +2066,58 @@ describe("ThreadView", () => {
     expect(hasAncestorWithClassFragment(composer, "max-w-[920px]")).toBe(true);
   });
 
-  it("keeps header thread tools open while the pointer crosses into the menu", async () => {
-    vi.useFakeTimers();
-    try {
-      renderThreadView({
-        thread: {
-          id: "thread-split-tool-menu",
-          projectId: "project-1",
-          title: "Split pane thread",
-          agentKind: "codex",
-          config: {
-            model: "gpt-5.4",
-          },
-          status: "idle",
-          attention: "none",
-          canResumeWithConfig: true,
-          archived: false,
-          done: false,
-          starred: false,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+  it("opens header thread tools as a standard dropdown menu", async () => {
+    renderThreadView({
+      thread: {
+        id: "thread-split-tool-menu",
+        projectId: "project-1",
+        title: "Split pane thread",
+        agentKind: "codex",
+        config: {
+          model: "gpt-5.4",
         },
-        agentStatus: undefined,
-        projectLocation: {
-          kind: "windows",
-          path: "C:\\repo",
-        },
-        paneCount: 2,
-        onMarkDone: () => undefined,
-      });
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        archived: false,
+        done: false,
+        starred: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      agentStatus: undefined,
+      projectLocation: {
+        kind: "windows",
+        path: "C:\\repo",
+      },
+      paneCount: 2,
+      onMarkDone: () => undefined,
+    });
 
-      const headerTrigger = screen.getByRole("button", { name: "Show thread tools" });
-      const headerMenu = headerTrigger.closest("[data-poracode-thread-tool-rail]");
-      const toolMenu = headerMenu?.querySelector("[data-poracode-thread-tool-menu]");
-      const doneButton = screen.getByRole("button", { name: "Mark done" });
+    const headerTrigger = screen.getByRole("button", { name: "Show thread tools" });
+    const headerRail = headerTrigger.closest("[data-poracode-thread-tool-rail]");
+    const doneButton = screen.getByRole("button", { name: "Mark done" });
 
-      expect(headerMenu).toHaveAttribute("data-placement", "header");
-      expect(headerMenu).not.toHaveClass("invisible");
-      expect(toolMenu).toHaveClass("left-1/2", "w-9", "-translate-x-1/2");
-      expect(toolMenu).toHaveClass("transition-opacity");
-      expect(toolMenu).not.toHaveClass("grid-rows-[0fr]");
-      expect(toolMenu).toHaveClass("invisible");
-      expect(doneButton.nextElementSibling).toBe(headerMenu);
-      expect(hasAncestorWithClassFragment(headerMenu as HTMLElement, "@container")).toBe(true);
-      expect(headerMenu?.querySelector('[aria-label="Git"]')).not.toBeNull();
-      expect(headerMenu?.querySelector('[aria-label="Files"]')).not.toBeNull();
-      expect(headerMenu?.querySelector('[aria-label="Terminal"]')).not.toBeNull();
-      expect(headerMenu?.querySelector('[aria-label="Notes"]')).not.toBeNull();
-      expect(headerMenu?.querySelector('[aria-label="Devices"]')).not.toBeNull();
-      expect(headerMenu?.querySelector('[aria-label="Devices"]')).toHaveAttribute(
-        "id",
-        "thread-tool-devices-thread-split-tool-menu",
-      );
-      expect(document.querySelector("[data-poracode-device-toggle]")).toBeNull();
+    expect(headerRail).toHaveAttribute("data-placement", "header");
+    expect(doneButton.nextElementSibling).toBe(headerRail);
+    expect(hasAncestorWithClassFragment(headerRail as HTMLElement, "@container")).toBe(true);
+    expect(document.querySelector("[data-poracode-device-toggle]")).toBeNull();
+    expect(screen.queryByRole("menu")).toBeNull();
 
-      fireEvent.pointerEnter(headerMenu as HTMLElement);
-      expect(toolMenu).toHaveClass("pointer-events-auto", "visible", "opacity-100");
-      expect(toolMenu).not.toHaveClass("pointer-events-none", "invisible", "opacity-0");
+    fireEvent.pointerEnter(headerRail as HTMLElement);
+    expect(screen.queryByRole("menu")).toBeNull();
 
-      fireEvent.pointerLeave(headerMenu as HTMLElement);
-      expect(toolMenu).toHaveClass("visible");
-      fireEvent.pointerEnter(toolMenu as HTMLElement);
-      await act(() => vi.advanceTimersByTimeAsync(300));
-      expect(toolMenu).toHaveClass("visible");
-
-      fireEvent.pointerLeave(headerMenu as HTMLElement);
-      await act(() => vi.advanceTimersByTimeAsync(300));
-      expect(toolMenu).toHaveClass("invisible");
-
-      fireEvent.pointerEnter(headerMenu as HTMLElement);
-      fireEvent.click(headerTrigger);
-      expect(toolMenu).toHaveClass("invisible");
-      fireEvent.pointerLeave(headerMenu as HTMLElement);
-      fireEvent.pointerEnter(headerMenu as HTMLElement);
-      expect(toolMenu).toHaveClass("visible");
-      fireEvent.click(headerTrigger);
-    } finally {
-      vi.useRealTimers();
+    fireEvent.click(headerTrigger);
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
+    for (const label of ["Git", "Files", "Terminal", "Notes", "Devices", "Thread info"]) {
+      expect(screen.getByRole("menuitem", { name: label })).toBeInTheDocument();
     }
+
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
   });
 
-  it("selects Devices for the exact tool-menu thread and only marks that entry active", () => {
+  it("selects Devices for the exact tool-menu thread and only marks that entry active", async () => {
     const rail = (threadId: string) => (
       <AppProvider>
         <ThreadToolRail
@@ -2159,34 +2128,35 @@ describe("ThreadView", () => {
         />
       </AppProvider>
     );
+    const openMenu = () =>
+      fireEvent.click(screen.getByRole("button", { name: "Show thread tools" }));
     usePanelStore.setState({
       deviceWorkspaceThreadId: null,
-      rightPanelTab: "notes",
+      rightPanelTab: "git",
       notesPanelOpen: true,
     });
     const view = render(rail("first"));
-    const first = document.getElementById("thread-tool-devices-first")!;
+    openMenu();
+    const first = await screen.findByRole("menuitem", { name: "Devices" });
+    expect(first.querySelector("[data-tool-active]")).toBeNull();
     fireEvent.click(first);
     expect(usePanelStore.getState()).toMatchObject({
       deviceWorkspaceThreadId: "first",
       rightPanelTab: "devices",
       notesPanelOpen: true,
     });
-    expect(first).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(first);
-    expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("first");
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
     view.rerender(rail("second"));
-    expect(document.getElementById("thread-tool-devices-first")).toBeNull();
-    const second = document.getElementById("thread-tool-devices-second")!;
-    expect(second).toHaveAttribute("aria-pressed", "false");
+    openMenu();
+    const second = await screen.findByRole("menuitem", { name: "Devices" });
+    expect(second.querySelector("[data-tool-active]")).toBeNull();
     fireEvent.click(second);
     expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("second");
-    expect(second).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByRole("button", { name: "Browser" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Usage" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Browser" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Usage" })).toBeNull();
   });
 
-  it("opens Thread info when its previous return destination belongs to another thread", () => {
+  it("opens Thread info when its previous return destination belongs to another thread", async () => {
     const thread: Thread = {
       id: "thread-info-target",
       projectId: "project-1",
@@ -2220,18 +2190,132 @@ describe("ThreadView", () => {
       projectLocation: { kind: "windows", path: "C:/repo" },
       paneCount: 2,
     });
-    const header = screen
-      .getByRole("button", { name: "Show thread tools" })
-      .closest("[data-poracode-thread-tool-rail]");
-    fireEvent.pointerEnter(header as HTMLElement);
-    const button = screen.getByRole("button", { name: "Thread info" });
-    expect(button).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(button);
+    fireEvent.click(screen.getByRole("button", { name: "Show thread tools" }));
+    const item = await screen.findByRole("menuitem", { name: "Thread info" });
+    expect(item.querySelector("[data-tool-active]")).toBeNull();
+    fireEvent.click(item);
     expect(usePanelStore.getState()).toMatchObject({
       threadDocksPanelOpen: true,
       threadDocksFocus: null,
       threadDocksReturnThreadId: null,
       rightPanelTab: "docks",
+    });
+  });
+
+  describe("header launcher toggle", () => {
+    const originalTerminalPosition = useSharedSettings.getState().terminalPosition;
+    const renderLauncher = () => {
+      const thread: Thread = {
+        id: "thread-header-toggle",
+        projectId: "project-1",
+        title: "Header toggle",
+        agentKind: "codex",
+        config: { model: "gpt-5.4" },
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        archived: false,
+        done: false,
+        starred: false,
+        createdAt: "2026-10-19",
+        updatedAt: "2026-10-19",
+      };
+      closeAllPanels();
+      useDevTerminalStore.getState().closePanel();
+      useAppStore.setState({
+        threads: [thread],
+        view: { kind: "thread", panes: [thread.id] },
+        focusedPaneId: thread.id,
+      });
+      renderThreadView({
+        thread,
+        agentStatus: undefined,
+        projectLocation: { kind: "windows", path: "C:/repo" },
+        paneCount: 2,
+      });
+      return screen.getByRole("button", { name: "Show thread tools" });
+    };
+    const openScopedTerminal = () =>
+      useDevTerminalStore.setState({
+        isOpen: true,
+        explicitlyOpened: true,
+        activeProjectId: "project-1",
+        activeWorktreePath: null,
+      });
+
+    afterEach(() => {
+      useSharedSettings.setState({ terminalPosition: originalTerminalPosition });
+      useDevTerminalStore.getState().closePanel();
+    });
+
+    it("hides Thread info while it holds the right panel", () => {
+      const launcher = renderLauncher();
+      act(() =>
+        usePanelStore.setState({
+          threadDocksPanelOpen: true,
+          rightPanelTab: "docks",
+          threadDocksFocus: null,
+          threadDocksReturnThreadId: null,
+        }),
+      );
+      expect(launcher).toHaveAttribute("aria-expanded", "true");
+      fireEvent.click(launcher);
+      expect(usePanelStore.getState().threadDocksPanelOpen).toBe(false);
+      expect(screen.queryByRole("menu")).toBeNull();
+    });
+
+    it("hides Notes, which is panel-wide, from any pane's launcher", () => {
+      const launcher = renderLauncher();
+      act(() => usePanelStore.setState({ notesPanelOpen: true, rightPanelTab: "notes" }));
+      fireEvent.click(launcher);
+      expect(usePanelStore.getState().notesPanelOpen).toBe(false);
+    });
+
+    it("keeps the panel and offers no menu when a key other than activation hits the icon", async () => {
+      const launcher = renderLauncher();
+      act(() => usePanelStore.setState({ notesPanelOpen: true, rightPanelTab: "notes" }));
+      launcher.focus();
+      fireEvent.keyDown(launcher, { key: "ArrowDown" });
+      await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+      expect(usePanelStore.getState().notesPanelOpen).toBe(true);
+      expect(screen.queryByRole("menu")).toBeNull();
+    });
+
+    it("hides a right-docked terminal, which closeAllPanels alone leaves open", () => {
+      useSharedSettings.setState({ terminalPosition: "right" });
+      const launcher = renderLauncher();
+      act(() => {
+        openScopedTerminal();
+        usePanelStore.setState({ rightPanelTab: "terminal" });
+      });
+      fireEvent.click(launcher);
+      expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    });
+
+    it("still opens the menu for a bottom-docked terminal and marks it active", async () => {
+      useSharedSettings.setState({ terminalPosition: "bottom" });
+      const launcher = renderLauncher();
+      act(() => {
+        openScopedTerminal();
+        usePanelStore.setState({ usagePanelOpen: true, rightPanelTab: "usage" });
+      });
+      fireEvent.click(launcher);
+      const item = await screen.findByRole("menuitem", { name: /^Terminal/ });
+      expect(item.querySelector("[data-tool-active]")).not.toBeNull();
+      expect(item).toHaveAccessibleName("Terminal Active");
+      expect(usePanelStore.getState().usagePanelOpen).toBe(true);
+      expect(useDevTerminalStore.getState().isOpen).toBe(true);
+    });
+
+    it("does not reopen an open menu after a tool took the panel and released it", async () => {
+      const launcher = renderLauncher();
+      fireEvent.click(launcher);
+      expect(await screen.findByRole("menu")).toBeInTheDocument();
+      act(() => usePanelStore.setState({ notesPanelOpen: true, rightPanelTab: "notes" }));
+      await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+      act(() => closeAllPanels());
+      await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+      expect(screen.queryByRole("menu")).toBeNull();
     });
   });
 

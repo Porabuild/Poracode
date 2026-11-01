@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Button, Dropdown, Label } from "@heroui/react";
 import type { LucideIcon } from "lucide-react";
 import {
   FileDiff,
@@ -14,6 +15,7 @@ import { useLingui } from "@lingui/react/macro";
 import { isHomeProjectId } from "@/shared/homeScope";
 import {
   closeAllPanels,
+  dismissRightOverlay,
   openFilesPanel,
   openNotesPanel,
   showGitReviewPanel,
@@ -23,11 +25,14 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePanelVisibility } from "@/renderer/views/MainView/parts/AppShell/parts/usePanelVisibility";
-import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useThreadToolRailDrag } from "./useThreadToolRailDrag";
 
-const railPillClass = "flex flex-col items-center gap-0.5 rounded-full p-1";
+/** Floating side rail: translucent blurred surface, soft hairline edge, rounded. */
+const railClass =
+  "flex flex-col items-center gap-0.5 rounded-2xl border border-[var(--hairline)] bg-[color-mix(in_oklab,var(--overlay)_60%,transparent)] p-1 shadow-xl backdrop-blur-md";
+const toolActiveClass = "bg-[var(--row-active)] text-foreground";
+const toolIdleClass = "text-muted hover:bg-[var(--row-hover)] hover:text-foreground";
 
 /**
  * Pane width from which an always-open rail clears the chat column instead of
@@ -36,7 +41,6 @@ const railPillClass = "flex flex-col items-center gap-0.5 rounded-full p-1";
  * each side — 920 + 2 × 44.
  */
 const ALWAYS_OPEN_MIN_PANE_WIDTH = 1008;
-const HEADER_MENU_CLOSE_DELAY_MS = 250;
 
 interface RailTool {
   id: string;
@@ -46,7 +50,94 @@ interface RailTool {
   activate: () => void;
 }
 
-type HeaderMenuPhase = "ready" | "suppressed" | "awaiting-reentry";
+function RailToolButton(props: { tool: RailTool; id: string | undefined }) {
+  const { tool, id } = props;
+  const Icon = tool.icon;
+  return (
+    <button
+      type="button"
+      id={id}
+      title={tool.label}
+      aria-label={tool.label}
+      aria-pressed={tool.active}
+      className={`flex size-7 items-center justify-center rounded-xl transition-colors ${
+        tool.active ? toolActiveClass : toolIdleClass
+      }`}
+      onClick={() => tool.activate()}
+    >
+      <Icon className="size-3.5" />
+    </button>
+  );
+}
+
+/**
+ * Header launcher: a standard dropdown of the tools. While one of this thread's
+ * tools holds the right panel (`hidesPanel`) the same icon is a hide toggle
+ * instead, so it never opens the menu then. The open state is local on purpose:
+ * it resets when the side rail takes over and this component unmounts.
+ */
+function HeaderToolMenu(props: {
+  threadId: string;
+  tools: RailTool[];
+  hidesPanel: boolean;
+  onHidePanel: () => void;
+}) {
+  const { t } = useLingui();
+  const { threadId, tools, hidesPanel, onHidePanel } = props;
+  const [open, setOpen] = useState(false);
+  // A tool taking the panel while the menu is open must not leave `open` set, or
+  // the menu would resurface when the panel is released.
+  if (hidesPanel && open) setOpen(false);
+  return (
+    <Dropdown isOpen={open && !hidesPanel} onOpenChange={(next) => setOpen(next && !hidesPanel)}>
+      <Button
+        isIconOnly
+        id={`thread-tools-${threadId}`}
+        aria-label={t`Show thread tools`}
+        {...(hidesPanel ? { "aria-expanded": true } : {})}
+        size="sm"
+        variant="ghost"
+        className="size-6 min-w-0 text-muted/60 hover:text-foreground"
+        onPress={() => {
+          if (hidesPanel) onHidePanel();
+        }}
+      >
+        <PanelRightOpen className="size-3.5" />
+      </Button>
+      <Dropdown.Popover placement="bottom end" className="min-w-36">
+        <Dropdown.Menu
+          aria-label={t`Show thread tools`}
+          onAction={(key) => tools.find((tool) => tool.id === key)?.activate()}
+        >
+          {tools.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <Dropdown.Item key={tool.id} id={tool.id} textValue={tool.label}>
+                <Icon className="size-4 shrink-0 text-muted" />
+                <Label>
+                  {tool.label}
+                  {tool.active ? (
+                    <>
+                      {" "}
+                      <span className="sr-only">{t`Active`}</span>
+                    </>
+                  ) : null}
+                </Label>
+                {tool.active ? (
+                  <span
+                    aria-hidden="true"
+                    data-tool-active=""
+                    className="ml-auto size-1.5 shrink-0 rounded-full bg-accent"
+                  />
+                ) : null}
+              </Dropdown.Item>
+            );
+          })}
+        </Dropdown.Menu>
+      </Dropdown.Popover>
+    </Dropdown>
+  );
+}
 
 /**
  * Per-pane launcher for the thread-scoped right-panel tools (git, files,
@@ -54,13 +145,13 @@ type HeaderMenuPhase = "ready" | "suppressed" | "awaiting-reentry";
  * tools that are not tied to a thread (usage, browser) stay in the right panel
  * header only.
  *
- * Interaction is shared with compact layout:
  * - The header launcher is omitted while the side rail is rendered, leaving no
  *   duplicate icon or empty header space.
  * - Single pane wide enough that the rail lands beside the centered chat column
  *   instead of over it: permanently open and visible.
- * - Anything narrower (or split panes): a header icon that expands downward
- *   into the tool menu on hover/focus, keeping the conversation unobstructed.
+ * - Anything narrower (or split panes): a header icon that opens a standard
+ *   dropdown of the tools. While one of this thread's tools holds the right
+ *   panel, the icon hides the panel instead of opening the menu.
  */
 export function ThreadToolRail(props: {
   threadId: string;
@@ -97,60 +188,23 @@ export function ThreadToolRail(props: {
   const { sidePanelOpen } = usePanelVisibility();
 
   const paneAnchorRef = useRef<HTMLSpanElement>(null);
-  const pillRef = useRef<HTMLDivElement>(null);
-  const headerRailRef = useRef<HTMLDivElement>(null);
-  const headerMenuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const railRef = useRef<HTMLDivElement>(null);
   const [paneElement, setPaneElement] = useState<HTMLElement | null>(null);
   const [paneWidth, setPaneWidth] = useState<number | null>(null);
   const [paneHeight, setPaneHeight] = useState<number | null>(null);
   const [railHeight, setRailHeight] = useState<number | null>(null);
-  const [headerMenuPhase, setHeaderMenuPhase] = useState<HeaderMenuPhase>("ready");
-  const [headerMenuPointerOpen, setHeaderMenuPointerOpen] = useState(false);
-  const [headerMenuFocusOpen, setHeaderMenuFocusOpen] = useState(false);
-  const [headerMenuTapOpen, setHeaderMenuTapOpen] = useState(false);
   const alwaysOpen =
     paneCount === 1 && paneWidth !== null && paneWidth >= ALWAYS_OPEN_MIN_PANE_WIDTH;
   const sideRailVisible = alwaysOpen && paneElement !== null && !sidePanelOpen;
-  const headerMenuOpen =
-    headerMenuTapOpen ||
-    (headerMenuPhase === "ready" && (headerMenuPointerOpen || headerMenuFocusOpen));
-
-  const cancelHeaderMenuClose = () => {
-    if (headerMenuCloseTimerRef.current === null) return;
-    clearTimeout(headerMenuCloseTimerRef.current);
-    headerMenuCloseTimerRef.current = null;
-  };
-
-  // Mount-only cleanup for a close timer a late pointer event may still have
-  // armed; the body is inlined (rather than calling cancelHeaderMenuClose)
-  // so the effect depends on nothing that changes per render.
-  useEffect(
-    () => () => {
-      if (headerMenuCloseTimerRef.current === null) return;
-      clearTimeout(headerMenuCloseTimerRef.current);
-      headerMenuCloseTimerRef.current = null;
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (!headerMenuTapOpen) return;
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      if (event.target instanceof Node && headerRailRef.current?.contains(event.target)) return;
-      setHeaderMenuTapOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOnOutsidePress);
-    return () => document.removeEventListener("pointerdown", closeOnOutsidePress);
-  }, [headerMenuTapOpen]);
 
   useLayoutEffect(() => {
     if (paneCount !== 1 || sidePanelOpen) return;
     // The pane width decides whether the rail clears the centered chat column;
-    // its height and the pill height bound rail dragging.
+    // its height and the rail height bound rail dragging.
     const pane = paneAnchorRef.current?.closest("[data-poracode-thread-pane]");
     if (!(pane instanceof HTMLElement)) return;
     setPaneElement(pane);
-    const pill = pillRef.current;
+    const rail = railRef.current;
 
     const skipIfClose = (prev: number | null, next: number) =>
       prev !== null && Math.abs(prev - next) < 0.5 ? prev : next;
@@ -169,13 +223,13 @@ export function ThreadToolRail(props: {
           if (alwaysOpen) {
             setPaneHeight((prev) => skipIfClose(prev, rect.height));
           }
-        } else if (entry.target === pill) {
+        } else if (entry.target === rail) {
           setRailHeight((prev) => skipIfClose(prev, entry.contentRect.height));
         }
       }
     });
     observer.observe(pane);
-    if (alwaysOpen && pill) observer.observe(pill);
+    if (alwaysOpen && rail) observer.observe(rail);
     return () => observer.disconnect();
   }, [alwaysOpen, paneCount, sidePanelOpen]);
 
@@ -259,48 +313,31 @@ export function ThreadToolRail(props: {
     },
   ];
 
-  const primaryTool = tools[0];
-  if (!primaryTool) return null;
-
-  const suppressHeaderMenu = () => {
-    cancelHeaderMenuClose();
-    setHeaderMenuPointerOpen(false);
-    setHeaderMenuFocusOpen(false);
-    setHeaderMenuTapOpen(false);
-    setHeaderMenuPhase("suppressed");
-  };
-
-  const toolButtons = tools.map((tool) => {
-    const Icon = tool.icon;
-    return (
-      <button
-        key={tool.id}
-        type="button"
-        {...(tool.id === "devices" ? { id: `thread-tool-devices-${threadId}` } : {})}
-        title={tool.label}
-        aria-label={tool.label}
-        aria-pressed={tool.active}
-        className={`flex size-7 items-center justify-center rounded-full transition-colors ${
-          tool.active
-            ? "bg-accent/15 text-accent"
-            : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
-        }`}
-        onClick={() => {
-          suppressHeaderMenu();
-          tool.activate();
-        }}
-      >
-        <Icon className="size-3.5" />
-      </button>
-    );
-  });
+  // The header icon hides the right panel while a tool holds it. Notes and Thread
+  // info are panel-wide, so any pane's launcher hides them. A bottom-docked
+  // terminal does not use the right panel, so it never counts. Compact layout
+  // keeps tap-to-open: its panels are full-screen pages, not a side panel.
+  const hidesPanel =
+    !compactLayout &&
+    sidePanelOpen &&
+    tools.some((tool) => tool.active && (tool.id !== "terminal" || terminalOnRight));
+  // A right-docked terminal keeps the panel open on its own; a bottom one is not
+  // part of the right panel and must survive.
+  const hideRightPanel = () => (terminalOnRight ? dismissRightOverlay() : closeAllPanels());
+  const railButtons = tools.map((tool) => (
+    <RailToolButton
+      key={tool.id}
+      tool={tool}
+      id={tool.id === "devices" ? `thread-tool-devices-${threadId}` : undefined}
+    />
+  ));
 
   return (
     <>
       {sideRailVisible && paneElement
         ? createPortal(
             <div className="poracode-overlay-header__controls pointer-events-none absolute inset-y-0 right-0 z-20 flex items-start">
-              {/* Positioned with a transform, not layout: the pill carries a
+              {/* Positioned with a transform, not layout: the rail carries a
                 `backdrop-blur` layer, and re-laying it out every drag frame
                 makes the compositor flash a stale copy of that backdrop. */}
               <div
@@ -308,15 +345,15 @@ export function ThreadToolRail(props: {
                 style={{ transform: `translateY(${offset}px)` }}
               >
                 <div
-                  ref={pillRef}
+                  ref={railRef}
                   data-poracode-thread-tool-rail=""
                   data-placement="side"
-                  className={`${floatingGlassSurfaceClass} ${railPillClass} ${
+                  className={`${railClass} ${
                     isDragging ? "cursor-grabbing" : "cursor-default"
                   } touch-none select-none`}
                   {...dragHandlers}
                 >
-                  {toolButtons}
+                  {railButtons}
                 </div>
               </div>
             </div>,
@@ -325,74 +362,16 @@ export function ThreadToolRail(props: {
         : null}
       {sideRailVisible ? null : (
         <div
-          ref={headerRailRef}
           data-poracode-thread-tool-rail=""
           data-placement="header"
           className="poracode-overlay-header__controls relative shrink-0"
-          onPointerLeave={() => {
-            if (headerMenuPhase === "suppressed") {
-              setHeaderMenuPhase("awaiting-reentry");
-              return;
-            }
-            cancelHeaderMenuClose();
-            headerMenuCloseTimerRef.current = setTimeout(() => {
-              headerMenuCloseTimerRef.current = null;
-              setHeaderMenuPointerOpen(false);
-            }, HEADER_MENU_CLOSE_DELAY_MS);
-          }}
-          onPointerEnter={() => {
-            cancelHeaderMenuClose();
-            if (headerMenuPhase === "suppressed") return;
-            setHeaderMenuPointerOpen(true);
-            if (headerMenuPhase === "awaiting-reentry") setHeaderMenuPhase("ready");
-          }}
-          onFocusCapture={() => {
-            cancelHeaderMenuClose();
-            setHeaderMenuPhase("ready");
-            setHeaderMenuFocusOpen(true);
-          }}
-          onBlurCapture={(event) => {
-            if (
-              event.relatedTarget instanceof Node &&
-              event.currentTarget.contains(event.relatedTarget)
-            ) {
-              return;
-            }
-            setHeaderMenuFocusOpen(false);
-          }}
         >
-          <button
-            type="button"
-            id={`thread-tools-${threadId}`}
-            title={t`Show thread tools`}
-            aria-label={t`Show thread tools`}
-            aria-expanded={compactLayout ? headerMenuTapOpen : undefined}
-            className="flex size-6 items-center justify-center rounded text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-            onClick={() => {
-              if (compactLayout) {
-                cancelHeaderMenuClose();
-                setHeaderMenuPhase("ready");
-                setHeaderMenuTapOpen((open) => !open);
-                return;
-              }
-              suppressHeaderMenu();
-              primaryTool.activate();
-            }}
-          >
-            <PanelRightOpen className="size-3.5" />
-          </button>
-          <div
-            data-poracode-thread-tool-menu=""
-            className={`absolute left-1/2 top-full z-30 w-9 -translate-x-1/2 transition-opacity duration-150 ${
-              headerMenuOpen
-                ? "pointer-events-auto visible opacity-100"
-                : "pointer-events-none invisible opacity-0"
-            }`}
-          >
-            <div className="pt-1">
-              <div className={`${floatingGlassSurfaceClass} ${railPillClass}`}>{toolButtons}</div>
-            </div>
-          </div>
+          <HeaderToolMenu
+            threadId={threadId}
+            tools={tools}
+            hidesPanel={hidesPanel}
+            onHidePanel={hideRightPanel}
+          />
         </div>
       )}
       <span
