@@ -979,6 +979,22 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   font-size: 0.75rem;
 }
 
+/* Small icon + label buttons. HeroUI gives button icons a -2px inline margin
+   (sized for its 16-20px icons and gap-2), which eats half of the compact
+   gap-1 our small buttons use. Its inherited `normal`-ish line box (~17px at
+   12px Geist) also lands the label ~1px above the centered icon; a 1rem line
+   box matches the font's rounded height so the label centers exactly. Layered
+   so per-instance gap/leading/margin utilities still win. */
+@layer components {
+  .button--sm {
+    line-height: 1rem;
+  }
+
+  .button--sm svg:not([data-slot="spinner"] svg, [data-slot="link-icon"] svg) {
+    margin-inline: 0;
+  }
+}
+
 .poracode-remote-access-toggle-group .toggle-button {
   --toggle-button-fg: var(--muted);
   --toggle-button-fg-selected: var(--foreground);
