@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useReducer, useSyncExternalStore } from "react";
 import type { RemoteImageRefValue } from "@/shared/remote";
 import type {
   EnvironmentImagePriority,
@@ -8,6 +8,20 @@ import type { RemoteImageReadiness } from "./environmentSessions";
 
 const noopSubscribe = () => () => undefined;
 const emptySnapshot = () => "";
+
+/**
+ * Renders on every keyed notification, not only on URL changes. A failed or
+ * evicted key notifies when its retry window lapses, but its URL is "" on both
+ * sides, so `useSyncExternalStore` alone would skip the render whose effect
+ * requests the retry and the slot would stay blank until an unrelated render.
+ */
+function useTransitionRender(): (listener: () => void) => () => void {
+  const [, render] = useReducer((count: number) => count + 1, 0);
+  return (listener) => () => {
+    render();
+    listener();
+  };
+}
 
 /**
  * Readiness URL for one host-held image reference under an environment
@@ -30,9 +44,11 @@ export function useRemoteImageRefUrl(
   const activeReadiness = readiness;
   const activeRef = ref;
   const enabled = activeReadiness !== undefined && activeRef !== undefined;
+  const onTransition = useTransitionRender();
   const url = useSyncExternalStore(
     enabled && activeReadiness && activeRef
-      ? (listener) => activeReadiness.subscribeRef(activeRef, listener, priority, variant)
+      ? (listener) =>
+          activeReadiness.subscribeRef(activeRef, onTransition(listener), priority, variant)
       : noopSubscribe,
     enabled && activeReadiness && activeRef
       ? () => activeReadiness.resolveRef(activeRef, variant)
@@ -57,9 +73,11 @@ export function useRemoteImagePathUrl(
   const activePath = path;
   const enabled =
     activeReadiness !== undefined && activePath !== undefined && activePath.length > 0;
+  const onTransition = useTransitionRender();
   const url = useSyncExternalStore(
     enabled && activeReadiness && activePath
-      ? (listener) => activeReadiness.subscribePath(activePath, listener, priority, variant)
+      ? (listener) =>
+          activeReadiness.subscribePath(activePath, onTransition(listener), priority, variant)
       : noopSubscribe,
     enabled && activeReadiness && activePath
       ? () => activeReadiness.resolvePath(activePath, variant)
