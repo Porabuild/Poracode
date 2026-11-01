@@ -48,7 +48,11 @@ it("bounds a 76-reference gallery burst without aborting or evicting mounted ima
     h.resolve(index, [index]);
   }
   await vi.waitFor(() =>
-    expect(h.cache.resolutionForImageKey(environmentImageRefKey(refs[63]!)).url).not.toBe(""),
+    expect(
+      refs
+        .slice(0, ENVIRONMENT_IMAGE_CACHE_MAX_ENTRIES)
+        .every((ref) => h.cache.resolutionForImageKey(environmentImageRefKey(ref)).url !== ""),
+    ).toBe(true),
   );
   expect(h.cache.resolutionForImageKey(visibleKey).url).toBe("blob:1");
   expect(h.revoked).toEqual([]);
@@ -146,4 +150,77 @@ it("releases foreground priority after the last mounted consumer leaves", async 
   h.cache.localImageResolution("/last");
   expect(h.snapshot("/visible").url).toBe("");
   expect(h.revoked).toContain("blob:1");
+});
+
+it("starts a focused image in a reserved slot ahead of queued mounted images", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  for (const path of ["/a", "/b", "/c"]) h.cache.localImageResolution(path);
+  expect(h.fetches).toHaveLength(1);
+
+  // The open lightbox image does not wait for the busy slot or the queue.
+  h.cache.subscribeImageKey(environmentLocalImageKey("/focus"), () => undefined, "focus");
+  h.cache.localImageResolution("/focus", "focus");
+  expect(h.fetches).toHaveLength(2);
+  expect(h.fetches[1]!.requestPath).toContain("path=%2Ffocus");
+
+  // The reserved slot is for focus only: mounted images keep the normal bound.
+  h.resolve(1, [9]);
+  await vi.waitFor(() => expect(h.snapshot("/focus").url).not.toBe(""));
+  expect(h.fetches).toHaveLength(2);
+  h.resolve(0, [1]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
+  expect(h.fetches[2]!.requestPath).toContain("path=%2Fc");
+});
+
+it("promotes an already queued image when it gains focus", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  for (const path of ["/a", "/b", "/c"]) h.cache.localImageResolution(path);
+  const unsubscribe = h.cache.subscribeImageKey(
+    environmentLocalImageKey("/b"),
+    () => undefined,
+    "focus",
+  );
+  expect(h.fetches).toHaveLength(2);
+  expect(h.fetches[1]!.requestPath).toContain("path=%2Fb");
+  unsubscribe();
+
+  // Once focus leaves, no further key may use the reserved slot.
+  h.resolve(1, [2]);
+  await vi.waitFor(() => expect(h.snapshot("/b").url).not.toBe(""));
+  expect(h.fetches).toHaveLength(2);
+});
+
+it("starts queued transcript images bottom to top whatever order the rows requested in", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  h.cache.localImageResolution("/busy", "foreground");
+  // Rows mount in stages: a lower window first, then rows above it.
+  h.cache.localImageResolution("/row-8", "foreground", undefined, 8);
+  h.cache.localImageResolution("/row-9", "foreground", undefined, 9);
+  h.cache.localImageResolution("/row-3", "foreground", undefined, 3);
+  h.cache.localImageResolution("/row-5", "foreground", undefined, 5);
+
+  const started: string[] = [];
+  for (let index = 0; index < 4; index++) {
+    h.resolve(index, [index]);
+    await vi.waitFor(() => expect(h.fetches).toHaveLength(index + 2));
+    started.push(decodeURIComponent(h.fetches[index + 1]!.requestPath.split("path=")[1]!));
+  }
+  expect(started).toEqual(["/row-9", "/row-8", "/row-5", "/row-3"]);
+});
+
+it("starts unranked demand before ranked transcript images and refreshes a re-requested rank", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  h.cache.localImageResolution("/busy", "foreground");
+  h.cache.localImageResolution("/row-4", "foreground", undefined, 4);
+  h.cache.localImageResolution("/row-2", "foreground", undefined, 2);
+  h.cache.localImageResolution("/composer", "foreground");
+  // History above loaded and shifted this row down to index 6.
+  h.cache.localImageResolution("/row-2", "foreground", undefined, 6);
+
+  h.resolve(0, [1]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(2));
+  expect(h.fetches[1]!.requestPath).toContain("composer");
+  h.resolve(1, [2]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
+  expect(h.fetches[2]!.requestPath).toContain("row-2");
 });

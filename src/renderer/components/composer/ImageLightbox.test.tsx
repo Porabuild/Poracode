@@ -375,6 +375,35 @@ describe("progressive image preview", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
+  it("re-requests a still-empty resource when it notifies, such as a lapsed retry window", () => {
+    const listeners = new Set<() => void>();
+    const resource = {
+      key: "failed-coordinate",
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      getSnapshot: () => "",
+      request: vi.fn<() => void>(),
+    };
+    render(
+      <ImageLightboxView
+        images={[{ src: "", resource, alt: "shot.png" }]}
+        initialIndex={0}
+        onClose={() => {}}
+      />,
+    );
+    const requestsBefore = resource.request.mock.calls.length;
+    expect(requestsBefore).toBeGreaterThan(0);
+    act(() => {
+      for (const listener of listeners) listener();
+    });
+    expect(resource.request.mock.calls.length).toBeGreaterThan(requestsBefore);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+  });
+
   it("keeps previews isolated for distinct resource keys sharing a blob URL", () => {
     deferredDecode();
     const resourceA = {

@@ -80,7 +80,7 @@ describe("RemoteEnvironmentImageCache lifecycle", () => {
     expect(harness.fetches).toHaveLength(1);
   });
 
-  it("bounds concurrent fetches and starts queued keys in FIFO order", async () => {
+  it("bounds concurrent fetches and starts the newest queued demand first", async () => {
     const harness = cacheHarness({ maxConcurrentFetches: 1 });
     harness.cache.localImageResolution("/tmp/a.png");
     harness.cache.localImageResolution("/tmp/b.png");
@@ -97,12 +97,25 @@ describe("RemoteEnvironmentImageCache lifecycle", () => {
 
     harness.fetches[0]?.resolve(new Uint8Array([1]));
     await vi.waitFor(() => expect(harness.fetches).toHaveLength(2));
-    expect(harness.fetches[1]?.requestPath).toBe("/api/files/image?path=%2Ftmp%2Fb.png");
+    expect(harness.fetches[1]?.requestPath).toBe("/api/files/image?path=%2Ftmp%2Fc.png");
 
     harness.fetches[1]?.resolve(new Uint8Array([2]));
     await vi.waitFor(() => expect(harness.fetches).toHaveLength(3));
-    expect(harness.fetches[2]?.requestPath).toBe("/api/files/image?path=%2Ftmp%2Fc.png");
+    expect(harness.fetches[2]?.requestPath).toBe("/api/files/image?path=%2Ftmp%2Fb.png");
     expect(harness.created).toEqual(["blob:1", "blob:2"]);
+  });
+
+  it("starts a re-requested queued key before keys requested earlier", async () => {
+    const harness = cacheHarness({ maxConcurrentFetches: 1 });
+    harness.cache.localImageResolution("/tmp/a.png");
+    harness.cache.localImageResolution("/tmp/b.png");
+    harness.cache.localImageResolution("/tmp/c.png");
+    // Newly visible again: a foreground request refreshes its demand.
+    harness.cache.localImageResolution("/tmp/b.png");
+
+    harness.fetches[0]?.resolve(new Uint8Array([1]));
+    await vi.waitFor(() => expect(harness.fetches).toHaveLength(2));
+    expect(harness.fetches[1]?.requestPath).toBe("/api/files/image?path=%2Ftmp%2Fb.png");
   });
 
   it("evicts the least-recently-used entry, not the least-recently inserted", async () => {

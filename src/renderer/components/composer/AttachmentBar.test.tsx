@@ -90,7 +90,30 @@ describe("AttachmentBar", () => {
       />,
     );
     expect(resolvePath).toHaveBeenCalledWith("/tmp/shot.png", "card");
-    expect(requestPath).toHaveBeenCalledWith("/tmp/shot.png", expect.anything(), "card");
+    expect(requestPath).toHaveBeenCalledWith("/tmp/shot.png", expect.anything(), "card", undefined);
+  });
+
+  it("ranks a sent message's thumbnail by its transcript row", () => {
+    const requestPath =
+      vi.fn<(path: string, priority?: string, variant?: string, rank?: number) => void>();
+    const readiness = {
+      resolvePath: () => "",
+      subscribePath: () => () => {},
+      requestPath,
+      resolveRef: () => "",
+      subscribeRef: () => () => {},
+      requestRef: () => {},
+    };
+    render(
+      <div data-chat-virtual-row="true" data-index="5">
+        <AttachmentBar
+          attachments={[{ id: "image", path: "/tmp/shot.png", name: "shot.png", isImage: true }]}
+          imagesAsPreview
+          remoteImageReadiness={readiness}
+        />
+      </div>,
+    );
+    expect(requestPath).toHaveBeenCalledWith("/tmp/shot.png", expect.anything(), "card", 5);
   });
 
   it("keeps a pending host thumbnail out of the broken-image state and updates on readiness", () => {

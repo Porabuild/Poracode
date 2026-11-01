@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useReducer, useSyncExternalStore } from "react";
 import type { RemoteImageRefValue } from "@/shared/remote";
 import type {
   EnvironmentImagePriority,
@@ -10,6 +10,20 @@ const noopSubscribe = () => () => undefined;
 const emptySnapshot = () => "";
 
 /**
+ * Wraps `useSyncExternalStore` listeners so every notification renders, not
+ * only a changed snapshot. A failed or evicted image notifies when its retry
+ * window lapses with its URL still "" on both sides; without this render the
+ * effect that requests the retry never runs and the slot stays blank.
+ */
+export function useRenderOnNotify(): (listener: () => void) => () => void {
+  const [, render] = useReducer((count: number) => count + 1, 0);
+  return (listener) => () => {
+    render();
+    listener();
+  };
+}
+
+/**
  * Readiness URL for one host-held image reference under an environment
  * connection. `getSnapshot` is a pure string read (stable under React's
  * repeated calls); the fetch is requested from an effect, and a transition
@@ -18,7 +32,8 @@ const emptySnapshot = () => "";
  * `fallback` is used when no environment readiness is supplied (direct/ssh
  * clients keep their existing synchronous resolver, handled by the caller).
  * `variant` selects the host's downscaled display variant coordinate
- * instead of the full-resolution one.
+ * instead of the full-resolution one. `readRank` reports the transcript
+ * position when the fetch is requested, so lower rows load first.
  */
 export function useRemoteImageRefUrl(
   ref: RemoteImageRefValue | undefined,
@@ -26,13 +41,15 @@ export function useRemoteImageRefUrl(
   fallback = "",
   priority: EnvironmentImagePriority = "foreground",
   variant?: EnvironmentImageVariant,
+  readRank?: () => number | undefined,
 ): string {
   const activeReadiness = readiness;
   const activeRef = ref;
   const enabled = activeReadiness !== undefined && activeRef !== undefined;
+  const onNotify = useRenderOnNotify();
   const url = useSyncExternalStore(
     enabled && activeReadiness && activeRef
-      ? (listener) => activeReadiness.subscribeRef(activeRef, listener, priority, variant)
+      ? (listener) => activeReadiness.subscribeRef(activeRef, onNotify(listener), priority, variant)
       : noopSubscribe,
     enabled && activeReadiness && activeRef
       ? () => activeReadiness.resolveRef(activeRef, variant)
@@ -40,7 +57,7 @@ export function useRemoteImageRefUrl(
   );
   useEffect(() => {
     if (!enabled || url || !activeReadiness || !activeRef) return;
-    activeReadiness.requestRef(activeRef, priority, variant);
+    activeReadiness.requestRef(activeRef, priority, variant, readRank?.());
   });
   return url || (enabled ? "" : fallback);
 }
@@ -52,14 +69,17 @@ export function useRemoteImagePathUrl(
   fallback = "",
   priority: EnvironmentImagePriority = "foreground",
   variant?: EnvironmentImageVariant,
+  readRank?: () => number | undefined,
 ): string {
   const activeReadiness = readiness;
   const activePath = path;
   const enabled =
     activeReadiness !== undefined && activePath !== undefined && activePath.length > 0;
+  const onNotify = useRenderOnNotify();
   const url = useSyncExternalStore(
     enabled && activeReadiness && activePath
-      ? (listener) => activeReadiness.subscribePath(activePath, listener, priority, variant)
+      ? (listener) =>
+          activeReadiness.subscribePath(activePath, onNotify(listener), priority, variant)
       : noopSubscribe,
     enabled && activeReadiness && activePath
       ? () => activeReadiness.resolvePath(activePath, variant)
@@ -67,7 +87,7 @@ export function useRemoteImagePathUrl(
   );
   useEffect(() => {
     if (!enabled || url || !activeReadiness || !activePath) return;
-    activeReadiness.requestPath(activePath, priority, variant);
+    activeReadiness.requestPath(activePath, priority, variant, readRank?.());
   });
   return url || (enabled ? "" : fallback);
 }
@@ -100,7 +120,7 @@ const FULL_RESOLUTION_WAIT_MS = 10_000;
 /**
  * One-shot full-resolution URL for an explicit user action (preview, copy,
  * download) on a card that displays the downscaled variant. Requests the
- * full coordinate at foreground priority and resolves with its URL, or ""
+ * full coordinate at focus priority and resolves with its URL, or ""
  * on timeout/failure so actions can report the unavailable original.
  */
 export function fetchRemoteImageRefUrl(
@@ -109,8 +129,8 @@ export function fetchRemoteImageRefUrl(
 ): Promise<string> {
   return waitForImageUrl(
     () => readiness.resolveRef(ref),
-    (listener) => readiness.subscribeRef(ref, listener, "foreground"),
-    () => readiness.requestRef(ref, "foreground"),
+    (listener) => readiness.subscribeRef(ref, listener, "focus"),
+    () => readiness.requestRef(ref, "focus"),
   );
 }
 
@@ -121,8 +141,8 @@ export function fetchRemoteImagePathUrl(
 ): Promise<string> {
   return waitForImageUrl(
     () => readiness.resolvePath(path),
-    (listener) => readiness.subscribePath(path, listener, "foreground"),
-    () => readiness.requestPath(path, "foreground"),
+    (listener) => readiness.subscribePath(path, listener, "focus"),
+    () => readiness.requestPath(path, "focus"),
   );
 }
 

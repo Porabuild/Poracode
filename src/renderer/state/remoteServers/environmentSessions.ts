@@ -860,10 +860,12 @@ export interface RemoteImageReadiness {
     variant?: EnvironmentImageVariant,
     requestOnRebind?: boolean,
   ) => () => void;
+  /** `rank` is the requester's transcript position; higher starts first. */
   readonly requestRef: (
     ref: RemoteImageRefValue,
     priority?: EnvironmentImagePriority,
     variant?: EnvironmentImageVariant,
+    rank?: number,
   ) => void;
   readonly resolvePath: (path: string, variant?: EnvironmentImageVariant) => string;
   readonly subscribePath: (
@@ -877,6 +879,7 @@ export interface RemoteImageReadiness {
     path: string,
     priority?: EnvironmentImagePriority,
     variant?: EnvironmentImageVariant,
+    rank?: number,
   ) => void;
 }
 
@@ -900,11 +903,12 @@ export function environmentImageReadinessFor(
         requestOnRebind ? { kind: "ref", ref, ...(variant ? { variant } : {}) } : undefined,
         priority,
       ),
-    requestRef: (ref, priority, variant) =>
+    requestRef: (ref, priority, variant, rank) =>
       requestEnvironmentImage(
         connectionKey,
         { kind: "ref", ref, ...(variant ? { variant } : {}) },
         priority,
+        rank,
       ),
     resolvePath: (path, variant) =>
       environmentImageUrl(connectionKey, environmentLocalImageKey(path, variant)),
@@ -916,11 +920,12 @@ export function environmentImageReadinessFor(
         requestOnRebind ? { kind: "localPath", path, ...(variant ? { variant } : {}) } : undefined,
         priority,
       ),
-    requestPath: (path, priority, variant) =>
+    requestPath: (path, priority, variant, rank) =>
       requestEnvironmentImage(
         connectionKey,
         { kind: "localPath", path, ...(variant ? { variant } : {}) },
         priority,
+        rank,
       ),
   };
 }
@@ -942,16 +947,17 @@ export function requestEnvironmentImage(
   connectionKey: string,
   target: RemoteEnvironmentImageTarget,
   priority?: EnvironmentImagePriority,
+  rank?: number,
 ): void {
   const server = findServer(connectionKey);
   if (!server) return;
   const session = environmentSessionForServer(server);
   if (!session) return;
   if (target.kind === "ref") {
-    session.client.imageRefResolution(target.ref, priority, target.variant);
+    session.client.imageRefResolution(target.ref, priority, target.variant, rank);
     return;
   }
-  session.client.localImageResolution(target.path, priority, target.variant);
+  session.client.localImageResolution(target.path, priority, target.variant, rank);
 }
 
 /**
