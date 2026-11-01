@@ -2,16 +2,17 @@
 // "Test shard (i/N)" jobs printed. The duration sequencer reads it to balance
 // shards; refresh it when shard times drift apart.
 //
-// Usage: node scripts/update-test-durations.mjs <CI run id>   (needs the gh CLI)
+// Usage: node scripts/update-test-durations.mjs <CI run id>
+// Needs the gh CLI, authenticated, run inside this checkout (it resolves the repository).
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const REPOSITORY = "Porabuild/Poracode";
+const USAGE = "usage: node scripts/update-test-durations.mjs <CI run id>";
 const OUTPUT = resolve(import.meta.dirname, "../src/build/testDurations.json");
-// Vitest's default reporter: ` ✓  node  src/a.test.ts (3 tests | 1 skipped) 1.25s`.
+// Vitest's default reporter: ` ✓  node  src/a.test.ts (3 tests | 1 skipped) 412ms`.
 const FILE_LINE =
-  /^\s*[✓×↓]\s+(?:\S+\s+)?((?:src|protocol|packages)\/\S+\.test\.tsx?)\s+\(\d+ tests?[^)]*\)\s+(?:\d+ms\s+)?(\d+(?:\.\d+)?)(ms|s)\s*$/u;
+  /^\s*[✓×↓]\s+(?:\S+\s+)?(\S+\.test\.tsx?)\s+\(\d+ tests?[^)]*\)\s+(?:\d+ms\s+)?(\d+(?:\.\d+)?)(ms|s)\s*$/u;
 
 // ANSI colors, raw or as the literal "^[[" that GitHub job logs sometimes print.
 const COLOR_CODES = new RegExp(`(?:${String.fromCharCode(27)}|\\^\\[)\\[[0-9;]*m`, "gu");
@@ -35,21 +36,25 @@ function gh(args) {
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) {
   const runId = process.argv[2];
-  if (!runId) {
-    console.error("usage: update-test-durations.mjs <CI run id>");
+  if (!runId || !/^\d+$/u.test(runId)) {
+    console.error(USAGE);
     process.exit(2);
   }
   const jobs = JSON.parse(
-    gh(["api", `repos/${REPOSITORY}/actions/runs/${runId}/jobs?per_page=100&filter=latest`]),
+    gh(["api", `repos/{owner}/{repo}/actions/runs/${runId}/jobs?per_page=100&filter=latest`]),
   ).jobs.filter((job) => /^Test shard \(\d+\/\d+\)$/u.test(job.name));
   if (jobs.length === 0) throw new Error(`Run ${runId} has no test shard jobs.`);
   const all = new Map();
   for (const job of jobs) {
-    if (job.conclusion !== "success") throw new Error(`${job.name} did not succeed.`);
-    for (const [file, ms] of parseShardLog(
-      gh(["run", "view", "-R", REPOSITORY, "--job", String(job.id), "--log"]),
-    ))
-      all.set(file, ms);
+    if (job.conclusion !== "success")
+      throw new Error(
+        `${job.name} is ${job.conclusion ?? "still running"}; use a completed, successful run.`,
+      );
+    const durations = parseShardLog(gh(["run", "view", "--job", String(job.id), "--log"]));
+    // An empty parse means the log or Vitest's reporter format changed; never
+    // overwrite the data with a partial set.
+    if (durations.size === 0) throw new Error(`No per-file times found in the ${job.name} log.`);
+    for (const [file, ms] of durations) all.set(file, ms);
   }
   // Rounded so a refresh only rewrites files whose time really changed.
   const sorted = Object.fromEntries(

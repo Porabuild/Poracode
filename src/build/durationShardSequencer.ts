@@ -6,20 +6,21 @@ import recordedDurations from "./testDurations.json" with { type: "json" };
 const PER_FILE_OVERHEAD_MS = 250;
 
 /**
- * Vitest's default `--shard` splits files by count, so CI shards ranged from
- * 164 s to 288 s whenever the slowest files landed together. This assigns each
- * file to the currently lightest shard, longest first, using the per-file times
- * of a recent CI run (`node scripts/update-test-durations.mjs <run id>`). Files
- * without a recorded time count as the median. Every shard job computes the
- * same assignment from the same file list, so shards stay disjoint and complete.
+ * Vitest's default `--shard` splits files by count, so a shard that drew the
+ * slowest files ran far longer than the rest. This assigns each file to the
+ * currently lightest shard, longest first, using the per-file times of a recent
+ * CI run (`node scripts/update-test-durations.mjs <run id>`). Files without a
+ * recorded time count as the mean. Every shard job computes the same assignment
+ * from the same file list, so shards stay disjoint and complete.
  */
 export function assignDurationShards(
   files: readonly { readonly id: string; readonly path: string }[],
   count: number,
   durations: Readonly<Record<string, number>> = recordedDurations,
 ): string[][] {
-  const known = Object.values(durations).toSorted((a, b) => a - b);
-  const fallback = known.length > 0 ? known[Math.floor(known.length / 2)]! : 1_000;
+  // The mean, not the median: most recorded files sit at the 50 ms floor.
+  const known = Object.values(durations);
+  const fallback = known.length > 0 ? known.reduce((sum, ms) => sum + ms, 0) / known.length : 1_000;
   const weighted = files
     .map(({ id, path }) => ({ id, weight: (durations[path] ?? fallback) + PER_FILE_OVERHEAD_MS }))
     .toSorted((a, b) => b.weight - a.weight || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
