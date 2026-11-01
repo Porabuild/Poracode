@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FolderOpen, RotateCcw } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { Button, Input, PathDisplay } from "@/renderer/components/common";
 import { RemoteHostFolderPicker } from "./RemoteHostFolderPicker";
 
@@ -44,6 +45,8 @@ export function WorktreeBaseFolderField(props: {
   }
 
   const canRestore = isWsl ? Boolean(draft) : Boolean(value);
+  // A browser has no OS folder picker; it can only browse a host's folders.
+  const canPick = Boolean(props.remoteDesktopId) || !isBrowserClientRuntime();
 
   return (
     <>
@@ -62,6 +65,7 @@ export function WorktreeBaseFolderField(props: {
             aria-label={t`Choose worktree base folder`}
             variant="tertiary"
             className="min-w-0 flex-1 justify-start gap-2 font-normal"
+            isDisabled={!canPick}
             onPress={() => void pick()}
           >
             <FolderOpen className="size-4 shrink-0 text-muted" />

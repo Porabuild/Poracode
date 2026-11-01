@@ -28,10 +28,11 @@ jobs:
       shared: ${{ steps.scope.outputs.native_shared }}
       full: ${{ steps.mode.outputs.full }}
     steps:
-      - name: Checkout complete history for PR diff
+      # Only the classifier script is needed; it fetches the PR's two commits.
+      - name: Checkout the change classifier
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
-          fetch-depth: 0
+          sparse-checkout: scripts
 
       - name: Classify affected native surfaces
         id: scope

@@ -9786,6 +9786,10 @@ msgstr "Horizontal derecha"
 msgid "Language"
 msgstr "Idioma"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Language and sidebar shortcuts"
+msgstr "Idioma y accesos directos de la barra lateral"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. Thread titles always follow the app language."
@@ -14487,6 +14491,10 @@ msgstr "Se creó la solicitud de incorporación #{number}, pero no se pudo marca
 msgid "Pull request created, but its default automation could not be enabled: {0}"
 msgstr "Se creó el pull request, pero no se pudo activar su automatización predeterminada: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Pull request defaults"
+msgstr "Valores predeterminados de pull requests"
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "Pull request details"
 msgstr "Detalles de la pull request"
@@ -16509,6 +16517,10 @@ msgstr "Programaciones"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Programaciones, IA, agentes e hilos archivados en el escritorio emparejado"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Schedules, AI, agents, crews, and Git on the paired desktop"
+msgstr "Programaciones, IA, agentes, equipos y Git en el escritorio emparejado"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Science & education"
