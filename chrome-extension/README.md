@@ -12,7 +12,9 @@ cookies, and logged-in browser sessions through Poracode's Chrome tools.
 5. Start Poracode and click the extension toolbar icon to open the sidebar.
 
 The extension finds the running local app automatically. There is no connection
-screen or token to enter. If the app closes, the extension keeps retrying.
+screen or token to enter. If the app closes, the extension keeps retrying, and
+every other attempt goes back to the last port that worked, so a restarted app
+is found within seconds.
 Rebuild and reload the extension after changing the sidebar code.
 
 ## Chat
@@ -66,6 +68,14 @@ another protocol, the sidebar is told Poracode needs an update. If the native
 host was not reachable when the connection opened, the worker retries it at most
 every 10 seconds while the sidebar or the app is asking, then reconnects and
 proves the token.
+
+The app holds one extension connection. When the extension runs in two browsers
+or Chrome profiles, the one that connected last keeps it: the app closes the
+other with close code 4001, and that worker stands by instead of reconnecting
+until its sidebar's **Use in this browser** takes the connection back. The
+standby survives worker restarts and ends with the browser session. While no
+app answers, the worker asks the native host for the live bridge at most once a
+minute, or every 10 seconds while the sidebar is waiting, and dials it directly.
 
 Several Poracode apps can listen at once, for example an installed release and a
 development build. The worker lets only the native host's list of running bridges

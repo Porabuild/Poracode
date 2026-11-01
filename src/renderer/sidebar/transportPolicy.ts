@@ -27,17 +27,22 @@ type Grant = {
 };
 
 /** Worker replies are bounded and read-only; they never mint a pairing credential. */
-export async function sidebarWorkerMessage(cmd: string): Promise<unknown> {
+export async function sidebarWorkerMessage(
+  cmd: string,
+  options: { takeOver?: boolean } = {},
+): Promise<unknown> {
   const runtime = (
     globalThis as typeof globalThis & {
-      chrome?: { runtime?: { sendMessage(message: { cmd: string }): Promise<unknown> } };
+      chrome?: {
+        runtime?: { sendMessage(message: { cmd: string; takeOver?: boolean }): Promise<unknown> };
+      };
     }
   ).chrome?.runtime;
   if (!runtime) return null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      runtime.sendMessage({ cmd }),
+      runtime.sendMessage({ cmd, ...options }),
       new Promise<null>((resolve) => {
         timer = setTimeout(() => resolve(null), 5000);
       }),

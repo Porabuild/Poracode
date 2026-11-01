@@ -19,6 +19,9 @@ const sharedConstant = (name) =>
 const SIDEBAR = Number(
   /export const CHROME_SIDEBAR_PROTOCOL_VERSION = (\d+)/u.exec(protocolSource)?.[1],
 );
+const REPLACED_CLOSE_CODE = Number(
+  /export const CHROME_BRIDGE_REPLACED_CLOSE_CODE = (\d+)/u.exec(protocolSource)?.[1],
+);
 assert.ok(SIDEBAR > 1, "protocol 1 was the installed 0.2.0 raw-token hello");
 const CLIENT_DOMAIN = sharedConstant("CHROME_BRIDGE_CLIENT_PROOF_DOMAIN");
 const SERVER_DOMAIN = sharedConstant("CHROME_BRIDGE_SERVER_PROOF_DOMAIN");
@@ -54,10 +57,10 @@ class FakeSocket {
   send(data) {
     this.sent.push(JSON.parse(data));
   }
-  close() {
+  close(code) {
     if (this.readyState === FakeSocket.CLOSED) return;
     this.readyState = FakeSocket.CLOSED;
-    queueMicrotask(() => this.emit("close"));
+    queueMicrotask(() => this.emit("close", code === undefined ? {} : { code }));
   }
   accept() {
     this.readyState = FakeSocket.OPEN;
@@ -78,7 +81,7 @@ const settle = async () => {
 };
 
 /** Loads the service worker against a fake Chrome whose native host answers with `native()`. */
-function loadWorker(t, native, initialStorage = {}, cryptoReady = Promise.resolve()) {
+function loadWorker(t, native, initialStorage = {}, cryptoReady = Promise.resolve(), session = {}) {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   FakeSocket.created = [];
   const storage = { ...initialStorage };
@@ -92,6 +95,10 @@ function loadWorker(t, native, initialStorage = {}, cryptoReady = Promise.resolv
         get: async (key) => ({ [key]: storage[key] }),
         set: async (values) => Object.assign(storage, values),
         remove: async (key) => delete storage[key],
+      },
+      session: {
+        get: async (key) => ({ [key]: session[key] }),
+        set: async (values) => Object.assign(session, values),
       },
     },
     tabs: {
@@ -156,12 +163,12 @@ function loadWorker(t, native, initialStorage = {}, cryptoReady = Promise.resolv
     URL,
   });
   // Runtime messages are serialized, as Chrome does across contexts.
-  const ask = (cmd = "getChatBootstrap") =>
+  const ask = (cmd = "getChatBootstrap", extra = {}) =>
     new Promise((resolve) => {
       const respond = (value) => resolve(value === undefined ? value : structuredClone(value));
-      if (onMessage({ cmd }, {}, respond) !== true) resolve(undefined);
+      if (onMessage({ cmd, ...extra }, {}, respond) !== true) resolve(undefined);
     });
-  return { storage, nativeCalls, browserCalls, ask, sockets: FakeSocket.created };
+  return { storage, session, nativeCalls, browserCalls, ask, sockets: FakeSocket.created };
 }
 
 /** Opens the latest socket and returns the hello the worker sent on it. */
@@ -512,8 +519,15 @@ void test("the worker mirrors the shared hello ack and runtime issue literals", 
     "utf8",
   );
   const issues = /CHROME_SIDEBAR_RUNTIME_ISSUES = \[([^\]]*)\]/u.exec(protocol)?.[1];
-  const workerIssue = /const UPGRADE_REQUIRED_ISSUE = "([^"]+)"/u.exec(workerSource)?.[1];
-  assert.ok(workerIssue && issues?.includes(`"${workerIssue}"`));
+  for (const name of ["UPGRADE_REQUIRED_ISSUE", "IN_USE_ELSEWHERE_ISSUE"]) {
+    const workerIssue = new RegExp(`const ${name} = "([^"]+)"`, "u").exec(workerSource)?.[1];
+    assert.ok(workerIssue && issues?.includes(`"${workerIssue}"`), name);
+  }
+  assert.ok(REPLACED_CLOSE_CODE >= 4000, "an application close code");
+  assert.equal(
+    Number(/const REPLACED_CLOSE_CODE = (\d+)/u.exec(workerSource)?.[1]),
+    REPLACED_CLOSE_CODE,
+  );
   assert.match(protocol, /type: z\.literal\("helloAck"\)/u);
   assert.match(workerSource, /type === "helloAck"/u);
   const workerConstant = (name) =>
@@ -602,3 +616,97 @@ for (const invalid of [
     assert.equal(await worker.ask("getChatConnection"), null);
   });
 }
+
+/** Fails every dial until `appBackAt` ms after the drop; returns ms from then until `port` is dialed. */
+async function reconnectDelay(t, worker, appBackAt, port = PORT) {
+  let now = 0;
+  for (let step = 0; step < 2000; step += 1) {
+    t.mock.timers.tick(250);
+    now += 250;
+    await settle();
+    const socket = worker.sockets.at(-1);
+    if (socket.readyState !== FakeSocket.CONNECTING) continue;
+    if (now >= appBackAt && socket.url.includes(`:${port}/`)) return now - appBackAt;
+    socket.close();
+  }
+  assert.fail(`never dialed ${port} again`);
+}
+
+for (const appBackAt of [0, 10_000, 30_000, 120_000]) {
+  void test(`finds an app restarted on its port within one idle retry (back after ${appBackAt / 1000}s)`, async (t) => {
+    // The native host lists nothing, so only the port scan can find the app.
+    const worker = loadWorker(t, () => bridges);
+    const first = await open(worker.sockets);
+    first.socket.receive(provenAck(first.hello));
+    await settle();
+    // Before: anywhere from 6.5 s to 97 s, as the idle scan rotated through 26 ports.
+    first.socket.close();
+    await settle();
+    const delay = await reconnectDelay(t, worker, appBackAt);
+    assert.ok(delay <= 4000, `reconnected ${delay} ms after the app was back`);
+  });
+}
+
+void test("dials the port the native host reports when the app restarts elsewhere", async (t) => {
+  const moved = PORT + 3;
+  const relaunched = { port: moved, token: "relaunched-token" };
+  let current = bridges;
+  const worker = loadWorker(t, () => current);
+  const first = await open(worker.sockets);
+  first.socket.receive(provenAck(first.hello));
+  await settle();
+  current = { ...bridges, bridges: [relaunched] };
+  first.socket.close();
+  await settle();
+  t.mock.timers.tick(10_000);
+  await settle();
+  // The old port no longer answers.
+  worker.sockets.at(-1).close();
+  await settle();
+  // The sidebar asks while the app is unreachable: the worker asks the native host.
+  assert.equal(await worker.ask(), null);
+  const second = await open(worker.sockets, moved);
+  assert.equal(
+    second.hello.clientProof,
+    clientProof(second.hello.nonce, { secret: relaunched.token, port: moved }),
+  );
+});
+
+void test("stands by after another browser replaces its connection until the user takes it back", async (t) => {
+  const worker = loadWorker(t, () => bridges);
+  const first = await open(worker.sockets);
+  first.socket.receive(provenAck(first.hello));
+  await settle();
+  first.socket.close(REPLACED_CLOSE_CODE);
+  await settle();
+  t.mock.timers.tick(120_000);
+  await settle();
+  assert.equal(worker.sockets.length, 1, "a replaced worker does not dial back");
+  assert.deepEqual(await worker.ask(), { issue: "inUseElsewhere" });
+  assert.equal(worker.session.standby, true);
+
+  assert.equal(await worker.ask("getChatBootstrap", { takeOver: true }), null);
+  const second = await open(worker.sockets);
+  second.socket.receive(provenAck(second.hello));
+  assert.equal(worker.session.standby, false);
+});
+
+void test("an evicted worker that was replaced stays on standby when it restarts", async (t) => {
+  const worker = loadWorker(t, () => bridges, {}, Promise.resolve(), { standby: true });
+  t.mock.timers.tick(60_000);
+  await settle();
+  assert.equal(worker.sockets.length, 0);
+  assert.deepEqual(await worker.ask(), { issue: "inUseElsewhere" });
+});
+
+void test("an ordinary drop reconnects at once", async (t) => {
+  const worker = loadWorker(t, () => bridges);
+  const first = await open(worker.sockets);
+  first.socket.receive(provenAck(first.hello));
+  await settle();
+  first.socket.close(1006);
+  await settle();
+  t.mock.timers.tick(250);
+  const second = await open(worker.sockets);
+  assert.equal(second.hello.type, "hello");
+});

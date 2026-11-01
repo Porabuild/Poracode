@@ -206,7 +206,8 @@ export class ExternalChromeConnection {
     return new ExternalCdpClient(this, expectedTabId);
   }
 
-  dispose(): void {
+  /** `close` tells the extension why, e.g. that another browser replaced it. */
+  dispose(close?: { code: number; reason: string }): void {
     if (this.closed) return;
     this.closed = true;
     for (const pending of this.pending.values()) {
@@ -216,7 +217,8 @@ export class ExternalChromeConnection {
     this.pending.clear();
     this.listeners.clear();
     try {
-      this.ws.close();
+      if (close) this.ws.close(close.code, close.reason);
+      else this.ws.close();
     } catch {}
     this.onClosed();
   }

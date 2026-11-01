@@ -14215,6 +14215,10 @@ msgstr "Poracode Helper nie jest jeszcze gotowy (HTTP {status})."
 msgid "Poracode Helper returned an invalid response."
 msgstr "Poracode Helper zwrócił nieprawidłową odpowiedź."
 
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Poracode is connected to another browser."
+msgstr "Poracode jest połączony z inną przeglądarką."
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode może czekać na zapisane dane lub usługę działającą w tle. Możesz czekać dalej, uruchomić aplikację ponownie lub zainstalować dostępną aktualizację."
@@ -21945,6 +21949,10 @@ msgstr "Użyć wykrytej sesji?"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use ignore files"
 msgstr "Użyj ignorowanych plików"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Use in this browser"
+msgstr "Używaj w tej przeglądarce"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
