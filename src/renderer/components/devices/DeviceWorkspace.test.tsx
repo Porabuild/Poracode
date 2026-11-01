@@ -491,6 +491,17 @@ describe("device workspace UI", () => {
     }
   });
 
+  it("closes the workspace on Escape from the header launcher the dropdown returns focus to", async () => {
+    setup();
+    usePanelStore.getState().setDeviceWorkspaceThreadId("local-thread");
+    render(<PanelHarness />);
+    await screen.findByRole("button", { name: /Fixture Emulator/ });
+    const launcher = document.getElementById("thread-tools-local-thread")!;
+    launcher.focus();
+    fireEvent.keyDown(launcher, { key: "Escape" });
+    await waitFor(() => expect(usePanelStore.getState().deviceWorkspaceThreadId).toBeNull());
+  });
+
   it.each([
     ["visible side-rail item", true, "thread-tool-devices-local-thread"],
     ["suppressed menu item", false, "thread-tools-local-thread"],

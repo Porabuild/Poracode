@@ -1303,6 +1303,7 @@ msgstr "Actions"
 #~ msgstr "Actions for {title}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
