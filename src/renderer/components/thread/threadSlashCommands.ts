@@ -238,16 +238,16 @@ export function resolveAvailableSlashCommands(
   if (context) {
     const registration = activeGuiSlashCommands(context);
     if (registration) {
-      return [
-        ...sideCommands,
-        ...registration
-          .buildCommands({
-            hasEffort: context.hasEffort ?? false,
-            supportsFast: context.supportsFast ?? false,
-          })
-          .filter(isUnreserved),
-        ...skills.filter(isUnreserved),
-      ];
+      const local = registration
+        .buildCommands({
+          hasEffort: context.hasEffort ?? false,
+          supportsFast: context.supportsFast ?? false,
+        })
+        .filter(isUnreserved);
+      const session = registration.includeSessionCommands
+        ? dedupeBaseCommands(threadCommands, [...skills, ...local]).filter(isUnreserved)
+        : EMPTY_SLASH_COMMANDS;
+      return [...sideCommands, ...local, ...session, ...skills.filter(isUnreserved)];
     }
   }
   const base = threadCommands ?? capabilityCommands ?? EMPTY_SLASH_COMMANDS;

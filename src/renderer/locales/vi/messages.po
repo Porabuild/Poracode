@@ -5716,9 +5716,21 @@ msgstr "Cursor"
 #~ msgid "Cursor ACP logged out."
 #~ msgstr "Đã đăng xuất khỏi Cursor ACP."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cursor can't summarize the conversation while a turn is running. Send /summarize again once it finishes."
+msgstr "Cursor không thể tóm tắt cuộc trò chuyện khi một lượt đang chạy. Hãy gửi lại /summarize sau khi lượt kết thúc."
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Cursor CLI (ACP)"
 msgstr "Cursor CLI (ACP)"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cursor couldn't summarize the conversation, so it was left unchanged."
+msgstr "Cursor không thể tóm tắt cuộc trò chuyện nên cuộc trò chuyện được giữ nguyên."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cursor couldn't write a summary, so it saved a trimmed copy of the conversation instead."
+msgstr "Cursor không thể viết bản tóm tắt nên đã lưu một bản sao rút gọn của cuộc trò chuyện."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Cursor GUI runtime updated."

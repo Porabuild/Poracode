@@ -489,6 +489,17 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
   "codex.modelRerouted": msg({
     message: "Model rerouted from {fromModel} to {toModel}.",
   }),
+  "cursor.summarizeUnavailableDuringTurn": msg({
+    message:
+      "Cursor can't summarize the conversation while a turn is running. Send /summarize again once it finishes.",
+  }),
+  "cursor.compactFailed": msg({
+    message: "Cursor couldn't summarize the conversation, so it was left unchanged.",
+  }),
+  "cursor.compactFallback": msg({
+    message:
+      "Cursor couldn't write a summary, so it saved a trimmed copy of the conversation instead.",
+  }),
   "acp.authenticationUnverified": msg({
     message:
       "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",

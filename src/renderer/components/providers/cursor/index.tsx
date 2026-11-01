@@ -30,11 +30,13 @@ import { registerTitleGenDefaults } from "../titleGen";
 const PROVIDER_KIND = providerManifest.kind;
 
 registerProviderIcon(PROVIDER_KIND, CursorIcon);
-// The SDK runtime reports no session commands, so the GUI slash menu offers
-// Poracode's composer-local set (mode, model, fast). ACP sessions keep the
-// commands cursor-agent reports via `available_commands_update` instead.
+// The SDK runtime reports only feature-detected session commands (`/summarize`
+// on @cursor/sdk >= 1.2.0), appended to Poracode's composer-local set (mode,
+// model, fast). ACP sessions keep the commands cursor-agent reports via
+// `available_commands_update` instead.
 registerGuiSlashCommands(PROVIDER_KIND, {
   isEnabled: ({ runtimeLabel }) => runtimeLabel === "SDK",
+  includeSessionCommands: true,
   buildCommands: buildStandardGuiSlashCommands,
   resolveLocalAction: resolveStandardLocalSlashAction,
 });

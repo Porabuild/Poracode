@@ -24,6 +24,14 @@ export interface GuiSlashCommandRegistration {
    * catalog (e.g. ACP `available_commands_update`).
    */
   isEnabled?: (scope: GuiSlashCommandScope) => boolean;
+  /**
+   * Append the live session's reported commands after the composer-local set.
+   * For runtimes that publish a few session-scoped commands (feature-detected
+   * per session) on top of the local catalog. Local commands and skills win
+   * name collisions. Only session commands are used, never the install-time
+   * capability catalog.
+   */
+  includeSessionCommands?: boolean;
   buildCommands: (context: GuiSlashCommandContext) => readonly AgentSlashCommand[];
   resolveLocalAction: (typedCommand: string) => LocalSlashCommandAction | null;
 }

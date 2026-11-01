@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { isThreadConfigEqual } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import type {
   ProjectLocation,
   PromptSegment,
@@ -35,6 +36,7 @@ import {
   type CursorSdkMapperState,
 } from "./sdkCanonicalMapping";
 import { readCursorSdkContextUsage } from "./sdkContextUsage";
+import { isCursorSdkSummarizeCommand } from "./sdkSummarizeCommand";
 import {
   buildCursorSdkModelSelection,
   type CursorSdkModel,
@@ -74,6 +76,7 @@ import { CURSOR_SDK_SESSION_PREFIX, cursorSdkSessionId } from "./structuredRunti
 interface CursorSdkWorkerHandle {
   initialize(input: CursorSdkWorkerInitializeInput): Promise<CursorSdkWorkerInitializeResult>;
   start(input: CursorSdkWorkerStartInput): Promise<CursorSdkWorkerStartResult>;
+  summarize(): Promise<CursorSdkWorkerStartResult>;
   steer(runId: string, text: string): Promise<CursorSdkWorkerSteerResult>;
   cancel(runId?: string): Promise<unknown>;
   reload(): Promise<void>;
@@ -228,6 +231,12 @@ export class CursorSdkSession implements StructuredSessionHandle {
   private activated = false;
   private disposed = false;
   private contextUsageRefreshGeneration = 0;
+  /**
+   * Capability reported by worker `initialize` (feature-detected on the real
+   * agent handle). Absent on `@cursor/sdk` < 1.2.0.
+   */
+  private supportsSummarize = false;
+  private slashCommands: StructuredSessionUpdate["slashCommands"];
   private mcpRevision = 0;
   private readonly steering: CursorSdkSteering;
 
@@ -396,6 +405,18 @@ export class CursorSdkSession implements StructuredSessionHandle {
     this.workerSafetyPosture = sdkSafetyPosture(config);
     this.sessionId = initialized.agentId;
     this.stateRoot = initialized.stateRoot;
+    this.supportsSummarize = initialized.supportsSummarize === true;
+    // `/summarize` is advertised only when the loaded SDK can run it; older
+    // SDKs keep the literal prompt path.
+    this.slashCommands = this.supportsSummarize
+      ? [
+          {
+            id: "summarize",
+            label: "summarize - Summarize the conversation to free context",
+            description: "Summarize the conversation to free context",
+          },
+        ]
+      : undefined;
     this.mapperState.agentId = initialized.agentId;
     const initializedModel = initialized.model?.id ?? createOptions.model?.id;
     if (initializedModel) this.mapperState.model = initializedModel;
@@ -421,6 +442,11 @@ export class CursorSdkSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
+    if (this.supportsSummarize && isCursorSdkSummarizeCommand(prompt)) {
+      return this.startTurnPrepared(async () => (worker) => worker.summarize(), config, options, {
+        summarize: true,
+      });
+    }
     return this.startTurnWithMessage(
       () =>
         buildCursorSdkUserMessage(
@@ -439,6 +465,34 @@ export class CursorSdkSession implements StructuredSessionHandle {
     config: ThreadConfig,
     options?: StartTurnOptions,
   ): Promise<void> {
+    return this.startTurnPrepared(
+      async () => {
+        const message = await prepareMessage();
+        return (worker, turn) =>
+          worker.start({
+            message,
+            options: this.buildSendOptions(config, turn.turnId),
+          });
+      },
+      config,
+      options,
+    );
+  }
+
+  /**
+   * Turn skeleton shared by message sends and `summarize()`: turn creation,
+   * safety-posture rebind, agent reload, cancellation handling,
+   * `onPromptSubmitted`, and `turn.ready`/`turn.completion` all behave the
+   * same; only the run launch differs.
+   */
+  private async startTurnPrepared(
+    prepareLaunch: () => Promise<
+      (worker: CursorSdkWorkerHandle, turn: ActiveTurn) => Promise<CursorSdkWorkerStartResult>
+    >,
+    config: ThreadConfig,
+    options?: StartTurnOptions,
+    turnOptions?: { summarize?: boolean },
+  ): Promise<void> {
     this.requireOpenedWorker();
     if (this.activeTurn && !this.activeTurn.settled) {
       throw new Error("Cursor SDK cannot start a second turn while one is running.");
@@ -448,12 +502,12 @@ export class CursorSdkSession implements StructuredSessionHandle {
     const turn = createActiveTurn(`turn-${this.dependencies.newId()}`);
     this.activeTurn = turn;
     this.emitRuntimeEvents(
-      startCursorSdkTurn(this.mapperState, turn.turnId, options?.userMessageItemId),
+      startCursorSdkTurn(this.mapperState, turn.turnId, options?.userMessageItemId, turnOptions),
     );
     this.emitUpdate({ status: "working", attention: "working", config });
 
     try {
-      const message = await prepareMessage();
+      const launch = await prepareLaunch();
       if (turn.settled) return;
       if (turn.cancelRequested || this.disposed) {
         this.completeTurnWithoutWorker(turn, "cancelled");
@@ -481,10 +535,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       }
 
       turn.mcpRevision = this.mcpRevision;
-      const startRequest = worker.start({
-        message,
-        options: this.buildSendOptions(config, turn.turnId),
-      });
+      const startRequest = launch(worker, turn);
       turn.startRequest = startRequest;
       const started = await startRequest;
       options?.onPromptSubmitted?.();
@@ -515,6 +566,34 @@ export class CursorSdkSession implements StructuredSessionHandle {
     options?: StartTurnOptions,
   ): Promise<void> {
     this.requireOpenedWorker();
+    // `/summarize` runs its own run and cannot steer the in-flight one. Paint
+    // the bubble the same way an accepted steer does, then refuse with a
+    // notice; with no turn running it routes through the normal turn path.
+    if (this.supportsSummarize && isCursorSdkSummarizeCommand(prompt)) {
+      const turn = this.activeTurn;
+      if (turn && !turn.settled) {
+        this.emitRuntimeEvents(
+          appendCursorSdkSteerMessage(this.mapperState, {
+            prompt,
+            config,
+            ...(segments ? { segments } : {}),
+            options: {
+              ...options,
+              userMessageItemId: options?.userMessageItemId ?? `user-${this.dependencies.newId()}`,
+            },
+          }),
+        );
+        this.emitRuntimeEvents([
+          {
+            type: "error",
+            threadId: this.input.threadId,
+            message: msg("cursor.summarizeUnavailableDuringTurn"),
+          },
+        ]);
+        return Promise.resolve();
+      }
+      return this.startTurn(prompt, config, segments, options);
+    }
     return this.steering.enqueue({
       prompt,
       config,
@@ -981,6 +1060,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       attention: this.currentAttention,
       config: this.currentConfig,
       ...(this.currentSessionRef() ? { sessionRef: this.currentSessionRef()! } : {}),
+      ...(this.slashCommands !== undefined ? { slashCommands: this.slashCommands } : {}),
     };
   }
 
@@ -992,6 +1072,9 @@ export class CursorSdkSession implements StructuredSessionHandle {
       ...update,
       ...(update.config ? {} : { config: this.currentConfig }),
       ...(update.sessionRef ? {} : sessionRef ? { sessionRef } : {}),
+      ...(update.slashCommands === undefined && this.slashCommands !== undefined
+        ? { slashCommands: this.slashCommands }
+        : {}),
     });
   }
 
