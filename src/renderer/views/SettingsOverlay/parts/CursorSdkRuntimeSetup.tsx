@@ -5,6 +5,10 @@ import { Download, KeyRound, RefreshCw, Trash2 } from "lucide-react";
 import { runAgentInstallCommand } from "@/renderer/actions/agentLoginActions";
 import { readBridge } from "@/renderer/bridge";
 import { Input, PixelLoader } from "@/renderer/components/common";
+import {
+  cursorSdkPackageEnvKey,
+  useCursorSdkPackageOperations,
+} from "@/renderer/components/providers/cursor/sdkPackageOperation";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -93,11 +97,12 @@ function SdkPackageRow(props: {
 }) {
   const { t } = useLingui();
   const projects = useAppStore((state) => state.projects);
-  const [pending, setPending] = useState(false);
+  const { status } = props;
+  const envKey = cursorSdkPackageEnvKey(status);
+  const pending = useCursorSdkPackageOperations((state) => state.pendingEnvKeys.has(envKey));
   const [latestSupportedVersion, setLatestSupportedVersion] = useState<string | undefined>(
     undefined,
   );
-  const { status } = props;
   const installState = cursorRuntimeInstallState(status);
   const project = findProjectForStatus(status, projects);
 
@@ -151,7 +156,7 @@ function SdkPackageRow(props: {
       toast.danger(t`Unable to update Cursor SDK.`);
       return;
     }
-    setPending(true);
+    useCursorSdkPackageOperations.getState().begin(envKey);
     const opened = runAgentInstallCommand({
       label: purpose === "update" ? t`Update Cursor SDK` : t`Install Cursor SDK`,
       command:
@@ -162,7 +167,7 @@ function SdkPackageRow(props: {
       ...(project ? { project } : {}),
       onCommandComplete: (exitCode) => {
         if (exitCode !== 0) {
-          setPending(false);
+          useCursorSdkPackageOperations.getState().end(envKey);
           return;
         }
         const previousVersion = installState.sdkVersion;
@@ -185,10 +190,10 @@ function SdkPackageRow(props: {
             }
           })
           .catch((error) => toast.danger(friendlyError(error)))
-          .finally(() => setPending(false));
+          .finally(() => useCursorSdkPackageOperations.getState().end(envKey));
       },
     });
-    if (!opened) setPending(false);
+    if (!opened) useCursorSdkPackageOperations.getState().end(envKey);
   };
 
   return (
