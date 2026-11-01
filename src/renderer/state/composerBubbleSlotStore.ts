@@ -1,28 +1,33 @@
 import { create } from "zustand";
 
 /**
- * Per-thread DOM slot inside the composer bubble row where floating chat
- * controls (the scroll-to-bottom circle) render so they share one row with the
- * composer bubbles. The row publishes its slot while mounted; a missing entry
- * means "no bubble row" and the control falls back to floating over the pane.
+ * Per-thread DOM slots inside the composer bubble row. `control` is the
+ * centered scroll-to-bottom circle; `status` is the leading live-status pill.
+ * The row publishes its slots while mounted; a missing entry means "no bubble
+ * row" and the pane keeps its fallback placement.
  */
+export type ComposerBubbleSlotKind = "control" | "status";
+
 interface ComposerBubbleSlotState {
-  byThread: Record<string, HTMLElement>;
-  setSlot: (threadId: string, el: HTMLElement | null) => void;
+  control: Record<string, HTMLElement>;
+  status: Record<string, HTMLElement>;
+  setSlot: (kind: ComposerBubbleSlotKind, threadId: string, el: HTMLElement | null) => void;
 }
 
 export const useComposerBubbleSlotStore = create<ComposerBubbleSlotState>((set) => ({
-  byThread: {},
-  setSlot: (threadId, el) =>
+  control: {},
+  status: {},
+  setSlot: (kind, threadId, el) =>
     set((state) => {
-      const prev = state.byThread[threadId];
+      const prev = state[kind][threadId];
       if (el) {
         if (prev === el) return {};
-        return { byThread: { ...state.byThread, [threadId]: el } };
+        const slots = { ...state[kind], [threadId]: el };
+        return kind === "control" ? { control: slots } : { status: slots };
       }
       if (!prev) return {};
-      const next = { ...state.byThread };
-      delete next[threadId];
-      return { byThread: next };
+      const slots = { ...state[kind] };
+      delete slots[threadId];
+      return kind === "control" ? { control: slots } : { status: slots };
     }),
 }));

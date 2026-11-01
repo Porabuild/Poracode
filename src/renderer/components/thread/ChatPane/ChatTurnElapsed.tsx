@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useShimmerRef } from "@/renderer/thinkingAnimator";
@@ -10,74 +10,79 @@ export interface TurnTiming {
   endedAt: number | null;
 }
 
-export function ChatTurnElapsedFooter({
-  turn,
-  isPaused = false,
-  isWaitingForBackground = false,
-}: {
-  turn: TurnTiming;
-  isPaused?: boolean;
-  isWaitingForBackground?: boolean;
-}) {
-  const { t } = useLingui();
+/** The transcript-tail surface every closing status line renders inside. */
+export function ChatTailStatus({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto w-full max-w-[920px]">
       <Surface variant="transparent" className={chatMessageSurfaceClass}>
         <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          {isWaitingForBackground ? (
-            <span className="text-muted" aria-live="polite">{t`Waiting for background tasks`}</span>
-          ) : (
-            <WorkingFor turn={turn} isPaused={isPaused} />
-          )}
+          {children}
         </div>
       </Surface>
     </div>
   );
 }
 
-export function ChatWorktreeProvisioningFooter() {
-  const { t } = useLingui();
-  const textRef = useRef<HTMLSpanElement>(null);
-  const text = t`Creating worktree…`;
-  useShimmerRef(textRef, true);
+interface ChatTurnStatusProps {
+  turn: TurnTiming;
+  isPaused?: boolean;
+  isWaitingForBackground?: boolean;
+}
 
+export function ChatTurnStatus({
+  turn,
+  isPaused = false,
+  isWaitingForBackground = false,
+}: ChatTurnStatusProps) {
+  const { t } = useLingui();
+  return isWaitingForBackground ? (
+    <span className="text-muted" aria-live="polite">{t`Waiting for background tasks`}</span>
+  ) : (
+    <WorkingFor turn={turn} isPaused={isPaused} />
+  );
+}
+
+export function ChatShimmerStatus({ text }: { text: string }) {
+  const textRef = useRef<HTMLSpanElement>(null);
+  useShimmerRef(textRef, true);
   return (
-    <div className="mx-auto w-full max-w-[920px]">
-      <Surface variant="transparent" className={chatMessageSurfaceClass}>
-        <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          <span
-            ref={textRef}
-            className="poracode-thinking-text"
-            data-poracode-shimmer-text={text}
-            aria-live="polite"
-          >
-            {text}
-          </span>
-        </div>
-      </Surface>
-    </div>
+    <span
+      ref={textRef}
+      className="poracode-thinking-text"
+      data-poracode-shimmer-text={text}
+      aria-live="polite"
+    >
+      {text}
+    </span>
+  );
+}
+
+export function ChatTailStatusPlaceholder() {
+  // Holds the tail row's exact height while the status shows in the bubble
+  // row, so the transcript end stays clear of the pill and the later swap to
+  // "Worked for" does not move the pinned tail.
+  return (
+    <ChatTailStatus>
+      <span aria-hidden="true" className="invisible" data-chat-status-placeholder="">
+        {"\u00a0"}
+      </span>
+    </ChatTailStatus>
+  );
+}
+
+export function ChatTurnElapsedFooter(props: ChatTurnStatusProps) {
+  return (
+    <ChatTailStatus>
+      <ChatTurnStatus {...props} />
+    </ChatTailStatus>
   );
 }
 
 export function ChatStatusFooter({ text }: { text: string }) {
-  const textRef = useRef<HTMLSpanElement>(null);
-  useShimmerRef(textRef, true);
-
   return (
-    <div className="mx-auto w-full max-w-[920px]">
-      <Surface variant="transparent" className={chatMessageSurfaceClass}>
-        <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          <span
-            ref={textRef}
-            className="poracode-thinking-text"
-            data-poracode-shimmer-text={text}
-            aria-live="polite"
-          >
-            {text}
-          </span>
-        </div>
-      </Surface>
-    </div>
+    <ChatTailStatus>
+      <ChatShimmerStatus text={text} />
+    </ChatTailStatus>
   );
 }
 

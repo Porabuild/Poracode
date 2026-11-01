@@ -5473,7 +5473,7 @@ msgstr "完了したターンまでの独立した会話を作成します。フ
 msgid "Creating PR…"
 msgstr "PR作成中…"
 
-#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Creating worktree…"

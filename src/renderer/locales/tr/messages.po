@@ -5474,7 +5474,7 @@ msgstr "Tamamlanmış bir tura kadar bağımsız bir konuşma oluşturur. Dosyal
 msgid "Creating PR…"
 msgstr "PR oluşturuluyor…"
 
-#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Creating worktree…"

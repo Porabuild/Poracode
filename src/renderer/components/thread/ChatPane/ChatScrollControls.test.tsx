@@ -96,7 +96,7 @@ describe("ChatScrollControls", () => {
     });
     const slot = document.createElement("div");
     document.body.appendChild(slot);
-    useComposerBubbleSlotStore.getState().setSlot("thread-1", slot);
+    useComposerBubbleSlotStore.getState().setSlot("control", "thread-1", slot);
     try {
       const { container, getByRole } = renderWithI18n(
         <Harness
@@ -112,7 +112,7 @@ describe("ChatScrollControls", () => {
       expect(button).toHaveClass("poracode-floating-chrome--bubble", "size-7", "rounded-full");
       expect(button).not.toHaveClass("absolute");
     } finally {
-      useComposerBubbleSlotStore.getState().setSlot("thread-1", null);
+      useComposerBubbleSlotStore.getState().setSlot("control", "thread-1", null);
       slot.remove();
     }
   });
