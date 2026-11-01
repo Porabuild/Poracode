@@ -267,6 +267,8 @@ export function dbUpdateProject(project: Project): void {
          worktree_location = @worktreeLocation,
          mcp_servers = @mcpServers,
          gh_account = @ghAccount,
+         worktree_base_branch = @worktreeBaseBranch,
+         pinned_branches = @pinnedBranches,
          workspace_id = @workspaceId,
          disabled = @disabled
        WHERE id = @id`,

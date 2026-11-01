@@ -323,8 +323,8 @@ data class RouteshellU2DSnapshotResponseU2DGitStateU2DProjectPullRequestListsU2D
 typealias RouteshellU2DSnapshotResponseU2DGitStateU2DProjectPullRequestLists_d8ae5c3a60 = Map<String, RouteshellU2DSnapshotResponseU2DGitStateU2DProjectPullRequestListsU2DValue_a20681cb35>
 
 @Serializable
-data class RouteshellU2DSnapshotResponseU2DGitStateU2DProjectsU2DValue_18a5d3fa6e(
-    @SerialName("branches") val branches: RemoteField<ProceduregitListBranchesResult_458a450839> = RemoteField.Missing,
+data class RouteshellU2DSnapshotResponseU2DGitStateU2DProjectsU2DValue_665acf486e(
+    @SerialName("branches") val branches: RemoteField<ProceduregitListBranchesResult_cbe0ba2411> = RemoteField.Missing,
     @SerialName("ghAvailable") val ghAvailable: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("ref") val ref: RouteshellU2DSnapshotResponseU2DGitStateU2DProjectPullRequestListsU2DValueU2DProject_83470ce639,
     @SerialName("refreshedAt") val refreshedAt: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
@@ -333,7 +333,7 @@ data class RouteshellU2DSnapshotResponseU2DGitStateU2DProjectsU2DValue_18a5d3fa6
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("branches", "ProceduregitListBranchesResult_458a450839", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("branches", "ProceduregitListBranchesResult_cbe0ba2411", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("ghAvailable", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("ref", "RouteshellU2DSnapshotResponseU2DGitStateU2DProjectPullRequestListsU2DValueU2DProject_83470ce639", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("refreshedAt", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
@@ -343,7 +343,7 @@ data class RouteshellU2DSnapshotResponseU2DGitStateU2DProjectsU2DValue_18a5d3fa6
     }
 }
 
-typealias RouteshellU2DSnapshotResponseU2DGitStateU2DProjects_1da8031b61 = Map<String, RouteshellU2DSnapshotResponseU2DGitStateU2DProjectsU2DValue_18a5d3fa6e>
+typealias RouteshellU2DSnapshotResponseU2DGitStateU2DProjects_7ded875dbc = Map<String, RouteshellU2DSnapshotResponseU2DGitStateU2DProjectsU2DValue_665acf486e>
 
 @Serializable
 data class RouteshellU2DSnapshotResponseU2DGitStateU2DPullRequestsU2DValueU2DFreshness_0bd7710eac(

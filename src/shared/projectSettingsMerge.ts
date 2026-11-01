@@ -13,6 +13,8 @@ export function mergeProjectSettings(canonical: Project, duplicate: Project): Pr
     "icon",
     "lastDraftConfig",
     "worktreeLocation",
+    "worktreeBaseBranch",
+    "pinnedBranches",
     "ghAccount",
     "workspaceId",
   ] as const) {

@@ -50,6 +50,7 @@ function withoutDraftConfig(project: Project): Project {
     createdAt: project.createdAt,
     ...(project.scripts ? { scripts: project.scripts } : {}),
     ...(project.searchSettings ? { searchSettings: project.searchSettings } : {}),
+    ...(project.worktreeBaseBranch ? { worktreeBaseBranch: project.worktreeBaseBranch } : {}),
     ...(project.disabled !== undefined ? { disabled: project.disabled } : {}),
   };
 }

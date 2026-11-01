@@ -161,6 +161,39 @@ export function updateProjectWorktreeLocation(
   apply();
 }
 
+/** Pin or unpin a branch at the top of the project's branch pickers. */
+export function toggleProjectPinnedBranch(projectId: string, branch: string): void {
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  if (!project) return;
+  const current = project.pinnedBranches ?? [];
+  const pinnedBranches = current.includes(branch)
+    ? current.filter((name) => name !== branch)
+    : [...current, branch];
+  const apply = () => useAppStore.getState().updateProjectPinnedBranches(projectId, pinnedBranches);
+  if (
+    dispatchRemoteProjectMutation(
+      project,
+      { pinnedBranches: pinnedBranches.length > 0 ? pinnedBranches : null },
+      apply,
+    )
+  )
+    return;
+  apply();
+}
+
+/** Set (or, with `undefined`, clear) the base ref new worktrees fork from. */
+export function updateProjectWorktreeBaseBranch(
+  projectId: string,
+  baseBranch: string | undefined,
+): void {
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  if (!project) return;
+  const apply = () => useAppStore.getState().updateProjectWorktreeBaseBranch(projectId, baseBranch);
+  if (dispatchRemoteProjectMutation(project, { worktreeBaseBranch: baseBranch ?? null }, apply))
+    return;
+  apply();
+}
+
 /**
  * Persist one project's MCP server list, resolving only after its owner has
  * confirmed the save: a remote-project save awaits the host command (the local

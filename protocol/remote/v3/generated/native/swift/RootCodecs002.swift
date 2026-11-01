@@ -201,7 +201,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGitListBranchesU2EResult: RemoteRootCodec<ProceduregitListBranchesResult_458a450839> = .init(id: "procedure.gitListBranches.result", schema: RemoteSchemas.schema_458a4508393abce2)
+  static let procedureU2EGitListBranchesU2EResult: RemoteRootCodec<ProceduregitListBranchesResult_cbe0ba2411> = .init(id: "procedure.gitListBranches.result", schema: RemoteSchemas.schema_cbe0ba241100dba5)
 }
 
 public extension RemoteRootCodecs {
@@ -225,7 +225,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGitProjectSnapshotU2EResult: RemoteRootCodec<ProceduregitProjectSnapshotResult_35889b09eb> = .init(id: "procedure.gitProjectSnapshot.result", schema: RemoteSchemas.schema_35889b09eb72e208)
+  static let procedureU2EGitProjectSnapshotU2EResult: RemoteRootCodec<ProceduregitProjectSnapshotResult_d581274b50> = .init(id: "procedure.gitProjectSnapshot.result", schema: RemoteSchemas.schema_d581274b5086148c)
 }
 
 public extension RemoteRootCodecs {

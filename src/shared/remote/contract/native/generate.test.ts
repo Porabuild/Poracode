@@ -87,7 +87,7 @@ describe("remote v3 native binding generator", () => {
         // The optional shell snapshotEpoch moves the source hash only.
         // The optional open-string runtime error `reason` moves the source hash only.
         // Host-owned Hex voice transcription adds one typed procedure and schema roots.
-        sourceHash: "sha256:59381a7db74d39255521d4d6b110e86558eae1516bc57dd687809b3df24e10bb",
+        sourceHash: "sha256:45d0365bbedc67cdcc5a13fb43076ff34d8148675cd1741787db331f161cbd84",
         manifestHash: "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0",
         counts: {
           routes: 119,
@@ -98,7 +98,7 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 548,
-          structuralTypes: 1261,
+          structuralTypes: 1262,
           semanticValidators: 25,
           swiftFiles: 77,
           kotlinFiles: 67,

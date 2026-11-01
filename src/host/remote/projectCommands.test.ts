@@ -304,6 +304,8 @@ describe("applyRemoteProjectCommand", () => {
           name: "After",
           scripts: { actions: [], setupScript: "pnpm install" },
           ghAccount: { host: "github.com", login: "octocat" },
+          worktreeBaseBranch: "origin/main",
+          pinnedBranches: ["release"],
           disabled: true,
         },
       },
@@ -320,6 +322,8 @@ describe("applyRemoteProjectCommand", () => {
     );
     expect(result.response.project?.scripts?.setupScript).toBe("pnpm install");
     expect(result.response.project?.ghAccount).toEqual({ host: "github.com", login: "octocat" });
+    expect(result.response.project?.worktreeBaseBranch).toBe("origin/main");
+    expect(result.response.project?.pinnedBranches).toEqual(["release"]);
   });
 
   it("clears optional project settings when the patch uses null", async () => {
@@ -333,6 +337,8 @@ describe("applyRemoteProjectCommand", () => {
       searchSettings: { useIgnoreFiles: false },
       mcpServers: [],
       ghAccount: { host: "github.com", login: "octocat" },
+      worktreeBaseBranch: "origin/main",
+      pinnedBranches: ["release"],
       createdAt: NOW,
     });
 
@@ -346,6 +352,8 @@ describe("applyRemoteProjectCommand", () => {
           searchSettings: null,
           mcpServers: null,
           ghAccount: null,
+          worktreeBaseBranch: null,
+          pinnedBranches: null,
         },
       },
       deps,
@@ -362,6 +370,8 @@ describe("applyRemoteProjectCommand", () => {
     expect(result.response.project).not.toHaveProperty("searchSettings");
     expect(result.response.project).not.toHaveProperty("mcpServers");
     expect(result.response.project).not.toHaveProperty("ghAccount");
+    expect(result.response.project).not.toHaveProperty("worktreeBaseBranch");
+    expect(result.response.project).not.toHaveProperty("pinnedBranches");
   });
 
   it("sets and updates the project icon through the patch", async () => {

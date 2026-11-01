@@ -2814,6 +2814,10 @@ msgstr "Branch <0>{0}</0> tem alterações não mescladas:"
 #~ msgid "Branch name"
 #~ msgstr "Nome do branch"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Branch new worktrees fork from. You can also star one in the composer's branch picker."
+msgstr "Branch de onde novas árvores de trabalho partem. Você também pode marcá-lo com uma estrela no seletor de branches do compositor."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Branch não totalmente mesclado"
@@ -5920,6 +5924,10 @@ msgstr "Agente de programação padrão"
 msgid "Default Create PR action"
 msgstr "Ação de criação de PR padrão"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Default for new worktrees"
+msgstr "Padrão para novas árvores de trabalho"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
@@ -5943,6 +5951,10 @@ msgstr "Remoção de thread padrão"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Default Windows shell"
 #~ msgstr "Shell padrão do Windows"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Default worktree base"
+msgstr "Base padrão das árvores de trabalho"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
@@ -13993,6 +14005,12 @@ msgstr "Falha no seletor"
 msgid "Picker returned no attachment"
 msgstr "O seletor não retornou nenhum anexo"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Pin {0} to top"
+msgstr "Fixar {0} no topo"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
@@ -14007,6 +14025,7 @@ msgstr "Fixar fluxo de trabalho"
 msgid "Pink"
 msgstr "Rosa"
 
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
@@ -15829,6 +15848,10 @@ msgstr "repositório"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "Repositório"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Repository default branch"
+msgstr "Branch padrão do repositório"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Repository entries must be unique."
@@ -21447,6 +21470,7 @@ msgstr "Dispositivo sem nome"
 msgid "Unphased:"
 msgstr "Sem fase:"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
@@ -21852,6 +21876,11 @@ msgstr "Uso: /goal edit <objective>"
 msgid "USD per million tokens"
 msgstr "USD por milhão de tokens"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use {0} as default worktree base"
+msgstr "Usar {0} como base padrão das árvores de trabalho"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Use {crewName} in this project"
 msgstr "Usar {crewName} neste projeto"
@@ -21887,6 +21916,10 @@ msgstr "Use uma pasta existente"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "Usar uma imagem da pasta do projeto..."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use as default for new worktrees"
+msgstr "Usar como padrão para novas árvores de trabalho"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Use built-in transcription"

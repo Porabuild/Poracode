@@ -75,13 +75,18 @@ async function removeWorktreeDirectory(location: ProjectLocation, path: string):
 
 /** Argv for `git branch` to feed {@link parseBranchListOutput}. */
 export function buildBranchListArgs(includeRemote: boolean): string[] {
-  const args = ["branch", "--format=%(refname)\t%(objectname)\t%(HEAD)", "--sort=-HEAD"];
+  const args = ["branch", "--format=%(refname)\t%(objectname)\t%(HEAD)\t%(symref)", "--sort=-HEAD"];
   if (includeRemote) args.push("-a");
   return args;
 }
 
 export function parseBranchListOutput(output: string): GitBranchListResult {
   let current = "";
+  // `refs/remotes/<remote>/HEAD` points at that remote's default branch. Use
+  // origin's; another remote's only when the repository has no origin refs.
+  let originDefault: string | undefined;
+  let otherDefault: string | undefined;
+  let hasOrigin = false;
   const branches: GitBranchListResult["branches"] = [];
   for (const line of output.trim().split("\n")) {
     if (!line) continue;
@@ -89,7 +94,13 @@ export function parseBranchListOutput(output: string): GitBranchListResult {
     const ref = parts[0]!;
     const commit = parts[1] ?? "";
     const isCurrent = parts[2] === "*";
-    if (ref.endsWith("/HEAD")) continue;
+    if (ref.startsWith("refs/remotes/origin/")) hasOrigin = true;
+    if (ref.endsWith("/HEAD")) {
+      const target = parts[3]?.trim().match(/^refs\/remotes\/(.+)$/)?.[1];
+      if (target && ref === "refs/remotes/origin/HEAD") originDefault = target;
+      else otherDefault ??= target;
+      continue;
+    }
 
     const isRemoteBranch = ref.startsWith("refs/remotes/");
     let remoteName: string | undefined;
@@ -110,7 +121,8 @@ export function parseBranchListOutput(output: string): GitBranchListResult {
       ...(remoteName ? { remote: remoteName } : {}),
     });
   }
-  return { current, branches };
+  const defaultBranch = originDefault ?? (hasOrigin ? undefined : otherDefault);
+  return { current, branches, ...(defaultBranch ? { defaultBranch } : {}) };
 }
 
 export function parseWorktreeListOutput(

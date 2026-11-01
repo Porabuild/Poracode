@@ -2814,6 +2814,10 @@ msgstr "<0>{0}</0> 분기에 병합되지 않은 변경 사항이 있습니다:"
 #~ msgid "Branch name"
 #~ msgstr "브랜치 이름"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Branch new worktrees fork from. You can also star one in the composer's branch picker."
+msgstr "새 작업 트리가 분기하는 브랜치입니다. 컴포저의 브랜치 선택기에서 별표로 지정할 수도 있습니다."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "완전히 병합되지 않은 분기"
@@ -5920,6 +5924,10 @@ msgstr "기본 코딩 에이전트"
 msgid "Default Create PR action"
 msgstr "기본 PR 생성 작업"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Default for new worktrees"
+msgstr "새 작업 트리의 기본값"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
@@ -5943,6 +5951,10 @@ msgstr "기본 스레드 제거"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Default Windows shell"
 #~ msgstr "기본 Windows 셸"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Default worktree base"
+msgstr "기본 작업 트리 베이스"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
@@ -13993,6 +14005,12 @@ msgstr "선택기 실패"
 msgid "Picker returned no attachment"
 msgstr "선택 도구가 첨부파일을 반환하지 않았습니다."
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Pin {0} to top"
+msgstr "{0}을(를) 맨 위에 고정"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
@@ -14007,6 +14025,7 @@ msgstr "워크플로 고정"
 msgid "Pink"
 msgstr "분통"
 
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
@@ -15829,6 +15848,10 @@ msgstr "저장소"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "저장소"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Repository default branch"
+msgstr "저장소 기본 브랜치"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Repository entries must be unique."
@@ -21447,6 +21470,7 @@ msgstr "이름 없는 기기"
 msgid "Unphased:"
 msgstr "단계 미지정:"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
@@ -21852,6 +21876,11 @@ msgstr "사용법: /goal edit <objective>"
 msgid "USD per million tokens"
 msgstr "백만 토큰당 USD"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use {0} as default worktree base"
+msgstr "{0}을(를) 기본 작업 트리 베이스로 사용"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Use {crewName} in this project"
 msgstr "이 프로젝트에서 {crewName} 사용"
@@ -21887,6 +21916,10 @@ msgstr "기존 폴더 사용"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "프로젝트 폴더의 이미지 사용..."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use as default for new worktrees"
+msgstr "새 작업 트리의 기본값으로 사용"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Use built-in transcription"

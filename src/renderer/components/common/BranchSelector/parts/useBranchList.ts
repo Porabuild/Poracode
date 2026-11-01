@@ -20,6 +20,28 @@ export function getActiveWorktreeBranchNames(
   return Array.from(branches).sort();
 }
 
+/**
+ * One row per branch name, as the branch pickers list them: local branches,
+ * then remote-only branches by their short name.
+ */
+export function dedupePickerBranches(branches: readonly GitBranchInfo[]): GitBranchInfo[] {
+  const seen = new Set<string>();
+  const deduped: GitBranchInfo[] = [];
+  for (const branch of branches) {
+    if (!branch.isRemote && !seen.has(branch.name)) {
+      seen.add(branch.name);
+      deduped.push(branch);
+    }
+  }
+  for (const branch of branches) {
+    if (branch.isRemote && !seen.has(branch.name)) {
+      seen.add(branch.name);
+      deduped.push(branch);
+    }
+  }
+  return deduped;
+}
+
 export function useBranchList(params: { projectId: string; search: string }) {
   const { projectId, search } = params;
   const branchData = useGitStore((s) => s.branches[projectId]);
@@ -29,7 +51,10 @@ export function useBranchList(params: { projectId: string; search: string }) {
       s.threads.filter((t) => t.projectId === projectId && !t.archived && t.worktreeBranch),
     ),
   );
-  const projectLocation = useProject(projectId)?.location;
+  const project = useProject(projectId);
+  const projectLocation = project?.location;
+  const pinnedBranchList = project?.pinnedBranches;
+  const pinnedBranches = useMemo(() => new Set(pinnedBranchList ?? []), [pinnedBranchList]);
 
   const threadsByBranch = useMemo(() => {
     const map = new Map<string, Thread[]>();
@@ -54,20 +79,7 @@ export function useBranchList(params: { projectId: string; search: string }) {
 
   const { items, hasLocal, hasRemote } = useMemo(() => {
     const allBranches = branchData?.branches ?? [];
-    const seen = new Set<string>();
-    const deduped: GitBranchInfo[] = [];
-    for (const branch of allBranches) {
-      if (!branch.isRemote && !seen.has(branch.name)) {
-        seen.add(branch.name);
-        deduped.push(branch);
-      }
-    }
-    for (const branch of allBranches) {
-      if (branch.isRemote && !seen.has(branch.name)) {
-        seen.add(branch.name);
-        deduped.push(branch);
-      }
-    }
+    const deduped = dedupePickerBranches(allBranches);
 
     const remoteQualifiedNames = new Set(
       allBranches
@@ -100,17 +112,29 @@ export function useBranchList(params: { projectId: string; search: string }) {
 
     const containsLocal = allLocal.length > 0;
     const containsRemote = allRemote.length > 0;
+    // Pinned branches lead the list in pin order and leave their usual section.
+    const byName = new Map([...allLocal, ...allRemote].map((b) => [b.name, b] as const));
+    const pinned = [...pinnedBranches].flatMap((name) => {
+      const branch = byName.get(name);
+      return branch ? [branch] : [];
+    });
+    const local = allLocal.filter((b) => !pinnedBranches.has(b.name));
+    const remote = allRemote.filter((b) => !pinnedBranches.has(b.name));
     const list: BranchListItem[] = [];
-    if (containsLocal) {
-      list.push({ type: "header", id: "header-local", name: msg`Local` });
-      allLocal.forEach((b) => list.push({ type: "branch", id: b.name, branch: b }));
+    if (pinned.length > 0) {
+      list.push({ type: "header", id: "header-pinned", name: msg`Pinned` });
+      pinned.forEach((b) => list.push({ type: "branch", id: b.name, branch: b }));
     }
-    if (containsRemote) {
+    if (local.length > 0) {
+      list.push({ type: "header", id: "header-local", name: msg`Local` });
+      local.forEach((b) => list.push({ type: "branch", id: b.name, branch: b }));
+    }
+    if (remote.length > 0) {
       list.push({ type: "header", id: "header-remote", name: msg`Remote` });
-      allRemote.forEach((b) => list.push({ type: "branch", id: b.name, branch: b }));
+      remote.forEach((b) => list.push({ type: "branch", id: b.name, branch: b }));
     }
     return { items: list, hasLocal: containsLocal, hasRemote: containsRemote };
-  }, [branchData?.branches, search]);
+  }, [branchData?.branches, search, pinnedBranches]);
 
   return {
     items,
@@ -120,6 +144,7 @@ export function useBranchList(params: { projectId: string; search: string }) {
     branchWorktreePath,
     threadsByBranch,
     projectLocation,
+    pinnedBranches,
   };
 }
 

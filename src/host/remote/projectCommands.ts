@@ -540,6 +540,8 @@ function applyProjectPatch(
     "worktreeLocation",
     "mcpServers",
     "ghAccount",
+    "worktreeBaseBranch",
+    "pinnedBranches",
   ] as const) {
     if (patch[key] !== null) continue;
     const { [key]: _, ...rest } = updated;

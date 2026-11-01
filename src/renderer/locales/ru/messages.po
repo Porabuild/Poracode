@@ -2814,6 +2814,10 @@ msgstr "В ветке <0>{0}</0> есть несмердженные измен�
 #~ msgid "Branch name"
 #~ msgstr "Имя ветки"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Branch new worktrees fork from. You can also star one in the composer's branch picker."
+msgstr "Ветка, от которой создаются новые worktree. Её также можно отметить звёздочкой в списке веток в композере."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Ветка не полностью смерджена"
@@ -5920,6 +5924,10 @@ msgstr "Агент программирования по умолчанию"
 msgid "Default Create PR action"
 msgstr "Действие создания PR по умолчанию"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Default for new worktrees"
+msgstr "По умолчанию для новых worktree"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
@@ -5943,6 +5951,10 @@ msgstr "Удаление тредов по умолчанию"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Default Windows shell"
 #~ msgstr "Оболочка Windows по умолчанию"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Default worktree base"
+msgstr "Базовая ветка worktree по умолчанию"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
@@ -13993,6 +14005,12 @@ msgstr "Сбой выбора"
 msgid "Picker returned no attachment"
 msgstr "Выбор не вернул вложение"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Pin {0} to top"
+msgstr "Закрепить {0} вверху"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
@@ -14007,6 +14025,7 @@ msgstr "Закрепить рабочий процесс"
 msgid "Pink"
 msgstr "Розовый"
 
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
@@ -15829,6 +15848,10 @@ msgstr "репозиторий"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "Репозиторий"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Repository default branch"
+msgstr "Ветка репозитория по умолчанию"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Repository entries must be unique."
@@ -21447,6 +21470,7 @@ msgstr "Устройство без имени"
 msgid "Unphased:"
 msgstr "Без фазы:"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
@@ -21852,6 +21876,11 @@ msgstr "Использование: /goal edit <objective>"
 msgid "USD per million tokens"
 msgstr "USD за миллион токенов"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use {0} as default worktree base"
+msgstr "Использовать {0} как базу worktree по умолчанию"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Use {crewName} in this project"
 msgstr "Использовать {crewName} в этом проекте"
@@ -21887,6 +21916,10 @@ msgstr "Использовать существующую папку"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "Использовать изображение из папки проекта..."
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use as default for new worktrees"
+msgstr "Использовать по умолчанию для новых worktree"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Use built-in transcription"

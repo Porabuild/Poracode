@@ -27,6 +27,7 @@ import {
   dbGetThreadsPage,
   dbMarkLiveThreadsInactive,
   dbSetState,
+  dbUpdateProject,
   dbUpsertProject,
   dbUpsertThread,
   dbUpdateThreadMetadata,
@@ -692,6 +693,74 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       host: "github.com",
       login: "octocat",
     });
+  });
+
+  it("round-trips and clears the pinned worktree base branch", () => {
+    const project = {
+      id: "project-1",
+      name: "Test project",
+      location: { kind: "posix" as const, path: "/tmp/project" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    dbUpsertProject({ ...project, worktreeBaseBranch: "origin/main" }, 0);
+    expect(dbGetProject("project-1")?.worktreeBaseBranch).toBe("origin/main");
+
+    dbUpdateProject({ ...project, worktreeBaseBranch: "develop" });
+    expect(dbGetProject("project-1")?.worktreeBaseBranch).toBe("develop");
+
+    dbUpdateProject(project);
+    expect(dbGetProject("project-1")).not.toHaveProperty("worktreeBaseBranch");
+  });
+
+  it("round-trips and clears pinned branches in order", () => {
+    const project = {
+      id: "project-1",
+      name: "Test project",
+      location: { kind: "posix" as const, path: "/tmp/project" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    dbUpsertProject({ ...project, pinnedBranches: ["release", "develop"] }, 0);
+    expect(dbGetProject("project-1")?.pinnedBranches).toEqual(["release", "develop"]);
+
+    dbUpdateProject({ ...project, pinnedBranches: [] });
+    expect(dbGetProject("project-1")).not.toHaveProperty("pinnedBranches");
+  });
+
+  it("upgrades a schema-68 database by adding the branch pin columns", () => {
+    dbUpsertProject(
+      {
+        id: "legacy-project",
+        name: "Legacy project",
+        location: { kind: "posix", path: "/tmp/legacy-project" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      0,
+    );
+    closeDatabase();
+    const databasePath = join(dir, "state.sqlite");
+    const legacy = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    legacy.exec(`
+      ALTER TABLE projects DROP COLUMN worktree_base_branch;
+      ALTER TABLE projects DROP COLUMN pinned_branches;
+      UPDATE app_state SET value = '68' WHERE key = 'schema_version';
+    `);
+    legacy.close();
+
+    initDatabase(databasePath);
+
+    const projectColumns = getSqlite().prepare("PRAGMA table_info(projects)").all() as Array<{
+      name: string;
+    }>;
+    expect(projectColumns.map((column) => column.name)).toEqual(
+      expect.arrayContaining(["worktree_base_branch", "pinned_branches"]),
+    );
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
+    const legacyProject = dbGetProject("legacy-project");
+    expect(legacyProject?.name).toBe("Legacy project");
+    expect(legacyProject).not.toHaveProperty("worktreeBaseBranch");
+    expect(legacyProject).not.toHaveProperty("pinnedBranches");
   });
 
   it("round-trips the project workspace through the projects table", () => {

@@ -16,7 +16,7 @@ describe("buildBranchListArgs", () => {
   it("emits format + sort flags and omits -a when includeRemote=false", () => {
     expect(buildBranchListArgs(false)).toEqual([
       "branch",
-      "--format=%(refname)\t%(objectname)\t%(HEAD)",
+      "--format=%(refname)\t%(objectname)\t%(HEAD)\t%(symref)",
       "--sort=-HEAD",
     ]);
   });
@@ -70,6 +70,37 @@ describe("parseBranchListOutput", () => {
 
     const result = parseBranchListOutput(output);
     expect(result.branches.map((b) => b.name)).toEqual(["main"]);
+  });
+
+  it("reports the remote HEAD target as the default branch, preferring origin", () => {
+    const output = [
+      "refs/heads/feature/x\tdef456\t*\t",
+      "refs/remotes/upstream/HEAD\tabc123\t \trefs/remotes/upstream/trunk",
+      "refs/remotes/origin/HEAD\tabc123\t \trefs/remotes/origin/main",
+      "refs/remotes/origin/main\tabc123\t \t",
+    ].join("\n");
+
+    const result = parseBranchListOutput(output);
+    expect(result.defaultBranch).toBe("origin/main");
+    expect(result.branches.map((b) => b.name)).toEqual(["feature/x", "main"]);
+  });
+
+  it("ignores another remote's HEAD while origin exists without one", () => {
+    const output = [
+      "refs/remotes/origin/main\tabc123\t \t",
+      "refs/remotes/upstream/HEAD\tabc123\t \trefs/remotes/upstream/trunk",
+    ].join("\n");
+    expect(parseBranchListOutput(output)).not.toHaveProperty("defaultBranch");
+  });
+
+  it("uses a non-origin remote's HEAD when the repository has no origin", () => {
+    const output = "refs/remotes/upstream/HEAD\tabc123\t \trefs/remotes/upstream/trunk\r\n";
+    expect(parseBranchListOutput(output).defaultBranch).toBe("upstream/trunk");
+  });
+
+  it("omits the default branch when no remote HEAD is known", () => {
+    const result = parseBranchListOutput("refs/heads/main\tabc123\t*\t");
+    expect(result).not.toHaveProperty("defaultBranch");
   });
 
   it("tolerates missing commit field", () => {
