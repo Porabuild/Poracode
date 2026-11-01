@@ -190,10 +190,7 @@ export function BrowserMenu(props: {
                   "downloads",
                   "screenshot",
                   "hardReload",
-                  "bookmarkBar",
-                  "clearHistory",
-                  "clearCookies",
-                  "clearCache",
+                  "clearBrowsingDataMenu",
                   "settings",
                 ]
               : []),
@@ -233,7 +230,12 @@ export function BrowserMenu(props: {
               <Dropdown.Menu
                 aria-label={t`Bookmarks`}
                 onAction={onMenuAction}
-                disabledKeys={pageDisabled ? ["toggleBookmark"] : []}
+                // Submenus take their own disabled keys; the bookmark bar is
+                // this window's local presentation.
+                disabledKeys={[
+                  ...(pageDisabled ? ["toggleBookmark"] : []),
+                  ...(!nativeBrowser ? ["bookmarkBar"] : []),
+                ]}
               >
                 <Dropdown.Item
                   id="toggleBookmark"
@@ -305,7 +307,10 @@ export function BrowserMenu(props: {
               <Dropdown.Menu
                 aria-label={t`History`}
                 onAction={onMenuAction}
-                disabledKeys={recentHistory.length === 0 ? ["noHistory"] : []}
+                disabledKeys={[
+                  ...(recentHistory.length === 0 ? ["noHistory"] : []),
+                  ...(!nativeBrowser ? ["clearHistory"] : []),
+                ]}
               >
                 {recentHistory.length === 0 ? (
                   <Dropdown.Item id="noHistory" textValue={t`No history yet`}>

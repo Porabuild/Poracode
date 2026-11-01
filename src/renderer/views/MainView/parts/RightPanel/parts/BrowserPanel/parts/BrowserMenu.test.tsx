@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useBrowserFindStore } from "@/renderer/state/browserFindStore";
 import { useBrowserImportStore } from "@/renderer/state/browserImportStore";
@@ -109,9 +109,40 @@ describe("BrowserMenu", () => {
       screen.getByText(name, { selector: "label" }).closest('[role="menuitem"]');
 
     await screen.findByText("Settings", { selector: "label" });
-    for (const name of ["Settings", "Take Screenshot", "Hard Reload"]) {
+    for (const name of ["Settings", "Take Screenshot", "Hard Reload", "Clear browsing data"]) {
       expect(item(name)).toHaveAttribute("aria-disabled", "true");
     }
     expect(item("Copy Current URL")).not.toHaveAttribute("aria-disabled");
+  });
+
+  it("disables local-only submenu actions in a remote client", async () => {
+    runtime.nativeBrowser = false;
+    const item = (name: string) =>
+      screen.getByText(name, { selector: "label" }).closest('[role="menuitem"]');
+    async function openSubmenu(trigger: string, child: string) {
+      const view = renderMenu();
+      fireEvent.click(screen.getByRole("button", { name: "Browser menu" }));
+      const row = await screen.findByText(trigger, { selector: "label" });
+      // Opening the menu loads recent history, which re-renders it; let that
+      // settle so it cannot close the submenu opened next.
+      await waitFor(() => expect(bridge.browserRecentHistory).toHaveBeenCalled());
+      await act(async () => {});
+      act(() => {
+        fireEvent.click(row);
+      });
+      await screen.findByText(child, { selector: "label" });
+      return view;
+    }
+
+    const bookmarks = await openSubmenu("Bookmarks", "Bookmark this page");
+    expect(item("Bookmark this page")).not.toHaveAttribute("aria-disabled");
+    expect(item("Show bookmark bar")).toHaveAttribute("aria-disabled", "true");
+    bookmarks.unmount();
+
+    // The history list loads asynchronously and re-renders this submenu.
+    await openSubmenu("History", "Clear browsing history");
+    await waitFor(() =>
+      expect(item("Clear browsing history")).toHaveAttribute("aria-disabled", "true"),
+    );
   });
 });
