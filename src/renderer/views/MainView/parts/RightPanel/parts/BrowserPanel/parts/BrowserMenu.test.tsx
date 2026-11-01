@@ -7,6 +7,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { BrowserHistoryEntryInfo, BrowserTabInfo } from "@/shared/ipc";
 import { BrowserMenu } from "./BrowserMenu";
 
+const runtime = vi.hoisted(() => ({ nativeBrowser: true }));
 const bridge = vi.hoisted(() => ({
   platform: "win32" as NodeJS.Platform,
   browserRecentHistory: vi.fn<() => Promise<BrowserHistoryEntryInfo[]>>(),
@@ -17,7 +18,7 @@ const bridge = vi.hoisted(() => ({
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
 vi.mock("@/renderer/clientRuntime", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/clientRuntime")>()),
-  hasClientCapability: () => true,
+  hasClientCapability: () => runtime.nativeBrowser,
 }));
 
 const tab: BrowserTabInfo = {
@@ -49,6 +50,7 @@ async function chooseMenuItem(name: string) {
 
 describe("BrowserMenu", () => {
   beforeEach(() => {
+    runtime.nativeBrowser = true;
     bridge.browserRecentHistory.mockReset().mockResolvedValue([]);
     bridge.browserOpenInternalPage.mockReset().mockResolvedValue(undefined);
     bridge.browserPrint.mockReset().mockResolvedValue({ ok: true });
@@ -96,5 +98,20 @@ describe("BrowserMenu", () => {
     expect(
       screen.getByText("Show device toolbar", { selector: "label" }).closest('[role="menuitem"]'),
     ).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("disables actions a remote client cannot run against the host's browser", async () => {
+    runtime.nativeBrowser = false;
+    renderMenu();
+
+    fireEvent.click(screen.getByRole("button", { name: "Browser menu" }));
+    const item = (name: string) =>
+      screen.getByText(name, { selector: "label" }).closest('[role="menuitem"]');
+
+    await screen.findByText("Settings", { selector: "label" });
+    for (const name of ["Settings", "Take Screenshot", "Hard Reload"]) {
+      expect(item(name)).toHaveAttribute("aria-disabled", "true");
+    }
+    expect(item("Copy Current URL")).not.toHaveAttribute("aria-disabled");
   });
 });
