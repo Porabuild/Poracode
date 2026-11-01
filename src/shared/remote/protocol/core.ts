@@ -37,6 +37,10 @@ import { gitStatePatchSchema } from "../../gitState";
 // optional and old thread rows remain valid. Older hosts never receive the kind.
 // Optional thread tool overrides remain additive: absent maps keep old defaults,
 // and the host retains durable choices when older clients omit them on mutation.
+// The optional mediaFileRequest.disposition:"attachment" download option stays
+// additive within v14: old clients never send it, an old host strips or rejects
+// the field and keeps answering nonmedia with typed unsupported_media_type, and
+// no request/response discriminator meaning changes, so no version bump.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 

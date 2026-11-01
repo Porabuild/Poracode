@@ -53,6 +53,72 @@ describe("playback grants", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("a held stream survives admission expiry while new reads and renews are refused", () => {
+    vi.useFakeTimers();
+    const store = new PlaybackGrants<string>();
+    const hard = Date.now() + 3600_000;
+    const source = store.issue("file", "owner", hard);
+    const held = store.read(source.ticket);
+    const releaseHold = store.hold(source.ticket);
+    vi.advanceTimersByTime(PLAYBACK_GRANT_TTL_MS + 1);
+    expect(held.signal.aborted).toBe(false); // transfer keeps streaming
+    expect(() => store.read(source.ticket)).toThrow("expired"); // admission closed
+    expect(() => store.renew(source.ticket, "owner", hard)).toThrow("expired");
+    releaseHold();
+    releaseHold(); // idempotent
+    expect(held.signal.aborted).toBe(true);
+    expect(() => store.read(source.ticket)).toThrow("expired");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("retires a held stream at the hard session-authority expiry", () => {
+    vi.useFakeTimers();
+    const store = new PlaybackGrants<string>();
+    const hard = Date.now() + PLAYBACK_GRANT_TTL_MS + 30_000;
+    const source = store.issue("file", "owner", hard);
+    const held = store.read(source.ticket);
+    store.hold(source.ticket);
+    vi.advanceTimersByTime(PLAYBACK_GRANT_TTL_MS + 1);
+    expect(held.signal.aborted).toBe(false);
+    vi.advanceTimersByTime(30_000);
+    expect(held.signal.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("still aborts held streams on explicit release, session revoke, and clear", () => {
+    vi.useFakeTimers();
+    const hard = Date.now() + 3600_000;
+    for (const stop of ["release", "revoke", "clear"] as const) {
+      const store = new PlaybackGrants<string>();
+      const source = store.issue("file", "owner", hard);
+      const held = store.read(source.ticket);
+      store.hold(source.ticket);
+      vi.advanceTimersByTime(PLAYBACK_GRANT_TTL_MS + 1);
+      expect(held.signal.aborted).toBe(false);
+      if (stop === "release") store.release(source.ticket, "owner");
+      if (stop === "revoke") store.revokeSession("owner");
+      if (stop === "clear") store.clear();
+      expect(held.signal.aborted).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    }
+  });
+
+  it("issue/prune never kills a held stream and holds still count in caps", () => {
+    vi.useFakeTimers();
+    const store = new PlaybackGrants<string>();
+    const source = store.issue("file", "owner", Date.now() + 3600_000);
+    const held = store.read(source.ticket);
+    store.hold(source.ticket);
+    vi.advanceTimersByTime(PLAYBACK_GRANT_TTL_MS + 1);
+    const other = store.issue("file", "other", Date.now() + 3600_000); // triggers prune
+    expect(held.signal.aborted).toBe(false);
+    expect(other.ticket).not.toBe(source.ticket);
+    for (let index = 0; index < 31; index++) store.issue("file", "owner", Date.now() + 3600_000);
+    expect(() => store.issue("overflow", "owner", Date.now() + 3600_000)).toThrow("Too many");
+    store.clear();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("caps a grant at its session expiry and refuses per-session overflow without evicting live playback", () => {
     vi.useFakeTimers();
     const store = new PlaybackGrants<string>();

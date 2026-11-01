@@ -6776,6 +6776,10 @@ msgstr "完了 ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "完了 ({remainingSeconds}秒)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Download {fileName}"
+msgstr "{fileName} をダウンロード"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "ダウンロードに失敗しました"
@@ -19514,6 +19518,10 @@ msgstr "実験の状態を確認できませんでした。"
 msgid "The experiment state is too large to load or change safely."
 msgstr "実験の状態が大きすぎるため、安全に読み込みまたは変更できません。"
 
+#: src/renderer/components/media/fileMediaSource.ts
+msgid "The file path is outside the project."
+msgstr "ファイルパスはプロジェクトの外にあります。"
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The finding is no longer available."
 msgstr "検出結果は利用できなくなりました。"
@@ -21022,6 +21030,10 @@ msgstr "保存済みパスワードを削除できませんでした。"
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "実験のソースブランチを特定できません。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Unable to download the file."
+msgstr "ファイルをダウンロードできませんでした。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Unable to edit the saved password."

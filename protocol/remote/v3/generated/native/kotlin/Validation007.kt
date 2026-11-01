@@ -5,10 +5,6 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-internal val schema_6a0abedb39fd6f31: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("delete-worktree-group")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_6a0c18e639dbb000: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("path"), properties = mapOf("path" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -447,4 +443,8 @@ internal val schema_7f86e779ad379105: RemoteSchema by lazy {
 
 internal val schema_7f88819389c3ccc9: RemoteSchema by lazy {
     RemoteSchema(type = "array", items = schema_bf61c597568a8798, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_7f9f5a0d72de0d9a: RemoteSchema by lazy {
+    RemoteSchema(type = "number", literals = listOf(JsonPrimitive(1.0)), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

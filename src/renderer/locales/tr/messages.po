@@ -6777,6 +6777,10 @@ msgstr "Bitti ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Bitti ({remainingSeconds}sn)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Download {fileName}"
+msgstr "{fileName} indir"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "İndirme başarısız oldu"
@@ -19516,6 +19520,10 @@ msgstr "Deneyin durumu doğrulanamadı."
 msgid "The experiment state is too large to load or change safely."
 msgstr "Deneyin durumu güvenli bir şekilde yüklenemeyecek veya değiştirilemeyecek kadar büyük."
 
+#: src/renderer/components/media/fileMediaSource.ts
+msgid "The file path is outside the project."
+msgstr "Dosya yolu projenin dışında."
+
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The finding is no longer available."
 msgstr "Bulgu artık kullanılamıyor."
@@ -21024,6 +21032,10 @@ msgstr "Kayıtlı parola silinemedi."
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to determine the experiment's source branch."
 msgstr "Deneyin kaynak şubesi belirlenemedi."
+
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Unable to download the file."
+msgstr "Dosya indirilemedi."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Unable to edit the saved password."

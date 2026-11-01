@@ -125,7 +125,13 @@ export async function issueFileMediaTicket(
   request: MediaFileRequest,
 ): Promise<MediaTicketResult> {
   const { auth } = ctx;
-  const media = fileMediaType(request.path);
+  // An explicit attachment grant may serve any regular file as an opaque
+  // download; every other request keeps the editor-media allowlist. A failed
+  // contained read never retries on the external lane either way.
+  const media =
+    request.disposition === "attachment"
+      ? { mime: "application/octet-stream" }
+      : fileMediaType(request.path);
   if (!media)
     throw new RemoteHttpError(
       "unsupported_media_type",
@@ -265,7 +271,13 @@ export async function writeFileMedia(
   let file: FileHandle | undefined = validated.file;
   const { info, grant } = validated;
   const value = grant.value;
+  let releaseHold: (() => void) | null = null;
   try {
+    // An explicit download may outlive the admission TTL for the stream it
+    // already owns (the browser hands it to the OS once); admission still
+    // denies every new read/renew, and release/revocation still interrupts.
+    if (value.request.disposition === "attachment")
+      releaseHold = fileMediaGrants(ctx.auth).hold(ticket);
     const range = parseByteRange(req.headers.range, info.size);
     const headers = {
       "content-type": value.contentType,
@@ -278,8 +290,12 @@ export async function writeFileMedia(
       "content-security-policy": "sandbox; default-src 'none'",
       "referrer-policy": "no-referrer",
       // The name the requester opened (chat link / editor tab) is the name a
-      // download should save under; `inline` keeps in-page playback as-is.
-      "content-disposition": inlineContentDisposition(getBasename(value.request.path)),
+      // download should save under; `inline` keeps in-page playback as-is,
+      // `attachment` marks the explicit download grant that minted it.
+      "content-disposition": inlineContentDisposition(
+        getBasename(value.request.path),
+        value.request.disposition === "attachment" ? "attachment" : "inline",
+      ),
     };
     if (range === "unsatisfiable") {
       res.writeHead(416, {
@@ -306,6 +322,7 @@ export async function writeFileMedia(
     file = undefined;
     await pipeOwnedFileResponse(stream, res, undefined, grant.signal);
   } finally {
+    releaseHold?.();
     await file?.close();
   }
 }

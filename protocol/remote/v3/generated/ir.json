@@ -48214,7 +48214,7 @@
         }
       },
       "response": {
-        "contentType": "audio/*,video/*,image/*",
+        "contentType": "audio/*,video/*,image/*,application/octet-stream",
         "status": 200,
         "wireKind": "binary"
       },
@@ -48410,6 +48410,15 @@
                   "x-poracode-unknownFields": "strip"
                 }
               ]
+            },
+            "__schema1": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema2": {
+              "const": "attachment",
+              "type": "string"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -48421,10 +48430,11 @@
                   "const": "project",
                   "type": "string"
                 },
+                "disposition": {
+                  "$ref": "#/$defs/__schema2"
+                },
                 "path": {
-                  "maxLength": 4096,
-                  "minLength": 1,
-                  "type": "string"
+                  "$ref": "#/$defs/__schema1"
                 },
                 "projectLocation": {
                   "$ref": "#/$defs/__schema0"
@@ -48445,10 +48455,11 @@
                   "const": "external",
                   "type": "string"
                 },
+                "disposition": {
+                  "$ref": "#/$defs/__schema2"
+                },
                 "path": {
-                  "maxLength": 4096,
-                  "minLength": 1,
-                  "type": "string"
+                  "$ref": "#/$defs/__schema1"
                 },
                 "projectLocation": {
                   "$ref": "#/$defs/__schema0"
@@ -79414,7 +79425,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:45d0365bbedc67cdcc5a13fb43076ff34d8148675cd1741787db331f161cbd84",
+  "sourceHash": "sha256:423b4bcfdfa465e98a02878055196717382862961321a2911bf092980c4f16a8",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

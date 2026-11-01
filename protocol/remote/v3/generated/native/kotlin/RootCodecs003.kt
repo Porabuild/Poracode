@@ -224,8 +224,8 @@ val RemoteRootCodecs.routeU2EFileU2DMediaU2DRenewU2ERequest: RemoteRootCodec<Rou
 val RemoteRootCodecs.routeU2EFileU2DMediaU2DRenewU2EResponse: RemoteRootCodec<RouteenvironmentU2DMediaU2DRenewResponse_eaa8e54151>
     get() = RemoteRootCodec("route.file-media-renew.response", serializer<RouteenvironmentU2DMediaU2DRenewResponse_eaa8e54151>(), schema_eaa8e54151cd7fc2)
 
-val RemoteRootCodecs.routeU2EFileU2DMediaU2DTicketU2ERequest: RemoteRootCodec<RoutefileU2DMediaU2DTicketRequest_687b136989>
-    get() = RemoteRootCodec("route.file-media-ticket.request", serializer<RoutefileU2DMediaU2DTicketRequest_687b136989>(), schema_687b136989a8deb3)
+val RemoteRootCodecs.routeU2EFileU2DMediaU2DTicketU2ERequest: RemoteRootCodec<RoutefileU2DMediaU2DTicketRequest_4e4370de43>
+    get() = RemoteRootCodec("route.file-media-ticket.request", serializer<RoutefileU2DMediaU2DTicketRequest_4e4370de43>(), schema_4e4370de4368f09a)
 
 val RemoteRootCodecs.routeU2EFileU2DMediaU2DTicketU2EResponse: RemoteRootCodec<RoutefileU2DMediaU2DTicketResponse_b53074e6b6>
     get() = RemoteRootCodec("route.file-media-ticket.response", serializer<RoutefileU2DMediaU2DTicketResponse_b53074e6b6>(), schema_b53074e6b68baa67)

@@ -11,7 +11,7 @@ export async function readChildMediaLease(input: {
   ticket: string;
   agent: Agent;
   signal: AbortSignal;
-}): Promise<number> {
+}): Promise<{ expiresAtMs: number; attachment: boolean }> {
   const controller = new AbortController();
   const abort = () => controller.abort();
   input.signal.addEventListener("abort", abort, { once: true });
@@ -19,7 +19,7 @@ export async function readChildMediaLease(input: {
   const timer = setTimeout(abort, 5_000);
   timer.unref();
   try {
-    return await new Promise<number>((resolve, reject) => {
+    return await new Promise<{ expiresAtMs: number; attachment: boolean }>((resolve, reject) => {
       const invalid = () =>
         new RemoteHttpError("invalid_media_ticket", "The child media preview is unavailable.", 401);
       const req = request(
@@ -35,6 +35,9 @@ export async function readChildMediaLease(input: {
         (res) => {
           const expiry = Date.parse(String(res.headers["x-poracode-media-expires-at"] ?? ""));
           const empty = res.statusCode === 416 && res.headers["content-range"] === "bytes */0";
+          const attachment = /^attachment(?:;|$)/iu.test(
+            String(res.headers["content-disposition"] ?? ""),
+          );
           if (
             (!empty && res.statusCode !== 206) ||
             !Number.isFinite(expiry) ||
@@ -50,7 +53,11 @@ export async function readChildMediaLease(input: {
             if (bytes > (empty ? 0 : 1)) res.destroy(invalid());
           });
           res.on("error", () => reject(invalid()));
-          res.on("end", () => (bytes === (empty ? 0 : 1) ? resolve(expiry) : reject(invalid())));
+          res.on("end", () =>
+            bytes === (empty ? 0 : 1)
+              ? resolve({ expiresAtMs: expiry, attachment })
+              : reject(invalid()),
+          );
         },
       );
       req.on("error", () => reject(invalid()));
