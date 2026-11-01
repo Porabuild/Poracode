@@ -20,12 +20,14 @@ describe("MobileSettingsIndex Crews entry", () => {
     fireEvent.click(screen.getByRole("button", { name: /Audio/ }));
     expect(onOpenSection).toHaveBeenCalledWith("audio");
   });
-  it("routes the compact settings index to Crews", () => {
+  it("routes the compact desktop settings list to Crews", () => {
+    // Crews belong to the desktop (or paired host), so they are listed with its
+    // settings rather than the device's own.
     const onOpenSection = vi.fn<() => void>();
     renderWithI18n(
       <MobileSettingsIndex
-        screen="device"
-        hasDesktop={false}
+        screen="desktop"
+        hasDesktop
         showArchived={false}
         onOpenDesktop={() => {}}
         onOpenSchedules={() => {}}

@@ -3,7 +3,6 @@ import { availableParallelism } from "node:os";
 import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { Worker } from "node:worker_threads";
 import { defineConfig, loadEnv, type Plugin, type Rollup } from "vite";
-import babel from "@rolldown/plugin-babel";
 import react from "@vitejs/plugin-react";
 import { lingui, linguiTransformerBabelPreset } from "@lingui/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
@@ -11,10 +10,11 @@ import tailwindcss from "@tailwindcss/vite";
 const linguiPreset = linguiTransformerBabelPreset();
 const CLIENT_SOURCE_RE = /[\\/]src[\\/]renderer[\\/].*\.[tj]sx?(?:$|\?)/;
 const REACT_PLUGIN_EXCLUDE_RE = [/[\\/]node_modules[\\/]/, /[?&]worker(?:_file)?(?:&|$)/];
-const linguiBabel = babel({
-  include: CLIENT_SOURCE_RE,
-  presets: [linguiPreset],
-});
+// Lingui macro worker threads. Dev keeps two: more slowed the Electron runtime
+// build and main-process boot that start alongside the dev server. Four measured
+// fastest for a production build (13.4 s -> 9.1 s; six was slower).
+const DEV_LINGUI_WORKERS = Math.max(1, Math.min(2, availableParallelism() - 1));
+const BUILD_LINGUI_WORKERS = Math.max(1, Math.min(4, availableParallelism() - 1));
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 const MATERIAL_ICON_DIR = resolve(import.meta.dirname, "node_modules/material-icon-theme/icons");
 const MATERIAL_ICON_ASSET_PREFIX = "/assets/material-icons/";
@@ -182,11 +182,11 @@ function reactDevtoolsStandalone(): Plugin {
   };
 }
 
-// Dev-only stand-in for `linguiBabel`: the same Babel transform, run in worker
-// threads. Babel is single-threaded and costs about a third of the dev server's
-// main-thread time while it transforms the startup graph, and that thread also
-// answers the window's module requests.
-function linguiMacroWorkers(): Plugin {
+// The Lingui macro Babel transform @rolldown/plugin-babel would apply with the
+// preset, run in worker threads. Babel is single-threaded: on the main thread it
+// was about a third of the dev server's warmup (which also answers the window's
+// module requests) and half of a production renderer build. Output is identical.
+function linguiMacroWorkers(size: number): Plugin {
   type Reply = {
     id: number;
     code: string | null;
@@ -198,9 +198,6 @@ function linguiMacroWorkers(): Plugin {
   // The preset's own filter: only files that import a Lingui macro.
   const macroImport = linguiPreset.rolldown.filter?.code;
   const workerUrl = resolve(import.meta.dirname, "scripts/vite-lingui-macro-worker.mjs");
-  // Two workers measured faster than four: more threads slowed the Electron
-  // runtime build and main-process boot that start alongside the dev server.
-  const size = Math.max(1, Math.min(2, availableParallelism() - 1));
   const workers: { worker: Worker; pending: Map<number, Pending> }[] = [];
   let nextId = 0;
   let closed = false;
@@ -238,7 +235,6 @@ function linguiMacroWorkers(): Plugin {
 
   return {
     name: "poracode:lingui-macro-workers",
-    apply: "serve",
     enforce: "pre",
     transform: {
       filter: { id: CLIENT_SOURCE_RE, ...(macroImport ? { code: macroImport } : {}) },
@@ -448,11 +444,11 @@ export default defineConfig(({ command, mode }) => ({
     webDevIndex(),
     reactDevtoolsStandalone(),
     // Lingui must expand macros before React Compiler analyzes the component.
-    // The Babel plugin is forced into the pre phase so it runs before the
+    // The macro plugin is forced into the pre phase so it runs before the
     // native Oxc React Compiler transform inside react().
     // We use the Babel macro (not the SWC plugin) because this project transforms
     // with Babel, sidestepping the SWC-plugin/runtime version-matching pitfalls.
-    command === "serve" ? linguiMacroWorkers() : linguiBabel,
+    linguiMacroWorkers(command === "serve" ? DEV_LINGUI_WORKERS : BUILD_LINGUI_WORKERS),
     react({
       compiler: true,
       include: CLIENT_SOURCE_RE,

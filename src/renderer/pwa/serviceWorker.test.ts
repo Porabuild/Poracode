@@ -166,6 +166,7 @@ describe("canonical web delivery", () => {
       buildCommand: string;
       outputDirectory: string;
       redirects: Array<{ source: string; destination: string; permanent: boolean }>;
+      rewrites: Array<{ source: string; destination: string }>;
     };
 
     expect(vercel.buildCommand).toBe("node scripts/vercel-build-web.mjs");
@@ -180,5 +181,8 @@ describe("canonical web delivery", () => {
     ]) {
       expect(vercel.redirects).toContainEqual({ source, destination: "/", permanent: true });
     }
+    // A missing hashed asset must 404, not get the app shell with an immutable
+    // asset cache policy under a script URL.
+    expect(vercel.rewrites).toEqual([{ source: "/((?!assets/).*)", destination: "/index.html" }]);
   });
 });

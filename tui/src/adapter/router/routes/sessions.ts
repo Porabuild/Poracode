@@ -41,6 +41,9 @@ export async function handleSessionRoutes({
     firstPromptText,
     renameThreadTo,
     resolveProject,
+    threadProjects,
+    projectOfThread,
+    projectForDirectory,
     directoryOf,
     toSession,
     sessionOptions,
@@ -67,12 +70,28 @@ export async function handleSessionRoutes({
     const continuation = decodeThreadCursor(url.searchParams.get("cursor"));
     const page = await threadListPage(continuation);
     const statusList = await statusListNow();
+    // The session picker scopes by `project` (or `directory` for a folder
+    // outside any project); with neither it asks for every project's threads.
+    const scopedDirectory = url.searchParams.get("directory");
+    const scopedProject =
+      url.searchParams.get("project") ??
+      (scopedDirectory ? (await projectForDirectory(scopedDirectory)).id : undefined);
+    const parentID = url.searchParams.get("parentID");
+    const search = url.searchParams.get("search")?.trim().toLowerCase();
+    const projectOf = scopedProject === current.id ? () => current : await threadProjects();
     const data = page.threads
       .filter(
         (value) =>
-          isGuiThread(value, statusList) && value.projectId === current.id && !value.archived,
+          isGuiThread(value, statusList) &&
+          (scopedProject === undefined || value.projectId === scopedProject) &&
+          !value.archived &&
+          (parentID === null ||
+            (parentID === "null"
+              ? !value.parentThreadId
+              : value.parentThreadId === threadId(parentID))) &&
+          (!search || value.title.toLowerCase().includes(search)),
       )
-      .map((value) => toSession(value, current));
+      .map((value) => toSession(value, projectOf(value)));
     if (ctx.debug)
       void logAdapterDebug(input.bootstrap.home, {
         source: "session.list",
@@ -90,7 +109,11 @@ export async function handleSessionRoutes({
   }
   if (path === "/api/session" && method === "POST") {
     const body = await readBody();
-    const current = await resolveProject();
+    // A new session belongs to the project of the location it was created in.
+    const requestedDirectory = String(record(body.location).directory ?? "");
+    const current = requestedDirectory
+      ? await projectForDirectory(requestedDirectory)
+      : await resolveProject();
     const id = String(body.id ?? sessionId(crypto.randomUUID()));
     const model = record(body.model);
     const agentID = typeof body.agent === "string" ? body.agent : "build";
@@ -135,7 +158,6 @@ export async function handleSessionRoutes({
     if (effectiveProviderID) ctx.activeProviderID = effectiveProviderID;
     // A session created inside a listed worktree starts its thread there —
     // the host runs prepare-worktree setup via the worktree fields.
-    const requestedDirectory = String(record(body.location).directory ?? "");
     let worktreePath: string | undefined;
     let worktreeBranch: string | undefined;
     if (requestedDirectory && requestedDirectory !== directoryOf(current.location)) {
@@ -193,7 +215,7 @@ export async function handleSessionRoutes({
       cost: 0,
       tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
       time: { created: createdAt, updated: createdAt },
-      location: { directory: worktreePath ?? input.bootstrap.directory },
+      location: { directory: worktreePath ?? directoryOf(current.location) },
     } satisfies SessionCreateOutput;
     return json({ data: output });
   }
@@ -490,7 +512,12 @@ export async function handleSessionRoutes({
               cache: { read: 0, write: 0 },
             },
           },
-          { location: { directory: input.bootstrap.directory } },
+          {
+            location: {
+              directory:
+                remoteThread.worktreePath ?? directoryOf((await resolveProject()).location),
+            },
+          },
         ),
       );
     }
@@ -552,7 +579,9 @@ export async function handleSessionRoutes({
         cost: 0,
         tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
         time: { created: createdAt, updated: createdAt },
-        location: { directory: input.bootstrap.directory },
+        location: {
+          directory: localSession.worktreePath ?? directoryOf((await resolveProject()).location),
+        },
       } satisfies SessionInfo;
       if (ctx.debug)
         void logAdapterDebug(input.bootstrap.home, {
@@ -598,7 +627,7 @@ export async function handleSessionRoutes({
       return json({ error: { code: "not_found", message: "Session not found" } }, 404);
     }
     ctx.activeProviderID = remoteThread.agentKind;
-    const output: SessionGetOutput = toSession(remoteThread, currentProject);
+    const output: SessionGetOutput = toSession(remoteThread, await projectOfThread(remoteThread));
     return json({ data: output });
   }
   const waitMatch = path.match(/^\/api\/(?:experimental\/)?session\/([^/]+)\/wait$/u);

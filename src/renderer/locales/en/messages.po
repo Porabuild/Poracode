@@ -9993,6 +9993,10 @@ msgstr "Landscape right"
 msgid "Language"
 msgstr "Language"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Language and sidebar shortcuts"
+msgstr "Language and sidebar shortcuts"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. Thread titles always follow the app language."
@@ -14786,6 +14790,10 @@ msgstr "Pull request #{number} was created, but marking it as draft failed. Refr
 msgid "Pull request created, but its default automation could not be enabled: {0}"
 msgstr "Pull request created, but its default automation could not be enabled: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Pull request defaults"
+msgstr "Pull request defaults"
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "Pull request details"
 msgstr "Pull request details"
@@ -16853,6 +16861,10 @@ msgstr "Schedules"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Schedules, AI, agents, and archived threads on the paired desktop"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Schedules, AI, agents, crews, and Git on the paired desktop"
+msgstr "Schedules, AI, agents, crews, and Git on the paired desktop"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Science & education"

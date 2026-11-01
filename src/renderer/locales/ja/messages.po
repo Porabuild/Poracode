@@ -9983,6 +9983,10 @@ msgstr "横向き（右）"
 msgid "Language"
 msgstr "言語"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Language and sidebar shortcuts"
+msgstr "言語とサイドバーのショートカット"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. Thread titles always follow the app language."
@@ -14775,6 +14779,10 @@ msgstr "プルリクエスト #{number} は作成されましたが、下書き�
 msgid "Pull request created, but its default automation could not be enabled: {0}"
 msgstr "プルリクエストは作成されましたが、デフォルトの自動化を有効にできませんでした: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Pull request defaults"
+msgstr "プルリクエストのデフォルト"
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "Pull request details"
 msgstr "プルリクエストの詳細"
@@ -16842,6 +16850,10 @@ msgstr "スケジュール"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "ペアリングしたデスクトップのスケジュール、AI、エージェント、アーカイブ済みスレッド"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Schedules, AI, agents, crews, and Git on the paired desktop"
+msgstr "ペアリングしたデスクトップのスケジュール、AI、エージェント、クルー、Git"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Science & education"

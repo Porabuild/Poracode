@@ -20,7 +20,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import type { SettingsSection } from "./types";
 
 function MobileSettingsRow(props: {
@@ -61,6 +61,9 @@ export function MobileSettingsIndex(props: {
   readonly onOpenSection: (section: SettingsSection) => void;
 }) {
   const { t } = useLingui();
+  // A remote client edits these on its paired host; only its own preferences
+  // stay on this device.
+  const remote = isRemoteSession();
 
   if (props.screen === "desktop") {
     const rows: Array<{
@@ -114,6 +117,16 @@ export function MobileSettingsIndex(props: {
       },
     ];
 
+    if (remote) {
+      rows.push({
+        key: "git",
+        icon: GitFork,
+        label: t`Git`,
+        hint: t`Pull request defaults`,
+        onPress: () => props.onOpenSection("git"),
+      });
+    }
+
     if (props.showArchived) {
       rows.push({
         key: "archived",
@@ -156,7 +169,7 @@ export function MobileSettingsIndex(props: {
       section: "general",
       icon: Settings2,
       label: t`General`,
-      hint: t`Thread defaults and home scope`,
+      hint: remote ? t`Language and sidebar shortcuts` : t`Thread defaults and home scope`,
     },
     {
       section: "appearance",
@@ -182,18 +195,16 @@ export function MobileSettingsIndex(props: {
       label: t`Terminal`,
       hint: t`Fonts and scrolling`,
     },
-    {
-      section: "git",
-      icon: GitFork,
-      label: t`Git`,
-      hint: t`Review presentation`,
-    },
-    {
-      section: "crews",
-      icon: UsersRound,
-      label: t`Crews`,
-      hint: t`Saved crews for the model picker`,
-    },
+    ...(remote
+      ? []
+      : [
+          {
+            section: "git" as const,
+            icon: GitFork,
+            label: t`Git`,
+            hint: t`Review presentation`,
+          },
+        ]),
   ];
 
   return (
@@ -215,7 +226,11 @@ export function MobileSettingsIndex(props: {
           <MobileSettingsRow
             icon={MonitorCog}
             label={t`Desktop Settings`}
-            hint={t`Schedules, AI, agents, and archived threads on the paired desktop`}
+            hint={
+              props.showArchived
+                ? t`Schedules, AI, agents, and archived threads on the paired desktop`
+                : t`Schedules, AI, agents, crews, and Git on the paired desktop`
+            }
             disabled={!props.hasDesktop}
             onPress={props.onOpenDesktop}
           />

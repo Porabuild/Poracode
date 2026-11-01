@@ -9984,6 +9984,10 @@ msgstr "Ngang phải"
 msgid "Language"
 msgstr "Ngôn ngữ"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Language and sidebar shortcuts"
+msgstr "Ngôn ngữ và lối tắt thanh bên"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. Thread titles always follow the app language."
@@ -14777,6 +14781,10 @@ msgstr "Đã tạo yêu cầu hợp nhất #{number} nhưng không thể đánh 
 msgid "Pull request created, but its default automation could not be enabled: {0}"
 msgstr "Đã tạo Pull Request nhưng không thể bật tính năng tự động hóa mặc định: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Pull request defaults"
+msgstr "Mặc định cho pull request"
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "Pull request details"
 msgstr "Chi tiết pull request"
@@ -16844,6 +16852,10 @@ msgstr "Lịch biểu"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Lịch biểu, AI, tác nhân và luồng đã lưu trữ trên máy tính được ghép nối"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Schedules, AI, agents, crews, and Git on the paired desktop"
+msgstr "Lịch biểu, AI, tác nhân, nhóm và Git trên máy tính được ghép nối"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Science & education"

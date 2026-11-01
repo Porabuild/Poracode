@@ -46,7 +46,11 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
     case "dbGetThreads":
       return readDatabaseAsync("threads", [], dbGetThreads);
     case "dbGetState":
-      return readDatabaseAsync("state", [call.payload], () => dbGetState(call.payload));
+      // A primary-key lookup on the owner connection, like `dbSetState`. The
+      // read workers are for catalog and transcript queries; routing this one
+      // through them made desktop startup wait ~250 ms for a worker to boot
+      // before main could read the window bounds and create the window.
+      return dbGetState(call.payload);
     case "dbSetState":
       return dbSetState(call.payload.key, call.payload.value);
     case "dbUpsertProject":
