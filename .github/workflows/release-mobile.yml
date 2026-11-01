@@ -29,6 +29,11 @@ jobs:
   native_preflight:
     name: Required native CI
     uses: ./.github/workflows/native-ci.yml
+    # A called workflow cannot be granted more than its caller holds; native-ci
+    # reaches _server-artifact.yml, which requests `actions: read`.
+    permissions:
+      contents: read
+      actions: read
 
   setup:
     name: Resolve native release

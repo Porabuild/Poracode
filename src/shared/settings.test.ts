@@ -111,6 +111,23 @@ describe("shared settings crews", () => {
 });
 
 describe("shared settings defaults", () => {
+  it("adds explicit voice backend defaults without changing the Transformers model choice", () => {
+    const normalized = normalizeSharedSettings({
+      audio: {
+        transcriptionModel: "base",
+        transcriptionLanguage: "fr",
+        useWebGpu: false,
+      },
+    });
+    expect(normalized.audio).toMatchObject({
+      transcriptionBackend: "transformers",
+      hexModel: "parakeet_v3",
+      transcriptionModel: "base",
+      transcriptionLanguage: "fr",
+      useWebGpu: false,
+    });
+  });
+
   it("loads pre-upgrade Poracode disables without disabling its always-on MCP server", () => {
     expect(
       normalizeSharedSettings({

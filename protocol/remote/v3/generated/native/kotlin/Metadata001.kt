@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:217a33f5074e810ea0a0ac1140f446e767bcb709e0ab131e6af9589263730171"
-    const val manifestHash = "sha256:0cc3d41e33fa8b3fb6138c2027ed9da3c42ab15c24b3e1a3723e73c8e9a15d8f"
+    const val sourceHash = "sha256:45d0365bbedc67cdcc5a13fb43076ff34d8148675cd1741787db331f161cbd84"
+    const val manifestHash = "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -261,6 +261,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("gitWatchProject", "session:operate", "projectLocation", "omitted", "ProceduregitWatchProjectRequest_da482300f3", "RemoteUnit"),
         RemoteProcedureDescriptor("gitWatchWorktrees", "session:operate", "project", "omitted", "ProceduregitWatchWorktreesRequest_8b52512d7a", "RemoteUnit"),
         RemoteProcedureDescriptor("gitWorktreeStatusBatch", "session:read", "projectLocation", "json", "ProceduregitWorktreeStatusBatchRequest_a6f98c7f48", "ProceduregitWorktreeStatusBatchResult_1b23732705"),
+        RemoteProcedureDescriptor("hexVoice", "session:operate", "desktop", "json", "ProcedurehexVoiceRequest_2ae8d538fe", "ProcedurehexVoiceResult_46060d35e2"),
         RemoteProcedureDescriptor("importSkills", "session:operate", "skillLocations", "json", "ProcedureimportSkillsRequest_8a62b43ffe", "ProcedureimportSkillsResult_82088d0ad1"),
         RemoteProcedureDescriptor("installMarketplaceSkill", "session:operate", "optionalProjectLocation", "json", "ProcedureinstallMarketplaceSkillRequest_0093611cbb", "ProcedureinstallMarketplaceSkillResult_d6e0ba68c8"),
         RemoteProcedureDescriptor("invokeThreadSessionAction", "session:operate", "thread", "json", "ProcedureinvokeThreadSessionActionRequest_f614b14ae0", "ProcedureinvokeThreadSessionActionRequestU2DPayload_e6958017da"),

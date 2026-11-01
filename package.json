@@ -125,6 +125,7 @@
     "@heroui/react": "3.2.4",
     "@heroui/styles": "3.2.4",
     "@huggingface/transformers": "^4.2.0",
+    "@kitlangton/hex": "0.3.1",
     "@legendapp/list": "3.3.3",
     "@lingui/core": "6.6.0",
     "@lingui/react": "6.6.0",

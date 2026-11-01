@@ -25538,6 +25538,571 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "procedure.hexVoice.request": {
+      "$defs": {
+        "__schema0": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string"
+        },
+        "__schema1": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        "__schema2": {
+          "maxLength": 32,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "setup",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "install",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "cancel_install",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "remove_engine",
+              "type": "string"
+            }
+          },
+          "required": [
+            "action"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "list",
+              "type": "string"
+            },
+            "language": {
+              "maxLength": 32,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "language"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "prepare",
+              "type": "string"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "language": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "model": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "action",
+            "id",
+            "model",
+            "language"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "begin",
+              "type": "string"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "language": {
+              "$ref": "#/$defs/__schema2"
+            },
+            "model": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "action",
+            "id",
+            "model",
+            "language"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "append",
+              "type": "string"
+            },
+            "audioBase64": {
+              "maxLength": 262144,
+              "minLength": 4,
+              "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+              "type": "string"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "offset": {
+              "maximum": 9600044,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "action",
+            "id",
+            "offset",
+            "audioBase64"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "finish",
+              "type": "string"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "action",
+            "id"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "status",
+              "type": "string"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "action",
+            "id"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
+              "const": "cancel",
+              "type": "string"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "action",
+            "id"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      ]
+    },
+    "procedure.hexVoice.result": {
+      "$defs": {
+        "__schema0": {
+          "enum": [
+            "unavailable",
+            "busy",
+            "invalid_request",
+            "not_ready",
+            "failed",
+            "cancelled",
+            "timeout",
+            "disconnected",
+            "incompatible",
+            "unsupported",
+            "download_failed",
+            "integrity",
+            "permission_denied"
+          ],
+          "type": "string"
+        },
+        "__schema1": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "setup",
+              "type": "string"
+            },
+            "setup": {
+              "additionalProperties": true,
+              "properties": {
+                "arch": {
+                  "type": "string"
+                },
+                "engine": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "availableVersion": {
+                      "type": "string"
+                    },
+                    "downloadBytes": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "error": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "progress": {
+                      "maximum": 100,
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "source": {
+                      "anyOf": [
+                        {
+                          "enum": [
+                            "managed",
+                            "external"
+                          ],
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "state": {
+                      "enum": [
+                        "missing",
+                        "installed",
+                        "installing",
+                        "unsupported",
+                        "error"
+                      ],
+                      "type": "string"
+                    },
+                    "version": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "source",
+                    "version",
+                    "availableVersion",
+                    "downloadBytes"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "hostName": {
+                  "type": "string"
+                },
+                "platform": {
+                  "type": "string"
+                },
+                "preparation": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "error": {
+                          "$ref": "#/$defs/__schema0"
+                        },
+                        "id": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "language": {
+                          "maxLength": 32,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "model": {
+                          "maxLength": 128,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "phase": {
+                          "enum": [
+                            "preparing",
+                            "done",
+                            "error"
+                          ],
+                          "type": "string"
+                        },
+                        "progress": {
+                          "maximum": 100,
+                          "minimum": 0,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "model",
+                        "language",
+                        "phase"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "hostName",
+                "platform",
+                "arch",
+                "engine",
+                "preparation"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "required": [
+            "kind",
+            "setup"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "catalog",
+              "type": "string"
+            },
+            "models": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "downloadBytes": {
+                    "anyOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "installed": {
+                    "type": "boolean"
+                  },
+                  "languages": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "supportsLanguageDetection": {
+                    "type": "boolean"
+                  },
+                  "verified": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "installed",
+                  "verified",
+                  "downloadBytes",
+                  "languages",
+                  "supportsLanguageDetection"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "models"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "job": {
+              "additionalProperties": true,
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "phase": {
+                  "enum": [
+                    "uploading",
+                    "preparing",
+                    "loading",
+                    "transcribing",
+                    "done"
+                  ],
+                  "type": "string"
+                },
+                "progress": {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "transcript": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "phase"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "kind": {
+              "const": "job",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "job"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "kind": {
+              "const": "cancelled",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "kind": {
+              "const": "error",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "code"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      ]
+    },
     "procedure.importSkills.request": {
       "$defs": {
         "__schema0": {
@@ -74689,8 +75254,8 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 100,
-    "procedures": 164,
+    "jsonProcedureResults": 101,
+    "procedures": 165,
     "replayableEventTypes": 16,
     "routes": 119,
     "runtimeEventTypes": 16,
@@ -74698,7 +75263,7 @@
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:0cc3d41e33fa8b3fb6138c2027ed9da3c42ab15c24b3e1a3723e73c8e9a15d8f",
+  "manifestHash": "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0",
   "protocolVersion": 14,
-  "sourceHash": "sha256:217a33f5074e810ea0a0ac1140f446e767bcb709e0ab131e6af9589263730171"
+  "sourceHash": "sha256:45d0365bbedc67cdcc5a13fb43076ff34d8148675cd1741787db331f161cbd84"
 }

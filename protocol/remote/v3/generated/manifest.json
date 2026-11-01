@@ -1317,6 +1317,11 @@
   ],
   "procedures": [
     {
+      "name": "hexVoice",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
       "name": "getProviderUsage",
       "owner": "desktop",
       "scope": "session:read"

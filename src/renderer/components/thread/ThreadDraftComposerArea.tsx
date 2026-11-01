@@ -259,7 +259,6 @@ function DraftComposerAfterControls(props: {
   pluginLabels: Readonly<Record<string, string>>;
   onPickFiles: () => void;
   showVoiceInputButton: boolean;
-  voiceInputUnavailableHint?: string | undefined;
   isDisabled: boolean;
   readOnlyMcp?: boolean;
   experiment?: {
@@ -297,9 +296,6 @@ function DraftComposerAfterControls(props: {
       <ComposerVoiceInput
         show={props.showVoiceInputButton}
         isDisabled={props.isDisabled}
-        {...(props.voiceInputUnavailableHint !== undefined
-          ? { unavailableHint: props.voiceInputUnavailableHint }
-          : {})}
         mentionRef={props.mentionRef}
         voiceInputRef={props.voiceInputRef}
       />
@@ -361,14 +357,7 @@ export function ThreadDraftComposerArea(props: {
   const usesRemoteTransport = props.isRemote === true || isRemoteSurface;
   const isQuickComposer = hasAnyClientBridge() ? isQuickComposerWindow() : false;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
-  // Remote sessions have no local capture path: keep the button visible (when
-  // enabled) but disabled with the reason, instead of hiding it silently.
   const showVoiceInputButton = voiceInputEnabled;
-  const voiceInputUnavailableHint = voiceInputEnabled
-    ? isRemoteSurface
-      ? t`Voice input is unavailable on remote sessions.`
-      : undefined
-    : undefined;
   // Persistent (standing-default) composer MCP enablement, keyed by MCP id.
   const persistentMcpServers = useSharedSettings((s) => s.enabledMcpServers);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
@@ -1554,7 +1543,6 @@ export function ThreadDraftComposerArea(props: {
             customMcpServers={customMcpServers}
             readOnlyMcp={providerOwnsMcpForComposer}
             showVoiceInputButton={showVoiceInputButton && !liveVoiceActive}
-            {...(voiceInputUnavailableHint !== undefined ? { voiceInputUnavailableHint } : {})}
             isDisabled={authRequired || agentUpdating || isSubmitting}
             {...(!props.hideWorkspaceControls &&
             !isHomeScope &&

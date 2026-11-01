@@ -16,6 +16,7 @@ function runtimeFixture(disposeNativeRuntime: () => Promise<void>) {
   const closeHooks = vi.fn<() => Promise<void>>(async () => {});
   const closeAuthentications = vi.fn<() => Promise<void>>(async () => {});
   const closeOAuth = vi.fn<() => Promise<void>>(async () => {});
+  const disposeHexVoice = vi.fn<() => Promise<void>>(async () => {});
   const runtime = Object.assign(Object.create(SupervisorRuntime.prototype), {
     disposeNativeRuntime,
     agentRegistryService: { disposeAcpAuthentications: closeAuthentications },
@@ -27,6 +28,7 @@ function runtimeFixture(disposeNativeRuntime: () => Promise<void>) {
     mcpProbeService: { dispose },
     mcpOAuthService: { dispose: closeOAuth },
     mcpAuthenticationService: { dispose: async () => {} },
+    hexVoiceService: { dispose: disposeHexVoice },
     mcpOAuthRelay: { dispose: async () => {} },
     lspManager: { dispose },
     threadSessionManager: { dispose: closeThreads },
@@ -36,7 +38,7 @@ function runtimeFixture(disposeNativeRuntime: () => Promise<void>) {
     cliHookPluginCoordinator: { dispose: closeHooks },
     adapters: new Map(),
   }) as SupervisorRuntime;
-  return { runtime, closeThreads, closeHooks, closeAuthentications, closeOAuth };
+  return { runtime, closeThreads, closeHooks, closeAuthentications, closeOAuth, disposeHexVoice };
 }
 
 it("starts ordinary child teardown while native extraction retirement is still joining", async () => {
@@ -53,6 +55,7 @@ it("starts ordinary child teardown while native extraction retirement is still j
     release();
     await disposing;
   }
+  expect(f.disposeHexVoice).toHaveBeenCalledOnce();
 });
 
 it("reports failed native retirement after closing the other owned sessions and hooks", async () => {

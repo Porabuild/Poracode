@@ -13,6 +13,7 @@ import { createSubagents } from "./router/subagents";
 import { createTitles } from "./router/titles";
 import { createCatalog } from "./router/catalog";
 import { createThreads } from "./router/threads";
+import { createProjects } from "./router/projects";
 import { createRequests, handleRequestRoutes } from "./router/requests";
 import { createPrompt } from "./router/prompt";
 import type { RouteArgs, RouterContext } from "./router/context";
@@ -60,6 +61,9 @@ export function createRouter(input: {
   Object.assign(ctx, createSubagents(ctx));
   Object.assign(ctx, createTitles(ctx));
   Object.assign(ctx, createCatalog(ctx));
+  // Replaces catalog's resolveProject with the request-scoped one; factories
+  // below capture the scoped version.
+  Object.assign(ctx, createProjects(ctx));
   Object.assign(ctx, createThreads(ctx));
   Object.assign(ctx, createCrews(ctx));
   Object.assign(ctx, createRequests(ctx));
@@ -125,17 +129,20 @@ export function createRouter(input: {
         readBody: readRequestBody,
         inputSummary: () => inputSummary,
       };
-      const response =
-        (await handleMetaRoutes(args)) ??
-        (await handleCatalogRoutes(args)) ??
-        (await handleFileRoutes(args)) ??
-        (await handleSessionRoutes(args)) ??
-        (await handleInboxRoutes(args)) ??
-        (await handlePromptRoutes(args)) ??
-        (await handleRequestRoutes(args)) ??
-        (await handleRevertRoutes(args)) ??
-        (await handleShellRoutes(args)) ??
-        (await handleFallbackRoutes(args));
+      const response = await ctx.runInRequestScope(
+        url,
+        async () =>
+          (await handleMetaRoutes(args)) ??
+          (await handleCatalogRoutes(args)) ??
+          (await handleFileRoutes(args)) ??
+          (await handleSessionRoutes(args)) ??
+          (await handleInboxRoutes(args)) ??
+          (await handlePromptRoutes(args)) ??
+          (await handleRequestRoutes(args)) ??
+          (await handleRevertRoutes(args)) ??
+          (await handleShellRoutes(args)) ??
+          (await handleFallbackRoutes(args)),
+      );
       if (response !== undefined) return response;
     } catch (error) {
       await logAdapterError({
@@ -192,7 +199,9 @@ export function createRouter(input: {
     handleRemoteEvent,
     sessionOptions,
     setSessionOptions,
-    exportSession,
+    // Plugin calls bypass `handle`; run them in their session's project.
+    exportSession: (...args: Parameters<typeof exportSession>) =>
+      ctx.runInSessionScope(args[0], () => exportSession(...args)),
     offeredProviders,
     threadFlags,
     setStarred,
@@ -203,12 +212,14 @@ export function createRouter(input: {
     subscribeGoal,
     goalLine,
     goalSupported,
-    sendPrompt,
+    sendPrompt: (...args: Parameters<typeof sendPrompt>) =>
+      ctx.runInSessionScope(args[0], () => sendPrompt(...args)),
     sessionActions,
     invokeSessionAction,
     archivedThreads,
     providerUsage,
-    startSideChat,
+    startSideChat: (...args: Parameters<typeof startSideChat>) =>
+      ctx.runInSessionScope(args[0], () => startSideChat(...args)),
     loginCandidates,
     crewState,
     updateCrew,

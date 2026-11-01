@@ -187,6 +187,24 @@ describe("parseServerCliCommand", () => {
       auto: true,
       directory: "C:/repo",
     });
+    expect(
+      parseTuiCliOptions([
+        "--pair",
+        "https://mac.local:49152/#token=t&fp=sha256:00",
+        "--name",
+        " mac ",
+      ]),
+    ).toEqual({ pairingUrl: "https://mac.local:49152/#token=t&fp=sha256:00", serverName: "mac" });
+    expect(parseTuiCliOptions(["--server", "mac", "C:/repo"])).toEqual({
+      server: "mac",
+      directory: "C:/repo",
+    });
+    // --pair and --server pick different hosts; --name only labels a pairing.
+    expect(() => parseTuiCliOptions(["--pair", "https://x/#token=t", "--server", "mac"])).toThrow(
+      "Usage: poracode tui",
+    );
+    expect(() => parseTuiCliOptions(["--name", "mac"])).toThrow("Usage: poracode tui");
+    expect(() => parseTuiCliOptions(["--server", ""])).toThrow("Usage: poracode tui");
     expect(() => parseTuiCliOptions(["one", "two"])).toThrow("Usage: poracode tui");
     expect(() => parseTuiCliOptions(["--unknown"])).toThrow("Unknown option");
     expect(parseServerCliCommand(["-p", "Reply with exactly: OK"])).toBe("print");

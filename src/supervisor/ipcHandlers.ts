@@ -429,5 +429,6 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       pluginRegistry.refresh();
       return listPlugins(payload);
     },
+    hexVoice: (payload) => runtime.hexVoiceService.handle(payload),
   });
 }

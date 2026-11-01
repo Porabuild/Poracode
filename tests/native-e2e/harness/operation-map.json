@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:361977058143c241e554f2308d2878f6d0b388ed843b813c6c5870048f0513f8",
-  "keyCount": 338,
+  "manifestHash": "sha256:286bb09d7478f91bbb95c401e0b460f0c06b08b673b9a967a46c5d72784631cc",
+  "keyCount": 339,
   "counts": {
     "route": 119,
-    "procedure": 164,
+    "procedure": 165,
     "ws-client": 11,
     "ws-server": 12,
     "replay": 16,
@@ -497,6 +497,10 @@
     "procedure:gitWorktreeStatusBatch": {
       "kind": "procedure",
       "id": "gitWorktreeStatusBatch"
+    },
+    "procedure:hexVoice": {
+      "kind": "procedure",
+      "id": "hexVoice"
     },
     "procedure:importSkills": {
       "kind": "procedure",
