@@ -387,10 +387,19 @@ function resolveRemoteRoute(
     return undefined;
   }
   assertSingleOwner(locations, location.remoteServerId);
-  return {
-    desktopId: location.remoteServerId,
-    payload: unprojectRemotePayload(input) as Record<string, unknown>,
-  };
+  const routed = unprojectRemotePayload(input) as Record<string, unknown>;
+  // A location-owned payload can also name its project (gitWatchProject); the
+  // host knows only its own project ids.
+  const projectId = typeof input.projectId === "string" ? input.projectId : undefined;
+  const projectOwner = projectId ? remoteHost?.resolveProjectOwner(projectId) : undefined;
+  if (projectId && projectOwner?.desktopId === location.remoteServerId) {
+    return {
+      desktopId: location.remoteServerId,
+      projectedProjectId: projectId,
+      payload: { ...routed, projectId: projectOwner.remoteId },
+    };
+  }
+  return { desktopId: location.remoteServerId, payload: routed };
 }
 
 function resolveThreadRoute(
