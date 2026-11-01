@@ -248,11 +248,12 @@ jobs:
       - name: Upgrade a running install from the real tarball (vitest)
         # Required mode: the real-artifact upgrade gate must fail when the
         # freshly assembled tarball is missing or not D4-capable, never skip to
-        # green (src/server/serverUpgrade.integration.test.ts). Its tests share
-        # process-wide state, so each runs in its own process, concurrently.
+        # green (src/server/serverUpgrade.integration.test.ts). Its tests run
+        # one after another: running them concurrently on the 4-core Windows
+        # runner tripled each npm install and timed out icacls and daemon stops.
         env:
           PORACODE_REQUIRE_SERVER_IT: "1"
-        run: node scripts/run-vitest-tests-in-parallel.mjs src/server/serverUpgrade.integration.test.ts
+        run: bun run vitest run --configLoader runner src/server/serverUpgrade.integration.test.ts
 
       - name: Verify systemd unit
         if: runner.os == 'Linux'
