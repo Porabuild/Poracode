@@ -24,6 +24,7 @@ import {
   __resetProjectCommandResultsCapabilityForTest,
 } from "./remote/projectCommandResultsCapability";
 import { EnvironmentCascadeConfirmationRequiredError } from "./remoteServers/sessionReconnect";
+import * as refreshTokens from "./remoteServers/refreshTokens";
 import { environmentChildGrantSubject } from "./remoteServers/environmentSessions";
 import {
   __forgetRefreshTokenForTest,
@@ -2095,6 +2096,62 @@ describe("useRemoteServersStore", () => {
       persist.rehydrate = originalRehydrate;
     }
   });
+
+  it.each(["", "expired-access"])(
+    "waits for saved refresh credentials before reconnecting a restored bearer %j",
+    async (accessToken) => {
+      const hydration = Promise.withResolvers<void>();
+      const hydrate = vi
+        .spyOn(refreshTokens, "hydrateRefreshTokens")
+        .mockImplementation(async () => {
+          await hydration.promise;
+          rememberRefreshToken("d1", "saved-refresh");
+        });
+      const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => {
+        expect(__peekRefreshTokenForTest("d1")).toBe("saved-refresh");
+        return makeClient().snapshot();
+      });
+      useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ snapshot })));
+      // Flush earlier store writes before installing the released v2 document.
+      await useRemoteServersStore.persist.rehydrate();
+      hydrate.mockClear();
+      localStorage.setItem(
+        "poracode-remote-servers",
+        JSON.stringify({
+          version: 2,
+          state: {
+            servers: [
+              {
+                connectionId: "d1",
+                desktopId: "d1",
+                label: "Server One",
+                endpoint: "http://192.168.1.9:38987/",
+                accessToken,
+                scopes: ["session:read", "projects:manage"],
+              },
+            ],
+          },
+        }),
+      );
+      const rehydrating = useRemoteServersStore.persist.rehydrate();
+      try {
+        await vi.waitFor(() => expect(hydrate).toHaveBeenCalledOnce());
+        const connecting = useRemoteServersStore.getState().connectAll();
+        expect(useRemoteServersStore.persist.hasHydrated()).toBe(false);
+        expect(snapshot).not.toHaveBeenCalled();
+        hydration.resolve();
+        await rehydrating;
+        await connecting;
+        expect(snapshot).toHaveBeenCalledOnce();
+        expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+      } finally {
+        hydration.resolve();
+        await rehydrating;
+        hydrate.mockRestore();
+        __forgetRefreshTokenForTest(connectionRefreshSubject("d1"));
+      }
+    },
+  );
 
   it("restores last-known remote projects when a persisted server is offline", async () => {
     useRemoteServersStore.setState({
