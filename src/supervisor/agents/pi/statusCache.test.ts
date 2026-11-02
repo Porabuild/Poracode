@@ -3,7 +3,7 @@ import { decodeAgentStatusCache } from "@/shared/agentStatusCache";
 import { agentCapabilitySchema } from "@/shared/contracts/agent";
 
 it.each(["pi", "pi:custom"])(
-  "refreshes unscoped pi capabilities for %s without dropping another provider",
+  "refreshes obsolete pi model IDs for %s without dropping another provider",
   (kind) => {
     const cached = {
       kind,
@@ -14,12 +14,12 @@ it.each(["pi", "pi:custom"])(
     };
     const unaffected = { ...cached, kind: "unaffected", label: "Unaffected" };
     const upgraded = decodeAgentStatusCache({
-      version: 71,
+      version: 72,
       windows: [cached, unaffected],
       wsl: [{ ...cached, envKind: "wsl", envDistro: "Ubuntu" }],
     });
     expect(upgraded.statuses).toEqual({ windows: [unaffected], wsl: [], fromCache: false });
-    const fresh = decodeAgentStatusCache({ version: 72, windows: [cached, unaffected], wsl: [] });
+    const fresh = decodeAgentStatusCache({ version: 73, windows: [cached, unaffected], wsl: [] });
     expect(fresh.statuses).toEqual({ windows: [cached, unaffected], wsl: [], fromCache: true });
   },
 );
