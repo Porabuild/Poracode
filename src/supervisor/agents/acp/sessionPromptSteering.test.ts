@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { PromptResponse } from "@agentclientprotocol/sdk";
 import type { ThreadConfig } from "@/shared/contracts";
 import type { AcpPromptSteering } from "./promptSteering";
 import { makeConfigSyncSession } from "./sessionTestFixture";
@@ -310,5 +311,103 @@ describe("ACP prompt steering turn", () => {
 
     main.resolve({ stopReason: "end_turn" });
     await turn;
+  });
+});
+
+describe("ACP prompt usage sample identity hook", () => {
+  const sampleIdHook = (response: PromptResponse): string | undefined =>
+    typeof response._meta?.sampleId === "string" ? `native:${response._meta.sampleId}` : undefined;
+
+  it("folds replies repeating one native sample and separates a new identity", async () => {
+    const fixture = makeConfigSyncSession({
+      promptSteering: steering,
+      behavior: {
+        promptUsageCounterKind: "per-call",
+        promptUsageReportsContext: false,
+        promptUsageSampleId: sampleIdHook,
+      },
+    });
+    fixture.connection.initialize.mockResolvedValueOnce({
+      protocolVersion: 1,
+      agentCapabilities: { _meta: { steer: true } },
+    });
+    await fixture.session.activate();
+    const { connection, listener, session } = fixture;
+    (session as unknown as Record<string, unknown>)["usageScopeId"] = "scope-1";
+
+    const usage = { totalTokens: 10 };
+    const main = deferred<{ stopReason: string; usage: typeof usage; _meta: unknown }>();
+    const steerOne = deferred<{ stopReason: string; usage: typeof usage; _meta: unknown }>();
+    const steerTwo = deferred<{ stopReason: string; usage: typeof usage; _meta: unknown }>();
+    connection.prompt
+      .mockReturnValueOnce(main.promise as never)
+      .mockReturnValueOnce(steerOne.promise as never)
+      .mockReturnValueOnce(steerTwo.promise as never);
+
+    const turn = session.startTurn("first prompt", config);
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledTimes(1));
+    await session.steerTurn?.("steer one", config);
+
+    main.resolve({ stopReason: "end_turn", usage, _meta: { sampleId: "sample-a" } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await session.steerTurn?.("steer two", config);
+
+    steerOne.resolve({ stopReason: "end_turn", usage, _meta: { sampleId: "sample-a" } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    steerTwo.resolve({ stopReason: "end_turn", usage, _meta: { sampleId: "sample-b" } });
+    await turn;
+
+    const sampleIds = runtimeEvents(listener)
+      .filter((event) => event.type === "usage.spent")
+      .map((event) => (event["usage"] as { sampleId: string }).sampleId);
+    expect(sampleIds).toEqual([
+      "acp-prompt-v1:scope-1:0:native:sample-a",
+      "acp-prompt-v1:scope-1:0:native:sample-a",
+      "acp-prompt-v1:scope-1:0:native:sample-b",
+    ]);
+  });
+
+  it("keeps the per-turn/per-steer fallback when the hook finds no identity", async () => {
+    const fixture = makeConfigSyncSession({
+      promptSteering: steering,
+      behavior: {
+        promptUsageCounterKind: "per-call",
+        promptUsageReportsContext: false,
+        promptUsageSampleId: sampleIdHook,
+      },
+    });
+    fixture.connection.initialize.mockResolvedValueOnce({
+      protocolVersion: 1,
+      agentCapabilities: { _meta: { steer: true } },
+    });
+    await fixture.session.activate();
+    const { connection, listener, session } = fixture;
+    (session as unknown as Record<string, unknown>)["usageScopeId"] = "scope-1";
+
+    const usage = { totalTokens: 10 };
+    const main = deferred<{ stopReason: string; usage: typeof usage }>();
+    const steer = deferred<{ stopReason: string; usage: typeof usage }>();
+    connection.prompt
+      .mockReturnValueOnce(main.promise as never)
+      .mockReturnValueOnce(steer.promise as never);
+
+    const turn = session.startTurn("first prompt", config);
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledTimes(1));
+    await session.steerTurn?.("steer one", config);
+
+    main.resolve({ stopReason: "end_turn", usage });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    steer.resolve({ stopReason: "end_turn", usage });
+    await turn;
+
+    const turnId = turnEvents(listener, "turn.started")[0]?.["turnId"];
+    const sampleIds = runtimeEvents(listener)
+      .filter((event) => event.type === "usage.spent")
+      .map((event) => (event["usage"] as { sampleId: string }).sampleId);
+    expect(sampleIds).toEqual([
+      `acp-prompt-v1:scope-1:0:${String(turnId)}`,
+      `acp-prompt-v1:scope-1:0:${String(turnId)}:steer-1`,
+    ]);
+    expect(sampleIds[0]).not.toBe(sampleIds[1]);
   });
 });

@@ -84,6 +84,7 @@ const { DEVIN_NATIVE_PERSONAS_ACTION_ID } = await import("./personas/sessionActi
 const { DEVIN_CLOUD_DEFAULT_MODEL_ID, createDevinAcpModelResolver, parseDevinModelCatalog } =
   await import("./models");
 const { AcpSessionConfigSync, AcpConfigSelectionError } = await import("../acp/sessionConfigSync");
+const { DEVIN_ACP_PROMPT_STEERING } = await import("./acp/promptSteering");
 const { resolveDevinExecutionContext } = await import("./profileContext");
 const { devinSessionScopeIdentity } = await import("./sessionScope");
 const accountIdentity = await import("./accountIdentity");
@@ -330,6 +331,7 @@ describe("Devin structured-session wiring", () => {
       strictConfigSelection: true,
       promptUsageCounterKind: "per-call",
       promptUsageReportsContext: false,
+      promptUsageSampleId: expect.any(Function),
       unreferencedTerminalCorrelation: "attribute-on-create",
       // Live local receipt: config writes are confirmed mid-prompt.
       allowConfigWritesDuringPrompt: true,
@@ -348,6 +350,9 @@ describe("Devin structured-session wiring", () => {
       modelCarriesEffort: expect.any(Function),
     });
     expect(wiredOverrides.behavior.fastConfigBinding).toEqual(DEVIN_ACP_FAST_CONFIG_BINDING);
+    // The negotiated steering declaration is forwarded verbatim for the
+    // default local composition; `initialize` decides support.
+    expect(wiredOverrides.promptSteering).toBe(DEVIN_ACP_PROMPT_STEERING);
     // The negotiated five-choice baseline resolves through sessionModes.
     expect(wiredOverrides.resolveMode({ model: "", approvalPolicy: "ask" }, ["ask"])).toBe("ask");
     // The throwing resolver is wired (strict pair); the legacy undefined
@@ -418,6 +423,19 @@ describe("Devin structured-session wiring", () => {
       strictConfigSelection: true,
     });
     expect((overrides as Record<string, any>).behavior.fastConfigBinding).toBeUndefined();
+    // Cloud carries the same negotiated steering declaration but no local
+    // usage-sample hook (cloud accounting is not qualified).
+    expect((overrides as Record<string, any>).promptSteering).toBe(DEVIN_ACP_PROMPT_STEERING);
+    expect((overrides as Record<string, any>).behavior.promptUsageSampleId).toBeUndefined();
+  });
+
+  it("forwards the exact steering declaration on the local profile path", async () => {
+    await profileAdapter({ instanceId: "work" }).createStructuredSession?.(guiInput({ model: "" }));
+    const [, , overrides] = mocks.createAcpStructuredSession.mock.calls[0]!;
+    expect((overrides as Record<string, any>).promptSteering).toBe(DEVIN_ACP_PROMPT_STEERING);
+    expect((overrides as Record<string, any>).behavior.promptUsageSampleId).toEqual(
+      expect.any(Function),
+    );
   });
 
   it("warms the local catalog under the fully volatile-scoped key material", async () => {
