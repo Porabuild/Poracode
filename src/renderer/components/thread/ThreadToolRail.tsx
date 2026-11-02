@@ -29,9 +29,13 @@ import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useThreadToolRailDrag } from "./useThreadToolRailDrag";
 import { ThreadActionIconButton } from "./ThreadActionIconButton";
 
-/** Floating side rail: translucent blurred surface, soft hairline edge, rounded. */
+/**
+ * Floating side rail: translucent blurred surface with a barely-there hairline
+ * edge. Radii match the composer shell (`--radius-4xl`) and its HeroUI buttons
+ * (`rounded-3xl`) so the two floating surfaces read as one family.
+ */
 const railClass =
-  "flex flex-col items-center gap-0.5 rounded-2xl border border-[var(--hairline)] bg-[color-mix(in_oklab,var(--overlay)_60%,transparent)] p-1 shadow-xl backdrop-blur-md";
+  "flex flex-col items-center gap-0.5 rounded-4xl border border-[var(--hairline-soft)] bg-[color-mix(in_oklab,var(--overlay)_60%,transparent)] p-1 shadow-xl backdrop-blur-md";
 const toolActiveClass = "bg-[var(--row-active)] text-foreground";
 const toolIdleClass = "text-muted hover:bg-[var(--row-hover)] hover:text-foreground";
 
@@ -61,7 +65,7 @@ function RailToolButton(props: { tool: RailTool; id: string | undefined }) {
       title={tool.label}
       aria-label={tool.label}
       aria-pressed={tool.active}
-      className={`flex size-7 items-center justify-center rounded-xl transition-colors ${
+      className={`flex size-7 items-center justify-center rounded-3xl transition-colors ${
         tool.active ? toolActiveClass : toolIdleClass
       }`}
       onClick={() => tool.activate()}

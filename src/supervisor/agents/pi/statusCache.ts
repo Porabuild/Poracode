@@ -1,2 +1,2 @@
-// v70 declares the default effort instead of selecting the strongest tier.
-export const piStatusCachePolicy = { kind: "pi", minimumVersion: 70 };
+// v72 reads scoped models and the default model from Pi settings.
+export const piStatusCachePolicy = { kind: "pi", minimumVersion: 72 };
