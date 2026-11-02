@@ -12,7 +12,8 @@ const { useThreadHasBackgroundActivityMock, useThreadIsWaitingForBackgroundMock 
   }),
 );
 
-vi.mock("@heroui/react", () => ({
+vi.mock("@heroui/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@heroui/react")>()),
   Tooltip: Object.assign((props: { children: ReactNode }) => <>{props.children}</>, {
     Trigger: (props: { children: ReactNode }) => <>{props.children}</>,
     Content: (props: { children: ReactNode }) => <>{props.children}</>,

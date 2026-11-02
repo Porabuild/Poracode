@@ -28,6 +28,7 @@ import { useContinueInProviderStore } from "@/renderer/state/continueInProviderS
 import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
+import { ThreadActionIconButton } from "./ThreadActionIconButton";
 import { ThreadToolRail } from "./ThreadToolRail";
 import { PaneDragHandle } from "./PaneDragAndDrop";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
@@ -454,17 +455,15 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0 ? (
                     <Tooltip delay={0}>
                       <Tooltip.Trigger>
-                        <button
-                          type="button"
+                        <ThreadActionIconButton
                           aria-label={t`Continue in another provider`}
-                          className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          className="text-muted/60 hover:text-foreground"
+                          onPress={() => {
                             setContinueDialogOpen(true);
                           }}
                         >
                           <ArrowRightLeft className="size-3.5" />
-                        </button>
+                        </ThreadActionIconButton>
                       </Tooltip.Trigger>
                       <Tooltip.Content>
                         <Trans>Continue in another provider</Trans>
@@ -474,8 +473,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   {import.meta.env.DEV && !usesTerminalPresentation ? (
                     <Tooltip delay={0}>
                       <Tooltip.Trigger>
-                        <button
-                          type="button"
+                        <ThreadActionIconButton
                           data-poracode-thread-debug=""
                           aria-label={
                             runtimeDebugOpen
@@ -483,14 +481,17 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                               : t`Show runtime debug panel`
                           }
                           aria-pressed={runtimeDebugOpen}
-                          className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${runtimeDebugOpen ? "text-foreground" : "text-muted/60 hover:text-foreground"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          className={
+                            runtimeDebugOpen
+                              ? "text-foreground"
+                              : "text-muted/60 hover:text-foreground"
+                          }
+                          onPress={() => {
                             setRuntimeDebugOpen((o) => !o);
                           }}
                         >
                           <Bug className="size-3.5" />
-                        </button>
+                        </ThreadActionIconButton>
                       </Tooltip.Trigger>
                       <Tooltip.Content>
                         {runtimeDebugOpen ? (
@@ -502,17 +503,19 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     </Tooltip>
                   ) : null}
                   {onMarkDone ? (
-                    <button
-                      type="button"
+                    <ThreadActionIconButton
                       aria-label={thread.done ? t`Unmark done` : t`Mark done`}
-                      className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${thread.done ? "text-[oklch(0.78_0.1_180)]" : "text-muted/60 hover:text-foreground"}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      className={
+                        thread.done
+                          ? "text-[oklch(0.78_0.1_180)]"
+                          : "text-muted/60 hover:text-foreground"
+                      }
+                      onPress={() => {
                         onMarkDone();
                       }}
                     >
                       <CircleCheck className="size-3.5" />
-                    </button>
+                    </ThreadActionIconButton>
                   ) : null}
                   {awaitingWorktree ? null : (
                     <ThreadToolRail
@@ -523,18 +526,16 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     />
                   )}
                   {showCloseButton ? (
-                    <button
-                      type="button"
+                    <ThreadActionIconButton
                       data-poracode-thread-close=""
                       aria-label={t`Close pane`}
-                      className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      className="text-muted/60 hover:text-foreground"
+                      onPress={() => {
                         onClose?.();
                       }}
                     >
                       <X className="size-3.5" />
-                    </button>
+                    </ThreadActionIconButton>
                   ) : null}
                 </div>
               </div>
