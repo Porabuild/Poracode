@@ -81,6 +81,7 @@ class RepositoryRichChatGatewayProvider(
             },
             terminalWatch = terminalWatch ?: productionTerminalFor(lease, http),
             binary = rich.binary,
+            files = com.poracode.app.transport.richchat.RichChatRemoteFileExecutor(http),
         )
     }
 

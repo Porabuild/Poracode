@@ -20,10 +20,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -130,6 +133,7 @@ fun RichChatThreadScreen(
     val title = thread?.title?.ifBlank { null } ?: stringResource(R.string.rich_chat_conversation)
     var pendingTruncateItemId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
     var pendingRevertItemId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
+    val fileDownloadSnackbarHost = remember { SnackbarHostState() }
     var showCloseDialog by rememberSaveable(threadId) { mutableStateOf(false) }
     val canMutate = canOperate && state.selection != null && !mutating && !refreshing
     var forkIntent by rememberSaveable(threadId, state.selection?.host?.connectionId, state.selection?.host?.bindingGeneration, stateSaver = RichChatForkIntent.Saver) { mutableStateOf<RichChatForkIntent?>(null) }
@@ -251,6 +255,7 @@ fun RichChatThreadScreen(
     }
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(fileDownloadSnackbarHost) },
         topBar = {
             RichChatThreadTopBar(
                 title = title,
@@ -435,6 +440,17 @@ fun RichChatThreadScreen(
                         }
                         if (maxWidth >= 760.dp) {
                             Row(Modifier.fillMaxSize()) {
+                                CompositionLocalProvider(
+                                    LocalRichChatFileActions provides projectLocation?.let {
+                                        RichChatFileActions(
+                                            controller = runtime.media,
+                                            location = it,
+                                            cacheDirectory = context.cacheDir,
+                                            snackbarHost = fileDownloadSnackbarHost,
+                                            threadKey = "${threadId}:${state.selection?.generation}",
+                                        )
+                                    },
+                                ) {
                                 RichTimelineView(
                                     transcript,
                                     state.olderCursor,
@@ -450,6 +466,7 @@ fun RichChatThreadScreen(
                                     forkBoundaryItemId = forkBoundaryItemId,
                                     modifier = Modifier.weight(1f),
                                 )
+                                }
                                 VerticalDivider()
                                 controlContent(
                                     Modifier
@@ -460,6 +477,17 @@ fun RichChatThreadScreen(
                             }
                         } else {
                             Column(Modifier.fillMaxSize()) {
+                                CompositionLocalProvider(
+                                    LocalRichChatFileActions provides projectLocation?.let {
+                                        RichChatFileActions(
+                                            controller = runtime.media,
+                                            location = it,
+                                            cacheDirectory = context.cacheDir,
+                                            snackbarHost = fileDownloadSnackbarHost,
+                                            threadKey = "${threadId}:${state.selection?.generation}",
+                                        )
+                                    },
+                                ) {
                                 RichTimelineView(
                                     transcript,
                                     state.olderCursor,
@@ -475,6 +503,7 @@ fun RichChatThreadScreen(
                                     forkBoundaryItemId = forkBoundaryItemId,
                                     modifier = Modifier.weight(1f),
                                 )
+                                }
                                 RichChatCompactControlDock(
                                     runtime = runtime,
                                     items = transcript.itemsInOrder,

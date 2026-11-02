@@ -412,6 +412,12 @@ class RemoteApiClient(
      * Cancellation-aware HTTP: [Call.cancel] on coroutine cancellation.
      * Does **not** wrap blocking [Call.execute].
      */
+    internal suspend fun streamFile(
+        path: String,
+        query: List<Pair<String, String>> = emptyList(),
+        destination: java.io.File,
+    ) = http.streamFile(path, query, destination)
+
     internal suspend fun requestText(
         path: String,
         method: String = "GET",

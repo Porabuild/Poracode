@@ -1,6 +1,7 @@
 package com.poracode.app.ui.richchat
 
 import com.poracode.app.chat.RichItemState
+import com.poracode.app.chat.RichItemTypes
 import com.poracode.app.chat.RichOpenRequest
 import com.poracode.app.chat.RichRequestPayload
 import com.poracode.app.chat.RichRequestType
@@ -11,6 +12,8 @@ import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.ThreadConfig
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -218,4 +221,107 @@ class RichChatUiLogicTest {
 
     private fun text(value: kotlinx.serialization.json.JsonElement): String =
         (value as JsonPrimitive).content
+
+    private fun messageItem(
+        type: String,
+        content: kotlinx.serialization.json.JsonArray,
+        assistantText: String = "",
+    ) = RichRuntimeItem(
+        id = "msg-$type",
+        type = type,
+        state = RichItemState.COMPLETED,
+        payload = buildJsonObject { put("content", content) },
+        streams = if (assistantText.isEmpty()) emptyMap()
+        else mapOf("assistant_text" to assistantText),
+    )
+
+    @Test
+    fun fileOnlyAssistantItemProducesCardAndNoProse() {
+        val item = messageItem(
+            RichItemTypes.ASSISTANT_MESSAGE,
+            buildJsonArray {
+                add(buildJsonObject {
+                    put("kind", "file")
+                    put("path", "/repo/out/release.zip")
+                    put("name", "release.zip")
+                })
+            },
+        )
+        assertEquals(1, RichChatUiLogic.chatFiles(item).size)
+        assertEquals(
+            "/repo/out/release.zip",
+            RichChatUiLogic.chatFiles(item).first().path,
+        )
+        // File-only typed output must not duplicate prose in the body.
+        assertEquals("", RichChatUiLogic.messageBody(item).trim())
+    }
+
+    @Test
+    fun mixedTextAndFileKeepsProseAndCard() {
+        val item = messageItem(
+            RichItemTypes.ASSISTANT_MESSAGE,
+            buildJsonArray {
+                add(buildJsonObject {
+                    put("kind", "text")
+                    put("text", "Saved the archive")
+                })
+                add(buildJsonObject {
+                    put("kind", "file")
+                    put("path", "/repo/out/release.zip")
+                    put("name", "release.zip")
+                })
+            },
+        )
+        assertEquals(1, RichChatUiLogic.chatFiles(item).size)
+        assertTrue(RichChatUiLogic.messageBody(item).contains("Saved the archive"))
+    }
+
+    @Test
+    fun unsafeHttpFileStaysTextAndNeverDownloads() {
+        // A typed http(s) file link keeps ordinary text treatment; it must
+        // not become a host filesystem read or a card.
+        val item = messageItem(
+            RichItemTypes.ASSISTANT_MESSAGE,
+            buildJsonArray {
+                add(buildJsonObject {
+                    put("kind", "file")
+                    put("path", "https://example.com/out.zip")
+                    put("name", "out.zip")
+                })
+            },
+        )
+        assertTrue(RichChatUiLogic.chatFiles(item).isEmpty())
+        assertTrue(RichChatUiLogic.messageBody(item).isNotEmpty())
+    }
+
+    @Test
+    fun imageMimeTypedFileIsNotACard() {
+        val item = messageItem(
+            RichItemTypes.ASSISTANT_MESSAGE,
+            buildJsonArray {
+                add(buildJsonObject {
+                    put("kind", "file")
+                    put("path", "/repo/out/shot.PNG")
+                    put("name", "shot.PNG")
+                    put("mimeType", "Image/PNG")
+                })
+            },
+        )
+        assertTrue(RichChatUiLogic.chatFiles(item).isEmpty())
+    }
+
+    @Test
+    fun userFileSupplementIsNotPromotedToCard() {
+        val item = messageItem(
+            RichItemTypes.USER_MESSAGE,
+            buildJsonArray {
+                add(buildJsonObject {
+                    put("kind", "file")
+                    put("path", "/repo/out/release.zip")
+                    put("name", "release.zip")
+                })
+            },
+        )
+        assertTrue(RichChatUiLogic.chatFiles(item).isEmpty())
+    }
 }
