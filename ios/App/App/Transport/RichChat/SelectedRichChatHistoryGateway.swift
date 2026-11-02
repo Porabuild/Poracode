@@ -82,6 +82,28 @@ extension SelectedRichChatSessionGateway: RichChatHistoryGateway {
     }
   }
 
+  func downloadRichFile(
+    target: RichChatThreadTarget,
+    request: RichChatFileAccess,
+    projectLocation: ProjectLocation,
+    suggestedName: String
+  ) async throws -> RichChatFileDownload {
+    // executeRead's post-check can throw after the transfer completed; the
+    // discard hook removes a downloaded directory the caller never receives.
+    try await executeRead(
+      target: target, capability: .sessionRead,
+      onDiscard: { download in
+        try? FileManager.default.removeItem(at: download.directory)
+      }
+    ) { api in
+      try await api.richDownloadFile(
+        request: request,
+        projectLocation: projectLocation,
+        suggestedName: suggestedName
+      )
+    }
+  }
+
   func listRichCheckpoints(
     target: RichChatThreadTarget,
     projectLocation: ProjectLocation

@@ -314,6 +314,63 @@ class GeneratedRichChatSessionGatewayTest {
         assertEquals(listOf("thread-rich" to expectedEdit), specialized.editPayloads)
     }
 
+    @Test
+    fun downloadCleansOwnedFileWhenLeaseFlipsAfterTransfer() = runTest {
+        // The file transport completes the transfer, then the active host
+        // selection flips before invoke()'s post-check runs — the gateway
+        // must surface the stale error AND remove the downloaded directory.
+        val host = richLease()
+        val flow = MutableStateFlow<RichChatHostLease?>(host)
+        val transport = object : com.poracode.app.transport.richchat.RichChatFileTransport {
+            override suspend fun downloadRichFile(
+                request: com.poracode.app.chat.RichChatFileAccess,
+                projectLocation: com.poracode.app.model.ProjectLocation,
+                suggestedName: String,
+                destinationDirectory: java.io.File,
+            ): com.poracode.app.transport.richchat.RichChatDownloadedFile {
+                val dir = java.io.File(destinationDirectory, "dl-${System.nanoTime()}").apply { mkdirs() }
+                val file = java.io.File(dir, suggestedName).apply { writeText("zip-bytes") }
+                flow.value = richLease(connectionId = richConnectionB, generation = 2)
+                return com.poracode.app.transport.richchat.RichChatDownloadedFile(
+                    fileName = suggestedName,
+                    file = file,
+                    directory = dir,
+                    sizeBytes = file.length(),
+                )
+            }
+        }
+        val gateway = GeneratedRichChatSessionGateway(
+            flow,
+            RichChatGatewayProvider {
+                RichChatGatewayBundle(
+                    FakeCoreGateway(),
+                    FakeSpecializedTransport(),
+                    RichChatMutationDelivery.SingleAttempt,
+                    files = transport,
+                )
+            },
+            receivedAtEpochMs = { 1L },
+        )
+        val destRoot = kotlin.io.path.createTempDirectory("chat-file-gw").toFile()
+        try {
+            try {
+                gateway.downloadRichFile(
+                    host,
+                    com.poracode.app.chat.RichChatFileAccess.Project("out.zip"),
+                    com.poracode.app.model.PosixProjectLocation("/repo"),
+                    "out.zip",
+                    destRoot,
+                )
+                fail("stale lease must throw")
+            } catch (_: Exception) {
+            }
+            // The downloaded directory was discarded with the stale result.
+            assertTrue(destRoot.listFiles().isNullOrEmpty())
+        } finally {
+            destRoot.deleteRecursively()
+        }
+    }
+
     private fun generatedGateway(
         host: RichChatHostLease,
         core: FakeCoreGateway,

@@ -5,6 +5,7 @@ import com.poracode.app.chat.RichRuntimeEvent
 import com.poracode.app.chat.RichThreadKey
 import com.poracode.app.chat.RichThreadState
 import com.poracode.app.model.ClientConnectionId
+import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.transport.richchat.AttachmentUploadBody
 import com.poracode.app.transport.richchat.BinaryRequestPlan
@@ -334,6 +335,20 @@ interface RichChatSessionGateway {
         itemId: String,
         path: List<RuntimeImagePathSegment>,
     ): RemoteBinaryResponse = throw RichChatGatewayException(501, "binary_transport", false)
+
+    /**
+     * Chat file-card download: mint → authenticated streamed GET → release on
+     * the same lease. The unique private result file is caller-owned; hosts
+     * without the route fail closed through the default 501.
+     */
+    suspend fun downloadRichFile(
+        lease: RichChatHostLease,
+        request: com.poracode.app.chat.RichChatFileAccess,
+        projectLocation: ProjectLocation,
+        suggestedName: String,
+        destinationDirectory: java.io.File,
+    ): com.poracode.app.transport.richchat.RichChatDownloadedFile =
+        throw RichChatGatewayException(501, "file_transport", false)
 
     suspend fun startTerminal(lease: RichChatHostLease, input: TerminalStartInput)
     suspend fun watchTerminal(lease: RichChatHostLease, request: RichTerminalWatchRequest)

@@ -65,6 +65,12 @@ private fun RichMarkdownBlockView(block: RichMarkdownBlock) {
             fontWeight = FontWeight.SemiBold,
         )
         is RichMarkdownBlock.Paragraph -> MarkdownBodyText(block.text)
+        is RichMarkdownBlock.FileCard -> RichChatFileCard(block.ref)
+        is RichMarkdownBlock.FileCardList -> Column(
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            block.refs.forEach { RichChatFileCard(it) }
+        }
         is RichMarkdownBlock.OrderedList -> MarkdownList(block.items, ordered = true)
         is RichMarkdownBlock.UnorderedList -> MarkdownList(block.items, ordered = false)
         is RichMarkdownBlock.Code -> MarkdownCodeBlock(block)
@@ -115,7 +121,13 @@ private fun MarkdownList(items: List<String>, ordered: Boolean) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.widthIn(min = 20.dp),
                 )
-                MarkdownBodyText(item)
+                val cardRef = com.poracode.app.chat.RichChatFilePolicy.markdownLink(item)
+                    ?.let { (_, dest) -> com.poracode.app.chat.RichChatFilePolicy.markdownFileRef(dest) }
+                if (cardRef != null) {
+                    RichChatFileCard(cardRef, Modifier.weight(1f))
+                } else {
+                    MarkdownBodyText(item)
+                }
             }
         }
     }

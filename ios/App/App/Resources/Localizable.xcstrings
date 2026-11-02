@@ -18753,6 +18753,172 @@
         "zh-Hans": { "stringUnit": { "state": "translated", "value": "仅限团队" } }
       }
     },
+    "rich_chat_download_failed": {
+          "extractionState": "manual",
+          "localizations": {
+                "en": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Unable to download %@."
+                      }
+                },
+                "de": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "%@ konnte nicht heruntergeladen werden."
+                      }
+                },
+                "es": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "No se pudo descargar %@."
+                      }
+                },
+                "fr": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Impossible de télécharger %@."
+                      }
+                },
+                "ja": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "%@をダウンロードできませんでした。"
+                      }
+                },
+                "ko": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "%@을(를) 다운로드할 수 없습니다."
+                      }
+                },
+                "pl": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Nie udało się pobrać %@."
+                      }
+                },
+                "pt-BR": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Não foi possível baixar %@."
+                      }
+                },
+                "ru": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Не удалось скачать %@."
+                      }
+                },
+                "tr": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "%@ indirilemedi."
+                      }
+                },
+                "uk": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Не вдалося завантажити %@."
+                      }
+                },
+                "vi": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Không thể tải xuống %@."
+                      }
+                },
+                "zh-Hans": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "无法下载%@。"
+                      }
+                }
+          }
+    },
+    "rich_chat_download_file": {
+          "extractionState": "manual",
+          "localizations": {
+                "en": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Download %@"
+                      }
+                },
+                "de": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "%@ herunterladen"
+                      }
+                },
+                "es": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Descargar %@"
+                      }
+                },
+                "fr": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Télécharger %@"
+                      }
+                },
+                "ja": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "%@をダウンロード"
+                      }
+                },
+                "ko": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "%@ 다운로드"
+                      }
+                },
+                "pl": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Pobierz %@"
+                      }
+                },
+                "pt-BR": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Baixar %@"
+                      }
+                },
+                "ru": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Скачать %@"
+                      }
+                },
+                "tr": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "%@ indir"
+                      }
+                },
+                "uk": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Завантажити %@"
+                      }
+                },
+                "vi": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "Tải xuống %@"
+                      }
+                },
+                "zh-Hans": {
+                      "stringUnit": {
+                            "state": "translated",
+                            "value": "下载%@"
+                      }
+                }
+          }
+    },
     "rich_chat_done": {
       "extractionState": "manual",
       "localizations": {

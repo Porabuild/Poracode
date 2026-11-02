@@ -217,6 +217,12 @@ struct RichChatThreadView: View {
       retry: { Task { await suite.refreshAuthoritativeHistory() } },
       requestFork: forkRequest, forkBoundaryItemID: forkBoundaryID
     )
+    .environment(
+      \.richChatFileDownloads,
+      projectLocation.map {
+        RichChatFileDownloadContext(controller: suite.media, location: $0)
+      }
+    )
   }
 
   var thread: RemoteThread? { session.richChatThread(id: threadID) }

@@ -115,6 +115,7 @@ private struct RichChatPromptMessage: View {
         role: .body,
         collapses: true,
         rendersMarkdown: false,
+        isAssistant: false,
         supplements: supplements,
         images: images,
         mediaController: mediaController,
@@ -145,6 +146,7 @@ private struct RichChatAssistantMessage: View {
           role: .body,
           collapses: false,
           rendersMarkdown: true,
+          isAssistant: true,
           supplements: supplements,
           images: images,
           mediaController: mediaController,
@@ -192,6 +194,7 @@ private struct RichChatMessageContent: View {
   let role: PoracodeChatTextRole
   let collapses: Bool
   let rendersMarkdown: Bool
+  let isAssistant: Bool
   let supplements: [RichMessageSupplementPresentation]
   let images: [RichImagePresentation]
   let mediaController: RichChatMediaController
@@ -211,7 +214,7 @@ private struct RichChatMessageContent: View {
         }
       }
       ForEach(Array(supplements.enumerated()), id: \.offset) { _, supplement in
-        RichChatMessageSupplementView(supplement: supplement)
+        RichChatMessageSupplementView(supplement: supplement, isAssistant: isAssistant)
       }
       ForEach(images) { source in
         RichChatImageView(source: source, controller: mediaController)

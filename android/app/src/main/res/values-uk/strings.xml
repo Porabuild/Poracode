@@ -163,4 +163,6 @@
     <string name="rich_chat_crew_no_edits">Вказано не редагувати файли. Не примусово.</string>
     <string name="rich_chat_crew_policy_only">Лише команда</string>
     <string name="rich_chat_crew_policy_first">Спочатку команда</string>
+    <string name="rich_chat_download_file">Завантажити %1$s</string>
+    <string name="rich_chat_download_failed">Не вдалося завантажити файл.</string>
 </resources>

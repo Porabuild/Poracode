@@ -2,6 +2,7 @@ package com.poracode.app.session.richchat
 
 import com.poracode.app.chat.RichAttachmentPolicy
 import com.poracode.app.chat.RichRemoteImageRef
+import com.poracode.app.model.ProjectLocation
 import com.poracode.app.transport.richchat.AttachmentUploadBody
 import com.poracode.app.transport.richchat.BinaryRequestPlan
 import com.poracode.app.transport.richchat.MAX_IMAGE_RESPONSE_BYTES
@@ -150,6 +151,47 @@ class RichChatMediaController(
         }
         return load(lease.host) {
             gateway.loadRuntimeImage(lease.host, lease.threadId, ref.itemId, path)
+        }
+    }
+
+    /**
+     * One chat file-card download into a caller-owned private directory. Cards
+     * download independently of the single upload slot; stale results on host
+     * or thread replacement are discarded and the created directory removed.
+     */
+    suspend fun downloadFile(
+        request: com.poracode.app.chat.RichChatFileAccess,
+        projectLocation: ProjectLocation,
+        suggestedName: String,
+        destinationDirectory: java.io.File,
+    ): RichChatOperationResult<com.poracode.app.transport.richchat.RichChatDownloadedFile> {
+        val lease = prepare(RichChatCapability.Read) ?: return currentRejection()
+        return try {
+            lifecycle.run { token ->
+                val result = gateway.downloadRichFile(
+                    lease.host, request, projectLocation, suggestedName, destinationDirectory,
+                )
+                // Host AND selected thread must still match before the file is
+                // published; a stale completion cleans its own directory.
+                if (canPublish(lease) && lifecycle.isCurrent(token)) {
+                    RichChatOperationResult.Success(result)
+                } else {
+                    result.directory.deleteRecursively()
+                    RichChatOperationResult.Stale
+                }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: RichChatBackgroundException) {
+            RichChatOperationResult.Failed(RichChatOperationFailure.Backgrounded)
+        } catch (error: Exception) {
+            if (!canPublish(lease)) {
+                RichChatOperationResult.Stale
+            } else {
+                RichChatOperationResult.Failed(
+                    error.asRichChatFailure(RichChatCapability.Read, false),
+                )
+            }
         }
     }
 
