@@ -451,7 +451,18 @@ export const useRemoteServersStore = create<RemoteServersState>()(
     },
     {
       name: REMOTE_SERVERS_STORE_NAME,
-      storage: remoteServersStorage,
+      storage: {
+        ...remoteServersStorage,
+        getItem: async (name) => {
+          const stored = await remoteServersStorage.getItem(name);
+          // Publish restored records only after their refresh grants are ready:
+          // mounted clients can start authenticated requests as soon as they land.
+          if (stored?.state.servers.length) {
+            await hydrateRefreshTokens(refreshHydrationPlan(stored.state.servers));
+          }
+          return stored;
+        },
+      },
       // Persist durable connection identity and
       // last-known projects so offline servers keep their sidebar rows. Live
       // runtime state and threads are re-fetched on connect; socket/client
@@ -478,15 +489,6 @@ export const useRemoteServersStore = create<RemoteServersState>()(
        */
       migrate: (persistedState, version) =>
         migrateRemoteServersPersistedState(persistedState, version),
-      // Gate 6 item 4.6 (S6): once the persisted server records land, fill the
-      // synchronous refresh-token map from the encrypted vault, so the first
-      // 401 of any session can already refresh transparently. Runs out of the
-      // connectAll path on purpose — connectAll keeps its synchronous
-      // "connecting" state contract.
-      onRehydrateStorage: () => (state) => {
-        if (!state?.servers?.length) return;
-        void hydrateRefreshTokens(refreshHydrationPlan(state.servers));
-      },
     },
   ),
 );
