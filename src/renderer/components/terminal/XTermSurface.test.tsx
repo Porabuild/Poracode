@@ -13,6 +13,8 @@ import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { resolveTerminalFontFamily } from "./terminalFonts";
 import type { RemoteTerminalWatchResultReady } from "@/shared/remote/protocol";
+import { sendTerminalInput } from "./terminalInputQueue";
+import * as terminalRouting from "@/renderer/remoteProcedureRouter";
 import { MAX_TERMINAL_WRITE_BUFFER_UNITS } from "./terminalWriteQueue";
 // ── Hoisted state shared between mock factories and test code ────
 const { state } = vi.hoisted(() => ({
@@ -22,6 +24,7 @@ const { state } = vi.hoisted(() => ({
     fitSize: null as null | { cols: number; rows: number },
     eventListeners: [] as Array<(e: SupervisorEvent) => void>,
     isMac: false,
+    inputHost: {},
     interestContinuous: false,
     interestRelease: vi.fn<() => void>(),
     interestReady: Promise.resolve(),
@@ -193,6 +196,10 @@ state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent
 });
 
 vi.mock("../../bridge", () => ({ readBridge: () => state.bridge, isMac: () => state.isMac }));
+vi.mock("@/renderer/clientRuntime", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/clientRuntime")>();
+  return { ...actual, readClientRuntime: () => ({ procedures: state.inputHost }) };
+});
 vi.mock("../ui/provider", () => ({ useResolvedAppearance: () => "dark" }));
 vi.mock("@/renderer/state/rendererEventInterests", () => ({
   retainRendererEventInterest: () => ({
@@ -337,6 +344,7 @@ describe("XTermSurface", () => {
     // restore the default scrollback answer so a Once queued by a previous
     // test cannot leak into this one.
     state.bridge.readTerminalScrollback.mockReset().mockResolvedValue("");
+    state.bridge.writeTerminal.mockReset().mockResolvedValue(undefined);
     resetXtermInstanceCacheForTests();
     useThreadOutputStore.setState({ buffers: {} });
     useAppStore.setState({
@@ -1271,6 +1279,225 @@ describe("XTermSurface", () => {
     await flushFrame();
 
     expect(terminal().write).toHaveBeenCalledWith("after reset", expect.any(Function));
+  });
+
+  it.each([false, true])(
+    "serializes input across a cached handoff (old write rejects=%s)",
+    async (reject) => {
+      const firstWrite = Promise.withResolvers<void>();
+      state.bridge.writeTerminal.mockReturnValueOnce(firstWrite.promise);
+      const threadId = createTerminalThread();
+      const first = render(<XTermSurface terminalId={threadId} initialScrollback="" />);
+      const oldOnData = terminal().onData.mock.calls.at(-1)![0] as unknown as (
+        data: string,
+      ) => void;
+      act(() => {
+        oldOnData("old in-flight");
+        oldOnData("discard on unmount");
+      });
+      const instance = terminal();
+      first.unmount();
+      render(<XTermSurface terminalId={threadId} initialScrollback="" />);
+      expect(terminal()).toBe(instance);
+      const newOnData = terminal().onData.mock.calls.at(-1)![0] as unknown as (
+        data: string,
+      ) => void;
+      act(() => newOnData("new mount"));
+      expect(state.bridge.writeTerminal.mock.calls).toEqual([
+        [{ threadId, data: "old in-flight" }],
+      ]);
+      await act(async () => {
+        if (reject) firstWrite.reject(new Error("old response lost"));
+        else firstWrite.resolve();
+      });
+      expect(state.bridge.writeTerminal.mock.calls).toEqual([
+        [{ threadId, data: "old in-flight" }],
+        [{ threadId, data: "new mount" }],
+      ]);
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["shell", "thread"])(
+    "keeps a paired %s writable when the local managed leg changes",
+    async (kind) => {
+      const firstWrite = Promise.withResolvers<void>();
+      state.bridge.writeTerminal.mockReturnValueOnce(firstWrite.promise);
+      vi.spyOn(terminalRouting, "remoteTerminalOwner").mockReturnValue(
+        kind === "shell" ? "paired-host" : undefined,
+      );
+      const managed = vi
+        .spyOn(terminalRouting, "readManagedLoopbackProcedureHost")
+        .mockReturnValue(null);
+      const terminalId = kind === "shell" ? "paired-shell" : "remote:paired-host:thread:t1";
+      render(<XTermSurface terminalId={terminalId} initialScrollback="" />);
+      const onData = terminal().onData.mock.calls.at(-1)![0] as unknown as (data: string) => void;
+      act(() => {
+        onData("a");
+        onData("b");
+      });
+      managed.mockReturnValue({
+        desktopId: "managed-local",
+        host: {
+          resolveThreadOwner: () => undefined,
+          resolveProjectOwner: () => undefined,
+          resolveDesktopOwner: () => undefined,
+          withClient: () => Promise.reject(new Error("unused")),
+        },
+        isCurrent: () => true,
+      });
+      await act(async () => firstWrite.resolve());
+      expect(state.bridge.writeTerminal.mock.calls).toEqual([
+        [{ threadId: terminalId, data: "a" }],
+        [{ threadId: terminalId, data: "b" }],
+      ]);
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    },
+  );
+
+  it("serializes xterm and accessory input and shows active failures without retrying", async () => {
+    const first = Promise.withResolvers<void>();
+    state.bridge.writeTerminal.mockReturnValueOnce(first.promise);
+    render(<XTermSurface terminalId="input-order" initialScrollback="" />);
+    const onData = terminal().onData.mock.calls[0]![0] as unknown as (data: string) => void;
+    act(() => {
+      onData("a");
+      onData("é漢😀");
+      sendTerminalInput("input-order", "\r");
+    });
+    expect(state.bridge.writeTerminal.mock.calls).toEqual([
+      [{ threadId: "input-order", data: "a" }],
+    ]);
+    await act(async () => first.reject(new Error("response lost")));
+    expect(screen.getByRole("status")).toHaveTextContent("Terminal input failed");
+    act(() => onData("later"));
+    expect(state.bridge.writeTerminal).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["unmount", "reset", "disconnect", "exit"])(
+    "invalidates queued input on %s",
+    async (action) => {
+      const first = Promise.withResolvers<void>();
+      state.bridge.writeTerminal.mockReturnValueOnce(first.promise);
+      let listener: TerminalFeedListener | undefined;
+      const view = render(
+        <XTermSurface
+          terminalId="old"
+          initialScrollback=""
+          outputSource={(next) => {
+            listener = next;
+            return () => {};
+          }}
+        />,
+      );
+      const onData = terminal().onData.mock.calls[0]![0] as unknown as (data: string) => void;
+      act(() => {
+        onData("in-flight");
+        onData("stale suffix");
+      });
+      act(() => {
+        if (action === "unmount") view.unmount();
+        else if (action === "reset") listener!.onReset();
+        else if (action === "disconnect") listener!.onDisconnected!();
+        else listener!.onExited(0);
+      });
+      await act(async () => first.reject(new Error("late failure")));
+      expect(state.bridge.writeTerminal).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("accepts the first key after an initial not-found watch recovers", () => {
+    let listener: TerminalFeedListener | undefined;
+    render(
+      <XTermSurface
+        terminalId="deferred"
+        initialScrollback=""
+        outputSource={(next) => {
+          listener = next;
+          return () => {};
+        }}
+      />,
+    );
+    act(() => listener!.onWatchError!({ status: "error", code: "not-found", retryable: true }));
+    const onData = terminal().onData.mock.calls[0]![0] as unknown as (data: string) => void;
+    act(() => onData("first"));
+    expect(state.bridge.writeTerminal).toHaveBeenCalledWith({
+      threadId: "deferred",
+      data: "first",
+    });
+    expect(screen.getByRole("status")).not.toHaveTextContent("Terminal input failed");
+  });
+
+  it("does not send pending input through a replacement host bridge", async () => {
+    const first = Promise.withResolvers<void>();
+    state.bridge.writeTerminal.mockReturnValueOnce(first.promise);
+    const previous = state.inputHost;
+    render(<XTermSurface terminalId="host-fence" initialScrollback="" />);
+    const onData = terminal().onData.mock.calls[0]![0] as unknown as (data: string) => void;
+    act(() => {
+      onData("a");
+      onData("stale suffix");
+    });
+    try {
+      state.inputHost = {};
+      await act(async () => first.resolve());
+      expect(state.bridge.writeTerminal).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("status")).toHaveTextContent("Terminal input failed");
+    } finally {
+      state.inputHost = previous;
+    }
+  });
+
+  it("pins input queued after reset while a previous write is still in flight", async () => {
+    const first = Promise.withResolvers<void>();
+    state.bridge.writeTerminal.mockReturnValueOnce(first.promise);
+    let listener: TerminalFeedListener | undefined;
+    render(
+      <XTermSurface
+        terminalId="reset-host-fence"
+        initialScrollback=""
+        outputSource={(next) => {
+          listener = next;
+          return () => {};
+        }}
+      />,
+    );
+    const onData = terminal().onData.mock.calls[0]![0] as unknown as (data: string) => void;
+    act(() => onData("old"));
+    act(() => {
+      listener!.onReset();
+      onData("new epoch");
+    });
+    const previous = state.inputHost;
+    try {
+      state.inputHost = {};
+      await act(async () => first.resolve());
+      expect(state.bridge.writeTerminal).toHaveBeenCalledTimes(1);
+      expect(screen.getByRole("status")).toHaveTextContent("Terminal input failed");
+    } finally {
+      state.inputHost = previous;
+    }
+  });
+
+  it("pins delayed input to its original writer across prop updates", async () => {
+    const first = Promise.withResolvers<void>();
+    const original = vi
+      .fn<(data: string) => Promise<void>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(undefined);
+    const replacement = vi.fn<(data: string) => Promise<void>>().mockResolvedValue(undefined);
+    const view = render(
+      <XTermSurface terminalId="same" initialScrollback="" writeInput={original} />,
+    );
+    const onData = terminal().onData.mock.calls[0]![0] as unknown as (data: string) => void;
+    act(() => {
+      onData("a");
+      onData("b");
+    });
+    view.rerender(<XTermSurface terminalId="same" initialScrollback="" writeInput={replacement} />);
+    await act(async () => first.resolve());
+    expect(original.mock.calls).toEqual([["a"], ["b"]]);
+    expect(replacement).not.toHaveBeenCalled();
   });
 
   // ── Replay query-reply gate ──────────────────────────────────

@@ -49,6 +49,7 @@ import type { ComposerMcpMenuItem } from "../composer/ComposerAddMenu";
 import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
 import { useRevertedPromptStore } from "./revertedPrompt";
 import type { ThreadErrorDockState } from "./threadErrorState";
+import { registerTerminalInputQueue, TerminalInputQueue } from "../terminal/terminalInputQueue";
 
 const bridgeMock = vi.hoisted(() => ({
   isRemoteSession: vi.fn<() => boolean>(() => false),
@@ -1399,6 +1400,49 @@ describe("ThreadComposerSection", () => {
       model: "gpt-5.4",
       fast: true,
     });
+  });
+
+  it.each([
+    { key: "Tab", shiftKey: true, data: "\x1b[Z" },
+    { key: "t", ctrlKey: true, data: "\x14" },
+    { key: "t", metaKey: true, data: "\x14" },
+  ])("orders terminal composer shortcuts after pending input ($key)", async ({ data, ...keys }) => {
+    const first = Promise.withResolvers<void>();
+    const write = vi
+      .fn<(data: string) => Promise<void>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue(undefined);
+    const queue = new TerminalInputQueue(
+      write,
+      () => true,
+      () => undefined,
+    );
+    const unregister = registerTerminalInputQueue(terminalThread.id, queue);
+    try {
+      renderComposer({ thread: terminalThread, agentStatus: claudeTerminalStatus });
+      queue.enqueue("typed");
+      fireEvent.keyDown(screen.getByRole("textbox"), keys);
+      expect(write.mock.calls).toEqual([["typed"]]);
+      await act(async () => {
+        first.resolve();
+        await first.promise;
+      });
+      expect(write.mock.calls).toEqual([["typed"], [data]]);
+    } finally {
+      unregister();
+    }
+  });
+
+  it.each([
+    { key: "Tab", shiftKey: true },
+    { key: "t", ctrlKey: true },
+    { key: "t", metaKey: true },
+  ])("reports a terminal shortcut when no terminal queue is mounted ($key)", (keys) => {
+    renderComposer({ thread: terminalThread, agentStatus: claudeTerminalStatus });
+    fireEvent.keyDown(screen.getByRole("textbox"), keys);
+    expect(toastDangerSpy).toHaveBeenCalledWith(
+      "Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again.",
+    );
   });
 
   it("hides the terminal composer collapse button in remote sessions", () => {

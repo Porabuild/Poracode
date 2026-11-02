@@ -9,6 +9,11 @@ import { TerminalLinkProvider } from "./TerminalLinkProvider";
 import { resolveTerminalColor } from "./terminalColors";
 import { TerminalReplayGate } from "./terminalReplayGate";
 import { TerminalWriteQueue } from "./terminalWriteQueue";
+import { TerminalInputQueue, registerTerminalInputQueue } from "./terminalInputQueue";
+import {
+  remoteTerminalOwner,
+  readManagedLoopbackProcedureHost,
+} from "@/renderer/remoteProcedureRouter";
 import { TerminalFeedStatus } from "./TerminalFeedStatus";
 import { applyTerminalFont, loadTerminalFonts, resolveTerminalFontFamily } from "./terminalFonts";
 import { Terminal } from "@xterm/xterm";
@@ -35,6 +40,8 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
 import { watchManagedTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { readClientRuntime } from "@/renderer/clientRuntime";
+import { isProjectedRemoteEntityId } from "@/renderer/state/remoteProjection";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
@@ -206,8 +213,6 @@ export const XTermSurface = forwardRef<
   onTitleChangeRef.current = onTitleChange;
   const onTerminalResizeRef: RefObject<typeof onTerminalResize> = useRef(onTerminalResize);
   onTerminalResizeRef.current = onTerminalResize;
-  const writeInputRef: RefObject<typeof writeInput> = useRef(writeInput);
-  writeInputRef.current = writeInput;
   const resizeBackingTerminalRef: RefObject<typeof resizeBackingTerminal> =
     useRef(resizeBackingTerminal);
   resizeBackingTerminalRef.current = resizeBackingTerminal;
@@ -226,6 +231,7 @@ export const XTermSurface = forwardRef<
   const [hasSelection, setHasSelection] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [watchError, setWatchError] = useState<RemoteTerminalWatchResultError | null>(null);
+  const [inputFailed, setInputFailed] = useState(false);
   const [waitingForStart, setWaitingForStart] = useState(awaitingStart);
   const [scrollbar, setScrollbar] = useState({
     isVisible: false,
@@ -319,12 +325,40 @@ export const XTermSurface = forwardRef<
     const RESIZE_DEBOUNCE_BUFFER_THRESHOLD = 200;
 
     // Resolve the PTY backend: a caller-provided override (a terminal hosted on
-    // a remote Poracode server) or the local supervisor bridge. Each reads its
-    // ref lazily so a later prop update is still honored.
-    const writeInputToPty = (data: string): Promise<void> =>
-      writeInputRef.current
-        ? writeInputRef.current(data)
-        : readBridge().writeTerminal({ threadId: terminalId, data });
+    // a remote Poracode server) or the local supervisor bridge. Pin input to
+    // this terminal's host; queued bytes must never follow a new target.
+    let inputBridge = readBridge();
+    let inputHost = readClientRuntime().procedures;
+    let inputOwner = remoteTerminalOwner(terminalId);
+    let inputManagedHost = readManagedLoopbackProcedureHost();
+    let inputStarted = false;
+    const inputQueue = new TerminalInputQueue(
+      (data) =>
+        writeInput ? writeInput(data) : inputBridge.writeTerminal({ threadId: terminalId, data }),
+      () => {
+        // Deferred shells acquire their owner after the surface mounts.
+        if (!inputStarted) {
+          inputBridge = readBridge();
+          inputHost = readClientRuntime().procedures;
+          inputOwner = remoteTerminalOwner(terminalId);
+          inputManagedHost = readManagedLoopbackProcedureHost();
+          inputStarted = true;
+        }
+        return (
+          isActive &&
+          readClientRuntime().procedures === inputHost &&
+          remoteTerminalOwner(terminalId) === inputOwner &&
+          (inputOwner !== undefined ||
+            isProjectedRemoteEntityId(terminalId, "thread") ||
+            readManagedLoopbackProcedureHost() === inputManagedHost)
+        );
+      },
+      () => setInputFailed(true),
+    );
+    setInputFailed(false);
+    const unregisterInput = readOnly
+      ? () => inputQueue.dispose()
+      : registerTerminalInputQueue(terminalId, inputQueue);
     const resizeBackingPty = (size: TerminalSize): Promise<void> =>
       resizeBackingTerminalRef.current
         ? resizeBackingTerminalRef.current(size)
@@ -503,6 +537,13 @@ export const XTermSurface = forwardRef<
     };
     const resetForNewPty = () => {
       ptyEpoch += 1;
+      inputBridge = readBridge();
+      inputHost = readClientRuntime().procedures;
+      inputOwner = remoteTerminalOwner(terminalId);
+      inputManagedHost = readManagedLoopbackProcedureHost();
+      inputStarted = false;
+      inputQueue.reset();
+      setInputFailed(false);
       pendingExit = null;
       if (!initialHydrationStarted) resetBeforeInitialHydration = true;
       scrollbackHydrationToken++;
@@ -970,9 +1011,7 @@ export const XTermSurface = forwardRef<
       sessionDisposables.push(
         terminal.onData((data) => {
           if (replayGate.shouldDropReply(data)) return;
-          void writeInputToPty(data).catch(() => {
-            // PTY may disappear during teardown; ignore stale writes.
-          });
+          inputQueue.enqueue(data);
         }),
       );
     }
@@ -1031,6 +1070,7 @@ export const XTermSurface = forwardRef<
       writeLiveOutput(data);
     };
     const handleExited = (exitCode: number | null) => {
+      inputQueue.dispose();
       if (hydratingScrollback) {
         pendingExit = { exitCode };
         return;
@@ -1062,6 +1102,10 @@ export const XTermSurface = forwardRef<
       });
     };
 
+    const handleWatchError = (error: RemoteTerminalWatchResultError) => {
+      inputQueue.stop(false);
+      setWatchError(error);
+    };
     let unsubscribe: () => void;
     if (outputSource) {
       const outputListener = {
@@ -1069,7 +1113,8 @@ export const XTermSurface = forwardRef<
         onReset: handleReset,
         onExited: handleExited,
         onSnapshot: handleSnapshot,
-        onWatchError: setWatchError,
+        onWatchError: handleWatchError,
+        onDisconnected: () => inputQueue.stop(false),
       } satisfies TerminalFeedListener;
       const subscribeOutput = () => {
         unsubscribe = outputSource(outputListener);
@@ -1089,7 +1134,8 @@ export const XTermSurface = forwardRef<
         onReset: handleReset,
         onExited: handleExited,
         onSnapshot: handleSnapshot,
-        onWatchError: setWatchError,
+        onWatchError: handleWatchError,
+        onDisconnected: () => inputQueue.stop(false),
         onResync: () => hydrateScrollback(true),
       });
     }
@@ -1121,6 +1167,7 @@ export const XTermSurface = forwardRef<
 
     return () => {
       isActive = false;
+      unregisterInput();
       if (resizeFrame !== 0) {
         cancelAnimationFrame(resizeFrame);
       }
@@ -1170,8 +1217,8 @@ export const XTermSurface = forwardRef<
       revealRef.current = null;
       setRendererVisibleRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once: terminal is created once, readOnly/terminalId/appearance/touch behavior are captured at init
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one lifecycle per terminal id; other presentation options are captured at init
+  }, [terminalId]);
 
   useEffect(() => {
     const wasVisible = previousVisibleRef.current;
@@ -1340,8 +1387,9 @@ export const XTermSurface = forwardRef<
               fixedTerminalSize ? "min-w-max overflow-visible" : "min-w-0 overflow-hidden"
             }`}
           />
-          {watchError || waitingForStart ? (
+          {inputFailed || watchError || waitingForStart ? (
             <TerminalFeedStatus
+              inputFailed={inputFailed}
               error={watchError}
               loading={waitingForStart && (!watchError || watchError.code === "not-found")}
             />

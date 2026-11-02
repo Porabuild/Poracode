@@ -13,6 +13,7 @@ import { ChevronDown, Monitor, Settings2, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import { sendTerminalInput } from "../terminal/terminalInputQueue";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
@@ -927,8 +928,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     },
   });
 
-  function writeTerminalInput(data: string) {
-    return readBridge().writeTerminal({ threadId: thread.id, data });
+  function sendTerminalShortcut(data: string): void {
+    if (!sendTerminalInput(thread.id, data)) {
+      toast.danger(
+        t`Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again.`,
+      );
+    }
   }
 
   function restoreComposerFocus() {
@@ -1500,9 +1505,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           if (showTerminalComposer) {
                             if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
                               e.preventDefault();
-                              void writeTerminalInput("\x1b[Z").catch((error: unknown) => {
-                                toast.danger(friendlyError(error));
-                              });
+                              sendTerminalShortcut("\x1b[Z");
                               return true;
                             }
                             if (
@@ -1512,9 +1515,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               e.key.toLowerCase() === "t"
                             ) {
                               e.preventDefault();
-                              void writeTerminalInput("\x14").catch((error: unknown) => {
-                                toast.danger(friendlyError(error));
-                              });
+                              sendTerminalShortcut("\x14");
                               return true;
                             }
                           }
