@@ -252,11 +252,22 @@ self.addEventListener("fetch", (event) => {
       }
       return response;
     });
-    const cachedResponse = new Promise((resolve) => {
-      setTimeout(() => {
-        void caches.match(shellUrl("./")).then(resolve);
-      }, NAVIGATION_FALLBACK_DELAY_MS);
-    });
+    // A missing lazy chunk triggers location.reload(). Racing that reload
+    // against the old shell can serve the same broken build twice on a slow
+    // network and exhaust the renderer's one-reload recovery guard. Reloads
+    // must wait for the network, falling back only when it actually fails.
+    // Cache shapes stay valid; finalization hashes these worker bytes.
+    const isReload = request.cache === "no-cache" || request.cache === "reload";
+    const navigationResponse = isReload
+      ? networkResponse
+      : Promise.race([
+          networkResponse,
+          new Promise((resolve) => {
+            setTimeout(() => {
+              void caches.match(shellUrl("./")).then(resolve);
+            }, NAVIGATION_FALLBACK_DELAY_MS);
+          }),
+        ]);
     event.waitUntil(
       networkResponse.then(
         () => undefined,
@@ -264,7 +275,7 @@ self.addEventListener("fetch", (event) => {
       ),
     );
     event.respondWith(
-      Promise.race([networkResponse, cachedResponse])
+      navigationResponse
         .then((response) => response || networkResponse)
         .catch(async () => (await caches.match(shellUrl("./"))) || Response.error()),
     );
