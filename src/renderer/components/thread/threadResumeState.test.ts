@@ -42,6 +42,44 @@ describe("selectThreadResumePlan", () => {
     });
   });
 
+  it.each([
+    [{ action: "cleared" }, false],
+    [{ action: "cleared", providerThreadId: "provider-thread" }, false],
+    [{ action: "cleared", objective: "Fix the build", status: "active" }, true],
+    [{ action: "cleared", tokensUsed: 5 }, true],
+    [{ action: "cleared", futureDetail: true }, true],
+    [{ action: "set" }, true],
+    [{ action: "updated" }, true],
+    [{ action: "viewed" }, true],
+    [{}, true],
+  ])("distinguishes bare goal clears from goal activity: %j", (payload, output) => {
+    const { state, threadId } = stateWith([
+      typed("u1", "Fix the build"),
+      { ...item("g1", "goal"), payload },
+    ]);
+    expect(selectThreadResumePlan(state, threadId)).toEqual(
+      output ? { kind: "continue" } : { kind: "resend", prompt: "Fix the build" },
+    );
+  });
+
+  it.each([
+    item("g1", "goal"),
+    { ...item("g1", "goal"), detailsDeferred: true as const, payload: { action: "cleared" } },
+    { ...item("g1", "goal"), payload: { action: "cleared" }, streams: { assistant_text: "work" } },
+  ])("keeps uncertain or streamed goal details conservative: %j", (goal) => {
+    const { state, threadId } = stateWith([typed("u1", "Fix the build"), goal]);
+    expect(selectThreadResumePlan(state, threadId)).toEqual({ kind: "continue" });
+  });
+
+  it("preserves turn work before a bare goal clear", () => {
+    const { state, threadId } = stateWith([
+      typed("u1", "Fix the build"),
+      item("t1", "tool_call"),
+      { ...item("g1", "goal"), payload: { action: "cleared" } },
+    ]);
+    expect(selectThreadResumePlan(state, threadId)).toEqual({ kind: "continue" });
+  });
+
   it("asks the agent to continue once it had started answering", () => {
     const { state, threadId } = stateWith([
       typed("u1", "Fix the build"),

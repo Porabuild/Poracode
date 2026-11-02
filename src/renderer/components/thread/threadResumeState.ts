@@ -1,5 +1,6 @@
 import type {
   CanonicalItemType,
+  GoalItemPayload,
   MessageItemPayload,
   ReasoningItemPayload,
 } from "@/shared/contracts";
@@ -84,6 +85,14 @@ function isAgentOutput(item: RuntimeChatItem): boolean {
   if (NON_OUTPUT_ITEM_TYPES.has(item.type)) return false;
   if (item.detailsDeferred) return true;
   if (Object.values(item.streams).some((text) => text?.trim())) return true;
+  if (item.type === "goal") {
+    const payload = getRuntimeItemPayload<GoalItemPayload>(item, "goal");
+    // A bare clear can report an absent goal on attach; retained details may record work.
+    return (
+      payload?.action !== "cleared" ||
+      Object.keys(payload).some((key) => key !== "action" && key !== "providerThreadId")
+    );
+  }
   if (item.type === "assistant_message") {
     const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
     return (

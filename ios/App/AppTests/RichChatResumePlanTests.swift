@@ -34,6 +34,54 @@ final class RichChatResumePlanTests: XCTestCase {
     XCTAssertEqual(plan, .resend(prompt: "Fix the build"))
   }
 
+  func testDistinguishesBareGoalClearsFromGoalActivity() {
+    let cases: [([String: RichJSON], Bool)] = [
+      (["action": .string("cleared")], false),
+      (["action": .string("cleared"), "providerThreadId": .string("provider-thread")], false),
+      ([
+        "action": .string("cleared"), "objective": .string("Fix the build"),
+        "status": .string("active"),
+      ], true),
+      (["action": .string("cleared"), "tokensUsed": .number(5)], true),
+      (["action": .string("cleared"), "futureDetail": .bool(true)], true),
+      (["action": .string("set")], true),
+      (["action": .string("updated")], true),
+      (["action": .string("viewed")], true),
+      ([:], true),
+    ]
+    for (payload, output) in cases {
+      let plan = RichChatResumePlanner.plan(items: [
+        typed("u1", "Fix the build"),
+        item("g1", RichItemType.goal, payload: .object(payload)),
+      ])
+      XCTAssertEqual(plan, output ? .continueResponse : .resend(prompt: "Fix the build"))
+    }
+  }
+
+  func testKeepsMissingOrStreamedGoalDetailsConservative() {
+    for goal in [
+      item("g1", RichItemType.goal),
+      item(
+        "g1", RichItemType.goal, payload: .object(["action": .string("cleared")]),
+        streams: ["progress": "work"]
+      ),
+    ] {
+      XCTAssertEqual(
+        RichChatResumePlanner.plan(items: [typed("u1", "Fix the build"), goal]), .continueResponse
+      )
+    }
+  }
+
+  func testPreservesTurnWorkBeforeABareGoalClear() {
+    XCTAssertEqual(
+      RichChatResumePlanner.plan(items: [
+        typed("u1", "Fix the build"),
+        item("t1", "tool_call"),
+        item("g1", RichItemType.goal, payload: .object(["action": .string("cleared")])),
+      ]), .continueResponse
+    )
+  }
+
   func testContinuesOnceTheAgentHadStartedAnswering() {
     let plan = RichChatResumePlanner.plan(items: [
       typed("u1", "Fix the build"),

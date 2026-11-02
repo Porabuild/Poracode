@@ -161,6 +161,9 @@ enum RichChatResumePlanner {
     if item.streams.values.contains(where: { !isBlank($0) }) { return true }
     let payload = item.payload?.objectValue
     switch item.type {
+    case RichItemType.goal:
+      guard let payload, payload["action"]?.stringValue == "cleared" else { return true }
+      return payload.keys.contains { $0 != "action" && $0 != "providerThreadId" }
     case RichItemType.assistantMessage:
       guard let content = payload?["content"]?.arrayValue else { return false }
       return content.contains { block in

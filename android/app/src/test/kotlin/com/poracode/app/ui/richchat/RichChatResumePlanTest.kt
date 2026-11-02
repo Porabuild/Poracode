@@ -64,6 +64,53 @@ class RichChatResumePlanTest {
     }
 
     @Test
+    fun distinguishesBareGoalClearsFromGoalActivity() {
+        val cases = listOf(
+            """{"action":"cleared"}""" to false,
+            """{"action":"cleared","providerThreadId":"provider-thread"}""" to false,
+            """{"action":"cleared","objective":"Fix the build","status":"active"}""" to true,
+            """{"action":"cleared","tokensUsed":5}""" to true,
+            """{"action":"cleared","futureDetail":true}""" to true,
+            """{"action":"set"}""" to true,
+            """{"action":"updated"}""" to true,
+            """{"action":"viewed"}""" to true,
+            """{}""" to true,
+        )
+        for ((payload, output) in cases) {
+            val plan = RichChatResumePlanner.plan(listOf(
+                typed("u1", "Fix the build"),
+                item("g1", RichItemTypes.GOAL, payload = json(payload)),
+            ))
+            assertEquals(
+                payload,
+                if (output) RichChatResumePlan.Continue else RichChatResumePlan.Resend("Fix the build"),
+                plan,
+            )
+        }
+    }
+
+    @Test
+    fun keepsMissingOrStreamedGoalDetailsConservative() {
+        for (goal in listOf(
+            item("g1", RichItemTypes.GOAL),
+            item("g1", RichItemTypes.GOAL, payload = json("""{"action":"cleared"}"""), streams = mapOf("progress" to "work")),
+        )) {
+            assertEquals(RichChatResumePlan.Continue, RichChatResumePlanner.plan(listOf(
+                typed("u1", "Fix the build"), goal,
+            )))
+        }
+    }
+
+    @Test
+    fun preservesTurnWorkBeforeABareGoalClear() {
+        assertEquals(RichChatResumePlan.Continue, RichChatResumePlanner.plan(listOf(
+            typed("u1", "Fix the build"),
+            item("t1", RichItemTypes.TOOL_CALL),
+            item("g1", RichItemTypes.GOAL, payload = json("""{"action":"cleared"}""")),
+        )))
+    }
+
+    @Test
     fun continuesOnceTheAgentHadStartedAnswering() {
         val plan = RichChatResumePlanner.plan(
             listOf(

@@ -121,6 +121,8 @@ internal object RichChatResumePlanner {
         if (item.streams.values.any(String::isNotBlank)) return true
         val payload = item.payload as? JsonObject
         return when (item.type) {
+            RichItemTypes.GOAL -> payload == null || payload.string("action") != "cleared" ||
+                payload.keys.any { it != "action" && it != "providerThreadId" }
             RichItemTypes.ASSISTANT_MESSAGE -> (payload?.get("content") as? JsonArray)
                 ?.any { block ->
                     val value = block as? JsonObject ?: return@any true
