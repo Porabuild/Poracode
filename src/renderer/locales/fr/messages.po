@@ -1908,7 +1908,7 @@ msgstr "Autoriser les agents à lire/écrire les cookies et le stockage"
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "Autorisez l'accès à la caméra pour ce site dans les réglages du navigateur et réessayez, ou saisissez l'endpoint et le jeton ci-dessous."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
 msgstr "Autorisez l'accès à la caméra pour ce site dans les réglages du navigateur et réessayez, ou collez plutôt le lien d'association."
 
@@ -3078,7 +3078,7 @@ msgstr "Calendrier"
 msgid "Camera"
 msgstr "Appareil photo"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Accès à la caméra bloqué"
 
@@ -3549,7 +3549,7 @@ msgstr "Choisissez une branche de base locale pour l’expérience."
 msgid "Choose a parent folder"
 msgstr "Choisissez un dossier parent"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Choose a photo"
 msgstr "Choisir une photo"
 
@@ -3885,6 +3885,7 @@ msgid "Cloning…"
 msgstr "Clonage…"
 
 #: src/renderer/components/common/BottomSheet.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
@@ -4072,7 +4073,7 @@ msgstr "Fermer la pull request"
 msgid "Close run details"
 msgstr "Fermer les détails de l’exécution"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Close scanner"
 msgstr "Fermer le scanner"
 
@@ -5355,7 +5356,7 @@ msgstr "Impossible d’analyser les configurations des serveurs MCP."
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "Impossible de planifier l’importation des données Lightcode."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Impossible de démarrer la caméra"
 
@@ -9412,7 +9413,7 @@ msgstr "En cours"
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "Dans Safari, touchez Partager, puis Ajouter à l'écran d'accueil."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
 msgstr "Le scan avec la caméra dans l'app ne fonctionne qu'en HTTPS ou sur localhost. Scannez plutôt le code de l'ordinateur avec l'app Appareil photo du téléphone, ou collez le lien d'association."
 
@@ -9425,8 +9426,8 @@ msgid "Inactive"
 msgstr "Inactif"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Include basic diagnostics"
-msgstr "Inclure les diagnostics de base"
+#~ msgid "Include basic diagnostics"
+#~ msgstr "Inclure les diagnostics de base"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
@@ -12198,7 +12199,7 @@ msgstr "Aucune branche trouvée"
 msgid "No browser tab open"
 msgstr "Aucun onglet de navigateur ouvert"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "No camera found"
 msgstr "Aucune caméra trouvée"
 
@@ -13839,11 +13840,11 @@ msgstr "Collez soit un objet serveur nommé, soit un objet encapsulé dans une c
 msgid "Paste in input"
 msgstr "Coller en entrée"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste link"
 msgstr "Coller le lien"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste pairing link"
 msgstr "Coller le lien d'association"
 
@@ -14174,7 +14175,7 @@ msgstr "Plugins"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "Les plugins exécutent du code avec les droits de votre compte. Installez des paquets d’auteurs de confiance."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Visez le QR code dans Réglages → Accès distant"
 
@@ -14483,7 +14484,6 @@ msgstr "Appuyez sur Espace pour commencer à réorganiser. Utilisez les flèches
 msgid "Prevent system sleep"
 msgstr "Empêcher la mise en veille du système"
 
-#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Aperçu"
@@ -14832,8 +14832,8 @@ msgstr "Fournisseurs"
 #~ msgstr "Fournisseurs et modèles"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Public on GitHub."
-msgstr "Public sur GitHub."
+#~ msgid "Public on GitHub."
+#~ msgstr "Public sur GitHub."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -14994,6 +14994,7 @@ msgid "Qoder CLI"
 msgstr "Qoder CLI"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "QR Code"
 msgstr "QR code"
 
@@ -16910,7 +16911,7 @@ msgstr "Shell enregistré"
 msgid "Scan pairing code"
 msgstr "Scanner le code d'association"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "Scanner le QR code d'association"
 
@@ -16934,7 +16935,7 @@ msgstr "Scannez le code d'association affiché dans Accès distant sur votre ord
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "Analyse de {wslDistro} pour les CLI installées. Cela prend généralement quelques secondes."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scanning needs a secure connection"
 msgstr "Le scan nécessite une connexion sécurisée"
 
@@ -18277,7 +18278,7 @@ msgstr "Autre chose…"
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Un problème est survenu au démarrage de la caméra. Saisissez plutôt l'endpoint et le jeton ci-dessous pour associer."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "Un problème est survenu au démarrage de la caméra. Collez plutôt le lien d'association ou choisissez une photo du code."
 
@@ -18584,7 +18585,7 @@ msgstr "Démarrage"
 msgid "Starting agent…"
 msgstr "Démarrage de l’agent…"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Starting camera…"
 msgstr "Démarrage de la caméra…"
 
@@ -19301,6 +19302,7 @@ msgid "That conversation is no longer available."
 msgstr "Cette conversation n'est plus disponible."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "That isn't a Poracode pairing code."
 msgstr "Ce n'est pas un code d'association Poracode."
 
@@ -20155,7 +20157,7 @@ msgstr "La version de Poracode de ce bureau ne prend pas en charge le transfert 
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Cet appareil n'a pas de caméra utilisable. Saisissez plutôt l'endpoint et le jeton ci-dessous pour associer."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "Cet appareil n'a pas de caméra utilisable. Collez plutôt le lien d'association ou choisissez une photo du code."
 
@@ -20927,6 +20929,7 @@ msgstr "Deux relectures indépendantes en lecture seule d’un changement, et un
 #~ msgid "Two independent read-only reviews of a change."
 #~ msgstr "Deux relectures indépendantes en lecture seule d’un changement."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
 msgstr "Type"
@@ -22139,6 +22142,10 @@ msgstr "Utilisation de votre installation Hex existante. Poracode ne le modifier
 msgid "v{0} available"
 msgstr "v{0} disponible"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Valid feedback is posted publicly on GitHub with your app version and platform."
+msgstr "Les retours valides sont publiés publiquement sur GitHub avec la version de l’app et votre plateforme."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "valeur"
@@ -22176,8 +22183,8 @@ msgid "Version"
 msgstr "Version"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Version and platform only. No chat history, code, or project paths."
-msgstr "Version et plateforme uniquement. Aucun historique de chat, code ou chemin de projet."
+#~ msgid "Version and platform only. No chat history, code, or project paths."
+#~ msgstr "Version et plateforme uniquement. Aucun historique de chat, code ou chemin de projet."
 
 #. placeholder {0}: metadata.authMethod
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
@@ -23011,8 +23018,8 @@ msgid "Your report and attachments are now on GitHub."
 msgstr "Votre signalement et vos pièces jointes sont maintenant sur GitHub."
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Your report and attachments will be visible to everyone."
-msgstr "Votre signalement et vos pièces jointes seront visibles par tous."
+#~ msgid "Your report and attachments will be visible to everyone."
+#~ msgstr "Votre signalement et vos pièces jointes seront visibles par tous."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"

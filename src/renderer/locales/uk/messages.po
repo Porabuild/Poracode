@@ -1908,7 +1908,7 @@ msgstr "Дозволити агентам читати/записувати фа
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "Дозвольте доступ до камери для цього сайту в налаштуваннях браузера й повторіть спробу або введіть endpoint і токен нижче."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
 msgstr "Дозвольте доступ до камери для цього сайту в налаштуваннях браузера й повторіть спробу, або вставте посилання для сполучення замість цього."
 
@@ -3078,7 +3078,7 @@ msgstr "Календар"
 msgid "Camera"
 msgstr "Камера"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Доступ до камери заблоковано"
 
@@ -3549,7 +3549,7 @@ msgstr "Виберіть локальну базову гілку для екс�
 msgid "Choose a parent folder"
 msgstr "Виберіть батьківську папку"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Choose a photo"
 msgstr "Вибрати фото"
 
@@ -3885,6 +3885,7 @@ msgid "Cloning…"
 msgstr "Клонування…"
 
 #: src/renderer/components/common/BottomSheet.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
@@ -4072,7 +4073,7 @@ msgstr "Закрити pull request"
 msgid "Close run details"
 msgstr "Закрити відомості про запуск"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Close scanner"
 msgstr "Закрити сканер"
 
@@ -5355,7 +5356,7 @@ msgstr "Не вдалося просканувати конфігурації MC
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "Не вдалося запланувати імпорт даних Lightcode."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Не вдалося запустити камеру"
 
@@ -9412,7 +9413,7 @@ msgstr "Виконується"
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "У Safari натисніть «Поділитися», потім «Додати на головний екран»."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
 msgstr "Сканування камерою в застосунку працює лише через HTTPS або на localhost. Відскануйте код десктопа камерою телефона, або вставте посилання для сполучення."
 
@@ -9425,8 +9426,8 @@ msgid "Inactive"
 msgstr "Неактивно"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Include basic diagnostics"
-msgstr "Додати базову діагностику"
+#~ msgid "Include basic diagnostics"
+#~ msgstr "Додати базову діагностику"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
@@ -12199,7 +12200,7 @@ msgstr "Гілки не знайдено"
 msgid "No browser tab open"
 msgstr "Немає відкритих вкладок браузера"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "No camera found"
 msgstr "Камеру не знайдено"
 
@@ -13840,11 +13841,11 @@ msgstr "Вставте іменований об’єкт сервера або 
 msgid "Paste in input"
 msgstr "Вставити в поле введення"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste link"
 msgstr "Вставити посилання"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste pairing link"
 msgstr "Вставити посилання для сполучення"
 
@@ -14175,7 +14176,7 @@ msgstr "Плагіни"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "Плагіни виконують код із правами вашого облікового запису. Установлюйте пакети авторів, яким довіряєте."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Наведіть на QR-код у Налаштування → Віддалений доступ"
 
@@ -14484,7 +14485,6 @@ msgstr "Натисніть пробіл, щоб почати змінювати 
 msgid "Prevent system sleep"
 msgstr "Запобігати сну системи"
 
-#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Попередній перегляд"
@@ -14833,8 +14833,8 @@ msgstr "Постачальники"
 #~ msgstr "Провайдери та моделі"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Public on GitHub."
-msgstr "Публічно на GitHub."
+#~ msgid "Public on GitHub."
+#~ msgstr "Публічно на GitHub."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -14995,6 +14995,7 @@ msgid "Qoder CLI"
 msgstr "Qoder CLI"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "QR Code"
 msgstr "QR-код"
 
@@ -16911,7 +16912,7 @@ msgstr "Збережена оболонка"
 msgid "Scan pairing code"
 msgstr "Сканувати код сполучення"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "Сканировать QR-код привязки"
 
@@ -16935,7 +16936,7 @@ msgstr "Відскануйте код сполучення, показаний �
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "Сканування {wslDistro} на наявність встановлених CLI. Зазвичай це триває кілька секунд."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scanning needs a secure connection"
 msgstr "Для сканування потрібне захищене з'єднання"
 
@@ -18278,7 +18279,7 @@ msgstr "Інше…"
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Не вдалося запустити камеру. Натомість введіть endpoint і токен нижче, щоб підключити."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "Не вдалося запустити камеру. Вставте посилання для сполучення або виберіть фото коду замість цього."
 
@@ -18585,7 +18586,7 @@ msgstr "Запуск"
 msgid "Starting agent…"
 msgstr "Запуск агента…"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Starting camera…"
 msgstr "Запуск камеры…"
 
@@ -19302,6 +19303,7 @@ msgid "That conversation is no longer available."
 msgstr "Ця розмова більше недоступна."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "That isn't a Poracode pairing code."
 msgstr "Це не код сполучення Poracode."
 
@@ -20156,7 +20158,7 @@ msgstr "Версія Poracode на цьому комп'ютері не підт�
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "На цьому пристрої немає придатної камери. Натомість введіть endpoint і токен нижче, щоб підключити."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "На цьому пристрої немає придатної камери. Вставте посилання для сполучення або виберіть фото коду замість цього."
 
@@ -20928,6 +20930,7 @@ msgstr "Дві незалежні перевірки зміни лише для 
 #~ msgid "Two independent read-only reviews of a change."
 #~ msgstr "Дві незалежні перевірки зміни лише для читання."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
 msgstr "Тип"
@@ -22140,6 +22143,10 @@ msgstr "Використовується наявна інсталяція Hex. 
 msgid "v{0} available"
 msgstr "Доступна v{0}"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Valid feedback is posted publicly on GitHub with your app version and platform."
+msgstr "Коректні відгуки публікуються на GitHub разом із версією застосунку та платформою."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "значення"
@@ -22177,8 +22184,8 @@ msgid "Version"
 msgstr "Версія"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Version and platform only. No chat history, code, or project paths."
-msgstr "Лише версія та платформа. Без історії чату, коду й шляхів проєктів."
+#~ msgid "Version and platform only. No chat history, code, or project paths."
+#~ msgstr "Лише версія та платформа. Без історії чату, коду й шляхів проєктів."
 
 #. placeholder {0}: metadata.authMethod
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
@@ -23012,8 +23019,8 @@ msgid "Your report and attachments are now on GitHub."
 msgstr "Ваше звернення та вкладення тепер на GitHub."
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Your report and attachments will be visible to everyone."
-msgstr "Ваше звернення та вкладення будуть видимі всім."
+#~ msgid "Your report and attachments will be visible to everyone."
+#~ msgstr "Ваше звернення та вкладення будуть видимі всім."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"

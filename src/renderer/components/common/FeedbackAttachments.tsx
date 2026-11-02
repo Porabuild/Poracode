@@ -55,22 +55,22 @@ export function FeedbackAttachments({
   const { t } = useLingui();
   const input = useRef<HTMLInputElement>(null);
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <span>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium text-foreground">
           <Trans>Attachments</Trans>{" "}
-          <span className="ml-1 text-[11px] text-muted">
+          <span className="ml-1 text-xs font-normal text-muted">
             <Trans>(optional)</Trans>
           </span>
         </span>
-        <span className="text-[11px] text-muted">
+        <span className="text-xs text-muted">
           <Trans>5 files · 10 MB each</Trans>
         </span>
       </div>
       {files.map((file, index) => (
         <div
           key={`${file.name}:${file.lastModified}:${file.size}:${index}`}
-          className="flex items-start gap-2 rounded-[8px] bg-surface-secondary px-2.5 py-2 dark:bg-[#1a1a21]"
+          className="flex items-start gap-2 rounded-lg bg-surface-secondary px-2.5 py-2"
         >
           <Attachment file={file} />
           <Button
@@ -115,7 +115,7 @@ export function FeedbackAttachments({
           variant="ghost"
           isDisabled={locked}
           onPress={() => input.current?.click()}
-          className="h-auto min-h-9 w-full gap-2 whitespace-normal rounded-[8px] border border-dashed border-border bg-transparent py-2 text-xs font-normal text-muted dark:border-[#50505d]"
+          className="h-auto min-h-10 w-full gap-2 whitespace-normal border border-dashed border-[var(--hairline-strong)] py-2 text-xs text-muted hover:text-foreground"
         >
           <Paperclip className="size-3.5 shrink-0" />
           <Trans>Add files, drop here, or paste an image</Trans>

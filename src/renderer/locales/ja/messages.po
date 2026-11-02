@@ -1907,7 +1907,7 @@ msgstr "エージェントに Cookie とストレージの読み取り/書き込
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "ブラウザ設定でこのサイトのカメラアクセスを許可して再試行するか、下にエンドポイントとトークンを入力してください。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
 msgstr "ブラウザ設定でこのサイトのカメラアクセスを許可して再試行するか、代わりにペアリングリンクを貼り付けてください。"
 
@@ -3077,7 +3077,7 @@ msgstr "カレンダー"
 msgid "Camera"
 msgstr "カメラ"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "カメラアクセスがブロックされています"
 
@@ -3548,7 +3548,7 @@ msgstr "実験用のローカルベースブランチを選択してください
 msgid "Choose a parent folder"
 msgstr "親フォルダーを選択"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Choose a photo"
 msgstr "写真を選択"
 
@@ -3884,6 +3884,7 @@ msgid "Cloning…"
 msgstr "クローン作成中…"
 
 #: src/renderer/components/common/BottomSheet.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
@@ -4071,7 +4072,7 @@ msgstr "プルリクエストをクローズ"
 msgid "Close run details"
 msgstr "実行の詳細を閉じる"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Close scanner"
 msgstr "スキャナーを閉じる"
 
@@ -5354,7 +5355,7 @@ msgstr "MCP サーバー設定をスキャンできませんでした。"
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "Lightcode データのインポートを予約できませんでした。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "カメラを開始できませんでした"
 
@@ -9411,7 +9412,7 @@ msgstr "実行中"
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "Safari で「共有」をタップし、「ホーム画面に追加」を選択します。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
 msgstr "アプリ内のカメラスキャンは HTTPS または localhost でのみ動作します。代わりにスマートフォンのカメラアプリでデスクトップのコードをスキャンするか、ペアリングリンクを貼り付けてください。"
 
@@ -9424,8 +9425,8 @@ msgid "Inactive"
 msgstr "非アクティブ"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Include basic diagnostics"
-msgstr "基本的な診断情報を含める"
+#~ msgid "Include basic diagnostics"
+#~ msgstr "基本的な診断情報を含める"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
@@ -12197,7 +12198,7 @@ msgstr "ブランチが見つかりませんでした"
 msgid "No browser tab open"
 msgstr "ブラウザのタブが開いていません"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "No camera found"
 msgstr "カメラが見つかりません"
 
@@ -13838,11 +13839,11 @@ msgstr "名前付きサーバーオブジェクト、またはmcpServersキー�
 msgid "Paste in input"
 msgstr "入力に貼り付けます"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste link"
 msgstr "リンクを貼り付け"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste pairing link"
 msgstr "ペアリングリンクを貼り付け"
 
@@ -14173,7 +14174,7 @@ msgstr "プラグイン"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "プラグインはアカウントの権限でコードを実行します。信頼できる作者のパッケージをインストールしてください。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "設定 → リモートアクセスの QR コードに向けてください"
 
@@ -14482,7 +14483,6 @@ msgstr "スペースキーで並べ替えを開始します。矢印キーで移
 msgid "Prevent system sleep"
 msgstr "システムのスリープを防ぐ"
 
-#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "プレビュー"
@@ -14831,8 +14831,8 @@ msgstr "プロバイダー"
 #~ msgstr "プロバイダーとモデル"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Public on GitHub."
-msgstr "GitHub で公開されます。"
+#~ msgid "Public on GitHub."
+#~ msgstr "GitHub で公開されます。"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -14993,6 +14993,7 @@ msgid "Qoder CLI"
 msgstr "Qoder CLI"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "QR Code"
 msgstr "QR コード"
 
@@ -16909,7 +16910,7 @@ msgstr "保存済みのシェル"
 msgid "Scan pairing code"
 msgstr "ペアリングコードをスキャン"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "ペアリング QR コードをスキャン"
 
@@ -16933,7 +16934,7 @@ msgstr "デスクトップのリモートアクセスに表示されたペアリ
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "インストールされている CLI について{wslDistro}をスキャンしています。通常、これには数秒かかります。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scanning needs a secure connection"
 msgstr "スキャンには安全な接続が必要です"
 
@@ -18276,7 +18277,7 @@ msgstr "その他…"
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "カメラの起動中に問題が発生しました。代わりに下のエンドポイントとトークンを入力してペアリングしてください。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "カメラの起動中に問題が発生しました。代わりにペアリングリンクを貼り付けるか、コードの写真を選択してください。"
 
@@ -18583,7 +18584,7 @@ msgstr "開始しています"
 msgid "Starting agent…"
 msgstr "エージェントを起動中…"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Starting camera…"
 msgstr "カメラを起動中…"
 
@@ -19300,6 +19301,7 @@ msgid "That conversation is no longer available."
 msgstr "その会話は利用できなくなりました。"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "That isn't a Poracode pairing code."
 msgstr "それは Poracode のペアリングコードではありません。"
 
@@ -20154,7 +20156,7 @@ msgstr "このデスクトップのPoracodeのバージョンはブラウザー�
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "このデバイスには使用できるカメラがありません。代わりに下のエンドポイントとトークンを入力してペアリングしてください。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "このデバイスには使用できるカメラがありません。代わりにペアリングリンクを貼り付けるか、コードの写真を選択してください。"
 
@@ -20926,6 +20928,7 @@ msgstr "変更に対する 2 つの独立した読み取り専用レビューと
 #~ msgid "Two independent read-only reviews of a change."
 #~ msgstr "変更に対する 2 つの独立した読み取り専用レビュー。"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
 msgstr "タイプ"
@@ -22138,6 +22141,10 @@ msgstr "既存の Hex インストールを使用します。 Poracode はそれ
 msgid "v{0} available"
 msgstr "v{0}が利用可能"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Valid feedback is posted publicly on GitHub with your app version and platform."
+msgstr "有効なフィードバックは、アプリのバージョンとプラットフォームとともに GitHub で公開されます。"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "値"
@@ -22175,8 +22182,8 @@ msgid "Version"
 msgstr "バージョン"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Version and platform only. No chat history, code, or project paths."
-msgstr "バージョンとプラットフォームのみ。チャット履歴、コード、プロジェクトパスは含まれません。"
+#~ msgid "Version and platform only. No chat history, code, or project paths."
+#~ msgstr "バージョンとプラットフォームのみ。チャット履歴、コード、プロジェクトパスは含まれません。"
 
 #. placeholder {0}: metadata.authMethod
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
@@ -23010,8 +23017,8 @@ msgid "Your report and attachments are now on GitHub."
 msgstr "報告と添付ファイルは GitHub に保存されました。"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Your report and attachments will be visible to everyone."
-msgstr "報告と添付ファイルはすべてのユーザーに公開されます。"
+#~ msgid "Your report and attachments will be visible to everyone."
+#~ msgstr "報告と添付ファイルはすべてのユーザーに公開されます。"
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"

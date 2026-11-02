@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Checkbox, Input, Label, Modal, TextField } from "@heroui/react";
-import { Bug, Globe, Lightbulb, Search } from "lucide-react";
+import { Input, Label, Modal, TextField } from "@heroui/react";
+import { Bug, CircleAlert, ExternalLink, Globe, Lightbulb, Search, Send } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { put } from "@vercel/blob/client";
 import { deliverFeedback, FeedbackDeliveryError } from "@/shared/feedbackClient";
@@ -11,6 +11,8 @@ import {
   resetFeedbackDraft,
 } from "@/renderer/state/feedbackDraftStore";
 import { Button } from "./Button";
+import { LightballTabs } from "./LightballTabs";
+import { PixelLoader } from "./PixelLoader";
 import { TextArea } from "./TextArea";
 import { FeedbackAttachments } from "./FeedbackAttachments";
 
@@ -25,15 +27,11 @@ export function FeedbackDialog({
 }) {
   const { t } = useLingui();
   const bridge = readBridge();
-  const { kind, title, details, files, diagnostics, delivery } = useFeedbackDraftStore(
-    (state) => state.draft,
-  );
+  const { kind, title, details, files, delivery } = useFeedbackDraftStore((state) => state.draft);
   const setKind = (value: "bug" | "idea") => updateFeedbackDraft({ kind: value });
   const setTitle = (value: string) => updateFeedbackDraft({ title: value });
   const setDetails = (value: string) => updateFeedbackDraft({ details: value });
   const setFiles = (value: File[]) => updateFeedbackDraft({ files: value });
-  const setDiagnostics = (value: boolean) => updateFeedbackDraft({ diagnostics: value });
-  const [preview, setPreview] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -85,7 +83,7 @@ export function FeedbackDialog({
     try {
       const result = await deliverFeedback({
         base: SERVICE,
-        draft: { kind, title, details, diagnostics: diagnostics ? environment : "" },
+        draft: { kind, title, details, diagnostics: environment },
         files,
         delivery,
         onDelivery: (value) => {
@@ -140,25 +138,30 @@ export function FeedbackDialog({
       isKeyboardDismissDisabled={busy}
     >
       <Modal.Container>
-        <Modal.Dialog className="overflow-x-hidden p-0 sm:max-w-[500px] dark:bg-[#24242b]">
+        <Modal.Dialog className="sm:max-w-[480px]">
           <Modal.CloseTrigger isDisabled={busy} />
-          <Modal.Header className="px-5 pt-5 pb-1">
-            <Modal.Heading className="text-base font-semibold">
-              <Trans>Send feedback</Trans>
+          <Modal.Header>
+            <Modal.Heading>
+              {url ? <Trans>Feedback sent</Trans> : <Trans>Send feedback</Trans>}
             </Modal.Heading>
+            <p className="mt-1 text-xs text-muted">
+              {url ? (
+                <Trans>Your report and attachments are now on GitHub.</Trans>
+              ) : (
+                <Trans>Report a bug or suggest an idea.</Trans>
+              )}
+            </p>
           </Modal.Header>
           {url ? (
-            <Modal.Body className="space-y-3 p-5">
-              <h2 className="text-sm font-semibold">
-                <Trans>Feedback sent</Trans>
-              </h2>
-              <p className="text-xs text-muted">
-                <Trans>Your report and attachments are now on GitHub.</Trans>
-              </p>
+            <Modal.Footer>
+              <Button slot="close" variant="ghost" className="text-muted">
+                <Trans>Close</Trans>
+              </Button>
               <Button variant="tertiary" onPress={() => void bridge.openExternal(url)}>
+                <ExternalLink className="size-3.5" />
                 <Trans>View GitHub issue</Trans>
               </Button>
-            </Modal.Body>
+            </Modal.Footer>
           ) : (
             <form
               onSubmit={(event) => {
@@ -166,30 +169,27 @@ export function FeedbackDialog({
                 void send();
               }}
             >
-              <Modal.Body className="flex flex-col gap-3 px-5 pt-0 pb-2">
-                <p className="text-[13px] text-muted">
-                  <Trans>Report a bug or suggest an idea.</Trans>
-                </p>
-                <div className="flex gap-1.5">
-                  {(["bug", "idea"] as const).map((value) => (
-                    <Button
-                      key={value}
-                      size="sm"
-                      variant="ghost"
-                      isDisabled={locked}
-                      aria-pressed={kind === value}
-                      onPress={() => setKind(value)}
-                      className={`h-8 gap-2 rounded-[8px] border px-3 text-xs font-normal ${kind === value ? "border-border bg-surface-tertiary text-foreground dark:border-[#626272] dark:bg-[#3a3a46]" : "border-border text-muted"}`}
-                    >
-                      {value === "bug" ? (
-                        <Bug className="size-4" />
-                      ) : (
-                        <Lightbulb className="size-4" />
-                      )}
-                      {value === "bug" ? <Trans>Bug</Trans> : <Trans>Idea</Trans>}
-                    </Button>
-                  ))}
-                </div>
+              <Modal.Body className="mt-4 flex flex-col gap-4">
+                <LightballTabs
+                  ariaLabel={t`Type`}
+                  className="self-start"
+                  active={kind}
+                  onChange={setKind}
+                  tabs={[
+                    {
+                      id: "bug",
+                      label: t`Bug`,
+                      icon: <Bug className="size-3.5" />,
+                      disabled: locked,
+                    },
+                    {
+                      id: "idea",
+                      label: t`Idea`,
+                      icon: <Lightbulb className="size-3.5" />,
+                      disabled: locked,
+                    },
+                  ]}
+                />
                 <TextField
                   isRequired
                   value={title}
@@ -197,12 +197,11 @@ export function FeedbackDialog({
                   isDisabled={locked}
                   minLength={5}
                   maxLength={160}
-                  className="gap-1.5"
                 >
-                  <Label className="text-xs">
+                  <Label>
                     <Trans>Title</Trans>
                   </Label>
-                  <Input className="h-9 rounded-[8px] text-[13px] dark:border dark:border-[#464652] dark:bg-[#1a1a21]" />
+                  <Input />
                 </TextField>
                 <TextField
                   isRequired
@@ -211,9 +210,8 @@ export function FeedbackDialog({
                   isDisabled={locked}
                   minLength={20}
                   maxLength={5000}
-                  className="gap-1.5"
                 >
-                  <Label className="text-xs">
+                  <Label>
                     {kind === "bug" ? (
                       <Trans>What happened?</Trans>
                     ) : (
@@ -222,7 +220,7 @@ export function FeedbackDialog({
                   </Label>
                   <TextArea
                     rows={4}
-                    className="min-h-24 resize-y rounded-[8px] text-[13px] leading-5 dark:border dark:border-[#464652] dark:bg-[#1a1a21]"
+                    className="min-h-24 resize-y"
                     onPaste={(event) => {
                       const pasted = Array.from(event.clipboardData.files);
                       if (pasted.length) {
@@ -238,83 +236,50 @@ export function FeedbackDialog({
                   onAdd={add}
                   onRemove={(index) => setFiles(files.filter((_, i) => i !== index))}
                 />
-                <div className="mt-1 space-y-1.5 border-t border-border pt-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <Checkbox
-                      isSelected={diagnostics}
-                      onChange={setDiagnostics}
-                      isDisabled={locked}
-                    >
-                      <Checkbox.Content className="gap-1.5 text-xs">
-                        <Checkbox.Control className="size-3.5 rounded-sm">
-                          <Checkbox.Indicator />
-                        </Checkbox.Control>
-                        <span className="text-xs font-normal">
-                          <Trans>Include basic diagnostics</Trans>
-                        </span>
-                      </Checkbox.Content>
-                    </Checkbox>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-auto min-w-0 p-0 text-[11px] font-normal text-muted underline"
-                      onPress={() => setPreview(!preview)}
-                    >
-                      <Trans>Preview</Trans>
-                    </Button>
-                  </div>
-                  <p className="text-[11px] leading-4 text-muted">
-                    <Trans>
-                      Version and platform only. No chat history, code, or project paths.
-                    </Trans>
-                  </p>
-                  {preview && <p className="break-all text-[11px] text-muted">{environment}</p>}
-                </div>
-                <p className="flex items-start gap-2 text-[11px] leading-4 text-muted">
-                  <Globe className="mt-px size-3.5 shrink-0" />
-                  <span>
-                    <strong className="font-medium text-foreground">
-                      <Trans>Public on GitHub.</Trans>
-                    </strong>{" "}
-                    <Trans>Your report and attachments will be visible to everyone.</Trans>
-                  </span>
+                <p className="flex items-start gap-2 text-xs text-muted">
+                  <Globe className="mt-px size-3.5 shrink-0" aria-hidden />
+                  <Trans>
+                    Valid feedback is posted publicly on GitHub with your app version and platform.
+                  </Trans>
                 </p>
-                <p role="status" className="text-xs text-muted empty:hidden">
+                <p
+                  role="status"
+                  className={`flex items-start gap-2 text-xs empty:hidden ${enabled ? "text-muted" : "text-warning"}`}
+                >
+                  {message && !busy ? (
+                    <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+                  ) : null}
                   {message}
                 </p>
               </Modal.Body>
-              <Modal.Footer className="flex-wrap gap-2 px-5 pb-5 pt-2">
+              <Modal.Footer className="flex-wrap">
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="mr-auto h-8 gap-1.5 px-0 text-[11px] font-normal text-muted max-[400px]:basis-full max-[400px]:justify-start"
+                  className="mr-auto text-muted max-[400px]:basis-full max-[400px]:justify-start"
                   onPress={() =>
                     void bridge.openExternal("https://github.com/Porabuild/Poracode/issues")
                   }
                 >
-                  <Search className="size-3" />
+                  <Search className="size-3.5" />
                   <Trans>Existing issues</Trans>
                 </Button>
-                <Button
-                  slot="close"
-                  variant="ghost"
-                  size="sm"
-                  isDisabled={busy}
-                  className="text-xs font-normal text-muted"
-                >
+                <Button slot="close" variant="ghost" isDisabled={busy} className="text-muted">
                   <Trans>Cancel</Trans>
                 </Button>
                 <Button
                   type="submit"
                   variant="tertiary"
-                  size="sm"
                   isPending={busy}
                   isDisabled={
                     busy || !enabled || title.trim().length < 5 || details.trim().length < 20
                   }
-                  className="text-xs"
                 >
-                  <Trans>Send</Trans>
+                  {({ isPending }) => (
+                    <>
+                      {isPending ? <PixelLoader size="xs" /> : <Send className="size-3.5" />}
+                      <Trans>Send</Trans>
+                    </>
+                  )}
                 </Button>
               </Modal.Footer>
             </form>

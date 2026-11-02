@@ -1908,7 +1908,7 @@ msgstr "Cho phép tác nhân đọc/ghi cookie và bộ nhớ lưu trữ"
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "Cho phép trang này truy cập camera trong cài đặt trình duyệt rồi thử lại, hoặc nhập endpoint và token bên dưới."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
 msgstr "Cho phép trang này truy cập camera trong cài đặt trình duyệt rồi thử lại, hoặc dán liên kết ghép nối thay thế."
 
@@ -3078,7 +3078,7 @@ msgstr "Lịch"
 msgid "Camera"
 msgstr "Máy ảnh"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Quyền truy cập camera bị chặn"
 
@@ -3549,7 +3549,7 @@ msgstr "Chọn một nhánh cơ sở cục bộ cho thử nghiệm."
 msgid "Choose a parent folder"
 msgstr "Chọn một thư mục cha"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Choose a photo"
 msgstr "Chọn ảnh"
 
@@ -3885,6 +3885,7 @@ msgid "Cloning…"
 msgstr "Nhân bản…"
 
 #: src/renderer/components/common/BottomSheet.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
@@ -4072,7 +4073,7 @@ msgstr "Đóng pull request"
 msgid "Close run details"
 msgstr "Đóng chi tiết lượt chạy"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Close scanner"
 msgstr "Đóng trình quét"
 
@@ -5355,7 +5356,7 @@ msgstr "Không thể quét cấu hình máy chủ MCP."
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "Không thể lên lịch nhập dữ liệu Lightcode."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Không thể khởi động camera"
 
@@ -9412,7 +9413,7 @@ msgstr "Đang chạy"
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "Trong Safari, chạm Chia sẻ, rồi chọn Thêm vào màn hình chính."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
 msgstr "Quét bằng camera trong ứng dụng chỉ hoạt động qua HTTPS hoặc trên localhost. Hãy quét mã trên máy tính bằng ứng dụng camera của điện thoại thay thế, hoặc dán liên kết ghép nối."
 
@@ -9425,8 +9426,8 @@ msgid "Inactive"
 msgstr "Không hoạt động"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Include basic diagnostics"
-msgstr "Bao gồm thông tin chẩn đoán cơ bản"
+#~ msgid "Include basic diagnostics"
+#~ msgstr "Bao gồm thông tin chẩn đoán cơ bản"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
@@ -12199,7 +12200,7 @@ msgstr "Không tìm thấy chi nhánh nào"
 msgid "No browser tab open"
 msgstr "Không có tab trình duyệt nào mở"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "No camera found"
 msgstr "Không tìm thấy camera"
 
@@ -13840,11 +13841,11 @@ msgstr "Dán đối tượng máy chủ có tên hoặc đối tượng được
 msgid "Paste in input"
 msgstr "Dán vào đầu vào"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste link"
 msgstr "Dán liên kết"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste pairing link"
 msgstr "Dán liên kết ghép nối"
 
@@ -14175,7 +14176,7 @@ msgstr "Plugin"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "Plugin thực thi mã với quyền truy cập của tài khoản bạn. Hãy cài gói từ tác giả đáng tin cậy."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Hướng vào mã QR trong Cài đặt → Truy cập từ xa"
 
@@ -14484,7 +14485,6 @@ msgstr "Nhấn phím cách để bắt đầu sắp xếp lại. Dùng các phí
 msgid "Prevent system sleep"
 msgstr "Ngăn hệ thống chuyển sang chế độ ngủ"
 
-#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Xem trước"
@@ -14833,8 +14833,8 @@ msgstr "Nhà cung cấp"
 #~ msgstr "Nhà cung cấp & mô hình"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Public on GitHub."
-msgstr "Công khai trên GitHub."
+#~ msgid "Public on GitHub."
+#~ msgstr "Công khai trên GitHub."
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
@@ -14995,6 +14995,7 @@ msgid "Qoder CLI"
 msgstr "Qoder CLI"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "QR Code"
 msgstr "Mã QR"
 
@@ -16911,7 +16912,7 @@ msgstr "Shell đã lưu"
 msgid "Scan pairing code"
 msgstr "Quét mã ghép đôi"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "Quét mã QR ghép đôi"
 
@@ -16935,7 +16936,7 @@ msgstr "Quét mã ghép nối hiển thị trong Truy cập từ xa trên máy t
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "Đang quét {wslDistro} để tìm CLI đã cài đặt. Việc này thường mất vài giây."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scanning needs a secure connection"
 msgstr "Quét cần kết nối an toàn"
 
@@ -18278,7 +18279,7 @@ msgstr "Câu trả lời khác…"
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Có lỗi khi khởi động camera. Hãy nhập endpoint và token bên dưới để ghép đôi thay thế."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "Có lỗi khi khởi động camera. Hãy dán liên kết ghép nối hoặc chọn ảnh của mã thay thế."
 
@@ -18585,7 +18586,7 @@ msgstr "Bắt đầu"
 msgid "Starting agent…"
 msgstr "Đang khởi chạy tác nhân…"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Starting camera…"
 msgstr "Đang khởi động camera…"
 
@@ -19302,6 +19303,7 @@ msgid "That conversation is no longer available."
 msgstr "Cuộc trò chuyện đó không còn khả dụng."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "That isn't a Poracode pairing code."
 msgstr "Đó không phải là mã ghép nối Poracode."
 
@@ -20156,7 +20158,7 @@ msgstr "Phiên bản Poracode trên máy tính này không hỗ trợ chuyển t
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Thiết bị này không có camera dùng được. Hãy nhập endpoint và token bên dưới để ghép đôi thay thế."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "Thiết bị này không có camera dùng được. Hãy dán liên kết ghép nối hoặc chọn ảnh của mã thay thế."
 
@@ -20928,6 +20930,7 @@ msgstr "Hai lượt đánh giá độc lập, chỉ đọc, cho một thay đổ
 #~ msgid "Two independent read-only reviews of a change."
 #~ msgstr "Hai lượt đánh giá độc lập, chỉ đọc, cho một thay đổi."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
 msgstr "Loại"
@@ -22140,6 +22143,10 @@ msgstr "Sử dụng cài đặt Hex hiện có của bạn. Poracode sẽ không
 msgid "v{0} available"
 msgstr "v{0} có sẵn"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Valid feedback is posted publicly on GitHub with your app version and platform."
+msgstr "Phản hồi hợp lệ sẽ được đăng công khai trên GitHub kèm phiên bản ứng dụng và nền tảng của bạn."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "giá trị"
@@ -22177,8 +22184,8 @@ msgid "Version"
 msgstr "Phiên bản"
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Version and platform only. No chat history, code, or project paths."
-msgstr "Chỉ phiên bản và nền tảng. Không có lịch sử trò chuyện, mã hay đường dẫn dự án."
+#~ msgid "Version and platform only. No chat history, code, or project paths."
+#~ msgstr "Chỉ phiên bản và nền tảng. Không có lịch sử trò chuyện, mã hay đường dẫn dự án."
 
 #. placeholder {0}: metadata.authMethod
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
@@ -23012,8 +23019,8 @@ msgid "Your report and attachments are now on GitHub."
 msgstr "Báo cáo và tệp đính kèm của bạn hiện đã có trên GitHub."
 
 #: src/renderer/components/common/FeedbackDialog.tsx
-msgid "Your report and attachments will be visible to everyone."
-msgstr "Báo cáo và tệp đính kèm của bạn sẽ hiển thị với mọi người."
+#~ msgid "Your report and attachments will be visible to everyone."
+#~ msgstr "Báo cáo và tệp đính kèm của bạn sẽ hiển thị với mọi người."
 
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"
