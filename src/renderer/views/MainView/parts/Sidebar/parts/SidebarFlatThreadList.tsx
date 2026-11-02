@@ -31,6 +31,7 @@ import {
 import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
 import { SidebarDoneRows } from "./SidebarDoneRows";
+import { DONE_SECTION_MAX_HEIGHT_PERCENT, useDoneViewportReveal } from "./useDoneViewportReveal";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { MobileQuickCompose } from "./MobileQuickCompose";
 import { useFlatListProjectFilterModel } from "./useFlatListProjectFilterModel";
@@ -135,6 +136,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const listRows = doneStart === -1 ? rows : rows.slice(0, doneStart);
   const doneHeader = doneStart === -1 ? undefined : rows[doneStart];
   const doneRows = doneStart === -1 ? [] : rows.slice(doneStart + 1);
+  const doneViewportRef = useDoneViewportReveal(
+    doneHeader?.kind !== "section-label" || doneHeader.collapsed,
+  );
 
   const renderNewThreadButton = (inline: boolean) =>
     latestProjectId && !compactLayout ? (
@@ -245,9 +249,12 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
 
       {doneHeader ? (
         // Sized to its rows up to half the column; past that the rows scroll.
-        <div className="poracode-flat-done-section flex max-h-[50%] shrink-0 flex-col">
+        <div
+          className="poracode-flat-done-section flex shrink-0 flex-col"
+          style={{ maxHeight: `${DONE_SECTION_MAX_HEIGHT_PERCENT}%` }}
+        >
           {renderRow(doneHeader)}
-          <div className={sidebarBodyScrollClass()}>
+          <div ref={doneViewportRef} className={sidebarBodyScrollClass()}>
             <SidebarDoneRows rows={doneRows} renderRow={renderRow} />
           </div>
         </div>
