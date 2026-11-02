@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { AgentCapability, AgentProviderMetadata, ProjectLocation } from "@/shared/contracts";
@@ -11,6 +12,7 @@ import {
   type CapabilitiesProbeResult,
   type DetectionSpec,
 } from "../base";
+import { PI_THINKING_LEVELS, splitPiModelId } from "./argv";
 
 const PI_AUTH_ENV_KEYS = [
   "ANTHROPIC_API_KEY",
@@ -78,7 +80,46 @@ export const piDefaultCapabilities: AgentCapability = {
 
 export interface PiCliModel {
   id: string;
-  reasoning: boolean;
+  reasoning?: boolean;
+}
+
+async function readPiSettings(location: ProjectLocation, signal?: AbortSignal) {
+  try {
+    signal?.throwIfAborted();
+    const content =
+      location.kind === "wsl"
+        ? (
+            await batchWslCommandsAsync(
+              location.distro,
+              ['cat "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/settings.json"'],
+              signal,
+            )
+          )[0]?.stdout
+        : await readFile(join(nativeAgentDir(), "settings.json"), { encoding: "utf8", signal });
+    const parsed = JSON.parse(content?.replace(/^\uFEFF/u, "") ?? "") as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
+    const settings = parsed as Record<string, unknown>;
+    const models: PiCliModel[] = Array.isArray(settings.enabledModels)
+      ? [...new Set(settings.enabledModels.filter((id): id is string => typeof id === "string"))]
+          .map((id) => id.trim())
+          // Globs and bare aliases need Pi's catalogue to resolve; never publish them as IDs.
+          .filter((id) => splitPiModelId(id) && !/[*?[\]{}()!]/u.test(id))
+          .map((id) => ({ id }))
+      : [];
+    const defaultProvider =
+      typeof settings.defaultProvider === "string" ? settings.defaultProvider.trim() : "";
+    const defaultModel =
+      typeof settings.defaultModel === "string" ? settings.defaultModel.trim() : "";
+    return {
+      models,
+      ...(defaultProvider && defaultModel
+        ? { defaultModel: `${defaultProvider}/${defaultModel}` }
+        : {}),
+    };
+  } catch {
+    signal?.throwIfAborted();
+    return undefined;
+  }
 }
 
 /** Display label for a Pi model id ("anthropic/claude-sonnet-4-5" → "Sonnet 4.5"). */
@@ -107,22 +148,37 @@ async function probePiCapabilities(
   executablePath: string,
   signal?: AbortSignal,
 ): Promise<CapabilitiesProbeResult> {
-  // Native and WSL alike probe the installed CLI's model table — no bundled Pi
-  // SDK. The GUI structured session likewise drives the installed `pi --mode rpc`.
-  const output = await readAgentCommandOutput(location, executablePath, ["--list-models"], {
-    timeoutMs: 15_000,
-    ...(signal ? { signal } : {}),
-  });
-  const models = output.ok ? parsePiModelList(output.stdout) : [];
+  const settings = await readPiSettings(location, signal);
+  let models = settings?.models ?? [];
+  let authenticated = false;
+  // Exact scoped IDs are usable without waiting for Pi's potentially huge catalogue.
+  if (models.length === 0) {
+    const output = await readAgentCommandOutput(location, executablePath, ["--list-models"], {
+      timeoutMs: 15_000,
+      ...(signal ? { signal } : {}),
+    });
+    models = output.ok ? parsePiModelList(output.stdout) : [];
+    authenticated = models.length > 0;
+  }
+  if (settings?.defaultModel) {
+    models = [
+      models.find((model) => model.id === settings.defaultModel) ?? { id: settings.defaultModel },
+      ...models.filter((model) => model.id !== settings.defaultModel),
+    ];
+  }
   const modelEfforts = Object.fromEntries(
-    models.map((model) => [model.id, model.reasoning ? [...PI_CLI_REASONING_LEVELS] : ["off"]]),
+    // Settings have no reasoning metadata; let Pi validate its native thinking levels.
+    models.map((model) => [
+      model.id,
+      model.reasoning === false ? ["off"] : [...PI_THINKING_LEVELS],
+    ]),
   );
   const base: CapabilitiesProbeResult = {
     ...piDefaultCapabilities,
     models: models.map((model) => ({ id: model.id, label: humanizePiModelId(model.id) })),
     efforts: [...new Set(Object.values(modelEfforts).flat())],
     modelEfforts,
-    ...(models.length > 0 ? { authState: "authenticated" as const } : {}),
+    ...(authenticated ? { authState: "authenticated" as const } : {}),
     authMethods: [{ id: "pi-login", name: "Pi login", type: "terminal" }],
     preferTerminalLogin: true,
   };
@@ -161,16 +217,6 @@ export const piDetectionSpec: DetectionSpec = {
     return probePiCapabilities(ctx.location, ctx.executablePath, ctx.signal);
   },
 };
-
-const PI_CLI_REASONING_LEVELS = [
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-  "max",
-] as const;
 
 export function piAgentHomePath(): string {
   return process.env.PI_CODING_AGENT_DIR?.trim() || join(homedir(), ".pi", "agent");
