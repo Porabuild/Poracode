@@ -979,6 +979,22 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   font-size: 0.75rem;
 }
 
+/* Small icon + label buttons. HeroUI gives button icons a -2px inline margin
+   (sized for its 16-20px icons and gap-2), which eats half of the compact
+   gap-1 our small buttons use. Its inherited `normal`-ish line box (~17px at
+   12px Geist) also lands the label ~1px above the centered icon; a 1rem line
+   box matches the font's rounded height so the label centers exactly. Layered
+   so per-instance gap/leading/margin utilities still win. */
+@layer components {
+  .button--sm {
+    line-height: 1rem;
+  }
+
+  .button--sm svg:not([data-slot="spinner"] svg, [data-slot="link-icon"] svg) {
+    margin-inline: 0;
+  }
+}
+
 .poracode-remote-access-toggle-group .toggle-button {
   --toggle-button-fg: var(--muted);
   --toggle-button-fg-selected: var(--foreground);
@@ -2347,19 +2363,9 @@ html[data-compact-layout] .m-pr-tabs[data-pressed="true"] {
   transform: none;
 }
 
-/* The shared mobile Select trigger is only styled inside Settings; here it is a
-   full-width field (commit scope, guide writer and model). */
 html[data-compact-layout] .m-pr-scroll .m-field-picker {
-  display: flex;
   width: 100%;
-  min-height: 2.5rem;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: var(--m-list-row-radius);
-  background: var(--m-list-row-surface);
-  padding-inline: 0.75rem;
-  font-size: 0.8125rem;
-  text-align: left;
+  max-width: 100%;
 }
 
 html[data-compact-layout] .m-mobile-file-editor__actions {
@@ -3432,32 +3438,38 @@ html[data-compact-layout] .m-page-edge-action {
   max-width: 100%;
 }
 
-/* Mobile Select renders a sheet trigger instead of HeroUI's desktop field.
-   Present it as a compact trailing value while retaining a clear focus ring. */
-.m-settings__body .m-field-picker {
-  display: flex;
-  width: auto;
-  min-height: 2rem;
+.m-field-picker {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.m-field-picker .select__trigger {
+  min-height: 2.75rem;
+}
+
+.m-settings__body .audio-settings .settings-row {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.m-settings__body .audio-settings .settings-row > :not(.settings-row__text) {
+  width: 100%;
+  max-width: none;
+}
+
+.m-settings__body .audio-settings .settings-row__text {
+  flex: initial;
+}
+
+.m-settings__body .audio-settings .settings-row:has([role="switch"]) {
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.375rem;
-  border-radius: 0.375rem;
-  padding: 0.25rem 0.125rem 0.25rem 0.5rem;
-  font-size: 0.8125rem;
-  line-height: 1.25;
-  color: inherit;
-  cursor: pointer;
-  text-align: right;
 }
 
-.m-settings__body .m-field-picker:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
-  outline-offset: 1px;
-}
-
-.m-settings__body .m-field-picker svg {
-  width: 0.875rem;
-  height: 0.875rem;
+.m-settings__body .audio-settings .settings-row:has([role="switch"]) > :not(.settings-row__text) {
+  width: auto;
 }
 
 .m-sheet .list-box-item,
@@ -5948,6 +5960,26 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-sidebar-proj
   list-style: disc outside;
   padding-left: 1.5em;
   margin: 0.1em 0 0.75em;
+}
+/* Unordered lists made exclusively of standalone local artifact links render
+   as dotless file cards, aligned with the surrounding text. */
+.lc-chat-markdown ul.poracode-chat-file-list {
+  list-style: none;
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.lc-chat-markdown ul.poracode-chat-file-list > li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  min-width: 0;
+}
+.lc-chat-markdown ul.poracode-chat-file-list .poracode-chat-file {
+  margin-block: 0;
 }
 .lc-chat-markdown li {
   /* Streamdown's default <li> ships a `py-1` utility; margins alone don't

@@ -1,5 +1,5 @@
 /**
- * Structural public-protocol types for `@cursor/sdk` (verified through 1.0.38).
+ * Structural public-protocol types for `@cursor/sdk` (verified through 1.2.0).
  *
  * Poracode deliberately does not import the optional SDK package from its
  * provider boundary. Keeping the small, stable event envelopes here lets the
@@ -85,6 +85,18 @@ export interface CursorSdkTaskMessage extends CursorSdkMessageBase {
 }
 
 /**
+ * 1.2.0 normalized summary lifecycle. Replaces the 1.0.x `task` echo of
+ * summary deltas; for a `summarize()` run it is the only stream source.
+ * `fallback` means the model could not write a summary, so a trimmed copy of
+ * the conversation was saved instead.
+ */
+export interface CursorSdkSummaryMessage extends CursorSdkMessageBase {
+  type: "summary";
+  status: "running" | "completed" | "error";
+  fallback?: boolean;
+}
+
+/**
  * The 1.0.24 SDK emits a request id but exposes no public response method and
  * no request kind/details. The canonical mapper therefore never turns this
  * envelope into an actionable `request.opened` event.
@@ -107,6 +119,7 @@ export type CursorSdkMessage =
   | CursorSdkToolCallMessage
   | CursorSdkStatusMessage
   | CursorSdkTaskMessage
+  | CursorSdkSummaryMessage
   | CursorSdkRequestMessage
   | CursorSdkUsageMessage;
 
@@ -214,6 +227,10 @@ export interface CursorSdkSummaryStartedUpdate {
 
 export interface CursorSdkSummaryCompletedUpdate {
   type: "summary-completed";
+  /** 1.2.0: the conversation was left unchanged (the write itself failed). */
+  failed?: boolean;
+  /** 1.2.0: a trimmed transcript was saved because no summary was written. */
+  fallback?: boolean;
 }
 
 export interface CursorSdkShellOutputDeltaUpdate {

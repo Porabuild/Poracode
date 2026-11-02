@@ -33,6 +33,8 @@ export interface RuntimeAgent {
       onDelta?: (args: { update: unknown }) => void | Promise<void>;
     },
   ): Promise<RuntimeRun>;
+  /** `@cursor/sdk` 1.2.0+: summarize the saved conversation as its own run. */
+  summarize?(): Promise<RuntimeRun>;
   close(): void;
   [Symbol.asyncDispose]?(): Promise<void>;
   reload(): Promise<void>;

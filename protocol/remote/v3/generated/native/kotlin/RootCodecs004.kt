@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2ESchedulesU2DCommandU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_bc1920595e>
+    get() = RemoteRootCodec("route.schedules-command.response", serializer<RouteschedulesU2DCommandResponse_bc1920595e>(), schema_bc1920595e8cfd89)
+
+val RemoteRootCodecs.routeU2ESchedulesU2DReadU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_bc1920595e>
+    get() = RemoteRootCodec("route.schedules-read.response", serializer<RouteschedulesU2DCommandResponse_bc1920595e>(), schema_bc1920595e8cfd89)
+
 val RemoteRootCodecs.routeU2ESettingsU2DReadU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_f87159e788>
     get() = RemoteRootCodec("route.settings-read.response", serializer<RoutesettingsU2DReadResponse_f87159e788>(), schema_f87159e7882b195f)
 
@@ -17,8 +23,8 @@ val RemoteRootCodecs.routeU2ESettingsU2DWriteU2EResponse: RemoteRootCodec<Routes
 val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EQuery: RemoteRootCodec<RouteshellU2DSnapshotQuery_b2ca36e3fa>
     get() = RemoteRootCodec("route.shell-snapshot.query", serializer<RouteshellU2DSnapshotQuery_b2ca36e3fa>(), schema_b2ca36e3fa7743ad)
 
-val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_10f7824b2f>
-    get() = RemoteRootCodec("route.shell-snapshot.response", serializer<RouteshellU2DSnapshotResponse_10f7824b2f>(), schema_10f7824b2f1fe15d)
+val RemoteRootCodecs.routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_ad5850d87c>
+    get() = RemoteRootCodec("route.shell-snapshot.response", serializer<RouteshellU2DSnapshotResponse_ad5850d87c>(), schema_ad5850d87cc2755c)
 
 val RemoteRootCodecs.routeU2ETerminalU2DCloseU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.terminal-close.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)

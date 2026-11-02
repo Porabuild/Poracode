@@ -23,18 +23,26 @@ const manifest = JSON.parse(
 };
 
 describe("remote contract registry", () => {
-  it("covers exactly the 119 routes and 164 procedures with no duplicates", () => {
+  it("routes Hex voice as a mutating desktop operation", () => {
+    expect(REMOTE_PROCEDURE_SPECS.hexVoice).toEqual({
+      scope: "session:operate",
+      owner: "desktop",
+      mutation: true,
+    });
+  });
+
+  it("covers exactly the 119 routes and 165 procedures with no duplicates", () => {
     expect(REMOTE_HTTP_ROUTES).toHaveLength(119);
-    expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(164);
+    expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(165);
     expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(119);
     expect(new Set(REMOTE_HTTP_ROUTES.map((route) => `${route.method} ${route.path}`)).size).toBe(
       119,
     );
-    expect(new Set(REMOTE_PROCEDURE_CONTRACTS.map((procedure) => procedure.name)).size).toBe(164);
+    expect(new Set(REMOTE_PROCEDURE_CONTRACTS.map((procedure) => procedure.name)).size).toBe(165);
     expect(REMOTE_CONTRACT_INVENTORY.routes).toBe(119);
-    expect(REMOTE_CONTRACT_INVENTORY.procedures).toBe(164);
+    expect(REMOTE_CONTRACT_INVENTORY.procedures).toBe(165);
     expect(REMOTE_CONTRACT_INVENTORY.voidProcedureResults).toBe(64);
-    expect(REMOTE_CONTRACT_INVENTORY.jsonProcedureResults).toBe(100);
+    expect(REMOTE_CONTRACT_INVENTORY.jsonProcedureResults).toBe(101);
     expect(REMOTE_CONTRACT_INVENTORY.blockedProcedureResults).toEqual([]);
     expect(BLOCKED_PROCEDURE_RESULTS).toEqual([]);
   });

@@ -58,8 +58,9 @@ import {
   type ComposerMcpMenuItem,
 } from "../composer/ComposerAddMenu";
 import { openMcpServersSettings } from "@/renderer/actions/panelActions";
-import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
 import { getComputerUseScope } from "../composer/computerUseScope";
+import { composerCustomMcpItems } from "../composer/composerCustomMcpServers";
+import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
 import { canLeadCrew, threadCrewBinding } from "@/shared/crew";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
@@ -482,11 +483,12 @@ export function ContinueInProviderDialog(props: {
   );
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
-  const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
   const providerMcpSettings = useSharedSettings((s) => s.agentSettings[selectedKind]);
-  const projectCustomMcpServers = useAppStore(
-    (s) => s.projects.find((project) => project.id === thread.projectId)?.mcpServers,
+  const threadProject = useAppStore((s) =>
+    s.projects.find((project) => project.id === thread.projectId),
   );
+  useResidentProjectMcpServers(threadProject);
+  const projectCustomMcpServers = threadProject?.mcpServers;
 
   const selectedTargetCapabilities = selectedAgent
     ? visibleCapabilities(selectedAgent, targetPresentationMode, allHiddenModels)
@@ -740,32 +742,17 @@ export function ContinueInProviderDialog(props: {
   // Custom servers bind at launch from settings, not per-thread config, so
   // these rows flip the same persistent switch the MCP Servers page does — the
   // draft composer's menu behaves identically.
-  const projectCustomMcpIds = new Set((projectCustomMcpServers ?? []).map((server) => server.id));
-  const mcpMenuCustomServers: ComposerCustomMcpItem[] = (
-    mcpControlsAvailable
+  const mcpMenuCustomServers: ComposerCustomMcpItem[] = composerCustomMcpItems({
+    servers: mcpControlsAvailable
       ? providerOwnsMcp
         ? mergedCustomMcpServers.filter((server) => server.enabled)
         : mergedCustomMcpServers
-      : []
-  ).map((server) => {
-    const isProject = projectCustomMcpIds.has(server.id);
-    const scopedServers = isProject ? (projectCustomMcpServers ?? []) : userCustomMcpServers;
-    return {
-      id: `${isProject ? "project" : "user"}:${server.id}`,
-      name: server.name,
-      enabled: server.enabled,
-      ...(providerOwnsMcp
-        ? {}
-        : {
-            onToggle: (next: boolean) => {
-              const nextServers = scopedServers.map((item) =>
-                item.id === server.id ? { ...item, enabled: next } : item,
-              );
-              if (isProject) updateProjectMcpServers(thread.projectId, nextServers);
-              else setUserCustomMcpServers(nextServers);
-            },
-          }),
-    };
+      : [],
+    userServers: userCustomMcpServers,
+    projectServers: projectCustomMcpServers ?? [],
+    projectId: thread.projectId,
+    projectLocation: props.projectLocation,
+    editable: !providerOwnsMcp,
   });
 
   function handleMcpMentionSelect(id: string) {

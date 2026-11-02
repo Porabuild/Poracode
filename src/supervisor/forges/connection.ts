@@ -1,6 +1,10 @@
 import { msg } from "@/shared/messages";
 import { parse as parseYaml } from "yaml";
-import { normalizeForgeHost, parseForgeRemote } from "@/shared/forgeRemote";
+import {
+  normalizeForgeHost,
+  parseForgeRemote,
+  parseGitRemoteFetchLine,
+} from "@/shared/forgeRemote";
 export { normalizeForgeHost, parseForgeRemote } from "@/shared/forgeRemote";
 import type {
   ForgeAccountRef,
@@ -225,8 +229,8 @@ export class ForgeConnections {
       return null;
     }
     const remotes = output.split(/\r?\n/).flatMap((line) => {
-      const match = /^(\S+)\s+(\S+)\s+\(fetch\)$/.exec(line);
-      const parsed = match ? parseForgeRemote(match[2]!, match[1]!) : null;
+      const fetchLine = parseGitRemoteFetchLine(line);
+      const parsed = fetchLine ? parseForgeRemote(fetchLine.url, fetchLine.name) : null;
       return parsed ? [parsed] : [];
     });
     if (!remotes.length) return null;

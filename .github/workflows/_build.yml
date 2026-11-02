@@ -41,6 +41,8 @@ on:
 
 permissions:
   contents: read
+  # wait-for-run-artifact.mjs reads this run's artifacts and jobs.
+  actions: read
 
 env:
   # Release runners are disposable single checkouts; use Bun's local
@@ -125,13 +127,6 @@ jobs:
           # other native deps (node-pty, better-sqlite3) are still verified.
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
-      - name: Stage the TUI download manifest
-        if: ${{ inputs.tui_manifest }}
-        uses: actions/download-artifact@v8
-        with:
-          name: tui-manifest
-          path: resources/tui
-
       - name: Build app
         run: bun run build
         shell: bash
@@ -188,6 +183,15 @@ jobs:
       - name: Remove packaged source maps
         run: bun run clean:sourcemaps
         shell: bash
+
+      # The TUI binaries build alongside this job (it no longer `needs:` them);
+      # only packaging reads their manifest, so wait for it here.
+      - name: Stage the TUI download manifest
+        if: ${{ inputs.tui_manifest }}
+        run: node scripts/wait-for-run-artifact.mjs tui-manifest resources/tui "tui_binaries /"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Package Windows/Linux
         if: matrix.platform != 'mac'

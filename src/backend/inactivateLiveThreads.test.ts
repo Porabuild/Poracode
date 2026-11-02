@@ -72,4 +72,18 @@ describe.skipIf(!sqliteAvailable)("inactivateLiveThreads", () => {
     expect(dbGetThread("settled")).toMatchObject({ status: "inactive" });
     expect(dbGetThread("settled")).not.toHaveProperty("interruptedTurn");
   });
+
+  it("publishes the committed Stop clear when the supervisor resets before cancellation settles", () => {
+    dbUpsertThread(thread("stopping", "working"), 0, undefined, "stopped");
+    dbUpsertThread(thread("interrupted", "working"), 1);
+
+    const { inactiveEvents } = inactivateLiveThreads();
+
+    expect(inactiveEvents).toEqual([
+      expect.objectContaining({ threadId: "stopping", interruptedTurn: null }),
+      expect.objectContaining({ threadId: "interrupted", interruptedTurn: "restart" }),
+    ]);
+    expect(dbGetThread("stopping")).not.toHaveProperty("interruptedTurn");
+    expect(dbGetThread("interrupted")?.interruptedTurn).toBe("restart");
+  });
 });

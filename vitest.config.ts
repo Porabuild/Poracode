@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { defineConfig, type TestProjectInlineConfiguration } from "vitest/config";
 import babel from "@rolldown/plugin-babel";
 import { lingui } from "@lingui/vite-plugin";
+import { DurationShardSequencer } from "./src/build/durationShardSequencer.ts";
 import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
 
 // Core CI shards exclude compiler fixtures in the project that collects them.
@@ -49,6 +50,8 @@ export default defineConfig({
     // the suite; per-test timeouts can still override.
     testTimeout: 15_000,
     hookTimeout: 15_000,
+    // `--shard` balances files by recorded CI duration instead of by count.
+    sequence: { sequencer: DurationShardSequencer },
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
@@ -61,7 +64,7 @@ export default defineConfig({
     projects: [
       rendererProject({
         name: "renderer",
-        include: ["src/renderer/**/*.test.{ts,tsx}"],
+        include: ["src/renderer/**/*.test.{ts,tsx}", "website/src/**/*.test.tsx"],
         exclude: ["**/*.perf.test.ts", ...monacoTestFiles],
       }),
       rendererProject({
@@ -94,7 +97,7 @@ export default defineConfig({
           // Protocol conformance lives under protocol/ but needs the same node
           // environment and `@` alias as src. Folded into this project so
           // `pnpm run test --shard=N/4` never shards a one-file project.
-          include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts"],
+          include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts", "website/src/**/*.test.ts"],
           // Project-level exclude replaces the inherited root exclude, so the
           // perf-suite pattern is restated here.
           exclude: ["src/renderer/**/*.test.{ts,tsx}", "**/*.perf.test.ts", ...coreShardExcludes],

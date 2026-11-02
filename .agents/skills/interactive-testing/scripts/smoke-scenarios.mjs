@@ -12,6 +12,19 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "feedback",
+    title: "Sidebar feedback modal and public website form",
+    patterns: [
+      /FeedbackDialog/,
+      /FeedbackAttachments/,
+      /feedbackDraftStore/,
+      /feedbackClient/,
+      /SidebarFooterNav/,
+    ],
+    automated: ["baseline"],
+    manual: ["changed-surface"],
+  },
+  {
     id: "agent-vision",
     title: "Thread Info preview of browser and computer activity",
     patterns: [/agentVision/i],

@@ -29,9 +29,12 @@ actor SelectedRichChatSessionGateway {
   func executeRead<Value: Sendable>(
     target: RichChatThreadTarget,
     capability: RichChatCapability,
+    onDiscard: @Sendable (Value) async -> Void = { _ in },
     operation: @escaping @Sendable (any RichChatRemoteAPI) async throws -> Value
   ) async throws -> Value {
-    try await execute(target: target, capability: capability, operation: operation)
+    try await execute(
+      target: target, capability: capability, onDiscard: onDiscard,
+      operation: operation)
   }
 
   func executeMutation<Value: Sendable>(
@@ -86,14 +89,23 @@ actor SelectedRichChatSessionGateway {
   private func execute<Value: Sendable>(
     target: RichChatThreadTarget,
     capability: RichChatCapability,
+    onDiscard: @Sendable (Value) async -> Void = { _ in },
     operation: @escaping @Sendable (any RichChatRemoteAPI) async throws -> Value
   ) async throws -> Value {
     try Task.checkCancellation()
     let selection = try await currentSelection(target: target, capability: capability)
     do {
       let value = try await operation(selection.api)
-      try Task.checkCancellation()
-      try await requireCurrent(target.lease)
+      do {
+        try Task.checkCancellation()
+        try await requireCurrent(target.lease)
+      } catch {
+        // The lease/cancellation check failed after the operation produced a
+        // value the caller will never see — hand it to the focused discard
+        // hook (used only by the file download) before rethrowing.
+        await onDiscard(value)
+        throw error
+      }
       return value
     } catch is CancellationError {
       throw CancellationError()

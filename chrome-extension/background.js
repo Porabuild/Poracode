@@ -29,13 +29,22 @@
  * port the host does not know is left for that entry, at most once per secret.
  *
  * MV3 workers are evicted when idle, so we reconnect from a periodic alarm and
- * on startup, and scan/reconnect on socket close.
+ * on startup, and scan/reconnect on socket close. A dropped connection starts
+ * over at the last proven port, idle retries return to it every other dial,
+ * and the native host is asked for the live port now and then, so an app
+ * restart is found in seconds rather than after a full scan.
+ *
+ * The app holds one extension connection. When another browser's extension
+ * replaces it, this worker stands by until the user takes the connection back
+ * from its sidebar, so two browsers never take turns displacing each other.
  */
 
 const DEBUGGER_PROTOCOL_VERSION = "1.3";
 const KEEPALIVE_ALARM = "poracode-keepalive";
 const SCAN_DELAY_MS = 250;
-const IDLE_RETRY_MS = 4000;
+const IDLE_RETRY_MS = 2000;
+/** While no app answers, ask the native host for its live bridges at most this often. */
+const NATIVE_DISCOVERY_MS = 60000;
 
 /**
  * Ports to try. Keep this in sync with the app's ChromeBridgeServer scan range.
@@ -78,11 +87,31 @@ let pendingBridge = null;
 const dialedSecrets = new Set();
 const MAX_DIALED_SECRETS = 16;
 let lastNativeAttemptAt = -Infinity;
+/**
+ * Another browser's extension replaced this connection; reconnect only when
+ * the user asks here. Kept in session storage so an evicted worker does not
+ * take the connection back on restart; a browser restart clears it.
+ */
+let standby = false;
+
+/** Every dial waits for it: the alarm that woke an evicted worker must not dial first. */
+const standbyRestored = (async () => {
+  try {
+    standby = (await chrome.storage.session?.get("standby"))?.standby === true;
+  } catch {}
+})();
+
+function setStandby(value) {
+  standby = value;
+  void chrome.storage.session?.set({ standby: value }).catch(() => {});
+}
 const sidebarRequests = new Map();
-// Mirrors CHROME_SIDEBAR_PROTOCOL_VERSION and CHROME_SIDEBAR_RUNTIME_ISSUES in
-// src/shared/chromeSidebarProtocol.ts.
+// Mirrors CHROME_SIDEBAR_PROTOCOL_VERSION, CHROME_SIDEBAR_RUNTIME_ISSUES and
+// CHROME_BRIDGE_REPLACED_CLOSE_CODE in src/shared/chromeSidebarProtocol.ts.
 const SIDEBAR_PROTOCOL_VERSION = 2;
 const UPGRADE_REQUIRED_ISSUE = "upgradeRequired";
+const IN_USE_ELSEWHERE_ISSUE = "inUseElsewhere";
+const REPLACED_CLOSE_CODE = 4001;
 // Mirrors CHROME_NATIVE_HOST_NAME / CHROME_NATIVE_HOST_PROTOCOL_VERSION in
 // src/shared/chromeSidebarProtocol.ts.
 const NATIVE_HOST_NAME = "com.poracode.chrome_bridge";
@@ -144,12 +173,23 @@ async function candidatePorts() {
   return DEFAULT_PORTS;
 }
 
+/**
+ * Every other dial returns to the last proven port, where a restarting app
+ * comes back; the dials between rotate through the rest of the range.
+ */
+function nextPort(ports) {
+  if (pendingBridge) return pendingBridge.port;
+  if (portIndex % 2 === 0) return ports[0];
+  return ports[1 + (Math.floor(portIndex / 2) % (ports.length - 1))];
+}
+
 async function connect() {
-  if (isOpen() || connecting) return;
+  await standbyRestored;
+  if (isOpen() || connecting || standby) return;
   connecting = true;
 
   const ports = await candidatePorts();
-  const port = pendingBridge ? pendingBridge.port : ports[portIndex % ports.length];
+  const port = nextPort(ports);
 
   let socket;
   try {
@@ -212,8 +252,11 @@ async function connect() {
     void handleRequest(event.data, socket);
   });
 
-  socket.addEventListener("close", () => {
-    if (ws === socket) ws = null;
+  socket.addEventListener("close", (event) => {
+    const current = ws === socket;
+    if (current) ws = null;
+    // A proven connection that drops is most likely the same app restarting.
+    const proven = hello?.socket === socket && hello.ack?.authenticated === true;
     if (hello && hello.socket === socket) {
       hello.settle(null);
       hello = null;
@@ -223,10 +266,13 @@ async function connect() {
     // Reopening to authenticate dials `pendingBridge`; anything else advances the scan.
     if (reopeningSocket === socket) reopeningSocket = null;
     else {
-      portIndex += 1;
+      portIndex = proven ? 0 : portIndex + 1;
       // A redial target that never opened: back to scanning.
       if (pendingBridge && pendingBridge.port === port) pendingBridge = null;
     }
+    // Another browser's extension took the app's connection: dialing back
+    // would only displace it in turn.
+    if (current && event?.code === REPLACED_CLOSE_CODE) setStandby(true);
     // The app went away (or this was a failed probe) — clear any debugger
     // banners so the browser returns to normal until the app is back.
     detachAll();
@@ -278,12 +324,16 @@ function pickBridge(bridges, port, usable) {
   return candidates.find((entry) => entry.port === port) ?? candidates[0] ?? null;
 }
 
-/** Closes `socket` so the next connect dials `bridge` and proves its token. */
-function redial(socket, bridge) {
+function rememberDialed(token) {
   if (dialedSecrets.size >= MAX_DIALED_SECRETS) {
     dialedSecrets.delete(dialedSecrets.values().next().value);
   }
-  dialedSecrets.add(bridge.token);
+  dialedSecrets.add(token);
+}
+
+/** Closes `socket` so the next connect dials `bridge` and proves its token. */
+function redial(socket, bridge) {
+  rememberDialed(bridge.token);
   pendingBridge = { port: bridge.port, token: bridge.token };
   reopeningSocket = socket;
   socket.close();
@@ -354,13 +404,33 @@ async function provenBridge(socket) {
 }
 
 function scheduleReconnect() {
-  if (reconnectTimer) return;
+  if (reconnectTimer || standby) return;
   // Fast sweep across the port range on first pass, then settle into slow retry.
-  const delay = portIndex < DEFAULT_PORTS.length ? SCAN_DELAY_MS : IDLE_RETRY_MS;
+  const idle = portIndex >= 2 * DEFAULT_PORTS.length;
+  const delay = idle ? IDLE_RETRY_MS : SCAN_DELAY_MS;
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
-    void connect();
+    void (async () => {
+      if (idle && Date.now() - lastNativeAttemptAt >= NATIVE_DISCOVERY_MS) await discoverBridge();
+      void connect();
+    })();
   }, delay);
+}
+
+/**
+ * Asks the native host which bridge is live and dials it next, so a port the
+ * scan would reach only later is found at once. Its token proves the hello.
+ */
+async function discoverBridge() {
+  // Like a redial, each secret is dialed this way at most once until it proves itself.
+  const bridge = pickBridge(
+    await nativeBridges(),
+    null,
+    (entry) => !dialedSecrets.has(entry.token),
+  );
+  if (!bridge || isOpen() || connecting || pendingBridge) return;
+  rememberDialed(bridge.token);
+  pendingBridge = { port: bridge.port, token: bridge.token };
 }
 
 // ---------------------------------------------------------------------------
@@ -674,8 +744,18 @@ chrome.debugger.onDetach.addListener((source, reason) => {
  * app cannot provide one until it is updated; or `null` to retry later (app
  * closed, native host not reachable yet, or the request was refused).
  */
-async function chatBootstrap() {
+async function chatBootstrap(takeOver) {
+  await standbyRestored;
+  if (standby) {
+    if (!takeOver) return { issue: IN_USE_ELSEWHERE_ISSUE };
+    setStandby(false);
+    portIndex = 0;
+  }
   if (!isReady()) {
+    // The sidebar is waiting: ask the native host for the live port first.
+    if (!connecting && !pendingBridge && Date.now() - lastNativeAttemptAt >= NATIVE_RETRY_MS) {
+      await discoverBridge();
+    }
     void connect();
     return null;
   }
@@ -774,7 +854,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
   if (message && message.cmd === "getChatBootstrap") {
-    chatBootstrap().then(sendResponse, () => sendResponse(null));
+    chatBootstrap(message.takeOver === true).then(sendResponse, () => sendResponse(null));
     return true;
   }
   return false;

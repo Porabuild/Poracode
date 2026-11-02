@@ -1,8 +1,8 @@
-import { forwardRef } from "react";
-import { Button } from "@heroui/react";
+import { forwardRef, type ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { CaseSensitive, ChevronDown, ChevronUp, X } from "lucide-react";
+import { CaseSensitive, ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
+import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
 
 export interface FindBarProps {
   query: string;
@@ -58,9 +58,10 @@ export const FindBar = forwardRef<HTMLInputElement, FindBarProps>(function FindB
 
   return (
     <div
-      className={`flex items-center gap-1 rounded-lg border border-[var(--hairline-strong)] bg-[var(--background)] px-1.5 py-1 shadow-lg ${className ?? ""}`}
+      className={`${floatingGlassSurfaceClass} flex h-9 items-center gap-0.5 rounded-4xl p-1 pl-2.5 ${className ?? ""}`}
       role="search"
     >
+      <Search className="size-3.5 shrink-0 text-muted" aria-hidden />
       <input
         ref={ref}
         type="text"
@@ -80,47 +81,63 @@ export const FindBar = forwardRef<HTMLInputElement, FindBarProps>(function FindB
         aria-label={placeholder ?? t`Find`}
         spellCheck={false}
         autoComplete="off"
-        className="w-44 bg-transparent px-1 text-sm text-foreground outline-none placeholder:text-foreground-muted"
+        className="w-44 bg-transparent px-1.5 text-[13px] text-foreground outline-none placeholder:text-muted"
       />
       <span
-        className="min-w-[4.5rem] shrink-0 px-1 text-right text-xs tabular-nums text-foreground-muted"
+        className="min-w-[4.5rem] shrink-0 px-1.5 text-right text-[11px] tabular-nums text-muted"
         aria-live="polite"
       >
         {counter}
       </span>
-      <Button
-        isIconOnly
-        size="sm"
-        variant={caseSensitive ? "secondary" : "tertiary"}
-        aria-label={t`Match case`}
-        aria-pressed={caseSensitive}
-        onPress={onToggleCaseSensitive}
-      >
+      <FindBarButton label={t`Match case`} pressed={caseSensitive} onPress={onToggleCaseSensitive}>
         <CaseSensitive className="size-4" />
-      </Button>
-      <Button
-        isIconOnly
-        size="sm"
-        variant="tertiary"
-        aria-label={t`Previous match`}
-        isDisabled={matchCount === 0}
-        onPress={onPrev}
-      >
-        <ChevronUp className="size-4" />
-      </Button>
-      <Button
-        isIconOnly
-        size="sm"
-        variant="tertiary"
-        aria-label={t`Next match`}
-        isDisabled={matchCount === 0}
-        onPress={onNext}
-      >
-        <ChevronDown className="size-4" />
-      </Button>
-      <Button isIconOnly size="sm" variant="tertiary" aria-label={t`Close find`} onPress={onClose}>
-        <X className="size-4" />
-      </Button>
+      </FindBarButton>
+      <span className="mx-0.5 h-4 w-px shrink-0 bg-[var(--hairline-strong)]" aria-hidden />
+      <FindBarButton label={t`Previous match`} disabled={matchCount === 0} onPress={onPrev}>
+        <ChevronUp className="size-3.5" />
+      </FindBarButton>
+      <FindBarButton label={t`Next match`} disabled={matchCount === 0} onPress={onNext}>
+        <ChevronDown className="size-3.5" />
+      </FindBarButton>
+      <FindBarButton label={t`Close find`} onPress={onClose}>
+        <X className="size-3.5" />
+      </FindBarButton>
     </div>
   );
 });
+
+/**
+ * 28px icon button in the floating-glass material. Its radius nests inside the
+ * bar's composer-matched corner (bar radius minus the bar's padding).
+ */
+function FindBarButton({
+  label,
+  pressed,
+  disabled = false,
+  onPress,
+  children,
+}: {
+  label: string;
+  pressed?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      {...(pressed === undefined ? {} : { "aria-pressed": pressed })}
+      disabled={disabled}
+      onClick={onPress}
+      className={`flex size-7 shrink-0 items-center justify-center rounded-2xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:pointer-events-none disabled:opacity-40 ${
+        pressed
+          ? "bg-accent/15 text-accent"
+          : "text-muted hover:bg-[var(--row-hover)] hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}

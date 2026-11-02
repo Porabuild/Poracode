@@ -38,6 +38,7 @@ import {
 import { ComposerVoiceInput } from "@/renderer/components/composer/ComposerVoiceInput";
 import { LiveVoiceButton } from "@/renderer/components/composer/LiveVoiceControls";
 import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
+import { composerCustomMcpItems } from "@/renderer/components/composer/composerCustomMcpServers";
 import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
@@ -80,12 +81,13 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { resolveModelLabel } from "@/renderer/components/providers/modelDisplay";
 import { launchExperiment } from "@/renderer/actions/experimentActions";
 import { openMcpServersSettings } from "@/renderer/actions/panelActions";
-import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
+import { updateProjectWorktreeBaseBranch } from "@/renderer/actions/projectActions";
 import {
   ExperimentDraftTargets,
   type ExperimentDraftCandidate,
 } from "@/renderer/components/experiment/ExperimentDraftTargets";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
 import { registerMountedProjectDraft } from "@/renderer/state/mountedProjectDrafts";
 import { composerSeedQueue } from "@/renderer/state/projectReferences";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -119,6 +121,7 @@ import { useDraftLiveVoice } from "./useDraftLiveVoice";
 import {
   isCurrentCheckoutRef,
   localBranchNameFromRef,
+  qualifiedRemoteName,
   resolveWorktreeOriginRef,
 } from "@/renderer/components/common/BranchSelector/parts/worktreeBaseRef";
 
@@ -255,7 +258,6 @@ function DraftComposerAfterControls(props: {
   pluginLabels: Readonly<Record<string, string>>;
   onPickFiles: () => void;
   showVoiceInputButton: boolean;
-  voiceInputUnavailableHint?: string | undefined;
   isDisabled: boolean;
   readOnlyMcp?: boolean;
   experiment?: {
@@ -293,9 +295,6 @@ function DraftComposerAfterControls(props: {
       <ComposerVoiceInput
         show={props.showVoiceInputButton}
         isDisabled={props.isDisabled}
-        {...(props.voiceInputUnavailableHint !== undefined
-          ? { unavailableHint: props.voiceInputUnavailableHint }
-          : {})}
         mentionRef={props.mentionRef}
         voiceInputRef={props.voiceInputRef}
       />
@@ -357,20 +356,12 @@ export function ThreadDraftComposerArea(props: {
   const usesRemoteTransport = props.isRemote === true || isRemoteSurface;
   const isQuickComposer = hasAnyClientBridge() ? isQuickComposerWindow() : false;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
-  // Remote sessions have no local capture path: keep the button visible (when
-  // enabled) but disabled with the reason, instead of hiding it silently.
   const showVoiceInputButton = voiceInputEnabled;
-  const voiceInputUnavailableHint = voiceInputEnabled
-    ? isRemoteSurface
-      ? t`Voice input is unavailable on remote sessions.`
-      : undefined
-    : undefined;
   // Persistent (standing-default) composer MCP enablement, keyed by MCP id.
   const persistentMcpServers = useSharedSettings((s) => s.enabledMcpServers);
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const setMcpServerEnabled = useSharedSettings((s) => s.setMcpServerEnabled);
   const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
-  const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
   const providerMcpSettings = useSharedSettings((s) => s.agentSettings[props.selectedAgent.kind]);
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
@@ -561,6 +552,7 @@ export function ThreadDraftComposerArea(props: {
       }
     },
   }));
+  useResidentProjectMcpServers(props.project);
   // User-configured MCP servers (global + this project's workspace scope).
   // Toggling flips the server's persistent `enabled` flag — the same switch as
   // the MCP Servers settings page — because custom servers bind at launch from
@@ -569,32 +561,19 @@ export function ThreadDraftComposerArea(props: {
   // what actually launches. Provider-owned MCP rows are shown read-only here;
   // their settings page remains the single place that changes them.
   const projectCustomMcpServers = props.project.mcpServers ?? [];
-  const projectCustomMcpIds = new Set(projectCustomMcpServers.map((server) => server.id));
   const mergedCustomMcpServers = mergeMcpServers(userCustomMcpServers, projectCustomMcpServers);
   const visibleCustomMcpServers = providerOwnsMcp
     ? providerOwnsMcpForComposer
       ? mergedCustomMcpServers.filter((server) => server.enabled)
       : []
     : mergedCustomMcpServers;
-  const customMcpServers: ComposerCustomMcpItem[] = visibleCustomMcpServers.map((server) => {
-    const isProject = projectCustomMcpIds.has(server.id);
-    const scopedServers = isProject ? projectCustomMcpServers : userCustomMcpServers;
-    return {
-      id: `${isProject ? "project" : "user"}:${server.id}`,
-      name: server.name,
-      enabled: server.enabled,
-      ...(!providerOwnsMcp
-        ? {
-            onToggle: (next: boolean) => {
-              const nextServers = scopedServers.map((item) =>
-                item.id === server.id ? { ...item, enabled: next } : item,
-              );
-              if (isProject) updateProjectMcpServers(props.project.id, nextServers);
-              else setUserCustomMcpServers(nextServers);
-            },
-          }
-        : {}),
-    };
+  const customMcpServers: ComposerCustomMcpItem[] = composerCustomMcpItems({
+    servers: visibleCustomMcpServers,
+    userServers: userCustomMcpServers,
+    projectServers: projectCustomMcpServers,
+    projectId: props.project.id,
+    projectLocation: props.project.location,
+    editable: !providerOwnsMcp,
   });
   // Composer chips represent per-thread *mentions* only: a server whose config
   // flag is on for this draft but that isn't persistently enabled. Persistently
@@ -606,13 +585,14 @@ export function ThreadDraftComposerArea(props: {
       (!providerOwnsMcp || providerOwnsMcpForComposer),
   );
 
-  // Worktree creation lives in the composer toolbar. The "bring over uncommitted
-  // changes" affordance only appears when the new worktree forks from the
-  // current (dirty) checkout — the only case where transferring is meaningful.
+  // Worktree creation lives in the composer toolbar. Transferring uncommitted
+  // changes is only meaningful when the new worktree forks from the current
+  // (dirty) checkout.
   const projectStatus = useGitStore((s) => s.statuses[props.project.id]);
   const projectBranches = useGitStore(
     (s) => s.branches[props.project.id]?.branches ?? EMPTY_BRANCHES,
   );
+  const projectDefaultBranch = useGitStore((s) => s.branches[props.project.id]?.defaultBranch);
   const hasUncommittedChanges =
     !!projectStatus && projectStatus.staged.length + projectStatus.unstaged.length > 0;
   const trackingWorktreeBase =
@@ -622,15 +602,36 @@ export function ThreadDraftComposerArea(props: {
     projectStatus.tracking
       ? projectStatus.tracking
       : undefined;
-  const defaultWorktreeBase = trackingWorktreeBase ?? props.gitBranch;
+  // New worktrees fork from the project's pinned base, else the repository's
+  // default branch (the remote HEAD, e.g. `origin/main`), rather than whatever
+  // the main checkout is on. Fall back to the checkout only when neither is
+  // known. A pin whose branch no longer exists is ignored.
+  const pinnedWorktreeBranch = props.project.worktreeBaseBranch;
+  const pinnedWorktreeBase =
+    pinnedWorktreeBranch &&
+    (projectBranches.length === 0 ||
+      projectBranches.some(
+        (branch) =>
+          branch.name === pinnedWorktreeBranch ||
+          qualifiedRemoteName(branch) === pinnedWorktreeBranch,
+      ))
+      ? resolveWorktreeOriginRef(pinnedWorktreeBranch, projectBranches, projectStatus?.tracking)
+      : undefined;
+  const implicitWorktreeBase = pinnedWorktreeBase ?? projectDefaultBranch ?? trackingWorktreeBase;
+  const defaultWorktreeBase = implicitWorktreeBase ?? props.gitBranch;
+  // Experiments launch from a local branch, so they keep the checkout's base.
+  const experimentDefaultBase = trackingWorktreeBase ?? props.gitBranch;
   const selectedWorktreeBase = branchSelection?.baseBranch ?? branchSelection?.branch;
   const worktreeBase = selectedWorktreeBase ?? defaultWorktreeBase;
-  // The worktree dropdown's "+ changes" choice is offered whenever the current
-  // (dirty) checkout would be the worktree's fork point — independent of whether
-  // worktree mode is already on, since selecting it also turns worktree mode on.
+  // The worktree dropdown's "+ changes" choice is offered unless the user picked
+  // an explicit non-checkout base: choosing it re-forks from the dirty checkout,
+  // so it stays available while the base is still the implicit default. This is
+  // independent of whether worktree mode is already on, since selecting it also
+  // turns worktree mode on.
   const canBringChanges =
     hasUncommittedChanges &&
     (selectedWorktreeBase === undefined ||
+      selectedWorktreeBase === implicitWorktreeBase ||
       selectedWorktreeBase === props.gitBranch ||
       selectedWorktreeBase === trackingWorktreeBase);
   // Transferring is only meaningful once worktree mode is actually on.
@@ -673,6 +674,13 @@ export function ThreadDraftComposerArea(props: {
       ...(baseBranch ? { baseBranch } : {}),
       transferUncommitted: mode === "new-with-changes",
     });
+  }
+
+  // Setting a default also makes it this draft's base; clearing it keeps the
+  // current selection.
+  function handleDefaultWorktreeBranchChange(branch: string | undefined) {
+    updateProjectWorktreeBaseBranch(props.project.id, branch);
+    if (branch) handleBranchSelect({ branch, baseBranch: branch, isWorktree: true });
   }
 
   function handleBranchSelect(selection: BranchSelection) {
@@ -982,8 +990,8 @@ export function ThreadDraftComposerArea(props: {
             }
           : {
               worktreeBranch: generateWorktreeBranch(),
-              ...((branchSelection?.baseBranch ?? trackingWorktreeBase)
-                ? { worktreeBaseBranch: branchSelection?.baseBranch ?? trackingWorktreeBase }
+              ...((branchSelection?.baseBranch ?? implicitWorktreeBase)
+                ? { worktreeBaseBranch: branchSelection?.baseBranch ?? implicitWorktreeBase }
                 : {}),
               worktreeIsNewBranch: true,
               ...(shouldTransferUncommitted ? { worktreeTransferUncommitted: true } : {}),
@@ -1042,7 +1050,7 @@ export function ThreadDraftComposerArea(props: {
 
   async function runExperiment(allSegments: PromptSegment[], fallbackPrompt = "") {
     const input = resolveExperimentInput(allSegments, fallbackPrompt);
-    const baseBranch = experimentBaseBranch ?? defaultWorktreeBase;
+    const baseBranch = experimentBaseBranch ?? experimentDefaultBase;
     if (!input || !baseBranch || experimentCandidates.length < 2 || isSubmitting) return;
     setIsSubmitting(true);
     const experimentId = await launchExperiment({
@@ -1521,7 +1529,6 @@ export function ThreadDraftComposerArea(props: {
             customMcpServers={customMcpServers}
             readOnlyMcp={providerOwnsMcpForComposer}
             showVoiceInputButton={showVoiceInputButton && !liveVoiceActive}
-            {...(voiceInputUnavailableHint !== undefined ? { voiceInputUnavailableHint } : {})}
             isDisabled={authRequired || agentUpdating || isSubmitting}
             {...(!props.hideWorkspaceControls &&
             !isHomeScope &&
@@ -1535,10 +1542,13 @@ export function ThreadDraftComposerArea(props: {
                     onToggle: (next: boolean) => {
                       setExperimentMode(next);
                       if (next) {
+                        // The worktree default (pin or remote HEAD) may be a
+                        // remote ref; experiments keep their checkout default.
                         const rawBase =
-                          branchSelection?.baseBranch ??
-                          branchSelection?.branch ??
-                          defaultWorktreeBase;
+                          selectedWorktreeBase !== undefined &&
+                          selectedWorktreeBase !== implicitWorktreeBase
+                            ? selectedWorktreeBase
+                            : experimentDefaultBase;
                         setExperimentBaseBranch(rawBase ? resolveOriginBase(rawBase) : null);
                       } else {
                         setExperimentCandidates([]);
@@ -1582,7 +1592,7 @@ export function ThreadDraftComposerArea(props: {
             currentBranch={props.gitBranch}
             value={
               experimentMode
-                ? (experimentBaseBranch ?? defaultWorktreeBase ?? props.gitBranch)
+                ? (experimentBaseBranch ?? experimentDefaultBase ?? props.gitBranch)
                 : worktreeSelected
                   ? (worktreeBase ?? props.gitBranch)
                   : (branchSelection?.branch ?? props.gitBranch)
@@ -1590,13 +1600,19 @@ export function ThreadDraftComposerArea(props: {
             isWorktree={experimentMode ? true : branchSelection?.isWorktree}
             baseBranch={
               experimentMode
-                ? (experimentBaseBranch ?? defaultWorktreeBase ?? props.gitBranch)
+                ? (experimentBaseBranch ?? experimentDefaultBase ?? props.gitBranch)
                 : worktreeSelected
                   ? worktreeBase
                   : branchSelection?.baseBranch
             }
             worktreeMode={experimentMode || props.worktreeMode}
-            {...(!experimentMode ? { onWorktreeModeChange: props.onWorktreeModeChange } : {})}
+            {...(!experimentMode
+              ? {
+                  onWorktreeModeChange: props.onWorktreeModeChange,
+                  defaultWorktreeBranch: pinnedWorktreeBranch,
+                  onDefaultWorktreeBranchChange: handleDefaultWorktreeBranchChange,
+                }
+              : {})}
             onSelect={
               experimentMode
                 ? (selection) =>

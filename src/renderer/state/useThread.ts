@@ -40,18 +40,12 @@ export function useProject(projectId: string | undefined) {
   return useAppStore((s) => (projectId ? getProjectMap(s.projects).get(projectId) : undefined));
 }
 
+// Copies every field but `lastDraftConfig`: a field allowlist here silently
+// hid later-loaded project data (such as `mcpServers`) from draft composers.
 function withoutDraftConfig(project: Project): Project {
-  return {
-    id: project.id,
-    ...(project.remoteServerId ? { remoteServerId: project.remoteServerId } : {}),
-    ...(project.remoteId ? { remoteId: project.remoteId } : {}),
-    name: project.name,
-    location: project.location,
-    createdAt: project.createdAt,
-    ...(project.scripts ? { scripts: project.scripts } : {}),
-    ...(project.searchSettings ? { searchSettings: project.searchSettings } : {}),
-    ...(project.disabled !== undefined ? { disabled: project.disabled } : {}),
-  };
+  const draftPaneProject = { ...project };
+  delete draftPaneProject.lastDraftConfig;
+  return draftPaneProject;
 }
 
 /**

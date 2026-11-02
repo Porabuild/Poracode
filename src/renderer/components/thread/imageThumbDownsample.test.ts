@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  containPixelSize,
   coverCropRect,
   downsampleLoadedImage,
   isRasterDownsampleCandidate,
@@ -50,6 +51,19 @@ describe("thumbPixelSize", () => {
   });
 });
 
+describe("containPixelSize", () => {
+  it("fits the full source inside the budget without cropping", () => {
+    // 160×96 tile at 1× with resolutionScale 2 → 320×192 budget.
+    expect(containPixelSize(1920, 1080, 320, 192)).toEqual({ width: 320, height: 180 });
+    expect(containPixelSize(800, 1200, 320, 192)).toEqual({ width: 128, height: 192 });
+  });
+
+  it("never enlarges a source that already fits", () => {
+    expect(containPixelSize(100, 60, 320, 192)).toBeNull();
+    expect(containPixelSize(320, 192, 320, 192)).toBeNull();
+  });
+});
+
 describe("shouldDownsample", () => {
   it("is true when the cover crop is larger than the tile", () => {
     expect(shouldDownsample(1920, 1080, 192, 128)).toBe(true);
@@ -93,6 +107,7 @@ describe("downsampleLoadedImage", () => {
   const originalCreateImageBitmap = globalThis.createImageBitmap;
   const originalCreateObjectUrl = URL.createObjectURL;
   const originalRevokeObjectUrl = URL.revokeObjectURL;
+  const originalDpr = Object.getOwnPropertyDescriptor(window, "devicePixelRatio");
 
   beforeEach(() => {
     URL.createObjectURL = vi.fn<(obj: Blob | MediaSource) => string>(() => "blob:thumb-1");
@@ -107,6 +122,9 @@ describe("downsampleLoadedImage", () => {
     }
     URL.createObjectURL = originalCreateObjectUrl;
     URL.revokeObjectURL = originalRevokeObjectUrl;
+    if (originalDpr) {
+      Object.defineProperty(window, "devicePixelRatio", originalDpr);
+    }
     vi.restoreAllMocks();
   });
 
@@ -223,6 +241,87 @@ describe("downsampleLoadedImage", () => {
     } finally {
       if (originalOffscreen) globalThis.OffscreenCanvas = originalOffscreen;
     }
+  });
+
+  function stubCanvasBlob() {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      drawImage: vi.fn<(image: CanvasImageSource, dx: number, dy: number) => void>(),
+      imageSmoothingEnabled: true,
+      imageSmoothingQuality: "high",
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback) => {
+      callback?.(new Blob(["thumb"], { type: "image/png" }));
+    });
+  }
+
+  it.each([
+    { natural: [1920, 1080] as const, dpr: 1, expected: [320, 180] },
+    { natural: [800, 1200] as const, dpr: 1, expected: [128, 192] },
+    { natural: [1920, 1080] as const, dpr: 2, expected: [640, 360] },
+    // Extreme aspect ratios still downsample to a 1px-min contain output.
+    { natural: [10000, 1] as const, dpr: 1, expected: [320, 1] },
+    { natural: [1, 10000] as const, dpr: 1, expected: [1, 192] },
+  ])(
+    "contain fit keeps the full source rect for $natural at DPR $dpr",
+    async ({ natural, dpr, expected }) => {
+      const originalOffscreen = globalThis.OffscreenCanvas;
+      Reflect.deleteProperty(globalThis, "OffscreenCanvas");
+      const create = stubCreateImageBitmap(
+        async (
+          _source: ImageBitmapSource,
+          sxOrOptions?: number | ImageBitmapOptions,
+          _sy?: number,
+          sw?: number,
+          sh?: number,
+          options?: ImageBitmapOptions,
+        ) => {
+          const resize = options ?? (typeof sxOrOptions === "object" ? sxOrOptions : undefined);
+          if (resize?.resizeWidth && resize.resizeHeight) {
+            return fakeBitmap(resize.resizeWidth, resize.resizeHeight);
+          }
+          if (typeof sw === "number" && typeof sh === "number") {
+            return fakeBitmap(sw, sh);
+          }
+          return fakeBitmap(natural[0]!, natural[1]!);
+        },
+      );
+      stubCanvasBlob();
+      Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: dpr });
+
+      try {
+        const img = loadedImage({
+          naturalWidth: natural[0],
+          naturalHeight: natural[1],
+          width: 160,
+          height: 96,
+        });
+        await expect(
+          downsampleLoadedImage(img, { fit: "contain", resolutionScale: 2 }),
+        ).resolves.toBe("blob:thumb-1");
+        expect(create).toHaveBeenCalledWith(img, 0, 0, natural[0], natural[1]);
+        const finalResize = create.mock.calls
+          .map((call) => call[5] ?? (typeof call[1] === "object" ? call[1] : undefined))
+          .filter((opts) => opts?.resizeWidth !== undefined)
+          .at(-1);
+        expect(finalResize).toMatchObject({
+          resizeWidth: expected[0],
+          resizeHeight: expected[1],
+        });
+      } finally {
+        if (originalOffscreen) globalThis.OffscreenCanvas = originalOffscreen;
+      }
+    },
+  );
+
+  it("returns null for contain fit when the source already fits the budget", async () => {
+    const create = stubCreateImageBitmap();
+    await expect(
+      downsampleLoadedImage(loadedImage({ naturalWidth: 100, naturalHeight: 60 }), {
+        fit: "contain",
+        resolutionScale: 2,
+      }),
+    ).resolves.toBeNull();
+    expect(create).not.toHaveBeenCalled();
   });
 
   it("returns null when decode or resize throws", async () => {

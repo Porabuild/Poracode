@@ -5,10 +5,12 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { I18n } from "@lingui/core";
 import { Button, Select, ToggleSwitch } from "@/renderer/components/common";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { friendlyError } from "@/shared/messages";
 import type { AudioTranscriptionModel } from "@/shared/settings";
-import { SettingsPage } from "./SettingsForm";
+import { SettingsPage, SettingRow } from "./SettingsForm";
 import { useLocalizedOptions } from "./settingsOptions";
+import { HexVoiceSettings } from "./HexVoiceSettings";
+import { VoiceInputButton } from "@/renderer/components/composer/VoiceInputButton";
+import { showVoiceCaptureError } from "@/renderer/components/composer/voiceError";
 
 const SYSTEM_MICROPHONE_ID = "system-default";
 
@@ -35,6 +37,11 @@ const languageOptions = [
 const modelOptions = [
   { id: "tiny", label: msg`Fastest (Whisper tiny)` },
   { id: "base", label: msg`Better (Whisper base)` },
+] as const;
+
+const backendOptions = [
+  { id: "transformers", label: msg`Built-in · This device` },
+  { id: "hex", label: msg`Hex · Host engine` },
 ] as const;
 
 interface MicrophoneTest {
@@ -85,10 +92,13 @@ export function AudioSettings() {
   const showVoiceInputButton = useSharedSettings((s) => s.audio.showVoiceInputButton);
   const transcriptionLanguage = useSharedSettings((s) => s.audio.transcriptionLanguage);
   const transcriptionModel = useSharedSettings((s) => s.audio.transcriptionModel);
+  const transcriptionBackend = useSharedSettings((s) => s.audio.transcriptionBackend);
+  const hexModel = useSharedSettings((s) => s.audio.hexModel);
   const useWebGpu = useSharedSettings((s) => s.audio.useWebGpu);
   const setAudioSetting = useSharedSettings((s) => s.setAudioSetting);
 
   const modelOpts = useLocalizedOptions(modelOptions);
+  const backendOpts = useLocalizedOptions(backendOptions);
 
   useEffect(() => {
     const mediaDevices = navigator.mediaDevices;
@@ -96,11 +106,14 @@ export function AudioSettings() {
 
     let disposed = false;
     const refresh = () => {
-      void mediaDevices.enumerateDevices().then((devices) => {
-        if (!disposed) {
-          setMicrophoneOptions(buildMicrophoneOptions(devices, i18n._.bind(i18n)));
-        }
-      });
+      void mediaDevices
+        .enumerateDevices()
+        .then((devices) => {
+          if (!disposed) {
+            setMicrophoneOptions(buildMicrophoneOptions(devices, i18n._.bind(i18n)));
+          }
+        })
+        .catch(() => {});
     };
 
     refresh();
@@ -112,99 +125,146 @@ export function AudioSettings() {
   }, [i18n]);
 
   return (
-    <SettingsPage title={t`Audio`} bodyClassName="space-y-5">
-      <SettingRow
-        anchorId="audio.showVoiceInputButton"
-        title={t`Show voice input button`}
-        description={<Trans>Show the microphone button in the composer.</Trans>}
-      >
-        <ToggleSwitch
-          aria-label={t`Show voice input button`}
-          isSelected={showVoiceInputButton}
-          onChange={(selected) => {
-            startTransition(() => {
-              setAudioSetting("showVoiceInputButton", selected);
-            });
-          }}
-        />
-      </SettingRow>
-      <SettingRow
-        anchorId="audio.microphoneDevice"
-        title={t`Microphone`}
-        description={<Trans>Device used by the composer voice input button.</Trans>}
-      >
-        <Select
-          aria-label={t`Microphone`}
-          className="w-[280px] shrink-0"
-          options={microphoneOptions}
-          value={microphoneDeviceId || SYSTEM_MICROPHONE_ID}
-          onChange={(value) => {
-            startTransition(() => {
-              setAudioSetting("microphoneDeviceId", value === SYSTEM_MICROPHONE_ID ? "" : value);
-            });
-          }}
-        />
-      </SettingRow>
-      <SettingRow
-        anchorId="audio.testMicrophone"
-        title={t`Test microphone`}
-        description={<Trans>Check the live input level from the selected device.</Trans>}
-      >
-        <MicrophoneTestBar key={microphoneDeviceId} microphoneDeviceId={microphoneDeviceId} />
-      </SettingRow>
-      <SettingRow
-        anchorId="audio.voiceInputLanguage"
-        title={t`Voice input language`}
-        description={
+    <SettingsPage
+      title={t`Audio`}
+      description={t`Choose how you record and where your speech is transcribed.`}
+      bodyClassName="audio-settings space-y-6"
+    >
+      {window.isSecureContext === false ? (
+        <p role="alert" className="text-sm text-danger">
           <Trans>
-            Language the speech model should expect when transcribing composer dictation.
+            Microphone access requires HTTPS or localhost. Open Poracode over a secure connection.
           </Trans>
-        }
+        </p>
+      ) : null}
+      <AudioGroup title={t`Microphone`} description={t`Capture audio from this device.`}>
+        <SettingRow
+          anchorId="audio.showVoiceInputButton"
+          title={t`Show voice input button`}
+          description={<Trans>Show the microphone button in the composer.</Trans>}
+        >
+          <ToggleSwitch
+            aria-label={t`Show voice input button`}
+            isSelected={showVoiceInputButton}
+            onChange={(selected) => {
+              startTransition(() => {
+                setAudioSetting("showVoiceInputButton", selected);
+              });
+            }}
+          />
+        </SettingRow>
+        <SettingRow
+          anchorId="audio.microphoneDevice"
+          title={t`Microphone`}
+          description={<Trans>Device used by the composer voice input button.</Trans>}
+        >
+          <Select
+            aria-label={t`Microphone`}
+            className="w-[280px] shrink-0"
+            options={microphoneOptions}
+            value={microphoneDeviceId || SYSTEM_MICROPHONE_ID}
+            onChange={(value) => {
+              startTransition(() => {
+                setAudioSetting("microphoneDeviceId", value === SYSTEM_MICROPHONE_ID ? "" : value);
+              });
+            }}
+          />
+        </SettingRow>
+        <SettingRow
+          anchorId="audio.testMicrophone"
+          title={t`Test microphone`}
+          description={<Trans>Check the live input level from the selected device.</Trans>}
+        >
+          <MicrophoneTestBar key={microphoneDeviceId} microphoneDeviceId={microphoneDeviceId} />
+        </SettingRow>
+      </AudioGroup>
+      <AudioGroup
+        title={t`Transcription`}
+        description={t`Keep the same microphone button. Choose the engine behind it.`}
       >
-        <Select
-          aria-label={t`Voice input language`}
-          className="w-[280px] shrink-0"
-          options={languageOptions}
-          value={transcriptionLanguage}
-          onChange={(value) => {
-            startTransition(() => {
-              setAudioSetting("transcriptionLanguage", value);
-            });
-          }}
-        />
-      </SettingRow>
-      <SettingRow
-        anchorId="audio.voiceInputModel"
-        title={t`Voice input model`}
-        description={<Trans>Fastest uses Whisper tiny; Better uses Whisper base.</Trans>}
-      >
-        <Select
-          aria-label={t`Voice input model`}
-          className="w-[280px] shrink-0"
-          options={modelOpts}
-          value={transcriptionModel}
-          onChange={(value) => {
-            startTransition(() => {
-              setAudioSetting("transcriptionModel", value as AudioTranscriptionModel);
-            });
-          }}
-        />
-      </SettingRow>
-      <SettingRow
-        anchorId="audio.useWebGpu"
-        title={t`Use WebGPU acceleration`}
-        description={<Trans>Run local transcription on the GPU when available.</Trans>}
-      >
-        <ToggleSwitch
-          aria-label={t`Use WebGPU acceleration`}
-          isSelected={useWebGpu}
-          onChange={(selected) => {
-            startTransition(() => {
-              setAudioSetting("useWebGpu", selected);
-            });
-          }}
-        />
-      </SettingRow>
+        <SettingRow
+          anchorId="audio.voiceInputLanguage"
+          title={t`Voice input language`}
+          description={
+            <Trans>
+              Language the speech model should expect when transcribing composer dictation.
+            </Trans>
+          }
+        >
+          <Select
+            aria-label={t`Voice input language`}
+            className="w-[280px] shrink-0"
+            options={languageOptions}
+            value={transcriptionLanguage}
+            onChange={(value) => {
+              startTransition(() => {
+                setAudioSetting("transcriptionLanguage", value);
+              });
+            }}
+          />
+        </SettingRow>
+        <SettingRow
+          anchorId="audio.transcriptionBackend"
+          title={t`Transcription engine`}
+          description={
+            <Trans>
+              Built-in runs on this device. Hex uses a native engine on the connected host.
+            </Trans>
+          }
+        >
+          <Select
+            aria-label={t`Voice input backend`}
+            className="w-[280px] shrink-0"
+            options={backendOpts}
+            value={transcriptionBackend}
+            onChange={(value) => {
+              if (value === "transformers" || value === "hex") {
+                startTransition(() => setAudioSetting("transcriptionBackend", value));
+              }
+            }}
+          />
+        </SettingRow>
+        {transcriptionBackend === "transformers" && (
+          <>
+            <SettingRow
+              anchorId="audio.voiceInputModel"
+              title={t`Voice input model`}
+              description={<Trans>Fastest uses Whisper tiny; Better uses Whisper base.</Trans>}
+            >
+              <Select
+                aria-label={t`Voice input model`}
+                className="w-[280px] shrink-0"
+                options={modelOpts}
+                value={transcriptionModel}
+                onChange={(value) => {
+                  startTransition(() => {
+                    setAudioSetting("transcriptionModel", value as AudioTranscriptionModel);
+                  });
+                }}
+              />
+            </SettingRow>
+            <SettingRow
+              anchorId="audio.useWebGpu"
+              title={t`Use WebGPU acceleration`}
+              description={<Trans>Run local transcription on the GPU when available.</Trans>}
+            >
+              <ToggleSwitch
+                aria-label={t`Use WebGPU acceleration`}
+                isSelected={useWebGpu}
+                onChange={(selected) => {
+                  startTransition(() => {
+                    setAudioSetting("useWebGpu", selected);
+                  });
+                }}
+              />
+            </SettingRow>
+          </>
+        )}
+      </AudioGroup>
+      {transcriptionBackend === "hex" && <HexVoiceSettings language={transcriptionLanguage} />}
+      <DictationTest
+        key={`${transcriptionBackend}:${transcriptionLanguage}:${transcriptionModel}:${hexModel}:${microphoneDeviceId}`}
+      />
     </SettingsPage>
   );
 }
@@ -306,7 +366,7 @@ function MicrophoneTestBar(props: { microphoneDeviceId: string }) {
     } catch (error) {
       stream?.getTracks().forEach((track) => track.stop());
       void context?.close();
-      toast.danger(friendlyError(error));
+      showVoiceCaptureError(error);
     } finally {
       setIsStarting(false);
     }
@@ -365,23 +425,77 @@ function MicrophoneTestBar(props: { microphoneDeviceId: string }) {
   );
 }
 
-function SettingRow(props: {
+function AudioGroup({
+  title,
+  description,
+  children,
+}: {
   title: string;
-  description: React.ReactNode;
+  description: string;
   children: React.ReactNode;
-  /** Search anchor — see the shared SettingRow in ./SettingsForm. */
-  anchorId?: string;
 }) {
   return (
-    <div
-      {...(props.anchorId ? { id: props.anchorId, "data-settings-anchor": props.anchorId } : {})}
-      className={`flex items-start justify-between gap-6 ${props.anchorId ? "scroll-mt-4" : ""}`}
-    >
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{props.title}</p>
-        <p className="text-xs text-muted">{props.description}</p>
+    <section className="space-y-4" aria-label={title}>
+      <div className="border-b border-border pb-3">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <p className="mt-1 text-xs text-muted">{description}</p>
       </div>
-      {props.children}
-    </div>
+      <div className="space-y-5">{children}</div>
+    </section>
+  );
+}
+
+function DictationTest() {
+  const { t } = useLingui();
+  const [transcript, setTranscript] = useState("");
+  const [preview, setPreview] = useState("");
+  return (
+    <section
+      id="audio.testDictation"
+      data-settings-anchor="audio.testDictation"
+      aria-label={t`Test dictation`}
+      className="scroll-mt-4 space-y-3 rounded-xl border border-border p-4"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold">
+            <Trans>Test dictation</Trans>
+          </h2>
+          <p className="mt-1 text-xs text-muted">
+            <Trans>Use the microphone to try your selected engine and model.</Trans>
+          </p>
+        </div>
+        <VoiceInputButton
+          onTranscript={(text) => {
+            setTranscript(text);
+            setPreview("");
+          }}
+          onTranscriptPreview={setPreview}
+          onTranscriptCancel={() => setPreview("")}
+        />
+      </div>
+      <div
+        role="status"
+        className="min-h-16 whitespace-pre-wrap break-words rounded-lg bg-surface-secondary p-3 text-sm"
+      >
+        {preview || transcript || (
+          <span className="text-muted">
+            <Trans>Your test transcript will appear here. It is not sent to a conversation.</Trans>
+          </span>
+        )}
+      </div>
+      {transcript && (
+        <Button
+          size="sm"
+          variant="ghost"
+          onPress={() => {
+            setTranscript("");
+            setPreview("");
+          }}
+        >
+          <Trans>Clear transcript</Trans>
+        </Button>
+      )}
+    </section>
   );
 }

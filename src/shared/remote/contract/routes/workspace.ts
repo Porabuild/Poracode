@@ -99,7 +99,13 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     audit: auditEvent("file_read"),
     queryParameters: ["ticket"],
     request: { bodyKind: "empty", querySchema: mediaTicketQuerySchema },
-    response: { wireKind: "binary", status: 200, contentType: "audio/*,video/*,image/*" },
+    response: {
+      wireKind: "binary",
+      status: 200,
+      // `application/octet-stream` covers the additive attachment option,
+      // which serves arbitrary regular files as downloads.
+      contentType: "audio/*,video/*,image/*,application/octet-stream",
+    },
   }),
   defineRoute({
     id: "file-media-release",

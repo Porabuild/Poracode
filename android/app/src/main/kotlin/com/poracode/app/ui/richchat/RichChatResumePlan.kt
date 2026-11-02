@@ -35,6 +35,10 @@ internal object RichChatResumePlanner {
 
     fun isInterrupted(thread: RemoteThread?): Boolean = thread?.interruptedTurn in INTERRUPTIONS
 
+    /** Live catalog state outranks metadata captured by the history read. */
+    fun threadForComposer(catalogThread: RemoteThread?, historyThread: RemoteThread?): RemoteThread? =
+        catalogThread ?: historyThread
+
     /**
      * The action an empty chat composer offers, or null. [suppressedRow] is the
      * row a successful send was made against: the host has the turn now, so the

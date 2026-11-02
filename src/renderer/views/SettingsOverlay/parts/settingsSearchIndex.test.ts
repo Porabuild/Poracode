@@ -24,6 +24,11 @@ function anchorsDeclaredInComponents(): Set<string> {
 const t = (descriptor: MessageDescriptor) => i18n._(descriptor);
 
 describe("SETTINGS_SEARCH_INDEX", () => {
+  it("makes audio settings searchable in PWA clients", () => {
+    const audio = SETTINGS_SEARCH_INDEX.filter((entry) => entry.section === "audio");
+    expect(audio.length).toBeGreaterThan(0);
+    expect(audio.every((entry) => !entry.desktopOnly)).toBe(true);
+  });
   it("uses unique anchors", () => {
     const anchors = SETTINGS_SEARCH_INDEX.map((entry) => entry.anchor);
     expect(new Set(anchors).size).toBe(anchors.length);

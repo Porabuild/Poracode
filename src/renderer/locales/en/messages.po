@@ -38,6 +38,10 @@ msgstr "(no branch)"
 #~ msgid "(no message)"
 #~ msgstr "(no message)"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "(optional)"
+msgstr "(optional)"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -173,6 +177,11 @@ msgstr "{0} — Composer"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "{0} — Terminal"
 msgstr "{0} — Terminal"
+
+#. placeholder {0}: item.name
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} · Installed"
+msgstr "{0} · Installed"
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -310,6 +319,11 @@ msgstr "{0} limit"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} logged out."
 msgstr "{0} logged out."
+
+#. placeholder {0}: Math.ceil(item.downloadBytes / 1_000_000)
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{0} MB download"
+msgstr "{0} MB download"
 
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -557,6 +571,10 @@ msgstr "{days} days"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "{days}d ago"
 msgstr "{days}d ago"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "{downloadSize} MB download"
+msgstr "{downloadSize} MB download"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
@@ -1040,6 +1058,10 @@ msgstr "3D preview, view only. Drag or use arrow keys to rotate; Home resets."
 msgid "4K"
 msgstr "4K"
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "5 files · 10 MB each"
+msgstr "5 files · 10 MB each"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "7d"
 msgstr "7d"
@@ -1281,6 +1303,7 @@ msgstr "Actions"
 #~ msgstr "Actions for {title}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
+#: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -1432,6 +1455,10 @@ msgstr "Add credentials before this thread can run."
 #: src/renderer/components/crew/CrewRoleDetails.tsx
 msgid "Add fallback"
 msgstr "Add fallback"
+
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Add files, drop here, or paste an image"
+msgstr "Add files, drop here, or paste an image"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
@@ -1886,7 +1913,7 @@ msgstr "Allow agents to read/write cookies and storage"
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
 msgstr "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
 
@@ -1894,6 +1921,10 @@ msgstr "Allow camera access for this site in your browser settings and try again
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Allow eval"
 msgstr "Allow eval"
+
+#: src/renderer/components/composer/voiceError.ts
+msgid "Allow microphone access in your browser's site settings, then try again."
+msgstr "Allow microphone access in your browser's site settings, then try again."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #~ msgid "Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use HTTP unless TLS is configured. Enable only on trusted networks."
@@ -2311,6 +2342,10 @@ msgstr "Attach to thread"
 msgid "Attached browser selection."
 msgstr "Attached browser selection."
 
+#: src/renderer/components/common/FeedbackAttachments.tsx
+msgid "Attachments"
+msgstr "Attachments"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Attempt"
 msgstr "Attempt"
@@ -2322,13 +2357,22 @@ msgid "Attempt {0} · Iteration {1}"
 msgstr "Attempt {0} · Iteration {1}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Audio"
 msgstr "Audio"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Audio is sent only to your selected host, not to a cloud transcription service. Recordings are limited to five minutes. Models have separate licenses; download size is not memory usage."
+msgstr "Audio is sent only to your selected host, not to a cloud transcription service. Recordings are limited to five minutes. Models have separate licenses; download size is not memory usage."
+
 #: src/renderer/components/media/NativeMediaView.tsx
 msgid "Audio preview"
 msgstr "Audio preview"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Audio settings"
+msgstr "Audio settings"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
@@ -2522,6 +2566,10 @@ msgstr "available"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Available ACP Agents"
 msgstr "Available ACP Agents"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Available models will appear after the engine is installed."
+msgstr "Available models will appear after the engine is installed."
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -2772,6 +2820,10 @@ msgstr "Branch <0>{0}</0> has unmerged changes:"
 #~ msgid "Branch name"
 #~ msgstr "Branch name"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Branch new worktrees fork from. You can also star one in the composer's branch picker."
+msgstr "Branch new worktrees fork from. You can also star one in the composer's branch picker."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Branch not fully merged"
 msgstr "Branch not fully merged"
@@ -2912,6 +2964,10 @@ msgstr "Browser sign-in"
 msgid "Budget limit reached"
 msgstr "Budget limit reached"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Bug"
+msgstr "Bug"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Builder"
 msgstr "Builder"
@@ -2932,6 +2988,14 @@ msgstr "Building diff…"
 msgid "Built-in"
 msgstr "Built-in"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Built-in · This device"
+msgstr "Built-in · This device"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Built-in (Transformers.js)"
+#~ msgstr "Built-in (Transformers.js)"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Built-in and plugin skills"
 #~ msgstr "Built-in and plugin skills"
@@ -2943,6 +3007,11 @@ msgstr "Built-in MCP servers"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentRankedRow.tsx
 msgid "Built-in order"
 msgstr "Built-in order"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Built-in runs on this device. Hex uses a native engine on the connected host."
+msgstr "Built-in runs on this device. Hex uses a native engine on the connected host."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Built-in servers are managed by Poracode. They can be disabled globally but cannot be edited or removed."
@@ -3018,7 +3087,7 @@ msgstr "Calendar"
 msgid "Camera"
 msgstr "Camera"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Camera access blocked"
 
@@ -3037,6 +3106,7 @@ msgstr "Can't use this model selection on that surface"
 
 #: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
@@ -3088,8 +3158,13 @@ msgid "Cancel agent discovery"
 msgstr "Cancel agent discovery"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Cancel download"
 msgstr "Cancel download"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Cancel installation"
+msgstr "Cancel installation"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -3122,6 +3197,10 @@ msgstr "Cancel run"
 #: src/renderer/components/plugins/PluginServiceAccounts.tsx
 msgid "Cancel sign-in"
 msgstr "Cancel sign-in"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Cancel transcription"
+msgstr "Cancel transcription"
 
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Cancel voice connection"
@@ -3161,6 +3240,10 @@ msgstr "Cannot switch branches — commit or stash your changes first"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Capture and view controls"
 msgstr "Capture and view controls"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Capture audio from this device."
+msgstr "Capture audio from this device."
 
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
@@ -3350,6 +3433,7 @@ msgstr "Check for update"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
+#: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
 msgstr "Check for updates"
@@ -3380,6 +3464,10 @@ msgstr "Check the {invalidPaletteName} palette for invalid colors."
 msgid "Check the live input level from the selected device."
 msgstr "Check the live input level from the selected device."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Check the supported languages before downloading."
+msgstr "Check the supported languages before downloading."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Checked"
 msgstr "Checked"
@@ -3395,6 +3483,10 @@ msgstr "Checking"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Checking {serverName}"
 msgstr "Checking {serverName}"
+
+#: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
+msgid "Checking for updates…"
+msgstr "Checking for updates…"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Checking host…"
@@ -3466,7 +3558,7 @@ msgstr "Choose a local base branch for the experiment."
 msgid "Choose a parent folder"
 msgstr "Choose a parent folder"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Choose a photo"
 msgstr "Choose a photo"
 
@@ -3482,6 +3574,10 @@ msgstr "Choose a project icon image"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Choose a saved credential to sign out."
 msgstr "Choose a saved credential to sign out."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Choose a voice model"
+msgstr "Choose a voice model"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Choose an available conversation in this project."
@@ -3529,6 +3625,10 @@ msgstr "Choose how Poracode performs manual merges and automatic PR merges."
 #~ msgid "Choose how to sign in."
 #~ msgstr "Choose how to sign in."
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Choose how you record and where your speech is transcribed."
+msgstr "Choose how you record and where your speech is transcribed."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
 msgstr "Choose import destination"
@@ -3565,6 +3665,10 @@ msgstr "Choose the workspace for new cloud chats. Existing cloud sessions keep t
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
 msgstr "Choose thread to attach to"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Choose up to 5 supported files, 10 MB each."
+msgstr "Choose up to 5 supported files, 10 MB each."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Choose what happens after a scheduled time was missed."
@@ -3739,6 +3843,10 @@ msgstr "Clear search"
 #~ msgid "Clear thread search"
 #~ msgstr "Clear thread search"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Clear transcript"
+msgstr "Clear transcript"
+
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -3786,6 +3894,7 @@ msgid "Cloning…"
 msgstr "Cloning…"
 
 #: src/renderer/components/common/BottomSheet.tsx
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
@@ -3797,6 +3906,7 @@ msgstr "Cloning…"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Close"
 msgstr "Close"
 
@@ -3972,7 +4082,7 @@ msgstr "Close pull request"
 msgid "Close run details"
 msgstr "Close run details"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Close scanner"
 msgstr "Close scanner"
 
@@ -4165,6 +4275,10 @@ msgstr "Collapse background tasks"
 msgid "Collapse composer"
 msgstr "Collapse composer"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Collapse context window"
+msgstr "Collapse context window"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Collapse error"
 msgstr "Collapse error"
@@ -4196,8 +4310,12 @@ msgid "Collapse terminal composer"
 msgstr "Collapse terminal composer"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Collapse thread context"
-msgstr "Collapse thread context"
+#~ msgid "Collapse thread context"
+#~ msgstr "Collapse thread context"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Collapse thread info"
+msgstr "Collapse thread info"
 
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse todo dock"
@@ -4653,6 +4771,10 @@ msgstr "Connect to a remote server"
 #~ msgid "Connect to Your Desktop"
 #~ msgstr "Connect to Your Desktop"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Connect to your host to set up Hex."
+msgstr "Connect to your host to set up Hex."
+
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
@@ -4791,6 +4913,11 @@ msgstr "Context transferred to {targetLabel}"
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Context usage"
 msgstr "Context usage"
+
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "Context window"
+msgstr "Context window"
 
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 msgid "Context windows"
@@ -5242,7 +5369,7 @@ msgstr "Couldn't scan MCP server configurations."
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "Couldn't schedule the Lightcode data import."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Couldn't start the camera"
 
@@ -5380,7 +5507,7 @@ msgstr "Creates an independent conversation through a completed turn. Files stay
 msgid "Creating PR…"
 msgstr "Creating PR…"
 
-#: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Creating worktree…"
@@ -5622,9 +5749,21 @@ msgstr "Cursor"
 #~ msgid "Cursor ACP logged out."
 #~ msgstr "Cursor ACP logged out."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cursor can't summarize the conversation while a turn is running. Send /summarize again once it finishes."
+msgstr "Cursor can't summarize the conversation while a turn is running. Send /summarize again once it finishes."
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Cursor CLI (ACP)"
 msgstr "Cursor CLI (ACP)"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cursor couldn't summarize the conversation, so it was left unchanged."
+msgstr "Cursor couldn't summarize the conversation, so it was left unchanged."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Cursor couldn't write a summary, so it saved a trimmed copy of the conversation instead."
+msgstr "Cursor couldn't write a summary, so it saved a trimmed copy of the conversation instead."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Cursor GUI runtime updated."
@@ -5830,6 +5969,10 @@ msgstr "Default coding agent"
 msgid "Default Create PR action"
 msgstr "Default Create PR action"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Default for new worktrees"
+msgstr "Default for new worktrees"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Default new thread"
@@ -5853,6 +5996,10 @@ msgstr "Default thread removal"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Default Windows shell"
 #~ msgstr "Default Windows shell"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Default worktree base"
+msgstr "Default worktree base"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Delegate focused work to other installed agents and coordinate the results."
@@ -6487,6 +6634,10 @@ msgstr "Discard experiment?"
 msgid "Discard outdated"
 msgstr "Discard outdated"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Discard recording"
+msgstr "Discard recording"
+
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Discard unsaved changes in {path}?"
@@ -6537,6 +6688,7 @@ msgstr "Discovering coding agents…"
 msgid "Discovery complete"
 msgstr "Discovery complete"
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6639,6 +6791,10 @@ msgstr "Done ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Done ({remainingSeconds}s)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Download {fileName}"
+msgstr "Download {fileName}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
 msgstr "Download failed"
@@ -6652,9 +6808,25 @@ msgstr "Download history"
 msgid "Download image"
 msgstr "Download image"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model"
+msgstr "Download model"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download model · {downloadSize} MB"
+msgstr "Download model · {downloadSize} MB"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download progress"
 msgstr "Download progress"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Download required"
+#~ msgstr "Download required"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download size unavailable"
+msgstr "Download size unavailable"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Downloading"
@@ -6666,6 +6838,7 @@ msgid "Downloading into “{0}”. This can take a moment for large repositories
 msgstr "Downloading into “{0}”. This can take a moment for large repositories."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
+#: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/UpdateButtons.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Downloading update"
@@ -6675,6 +6848,10 @@ msgstr "Downloading update"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model {0}%"
 msgstr "Downloading voice model {0}%"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Downloading voice model {progress}%"
+#~ msgstr "Downloading voice model {progress}%"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Downloading voice model..."
@@ -6943,6 +7120,10 @@ msgstr "Effort levels"
 msgid "Effort levels for {modelName}"
 msgstr "Effort levels for {modelName}"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Egyptian Arabic speech with English terms."
+msgstr "Egyptian Arabic speech with English terms."
+
 #. About page label: Electron framework version
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Electron"
@@ -7056,6 +7237,23 @@ msgstr "End voice chat"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Endpoint, e.g. http://192.168.1.20:49152/"
 #~ msgstr "Endpoint, e.g. http://192.168.1.20:49152/"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Engine installation progress"
+msgstr "Engine installation progress"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation based on Parakeet."
+msgstr "English dictation based on Parakeet."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English dictation with filler-word removal."
+msgstr "English dictation with filler-word removal."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "English speech recognition."
+msgstr "English speech recognition."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Enhanced (Hooks)"
@@ -7310,6 +7508,10 @@ msgstr "Execution"
 msgid "Execution mode"
 msgstr "Execution mode"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Existing issues"
+msgstr "Existing issues"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Existing or edited native entry; left unchanged"
 msgstr "Existing or edited native entry; left unchanged"
@@ -7368,6 +7570,10 @@ msgstr "Expand all"
 msgid "Expand background tasks"
 msgstr "Expand background tasks"
 
+#: src/renderer/components/thread/ThreadContextWindowDock.tsx
+msgid "Expand context window"
+msgstr "Expand context window"
+
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 msgid "Expand error"
 msgstr "Expand error"
@@ -7394,8 +7600,12 @@ msgid "Expand images"
 msgstr "Expand images"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
-msgid "Expand thread context"
-msgstr "Expand thread context"
+#~ msgid "Expand thread context"
+#~ msgstr "Expand thread context"
+
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+msgid "Expand thread info"
+msgstr "Expand thread info"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -7710,6 +7920,22 @@ msgstr "Favorites"
 msgid "Featured"
 msgstr "Featured"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not be sent. Your draft is kept."
+msgstr "Feedback could not be sent. Your draft is kept."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback could not load. Please try again later."
+msgstr "Feedback could not load. Please try again later."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback is temporarily unavailable. Please try again later."
+msgstr "Feedback is temporarily unavailable. Please try again later."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Feedback sent"
+msgstr "Feedback sent"
+
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Fetch"
 msgstr "Fetch"
@@ -7922,6 +8148,10 @@ msgstr "Finished"
 #: src/renderer/notifications.ts
 msgid "Finished · Waiting for your input"
 msgstr "Finished · Waiting for your input"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Finishing your report on GitHub…"
+msgstr "Finishing your report on GitHub…"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
@@ -8650,9 +8880,50 @@ msgstr "Helper"
 msgid "Helpers join when this chat restarts."
 msgstr "Helpers join when this chat restarts."
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Hex · Host engine"
+msgstr "Hex · Host engine"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#~ msgid "Hex (native)"
+#~ msgstr "Hex (native)"
+
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "Hex color"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex could not process this request. Check the model and language in Audio settings."
+msgstr "Hex could not process this request. Check the model and language in Audio settings."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Hex documentation and licenses"
+msgstr "Hex documentation and licenses"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Hex installation"
+#~ msgstr "Hex installation"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is busy with another voice request. Try again shortly."
+msgstr "Hex is busy with another voice request. Try again shortly."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex is unavailable on this host. Install a compatible Hex executable and restart Poracode, or choose the built-in backend."
+msgstr "Hex is unavailable on this host. Install a compatible Hex executable and restart Poracode, or choose the built-in backend."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Hex setup"
+msgstr "Hex setup"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Hex timed out. Please try again."
+msgstr "Hex timed out. Please try again."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Hex voice model"
+msgstr "Hex voice model"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -8914,6 +9185,10 @@ msgstr "Icon color: {label}"
 msgid "ID: {0}"
 msgstr "ID: {0}"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Idea"
+msgstr "Idea"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Identifier"
 msgstr "Identifier"
@@ -9151,7 +9426,7 @@ msgstr "In progress"
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "In Safari, tap Share, then Add to Home Screen."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
 msgstr "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
 
@@ -9162,6 +9437,10 @@ msgstr "In-app camera scanning only works over HTTPS or on localhost. Scan the d
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Inactive"
 msgstr "Inactive"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Include basic diagnostics"
+#~ msgstr "Include basic diagnostics"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
@@ -9451,6 +9730,22 @@ msgstr "Install Cursor SDK"
 msgid "Install Cursor SDK in {environment}"
 msgstr "Install Cursor SDK in {environment}"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex"
+msgstr "Install Hex"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex · {engineSize} MB"
+#~ msgstr "Install Hex · {engineSize} MB"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Install Hex · {size} MB"
+msgstr "Install Hex · {size} MB"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Install Hex on the connected host first. Poracode uses its native service, not its dictation app. Model downloads may be large and have their own licenses."
+#~ msgstr "Install Hex on the connected host first. Poracode uses its native service, not its dictation app. Model downloads may be large and have their own licenses."
+
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install in {0}"
@@ -9506,6 +9801,10 @@ msgstr "Install Tailscale"
 msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "Install Tailscale to enable HTTPS access through MagicDNS."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Install the engine"
+msgstr "Install the engine"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Install the package to add its API key."
 msgstr "Install the package to add its API key."
@@ -9538,6 +9837,10 @@ msgstr "Install Xcode and an iOS Simulator runtime on this host."
 msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Install, update, and sign-in are not yet available on remote machines."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Installation continues when you close this dialog."
+msgstr "Installation continues when you close this dialog."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -9564,6 +9867,11 @@ msgstr "Installed-font selection is unavailable in this client."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
 msgstr "Installing"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Installing engine…"
+msgstr "Installing engine…"
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Installing in this terminal. Closes when finished."
@@ -9719,6 +10027,10 @@ msgstr "Keep Poracode in the system tray when it launches at startup."
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "Keep the Mac awake during Computer Use"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Keep the same microphone button. Choose the engine behind it."
+msgstr "Keep the same microphone button. Choose the engine behind it."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
 msgstr "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
@@ -9799,6 +10111,10 @@ msgstr "Landscape right"
 msgid "Language"
 msgstr "Language"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Language and sidebar shortcuts"
+msgstr "Language and sidebar shortcuts"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language for AI-generated commit messages and pull request summaries. Thread titles always follow the app language."
@@ -9808,6 +10124,11 @@ msgstr "Language for AI-generated commit messages and pull request summaries. Th
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Language the speech model should expect when transcribing composer dictation."
 msgstr "Language the speech model should expect when transcribing composer dictation."
+
+#. placeholder {0}: selected.languages.join(", ")
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Languages: {0}"
+msgstr "Languages: {0}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Laptop"
@@ -10147,6 +10468,14 @@ msgstr "Loading media preview…"
 msgid "Loading messages…"
 msgstr "Loading messages…"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Loading model…"
+msgstr "Loading model…"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Loading models…"
+#~ msgstr "Loading models…"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
 msgstr "Loading notes…"
@@ -10415,6 +10744,14 @@ msgstr "Manage"
 #~ msgid "Manage global and project agent skills, including skills imported from other providers."
 #~ msgstr "Manage global and project agent skills, including skills imported from other providers."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Manage Hex"
+msgstr "Manage Hex"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Manage Hex…"
+msgstr "Manage Hex…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
 msgstr "Manage MCP servers"
@@ -10494,6 +10831,11 @@ msgstr "Managed by {pluginName}"
 msgid "Managed by Poracode"
 msgstr "Managed by Poracode"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Managed by Poracode. No separate app to open."
+msgstr "Managed by Poracode. No separate app to open."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Managed by provider"
 msgstr "Managed by provider"
@@ -10501,6 +10843,14 @@ msgstr "Managed by provider"
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed by the provider or plugin."
 #~ msgstr "Managed by the provider or plugin."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Managed Hex installation is not available on this host."
+msgstr "Managed Hex installation is not available on this host."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
+msgstr "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
@@ -10978,6 +11328,15 @@ msgstr "Microphone {fallbackNumber}"
 msgid "Microphone access is off."
 msgstr "Microphone access is off."
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Microphone access requires HTTPS or localhost. Open Poracode over a secure connection."
+msgstr "Microphone access requires HTTPS or localhost. Open Poracode over a secure connection."
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Microphone and voice input backend"
+msgstr "Microphone and voice input backend"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Microphone input level"
 msgstr "Microphone input level"
@@ -11118,6 +11477,14 @@ msgstr "Model label"
 msgid "Model pairing"
 msgstr "Model pairing"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model preparation progress"
+msgstr "Model preparation progress"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Model ready. Try a short recording below."
+msgstr "Model ready. Try a short recording below."
+
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
 msgstr "Model removed from favorites"
@@ -11143,6 +11510,10 @@ msgstr "Model usage"
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "Models"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Models available on the connected host for the selected language."
+msgstr "Models available on the connected host for the selected language."
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
@@ -11354,6 +11725,14 @@ msgstr "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBra
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Moving changes…"
 msgstr "Moving changes…"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual dictation for the supported languages."
+msgstr "Multilingual dictation for the supported languages."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Multilingual speech recognition."
+msgstr "Multilingual speech recognition."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
@@ -11834,7 +12213,7 @@ msgstr "No branches found"
 msgid "No browser tab open"
 msgstr "No browser tab open"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "No camera found"
 msgstr "No camera found"
 
@@ -12788,6 +13167,10 @@ msgstr "Open experiment"
 msgid "Open experiment board"
 msgstr "Open experiment board"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Open feedback on website"
+#~ msgstr "Open feedback on website"
+
 #: src/renderer/commands/registry.ts
 msgid "Open File"
 msgstr "Open File"
@@ -13471,11 +13854,11 @@ msgstr "Paste either a named server object or an object wrapped in an mcpServers
 msgid "Paste in input"
 msgstr "Paste in input"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste link"
 msgstr "Paste link"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste pairing link"
 msgstr "Paste pairing link"
 
@@ -13680,6 +14063,12 @@ msgstr "Picker failed"
 msgid "Picker returned no attachment"
 msgstr "Picker returned no attachment"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Pin {0} to top"
+msgstr "Pin {0} to top"
+
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Pin to top"
@@ -13694,6 +14083,7 @@ msgstr "Pin workflow"
 msgid "Pink"
 msgstr "Pink"
 
+#: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
@@ -13799,7 +14189,7 @@ msgstr "Plugins"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "Plugins run code with your account's access. Install packages from authors you trust."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Point at the QR code in Settings → Remote Access"
 
@@ -13846,9 +14236,18 @@ msgstr "Poracode could not create this plugin's data folder."
 msgid "Poracode could not start"
 msgstr "Poracode could not start"
 
+#: src/renderer/speech/hexVoice.ts
+msgid "Poracode does not have permission to install or run the Hex engine."
+msgstr "Poracode does not have permission to install or run the Hex engine."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Poracode downloads and verifies Hex on this host. No administrator access is needed."
+msgstr "Poracode downloads and verifies Hex on this host. No administrator access is needed."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode failed to start:\n"
@@ -13873,6 +14272,10 @@ msgstr "Poracode Helper is not ready yet (HTTP {status})."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode Helper returned an invalid response."
 msgstr "Poracode Helper returned an invalid response."
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Poracode is connected to another browser."
+msgstr "Poracode is connected to another browser."
 
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
@@ -14027,9 +14430,29 @@ msgstr "Pre-commit hook failed"
 #~ msgid "Preferred routing order"
 #~ msgstr "Preferred routing order"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparation continues when you leave settings. You can return here to check progress."
+msgstr "Preparation continues when you leave settings. You can return here to check progress."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Prepare model"
+#~ msgstr "Prepare model"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Prepare the selected Hex model in Audio settings before recording."
+msgstr "Prepare the selected Hex model in Audio settings before recording."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparing model…"
+msgstr "Preparing model…"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
 msgstr "Preparing remote environment…"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Preparing your report…"
+msgstr "Preparing your report…"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Presentation"
@@ -14140,6 +14563,10 @@ msgstr "Print"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Privacy, licenses and engine management"
+#~ msgstr "Privacy, licenses and engine management"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Private key"
@@ -14418,6 +14845,10 @@ msgstr "Providers"
 #~ msgid "Providers & models"
 #~ msgstr "Providers & models"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Public on GitHub."
+#~ msgstr "Public on GitHub."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Public registry with verified sources and GitHub metrics."
 msgstr "Public registry with verified sources and GitHub metrics."
@@ -14500,6 +14931,10 @@ msgstr "Pull request #{number} was created, but marking it as draft failed. Refr
 msgid "Pull request created, but its default automation could not be enabled: {0}"
 msgstr "Pull request created, but its default automation could not be enabled: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Pull request defaults"
+msgstr "Pull request defaults"
+
 #: src/renderer/views/PullRequestsOverlay/summary/SummaryTab.tsx
 msgid "Pull request details"
 msgstr "Pull request details"
@@ -14573,6 +15008,7 @@ msgid "Qoder CLI"
 msgstr "Qoder CLI"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "QR Code"
 msgstr "QR Code"
 
@@ -14734,6 +15170,10 @@ msgstr "Reads the full diff and the code it touches, runs targeted checks, and r
 msgid "Ready"
 msgstr "Ready"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Ready for dictation"
+msgstr "Ready for dictation"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Ready for review"
 msgstr "Ready for review"
@@ -14839,6 +15279,26 @@ msgstr "Reconstructed from local logs at public API rates — it does not reflec
 msgid "Recorded token categories"
 msgstr "Recorded token categories"
 
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording"
+msgstr "Recording"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording stops automatically at five minutes."
+msgstr "Recording stops automatically at five minutes."
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Recording will stop in less than fifteen seconds."
+msgstr "Recording will stop in less than fifteen seconds."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed locally on this host."
+msgstr "Recordings are processed locally on this host."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Recordings are processed on {hostName}, not on this device."
+msgstr "Recordings are processed on {hostName}, not on this device."
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Red"
 msgstr "Red"
@@ -14873,6 +15333,7 @@ msgstr "Reference"
 #: src/renderer/views/PullRequestsOverlay/list/PrCompactListBar.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -14910,6 +15371,10 @@ msgstr "Refresh devices"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Refresh MCP server sources"
 msgstr "Refresh MCP server sources"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Refresh models"
+#~ msgstr "Refresh models"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Refresh registry"
@@ -15072,8 +15537,9 @@ msgid "Remove “{removingTarget}” from OpenCode 2? You can install it again f
 msgstr "Remove “{removingTarget}” from OpenCode 2? You can install it again from Discover."
 
 #. placeholder {0}: att.name
+#. placeholder {0}: file.name
 #. placeholder {0}: pkg.target
-#. placeholder {0}: removeProject.name
+#: src/renderer/components/common/FeedbackAttachments.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
@@ -15153,6 +15619,10 @@ msgstr "Remove connection and environments"
 msgid "Remove Cursor SDK API key"
 msgstr "Remove Cursor SDK API key"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove engine"
+msgstr "Remove engine"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "Remove environment variable"
@@ -15180,6 +15650,14 @@ msgstr "Remove from panel"
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelShortcutActions.tsx
 msgid "Remove from recent"
 msgstr "Remove from recent"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Remove Hex engine?"
+msgstr "Remove Hex engine?"
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Remove managed engine"
+msgstr "Remove managed engine"
 
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 msgid "Remove marketplace"
@@ -15411,6 +15889,10 @@ msgstr "Reordering canceled."
 msgid "Repeat"
 msgstr "Repeat"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Report a bug or suggest an idea."
+msgstr "Report a bug or suggest an idea."
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Report an Issue"
 msgstr "Report an Issue"
@@ -15428,6 +15910,10 @@ msgstr "repository"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "Repository"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeBaseBranch.tsx
+msgid "Repository default branch"
+msgstr "Repository default branch"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Repository entries must be unique."
@@ -15767,6 +16253,10 @@ msgstr "Retry session controls"
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "Retry session settings"
 #~ msgstr "Retry session settings"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Retry transcription"
+msgstr "Retry transcription"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Retry when a run fails before it completes."
@@ -16443,7 +16933,7 @@ msgstr "Saved shell"
 msgid "Scan pairing code"
 msgstr "Scan pairing code"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "Scan pairing QR code"
 
@@ -16467,7 +16957,7 @@ msgstr "Scan the pairing code shown in Remote Access on your desktop."
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scanning needs a secure connection"
 msgstr "Scanning needs a secure connection"
 
@@ -16530,6 +17020,10 @@ msgstr "Schedules"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Schedules, AI, agents, and archived threads on the paired desktop"
 msgstr "Schedules, AI, agents, and archived threads on the paired desktop"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Schedules, AI, agents, crews, and Git on the paired desktop"
+msgstr "Schedules, AI, agents, crews, and Git on the paired desktop"
 
 #: src/renderer/utils/projectIcons.ts
 msgid "Science & education"
@@ -16916,6 +17410,10 @@ msgstr "Select all that apply"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "Select an agent to see its prompt and outcome."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Select an available model for this language."
+msgstr "Select an available model for this language."
+
 #: src/renderer/components/common/Select.tsx
 msgid "Select an option"
 msgstr "Select an option"
@@ -16970,6 +17468,7 @@ msgstr "Selected"
 msgid "Selected sidebar row"
 msgstr "Selected sidebar row"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatComposer.tsx
@@ -16980,6 +17479,11 @@ msgstr "Send"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Send a message..."
 msgstr "Send a message..."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
+msgid "Send feedback"
+msgstr "Send feedback"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Send generic text instead of conversation titles through Apple's push service."
@@ -17094,6 +17598,10 @@ msgstr "Set or view the session goal"
 msgid "Set shortcut"
 msgstr "Set shortcut"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Set up Hex…"
+msgstr "Set up Hex…"
+
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Set when this session started — start a new thread to change MCP servers"
 msgstr "Set when this session started — start a new thread to change MCP servers"
@@ -17129,6 +17637,10 @@ msgstr "Settings aren't available yet, so your changes couldn't be saved. Please
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "setup"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Setup required"
+msgstr "Setup required"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
@@ -17514,7 +18026,9 @@ msgstr "Sign in on the paired desktop, then refresh this status."
 msgid "Sign in required"
 msgstr "Sign in required"
 
+#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "Sign in to {0}"
@@ -17788,7 +18302,7 @@ msgstr "Something else…"
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
 
@@ -17865,6 +18379,10 @@ msgstr "Specific persona"
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Specific repositories"
 msgstr "Specific repositories"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Speech recognition for supported East Asian languages and English."
+msgstr "Speech recognition for supported East Asian languages and English."
 
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Spend"
@@ -18091,7 +18609,7 @@ msgstr "Starting"
 msgid "Starting agent…"
 msgstr "Starting agent…"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Starting camera…"
 msgstr "Starting camera…"
 
@@ -18181,6 +18699,10 @@ msgstr "Steer was cancelled before the message was sent."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Steer was replaced by a newer message."
 msgstr "Steer was replaced by a newer message."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Still processing. Send again to check the same report."
+msgstr "Still processing. Send again to check the same report."
 
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
@@ -18762,6 +19284,11 @@ msgstr "Test and fix"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Test dictation"
+msgstr "Test dictation"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Test microphone"
 
@@ -18799,6 +19326,7 @@ msgid "That conversation is no longer available."
 msgstr "That conversation is no longer available."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "That isn't a Poracode pairing code."
 msgstr "That isn't a Poracode pairing code."
 
@@ -18911,6 +19439,10 @@ msgstr "the chosen folder"
 msgid "The completion check failed; the schedule was paused."
 msgstr "The completion check failed; the schedule was paused."
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The connected Poracode host is unavailable. Reconnect and try again."
+msgstr "The connected Poracode host is unavailable. Reconnect and try again."
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
 msgstr "The conversation is no longer available. This saved result is still accessible."
@@ -18978,6 +19510,10 @@ msgstr "The desktop's own server refused the change."
 msgid "The device host is unavailable."
 msgstr "The device host is unavailable."
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The downloaded Hex engine failed its integrity or signature check."
+msgstr "The downloaded Hex engine failed its integrity or signature check."
+
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "The environment changed on the host. Refresh and try again."
 msgstr "The environment changed on the host. Refresh and try again."
@@ -19008,6 +19544,10 @@ msgstr "The experiment state could not be verified."
 #: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
 msgid "The experiment state is too large to load or change safely."
 msgstr "The experiment state is too large to load or change safely."
+
+#: src/renderer/components/media/fileMediaSource.ts
+msgid "The file path is outside the project."
+msgstr "The file path is outside the project."
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "The finding is no longer available."
@@ -19057,6 +19597,14 @@ msgstr "The heartbeat conversation no longer exists."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The heartbeat conversation uses a different agent."
 msgstr "The heartbeat conversation uses a different agent."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine download failed. Check your connection and try again."
+msgstr "The Hex engine download failed. Check your connection and try again."
+
+#: src/renderer/speech/hexVoice.ts
+msgid "The Hex engine is incompatible with this host or Poracode version."
+msgstr "The Hex engine is incompatible with this host or Poracode version."
 
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
@@ -19226,6 +19774,10 @@ msgstr "The remote server returned no pairing credential."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The replacement message could not be sent."
 msgstr "The replacement message could not be sent."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "The report could not be confirmed yet. Please retry."
+msgstr "The report could not be confirmed yet. Please retry."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
@@ -19452,6 +20004,10 @@ msgstr "The voice connection timed out. Try again."
 msgid "The voice connection was cancelled."
 msgstr "The voice connection was cancelled."
 
+#: src/renderer/speech/hexVoice.ts
+msgid "The voice request is invalid or has expired. Please try again."
+msgstr "The voice request is invalid or has expired. Please try again."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The watched pull request changed. Review the watch before continuing."
 msgstr "The watched pull request changed. Review the watch before continuing."
@@ -19625,7 +20181,7 @@ msgstr "This desktop's Poracode version doesn't support browser forwarding. Upda
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "This device has no usable camera. Enter the endpoint and token below to pair instead."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
 
@@ -19661,6 +20217,10 @@ msgstr "This folder is empty."
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "This guide is out of date. Rewrite it to see excerpts for the current change."
 msgstr "This guide is out of date. Rewrite it to see excerpts for the current change."
+
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "This Hex release requires glibc 2.39 or newer on Linux."
+msgstr "This Hex release requires glibc 2.39 or newer on Linux."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
@@ -19841,6 +20401,10 @@ msgstr "This queued follow-up is already being sent."
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "This removes later messages and restores files when a checkpoint snapshot is available."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "This removes only the engine installed by Poracode. Downloaded models and external Hex installations are kept."
+msgstr "This removes only the engine installed by Poracode. Downloaded models and external Hex installations are kept."
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "This removes the environment from the host. The server's child workspace is not deleted."
 msgstr "This removes the environment from the host. The server's child workspace is not deleted."
@@ -19922,6 +20486,10 @@ msgstr "This shuts down the selected emulator and disconnects every viewer. Deta
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This source host does not support safe automatic merge."
 msgstr "This source host does not support safe automatic merge."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "This submission has expired. Your draft is kept."
+msgstr "This submission has expired. Your draft is kept."
 
 #: src/renderer/components/media/SvgFileView.tsx
 msgid "This SVG can't be displayed."
@@ -20020,8 +20588,8 @@ msgstr "Thread already exists."
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-msgid "Thread context"
-msgstr "Thread context"
+#~ msgid "Thread context"
+#~ msgstr "Thread context"
 
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Thread context usage"
@@ -20060,6 +20628,8 @@ msgstr "Thread goal dock"
 msgid "Thread images"
 msgstr "Thread images"
 
+#: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 msgid "Thread info"
@@ -20159,6 +20729,7 @@ msgstr "Timeout (ms)"
 msgid "Timeout must be a positive whole number."
 msgstr "Timeout must be a positive whole number."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrTitleBlock.tsx
 msgid "Title"
 msgstr "Title"
@@ -20306,6 +20877,15 @@ msgstr "Tracking off"
 msgid "Transcribing voice"
 msgstr "Transcribing voice"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Transcription"
+msgstr "Transcription"
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Transcription engine"
+msgstr "Transcription engine"
+
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Translucent sidebar"
@@ -20373,6 +20953,7 @@ msgstr "Two independent read-only reviews of a change, and a sidekick applies th
 #~ msgid "Two independent read-only reviews of a change."
 #~ msgstr "Two independent read-only reviews of a change."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Type"
 msgstr "Type"
@@ -20478,6 +21059,10 @@ msgstr "Unable to delete the saved password."
 msgid "Unable to determine the experiment's source branch."
 msgstr "Unable to determine the experiment's source branch."
 
+#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+msgid "Unable to download the file."
+msgstr "Unable to download the file."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Unable to edit the saved password."
 msgstr "Unable to edit the saved password."
@@ -20526,6 +21111,10 @@ msgstr "Unable to load saved passwords."
 #~ msgid "Unable to load thread."
 #~ msgstr "Unable to load thread."
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to load voice models."
+msgstr "Unable to load voice models."
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Unable to log out {0}."
@@ -20570,6 +21159,10 @@ msgstr "Unable to open the file in the editor"
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Unable to pair with that desktop."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Unable to prepare voice model."
+msgstr "Unable to prepare voice model."
 
 #: src/renderer/actions/browserActions.ts
 msgid "Unable to print this page."
@@ -20961,6 +21554,7 @@ msgstr "Unnamed device"
 msgid "Unphased:"
 msgstr "Unphased:"
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unpin"
@@ -21126,6 +21720,10 @@ msgstr "Update Cursor SDK in {environment}"
 msgid "Update Cursor SDK to v{availableVersion}"
 msgstr "Update Cursor SDK to v{availableVersion}"
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+msgid "Update engine"
+msgstr "Update engine"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
 msgstr "Update error: {detail}"
@@ -21282,6 +21880,15 @@ msgstr "Upgrade environment owner"
 msgid "Upgrade owner"
 msgstr "Upgrade owner"
 
+#. placeholder {0}: progress.upload
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Uploading attachment {0}…"
+msgstr "Uploading attachment {0}…"
+
+#: src/renderer/components/composer/VoiceInputButton.tsx
+msgid "Uploading audio…"
+msgstr "Uploading audio…"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Upside down"
 msgstr "Upside down"
@@ -21353,6 +21960,11 @@ msgstr "Usage: /goal edit <objective>"
 msgid "USD per million tokens"
 msgstr "USD per million tokens"
 
+#. placeholder {0}: branch.name
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use {0} as default worktree base"
+msgstr "Use {0} as default worktree base"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Use {crewName} in this project"
 msgstr "Use {crewName} in this project"
@@ -21389,6 +22001,14 @@ msgstr "Use an existing folder"
 msgid "Use an image from the project folder..."
 msgstr "Use an image from the project folder..."
 
+#: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
+msgid "Use as default for new worktrees"
+msgstr "Use as default for new worktrees"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Use built-in transcription"
+msgstr "Use built-in transcription"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."
 msgstr "Use Chrome safely when a task needs an existing browser session."
@@ -21409,6 +22029,10 @@ msgstr "Use detected session?"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use ignore files"
 msgstr "Use ignore files"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Use in this browser"
+msgstr "Use in this browser"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Use letters, numbers, dots, dashes, or underscores without spaces."
@@ -21454,6 +22078,11 @@ msgstr "Use the {name} skill."
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "Use the ID of a persona available in your Devin cloud organization."
 msgstr "Use the ID of a persona available in your Devin cloud organization."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use the microphone to try your selected engine and model."
+msgstr "Use the microphone to try your selected engine and model."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
@@ -21527,10 +22156,19 @@ msgstr "Uses Devin's own login on this machine. Sign in or out from the base Dev
 msgid "Using the built-in Claude model list."
 msgstr "Using the built-in Claude model list."
 
+#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Using your existing Hex installation. Poracode will not modify it."
+msgstr "Using your existing Hex installation. Poracode will not modify it."
+
 #. placeholder {0}: status.bundledVersion
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "v{0} available"
 msgstr "v{0} available"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Valid feedback is posted publicly on GitHub with your app version and platform."
+msgstr "Valid feedback is posted publicly on GitHub with your app version and platform."
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
@@ -21540,9 +22178,21 @@ msgstr "value"
 #~ msgid "Value"
 #~ msgstr "Value"
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Verification"
+#~ msgstr "Verification"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Verification could not load. Please try again."
+#~ msgstr "Verification could not load. Please try again."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify host key"
 #~ msgstr "Verify host key"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Verify model"
+msgstr "Verify model"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify SSH host key"
@@ -21555,6 +22205,10 @@ msgstr "value"
 #: src/renderer/views/SettingsOverlay/parts/RemoteConnectionDetails.tsx
 msgid "Version"
 msgstr "Version"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Version and platform only. No chat history, code, or project paths."
+#~ msgstr "Version and platform only. No chat history, code, or project paths."
 
 #. placeholder {0}: metadata.authMethod
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
@@ -21591,6 +22245,10 @@ msgstr "View all releases on GitHub"
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "View full changelog"
 msgstr "View full changelog"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "View GitHub issue"
+msgstr "View GitHub issue"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "View only"
@@ -21684,14 +22342,18 @@ msgstr "Visual"
 msgid "Visual sections"
 msgstr "Visual sections"
 
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Voice input backend"
+msgstr "Voice input backend"
+
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "Voice input is not available in this environment."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-msgid "Voice input is unavailable on remote sessions."
-msgstr "Voice input is unavailable on remote sessions."
+#~ msgid "Voice input is unavailable on remote sessions."
+#~ msgstr "Voice input is unavailable on remote sessions."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -21702,6 +22364,14 @@ msgstr "Voice input language"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Voice input model"
 msgstr "Voice input model"
+
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Voice input needs attention"
+msgstr "Voice input needs attention"
+
+#: src/renderer/speech/hexVoice.ts
+msgid "Voice transcription cancelled."
+msgstr "Voice transcription cancelled."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 #~ msgid "Wait for checks, then fix failures, unresolved conversations, and branch blockers."
@@ -21893,6 +22563,10 @@ msgstr "Weekly review"
 #~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 #~ msgstr "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What happened?"
+msgstr "What happened?"
+
 #: src/renderer/components/providers/devin/sessionReviseForm.tsx
 msgid "What should change? (optional)"
 msgstr "What should change? (optional)"
@@ -21913,6 +22587,10 @@ msgstr "What the Create PR button does by default: open a dialog to edit the tit
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "What this server provides"
 msgstr "What this server provides"
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "What would you like to see?"
+msgstr "What would you like to see?"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
@@ -21982,6 +22660,10 @@ msgstr "Where the terminal panel appears."
 msgid "While working"
 msgstr "While working"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Whisper with broad multilingual support."
+msgstr "Whisper with broad multilingual support."
+
 #. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Will run in {0}:"
@@ -22011,6 +22693,10 @@ msgstr "Windows shells"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Winner merged."
 msgstr "Winner merged."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "With Hex, recordings are sent to your connected Poracode host for processing, not to a cloud transcription service. Recordings are limited to five minutes."
+#~ msgstr "With Hex, recordings are sent to your connected Poracode host for processing, not to a cloud transcription service. Recordings are limited to five minutes."
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
@@ -22295,6 +22981,10 @@ msgstr "You have an unfinished review on the source host. Submit or discard it t
 msgid "You’re all caught up."
 msgstr "You’re all caught up."
 
+#: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
+msgid "You're on the latest version"
+msgstr "You're on the latest version"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrCheckout.ts
 #~ msgid "Your local branch {branch} cannot be fast-forwarded to this pull request's head, so no worktree was created and nothing was changed. To keep its commits and start over, run \"git branch -m {branch} {branch}-old\", then try again."
 #~ msgstr "Your local branch {branch} cannot be fast-forwarded to this pull request's head, so no worktree was created and nothing was changed. To keep its commits and start over, run \"git branch -m {branch} {branch}-old\", then try again."
@@ -22343,6 +23033,18 @@ msgstr "Your plugins"
 msgid "Your question is kept. Use Retry above to send it again."
 msgstr "Your question is kept. Use Retry above to send it again."
 
+#: src/renderer/components/composer/VoiceInputFeedback.tsx
+msgid "Your recording is kept in memory for two minutes. Retry uses the same model and host."
+msgstr "Your recording is kept in memory for two minutes. Retry uses the same model and host."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+msgid "Your report and attachments are now on GitHub."
+msgstr "Your report and attachments are now on GitHub."
+
+#: src/renderer/components/common/FeedbackDialog.tsx
+#~ msgid "Your report and attachments will be visible to everyone."
+#~ msgstr "Your report and attachments will be visible to everyone."
+
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Your review is requested"
 msgstr "Your review is requested"
@@ -22350,6 +23052,10 @@ msgstr "Your review is requested"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your stashed local changes were re-applied."
 msgstr "Your stashed local changes were re-applied."
+
+#: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
+msgid "Your test transcript will appear here. It is not sent to a conversation."
+msgstr "Your test transcript will appear here. It is not sent to a conversation."
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "z.ai"

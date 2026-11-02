@@ -249,6 +249,11 @@ function readSessionFile(home: string): TuiSession | undefined {
   }
 }
 
+/** True when `home` holds an unexpired saved session. */
+export function hasSavedTuiSession(home: string): boolean {
+  return readSessionFile(home) !== undefined;
+}
+
 function writeSessionFile(home: string, session: TuiSession): void {
   mkdirSync(home, { recursive: true, mode: 0o700 });
   const temporary = `${sessionFilePath(home)}.${process.pid}.tmp`;

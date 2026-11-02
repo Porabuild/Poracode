@@ -550,8 +550,13 @@ export function DeviceWorkspace({
       const panel =
         workspace?.closest("[data-poracode-panel], [data-testid=device-detached-window]") ??
         workspace;
-      const opener = document.getElementById(`thread-tool-devices-${threadId}`);
-      if (!panel?.contains(event.target as Node) && event.target !== opener) return;
+      // Side-rail button, or the header launcher the dropdown returns focus to.
+      const openers = [`thread-tool-devices-${threadId}`, `thread-tools-${threadId}`].map((id) =>
+        document.getElementById(id),
+      );
+      if (!panel?.contains(event.target as Node) && !openers.some((el) => el === event.target)) {
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
       if (detached) dockFromEffect();

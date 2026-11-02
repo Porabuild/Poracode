@@ -28,11 +28,18 @@ export function RemoteImageCard(props: {
 }) {
   const readiness = useChatPaneActions()?.remoteImageReadiness;
   const ref: RemoteImageRefValue | undefined = props.source.remoteRef;
-  const { viewportRef, priority } = useImageViewportPriority(
+  const { viewportRef, priority, readRank } = useImageViewportPriority(
     ref !== undefined && readiness !== undefined,
   );
   const variant = ref && ref.bytes > CARD_VARIANT_MIN_SOURCE_BYTES ? ("card" as const) : undefined;
-  const variantUrl = useRemoteImageRefUrl(ref, readiness, props.source.src, priority, variant);
+  const variantUrl = useRemoteImageRefUrl(
+    ref,
+    readiness,
+    props.source.src,
+    priority,
+    variant,
+    readRank,
+  );
   const fullSnapshot = useRemoteImageRefSnapshot(variant ? ref : undefined, readiness);
   const url = variantUrl || fullSnapshot || (ref ? "" : props.source.src);
   const source: ImageViewSource =

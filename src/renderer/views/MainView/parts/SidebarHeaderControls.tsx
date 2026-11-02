@@ -28,6 +28,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { toggleGlobalTerminal } from "@/renderer/actions/terminalActions";
 import { SidebarProjectFilter } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter";
 import { useFlatListProjectFilterModel } from "@/renderer/views/MainView/parts/Sidebar/parts/useFlatListProjectFilterModel";
+import { CheckForUpdatesButton } from "@/renderer/views/MainView/parts/CheckForUpdatesButton";
 
 function MobileSidebarHeaderControls(props: { connected: boolean }) {
   const { t } = useLingui();
@@ -202,6 +203,7 @@ export function SidebarHeaderControls() {
           </Tooltip.Content>
         </Tooltip>
       ) : null}
+      {hasClientCapability("nativeAppUpdates") ? <CheckForUpdatesButton /> : null}
     </div>
   );
 }

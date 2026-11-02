@@ -13,6 +13,7 @@ export class EnvironmentMediaGrants {
     generation: number;
     childDesktopId: string;
     childTicket: string;
+    attachment: boolean;
   }>();
   constructor(
     private readonly authority: EnvironmentProxySessionAuthority,
@@ -21,6 +22,9 @@ export class EnvironmentMediaGrants {
   ) {}
   read(ticket: string) {
     return this.grants.read(ticket);
+  }
+  hold(ticket: string) {
+    return this.grants.hold(ticket);
   }
   revokeSession(sessionId: string) {
     this.grants.revokeSession(sessionId);
@@ -40,7 +44,7 @@ export class EnvironmentMediaGrants {
     );
     const target = this.targetFor(input.environmentId);
     target.assertCurrent();
-    const childExpiry = await this.childMediaLease(target, session.sessionId, input.childTicket);
+    const lease = await this.childMediaLease(target, session.sessionId, input.childTicket);
     target.assertCurrent();
     if (target.invalidation.aborted) throw this.invalidMediaTicket();
     const current = this.authority.authenticateBearerToken(
@@ -56,10 +60,14 @@ export class EnvironmentMediaGrants {
         generation: target.generation,
         childDesktopId: target.childDesktopId,
         childTicket: mediaTicketSchema.parse(input.childTicket),
+        attachment: lease.attachment,
       },
       session.sessionId,
-      Math.min(current.expiresAtMs, childExpiry),
+      // Hard authority is the parent's session expiry; the child's lease is
+      // only the admission deadline for this transfer.
+      current.expiresAtMs,
       () => target.invalidation.removeEventListener("abort", onInvalidation),
+      lease.expiresAtMs,
     );
     ticket = result.ticket;
     target.invalidation.addEventListener("abort", onInvalidation, { once: true });
@@ -88,7 +96,7 @@ export class EnvironmentMediaGrants {
       target.childDesktopId !== grant.value.childDesktopId
     )
       throw this.invalidMediaTicket();
-    const childExpiry = await this.childMediaLease(
+    const lease = await this.childMediaLease(
       target,
       session.sessionId,
       grant.value.childTicket,
@@ -105,7 +113,8 @@ export class EnvironmentMediaGrants {
     return this.grants.renew(
       input.ticket,
       current.sessionId,
-      Math.min(current.expiresAtMs, childExpiry),
+      current.expiresAtMs,
+      lease.expiresAtMs,
     );
   }
 
@@ -147,13 +156,12 @@ export class EnvironmentMediaGrants {
       input.parentAccessToken,
       ENVIRONMENT_USE_SCOPES,
     );
-    // Release is idempotent, but cannot retire another session's/environment's grant.
-    try {
-      const grant = this.grants.read(input.ticket);
-      if (grant.value.environmentId === input.environmentId)
-        this.grants.release(input.ticket, session.sessionId);
-    } catch (error) {
-      if (!(error instanceof RemoteHttpError) || error.code !== "invalid_media_ticket") throw error;
-    }
+    // Release is idempotent, cannot retire another session's/environment's
+    // grant, and still works after admission expiry while a stream is held.
+    this.grants.release(
+      input.ticket,
+      session.sessionId,
+      (value) => value.environmentId === input.environmentId,
+    );
   }
 }

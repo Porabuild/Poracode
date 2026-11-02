@@ -40,6 +40,7 @@ final class RichChatMediaController {
   private let uploadTask = RichChatControllerTaskSlot()
   private let imageTask = RichChatControllerTaskSlot()
   private var imageFetchTasks: [UUID: Task<RichChatBinaryPayload?, Never>] = [:]
+  private var fileFetchTasks: [UUID: Task<RichChatFileDownload?, Never>] = [:]
   private var revision: UInt64 = 0
   private var isBackgrounded = false
 
@@ -252,6 +253,51 @@ final class RichChatMediaController {
     return payload
   }
 
+  /// Chat file cards download independently so several visible cards cannot
+  /// cancel each other. The view owns each request; this controller still
+  /// cancels every request on host/thread replacement or backgrounding and
+  /// drops stale results with the scoped revision.
+  func fetchFileDownload(
+    request: RichChatFileAccess,
+    projectLocation: ProjectLocation,
+    suggestedName: String
+  ) async -> RichChatFileDownload? {
+    guard let context = context(capability: .sessionRead) else { return nil }
+    let requestID = UUID()
+    let task = Task { @MainActor [weak self] () -> RichChatFileDownload? in
+      guard let self else { return nil }
+      var owned: RichChatFileDownload?
+      do {
+        let download = try await self.historyGateway.downloadRichFile(
+          target: context.target,
+          request: request,
+          projectLocation: projectLocation,
+          suggestedName: suggestedName
+        )
+        owned = download
+        try Task.checkCancellation()
+        guard self.owns(context) else { throw CancellationError() }
+        owned = nil
+        return download
+      } catch {
+        // A cancelled or stale card never surfaces a failure; any owned
+        // result that never transferred to the view is removed here.
+        if let download = owned {
+          try? FileManager.default.removeItem(at: download.directory)
+        }
+        return nil
+      }
+    }
+    fileFetchTasks[requestID] = task
+    let download = await withTaskCancellationHandler {
+      await task.value
+    } onCancel: {
+      task.cancel()
+    }
+    fileFetchTasks[requestID] = nil
+    return download
+  }
+
   private struct Context: Sendable {
     let target: RichChatThreadTarget
     let revision: UInt64
@@ -342,6 +388,8 @@ final class RichChatMediaController {
     imageTask.cancel()
     imageFetchTasks.values.forEach { $0.cancel() }
     imageFetchTasks.removeAll(keepingCapacity: false)
+    fileFetchTasks.values.forEach { $0.cancel() }
+    fileFetchTasks.removeAll(keepingCapacity: false)
   }
 
 }

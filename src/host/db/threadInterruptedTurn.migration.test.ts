@@ -10,7 +10,7 @@ import {
   migrateSchema53FixtureThrough,
 } from "./runtimePayloadOrigins.testFixtures";
 
-describe.skipIf(!sqliteAvailable)("cut-off turn marker schema69", () => {
+describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
   let root: string;
   const previousBinding = process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema69", () => {
       DATABASE_MIGRATIONS.filter((migration) => migration.version > 68).map(
         (migration) => migration.version,
       ),
-    ).toEqual([69]);
+    ).toEqual([69, 70]);
     old.close();
     initDatabase(path);
     return before;
@@ -53,7 +53,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema69", () => {
     expect(dbGetThread("thread-2")).not.toHaveProperty("interruptedTurn");
     expect(
       getSqlite().prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "69" });
+    ).toEqual({ value: "70" });
   });
 
   it("marks only turns still running at boot as cut off by the restart", () => {
@@ -67,7 +67,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema69", () => {
     expect(dbGetThread("thread-1")).not.toHaveProperty("interruptedTurn");
   });
 
-  it("preserves markers from the unpublished schema66 PR when applying migration69", () => {
+  it("preserves markers from the unpublished schema66 PR when applying migration70", () => {
     const path = join(root, "pr-build.sqlite");
     const old = createSchema53PayloadOriginDatabase(path);
     migrateSchema53FixtureThrough(old, 65);
@@ -82,6 +82,44 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema69", () => {
         .prepare("SELECT name FROM sqlite_master WHERE name LIKE '%catalog_manual' ORDER BY name")
         .all(),
     ).toEqual([{ name: "idx_projects_catalog_manual" }, { name: "idx_threads_catalog_manual" }]);
+  });
+
+  it("upgrades released schema69 without changing branch pins or inventing a marker", () => {
+    const path = join(root, "released-69.sqlite");
+    const old = createSchema53PayloadOriginDatabase(path);
+    migrateSchema53FixtureThrough(old, 69);
+    old
+      .prepare("UPDATE projects SET worktree_base_branch = ?, pinned_branches = ?")
+      .run("main", '["main","release"]');
+    const projects = old.prepare("SELECT * FROM projects ORDER BY id").all();
+    const threads = old.prepare("SELECT * FROM threads ORDER BY id").all();
+    old.close();
+    initDatabase(path);
+    expect(getSqlite().prepare("SELECT * FROM projects ORDER BY id").all()).toEqual(projects);
+    expect(getSqlite().prepare("SELECT * FROM threads ORDER BY id").all()).toEqual(
+      threads.map((row) => ({ ...(row as object), interrupted_turn: null })),
+    );
+  });
+
+  it("preserves PR schema69 markers and installs the released branch-pin columns", () => {
+    const path = join(root, "pr-69.sqlite");
+    const old = createSchema53PayloadOriginDatabase(path);
+    migrateSchema53FixtureThrough(old, 68);
+    old.exec("ALTER TABLE threads ADD COLUMN interrupted_turn TEXT");
+    old.prepare("UPDATE threads SET interrupted_turn = 'error' WHERE id = 'thread-1'").run();
+    old.prepare("UPDATE app_state SET value = '69' WHERE key = 'schema_version'").run();
+    old.close();
+    initDatabase(path);
+    expect(dbGetThread("thread-1")?.interruptedTurn).toBe("error");
+    expect(getSqlite().prepare("PRAGMA table_info(projects)").all()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "worktree_base_branch" }),
+        expect.objectContaining({ name: "pinned_branches" }),
+      ]),
+    );
+    expect(
+      getSqlite().prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
+    ).toEqual({ value: "70" });
   });
 
   it("keeps an earlier failure across a restart", () => {

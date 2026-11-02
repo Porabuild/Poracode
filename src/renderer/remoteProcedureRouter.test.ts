@@ -884,6 +884,19 @@ describe("remote procedure routing registry", () => {
     });
   });
 
+  it("sends the host's project id with a location-owned project watch", async () => {
+    await remoteResult(
+      decide("gitWatchProject", {
+        projectId: "projected-project",
+        projectLocation: remoteLocation,
+      }),
+    );
+    expect(callRemoteProcedure).toHaveBeenCalledWith("gitWatchProject", {
+      projectId: "remote-project",
+      projectLocation: { kind: "posix", path: "/remote/project" },
+    });
+  });
+
   it("routes thread controls through one owner-aware dispatch seam", async () => {
     const threadId = "projected-thread";
     await remoteResult(

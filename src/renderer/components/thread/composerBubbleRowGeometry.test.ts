@@ -18,6 +18,28 @@ describe("shouldDisplaceCenteredControl", () => {
     expect(shouldDisplaceCenteredControl({ ...row, bubblesLeft: 10 })).toBe(true);
   });
 
+  it("moves the control off the row when the leading status pill reaches it", () => {
+    // Control spans 186..214; a pill ending at 179 leaves the 6px gap.
+    expect(shouldDisplaceCenteredControl({ ...row, bubblesLeft: null, leadingRight: 179 })).toBe(
+      false,
+    );
+    expect(shouldDisplaceCenteredControl({ ...row, bubblesLeft: null, leadingRight: 181 })).toBe(
+      true,
+    );
+  });
+
+  it("still displaces on a trailing collision when the leading pill is clear", () => {
+    expect(shouldDisplaceCenteredControl({ ...row, bubblesLeft: 219, leadingRight: 100 })).toBe(
+      true,
+    );
+  });
+
+  it("keeps the control centered when neither slot holds anything", () => {
+    expect(shouldDisplaceCenteredControl({ ...row, bubblesLeft: null, leadingRight: null })).toBe(
+      false,
+    );
+  });
+
   it("uses the row's own left offset", () => {
     expect(
       shouldDisplaceCenteredControl({

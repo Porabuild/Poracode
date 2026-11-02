@@ -267,6 +267,8 @@ export function dbUpdateProject(project: Project): void {
          worktree_location = @worktreeLocation,
          mcp_servers = @mcpServers,
          gh_account = @ghAccount,
+         worktree_base_branch = @worktreeBaseBranch,
+         pinned_branches = @pinnedBranches,
          workspace_id = @workspaceId,
          disabled = @disabled
        WHERE id = @id`,
@@ -285,7 +287,7 @@ export function dbUpsertThread(
    * Host-owned cut-off marker, committed with the row so a crash cannot keep
    * one without the other. Absent leaves the stored marker alone.
    */
-  interruptedTurn?: Thread["interruptedTurn"] | null,
+  interruptedTurn?: Thread["interruptedTurn"] | "stopped" | null,
 ): void {
   const sqlite = getSqlite();
   sqlite
@@ -377,26 +379,28 @@ export function dbSetThreadGroup(threadId: string, groupId: string, groupName: s
  * A turn that was still running is remembered as cut off by the restart, so
  * the user can resume it instead of typing "continue".
  */
-export function dbMarkLiveThreadsInactive(): void {
+export function dbMarkLiveThreadsInactive(pendingStopThreadIds: readonly string[] = []): void {
   getSqlite()
     .prepare(
       `UPDATE threads
        SET status = 'inactive', attention = 'none', active_turn_started_at = NULL,
            interrupted_turn = CASE
+             WHEN interrupted_turn = 'stopped'
+               OR id IN (SELECT value FROM json_each(?)) THEN NULL
              WHEN status IN ('launching', 'working', 'needs_approval', 'needs_reply')
                THEN 'restart'
              ELSE interrupted_turn
            END
        WHERE status NOT IN ('inactive', 'error')`,
     )
-    .run();
+    .run(JSON.stringify(pendingStopThreadIds));
   notifyProjectThreadDataChanged();
 }
 
 function updateThreadInterruptedTurn(
   sqlite: ReturnType<typeof getSqlite>,
   threadId: string,
-  value: Thread["interruptedTurn"] | null,
+  value: Thread["interruptedTurn"] | "stopped" | null,
 ): boolean {
   const result = sqlite
     .prepare("UPDATE threads SET interrupted_turn = ? WHERE id = ? AND interrupted_turn IS NOT ?")

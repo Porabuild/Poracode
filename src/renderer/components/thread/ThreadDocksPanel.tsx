@@ -20,6 +20,7 @@ import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
 import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadImagesDock } from "./ThreadImagesDock";
 import { ThreadAgentVisionDock, useThreadAgentVision } from "./ThreadAgentVisionDock";
+import { ThreadContextWindowDock } from "./ThreadContextWindowDock";
 import {
   ThreadAgentUsageDock,
   ThreadWorkspaceDock,
@@ -92,6 +93,7 @@ export function ThreadDocksPanel({
     (focus === "agents" && (summary.agentCount > 0 || crewBinding !== undefined)) ||
     (focus === "backgroundTasks" && summary.backgroundTaskCount > 0) ||
     (focus === "images" && (gallery.length > 0 || artifacts.length > 0)) ||
+    (focus === "info" && threadExists) ||
     (focus === "context" && threadExists) ||
     (focus === "usage" && usage !== null);
 
@@ -161,7 +163,8 @@ export function ThreadDocksPanel({
           artifacts={artifacts}
         />
       ) : null,
-    context: threadExists ? <ThreadWorkspaceDock key={threadId} threadId={threadId} /> : null,
+    info: threadExists ? <ThreadWorkspaceDock key={threadId} threadId={threadId} /> : null,
+    context: threadExists ? <ThreadContextWindowDock key={threadId} threadId={threadId} /> : null,
     usage: usage ? <ThreadAgentUsageDock key={threadId} usage={usage} /> : null,
   };
   const labels: Record<ThreadDockKind, string> = {
@@ -171,7 +174,8 @@ export function ThreadDocksPanel({
     agents: t`Agents`,
     backgroundTasks: t`Background tasks`,
     images: artifacts.length > 0 ? t`Files & artifacts` : t`Images`,
-    context: t`Thread context`,
+    info: t`Thread info`,
+    context: t`Context window`,
     usage: t`Usage`,
   };
   const visibleOrder = order.filter((kind) => content[kind] !== null);

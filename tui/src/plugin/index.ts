@@ -2,6 +2,7 @@ import { Plugin } from "@opencode/plugin/tui";
 import { createComponent, createSignal } from "solid-js";
 import type { Adapter } from "../adapter";
 import { registerCrewUi } from "./crew";
+import { registerServerUi } from "./servers";
 import { SlotText } from "./slotText";
 
 /**
@@ -30,6 +31,7 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
       };
 
       registerCrewUi(context, adapter);
+      registerServerUi(context, adapter);
       const [goalTick, setGoalTick] = createSignal(0);
       adapter.subscribeGoal(() => setGoalTick((value) => value + 1));
       // A compact goal line in the prompt footer; hidden without a goal.

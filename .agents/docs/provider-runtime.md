@@ -31,10 +31,7 @@ must not turn provider session discovery into a second thread index.
 - ACP resource paths resolve from the active project root. Relative mentions
   and attachments are normalized before ACP conversion so Windows, WSL, spaces,
   and `file://` URIs stay valid.
-- GUI ACP threads steer via follow-up submits while working: a submit during
-  `working` interrupts the active turn, queues the follow-up as structured
-  `{ prompt, segments, config }`, and drains queued turns FIFO once the session
-  returns to `idle` / `needs_reply`.
+- GUI ACP follow-ups use the negotiated native steering path below when available. Otherwise, interrupt-and-drain interrupts the active turn, queues the follow-up as structured `{ prompt, segments, config }`, and drains it through the existing turn coordinator once the active turn settles.
 - An adapter can declare `promptSteering` (`acp/promptSteering.ts`) for an
   agent that accepts a marked second `session/prompt` during a turn. The
   session then exposes `steerTurn` once `initialize` advertises support: a

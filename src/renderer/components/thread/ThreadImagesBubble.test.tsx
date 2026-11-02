@@ -384,7 +384,7 @@ describe("ThreadImagesDock", () => {
     cleanup();
   });
 
-  it("renders a lazy 2-row mosaic where every tile opens the gallery", () => {
+  it("renders an expanded lazy 2-row mosaic where every tile opens the gallery", () => {
     seedThreadWithImages("t-gallery");
     const { container } = render(
       <>
@@ -394,17 +394,23 @@ describe("ThreadImagesDock", () => {
     );
     const region = screen.getByRole("region", { name: "Images" });
     expect(region).toHaveTextContent("4");
-    fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
+    const header = screen.getByRole("button", { name: "Images" });
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Collapse images" })).toBeInTheDocument();
     const tiles = screen.getAllByRole("button", { name: /Open image \d+ of 4/ });
     expect(tiles.length).toBe(4);
     const imgs = container.querySelectorAll('img[loading="lazy"]');
     expect(imgs.length).toBe(4);
     for (const img of imgs) {
       expect(img.getAttribute("decoding")).toBe("async");
-      expect(img).toHaveClass("rounded-[inherit]", "[image-rendering:high-quality]");
+      expect(img).toHaveClass(
+        "rounded-[inherit]",
+        "object-contain",
+        "[image-rendering:high-quality]",
+      );
       expect(img.className).not.toContain("group-hover:scale");
     }
-    expect(tiles[0]).toHaveClass("rounded-3xl");
+    expect(tiles[0]).toHaveClass("h-24", "w-40", "rounded-xl");
     expect(tiles[0]!.querySelector("span[aria-hidden='true']")).toHaveClass(
       "group-hover:bg-foreground/10",
     );
@@ -413,17 +419,35 @@ describe("ThreadImagesDock", () => {
     expect(document.querySelector(".poracode-image-lightbox__counter")).toHaveTextContent("3 / 4");
   });
 
-  it("starts collapsed and toggles the image mosaic from its header", () => {
+  it("starts expanded, toggles the mosaic from its header, and keeps a user collapse across gallery updates", () => {
     seedThreadWithImages("t-gallery");
-    render(<ThreadImagesDock gallery={getThreadGalleryImages("t-gallery")} />);
+    const { rerender } = render(<ThreadImagesDock gallery={getThreadGalleryImages("t-gallery")} />);
 
+    const header = screen.getByRole("button", { name: "Images" });
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByRole("button", { name: /Open image \d+ of 4/ })).toHaveLength(4);
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse images" }));
+    expect(header).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("button", { name: /Open image \d+ of 4/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Expand images" })).toBeInTheDocument();
+
+    // A newer gallery image must not reopen a section the user collapsed.
+    rerender(
+      <ThreadImagesDock
+        gallery={[
+          { src: "data:image/png;base64,CCC", alt: "newer" },
+          ...getThreadGalleryImages("t-gallery"),
+        ]}
+      />,
+    );
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: /Open image \d+ of 5/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
-    expect(screen.getAllByRole("button", { name: /Open image \d+ of 4/ })).toHaveLength(4);
-    fireEvent.click(screen.getByRole("button", { name: "Collapse images" }));
-    expect(screen.queryByRole("button", { name: /Open image \d+ of 4/ })).not.toBeInTheDocument();
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByRole("button", { name: /Open image \d+ of 5/ })).toHaveLength(5);
+    fireEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "false");
   });
 
   it("preserves existing thumbnail elements when a newer image arrives", () => {
@@ -431,7 +455,6 @@ describe("ThreadImagesDock", () => {
     const second = { src: "data:image/png;base64,BBB", alt: "second" };
     const newer = { src: "data:image/png;base64,CCC", alt: "newer" };
     const { container, rerender } = render(<ThreadImagesDock gallery={[first, second]} />);
-    fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
     const firstElement = container.querySelector('img[alt="first"]');
 
     rerender(<ThreadImagesDock gallery={[newer, first, second]} />);
@@ -479,8 +502,7 @@ describe("ThreadImagesDock", () => {
       threadDocksPanelOpen: true,
       threadDocksFocus: "images",
     });
-    expect(screen.queryByRole("button", { name: /report\.pdf/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Expand files & artifacts" }));
+    // The files & artifacts dock starts expanded like the images mosaic.
     fireEvent.click(screen.getByRole("button", { name: /report\.pdf/ }));
     await vi.waitFor(() =>
       expect(openFileInEditor).toHaveBeenCalledExactlyOnceWith(

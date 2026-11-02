@@ -1,6 +1,6 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
-import { isMac, isWindows, readBridge } from "@/renderer/bridge";
+import { isMac, isWindows, isRemoteSession, readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { friendlyError } from "@/shared/messages";
 import { isMicrophoneAccessDeniedError } from "./voicePermission";
@@ -23,6 +23,14 @@ export function formatVoiceError(error: unknown): string {
 // the right privacy pane instead of a dead-end error. The deep link only exists
 // on macOS/Windows, so fall back to the plain message elsewhere.
 export function showVoiceCaptureError(error: unknown): void {
+  if (isMicrophoneAccessDeniedError(error) && isRemoteSession()) {
+    toast.danger(i18n._(msg`Microphone permission was denied.`), {
+      description: i18n._(
+        msg`Allow microphone access in your browser's site settings, then try again.`,
+      ),
+    });
+    return;
+  }
   if (isMicrophoneAccessDeniedError(error) && (isMac() || isWindows())) {
     toast.danger(i18n._(msg`Microphone access is off.`), {
       description: i18n._(msg`Enable microphone access in your system settings, then try again.`),

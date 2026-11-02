@@ -462,10 +462,21 @@ describe("SettingsOverlay", () => {
     const main = screen.getByRole("main");
     const desktopSettings = within(main).getByRole("button", { name: /Desktop Settings/ });
     expect(desktopSettings).toBeEnabled();
+    // Crews and Git are host settings, so they live with the paired host's pages.
+    expect(within(main).queryByRole("button", { name: /^Crews/ })).toBeNull();
+    expect(within(main).queryByRole("button", { name: /^Git/ })).toBeNull();
+    expect(desktopSettings).toHaveTextContent("Schedules, AI, agents, crews, and Git");
+    expect(within(main).getByRole("button", { name: /^General/ })).toHaveTextContent(
+      "Language and sidebar shortcuts",
+    );
 
     fireEvent.click(desktopSettings);
 
     expect(within(main).getByRole("button", { name: "Connections" })).toHaveTextContent("Studio");
+    expect(within(main).getByRole("button", { name: /^Crews/ })).toBeInTheDocument();
+    expect(within(main).getByRole("button", { name: /^Git/ })).toHaveTextContent(
+      "Pull request defaults",
+    );
   });
 
   it("scopes a PWA's host-backed pages with the host bar and remounts them per host", () => {
@@ -559,7 +570,7 @@ describe("SettingsOverlay", () => {
     const headers = [...container.querySelectorAll("aside p")].map((el) => el.textContent);
     expect(headers).toEqual(["Personal", "Workspace", "Agents", "About"]);
     expect(screen.getByRole("button", { name: "Models" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Audio" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Audio" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remote Access" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Browser" })).not.toBeInTheDocument();
   });

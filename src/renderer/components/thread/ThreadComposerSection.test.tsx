@@ -720,33 +720,50 @@ describe("ThreadComposerSection", () => {
     return { ...result, onSubmitInput };
   }
 
-  it("resends the unanswered message after an unexpected close and hides resume after Stop", async () => {
-    const thread = { ...guiThread, status: "inactive" as const, interruptedTurn: "error" as const };
-    useAppStore.setState({
-      threads: [thread],
-      runtimeItemIdsByThread: { [thread.id]: ["last-user"] },
-      runtimeItemsByIdByThread: {
-        [thread.id]: {
-          "last-user": {
-            id: "last-user",
-            type: "user_message",
-            state: "completed",
-            streams: {},
-            payload: { content: [{ kind: "text", text: "Explain the code" }] },
+  it.each(["Explain the code", "$review Explain the code", "/model", "/btw Explain the code"])(
+    "resends the unanswered text literally (%s) and hides resume after Stop",
+    async (prompt) => {
+      const thread = {
+        ...guiThread,
+        status: "inactive" as const,
+        interruptedTurn: "error" as const,
+        slashCommands: [
+          {
+            id: "review",
+            label: "Review",
+            section: "skills" as const,
+            skillName: "review",
+            skillInvocation: "/skill:review",
+            skillPath: "/skills/review/SKILL.md",
+            skillProvider: "Example",
+            skillScope: "project" as const,
+          },
+        ],
+      };
+      useAppStore.setState({
+        threads: [thread],
+        runtimeItemIdsByThread: { [thread.id]: ["last-user"] },
+        runtimeItemsByIdByThread: {
+          [thread.id]: {
+            "last-user": {
+              id: "last-user",
+              type: "user_message",
+              state: "completed",
+              streams: {},
+              payload: { content: [{ kind: "text", text: prompt }] },
+            },
           },
         },
-      },
-    });
-    const { onSubmitInput } = renderComposer({ thread });
-    fireEvent.click(screen.getByRole("button", { name: "Resend last message" }));
-    await waitFor(() =>
-      expect(onSubmitInput).toHaveBeenCalledWith("Explain the code", [
-        { kind: "text", content: "Explain the code" },
-      ]),
-    );
-    await act(() => useAppStore.setState({ threads: [{ ...guiThread, status: "inactive" }] }));
-    expect(screen.queryByRole("button", { name: "Resend last message" })).toBeNull();
-  });
+      });
+      const { onSubmitInput } = renderComposer({ thread });
+      fireEvent.click(screen.getByRole("button", { name: "Resend last message" }));
+      await waitFor(() =>
+        expect(onSubmitInput).toHaveBeenCalledWith(prompt, [{ kind: "text", content: prompt }]),
+      );
+      await act(() => useAppStore.setState({ threads: [{ ...guiThread, status: "inactive" }] }));
+      expect(screen.queryByRole("button", { name: "Resend last message" })).toBeNull();
+    },
+  );
 
   it.each([false, true])(
     "keeps async questions actionable alongside ordinary messages (compact: %s)",

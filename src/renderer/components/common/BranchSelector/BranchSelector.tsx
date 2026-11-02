@@ -13,6 +13,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { openNewThreadInWorktree } from "@/renderer/actions/threadActions";
 import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
+import { toggleProjectPinnedBranch } from "@/renderer/actions/projectActions";
 import { Button } from "../Button";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { ResponsiveMenuSurface } from "../ResponsiveMenuSurface";
@@ -65,6 +66,10 @@ export interface BranchSelectorProps {
   onOpenPrReview?: (args: OpenPrReviewArgs) => void;
   /** Restrict the menu to searchable branch selection without PR, delete, create, or worktree actions. */
   selectionOnly?: boolean;
+  /** Branch row set as the project's default worktree base. */
+  defaultWorktreeBranch?: string | undefined;
+  /** Shows a default toggle on each row while choosing a worktree base. */
+  onDefaultWorktreeBranchChange?: ((branch: string | undefined) => void) | undefined;
   className?: string;
 }
 
@@ -92,6 +97,8 @@ export function BranchSelector(props: BranchSelectorProps) {
     compact = false,
     onOpenPrReview,
     selectionOnly = false,
+    defaultWorktreeBranch,
+    onDefaultWorktreeBranchChange,
   } = props;
   const triggerIconSize = compact ? "size-3" : "size-3.5";
   const hideLabelOnWrap = collapseTier !== undefined;
@@ -120,6 +127,7 @@ export function BranchSelector(props: BranchSelectorProps) {
     branchWorktreePath,
     threadsByBranch,
     projectLocation,
+    pinnedBranches,
   } = useBranchList({ projectId, search });
   const hasBranches = hasLocal || hasRemote;
 
@@ -452,6 +460,14 @@ export function BranchSelector(props: BranchSelectorProps) {
           threadsByBranch={threadsByBranch}
           allowWorktreeDelete={!isRemote}
           selectionOnly={selectionOnly}
+          defaultWorktreeBranch={defaultWorktreeBranch}
+          onDefaultWorktreeBranchChange={
+            isWorktree || worktreeMode ? onDefaultWorktreeBranchChange : undefined
+          }
+          pinnedBranches={pinnedBranches}
+          onTogglePinned={
+            selectionOnly ? undefined : (branch) => toggleProjectPinnedBranch(projectId, branch)
+          }
           onSelect={handleSelectBranch}
           onDelete={(b) => handleRequestDelete(b as GitBranchInfo)}
           onOpenPrReview={handleOpenPrReview}

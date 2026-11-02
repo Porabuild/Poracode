@@ -1,17 +1,29 @@
 import { z } from "zod";
 import { projectLocationSchema } from "../contracts/common";
 
+const mediaFileRequestFields = {
+  projectLocation: projectLocationSchema,
+  path: z.string().min(1).max(4096),
+  /**
+   * Optional `"attachment"` serves any regular file as an opaque download
+   * (`application/octet-stream` + `Content-Disposition: attachment`).
+   * Absent keeps the original inline editor-media behavior exactly: the
+   * allowlist still applies and the host answers nonmedia with
+   * `unsupported_media_type`. Additive — old payloads stay valid, and an
+   * old host that strips the field simply keeps serving inline-only media.
+   */
+  disposition: z.literal("attachment").optional(),
+};
+
 /** External access must be explicit; a failed contained read never escalates to it. */
 export const mediaFileRequestSchema = z.discriminatedUnion("access", [
   z.object({
     access: z.literal("project"),
-    projectLocation: projectLocationSchema,
-    path: z.string().min(1).max(4096),
+    ...mediaFileRequestFields,
   }),
   z.object({
     access: z.literal("external"),
-    projectLocation: projectLocationSchema,
-    path: z.string().min(1).max(4096),
+    ...mediaFileRequestFields,
   }),
 ]);
 export type MediaFileRequest = z.infer<typeof mediaFileRequestSchema>;

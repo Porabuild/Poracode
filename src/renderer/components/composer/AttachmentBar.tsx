@@ -136,7 +136,9 @@ function AttachmentImage(props: {
   const { attachment, imageUrlForPath, readiness, className, alt } = props;
   const usesHostPath = attachment.isImage && attachment.previewUrl === undefined;
   const activeReadiness = usesHostPath ? readiness : undefined;
-  const { viewportRef, priority } = useImageViewportPriority(activeReadiness !== undefined);
+  const { viewportRef, priority, readRank } = useImageViewportPriority(
+    activeReadiness !== undefined,
+  );
   const url = useRemoteImagePathUrl(
     usesHostPath ? attachment.path : undefined,
     activeReadiness,
@@ -145,6 +147,7 @@ function AttachmentImage(props: {
     // A 32px thumbnail never needs the original: the host's downscaled card
     // variant keeps a screenshot-heavy message from pulling full-size bytes.
     "card",
+    readRank,
   );
   // A full-size screenshot in this small box flickers: whenever a neighbor
   // repaints (a turn's working indicator), an async decode is re-rastered

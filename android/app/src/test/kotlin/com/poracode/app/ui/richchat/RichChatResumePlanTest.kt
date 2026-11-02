@@ -34,6 +34,22 @@ import org.junit.Test
  */
 class RichChatResumePlanTest {
     @Test
+    fun liveCatalogStateRetiresAStaleHistoryResumeOffer() {
+        val history = thread(interruptedTurn = "restart")
+        val items = listOf(typed("u1", "Fix the build"))
+        assertNotNull(offer(history, items))
+        for (live in listOf(
+            history.copy(status = "working", interruptedTurn = null),
+            history.copy(status = "idle", interruptedTurn = null),
+        )) {
+            val selected = RichChatResumePlanner.threadForComposer(live, history)
+            assertSame(live, selected)
+            assertNull(offer(selected!!, items))
+        }
+        assertSame(history, RichChatResumePlanner.threadForComposer(null, history))
+    }
+
+    @Test
     fun resendsTheLatestMessageWhenTheAgentNeverAnsweredIt() {
         val plan = RichChatResumePlanner.plan(
             listOf(

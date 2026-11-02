@@ -1,11 +1,12 @@
 "use client";
 
-import { Download, ArrowLeft, Monitor, Apple, Terminal, Moon } from "lucide-react";
+import { Download, ArrowLeft, Monitor, Apple, Terminal, Moon, Puzzle } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { localizedPath } from "@/lib/i18n/config";
 import { downloadUrlFor, type ReleaseInfo } from "@/lib/releases";
+import { extensionStoreLinks } from "@/lib/extensionStores";
 
 const PLATFORMS = [
   {
@@ -37,6 +38,7 @@ export function DownloadContent({ release }: { release: ReleaseInfo }) {
   const homeHref = localizedPath("/", locale);
   const nightlyHref = localizedPath("/nightly", locale);
   const [footerBefore, footerAfter] = t("download.footer").split("{release}");
+  const extensionStores = extensionStoreLinks();
 
   return (
     <div lang={locale} className="relative min-h-screen overflow-x-hidden bg-black text-white">
@@ -111,6 +113,47 @@ export function DownloadContent({ release }: { release: ReleaseInfo }) {
               </div>
             </motion.div>
           ))}
+          {extensionStores.length > 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 * (PLATFORMS.length + 1) }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Puzzle className="w-5 h-5 text-gray-400" />
+                <h2 className="text-xl font-semibold">{t("download.extension.title")}</h2>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">{t("download.extension.description")}</p>
+              <div className="grid gap-3">
+                {extensionStores.map((store) => (
+                  <a
+                    key={store.id}
+                    href={store.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group flex items-center justify-between px-5 py-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/10 transition-all duration-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Download className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
+                      <div>
+                        <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors">
+                          {store.id === "chrome" ? "Chrome Web Store" : "Microsoft Edge Add-ons"}
+                        </span>
+                        <span className="ml-3 text-xs text-gray-600">
+                          {store.id === "chrome"
+                            ? t("download.extension.chromeHint")
+                            : "Microsoft Edge"}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">
+                      {t("download.extension.install")} →
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </motion.div>
+          ) : null}
         </div>
 
         <motion.div

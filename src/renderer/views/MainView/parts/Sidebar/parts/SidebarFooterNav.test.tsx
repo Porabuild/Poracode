@@ -8,6 +8,7 @@ import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { SidebarFooterNav } from "./SidebarFooterNav";
 
 const originalResizeObserver = globalThis.ResizeObserver;
+const openExternal = vi.hoisted(() => vi.fn<() => Promise<void>>(async () => undefined));
 
 /** The component under test re-measures via getBoundingClientRect, so firing
  * the captured callbacks is enough to simulate a resize. */
@@ -37,10 +38,16 @@ class MockResizeObserver {
 vi.mock("@/renderer/bridge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/bridge")>()),
   isDevApp: () => false,
+  readBridge: () => ({ openExternal }),
 }));
 
 describe("SidebarFooterNav", () => {
   beforeEach(() => {
+    openExternal.mockClear();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(Response.json({ enabled: false })),
+    );
     localStorage.clear();
     useSidebarUiStore.setState({ footerCollapsed: false });
     usePanelStore.setState({ settingsOpen: false, settingsSection: "general" });
@@ -49,6 +56,8 @@ describe("SidebarFooterNav", () => {
       sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
     });
   });
+
+  afterEach(() => vi.unstubAllGlobals());
 
   it("shows labeled rows with a collapse toggle by default", () => {
     render(<SidebarFooterNav remoteAccessStatus="off" />);
@@ -59,6 +68,25 @@ describe("SidebarFooterNav", () => {
     expect(screen.getByText("Hide sidebar")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Collapse footer" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Expand footer" })).not.toBeInTheDocument();
+  });
+
+  it.each([false, true])(
+    "opens the feedback form when footerCollapsed is %s",
+    async (collapsed) => {
+      useSidebarUiStore.setState({ footerCollapsed: collapsed });
+      render(<SidebarFooterNav remoteAccessStatus="off" />);
+      fireEvent.click(screen.getByRole("button", { name: "Send feedback" }));
+      expect(await screen.findByRole("textbox", { name: "Title" })).toBeInTheDocument();
+      expect(screen.queryByTitle("Send feedback")).not.toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toHaveAccessibleName("Send feedback");
+    },
+  );
+
+  it("opens existing issues from the native dialog", async () => {
+    render(<SidebarFooterNav remoteAccessStatus="off" />);
+    fireEvent.click(screen.getByRole("button", { name: "Send feedback" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Existing issues" }));
+    expect(openExternal).toHaveBeenCalledWith("https://github.com/Porabuild/Poracode/issues");
   });
 
   it("hides Remote Access when the current host cannot serve incoming connections", () => {

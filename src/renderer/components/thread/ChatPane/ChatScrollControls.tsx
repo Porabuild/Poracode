@@ -114,7 +114,7 @@ export function ChatScrollControls(props: {
   const clearChatPromptAnchor = useAppStore((s) => s.clearChatPromptAnchor);
   // When the thread's composer publishes a bubble-row slot, the button joins
   // that row; otherwise it floats over the pane (sub-agent overlays, previews).
-  const bubbleSlot = useComposerBubbleSlotStore((s) => s.byThread[threadId] ?? null);
+  const bubbleSlot = useComposerBubbleSlotStore((s) => s.control[threadId] ?? null);
   const initialLayoutChangeTokenRef = useRef(layoutChangeToken);
   const lastScrollTopRef = useRef(0);
   const stickToBottomRef = useRef(true);

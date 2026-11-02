@@ -832,7 +832,7 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
                   })),
                 }
               : table.name === "threads"
-                ? // Schema 69 adds the cut-off marker; older threads have none.
+                ? // Schema 70 adds the cut-off marker; older threads have none.
                   {
                     ...table,
                     rows: table.rows.map((row) => ({

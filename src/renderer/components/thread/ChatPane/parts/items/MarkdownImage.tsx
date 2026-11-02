@@ -32,11 +32,11 @@ export function MarkdownImage({ alt, className, src, width, height }: MarkdownIm
         ? actions.remoteLocalImageUrl(canonicalSrc)
         : resolveLocalImageDisplayUrl(canonicalSrc)
     : canonicalSrc;
-  const { viewportRef, priority } = useImageViewportPriority(
+  const { viewportRef, priority, readRank } = useImageViewportPriority(
     path !== undefined && authority?.readiness !== undefined,
   );
   const readiness = authority?.readiness;
-  const variantSrc = useRemoteImagePathUrl(path, readiness, fallback, priority, "card");
+  const variantSrc = useRemoteImagePathUrl(path, readiness, fallback, priority, "card", readRank);
   const fullSnapshot = useRemoteImagePathSnapshot(path, readiness);
   const displaySrc = variantSrc || fullSnapshot || (authority ? "" : fallback);
   const resolveFullSrc =

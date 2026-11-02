@@ -5,7 +5,11 @@ import type { Thread, ThreadTurnInterruption } from "@/shared/contracts";
 type ThreadOwner = Pick<Thread, "id" | "agentKind">;
 const pendingInterruptedTurns = new Map<
   string,
-  { agentKind: Thread["agentKind"]; interruptedTurn: ThreadTurnInterruption | null }
+  {
+    agentKind: Thread["agentKind"];
+    interruptedTurn: ThreadTurnInterruption | null;
+    turnStopRequested: boolean;
+  }
 >();
 const pendingThreadStates = new Map<string, object>();
 
@@ -27,8 +31,18 @@ export function retirePendingThreadState(threadId: string): void {
 export function notePendingInterruptedTurn(
   thread: ThreadOwner,
   interruptedTurn: ThreadTurnInterruption | null,
+  turnStopRequested = false,
 ): void {
-  pendingInterruptedTurns.set(thread.id, { agentKind: thread.agentKind, interruptedTurn });
+  pendingInterruptedTurns.set(thread.id, {
+    agentKind: thread.agentKind,
+    interruptedTurn,
+    turnStopRequested,
+  });
+}
+
+export function pendingThreadStopRequested(thread: ThreadOwner): boolean {
+  const pending = pendingInterruptedTurns.get(thread.id);
+  return pending?.turnStopRequested === true && pending.agentKind === thread.agentKind;
 }
 
 export function pendingInterruptedTurn(

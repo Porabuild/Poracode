@@ -1473,7 +1473,7 @@ export class ThreadSessionManager {
     // offer to resume a turn the user chose to end; a session that has not
     // said either yet retires the host's kept marker too.
     session.turnStopRequested = true;
-    if (session.interruptedTurn !== null) {
+    if (session.presentationMode === "gui" || session.interruptedTurn !== null) {
       session.interruptedTurn = null;
       this.outputPipeline.emitState(session);
     }

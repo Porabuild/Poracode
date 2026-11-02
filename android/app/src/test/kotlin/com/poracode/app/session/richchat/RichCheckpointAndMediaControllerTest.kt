@@ -164,6 +164,44 @@ class RichCheckpointAndMediaControllerTest {
     }
 
     @Test
+    fun fileDownloadCleansStaleResultAfterThreadSwitchOnSameHost() = runTest {
+        val host = richLease()
+        val session = MutableStateFlow<RichChatHostLease?>(host)
+        val selection = MutableStateFlow<RichChatThreadLease?>(
+            RichChatThreadLease(host, "thread-a", 1),
+        )
+        val gateway = FakeRichChatSessionGateway()
+        val controller = RichChatMediaController(
+            session,
+            selection,
+            gateway,
+            ForegroundOperationRegistry(),
+        )
+        val destRoot = kotlin.io.path.createTempDirectory("chat-file-ctl").toFile()
+        // Flip the thread between prepare() and publication by racing through
+        // the handler: swap inside the download so the returned file is stale.
+        gateway.downloadHandler = { _, _, _, dir ->
+            val d = java.io.File(dir, "dl-1").apply { mkdirs() }
+            val f = java.io.File(d, "out.zip").apply { writeText("zip") }
+            selection.value = RichChatThreadLease(host, "other-thread", 2)
+            com.poracode.app.transport.richchat.RichChatDownloadedFile(d, f, "out.zip", 3)
+        }
+        try {
+            val result = controller.downloadFile(
+                com.poracode.app.chat.RichChatFileAccess.Project("out.zip"),
+                com.poracode.app.model.PosixProjectLocation("/repo"),
+                "out.zip",
+                destRoot,
+            )
+            assertTrue(result is RichChatOperationResult.Stale)
+            assertTrue(destRoot.listFiles().isNullOrEmpty())
+            assertEquals(1, gateway.calls.count { it == "download-file" })
+        } finally {
+            destRoot.deleteRecursively()
+        }
+    }
+
+    @Test
     fun preallocatedThreadAttachmentUsesCurrentHostWithoutASelection() = runTest {
         val host = richLease()
         val session = MutableStateFlow<RichChatHostLease?>(host)

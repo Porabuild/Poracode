@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-// Version 2 adds the saved-session auth variant (CLI/TUI ship together; a v1
-// TUI launched by a v2 CLI — or vice versa — refuses cleanly, never degrades).
-export const TUI_BOOTSTRAP_VERSION = 2;
+// Version 2 adds the saved-session auth variant; version 3 adds `server` for a
+// paired remote host. CLI/TUI ship together; a TUI launched by a CLI of
+// another version refuses cleanly, never degrades.
+export const TUI_BOOTSTRAP_VERSION = 3;
 export const TUI_HOME_DIRECTORY = "tui";
 export const TUI_LAST_MODEL_FILE_NAME = "last-model.json";
 // Version 1 remains additive so older selection files retain their meaning.
@@ -24,12 +25,19 @@ const tuiBootstrapBase = {
   directory: z.string().min(1),
   projectId: z.string().min(1).optional(),
   args: tuiBootstrapArgsSchema,
+  // A paired remote host; absent means the local host. Its session lives in
+  // tuiSessionDirectory(home, server.id), and `directory` is only this
+  // machine's launch folder, never a path on that host.
+  server: z
+    .strictObject({ id: z.string().regex(/^s-[0-9a-f]{12}$/u), name: z.string().min(1) })
+    .optional(),
 };
 
 export const tuiBootstrapSchema = z.discriminatedUnion("auth", [
   z.strictObject({ ...tuiBootstrapBase, auth: z.literal("pairing"), pairingUrl: z.string().url() }),
-  // Session mode carries no credentials — the TUI loads session.json from
-  // PORACODE_TUI_HOME itself so rotation stays single-file authoritative.
+  // Session mode carries no credentials — the TUI loads session.json from the
+  // server's session directory itself so rotation stays single-file
+  // authoritative.
   z.strictObject({ ...tuiBootstrapBase, auth: z.literal("session") }),
 ]);
 export type TuiBootstrap = z.infer<typeof tuiBootstrapSchema>;

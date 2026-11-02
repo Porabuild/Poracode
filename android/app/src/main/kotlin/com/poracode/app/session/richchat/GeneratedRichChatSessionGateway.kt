@@ -334,6 +334,30 @@ class GeneratedRichChatSessionGateway(
         executor.execute(rich.runtimeImageRequest(threadId, itemId, path))
     }
 
+    override suspend fun downloadRichFile(
+        lease: RichChatHostLease,
+        request: com.poracode.app.chat.RichChatFileAccess,
+        projectLocation: com.poracode.app.model.ProjectLocation,
+        suggestedName: String,
+        destinationDirectory: java.io.File,
+    ): com.poracode.app.transport.richchat.RichChatDownloadedFile {
+        // The post-operation lease check inside invoke() can throw AFTER the
+        // transfer completed; capture the result so a discarded download never
+        // leaks its private directory.
+        var completed: com.poracode.app.transport.richchat.RichChatDownloadedFile? = null
+        try {
+            return invoke(lease, RichChatCapability.Read, false) {
+                val transport = files ?: unavailable("file_transport")
+                transport
+                    .downloadRichFile(request, projectLocation, suggestedName, destinationDirectory)
+                    .also { completed = it }
+            }
+        } catch (error: Throwable) {
+            completed?.directory?.deleteRecursively()
+            throw error
+        }
+    }
+
     override suspend fun startTerminal(lease: RichChatHostLease, input: TerminalStartInput) =
         invoke(lease, RichChatCapability.TerminalOperate, true) { rich.startTerminal(input) }
 

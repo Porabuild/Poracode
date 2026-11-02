@@ -1,5 +1,6 @@
 import {
   CHROME_BRIDGE_HEX_256,
+  CHROME_BRIDGE_REPLACED_CLOSE_CODE,
   CHROME_SIDEBAR_PROTOCOL_VERSION,
   chromeBridgeClientProofMessage,
   chromeBridgeServerProofMessage,
@@ -385,7 +386,10 @@ export class ChromeBridgeServer {
         );
       }
       socket.send(JSON.stringify(ack));
-      previous?.dispose();
+      previous?.dispose({
+        code: CHROME_BRIDGE_REPLACED_CLOSE_CODE,
+        reason: "Replaced by a newer extension connection.",
+      });
       this.notifyChange();
     };
     socket.on("message", onFirst);

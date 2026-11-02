@@ -106,7 +106,7 @@ export async function handleFileRoutes({
         }),
       );
       const output: VcsGetOutput = {
-        location: { directory: input.bootstrap.directory },
+        location: requestLocation(url),
         data: {
           ...(snapshot.status?.remoteInfo ? { provider: snapshot.status.remoteInfo.platform } : {}),
           branch: {
@@ -117,14 +117,14 @@ export async function handleFileRoutes({
       return json(output);
     } catch {
       return json({
-        location: { directory: input.bootstrap.directory },
+        location: requestLocation(url),
         data: { branch: {} },
       } satisfies VcsGetOutput);
     }
   }
   if (path === "/api/vcs/base" && method === "GET")
     return json({
-      location: { directory: input.bootstrap.directory },
+      location: requestLocation(url),
       data: null,
     } satisfies VcsBaseOutput);
   if (path === "/api/vcs/status" && method === "GET") {
@@ -143,10 +143,10 @@ export async function handleFileRoutes({
           status: gitFileStatus(change.status),
         }),
       );
-      return json({ location: { directory: input.bootstrap.directory }, data });
+      return json({ location: requestLocation(url), data });
     } catch {
       return json({
-        location: { directory: input.bootstrap.directory },
+        location: requestLocation(url),
         data: [],
       } satisfies VcsStatusOutput);
     }
@@ -168,12 +168,12 @@ export async function handleFileRoutes({
         .filter((name) => !search || name.toLowerCase().includes(search))
         .slice(0, limit);
       return json({
-        location: { directory: input.bootstrap.directory },
+        location: requestLocation(url),
         data,
       } satisfies VcsBranchListOutput);
     } catch {
       return json({
-        location: { directory: input.bootstrap.directory },
+        location: requestLocation(url),
         data: [],
       } satisfies VcsBranchListOutput);
     }
@@ -189,12 +189,12 @@ export async function handleFileRoutes({
         }),
       );
       return json({
-        location: { directory: input.bootstrap.directory },
+        location: requestLocation(url),
         data: parseGitDiff(result.diff),
       } satisfies VcsDiffOutput);
     } catch {
       return json({
-        location: { directory: input.bootstrap.directory },
+        location: requestLocation(url),
         data: [],
       } satisfies VcsDiffOutput);
     }

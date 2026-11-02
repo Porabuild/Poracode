@@ -69,17 +69,20 @@ export async function handleCatalogRoutes({
     return json(output);
   }
   if (path === "/api/project" && method === "GET") {
+    // Every host project, so sessions from any project resolve their names.
     const current = await resolveProject();
-    const time = Date.parse(current.createdAt);
-    const output: ProjectListOutput = [
-      {
-        id: current.id,
-        canonical: directoryOf(current.location),
-        ...(current.name ? { name: current.name } : {}),
+    const projects = new Map(await ctx.projectInventory());
+    projects.set(current.id, current);
+    const output: ProjectListOutput = [...projects.values()].map((project) => {
+      const time = Date.parse(project.createdAt);
+      return {
+        id: project.id,
+        canonical: directoryOf(project.location),
+        ...(project.name ? { name: project.name } : {}),
         time: { created: time, updated: time, active: time },
         sandboxes: [],
-      },
-    ];
+      };
+    });
     return json(output);
   }
   const offeredCrews = () => ctx.crewCatalog();

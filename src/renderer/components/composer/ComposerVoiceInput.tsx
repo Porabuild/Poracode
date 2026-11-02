@@ -8,8 +8,8 @@ interface ComposerVoiceInputProps {
   show: boolean;
   isDisabled: boolean;
   /**
-   * Surface reason instead of hiding (e.g. remote sessions have no local
-   * capture): the button renders disabled with this as its tooltip.
+   * Surface a reason instead of hiding: the button renders disabled with
+   * this as its tooltip.
    */
   unavailableHint?: string | undefined;
   mentionRef: RefObject<MentionInputHandle | null>;
@@ -22,7 +22,7 @@ interface ComposerVoiceInputProps {
 
 /**
  * Shared wiring for the composer's voice-input button: gates on {@link show},
- * lazy-loads the (desktop-only) button behind Suspense, and routes its
+ * lazy-loads the button behind Suspense, and routes its
  * transcript callbacks into the mention input. Both the draft and thread
  * composers render this rather than repeating the plumbing.
  */

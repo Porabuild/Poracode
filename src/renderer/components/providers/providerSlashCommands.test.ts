@@ -93,6 +93,74 @@ describe("provider slash-command registry", () => {
     expect(getGuiSlashCommands("cursor")?.resolveLocalAction(typed)).toEqual(expected);
   });
 
+  it("appends session commands after the local set when the registration opts in", () => {
+    const commands = resolveAvailableSlashCommands(
+      [{ id: "summarize", label: "summarize" }],
+      undefined,
+      {
+        agentKind: "cursor",
+        presentationMode: "gui",
+        runtimeLabel: "SDK",
+        skillCommands: [{ id: "one", label: "one", section: "skills" }],
+      },
+    );
+
+    expect(commands.map(({ id }) => id)).toEqual([
+      "model",
+      "crew",
+      "plan",
+      "agent",
+      "summarize",
+      "one",
+    ]);
+  });
+
+  it("drops session commands colliding with local commands or skills", () => {
+    const commands = resolveAvailableSlashCommands(
+      [
+        { id: "model", label: "model" },
+        { id: "one", label: "one" },
+        { id: "summarize", label: "summarize" },
+      ],
+      undefined,
+      {
+        agentKind: "cursor",
+        presentationMode: "gui",
+        runtimeLabel: "SDK",
+        skillCommands: [{ id: "one", label: "one", section: "skills" }],
+      },
+    );
+
+    expect(commands.map(({ id }) => id)).toEqual([
+      "model",
+      "crew",
+      "plan",
+      "agent",
+      "summarize",
+      "one",
+    ]);
+  });
+
+  it("ignores session commands when the registration does not opt in", () => {
+    const commands = resolveAvailableSlashCommands(
+      [{ id: "summarize", label: "summarize" }],
+      undefined,
+      { agentKind: "codex", presentationMode: "gui" },
+    );
+
+    expect(commands.map(({ id }) => id)).not.toContain("summarize");
+  });
+
+  it("never appends the install-time capability catalog as session commands", () => {
+    const commands = resolveAvailableSlashCommands(
+      undefined,
+      [{ id: "capability-only", label: "capability-only" }],
+      { agentKind: "cursor", presentationMode: "gui", runtimeLabel: "SDK" },
+    );
+
+    expect(commands.map(({ id }) => id)).toEqual(["model", "crew", "plan", "agent"]);
+  });
+
   it.each([
     [" /MODEL ", { kind: "open-control", target: "model" }],
     ["/effort", { kind: "open-control", target: "effort" }],

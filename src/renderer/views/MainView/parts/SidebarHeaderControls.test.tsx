@@ -8,7 +8,9 @@ import { useGlobalTerminalStore } from "@/renderer/state/globalTerminalStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { SidebarHeaderControls } from "./SidebarHeaderControls";
 
-const { capabilities } = vi.hoisted(() => ({ capabilities: { localBackend: false } }));
+const { capabilities } = vi.hoisted(() => ({
+  capabilities: { localBackend: false, nativeAppUpdates: false },
+}));
 
 vi.mock("@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu", () => ({
   CreateProjectMenu: (props: { children: ReactNode }) => props.children,
@@ -16,7 +18,9 @@ vi.mock("@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu", () =>
 
 vi.mock("@/renderer/clientRuntime", () => ({
   isBrowserClientRuntime: () => true,
-  hasClientCapability: (name: string) => name === "localBackend" && capabilities.localBackend,
+  hasClientCapability: (name: string) =>
+    (name === "localBackend" && capabilities.localBackend) ||
+    (name === "nativeAppUpdates" && capabilities.nativeAppUpdates),
   hasAnyClientBridge: () =>
     Boolean(
       (window as { poracode?: unknown }).poracode ??
@@ -28,6 +32,7 @@ vi.mock("@/renderer/clientRuntime", () => ({
 describe("SidebarHeaderControls", () => {
   beforeEach(() => {
     capabilities.localBackend = false;
+    capabilities.nativeAppUpdates = false;
     resetDevTerminalStore();
     useGlobalTerminalStore.setState({ tabs: [], activeTabId: null });
     vi.stubGlobal(
@@ -101,5 +106,23 @@ describe("SidebarHeaderControls", () => {
     expect(useGlobalTerminalStore.getState().activeTabId).toMatch(/^shell:/);
     act(() => useDevTerminalStore.getState().closePanel());
     expect(button).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("gates the check-for-updates button on nativeAppUpdates", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: false,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      })),
+    );
+    const { queryByRole, getByRole, rerender } = render(<SidebarHeaderControls />);
+    expect(queryByRole("button", { name: "Check for updates" })).toBeNull();
+
+    capabilities.nativeAppUpdates = true;
+    rerender(<SidebarHeaderControls />);
+    expect(getByRole("button", { name: "Check for updates" })).toBeInTheDocument();
   });
 });

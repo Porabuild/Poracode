@@ -30,11 +30,12 @@ import {
  *   Foreground requests/subscriptions refresh recency; background gallery
  *   enumeration never displaces admitted work merely to enqueue more keys.
  * - Fetch concurrency is bounded (`maxConcurrentFetches`): excess keys wait in
- *   a FIFO queue within each priority, with mounted consumers first, so the
- *   transient retained model is
- *   `maxBytes` (unique encoded resources, including comparison pins) +
- *   `maxConcurrentFetches x per-fetch cap` (in-flight byte arrays) + one
- *   bounded comparison slice + queue metadata. A queued entry retains no bytes.
+ *   a queue ordered by transcript rank, then newest demand, within each
+ *   priority, with focused and then mounted consumers first, so the transient
+ *   retained model is `maxBytes` (unique encoded resources, including
+ *   comparison pins) + `(maxConcurrentFetches + 1 focus slot) x per-fetch cap`
+ *   (in-flight byte arrays) + one bounded comparison slice + queue metadata.
+ *   A queued entry retains no bytes.
  *   Eviction/abort reserves its slot until fetch and admission actually settle.
  * - Independently authenticated successful coordinates may share a Blob/URL
  *   only after bounded exact-byte comparison of equal response MIME/size.
@@ -64,8 +65,18 @@ export const ENVIRONMENT_IMAGE_RETRY_WINDOW_MS = 15_000;
 /** Concurrent authenticated image fetches; queued keys retain no bytes. */
 export const ENVIRONMENT_IMAGE_MAX_CONCURRENT_FETCHES = 4;
 
-/** Instance-local scheduling; persisted references and wire formats stay valid. */
-export type EnvironmentImagePriority = "foreground" | "background";
+/**
+ * Instance-local scheduling; persisted references and wire formats stay valid.
+ * `focus` is foreground demand the user is looking at directly (the open
+ * lightbox image): while a `focus` subscription holds the key, it starts ahead
+ * of every queued key and may use one fetch slot reserved for it, so it never
+ * waits behind transcript or gallery work. A `focus` request without that
+ * subscription is ordinary foreground demand.
+ */
+export type EnvironmentImagePriority = "focus" | "foreground" | "background";
+type EntryPriority = Exclude<EnvironmentImagePriority, "focus">;
+/** Extra in-flight fetch kept for focused keys beyond `maxConcurrentFetches`. */
+const FOCUS_RESERVED_FETCHES = 1;
 
 /**
  * Downscaled display variant served by the host's image routes
@@ -136,7 +147,9 @@ type ImageEntryStatus = "queued" | "pending" | "ready" | "failed" | "oversized";
 
 interface ImageCacheEntry {
   requestPath: string;
-  priority: EnvironmentImagePriority;
+  priority: EntryPriority;
+  /** Transcript position of the latest request; higher starts first. */
+  rank: number | undefined;
   status: ImageEntryStatus;
   controller: AbortController | undefined;
   resource: EnvironmentImageBlobResource | undefined;
@@ -148,7 +161,7 @@ interface ImageCacheEntry {
 
 interface EvictionLatch {
   readonly requestPath: string;
-  readonly priority: EnvironmentImagePriority;
+  readonly priority: EntryPriority;
   readonly retryAtMs: number;
   readonly retryTimer: ReturnType<typeof setTimeout>;
 }
@@ -165,6 +178,7 @@ export class RemoteEnvironmentImageCache {
   private readonly latches = new Map<string, EvictionLatch>();
   private readonly listeners = new Map<string, Set<() => void>>();
   private readonly foregroundSubscriptions = new Map<string, number>();
+  private readonly focusSubscriptions = new Map<string, number>();
   private readonly missingSnapshots = new Map<string, RemoteEnvironmentImageResolution>();
   /** Includes evicted/aborted jobs until their fetch and admission finally settle. */
   private readonly jobs = new Set<AbortController>();
@@ -199,11 +213,13 @@ export class RemoteEnvironmentImageCache {
     ref: RemoteImageRefValue,
     priority: EnvironmentImagePriority = "foreground",
     variant?: EnvironmentImageVariant,
+    rank?: number,
   ): RemoteEnvironmentImageResolution {
     return this.requestResolution(
       environmentImageRefKey(ref, variant),
       variant ? `${remoteImageRefPath(ref)}&variant=${variant}` : remoteImageRefPath(ref),
       priority,
+      rank,
     );
   }
 
@@ -212,11 +228,13 @@ export class RemoteEnvironmentImageCache {
     absolutePath: string,
     priority: EnvironmentImagePriority = "foreground",
     variant?: EnvironmentImageVariant,
+    rank?: number,
   ): RemoteEnvironmentImageResolution {
     return this.requestResolution(
       environmentLocalImageKey(absolutePath, variant),
       localImageRequestPath(absolutePath, variant),
       priority,
+      rank,
     );
   }
 
@@ -244,6 +262,7 @@ export class RemoteEnvironmentImageCache {
     const entry: ImageCacheEntry = {
       requestPath: localImageRequestPath(absolutePath),
       priority: "foreground",
+      rank: undefined,
       status: "pending",
       controller,
       resource: undefined,
@@ -276,11 +295,15 @@ export class RemoteEnvironmentImageCache {
     listener: () => void,
     priority: EnvironmentImagePriority = "foreground",
   ): () => void {
-    if (priority === "foreground") {
+    if (priority !== "background") {
       this.foregroundSubscriptions.set(key, (this.foregroundSubscriptions.get(key) ?? 0) + 1);
       const entry = this.entries.get(key);
-      if (entry) entry.priority = priority;
+      if (entry) entry.priority = "foreground";
       this.touch(key);
+    }
+    if (priority === "focus") {
+      this.focusSubscriptions.set(key, (this.focusSubscriptions.get(key) ?? 0) + 1);
+      if (this.entries.get(key)?.status === "queued") this.pump();
     }
     let listeners = this.listeners.get(key);
     if (!listeners) {
@@ -292,14 +315,10 @@ export class RemoteEnvironmentImageCache {
     return () => {
       if (!subscribed) return;
       subscribed = false;
-      if (priority === "foreground") {
-        const count = (this.foregroundSubscriptions.get(key) ?? 1) - 1;
-        if (count > 0) this.foregroundSubscriptions.set(key, count);
-        else {
-          this.foregroundSubscriptions.delete(key);
-          const entry = this.entries.get(key);
-          if (entry) entry.priority = "background";
-        }
+      if (priority === "focus") releaseCount(this.focusSubscriptions, key);
+      if (priority !== "background" && releaseCount(this.foregroundSubscriptions, key)) {
+        const entry = this.entries.get(key);
+        if (entry) entry.priority = "background";
       }
       const current = this.listeners.get(key);
       if (!current) return;
@@ -320,6 +339,7 @@ export class RemoteEnvironmentImageCache {
     this.latches.clear();
     this.listeners.clear();
     this.foregroundSubscriptions.clear();
+    this.focusSubscriptions.clear();
     this.missingSnapshots.clear();
   }
 
@@ -327,9 +347,13 @@ export class RemoteEnvironmentImageCache {
     key: string,
     requestPath: string,
     requestedPriority: EnvironmentImagePriority,
+    rank?: number,
   ): RemoteEnvironmentImageResolution {
     if (this.disposed) return this.missingSnapshot(key);
-    const priority = this.foregroundSubscriptions.has(key) ? "foreground" : requestedPriority;
+    const priority: EntryPriority =
+      requestedPriority !== "background" || this.foregroundSubscriptions.has(key)
+        ? "foreground"
+        : "background";
     if (priority === "foreground") this.touch(key);
     const latch = this.latches.get(key);
     if (latch) {
@@ -343,6 +367,7 @@ export class RemoteEnvironmentImageCache {
     const entry = this.entries.get(key);
     if (entry) {
       if (priority === "foreground") entry.priority = priority;
+      if (rank !== undefined) entry.rank = rank;
       return this.requestEntry(key, entry);
     }
     // A gallery can enumerate more coordinates than fit in the cache. Refuse
@@ -353,7 +378,7 @@ export class RemoteEnvironmentImageCache {
       (this.entries.size >= this.maxEntries || this.blobs.totalBytes >= this.maxBytes)
     )
       return this.missingSnapshot(key);
-    return this.startOrQueue(key, requestPath, priority).snapshot;
+    return this.startOrQueue(key, requestPath, priority, rank).snapshot;
   }
 
   /** Retry policy for an existing entry: only a lapsed failure is restarted. */
@@ -373,11 +398,13 @@ export class RemoteEnvironmentImageCache {
   private startOrQueue(
     key: string,
     requestPath: string,
-    priority: EnvironmentImagePriority,
+    priority: EntryPriority,
+    rank: number | undefined,
   ): ImageCacheEntry {
     const entry: ImageCacheEntry = {
       requestPath,
       priority,
+      rank,
       status: "queued",
       controller: undefined,
       resource: undefined,
@@ -392,19 +419,27 @@ export class RemoteEnvironmentImageCache {
     return entry;
   }
 
-  /** Mounted consumers go first; FIFO order is preserved within each priority. */
+  /**
+   * Focused keys go first, then mounted consumers. Within each priority the
+   * highest rank (transcript position) starts first, so a thread loads its
+   * images bottom to top however its rows mount; unranked demand (outside the
+   * transcript) precedes ranked, and ties go to the most recent demand. A
+   * focused key may also take the reserved extra slot.
+   */
   private pump(): void {
-    if (this.disposed) return;
-    while (!this.disposed && this.jobs.size < this.maxConcurrentFetches) {
-      let candidate: [string, ImageCacheEntry] | undefined;
+    while (!this.disposed) {
+      let focus: [string, ImageCacheEntry] | undefined;
+      let foreground: [string, ImageCacheEntry] | undefined;
+      let background: [string, ImageCacheEntry] | undefined;
       for (const [key, entry] of this.entries) {
         if (entry.status !== "queued") continue;
-        candidate ??= [key, entry];
-        if (entry.priority === "foreground") {
-          candidate = [key, entry];
-          break;
-        }
+        if (this.focusSubscriptions.has(key)) focus = [key, entry];
+        else if (entry.priority === "foreground") foreground = laterDemand(foreground, key, entry);
+        else background = laterDemand(background, key, entry);
       }
+      const limit = this.maxConcurrentFetches + (focus ? FOCUS_RESERVED_FETCHES : 0);
+      if (this.jobs.size >= limit) return;
+      const candidate = focus ?? foreground ?? background;
       if (!candidate) return;
       const [key, entry] = candidate;
       this.startFetch(key, entry, entry.requestPath);
@@ -579,7 +614,7 @@ export class RemoteEnvironmentImageCache {
     return foreground;
   }
 
-  private setLatch(key: string, requestPath: string, priority: EnvironmentImagePriority): void {
+  private setLatch(key: string, requestPath: string, priority: EntryPriority): void {
     this.clearLatch(key);
     const latch: EvictionLatch = {
       requestPath,
@@ -631,6 +666,27 @@ export class RemoteEnvironmentImageCache {
       }
     }
   }
+}
+
+/** The queued candidate that starts first: higher rank, then more recent demand. */
+function laterDemand(
+  current: [string, ImageCacheEntry] | undefined,
+  key: string,
+  entry: ImageCacheEntry,
+): [string, ImageCacheEntry] {
+  const rank = (candidate: ImageCacheEntry) => candidate.rank ?? Number.POSITIVE_INFINITY;
+  return current && rank(current[1]) > rank(entry) ? current : [key, entry];
+}
+
+/** Drops one reference; true when the key has no references left. */
+function releaseCount(counts: Map<string, number>, key: string): boolean {
+  const count = (counts.get(key) ?? 1) - 1;
+  if (count > 0) {
+    counts.set(key, count);
+    return false;
+  }
+  counts.delete(key);
+  return true;
 }
 
 function snapshotFor(key: string, url: string, pending: boolean): RemoteEnvironmentImageResolution {

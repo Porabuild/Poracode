@@ -368,13 +368,16 @@ describe("ThreadDocksPanel", () => {
         element.getAttribute("data-dock-kind"),
       ),
     ).toEqual(["backgroundTasks", "images", "plan"]);
+    // The images section starts expanded so tiles are visible without a click.
     const header = screen.getByRole("button", { name: "Images" });
-    fireEvent.click(header);
     expect(header).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "Open image 1 of 1" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Collapse images" }));
     expect(header).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("button", { name: "Open image 1 of 1" })).not.toBeInTheDocument();
+    fireEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Open image 1 of 1" })).toBeInTheDocument();
   });
 
   it("toggles background tasks from the header while keeping dismissal independent", () => {
@@ -404,7 +407,7 @@ describe("ThreadDocksPanel", () => {
     expect(useThreadBackgroundTasksDockStore.getState().collapsed).toBe(false);
   });
 
-  it("keeps context and account usage as independent top-level collapsible sections", async () => {
+  it("keeps thread info, context window and account usage as independent top-level collapsible sections", async () => {
     useProviderUsageStore.getState().setSnapshots([
       {
         providerId: "codex",
@@ -450,34 +453,44 @@ describe("ThreadDocksPanel", () => {
         <ThreadDocksPanel threadId="thread-1" />
       </AppProvider>,
     );
-    expect(screen.getByRole("button", { name: "Reorder Thread context" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Thread info" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Context window" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reorder Usage" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Expand thread context" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand thread info" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand context window" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Expand agent usage" })).toBeInTheDocument();
-    const context = screen.getByRole("button", { name: "Thread context" });
+    const info = screen.getByRole("button", { name: "Thread info" });
+    const context = screen.getByRole("button", { name: "Context window" });
     const usage = screen.getByRole("button", { name: "Usage" });
     expect(context).toHaveTextContent("123 tokens");
     expect(usage).toHaveTextContent("Session 48%");
+    expect(info.closest("[data-dock-kind]")).toHaveAttribute("data-dock-kind", "info");
     expect(context.closest("[data-dock-kind]")).toHaveAttribute("data-dock-kind", "context");
     expect(usage.closest("[data-dock-kind]")).toHaveAttribute("data-dock-kind", "usage");
     fireEvent.click(context);
     expect(context).toHaveAttribute("aria-expanded", "true");
+    expect(info).toHaveAttribute("aria-expanded", "false");
     expect(usage).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByText("123 used")).toBeInTheDocument();
+    fireEvent.click(info);
+    expect(info).toHaveAttribute("aria-expanded", "true");
+    expect(context).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(usage);
     expect(screen.getByRole("progressbar", { name: "Session" })).toBeInTheDocument();
     fireEvent.click(context);
     expect(usage).toHaveAttribute("aria-expanded", "true");
+    expect(info).toHaveAttribute("aria-expanded", "true");
     expect(
       [...container.querySelectorAll("[data-dock-kind]")].map((element) =>
         element.getAttribute("data-dock-kind"),
       ),
-    ).toEqual(["usage", "context", "plan", "backgroundTasks"]);
+    ).toEqual(["usage", "info", "context", "plan", "backgroundTasks"]);
     await act(async () => {
       useProviderUsageStore.setState({ snapshots: {} });
     });
     expect(screen.queryByRole("button", { name: "Reorder Usage" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reorder Thread context" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Thread info" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Context window" })).toBeInTheDocument();
   });
 
   it("keeps all Thread info sections with an image focus and a saved composer placement", () => {

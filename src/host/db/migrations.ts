@@ -1059,12 +1059,26 @@ export const DATABASE_MIGRATIONS = [
   },
   {
     version: 69,
+    name: "project branch pins",
+    // Additive nullable columns; older app versions ignore them.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "projects", "worktree_base_branch", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "pinned_branches", "TEXT");
+    },
+  },
+  {
+    version: 70,
     name: "remember turns cut off before they finished",
     rollback: "rollback-compatible",
-    // Additive to released schema 68. Unreleased PR builds used 66; the
-    // idempotent column addition also preserves their interruption markers.
+    // Additive to released schema 69. Unreleased PR builds used 66 and 69;
+    // preserve their markers and install the branch pins skipped by PR schema69.
+    // Private "stopped" markers remember accepted Stop until boot; old readers
+    // ignore unknown marker values, and clients still see only error/restart.
     migrate: (sqlite) => {
       addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "worktree_base_branch", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "pinned_branches", "TEXT");
       // PR-only schema66 profiles predate master's index migration with the
       // same number. Ensure both intentions survive that upgrade too.
       sqlite.exec(`
@@ -1200,6 +1214,8 @@ const SAFE_COLUMN_REPAIRS = [
   ["projects", "worktree_location", "TEXT"],
   ["projects", "mcp_servers", "TEXT"],
   ["projects", "gh_account", "TEXT"],
+  ["projects", "worktree_base_branch", "TEXT"],
+  ["projects", "pinned_branches", "TEXT"],
   ["projects", "workspace_id", "TEXT"],
   ["projects", "disabled", "INTEGER NOT NULL DEFAULT 0"],
   ["threads", "done", "INTEGER NOT NULL DEFAULT 0"],
@@ -1238,7 +1254,7 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
     if (Number(schema?.value) >= 58) createRuntimeGoalIndex(sqlite);
     // Migration56 calls this helper too. Do not inject a future column into
     // historical schemas before its own ordered migration has run.
-    if (Number(schema?.value) >= 69) {
+    if (Number(schema?.value) >= 70) {
       addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
     }
     sqlite.exec(
@@ -1280,6 +1296,8 @@ const REQUIRED_COLUMNS = {
     "worktree_location",
     "mcp_servers",
     "gh_account",
+    "worktree_base_branch",
+    "pinned_branches",
     "workspace_id",
     "disabled",
     "sort_order",

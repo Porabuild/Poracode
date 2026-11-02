@@ -129,6 +129,9 @@ enum RichChatAttributedText {
 
 struct RichChatMessageSupplementView: View {
   let supplement: RichMessageSupplementPresentation
+  /// Only assistant-produced files become download cards; user message file
+  /// references keep the compact attachment row.
+  var isAssistant: Bool = false
 
   var body: some View {
     switch supplement {
@@ -153,11 +156,15 @@ struct RichChatMessageSupplementView: View {
         Rectangle().fill(.quaternary).frame(width: 1)
       }
     case .file(let path, let name, let isAttachment):
-      compactRow(
-        systemImage: isAttachment ? "paperclip" : "doc",
-        title: name ?? URL(fileURLWithPath: path).lastPathComponent,
-        subtitle: path
-      )
+      if isAssistant, let ref = RichChatFilePolicy.typedFileRef(path: path, name: name) {
+        RichChatFileCard(ref: ref)
+      } else {
+        compactRow(
+          systemImage: isAttachment ? "paperclip" : "doc",
+          title: name ?? URL(fileURLWithPath: path).lastPathComponent,
+          subtitle: path
+        )
+      }
     }
   }
 

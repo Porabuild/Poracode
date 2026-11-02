@@ -49,6 +49,7 @@ const deps = {
     "zod",
     "@sindresorhus/slugify",
     /^@poracode\/agents-usage(?:\/|$)/,
+    /^@kitlangton\/hex(?:\/|$)/,
   ],
   onlyBundle: false as const,
   neverBundle: [

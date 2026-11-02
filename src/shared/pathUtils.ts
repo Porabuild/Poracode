@@ -3,6 +3,11 @@ export function getBasename(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
+/** Native absolute filesystem path: POSIX `/`, UNC `\\`, or a drive prefix. */
+export function isAbsoluteFsPath(path: string): boolean {
+  return path.startsWith("/") || path.startsWith("\\\\") || /^[A-Za-z]:[\\/]/u.test(path);
+}
+
 /** Remove the URL-style leading slash from an absolute Windows drive path. */
 export function normalizeWindowsDrivePath(path: string): string {
   return path.replace(/^\/(?=[A-Za-z]:[\\/])/, "");

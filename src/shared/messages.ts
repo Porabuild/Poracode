@@ -276,6 +276,13 @@ const messages = {
   "codex.compactFailed": "Codex could not compact the conversation: {detail}",
   "codex.modelRerouted": "Model rerouted from {fromModel} to {toModel}.",
 
+  // ── Cursor ────────────────────────────────────────────────
+  "cursor.summarizeUnavailableDuringTurn":
+    "Cursor can't summarize the conversation while a turn is running. Send /summarize again once it finishes.",
+  "cursor.compactFailed": "Cursor couldn't summarize the conversation, so it was left unchanged.",
+  "cursor.compactFallback":
+    "Cursor couldn't write a summary, so it saved a trimmed copy of the conversation instead.",
+
   // ── App update ────────────────────────────────────────────
   "update.error": "Update error: {detail}",
   "update.serviceUnavailable": "The update service is temporarily unavailable.",

@@ -12,6 +12,7 @@ import { useLingui } from "@lingui/react/macro";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
 import { ImageLightboxActions } from "./ImageLightboxActions";
 import { useThreadGalleryImages } from "../thread/useThreadGalleryImages";
+import { useRenderOnNotify } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 
 /** A pre-resolved image for the lightbox: a renderable URL plus an accessible label. */
 export interface LightboxImage {
@@ -203,8 +204,9 @@ export function ImageLightboxView(props: {
   } | null>(null);
   const selected = images[index];
   const resource = selected?.resource;
+  const onNotify = useRenderOnNotify();
   const resolvedSrc = useSyncExternalStore(
-    resource?.subscribe ?? subscribeEmptyImage,
+    resource ? (listener) => resource.subscribe(onNotify(listener)) : subscribeEmptyImage,
     resource?.getSnapshot ?? emptyImageSnapshot,
   );
   const current = selected

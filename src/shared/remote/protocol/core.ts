@@ -38,7 +38,13 @@ import { gitStatePatchSchema } from "../../gitState";
 // Optional thread tool overrides remain additive: absent maps keep old defaults,
 // and the host retains durable choices when older clients omit them on mutation.
 // Optional thread.interruptedTurn is additive: old readers ignore it and old hosts
-// omit it, so no resume button shows. Only the host writes it (schema 69).
+// omit it, so no resume button shows. Only the host writes it (schema 70).
+// Optional thread-state.turnStopRequested is host persistence input; older event
+// readers ignore it. The private stored "stopped" value is never a Thread marker.
+// The optional mediaFileRequest.disposition:"attachment" download option stays
+// additive within v14: old clients never send it, an old host strips or rejects
+// the field and keeps answering nonmedia with typed unsupported_media_type, and
+// no request/response discriminator meaning changes, so no version bump.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 

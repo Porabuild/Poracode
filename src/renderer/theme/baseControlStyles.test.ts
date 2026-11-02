@@ -24,6 +24,12 @@ describe("base control styles", () => {
     }
   });
 
+  it("keeps small button icons and labels spaced and vertically centered", () => {
+    expect(styles).toMatch(
+      /@layer components\s*\{\s*\.button--sm\s*\{\s*line-height:\s*1rem;\s*\}\s*\.button--sm svg:not\(\[data-slot="spinner"\] svg, \[data-slot="link-icon"\] svg\)\s*\{\s*margin-inline:\s*0;/,
+    );
+  });
+
   it("uses dark, low-alpha liquid glass for macOS floating chrome", () => {
     expect(styles).toMatch(
       /html\[data-platform="darwin"\]\s*\{[^}]*--floating-chrome-surface:\s*color-mix\(in oklab, var\(--sidebar-background\) 38%, transparent\);[^}]*--floating-chrome-backdrop:\s*blur\(12px\) saturate\(140%\);/s,

@@ -10,6 +10,7 @@ import {
   applyAdmittedRuntimePayloadBatch,
   markRuntimeRebaseDropped,
   runThreadRuntimeMutation,
+  runRuntimeControlWrite,
 } from "@/host/db/runtimePersistenceRuntime";
 import type { RuntimeAdmission } from "@/host/db/runtimePersistenceTypes";
 // The admission fence reads the row through the barrel, like the write it fences.
@@ -219,6 +220,16 @@ function dispatchPersist(
       if (thread && event.agentKind !== undefined && event.agentKind !== thread.agentKind) {
         return { kind: "withhold", reason: "refused", threadIds: [event.threadId] };
       }
+      // Stop must reach disk before a reset can classify the active row as
+      // interrupted. Retire any older queued state after the write succeeds.
+      if (
+        thread &&
+        event.turnStopRequested &&
+        runRuntimeControlWrite(() => persistThreadStateEvent(event), event.threadId).ok
+      ) {
+        retirePendingThreadState(event.threadId);
+        return { kind: "publish", event };
+      }
       // Control write: queued for bounded retry (idempotent upsert). Row lag is
       // replay-covered, so publication stays immediate — but only once the
       // write was actually queued. A refused control reserve means the row
@@ -255,7 +266,7 @@ function dispatchPersist(
       }
       notePendingThreadState(event.threadId, admission);
       if (thread && event.interruptedTurn !== undefined) {
-        notePendingInterruptedTurn(thread, event.interruptedTurn);
+        notePendingInterruptedTurn(thread, event.interruptedTurn, event.turnStopRequested === true);
       }
       return { kind: "publish", event };
     }

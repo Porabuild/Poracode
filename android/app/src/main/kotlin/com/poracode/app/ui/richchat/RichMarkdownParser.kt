@@ -3,6 +3,9 @@ package com.poracode.app.ui.richchat
 internal sealed interface RichMarkdownBlock {
     data class Heading(val level: Int, val text: String) : RichMarkdownBlock
     data class Paragraph(val text: String) : RichMarkdownBlock
+    data class FileCard(val ref: com.poracode.app.chat.RichChatFileRef) : RichMarkdownBlock
+    /** Unordered list whose every row is a standalone local-artifact link. */
+    data class FileCardList(val refs: List<com.poracode.app.chat.RichChatFileRef>) : RichMarkdownBlock
     data class OrderedList(val items: List<String>) : RichMarkdownBlock
     data class UnorderedList(val items: List<String>) : RichMarkdownBlock
     data class Code(val language: String?, val source: String) : RichMarkdownBlock
@@ -63,6 +66,20 @@ internal object RichMarkdownParser {
                 continue
             }
 
+            // 4-space/tab indented text is code, never lists or cards.
+            if (line.startsWith("    ") || line.startsWith("\t")) {
+                val code = mutableListOf<String>()
+                while (index < lines.size &&
+                    (lines[index].startsWith("    ") || lines[index].startsWith("\t") ||
+                        lines[index].isBlank())
+                ) {
+                    code += lines[index]
+                    index += 1
+                }
+                blocks += RichMarkdownBlock.Code(null, code.joinToString("\n").trimEnd('\n'))
+                continue
+            }
+
             orderedItem(line)?.let { first ->
                 val items = mutableListOf(first)
                 index += 1
@@ -83,7 +100,23 @@ internal object RichMarkdownParser {
                     items += item
                     index += 1
                 }
-                blocks += RichMarkdownBlock.UnorderedList(items)
+                // Artifact-only lists render as cards without markers; anything
+                // else keeps bullet semantics. Indented rows are code, never cards.
+                val cards = if (items.any { it.startsWith("    ") || it.startsWith("\t") }) {
+                    emptyList()
+                } else {
+                    items.mapNotNull { item ->
+                        com.poracode.app.chat.RichChatFilePolicy.markdownLink(item)
+                            ?.let { (_, dest) ->
+                                com.poracode.app.chat.RichChatFilePolicy.markdownFileRef(dest)
+                            }
+                    }
+                }
+                if (cards.size == items.size && cards.isNotEmpty()) {
+                    blocks += RichMarkdownBlock.FileCardList(cards)
+                } else {
+                    blocks += RichMarkdownBlock.UnorderedList(items)
+                }
                 continue
             }
 
@@ -93,7 +126,18 @@ internal object RichMarkdownParser {
                 paragraph += lines[index]
                 index += 1
             }
-            blocks += RichMarkdownBlock.Paragraph(paragraph.joinToString("\n"))
+            val paragraphText = paragraph.joinToString("\n")
+            // A paragraph that is one standalone artifact link is a card, not
+            // prose. 4-space/tab indented text stays code.
+            val isCodeIndented = paragraphText.startsWith("    ") || paragraphText.startsWith("\t")
+            val singleLink = paragraph.takeIf { it.size == 1 && !isCodeIndented }
+                ?.let { com.poracode.app.chat.RichChatFilePolicy.markdownLink(paragraphText) }
+                ?.let { (_, dest) -> com.poracode.app.chat.RichChatFilePolicy.markdownFileRef(dest) }
+            if (singleLink != null) {
+                blocks += RichMarkdownBlock.FileCard(singleLink)
+            } else {
+                blocks += RichMarkdownBlock.Paragraph(paragraphText)
+            }
         }
         return blocks
     }

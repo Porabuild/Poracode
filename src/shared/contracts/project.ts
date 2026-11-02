@@ -74,6 +74,14 @@ export const projectSchema = z.object({
   scripts: projectScriptsSchema.optional(),
   searchSettings: projectSearchSettingsSchema.optional(),
   worktreeLocation: projectWorktreeLocationSchema.optional(),
+  /**
+   * Pinned base ref for new worktrees (for example `origin/main` or a local
+   * branch). Absent = the repository's remote default branch, falling back to
+   * the current checkout.
+   */
+  worktreeBaseBranch: z.string().min(1).optional(),
+  /** Branch names shown first, in this order, in the project's branch pickers. */
+  pinnedBranches: z.array(z.string().min(1)).optional(),
   /** Project MCP entries override global entries by name (case-insensitive). */
   mcpServers: mcpServerListSchema.optional(),
   /**

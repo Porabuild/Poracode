@@ -40,11 +40,26 @@ function createWindowHarness() {
 const killed = { reason: "killed", exitCode: 9 } satisfies RenderProcessGoneDetails;
 
 describe("inline visual frame navigation", () => {
+  it("blocks redirects to the removed feedback verifier and its challenge origin", () => {
+    const { window, handlers } = createWindowHarness();
+    installAppNavigationGuards(window, { isDev: false });
+    for (const url of [
+      "https://poracode.com/feedback/verify",
+      "https://challenges.cloudflare.com/widget",
+    ]) {
+      const preventDefault = vi.fn<() => void>();
+      handlers.get("will-redirect")!({ isMainFrame: false, preventDefault }, url);
+      expect(preventDefault).toHaveBeenCalledOnce();
+    }
+  });
+
   it("blocks subframe file, host, and network navigations while allowing srcdoc", () => {
     const { window, handlers } = createWindowHarness();
     installAppNavigationGuards(window, { isDev: true, devServerUrl: "http://localhost:3100" });
     for (const url of [
       "https://evil.test/",
+      "https://poracode.com/feedback/verify",
+      "https://challenges.cloudflare.com/widget",
       "http://localhost:3100/",
       "file:///private",
       "javascript:parent.poracode()",

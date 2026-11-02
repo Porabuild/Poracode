@@ -9,6 +9,7 @@ import { forgeProcedures } from "./procedures/forge";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
 import { liveVoiceProcedures } from "./procedures/liveVoice";
+import { hexVoiceProcedures } from "./procedures/hexVoice";
 import { mcpProcedures } from "./procedures/mcp";
 import { pluginProcedures } from "./procedures/plugins";
 import { profileProcedures } from "./procedures/profile";
@@ -30,6 +31,7 @@ export const groupedIpcProcedures = {
   thread: threadProcedures,
   sessionActions: sessionActionProcedures,
   liveVoice: liveVoiceProcedures,
+  hexVoice: hexVoiceProcedures,
   git: gitProcedures,
   experiment: experimentProcedures,
   github: githubProcedures,
@@ -58,6 +60,7 @@ export const ipcProcedureMap = {
   ...threadProcedures,
   ...sessionActionProcedures,
   ...liveVoiceProcedures,
+  ...hexVoiceProcedures,
   ...gitProcedures,
   ...experimentProcedures,
   ...githubProcedures,

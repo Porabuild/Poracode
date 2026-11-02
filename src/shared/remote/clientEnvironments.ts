@@ -337,16 +337,18 @@ export class RemoteEnvironmentClient extends RemoteDesktopClient {
     ref: RemoteImageRefValue,
     priority?: EnvironmentImagePriority,
     variant?: EnvironmentImageVariant,
+    rank?: number,
   ): RemoteEnvironmentImageResolution {
-    return this.images.imageRefResolution(ref, priority, variant);
+    return this.images.imageRefResolution(ref, priority, variant, rank);
   }
 
   localImageResolution(
     absolutePath: string,
     priority?: EnvironmentImagePriority,
     variant?: EnvironmentImageVariant,
+    rank?: number,
   ): RemoteEnvironmentImageResolution {
-    return this.images.localImageResolution(absolutePath, priority, variant);
+    return this.images.localImageResolution(absolutePath, priority, variant, rank);
   }
 
   imageResolutionFor(key: string): RemoteEnvironmentImageResolution {

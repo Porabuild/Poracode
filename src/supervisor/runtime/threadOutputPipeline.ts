@@ -159,9 +159,11 @@ export class ThreadOutputPipeline {
     // Only a change is news: the host keeps the marker, and a rewind can
     // retire it there without this session knowing.
     const changedInterruptedTurn =
-      session.interruptedTurn !== session.reportedInterruptedTurn
-        ? session.interruptedTurn
-        : undefined;
+      session.presentationMode === "gui" && session.turnStopRequested
+        ? null
+        : session.interruptedTurn !== session.reportedInterruptedTurn
+          ? session.interruptedTurn
+          : undefined;
     session.reportedInterruptedTurn = session.interruptedTurn;
     this.options.emit({
       type: "thread-state",
@@ -180,6 +182,9 @@ export class ThreadOutputPipeline {
         ? { sessionConfigOptions: session.sessionConfigOptions }
         : {}),
       ...(changedInterruptedTurn !== undefined ? { interruptedTurn: changedInterruptedTurn } : {}),
+      ...(session.presentationMode === "gui" && session.turnStopRequested
+        ? { turnStopRequested: true }
+        : {}),
       // Ride along on every state change so the renderer learns whether this
       // session resolved `read_thread` as soon as it launches. Without this the
       // flag only travelled in pulled snapshots, which a client refetches on

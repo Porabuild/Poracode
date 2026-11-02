@@ -1,6 +1,6 @@
-// Worker for vite.config.ts's dev-only Lingui macro pool. Applies the same
-// Babel transform as @rolldown/plugin-babel with the Lingui preset, off the
-// dev server's main thread.
+// Worker for vite.config.ts's Lingui macro pool (dev server and builds). Applies the
+// same Babel transform as @rolldown/plugin-babel with the Lingui preset, off the
+// main thread.
 import { parentPort } from "node:worker_threads";
 import { transformAsync } from "@babel/core";
 

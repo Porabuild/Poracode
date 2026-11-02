@@ -1,5 +1,6 @@
 import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
 import { McpAuthenticationService } from "./mcp/McpAuthenticationService";
+import { HexVoiceService } from "./speech/HexVoiceService";
 import { retireMacKeychainCommands } from "./runtime/macKeychainProcess";
 import { NativeMcpSetupCoordinator } from "./runtime/nativeMcpSetupCoordinator";
 import { existsSync, mkdirSync } from "node:fs";
@@ -208,6 +209,7 @@ export class SupervisorRuntime {
   readonly pluginRegistry: PluginRegistry;
   readonly pluginCatalogService: PluginCatalogService;
   readonly pluginAccountService: PluginAccountService;
+  readonly hexVoiceService: HexVoiceService;
   private readonly pluginDataDir: string;
   private readonly crossagentMcpIngress: CrossagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
@@ -298,6 +300,9 @@ export class SupervisorRuntime {
     this.agentRegistryService.refreshAgentRegistryAdapters();
     mkdirSync(paths.cacheDir, { recursive: true });
     mkdirSync(this.logsDir, { recursive: true });
+    this.hexVoiceService = new HexVoiceService({
+      managedDirectory: join(paths.cacheDir, "hex-engine"),
+    });
 
     // Prefetch the native Node resolver so the login-shell probe runs in
     // parallel with the rest of the supervisor boot. By the time providers'
@@ -1253,6 +1258,7 @@ export class SupervisorRuntime {
       () => this.mcpOAuthRelay.dispose(),
       () => this.mcpOAuthService.dispose(),
       () => this.mcpAuthenticationService.dispose(),
+      () => this.hexVoiceService.dispose(),
       async () => {
         this.disposeWindowsPowerShellPreference();
         this.disposeWslCredentialProjectScope();

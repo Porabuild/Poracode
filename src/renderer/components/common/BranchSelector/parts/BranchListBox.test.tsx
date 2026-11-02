@@ -64,6 +64,62 @@ afterEach(() => {
 });
 
 describe("BranchListBox", () => {
+  it("toggles the default worktree base and pin-to-top without selecting the row", () => {
+    const props = baseProps();
+    const onDefaultWorktreeBranchChange = vi.fn<(branchName: string | undefined) => void>();
+    const onTogglePinned = vi.fn<(branchName: string) => void>();
+    const main = { name: "main", current: true, commit: "a", isRemote: false };
+    const develop = { name: "develop", current: false, commit: "b", isRemote: false };
+    const items = [
+      { type: "header" as const, id: "header-local", name: msg`Local` },
+      { type: "branch" as const, id: main.name, branch: main },
+      { type: "branch" as const, id: develop.name, branch: develop },
+    ];
+
+    render(
+      <BranchListBox
+        {...props}
+        hasLocal
+        items={items}
+        defaultWorktreeBranch="main"
+        onDefaultWorktreeBranchChange={onDefaultWorktreeBranchChange}
+        pinnedBranches={new Set(["develop"])}
+        onTogglePinned={onTogglePinned}
+      />,
+    );
+
+    const isDefault = screen.getByRole("button", {
+      name: "Use main as default worktree base",
+    });
+    expect(isDefault).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(isDefault);
+    expect(onDefaultWorktreeBranchChange).toHaveBeenLastCalledWith(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Use develop as default worktree base" }));
+    expect(onDefaultWorktreeBranchChange).toHaveBeenLastCalledWith("develop");
+
+    const pinned = screen.getByRole("button", { name: "Pin develop to top" });
+    expect(pinned).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(pinned);
+    expect(onTogglePinned).toHaveBeenLastCalledWith("develop");
+    fireEvent.click(screen.getByRole("button", { name: "Pin main to top" }));
+    expect(onTogglePinned).toHaveBeenLastCalledWith("main");
+    expect(props.onSelect).not.toHaveBeenCalled();
+  });
+
+  it("hides the row toggles when the picker does not offer them", () => {
+    const branch = { name: "main", current: true, commit: "a", isRemote: false };
+    render(
+      <BranchListBox
+        {...baseProps()}
+        hasLocal
+        items={[{ type: "branch", id: branch.name, branch }]}
+        defaultWorktreeBranch="main"
+        pinnedBranches={new Set(["main"])}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /default worktree base|to top/ })).toBeNull();
+  });
+
   it("fires delete for a remote branch row", () => {
     const props = baseProps();
     const branch = {

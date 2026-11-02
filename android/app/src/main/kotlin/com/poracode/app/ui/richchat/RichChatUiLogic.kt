@@ -97,6 +97,49 @@ object RichChatUiLogic {
             .orEmpty()
     }
 
+    /**
+     * Display body for a message — streams live text while streaming,
+     * otherwise joins TEXT blocks only so typed file paths never duplicate
+     * inside the visible prose (they render as cards via [chatFiles]).
+     */
+    fun messageBody(item: RichRuntimeItem): String {
+        val streamed = preferredStreams.mapNotNull(item.streams::get)
+            .filter(String::isNotBlank)
+            .joinToString("\n")
+        if (streamed.isNotBlank()) return streamed
+        val cards = chatFiles(item)
+        if (cards.isEmpty()) return itemText(item)
+        // Only the typed local File blocks rendered as cards leave the prose;
+        // every other structured block keeps its existing text form.
+        val cardPaths = cards.mapTo(HashSet()) { it.path }
+        return RichContentDecoder.decodeMessageContent(item.payload).orEmpty()
+            .filter { block ->
+                block !is RichContentBlock.File ||
+                    block.path !in cardPaths ||
+                    block.mimeType?.startsWith("image/", ignoreCase = true) == true
+            }
+            .mapNotNull(::blockText)
+            .filter(String::isNotBlank)
+            .joinToString("\n")
+    }
+
+    /**
+     * Typed `kind:"file"` payloads as download-card refs for ASSISTANT items;
+     * user file references keep their existing attachment/prose treatment.
+     */
+    fun chatFiles(item: RichRuntimeItem): List<com.poracode.app.chat.RichChatFileRef> {
+        if (item.type != RichItemTypes.ASSISTANT_MESSAGE) return emptyList()
+        return RichContentDecoder.decodeMessageContent(item.payload).orEmpty()
+            .filterIsInstance<RichContentBlock.File>()
+            .filter { it.mimeType?.startsWith("image/", ignoreCase = true) != true }
+            .mapNotNull { block ->
+                com.poracode.app.chat.RichChatFilePolicy.typedFileRef(
+                    path = block.path,
+                    name = block.name,
+                )
+            }
+    }
+
     fun images(item: RichRuntimeItem): List<RichImageSource> {
         val result = mutableListOf<RichImageSource>()
         for (block in RichContentDecoder.decodeMessageContent(item.payload).orEmpty()) {

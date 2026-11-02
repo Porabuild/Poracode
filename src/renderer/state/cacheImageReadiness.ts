@@ -14,15 +14,15 @@ export function createCacheImageReadiness(
       cache.resolutionForImageKey(environmentImageRefKey(ref, variant)).url,
     subscribeRef: (ref, listener, priority, variant) =>
       cache.subscribeImageKey(environmentImageRefKey(ref, variant), listener, priority),
-    requestRef: (ref, priority, variant) => {
-      cache.imageRefResolution(ref, priority, variant);
+    requestRef: (ref, priority, variant, rank) => {
+      cache.imageRefResolution(ref, priority, variant, rank);
     },
     resolvePath: (path, variant) =>
       cache.resolutionForImageKey(environmentLocalImageKey(path, variant)).url,
     subscribePath: (path, listener, priority, variant) =>
       cache.subscribeImageKey(environmentLocalImageKey(path, variant), listener, priority),
-    requestPath: (path, priority, variant) => {
-      cache.localImageResolution(path, priority, variant);
+    requestPath: (path, priority, variant, rank) => {
+      cache.localImageResolution(path, priority, variant, rank);
     },
   };
 }

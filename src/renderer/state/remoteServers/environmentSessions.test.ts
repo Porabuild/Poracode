@@ -514,10 +514,16 @@ describe("environmentSessions", () => {
     readiness.requestRef(IMAGE_REF, "background");
     readiness.requestPath("/tmp/gallery.png", "background");
     const first = h.environmentClients[0]!.client;
-    expect(first.imageRefResolution).toHaveBeenCalledWith(IMAGE_REF, "background", undefined);
+    expect(first.imageRefResolution).toHaveBeenCalledWith(
+      IMAGE_REF,
+      "background",
+      undefined,
+      undefined,
+    );
     expect(first.localImageResolution).toHaveBeenCalledWith(
       "/tmp/gallery.png",
       "background",
+      undefined,
       undefined,
     );
     expect(first.subscribeImageKey).toHaveBeenCalledWith(

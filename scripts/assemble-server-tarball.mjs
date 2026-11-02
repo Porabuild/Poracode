@@ -386,6 +386,11 @@ export function assembleServerTarball(options = {}) {
   );
   cpSync(join(repoRoot, "packaging", "Dockerfile"), join(stage, "Dockerfile"));
   cpSync(join(repoRoot, "LICENSE"), join(stage, "LICENSE"));
+  mkdirSync(join(stage, "THIRD_PARTY_NOTICES"), { recursive: true });
+  cpSync(
+    join(repoRoot, "resources/third-party/@kitlangton-hex-MIT.txt"),
+    join(stage, "THIRD_PARTY_NOTICES/@kitlangton-hex-MIT.txt"),
+  );
 
   const webClient = copyWebClient(stage, webDir, apiOnly);
 
@@ -426,6 +431,7 @@ export function assembleServerTarball(options = {}) {
     "package.json",
     "npm-shrinkwrap.json",
     "lib/server.cjs",
+    "THIRD_PARTY_NOTICES/@kitlangton-hex-MIT.txt",
     "renderer/index.html",
     "native-overlay/node-pty/overlay.json",
     "native-overlay/better-sqlite3/overlay.json",

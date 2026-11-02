@@ -82,8 +82,11 @@ export function persistThreadStateEvent(event: ThreadStateEvent): void {
   // A starting turn retires the marker even when the emitter never stated it:
   // a session spawned straight into `working` after a restart has no prior
   // state of its own to clear.
-  const interruptedTurn =
-    event.interruptedTurn !== undefined
+  const interruptedTurn = event.turnStopRequested
+    ? isThreadTurnActive(event.status)
+      ? "stopped"
+      : null
+    : event.interruptedTurn !== undefined
       ? event.interruptedTurn
       : event.status === "working" && thread.status !== "working"
         ? null

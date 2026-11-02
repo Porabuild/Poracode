@@ -40,6 +40,22 @@ const input = (provider: string): SharedSettingsInput =>
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("pushDesktopSettingsDiff push ordering", () => {
+  it("keeps PWA microphone and transcription choices device-local", () => {
+    applyDesktopSettings(settings("v0"));
+    const client = {
+      updateSettings: vi.fn<(patch: RemoteSettingsPatch) => Promise<RemoteSettings>>(),
+    } as unknown as RemoteDesktopClient;
+    pushDesktopSettingsDiff(client, {
+      ...input("v0"),
+      audio: {
+        ...defaultSharedSettings.audio,
+        microphoneDeviceId: "browser-mic",
+        transcriptionBackend: "hex",
+        hexModel: "whisper_large_v3_turbo",
+      },
+    });
+    expect(client.updateSettings).not.toHaveBeenCalled();
+  });
   it("never sends the device-local terminal family to the paired desktop", () => {
     applyDesktopSettings(settings("v0"));
     const client = {

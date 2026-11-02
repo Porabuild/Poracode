@@ -1,5 +1,9 @@
-import { closeAsyncDatabaseReads, enableAsyncDatabaseReads } from "@/host/db/asyncReads";
 import { retirePendingThreadState } from "@/host/remote/server/pendingInterruptedTurns";
+import {
+  closeAsyncDatabaseReads,
+  enableAsyncDatabaseReads,
+  warmAsyncDatabaseReads,
+} from "@/host/db/asyncReads";
 import {
   closeDatabase,
   dbGetThread,
@@ -211,6 +215,8 @@ export class BackendHostCore {
           options.databaseReadWorkerPath,
           options.databaseReadImagePreviews,
         );
+        // Clients load projects and threads right after the host starts.
+        warmAsyncDatabaseReads();
       }
       this.preparedDatabaseWriteAdmission = capturePreparedDatabaseWriteAdmission(
         database,

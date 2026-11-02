@@ -1199,8 +1199,9 @@ describe("Cursor SDK canonical mapping — nested task updates", () => {
 });
 
 describe("Cursor SDK canonical mapping — auxiliary updates and usage", () => {
-  it("maps summary snapshots into one reasoning item", () => {
+  it("maps a summary lifecycle into one ContextCompaction row and swallows 1.0.x task echoes", () => {
     const state = createCursorSdkMapperState("thread-1");
+    startCursorSdkTurn(state, "turn-1");
     const events = [
       ...mapCursorSdkInteractionUpdate({ type: "summary-started" }, state),
       ...mapCursorSdkInteractionUpdate({ type: "summary", summary: "First" }, state),
@@ -1211,12 +1212,147 @@ describe("Cursor SDK canonical mapping — auxiliary updates and usage", () => {
       ...mapCursorSdkMessage({ type: "task", ...envelope, text: "Final" }, state),
       ...mapCursorSdkInteractionUpdate({ type: "summary-completed" }, state),
     ];
-    expect(started(events, "reasoning")).toHaveLength(1);
-    expect(events.filter((event) => event.type === "item.updated")).toMatchObject([
-      { payload: { summary: "First" } },
-      { payload: { summary: "Final" } },
+    const rows = started(events, "tool_call");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      payload: {
+        name: "ContextCompaction",
+        kind: "other",
+        status: "running",
+        args: { trigger: "auto" },
+      },
+    });
+    const rowId = rows[0]!.itemId;
+    expect(completed(events)).toEqual([
+      expect.objectContaining({
+        itemId: rowId,
+        payload: expect.objectContaining({
+          name: "ContextCompaction",
+          status: "success",
+          result: "Final",
+        }),
+      }),
     ]);
+    expect(events.filter((event) => event.type === "item.updated")).toEqual([]);
+  });
+
+  it("reconciles raw summary deltas against the 1.2.0 normalized summary echo", () => {
+    const state = createCursorSdkMapperState("thread-1");
+    startCursorSdkTurn(state, "turn-1");
+    const events = [
+      ...mapCursorSdkInteractionUpdate({ type: "summary-started" }, state),
+      ...mapCursorSdkMessage({ type: "summary", ...envelope, status: "running" }, state),
+      ...mapCursorSdkInteractionUpdate({ type: "summary", summary: "Final" }, state),
+      ...mapCursorSdkInteractionUpdate({ type: "summary-completed" }, state),
+      ...mapCursorSdkMessage({ type: "summary", ...envelope, status: "completed" }, state),
+    ];
+    const rows = started(events, "tool_call");
+    expect(rows).toHaveLength(1);
     expect(completed(events)).toHaveLength(1);
+    expect(completed(events)[0]).toMatchObject({
+      itemId: rows[0]!.itemId,
+      payload: { name: "ContextCompaction", status: "success", result: "Final" },
+    });
+  });
+
+  it("maps a summarize turn's normalized summary and attaches the run result to the row", () => {
+    const state = createCursorSdkMapperState("thread-1");
+    startCursorSdkTurn(state, "turn-1", undefined, { summarize: true });
+    const events = [
+      ...mapCursorSdkMessage({ type: "summary", ...envelope, status: "running" }, state),
+      ...mapCursorSdkMessage({ type: "summary", ...envelope, status: "completed" }, state),
+      ...mapCursorSdkRunResult(
+        { id: "run-1", status: "finished", result: "Written summary" },
+        state,
+      ),
+    ];
+    const rows = started(events, "tool_call");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      payload: expect.objectContaining({ name: "ContextCompaction", args: { trigger: "manual" } }),
+    });
+    expect(completed(events)[0]).toMatchObject({
+      itemId: rows[0]!.itemId,
+      payload: expect.objectContaining({ status: "success" }),
+    });
+    // The run result is the summary text, never an assistant message.
+    expect(started(events, "assistant_message")).toHaveLength(0);
+    expect(events.at(-1)).toMatchObject({ type: "turn.completed", state: "completed" });
+  });
+
+  it("attaches a still-open summarize row's run result as its result", () => {
+    const state = createCursorSdkMapperState("thread-1");
+    startCursorSdkTurn(state, "turn-1", undefined, { summarize: true });
+    const events = [
+      ...mapCursorSdkMessage({ type: "summary", ...envelope, status: "running" }, state),
+      ...mapCursorSdkRunResult(
+        { id: "run-1", status: "finished", result: "Written summary" },
+        state,
+      ),
+    ];
+    expect(completed(events)).toHaveLength(1);
+    expect(completed(events)[0]).toMatchObject({
+      payload: expect.objectContaining({ status: "success", result: "Written summary" }),
+    });
+  });
+
+  it("reports a failed summary write as an error row plus one warning", () => {
+    const state = createCursorSdkMapperState("thread-1");
+    startCursorSdkTurn(state, "turn-1");
+    const events = [
+      ...mapCursorSdkInteractionUpdate({ type: "summary-started" }, state),
+      ...mapCursorSdkInteractionUpdate({ type: "summary-completed", failed: true }, state),
+      ...mapCursorSdkMessage({ type: "summary", ...envelope, status: "running" }, state),
+      ...mapCursorSdkMessage({ type: "summary", ...envelope, status: "error" }, state),
+    ];
+    expect(completed(events)[0]).toMatchObject({
+      payload: expect.objectContaining({ name: "ContextCompaction", status: "error" }),
+    });
+    const warnings = events.filter((event) => event.type === "warning");
+    expect(warnings).toEqual([
+      {
+        type: "warning",
+        threadId: "thread-1",
+        message: "Cursor couldn't summarize the conversation, so it was left unchanged.",
+      },
+    ]);
+  });
+
+  it("warns once when the SDK saves a trimmed transcript instead of a summary", () => {
+    const state = createCursorSdkMapperState("thread-1");
+    startCursorSdkTurn(state, "turn-1");
+    const events = [
+      ...mapCursorSdkInteractionUpdate({ type: "summary-started" }, state),
+      ...mapCursorSdkInteractionUpdate({ type: "summary-completed", fallback: true }, state),
+      ...mapCursorSdkMessage({ type: "summary", ...envelope, status: "running" }, state),
+      ...mapCursorSdkMessage({ type: "summary", ...envelope, status: "completed" }, state),
+    ];
+    expect(completed(events)[0]).toMatchObject({
+      payload: expect.objectContaining({ status: "success" }),
+    });
+    expect(events.filter((event) => event.type === "warning")).toEqual([
+      {
+        type: "warning",
+        threadId: "thread-1",
+        message:
+          "Cursor couldn't write a summary, so it saved a trimmed copy of the conversation instead.",
+      },
+    ]);
+  });
+
+  it("warns on a normalized summary error when no raw deltas arrived", () => {
+    const state = createCursorSdkMapperState("thread-1");
+    startCursorSdkTurn(state, "turn-1");
+    const events = [
+      ...mapCursorSdkMessage(
+        { type: "summary", ...envelope, status: "error", fallback: true },
+        state,
+      ),
+    ];
+    expect(completed(events)[0]).toMatchObject({
+      payload: expect.objectContaining({ status: "error" }),
+    });
+    expect(events.filter((event) => event.type === "warning")).toHaveLength(2);
   });
 
   it("maps task milestones into one reasoning item and closes terminal status", () => {

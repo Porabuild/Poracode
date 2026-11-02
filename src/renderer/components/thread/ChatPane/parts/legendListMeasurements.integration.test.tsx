@@ -2,7 +2,7 @@ import { act, render, renderHook } from "@testing-library/react";
 import { createRequire } from "node:module";
 import { flushSync } from "react-dom";
 import { describe, expect, it, vi } from "vitest";
-import { LegendList } from "@legendapp/list/react";
+import { LegendList, type AnchoredEndSpaceConfig } from "@legendapp/list/react";
 import { PROMPT_FLOOR_CSS_VAR, usePromptReserveFloor } from "./usePromptReserveFloor";
 import type { Row } from "./legendListMeasurementFixtures";
 import {
@@ -72,6 +72,37 @@ describe("actual LegendList measurement retirement", () => {
     expect(onSizeChanged).toHaveBeenLastCalledWith(130);
     resizeFooter(10);
     expect(onSizeChanged).toHaveBeenLastCalledWith(190);
+  });
+
+  it("shrinks prompt trailing space when an appended reply row measures exactly at its estimate", () => {
+    const onSizeChanged = vi.fn<(size: number) => void>();
+    const view = mount(rows(0, 2), {
+      anchoredEndSpace: { anchorIndex: 1, anchorOffset: 0, onSizeChanged },
+    });
+    view.update(rows(0, 2));
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(200);
+    view.update(rows(0, 3));
+    settle();
+    measure("row-2", 40);
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(160);
+  });
+
+  it("reports a new prompt's trailing space when its first measurement matches the estimate", () => {
+    const onSizeChanged = vi.fn<(size: number) => void>();
+    const onReady = vi.fn<NonNullable<AnchoredEndSpaceConfig["onReady"]>>();
+    const view = mount(rows(0, 2), {
+      anchoredEndSpace: { anchorIndex: 2, anchorOffset: 0, onSizeChanged, onReady },
+    });
+    view.update(rows(0, 2));
+    settle();
+    view.update(rows(0, 3));
+    settle();
+    measure("row-2", 40);
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(200);
+    expect(onReady).toHaveBeenLastCalledWith({ anchorIndex: 2, anchorKey: "row-2", size: 200 });
   });
 
   it("applies the prompt floor and follows the anchored row's position", () => {

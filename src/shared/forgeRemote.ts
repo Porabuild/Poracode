@@ -44,6 +44,17 @@ export interface ForgeRemote {
   remote: string;
 }
 
+/**
+ * Parse one `git remote -v` line into its remote name and fetch URL; `null` for
+ * push lines and anything else. Git appends the partial-clone filter spec to
+ * the fetch line of a promisor remote (`... (fetch) [blob:none]`), so the
+ * suffix is accepted instead of anchoring on `(fetch)`.
+ */
+export function parseGitRemoteFetchLine(line: string): { name: string; url: string } | null {
+  const match = /^(\S+)\s+(\S+)\s+\(fetch\)(?:\s+\[[^\]]*\])?\s*$/.exec(line);
+  return match ? { name: match[1]!, url: match[2]! } : null;
+}
+
 export function normalizeForgeHost(value: string): string {
   const candidate = value.includes("://") ? value : `https://${value}`;
   if (!forgeAccountRefSchema.shape.host.safeParse(candidate).success)

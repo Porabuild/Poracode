@@ -15,7 +15,8 @@ export interface McpServerOauthApi {
   signOut: (server: McpServer) => Promise<void>;
 }
 
-function transportUrl(server: McpServer): string | undefined {
+/** The OAuth-capable remote URL of an HTTP/SSE server; undefined for stdio. */
+export function transportUrl(server: McpServer): string | undefined {
   return server.transport.type === "http" || server.transport.type === "sse"
     ? server.transport.url
     : undefined;

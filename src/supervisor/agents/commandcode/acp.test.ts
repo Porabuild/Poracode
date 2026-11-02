@@ -14,7 +14,6 @@ import {
 } from "./acp";
 import { buildCommandCodeArgs } from "./argv";
 import { normalizeCommandCodePermissionRequest } from "./acpRequests";
-import { normalizeCommandCodeSessionUpdate } from "./acpUpdates";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -162,7 +161,7 @@ describe("Command Code native ACP", () => {
       resolveMode: resolveCommandCodeAcpMode,
       permissionRequestTransform: normalizeCommandCodePermissionRequest,
       promptErrorReason: resolveCommandCodePromptErrorReason,
-      sessionUpdateTransform: normalizeCommandCodeSessionUpdate,
+      sessionUpdateTransform: expect.any(Function),
       behavior: { promptUsageReportsContext: false, strictConfigSelection: true },
       fsTextCapability: false,
       terminalCapability: false,

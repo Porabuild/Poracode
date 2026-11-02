@@ -20,7 +20,7 @@ index 82040150cafff1fea60573be2fb0aea60958b383..f97c28df5f434c11382f9f1345ea9b87
       * Called after the initial render work completes.
       */
 diff --git a/react-native.js b/react-native.js
-index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1f5e01fac 100644
+index 229f09a8230ab24079d471f65d28d36908f0f2ea..6c2dd5778a6d16ab62291695cea9e65345dbed50 100644
 --- a/react-native.js
 +++ b/react-native.js
 @@ -3112,6 +3112,19 @@ function handleInitialScrollDataChange(ctx, options) {
@@ -96,7 +96,16 @@ index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1
        const index = state.indexByKey.get(measurement.itemKey);
        const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
        const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
-@@ -4945,6 +4976,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+@@ -4826,6 +4857,8 @@ function applyItemSize(ctx, itemKey, sizeObj, resolvedMeasurementItem) {
+       previous: size - diff,
+       size
+     });
++  }
++  if (diff !== 0 || prevSizeKnown === void 0) {
+     maybeUpdateAnchoredEndSpace(ctx);
+   }
+   if (minIndexSizeChanged !== void 0) {
+@@ -4945,6 +4978,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
            if (isCurrentGeneration) {
              const measurement = {
                containerId,
@@ -104,7 +113,7 @@ index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1
                itemKey,
                size: { height, width }
              };
-@@ -5390,6 +5422,9 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5390,6 +5424,9 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    var _a3, _b;
    const listState = ctx.state;
    const currentItemKey = state.itemKey;
@@ -114,7 +123,7 @@ index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1
    state.didLayout = true;
    let layout = rectangle;
    const axis = state.horizontal ? "width" : "height";
-@@ -5398,9 +5433,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5398,9 +5435,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    const coreKnownSize = listState.sizesKnown.get(currentItemKey);
    const previousSize = Platform.OS === "web" ? coreKnownSize : localPreviousSize;
    const applyLayout = () => {
@@ -127,7 +136,7 @@ index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1
        itemKey: currentItemKey,
        size: layout
      });
-@@ -5409,7 +5447,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5409,7 +5449,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    if (shouldDeferWebShrinkLayoutUpdate) {
      scheduleWebShrinkMeasurement(state, () => {
        var _a4;
@@ -136,7 +145,7 @@ index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1
          const element = ref.current;
          const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
          if (rect) {
-@@ -5444,14 +5482,19 @@ function useContainerMeasurement({
+@@ -5444,14 +5484,19 @@ function useContainerMeasurement({
      horizontal,
      itemKey
    });
@@ -159,7 +168,7 @@ index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1
    );
    const triggerLayout = React2.useCallback(() => {
      if (IsNewArchitecture) {
-@@ -5808,7 +5851,12 @@ function setHeaderSize(ctx, size) {
+@@ -5808,7 +5853,12 @@ function setHeaderSize(ctx, size) {
    state.didMeasureHeader = true;
  }
  function setFooterSize(ctx, size) {
@@ -173,7 +182,7 @@ index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1
  }
  function areInsetsEqual(left, right) {
    var _a3, _b, _c, _d, _e, _f, _g, _h;
-@@ -6063,6 +6111,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+@@ -6063,6 +6113,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
      state.scrollForNextCalculateItemsInView = void 0;
    }
    calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
@@ -186,7 +195,7 @@ index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1
    const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
    const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
    if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
-@@ -6987,6 +7041,8 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -6987,6 +7043,8 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
      onEndReachedThreshold = 0.5,
      onItemSizeChanged,
      onMetricsChange,
@@ -195,7 +204,7 @@ index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1
      onLayout: onLayoutProp,
      onLoad,
      onMomentumScrollEnd,
-@@ -7494,6 +7550,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -7494,6 +7552,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
    React2.useImperativeHandle(forwardedRef, () => createImperativeHandle(ctx, scheduleImperativeScrollCommit), []);
    React2.useEffect(() => {
      return () => {
@@ -208,7 +217,7 @@ index 229f09a8230ab24079d471f65d28d36908f0f2ea..4216c33e70af4f39707700143c99c5f1
          cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
          state.queuedFullDrawDistancePrewarm = void 0;
 diff --git a/react-native.mjs b/react-native.mjs
-index c2e0f3823f524e31e2105a5fbda76be78c926226..d8275ba65a1e7d6af69fe71fb4993a6aa611bc2c 100644
+index c2e0f3823f524e31e2105a5fbda76be78c926226..de7f0d8123d80e5501de1f975bf94c12d260c134 100644
 --- a/react-native.mjs
 +++ b/react-native.mjs
 @@ -3091,6 +3091,19 @@ function handleInitialScrollDataChange(ctx, options) {
@@ -284,7 +293,16 @@ index c2e0f3823f524e31e2105a5fbda76be78c926226..d8275ba65a1e7d6af69fe71fb4993a6a
        const index = state.indexByKey.get(measurement.itemKey);
        const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
        const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
-@@ -4924,6 +4955,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+@@ -4805,6 +4836,8 @@ function applyItemSize(ctx, itemKey, sizeObj, resolvedMeasurementItem) {
+       previous: size - diff,
+       size
+     });
++  }
++  if (diff !== 0 || prevSizeKnown === void 0) {
+     maybeUpdateAnchoredEndSpace(ctx);
+   }
+   if (minIndexSizeChanged !== void 0) {
+@@ -4924,6 +4957,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
            if (isCurrentGeneration) {
              const measurement = {
                containerId,
@@ -292,7 +310,7 @@ index c2e0f3823f524e31e2105a5fbda76be78c926226..d8275ba65a1e7d6af69fe71fb4993a6a
                itemKey,
                size: { height, width }
              };
-@@ -5369,6 +5401,9 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5369,6 +5403,9 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    var _a3, _b;
    const listState = ctx.state;
    const currentItemKey = state.itemKey;
@@ -302,7 +320,7 @@ index c2e0f3823f524e31e2105a5fbda76be78c926226..d8275ba65a1e7d6af69fe71fb4993a6a
    state.didLayout = true;
    let layout = rectangle;
    const axis = state.horizontal ? "width" : "height";
-@@ -5377,9 +5412,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5377,9 +5414,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    const coreKnownSize = listState.sizesKnown.get(currentItemKey);
    const previousSize = Platform.OS === "web" ? coreKnownSize : localPreviousSize;
    const applyLayout = () => {
@@ -315,7 +333,7 @@ index c2e0f3823f524e31e2105a5fbda76be78c926226..d8275ba65a1e7d6af69fe71fb4993a6a
        itemKey: currentItemKey,
        size: layout
      });
-@@ -5388,7 +5426,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5388,7 +5428,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    if (shouldDeferWebShrinkLayoutUpdate) {
      scheduleWebShrinkMeasurement(state, () => {
        var _a4;
@@ -324,7 +342,7 @@ index c2e0f3823f524e31e2105a5fbda76be78c926226..d8275ba65a1e7d6af69fe71fb4993a6a
          const element = ref.current;
          const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
          if (rect) {
-@@ -5423,14 +5461,19 @@ function useContainerMeasurement({
+@@ -5423,14 +5463,19 @@ function useContainerMeasurement({
      horizontal,
      itemKey
    });
@@ -347,7 +365,7 @@ index c2e0f3823f524e31e2105a5fbda76be78c926226..d8275ba65a1e7d6af69fe71fb4993a6a
    );
    const triggerLayout = useCallback(() => {
      if (IsNewArchitecture) {
-@@ -5787,7 +5830,12 @@ function setHeaderSize(ctx, size) {
+@@ -5787,7 +5832,12 @@ function setHeaderSize(ctx, size) {
    state.didMeasureHeader = true;
  }
  function setFooterSize(ctx, size) {
@@ -361,7 +379,7 @@ index c2e0f3823f524e31e2105a5fbda76be78c926226..d8275ba65a1e7d6af69fe71fb4993a6a
  }
  function areInsetsEqual(left, right) {
    var _a3, _b, _c, _d, _e, _f, _g, _h;
-@@ -6042,6 +6090,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+@@ -6042,6 +6092,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
      state.scrollForNextCalculateItemsInView = void 0;
    }
    calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
@@ -374,7 +392,7 @@ index c2e0f3823f524e31e2105a5fbda76be78c926226..d8275ba65a1e7d6af69fe71fb4993a6a
    const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
    const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
    if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
-@@ -6966,6 +7020,8 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -6966,6 +7022,8 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
      onEndReachedThreshold = 0.5,
      onItemSizeChanged,
      onMetricsChange,
@@ -383,7 +401,7 @@ index c2e0f3823f524e31e2105a5fbda76be78c926226..d8275ba65a1e7d6af69fe71fb4993a6a
      onLayout: onLayoutProp,
      onLoad,
      onMomentumScrollEnd,
-@@ -7473,6 +7529,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -7473,6 +7531,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
    useImperativeHandle(forwardedRef, () => createImperativeHandle(ctx, scheduleImperativeScrollCommit), []);
    useEffect(() => {
      return () => {
@@ -417,7 +435,7 @@ index db7841d8cf328b46f70f5b4b4754bc58d1a33335..23ba090d415a61f5b7accb370098c34f
       * Called after the initial render work completes.
       */
 diff --git a/react-native.web.js b/react-native.web.js
-index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f64e04f99d 100644
+index 544cca82136ab14cbeec0a01499f554bd4eca75f..be51c40168cc6f43906fa0cccc0bb07e090a0135 100644
 --- a/react-native.web.js
 +++ b/react-native.web.js
 @@ -3134,6 +3134,19 @@ function handleInitialScrollDataChange(ctx, options) {
@@ -493,7 +511,16 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
        const index = state.indexByKey.get(measurement.itemKey);
        const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
        const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
-@@ -4919,6 +4950,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+@@ -4835,6 +4866,8 @@ function applyItemSize(ctx, itemKey, sizeObj, resolvedMeasurementItem) {
+       previous: size - diff,
+       size
+     });
++  }
++  if (diff !== 0 || prevSizeKnown === void 0) {
+     maybeUpdateAnchoredEndSpace(ctx);
+   }
+   if (minIndexSizeChanged !== void 0) {
+@@ -4919,6 +4952,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
        setContainerLayoutBaseline(element, rect);
        measurements.push({
          containerId,
@@ -501,7 +528,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
          itemKey,
          size: { height: rect.height, width: rect.width }
        });
-@@ -5269,11 +5301,15 @@ function createResizeObserver(element, callback) {
+@@ -5269,11 +5303,15 @@ function createResizeObserver(element, callback) {
  }
  
  // src/hooks/useOnLayoutSync.tsx
@@ -517,7 +544,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
    webLayoutResync
  }, deps) {
    React3.useLayoutEffect(() => {
-@@ -5284,6 +5320,16 @@ function useOnLayoutSync({
+@@ -5284,6 +5322,16 @@ function useOnLayoutSync({
      if (!element) {
        return;
      }
@@ -534,7 +561,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
      const emit = (layout, fromLayoutEffect) => {
        if (layout.height === 0 && layout.width === 0) {
          return;
-@@ -5301,12 +5347,23 @@ function useOnLayoutSync({
+@@ -5301,12 +5349,23 @@ function useOnLayoutSync({
        var _a4;
        const target = entry.target instanceof HTMLElement ? entry.target : void 0;
        const borderBoxSize = Array.isArray(entry.borderBoxSize) ? entry.borderBoxSize[0] : entry.borderBoxSize;
@@ -559,7 +586,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
        const previousRect = prevRect != null ? prevRect : getContainerLayoutBaseline(element);
        const didSizeChange = previousRect === void 0 || rectObserved.width !== previousRect.width || rectObserved.height !== previousRect.height;
        prevRect = rectObserved;
-@@ -5354,6 +5411,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
+@@ -5354,6 +5413,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
  function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    const listState = ctx.state;
    const currentItemKey = state.itemKey;
@@ -569,7 +596,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
    state.didLayout = true;
    let layout = rectangle;
    const axis = state.horizontal ? "width" : "height";
-@@ -5362,9 +5422,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5362,9 +5424,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    const coreKnownSize = listState.sizesKnown.get(currentItemKey);
    const previousSize = coreKnownSize ;
    const applyLayout = () => {
@@ -582,7 +609,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
        itemKey: currentItemKey,
        size: layout
      });
-@@ -5373,7 +5436,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5373,7 +5438,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    if (shouldDeferWebShrinkLayoutUpdate) {
      scheduleWebShrinkMeasurement(state, () => {
        var _a4;
@@ -591,7 +618,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
          const element = ref.current;
          const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
          if (rect) {
-@@ -5403,14 +5466,19 @@ function useContainerMeasurement({
+@@ -5403,14 +5468,19 @@ function useContainerMeasurement({
      horizontal,
      itemKey
    });
@@ -614,7 +641,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
    );
    const triggerLayout = React3.useCallback(() => {
      {
-@@ -5434,6 +5502,7 @@ function useContainerMeasurement({
+@@ -5434,6 +5504,7 @@ function useContainerMeasurement({
    const { onLayout } = useOnLayoutSync(
      {
        measureInLayoutEffect: !IsNewArchitecture,
@@ -622,7 +649,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
        onLayoutChange,
        ref,
        webLayoutResync: () => isInMVCPActiveMode(ctx.state)
-@@ -5727,13 +5796,23 @@ function useDOMOrder(ref) {
+@@ -5727,13 +5798,23 @@ function useDOMOrder(ref) {
  }
  
  // src/components/Containers.tsx
@@ -647,7 +674,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
    const style = horizontal ? {
      direction: isHorizontalRTLList ? "ltr" : void 0,
      flexShrink: 0,
-@@ -5769,7 +5848,8 @@ var Containers = typedMemo(function Containers2({
+@@ -5769,7 +5850,8 @@ var Containers = typedMemo(function Containers2({
    recycleItems,
    ItemSeparatorComponent,
    getRenderedItem: getRenderedItem2,
@@ -657,7 +684,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
  }) {
    const [numContainersPooled, numColumns] = useArr$(["numContainersPooled", "numColumns"]);
    const containers = [];
-@@ -5789,7 +5869,7 @@ var Containers = typedMemo(function Containers2({
+@@ -5789,7 +5871,7 @@ var Containers = typedMemo(function Containers2({
        )
      );
    }
@@ -666,7 +693,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
  });
  
  // src/platform/StyleSheet.tsx
-@@ -6451,7 +6531,12 @@ function setHeaderSize(ctx, size) {
+@@ -6451,7 +6533,12 @@ function setHeaderSize(ctx, size) {
    state.didMeasureHeader = true;
  }
  function setFooterSize(ctx, size) {
@@ -680,7 +707,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
  }
  function areInsetsEqual(left, right) {
    var _a3, _b, _c, _d, _e, _f, _g, _h;
-@@ -6513,6 +6598,7 @@ var ListComponent = typedMemo(function ListComponent2({
+@@ -6513,6 +6600,7 @@ var ListComponent = typedMemo(function ListComponent2({
    alignItemsAtEnd: _alignItemsAtEnd,
    onScroll: onScroll2,
    onLayout,
@@ -688,7 +715,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
    ListHeaderComponent,
    ListHeaderComponentStyle,
    ListFooterComponent,
-@@ -6611,6 +6697,7 @@ var ListComponent = typedMemo(function ListComponent2({
+@@ -6611,6 +6699,7 @@ var ListComponent = typedMemo(function ListComponent2({
          getRenderedItem: getRenderedItem2,
          horizontal,
          ItemSeparatorComponent,
@@ -696,7 +723,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
          recycleItems,
          stickyHeaderConfig
        }
-@@ -6699,6 +6786,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+@@ -6699,6 +6788,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
      state.scrollForNextCalculateItemsInView = void 0;
    }
    calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
@@ -709,7 +736,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
    const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
    const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
    if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
-@@ -7606,6 +7699,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -7606,6 +7701,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
      onEndReachedThreshold = 0.5,
      onItemSizeChanged,
      onMetricsChange,
@@ -717,7 +744,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
      onLayout: onLayoutProp,
      onLoad,
      onMomentumScrollEnd,
-@@ -8105,6 +8199,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -8105,6 +8201,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
    React3.useImperativeHandle(forwardedRef, () => createImperativeHandle(ctx, scheduleImperativeScrollCommit), []);
    React3.useEffect(() => {
      return () => {
@@ -729,7 +756,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
        if (state.queuedFullDrawDistancePrewarm !== void 0) {
          cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
          state.queuedFullDrawDistancePrewarm = void 0;
-@@ -8165,6 +8264,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -8165,6 +8266,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
        onInternalScrollEnd: fns.onScrollEnd,
        onLayout,
        onLayoutFooter,
@@ -738,7 +765,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..911e6fb3ec51cc5d347895cc18f4e7f6
        onScroll: onScrollHandler,
        recycleItems,
 diff --git a/react-native.web.mjs b/react-native.web.mjs
-index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0c8317560 100644
+index 6b2d9011f6c5e85664eca195de538617fe7d9dee..1bf9529fc929b5cb23e6d3874b2d41e1823f23cc 100644
 --- a/react-native.web.mjs
 +++ b/react-native.web.mjs
 @@ -3113,6 +3113,19 @@ function handleInitialScrollDataChange(ctx, options) {
@@ -814,7 +841,16 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
        const index = state.indexByKey.get(measurement.itemKey);
        const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
        const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
-@@ -4898,6 +4929,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+@@ -4814,6 +4845,8 @@ function applyItemSize(ctx, itemKey, sizeObj, resolvedMeasurementItem) {
+       previous: size - diff,
+       size
+     });
++  }
++  if (diff !== 0 || prevSizeKnown === void 0) {
+     maybeUpdateAnchoredEndSpace(ctx);
+   }
+   if (minIndexSizeChanged !== void 0) {
+@@ -4898,6 +4931,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
        setContainerLayoutBaseline(element, rect);
        measurements.push({
          containerId,
@@ -822,7 +858,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
          itemKey,
          size: { height: rect.height, width: rect.width }
        });
-@@ -5248,11 +5280,15 @@ function createResizeObserver(element, callback) {
+@@ -5248,11 +5282,15 @@ function createResizeObserver(element, callback) {
  }
  
  // src/hooks/useOnLayoutSync.tsx
@@ -838,7 +874,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
    webLayoutResync
  }, deps) {
    useLayoutEffect(() => {
-@@ -5263,6 +5299,16 @@ function useOnLayoutSync({
+@@ -5263,6 +5301,16 @@ function useOnLayoutSync({
      if (!element) {
        return;
      }
@@ -855,7 +891,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
      const emit = (layout, fromLayoutEffect) => {
        if (layout.height === 0 && layout.width === 0) {
          return;
-@@ -5280,12 +5326,23 @@ function useOnLayoutSync({
+@@ -5280,12 +5328,23 @@ function useOnLayoutSync({
        var _a4;
        const target = entry.target instanceof HTMLElement ? entry.target : void 0;
        const borderBoxSize = Array.isArray(entry.borderBoxSize) ? entry.borderBoxSize[0] : entry.borderBoxSize;
@@ -880,7 +916,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
        const previousRect = prevRect != null ? prevRect : getContainerLayoutBaseline(element);
        const didSizeChange = previousRect === void 0 || rectObserved.width !== previousRect.width || rectObserved.height !== previousRect.height;
        prevRect = rectObserved;
-@@ -5333,6 +5390,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
+@@ -5333,6 +5392,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
  function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    const listState = ctx.state;
    const currentItemKey = state.itemKey;
@@ -890,7 +926,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
    state.didLayout = true;
    let layout = rectangle;
    const axis = state.horizontal ? "width" : "height";
-@@ -5341,9 +5401,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5341,9 +5403,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    const coreKnownSize = listState.sizesKnown.get(currentItemKey);
    const previousSize = coreKnownSize ;
    const applyLayout = () => {
@@ -903,7 +939,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
        itemKey: currentItemKey,
        size: layout
      });
-@@ -5352,7 +5415,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5352,7 +5417,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    if (shouldDeferWebShrinkLayoutUpdate) {
      scheduleWebShrinkMeasurement(state, () => {
        var _a4;
@@ -912,7 +948,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
          const element = ref.current;
          const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
          if (rect) {
-@@ -5382,14 +5445,19 @@ function useContainerMeasurement({
+@@ -5382,14 +5447,19 @@ function useContainerMeasurement({
      horizontal,
      itemKey
    });
@@ -935,7 +971,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
    );
    const triggerLayout = useCallback(() => {
      {
-@@ -5413,6 +5481,7 @@ function useContainerMeasurement({
+@@ -5413,6 +5483,7 @@ function useContainerMeasurement({
    const { onLayout } = useOnLayoutSync(
      {
        measureInLayoutEffect: !IsNewArchitecture,
@@ -943,7 +979,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
        onLayoutChange,
        ref,
        webLayoutResync: () => isInMVCPActiveMode(ctx.state)
-@@ -5706,13 +5775,23 @@ function useDOMOrder(ref) {
+@@ -5706,13 +5777,23 @@ function useDOMOrder(ref) {
  }
  
  // src/components/Containers.tsx
@@ -968,7 +1004,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
    const style = horizontal ? {
      direction: isHorizontalRTLList ? "ltr" : void 0,
      flexShrink: 0,
-@@ -5748,7 +5827,8 @@ var Containers = typedMemo(function Containers2({
+@@ -5748,7 +5829,8 @@ var Containers = typedMemo(function Containers2({
    recycleItems,
    ItemSeparatorComponent,
    getRenderedItem: getRenderedItem2,
@@ -978,7 +1014,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
  }) {
    const [numContainersPooled, numColumns] = useArr$(["numContainersPooled", "numColumns"]);
    const containers = [];
-@@ -5768,7 +5848,7 @@ var Containers = typedMemo(function Containers2({
+@@ -5768,7 +5850,7 @@ var Containers = typedMemo(function Containers2({
        )
      );
    }
@@ -987,7 +1023,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
  });
  
  // src/platform/StyleSheet.tsx
-@@ -6430,7 +6510,12 @@ function setHeaderSize(ctx, size) {
+@@ -6430,7 +6512,12 @@ function setHeaderSize(ctx, size) {
    state.didMeasureHeader = true;
  }
  function setFooterSize(ctx, size) {
@@ -1001,7 +1037,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
  }
  function areInsetsEqual(left, right) {
    var _a3, _b, _c, _d, _e, _f, _g, _h;
-@@ -6492,6 +6577,7 @@ var ListComponent = typedMemo(function ListComponent2({
+@@ -6492,6 +6579,7 @@ var ListComponent = typedMemo(function ListComponent2({
    alignItemsAtEnd: _alignItemsAtEnd,
    onScroll: onScroll2,
    onLayout,
@@ -1009,7 +1045,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
    ListHeaderComponent,
    ListHeaderComponentStyle,
    ListFooterComponent,
-@@ -6590,6 +6676,7 @@ var ListComponent = typedMemo(function ListComponent2({
+@@ -6590,6 +6678,7 @@ var ListComponent = typedMemo(function ListComponent2({
          getRenderedItem: getRenderedItem2,
          horizontal,
          ItemSeparatorComponent,
@@ -1017,7 +1053,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
          recycleItems,
          stickyHeaderConfig
        }
-@@ -6678,6 +6765,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+@@ -6678,6 +6767,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
      state.scrollForNextCalculateItemsInView = void 0;
    }
    calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
@@ -1030,7 +1066,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
    const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
    const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
    if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
-@@ -7585,6 +7678,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -7585,6 +7680,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
      onEndReachedThreshold = 0.5,
      onItemSizeChanged,
      onMetricsChange,
@@ -1038,7 +1074,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
      onLayout: onLayoutProp,
      onLoad,
      onMomentumScrollEnd,
-@@ -8084,6 +8178,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -8084,6 +8180,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
    useImperativeHandle(forwardedRef, () => createImperativeHandle(ctx, scheduleImperativeScrollCommit), []);
    useEffect(() => {
      return () => {
@@ -1050,7 +1086,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..2c9694a96c24f902b41e3f79da9716a0
        if (state.queuedFullDrawDistancePrewarm !== void 0) {
          cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
          state.queuedFullDrawDistancePrewarm = void 0;
-@@ -8144,6 +8243,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -8144,6 +8245,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
        onInternalScrollEnd: fns.onScrollEnd,
        onLayout,
        onLayoutFooter,
@@ -1080,7 +1116,7 @@ index db7841d8cf328b46f70f5b4b4754bc58d1a33335..23ba090d415a61f5b7accb370098c34f
       * Called after the initial render work completes.
       */
 diff --git a/react.js b/react.js
-index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3f421a87e 100644
+index 544cca82136ab14cbeec0a01499f554bd4eca75f..4d64bb388ed22e33740c33ddf962ec223a930172 100644
 --- a/react.js
 +++ b/react.js
 @@ -699,7 +699,7 @@ function checkAtBottom(ctx, allowedEdge, allowGateCreatedInCurrentCheck) {
@@ -1191,7 +1227,16 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
        const index = state.indexByKey.get(measurement.itemKey);
        const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
        const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
-@@ -4919,6 +4956,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+@@ -4835,6 +4872,8 @@ function applyItemSize(ctx, itemKey, sizeObj, resolvedMeasurementItem) {
+       previous: size - diff,
+       size
+     });
++  }
++  if (diff !== 0 || prevSizeKnown === void 0) {
+     maybeUpdateAnchoredEndSpace(ctx);
+   }
+   if (minIndexSizeChanged !== void 0) {
+@@ -4919,6 +4958,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
        setContainerLayoutBaseline(element, rect);
        measurements.push({
          containerId,
@@ -1199,7 +1244,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
          itemKey,
          size: { height: rect.height, width: rect.width }
        });
-@@ -5269,11 +5307,15 @@ function createResizeObserver(element, callback) {
+@@ -5269,11 +5309,15 @@ function createResizeObserver(element, callback) {
  }
  
  // src/hooks/useOnLayoutSync.tsx
@@ -1215,7 +1260,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
    webLayoutResync
  }, deps) {
    React3.useLayoutEffect(() => {
-@@ -5284,6 +5326,16 @@ function useOnLayoutSync({
+@@ -5284,6 +5328,16 @@ function useOnLayoutSync({
      if (!element) {
        return;
      }
@@ -1232,7 +1277,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
      const emit = (layout, fromLayoutEffect) => {
        if (layout.height === 0 && layout.width === 0) {
          return;
-@@ -5301,12 +5353,23 @@ function useOnLayoutSync({
+@@ -5301,12 +5355,23 @@ function useOnLayoutSync({
        var _a4;
        const target = entry.target instanceof HTMLElement ? entry.target : void 0;
        const borderBoxSize = Array.isArray(entry.borderBoxSize) ? entry.borderBoxSize[0] : entry.borderBoxSize;
@@ -1257,7 +1302,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
        const previousRect = prevRect != null ? prevRect : getContainerLayoutBaseline(element);
        const didSizeChange = previousRect === void 0 || rectObserved.width !== previousRect.width || rectObserved.height !== previousRect.height;
        prevRect = rectObserved;
-@@ -5354,6 +5417,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
+@@ -5354,6 +5419,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
  function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    const listState = ctx.state;
    const currentItemKey = state.itemKey;
@@ -1267,7 +1312,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
    state.didLayout = true;
    let layout = rectangle;
    const axis = state.horizontal ? "width" : "height";
-@@ -5362,9 +5428,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5362,9 +5430,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    const coreKnownSize = listState.sizesKnown.get(currentItemKey);
    const previousSize = coreKnownSize ;
    const applyLayout = () => {
@@ -1280,7 +1325,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
        itemKey: currentItemKey,
        size: layout
      });
-@@ -5373,7 +5442,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5373,7 +5444,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    if (shouldDeferWebShrinkLayoutUpdate) {
      scheduleWebShrinkMeasurement(state, () => {
        var _a4;
@@ -1289,7 +1334,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
          const element = ref.current;
          const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
          if (rect) {
-@@ -5403,14 +5472,19 @@ function useContainerMeasurement({
+@@ -5403,14 +5474,19 @@ function useContainerMeasurement({
      horizontal,
      itemKey
    });
@@ -1312,7 +1357,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
    );
    const triggerLayout = React3.useCallback(() => {
      {
-@@ -5434,6 +5508,7 @@ function useContainerMeasurement({
+@@ -5434,6 +5510,7 @@ function useContainerMeasurement({
    const { onLayout } = useOnLayoutSync(
      {
        measureInLayoutEffect: !IsNewArchitecture,
@@ -1320,7 +1365,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
        onLayoutChange,
        ref,
        webLayoutResync: () => isInMVCPActiveMode(ctx.state)
-@@ -5727,13 +5802,23 @@ function useDOMOrder(ref) {
+@@ -5727,13 +5804,23 @@ function useDOMOrder(ref) {
  }
  
  // src/components/Containers.tsx
@@ -1345,7 +1390,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
    const style = horizontal ? {
      direction: isHorizontalRTLList ? "ltr" : void 0,
      flexShrink: 0,
-@@ -5769,7 +5854,8 @@ var Containers = typedMemo(function Containers2({
+@@ -5769,7 +5856,8 @@ var Containers = typedMemo(function Containers2({
    recycleItems,
    ItemSeparatorComponent,
    getRenderedItem: getRenderedItem2,
@@ -1355,7 +1400,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
  }) {
    const [numContainersPooled, numColumns] = useArr$(["numContainersPooled", "numColumns"]);
    const containers = [];
-@@ -5789,7 +5875,7 @@ var Containers = typedMemo(function Containers2({
+@@ -5789,7 +5877,7 @@ var Containers = typedMemo(function Containers2({
        )
      );
    }
@@ -1364,7 +1409,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
  });
  
  // src/platform/StyleSheet.tsx
-@@ -6068,6 +6154,7 @@ var ListComponentScrollView = React3.forwardRef(function ListComponentScrollView
+@@ -6068,6 +6156,7 @@ var ListComponentScrollView = React3.forwardRef(function ListComponentScrollView
          return (_a4 = scrollRef.current) == null ? void 0 : _a4.getBoundingClientRect();
        },
        getCurrentScrollOffset,
@@ -1372,7 +1417,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
        getScrollableNode: () => resolveScrollableNode(scrollRef.current, isWindowScroll),
        getScrollEventTarget: () => getScrollTarget(),
        getScrollResponder: () => resolveScrollableNode(scrollRef.current, isWindowScroll),
-@@ -6451,7 +6538,12 @@ function setHeaderSize(ctx, size) {
+@@ -6451,7 +6540,12 @@ function setHeaderSize(ctx, size) {
    state.didMeasureHeader = true;
  }
  function setFooterSize(ctx, size) {
@@ -1386,7 +1431,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
  }
  function areInsetsEqual(left, right) {
    var _a3, _b, _c, _d, _e, _f, _g, _h;
-@@ -6513,6 +6605,7 @@ var ListComponent = typedMemo(function ListComponent2({
+@@ -6513,6 +6607,7 @@ var ListComponent = typedMemo(function ListComponent2({
    alignItemsAtEnd: _alignItemsAtEnd,
    onScroll: onScroll2,
    onLayout,
@@ -1394,7 +1439,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
    ListHeaderComponent,
    ListHeaderComponentStyle,
    ListFooterComponent,
-@@ -6611,6 +6704,7 @@ var ListComponent = typedMemo(function ListComponent2({
+@@ -6611,6 +6706,7 @@ var ListComponent = typedMemo(function ListComponent2({
          getRenderedItem: getRenderedItem2,
          horizontal,
          ItemSeparatorComponent,
@@ -1402,7 +1447,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
          recycleItems,
          stickyHeaderConfig
        }
-@@ -6699,6 +6793,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+@@ -6699,6 +6795,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
      state.scrollForNextCalculateItemsInView = void 0;
    }
    calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
@@ -1415,7 +1460,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
    const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
    const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
    if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
-@@ -7606,6 +7706,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -7606,6 +7708,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
      onEndReachedThreshold = 0.5,
      onItemSizeChanged,
      onMetricsChange,
@@ -1423,7 +1468,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
      onLayout: onLayoutProp,
      onLoad,
      onMomentumScrollEnd,
-@@ -8105,6 +8206,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -8105,6 +8208,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
    React3.useImperativeHandle(forwardedRef, () => createImperativeHandle(ctx, scheduleImperativeScrollCommit), []);
    React3.useEffect(() => {
      return () => {
@@ -1435,7 +1480,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
        if (state.queuedFullDrawDistancePrewarm !== void 0) {
          cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
          state.queuedFullDrawDistancePrewarm = void 0;
-@@ -8165,6 +8271,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -8165,6 +8273,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
        onInternalScrollEnd: fns.onScrollEnd,
        onLayout,
        onLayoutFooter,
@@ -1444,7 +1489,7 @@ index 544cca82136ab14cbeec0a01499f554bd4eca75f..96db95c2be9816ac4e4a8ad3dbe42ac3
        onScroll: onScrollHandler,
        recycleItems,
 diff --git a/react.mjs b/react.mjs
-index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f861087609 100644
+index 6b2d9011f6c5e85664eca195de538617fe7d9dee..b791171800aa56fe0a587c38621e75b8263bcab9 100644
 --- a/react.mjs
 +++ b/react.mjs
 @@ -678,7 +678,7 @@ function checkAtBottom(ctx, allowedEdge, allowGateCreatedInCurrentCheck) {
@@ -1555,7 +1600,16 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
        const index = state.indexByKey.get(measurement.itemKey);
        const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
        const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
-@@ -4898,6 +4935,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+@@ -4814,6 +4851,8 @@ function applyItemSize(ctx, itemKey, sizeObj, resolvedMeasurementItem) {
+       previous: size - diff,
+       size
+     });
++  }
++  if (diff !== 0 || prevSizeKnown === void 0) {
+     maybeUpdateAnchoredEndSpace(ctx);
+   }
+   if (minIndexSizeChanged !== void 0) {
+@@ -4898,6 +4937,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
        setContainerLayoutBaseline(element, rect);
        measurements.push({
          containerId,
@@ -1563,7 +1617,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
          itemKey,
          size: { height: rect.height, width: rect.width }
        });
-@@ -5248,11 +5286,15 @@ function createResizeObserver(element, callback) {
+@@ -5248,11 +5288,15 @@ function createResizeObserver(element, callback) {
  }
  
  // src/hooks/useOnLayoutSync.tsx
@@ -1579,7 +1633,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
    webLayoutResync
  }, deps) {
    useLayoutEffect(() => {
-@@ -5263,6 +5305,16 @@ function useOnLayoutSync({
+@@ -5263,6 +5307,16 @@ function useOnLayoutSync({
      if (!element) {
        return;
      }
@@ -1596,7 +1650,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
      const emit = (layout, fromLayoutEffect) => {
        if (layout.height === 0 && layout.width === 0) {
          return;
-@@ -5280,12 +5332,23 @@ function useOnLayoutSync({
+@@ -5280,12 +5334,23 @@ function useOnLayoutSync({
        var _a4;
        const target = entry.target instanceof HTMLElement ? entry.target : void 0;
        const borderBoxSize = Array.isArray(entry.borderBoxSize) ? entry.borderBoxSize[0] : entry.borderBoxSize;
@@ -1621,7 +1675,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
        const previousRect = prevRect != null ? prevRect : getContainerLayoutBaseline(element);
        const didSizeChange = previousRect === void 0 || rectObserved.width !== previousRect.width || rectObserved.height !== previousRect.height;
        prevRect = rectObserved;
-@@ -5333,6 +5396,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
+@@ -5333,6 +5398,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
  function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    const listState = ctx.state;
    const currentItemKey = state.itemKey;
@@ -1631,7 +1685,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
    state.didLayout = true;
    let layout = rectangle;
    const axis = state.horizontal ? "width" : "height";
-@@ -5341,9 +5407,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5341,9 +5409,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    const coreKnownSize = listState.sizesKnown.get(currentItemKey);
    const previousSize = coreKnownSize ;
    const applyLayout = () => {
@@ -1644,7 +1698,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
        itemKey: currentItemKey,
        size: layout
      });
-@@ -5352,7 +5421,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+@@ -5352,7 +5423,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
    if (shouldDeferWebShrinkLayoutUpdate) {
      scheduleWebShrinkMeasurement(state, () => {
        var _a4;
@@ -1653,7 +1707,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
          const element = ref.current;
          const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
          if (rect) {
-@@ -5382,14 +5451,19 @@ function useContainerMeasurement({
+@@ -5382,14 +5453,19 @@ function useContainerMeasurement({
      horizontal,
      itemKey
    });
@@ -1676,7 +1730,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
    );
    const triggerLayout = useCallback(() => {
      {
-@@ -5413,6 +5487,7 @@ function useContainerMeasurement({
+@@ -5413,6 +5489,7 @@ function useContainerMeasurement({
    const { onLayout } = useOnLayoutSync(
      {
        measureInLayoutEffect: !IsNewArchitecture,
@@ -1684,7 +1738,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
        onLayoutChange,
        ref,
        webLayoutResync: () => isInMVCPActiveMode(ctx.state)
-@@ -5706,13 +5781,23 @@ function useDOMOrder(ref) {
+@@ -5706,13 +5783,23 @@ function useDOMOrder(ref) {
  }
  
  // src/components/Containers.tsx
@@ -1709,7 +1763,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
    const style = horizontal ? {
      direction: isHorizontalRTLList ? "ltr" : void 0,
      flexShrink: 0,
-@@ -5748,7 +5833,8 @@ var Containers = typedMemo(function Containers2({
+@@ -5748,7 +5835,8 @@ var Containers = typedMemo(function Containers2({
    recycleItems,
    ItemSeparatorComponent,
    getRenderedItem: getRenderedItem2,
@@ -1719,7 +1773,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
  }) {
    const [numContainersPooled, numColumns] = useArr$(["numContainersPooled", "numColumns"]);
    const containers = [];
-@@ -5768,7 +5854,7 @@ var Containers = typedMemo(function Containers2({
+@@ -5768,7 +5856,7 @@ var Containers = typedMemo(function Containers2({
        )
      );
    }
@@ -1728,7 +1782,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
  });
  
  // src/platform/StyleSheet.tsx
-@@ -6047,6 +6133,7 @@ var ListComponentScrollView = forwardRef(function ListComponentScrollView2({
+@@ -6047,6 +6135,7 @@ var ListComponentScrollView = forwardRef(function ListComponentScrollView2({
          return (_a4 = scrollRef.current) == null ? void 0 : _a4.getBoundingClientRect();
        },
        getCurrentScrollOffset,
@@ -1736,7 +1790,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
        getScrollableNode: () => resolveScrollableNode(scrollRef.current, isWindowScroll),
        getScrollEventTarget: () => getScrollTarget(),
        getScrollResponder: () => resolveScrollableNode(scrollRef.current, isWindowScroll),
-@@ -6430,7 +6517,12 @@ function setHeaderSize(ctx, size) {
+@@ -6430,7 +6519,12 @@ function setHeaderSize(ctx, size) {
    state.didMeasureHeader = true;
  }
  function setFooterSize(ctx, size) {
@@ -1750,7 +1804,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
  }
  function areInsetsEqual(left, right) {
    var _a3, _b, _c, _d, _e, _f, _g, _h;
-@@ -6492,6 +6584,7 @@ var ListComponent = typedMemo(function ListComponent2({
+@@ -6492,6 +6586,7 @@ var ListComponent = typedMemo(function ListComponent2({
    alignItemsAtEnd: _alignItemsAtEnd,
    onScroll: onScroll2,
    onLayout,
@@ -1758,7 +1812,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
    ListHeaderComponent,
    ListHeaderComponentStyle,
    ListFooterComponent,
-@@ -6590,6 +6683,7 @@ var ListComponent = typedMemo(function ListComponent2({
+@@ -6590,6 +6685,7 @@ var ListComponent = typedMemo(function ListComponent2({
          getRenderedItem: getRenderedItem2,
          horizontal,
          ItemSeparatorComponent,
@@ -1766,7 +1820,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
          recycleItems,
          stickyHeaderConfig
        }
-@@ -6678,6 +6772,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+@@ -6678,6 +6774,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
      state.scrollForNextCalculateItemsInView = void 0;
    }
    calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
@@ -1779,7 +1833,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
    const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
    const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
    if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
-@@ -7585,6 +7685,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -7585,6 +7687,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
      onEndReachedThreshold = 0.5,
      onItemSizeChanged,
      onMetricsChange,
@@ -1787,7 +1841,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
      onLayout: onLayoutProp,
      onLoad,
      onMomentumScrollEnd,
-@@ -8084,6 +8185,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -8084,6 +8187,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
    useImperativeHandle(forwardedRef, () => createImperativeHandle(ctx, scheduleImperativeScrollCommit), []);
    useEffect(() => {
      return () => {
@@ -1799,7 +1853,7 @@ index 6b2d9011f6c5e85664eca195de538617fe7d9dee..30c153ed8179cbccc6ec4959b611a6f8
        if (state.queuedFullDrawDistancePrewarm !== void 0) {
          cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
          state.queuedFullDrawDistancePrewarm = void 0;
-@@ -8144,6 +8250,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+@@ -8144,6 +8252,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
        onInternalScrollEnd: fns.onScrollEnd,
        onLayout,
        onLayoutFooter,

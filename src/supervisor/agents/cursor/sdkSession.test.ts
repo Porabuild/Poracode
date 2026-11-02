@@ -1188,3 +1188,170 @@ describe("CursorSdkSession", () => {
     expect(session.steerTurn).toBeTypeOf("function");
   });
 });
+
+describe("Cursor SDK summarize command", () => {
+  it("advertises /summarize when the agent handle supports it", async () => {
+    const worker = new FakeWorker();
+    worker.initialize.mockResolvedValue({
+      agentId: "agent-1",
+      model: { id: "composer" },
+      supportsSummarize: true,
+    });
+    const { session } = await createSession(worker);
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    await session.openThread(baseConfig);
+
+    const commands = recorded.updates
+      .flatMap((update) => update.slashCommands ?? [])
+      .map((command) => command.id);
+    expect(commands).toContain("summarize");
+    await session.dispose();
+  });
+
+  it("advertises no slash commands on an older SDK", async () => {
+    const { session } = await createSession();
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    await session.openThread(baseConfig);
+
+    expect(recorded.updates.some((update) => update.slashCommands?.length)).toBe(false);
+    await session.dispose();
+  });
+
+  it("runs bare /summarize through worker.summarize instead of send", async () => {
+    const worker = new FakeWorker();
+    worker.initialize.mockResolvedValue({
+      agentId: "agent-1",
+      model: { id: "composer" },
+      supportsSummarize: true,
+    });
+    const { session } = await createSession(worker);
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    await session.openThread(baseConfig);
+
+    const turn = session.startTurn("/summarize", baseConfig);
+    await vi.waitFor(() => expect(worker.summarize).toHaveBeenCalledOnce());
+    expect(worker.start).not.toHaveBeenCalled();
+    expect(recorded.events).toContainEqual(expect.objectContaining({ type: "turn.started" }));
+    worker.emit(resultEvent());
+    await turn;
+    await session.dispose();
+  });
+
+  it("sends /summarize with arguments and unsupported SDKs as normal messages", async () => {
+    const supported = new FakeWorker();
+    supported.initialize.mockResolvedValue({
+      agentId: "agent-1",
+      supportsSummarize: true,
+    });
+    const { session: supportedSession } = await createSession(supported);
+    await supportedSession.activate();
+    await supportedSession.openThread(baseConfig);
+    const withArgs = supportedSession.startTurn("/summarize extra", baseConfig);
+    await vi.waitFor(() => expect(supported.start).toHaveBeenCalledOnce());
+    expect(supported.summarize).not.toHaveBeenCalled();
+    expect(supported.start.mock.calls[0]?.[0].message).toBe("/summarize extra");
+    supported.emit(resultEvent());
+    await withArgs;
+    await supportedSession.dispose();
+
+    const legacy = new FakeWorker();
+    const { session: legacySession } = await createSession(legacy);
+    await legacySession.activate();
+    await legacySession.openThread(baseConfig);
+    const literal = legacySession.startTurn("/summarize", baseConfig);
+    await vi.waitFor(() => expect(legacy.start).toHaveBeenCalledOnce());
+    expect(legacy.summarize).not.toHaveBeenCalled();
+    expect(legacy.start.mock.calls[0]?.[0].message).toBe("/summarize");
+    legacy.emit(resultEvent());
+    await literal;
+    await legacySession.dispose();
+  });
+
+  it("fails the turn when the summarize run rejects", async () => {
+    const worker = new FakeWorker();
+    worker.initialize.mockResolvedValue({
+      agentId: "agent-1",
+      supportsSummarize: true,
+    });
+    worker.summarize.mockRejectedValue(
+      new Error("Agent agent-1 has no saved conversation to summarize yet."),
+    );
+    const { session } = await createSession(worker);
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    await session.openThread(baseConfig);
+
+    const turn = session.startTurn("/summarize", baseConfig);
+    await vi.waitFor(() => expect(worker.summarize).toHaveBeenCalledOnce());
+    await turn;
+    expect(recorded.events).toContainEqual(
+      expect.objectContaining({
+        type: "error",
+        message: "Agent agent-1 has no saved conversation to summarize yet.",
+      }),
+    );
+    expect(recorded.updates.at(-1)?.status).toBe("error");
+    await session.dispose();
+  });
+
+  it("refuses /summarize during a running turn instead of steering it", async () => {
+    const worker = new FakeWorker();
+    worker.initialize.mockResolvedValue({
+      agentId: "agent-1",
+      supportsSummarize: true,
+    });
+    const { session } = await createSession(worker);
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    await session.openThread(baseConfig);
+    const completion = session.startTurn("initial", baseConfig);
+    await vi.waitFor(() => expect(worker.start).toHaveBeenCalledOnce());
+
+    await session.steerTurn("/summarize", baseConfig, undefined, {
+      userMessageItemId: "steer-user",
+    });
+
+    expect(worker.steer).not.toHaveBeenCalled();
+    expect(worker.summarize).not.toHaveBeenCalled();
+    expect(
+      recorded.events.filter((e) => e.type === "item.started" && e.itemId === "steer-user"),
+    ).toHaveLength(1);
+    expect(recorded.events).toContainEqual({
+      type: "error",
+      threadId: "thread-123456789",
+      message:
+        "Cursor can't summarize the conversation while a turn is running. Send /summarize again once it finishes.",
+    });
+    worker.emit(resultEvent());
+    await completion;
+    await session.dispose();
+  });
+
+  it("routes /summarize on an idle session through the turn path", async () => {
+    const worker = new FakeWorker();
+    worker.initialize.mockResolvedValue({
+      agentId: "agent-1",
+      supportsSummarize: true,
+    });
+    const { session } = await createSession(worker);
+    await session.activate();
+    await session.openThread(baseConfig);
+
+    const delivery = session.steerTurn("/summarize", baseConfig);
+
+    await vi.waitFor(() => expect(worker.summarize).toHaveBeenCalledOnce());
+    expect(worker.start).not.toHaveBeenCalled();
+    expect(worker.steer).not.toHaveBeenCalled();
+    worker.emit(resultEvent());
+    await delivery;
+    await session.dispose();
+  });
+});

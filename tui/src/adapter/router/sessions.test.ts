@@ -581,6 +581,85 @@ test("session list surfaces parentID for child threads", async () => {
   expect(list.data[0]?.parentID).toBe("ses_parent-1");
 });
 
+test("session list honors the picker's project scope, search, and parentID", async () => {
+  const project = remoteProjectSchema.parse({
+    id: "project-1",
+    name: "home",
+    location: { kind: "windows", path: "C:/Users/me" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
+  const other = remoteProjectSchema.parse({
+    id: "project-2",
+    name: "repo",
+    location: { kind: "windows", path: "C:/repo" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
+  const base = {
+    agentKind: "codex",
+    presentationMode: "gui",
+    config: { model: "gpt-5" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-02T00:00:00.000Z",
+    archived: false,
+  };
+  const threads = [
+    { ...base, id: "home-1", projectId: "project-1", title: "Home thread" },
+    { ...base, id: "repo-1", projectId: "project-2", title: "Add voice backends" },
+    {
+      ...base,
+      id: "repo-2",
+      projectId: "project-2",
+      title: "Fix tests",
+      worktreePath: "C:/repo-wt",
+    },
+    {
+      ...base,
+      id: "repo-child",
+      projectId: "project-2",
+      title: "Voice subagent",
+      parentThreadId: "repo-1",
+    },
+  ];
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [project, other] }),
+    boundedThreadListPage: async () => ({ page: { threads } }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client, undefined, undefined, "C:/Users/me");
+  const list = async (query: string) =>
+    (
+      (await (
+        await value.handle(new Request(`http://poracode.invalid/api/session?${query}`))
+      ).json()) as SessionListOutput
+    ).data;
+
+  // The cwd picker scope only lists the TUI's own project.
+  expect(
+    (await list("project=project-1&subpath=&parentID=null")).map((session) => session.id),
+  ).toEqual(["ses_home-1"]);
+  // All projects lists every project's threads with their own project and
+  // checkout, so another project's threads are reachable from any folder.
+  const all = await list("parentID=null&order=desc&limit=50");
+  expect(all.map((session) => [session.id, session.projectID, session.location.directory])).toEqual(
+    [
+      ["ses_home-1", "project-1", "C:/Users/me"],
+      ["ses_repo-1", "project-2", "C:/repo"],
+      ["ses_repo-2", "project-2", "C:/repo-wt"],
+    ],
+  );
+  expect((await list("search=VOICE&parentID=null")).map((session) => session.id)).toEqual([
+    "ses_repo-1",
+  ]);
+  // A family sync asks for one session's children, not every thread.
+  expect((await list("parentID=ses_repo-1")).map((session) => session.id)).toEqual([
+    "ses_repo-child",
+  ]);
+
+  const opened = await value.handle(new Request("http://poracode.invalid/api/session/ses_repo-2"));
+  expect(await opened.json()).toMatchObject({
+    data: { id: "ses_repo-2", projectID: "project-2", location: { directory: "C:/repo-wt" } },
+  });
+});
+
 test("hides terminal-mode threads from all session surfaces", async () => {
   const project = remoteProjectSchema.parse({
     id: "project-1",
@@ -1511,4 +1590,78 @@ test("new-crew falls back to the first lead-capable model when the default canno
   expect(created.status).toBe(200);
   const state = await value.crewState("ses_thread-new");
   expect(state.lead).toMatchObject({ agentKind: "claude", model: "opus" });
+});
+
+test("requests follow the project of the session or folder they target", async () => {
+  const launch = remoteProjectSchema.parse({
+    id: "project-1",
+    name: "repo",
+    location: { kind: "windows", path: "C:/repo" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
+  const other = remoteProjectSchema.parse({
+    id: "project-2",
+    name: "other",
+    location: { kind: "windows", path: "C:/other" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
+  const thread = {
+    id: "thread-a",
+    projectId: "project-2",
+    agentKind: "codex",
+    presentationMode: "gui",
+    config: { model: "gpt-5" },
+    title: "Other project thread",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-02T00:00:00.000Z",
+    archived: false,
+  };
+  const searched: unknown[] = [];
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [launch, other] }),
+    boundedThreadListPage: async () => ({ page: { threads: [thread] } }),
+    callRemoteProcedure: async (name: string, payload: { projectLocation: unknown }) => {
+      if (name === "searchProjectFiles") searched.push(payload.projectLocation);
+      return name === "searchProjectFiles" ? { entries: [], totalIndexed: 0 } : { worktrees: [] };
+    },
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const get = async (path: string) =>
+    (await (await value.handle(new Request(`http://poracode.invalid${path}`))).json()) as Record<
+      string,
+      unknown
+    >;
+
+  expect(await get("/api/location")).toMatchObject({ project: { id: "project-1" } });
+  expect(await get("/api/location?location%5Bdirectory%5D=C%3A%2Fother")).toMatchObject({
+    directory: "C:/other",
+    project: { id: "project-2", directory: "C:/other" },
+  });
+  expect(
+    ((await get("/api/project")) as unknown as { id: string }[]).map((entry) => entry.id),
+  ).toEqual(["project-1", "project-2"]);
+
+  // File search from a thread in another project searches that project.
+  expect(await get("/api/fs/find?query=x&location%5Bdirectory%5D=C%3A%2Fother")).toMatchObject({
+    location: { directory: "C:/other" },
+  });
+  expect(searched).toEqual([{ kind: "windows", path: "C:/other" }]);
+
+  // A new session created in the other project's folder belongs to it.
+  const created = (await (
+    await value.handle(
+      new Request("http://poracode.invalid/api/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: "ses_new", location: { directory: "C:/other" } }),
+      }),
+    )
+  ).json()) as { data: SessionInfo };
+  expect(created.data).toMatchObject({
+    projectID: "project-2",
+    location: { directory: "C:/other" },
+  });
+  expect(await get("/api/session/ses_new")).toMatchObject({
+    data: { projectID: "project-2", location: { directory: "C:/other" } },
+  });
 });

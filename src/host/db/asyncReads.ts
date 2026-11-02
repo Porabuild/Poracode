@@ -105,41 +105,57 @@ export class AsyncDatabaseReads {
       this.queued.length > [...this.slots].filter((candidate) => !candidate.ready).length &&
       this.slots.size + this.terminating.size < READ_WORKERS
     ) {
-      let worker: ChildProcess;
-      try {
-        worker = fork(this.workerPath, [], {
-          execArgv: [],
-          serialization: "advanced",
-          stdio: ["ignore", "ignore", "ignore", "ipc"],
-          env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
-        });
-      } catch (error) {
-        this.rejectQueued(error);
-        return;
-      }
-      const slot: ReadSlot = { worker, ready: false, job: null };
-      this.slots.add(slot);
-      worker.on("message", (message: unknown) => this.receive(slot, message));
-      worker.on("error", () =>
+      if (!this.spawnWorker()) return;
+    }
+  }
+
+  /**
+   * Start the workers before the first read needs one. A worker is a forked
+   * process that loads SQLite and opens the database, which took ~250 ms on
+   * Windows, so the first catalog reads after launch would otherwise wait.
+   */
+  warm(): void {
+    while (!this.closed && this.slots.size + this.terminating.size < READ_WORKERS) {
+      if (!this.spawnWorker()) return;
+    }
+  }
+
+  private spawnWorker(): boolean {
+    let worker: ChildProcess;
+    try {
+      worker = fork(this.workerPath, [], {
+        execArgv: [],
+        serialization: "advanced",
+        stdio: ["ignore", "ignore", "ignore", "ipc"],
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+      });
+    } catch (error) {
+      this.rejectQueued(error);
+      return false;
+    }
+    const slot: ReadSlot = { worker, ready: false, job: null };
+    this.slots.add(slot);
+    worker.on("message", (message: unknown) => this.receive(slot, message));
+    worker.on("error", () =>
+      this.failSlot(
+        slot,
+        new DatabaseReadUnavailableError("Database read worker is unavailable. Retry shortly."),
+      ),
+    );
+    worker.on("close", (code) => {
+      if (this.slots.has(slot))
         this.failSlot(
           slot,
-          new DatabaseReadUnavailableError("Database read worker is unavailable. Retry shortly."),
-        ),
-      );
-      worker.on("close", (code) => {
-        if (this.slots.has(slot))
-          this.failSlot(
-            slot,
-            new DatabaseReadUnavailableError(`Database read worker exited (${code}).`),
-          );
-      });
-      worker.send({
-        kind: "initialize",
-        version: DATABASE_READ_WORKER_PROTOCOL_VERSION,
-        dbPath: this.dbPath,
-        imagePreviews: this.imagePreviews,
-      });
-    }
+          new DatabaseReadUnavailableError(`Database read worker exited (${code}).`),
+        );
+    });
+    worker.send({
+      kind: "initialize",
+      version: DATABASE_READ_WORKER_PROTOCOL_VERSION,
+      dbPath: this.dbPath,
+      imagePreviews: this.imagePreviews,
+    });
+    return true;
   }
 
   private receive(slot: ReadSlot, frame: unknown): void {
@@ -269,6 +285,11 @@ export function enableAsyncDatabaseReads(
 ): void {
   if (currentReads) throw new Error("Database reader is already initialized.");
   currentReads = new AsyncDatabaseReads(dbPath, workerPath, imagePreviews);
+}
+
+/** Start the read workers now instead of on the first read (host startup). */
+export function warmAsyncDatabaseReads(): void {
+  currentReads?.warm();
 }
 
 /** Direct/offline database users keep their existing synchronous read contract. */

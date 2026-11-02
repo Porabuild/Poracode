@@ -6,6 +6,7 @@ import { useProject } from "@/renderer/state/useThread";
 import { TextArea } from "@/renderer/components/common";
 import { parseCopyPatterns } from "@/shared/worktree";
 import { ProjectWorktreeLocation } from "./ProjectWorktreeLocation";
+import { ProjectWorktreeBaseBranch } from "./ProjectWorktreeBaseBranch";
 
 export function ScriptsSection(props: { projectId: string }) {
   const { t } = useLingui();
@@ -31,6 +32,8 @@ export function ScriptsSection(props: { projectId: string }) {
 
         <div className="space-y-6">
           <ProjectWorktreeLocation projectId={props.projectId} />
+
+          <ProjectWorktreeBaseBranch projectId={props.projectId} />
 
           <div className="space-y-2">
             <div>

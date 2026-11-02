@@ -19,7 +19,7 @@ interface ThreadToolRailDrag {
   offset: number;
   /** True after pointer travel crosses the drag threshold. */
   isDragging: boolean;
-  /** Spread onto the rail pill — it is both the grab handle and the tool container. */
+  /** Spread onto the rail — it is both the grab handle and the tool container. */
   dragHandlers: {
     onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
     onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
@@ -34,7 +34,7 @@ interface ThreadToolRailDrag {
  * store (persisted, shared by every pane) and is clamped to the pane on every
  * render, so shrinking the window can never park the rail out of reach.
  *
- * The rail pill doubles as the grab handle, so a press only becomes a drag past
+ * The rail doubles as the grab handle, so a press only becomes a drag past
  * {@link DRAG_THRESHOLD_PX}; below that it stays a plain button click. When it
  * does become a drag, the click that follows `pointerup` is swallowed.
  */

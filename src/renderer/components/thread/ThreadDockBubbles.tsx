@@ -85,6 +85,7 @@ export function ThreadDockBubbles({
       />
     ),
     images: <ThreadImagesBubble key="images" threadId={threadId} />,
+    info: null,
     context: null,
     usage: null,
   };

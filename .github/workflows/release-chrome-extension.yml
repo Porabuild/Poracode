@@ -9,7 +9,7 @@ on:
         type: string
         default: ""
       dry_run:
-        description: "Dry run — skip tag push, GitHub Release, and Web Store publish"
+        description: "Dry run — skip tag push, GitHub Release, and store publishing"
         required: false
         type: boolean
         default: false
@@ -24,10 +24,15 @@ concurrency:
 jobs:
   # Environment secrets are available only to jobs referencing that environment.
   # Skip the protected environment entirely for dry-run packaging.
+  # Each store publishes only once its listing exists and its secrets are set;
+  # until then a release is the tagged GitHub Release with the store package.
   preflight:
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     environment: chrome-extension
+    outputs:
+      chrome: ${{ steps.stores.outputs.chrome }}
+      edge: ${{ steps.stores.outputs.edge }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -37,7 +42,22 @@ jobs:
         with:
           node-version: "26"
 
+      - name: Find configured stores
+        id: stores
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          EDGE_ADDONS_PRODUCT_ID: ${{ secrets.EDGE_ADDONS_PRODUCT_ID }}
+        run: |
+          chrome=false
+          edge=false
+          [ -n "$CHROME_EXTENSION_ID" ] && chrome=true
+          [ -n "$EDGE_ADDONS_PRODUCT_ID" ] && edge=true
+          echo "chrome=$chrome" >> "$GITHUB_OUTPUT"
+          echo "edge=$edge" >> "$GITHUB_OUTPUT"
+          echo "Chrome Web Store: $chrome; Microsoft Edge Add-ons: $edge"
+
       - name: Verify published extension identity
+        if: ${{ steps.stores.outputs.chrome == 'true' }}
         env:
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
         run: node scripts/package-chrome-extension.mjs --verify-store-identity
@@ -274,8 +294,8 @@ jobs:
 
   # ── Step 4: Submit the same package to Chrome Web Store ──────────
   publish:
-    needs: [prepare, package, release]
-    if: ${{ !inputs.dry_run }}
+    needs: [preflight, prepare, package, release]
+    if: ${{ !inputs.dry_run && needs.preflight.outputs.chrome == 'true' }}
     runs-on: ubuntu-latest
     environment: chrome-extension
 
@@ -362,3 +382,81 @@ jobs:
             -X POST \
             -d '{"publishType":"DEFAULT_PUBLISH","blockOnWarnings":true}' \
             "https://chromewebstore.googleapis.com/v2/${item}:publish"
+
+  # ── Step 5: Submit the same package to Microsoft Edge Add-ons ────
+  publish-edge:
+    needs: [preflight, prepare, package, release]
+    if: ${{ !inputs.dry_run && needs.preflight.outputs.edge == 'true' }}
+    runs-on: ubuntu-latest
+    environment: chrome-extension
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "26"
+
+      - name: Download extension package
+        uses: actions/download-artifact@v8
+        with:
+          name: poracode-chrome-extension-v${{ needs.prepare.outputs.version }}
+          path: dist
+
+      # Edge Add-ons API v1.1: upload to the product's draft, then publish it.
+      - name: Upload and submit package
+        env:
+          CLIENT_ID: ${{ secrets.EDGE_ADDONS_CLIENT_ID }}
+          API_KEY: ${{ secrets.EDGE_ADDONS_API_KEY }}
+          PRODUCT_ID: ${{ secrets.EDGE_ADDONS_PRODUCT_ID }}
+          ZIP_NAME: ${{ needs.package.outputs.zip_name }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          for name in CLIENT_ID API_KEY PRODUCT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::EDGE_ADDONS_${name} is required in the chrome-extension environment."
+              exit 1
+            fi
+          done
+
+          api="https://api.addons.microsoftedge.microsoft.com/v1/products/${PRODUCT_ID}/submissions"
+          auth=(-H "Authorization: ApiKey ${API_KEY}" -H "X-ClientID: ${CLIENT_ID}")
+
+          # The operation id is the last path segment of the 202 response's Location header.
+          operation_id() {
+            tr -d '\r' | awk 'tolower($1) == "location:" { print $2 }' | awk -F/ '{ print $NF }'
+          }
+
+          # Polls an operation until it leaves InProgress; fails unless it Succeeded.
+          wait_for() {
+            local url="$1" what="$2" status=""
+            for _ in {1..30}; do
+              status=$(curl -fsS "${auth[@]}" "$url" | node -e '
+                const fs = require("node:fs");
+                const data = JSON.parse(fs.readFileSync(0, "utf8"));
+                process.stdout.write(data.status || "");
+              ')
+              [ "$status" != "InProgress" ] && break
+              sleep 10
+            done
+            if [ "$status" != "Succeeded" ]; then
+              echo "::error::Edge Add-ons ${what} did not succeed; final status was '${status}'."
+              curl -fsS "${auth[@]}" "$url" || true
+              exit 1
+            fi
+          }
+
+          upload=$(curl -fsS -D - -o /dev/null "${auth[@]}" \
+            -H "Content-Type: application/zip" \
+            -X POST -T "dist/${ZIP_NAME}" \
+            "${api}/draft/package" | operation_id)
+          [ -n "$upload" ] || { echo "::error::Edge Add-ons upload returned no operation."; exit 1; }
+          wait_for "${api}/draft/package/operations/${upload}" "upload"
+
+          publish=$(curl -fsS -D - -o /dev/null "${auth[@]}" \
+            -H "Content-Type: application/json" \
+            -X POST -d "{\"notes\":\"Poracode extension ${VERSION}\"}" \
+            "${api}" | operation_id)
+          [ -n "$publish" ] || { echo "::error::Edge Add-ons publish returned no operation."; exit 1; }
+          wait_for "${api}/operations/${publish}" "publish"

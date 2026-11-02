@@ -1,5 +1,16 @@
+import {
+  readTuiServers,
+  tuiSessionDirectory,
+  writeTuiServerSwitch,
+  type TuiServerSwitchTarget,
+} from "@/shared/tuiServers";
 import type { TuiBootstrap } from "../bootstrap";
-import { connectRemoteSession, connectRemoteSocket, createRemoteClient } from "./connection";
+import {
+  connectRemoteSession,
+  connectRemoteSocket,
+  createRemoteClient,
+  hasSavedTuiSession,
+} from "./connection";
 import {
   createEventTranslator,
   EventStreamHub,
@@ -7,16 +18,40 @@ import {
   type ThreadEventContext,
 } from "./events";
 import { logAdapterDebug } from "./diagnostics";
+import { readGitRoots, resolveLaunchProject } from "./launchProject";
 import { createRouter } from "./router";
 
-export async function createAdapter(bootstrap: TuiBootstrap) {
+export async function createAdapter(launchBootstrap: TuiBootstrap) {
+  const sessionDirectory = tuiSessionDirectory(launchBootstrap.home, launchBootstrap.server?.id);
   const {
     client,
     dispose: disposeClient,
     socketTls,
-  } = bootstrap.auth === "session"
-    ? await connectRemoteSession(bootstrap.home)
-    : await createRemoteClient(bootstrap.pairingUrl, bootstrap.home);
+  } = launchBootstrap.auth === "session"
+    ? await connectRemoteSession(sessionDirectory)
+    : await createRemoteClient(launchBootstrap.pairingUrl, sessionDirectory);
+  let launch: Awaited<ReturnType<typeof resolveLaunchProject>>;
+  try {
+    launch = await resolveLaunchProject({
+      client,
+      directory: launchBootstrap.directory,
+      ...(launchBootstrap.projectId ? { projectId: launchBootstrap.projectId } : {}),
+      local: launchBootstrap.server === undefined,
+      platform: process.platform,
+      gitRoots: readGitRoots,
+    });
+  } catch (error) {
+    disposeClient();
+    throw error;
+  }
+  let serverSwitchRequested = false;
+  // From here on the adapter's default location is the bound project (or
+  // its worktree), which on a remote host is a path on that host.
+  const bootstrap: TuiBootstrap = {
+    ...launchBootstrap,
+    directory: launch.directory,
+    projectId: launch.project.id,
+  };
   const debug = process.env.PORACODE_TUI_DEBUG === "1";
   const counters = {
     websocketFrames: {} as Record<string, number>,
@@ -98,6 +133,24 @@ export async function createAdapter(bootstrap: TuiBootstrap) {
   ) satisfies typeof globalThis.fetch;
   return {
     fetch,
+    /** The bound project; `home` when the launch folder belongs to no project. */
+    launch,
+    /** The paired remote host, or undefined for the local host. */
+    server: launchBootstrap.server,
+    /** Saved servers the picker offers besides the local host. */
+    savedServers: () =>
+      readTuiServers(launchBootstrap.home).map((server) => ({
+        ...server,
+        signedIn: hasSavedTuiSession(tuiSessionDirectory(launchBootstrap.home, server.id)),
+      })),
+    /** Records the picker's target; the TUI then exits for the CLI to relaunch. */
+    requestServerSwitch(target: TuiServerSwitchTarget) {
+      writeTuiServerSwitch(launchBootstrap.home, target);
+      serverSwitchRequested = true;
+    },
+    get serverSwitchRequested() {
+      return serverSwitchRequested;
+    },
     sessionOptions: router.sessionOptions,
     setSessionOptions: router.setSessionOptions,
     exportSession: router.exportSession,

@@ -338,19 +338,27 @@ private fun RichTimelineItem(
             }
             if (item.type == RichItemTypes.QUESTION_ANSWER) {
                 RichQuestionAnswerContent(RichQuestionAnswerPresentation.entries(item))
-            } else if (text.isNotBlank()) {
-                if (item.type == RichItemTypes.ASSISTANT_MESSAGE) {
+            } else if (item.type == RichItemTypes.ASSISTANT_MESSAGE) {
+                // Assistant text is text-blocks only; typed file payloads
+                // render as download cards below instead of duplicated prose.
+                val body = RichChatUiLogic.messageBody(item)
+                val fileCards = RichChatUiLogic.chatFiles(item)
+                if (body.isNotBlank()) {
+                    RichMarkdownView(body)
+                }
+                fileCards.forEach { ref -> RichChatFileCard(ref) }
+                if (body.isBlank() && fileCards.isEmpty() && text.isNotBlank()) {
                     RichMarkdownView(text)
-                } else {
-                    val chatTextSize = LocalChatTextSizeSp.current
-                    SelectionContainer {
-                        Text(
-                            text,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontSize = chatTextSize.sp,
-                            lineHeight = (chatTextSize + 6).sp,
-                        )
-                    }
+                }
+            } else if (text.isNotBlank()) {
+                val chatTextSize = LocalChatTextSizeSp.current
+                SelectionContainer {
+                    Text(
+                        text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = chatTextSize.sp,
+                        lineHeight = (chatTextSize + 6).sp,
+                    )
                 }
             }
             images.forEach { RichRemoteImage(it, runtime) }

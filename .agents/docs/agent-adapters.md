@@ -101,6 +101,12 @@ Existing extension points built on the same pattern:
   The shared session exposes `steerTurn` only when the agent advertises it;
   `repliesInNewAssistantItem` covers agents whose reply always starts a new
   assistant item, leaving the in-flight message above the steer row.
+- `AcpSessionBehavior.promptUsageSampleId` supplies the provider-owned
+  identity of one consumption sample: the callback parses the native prompt
+  reply (`_meta`) and returns a namespaced suffix the shared session embeds in
+  its `acp-prompt-v1` sample id, so replies that repeat one native sample
+  dedup instead of double-counting. Missing or malformed identities fall back
+  to the shared per-turn/per-steer suffix.
 - `registerModelDescriptionFormatter` (renderer) lets a provider parse its own
   catalog text into a numeric hint plus a localized explanation; the shared
   picker never parses vendor pricing formats.
@@ -290,6 +296,8 @@ is discovered automatically; the supervisor registry is explicit, with a parity
 test that fails when a `detection.ts` has no registered factory. Items marked
 **often missed** are the ones that silently break a feature.
 
+Before selecting a reference implementation, apply the [cross-provider integration lessons](provider-integration-lessons.md). The evidence index covers the existing provider families and profiles; qualify relevant patterns against the target version instead of copying historical assumptions.
+
 ### 1. Supervisor adapter — `src/supervisor/agents/<kind>/`
 
 - `detection.ts` — `DetectionSpec`: `kind`, `label`, `binary`, `capabilities`
@@ -364,6 +372,7 @@ test that fails when a `detection.ts` has no registered factory. Items marked
 
 ### 5. Tests and verification
 
+- Provider additions and version/capability updates must complete [native steering qualification](../skills/provider-chat-smoke/SKILL.md#native-steering-qualification), including newer-version support checks before retaining cancel-and-resend.
 - `tests/integration/providers-lifecycle.integration.test.ts` — add a
   `PREFERRED_MODEL` entry, or use its detected-model fallback when no model is
   universally available (the test skips when the CLI is not installed).
@@ -396,8 +405,7 @@ test that fails when a `detection.ts` has no registered factory. Items marked
   form). The supervisor reapplies the rule to every incoming skill segment, so
   an older paired client still sends a valid form.
 
-Reference template for a TUI-only, non-ACP CLI: `commandcode/` (multi-model, npm
-install/update, synthesized terminal Login method).
+For terminal argv, native session discovery, hooks, and session-local MCP examples, see `commandcode/`. Qualified newer versions also implement ACP; use detected presentation capabilities rather than assuming this is a terminal-only provider.
 
 ## Giving a Provider Multiple Profiles
 

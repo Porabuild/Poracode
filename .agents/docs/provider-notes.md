@@ -12,10 +12,8 @@ every provider are in [Agent Adapter Rules](agent-adapters.md).
   declare empty lists and fill them from a runtime capabilities probe (ACP,
   SDK, app-server, or a CLI `--list-models`), so read the probe rather than
   trusting a static default.
-- **GUI (structured) presentation:** supported exactly when the adapter
-  implements `createStructuredSession`. The transport (ACP, SDK, stdio
-  app-server, HTTP server) is visible in that provider's `acp.ts` or session
-  code.
+- **GUI (structured) presentation:** inspect `createStructuredSession` together with detected per-environment presentation capabilities, version gates, and resume/runtime restrictions. A method's presence alone does not qualify every version or saved session. The actual transport is visible in the provider's launch/session code.
+- **Cross-provider lessons:** [integration lessons](provider-integration-lessons.md) records the audited provider/profile inventory and reusable source/test-backed checks.
 
 ## Antigravity
 
@@ -172,7 +170,7 @@ pipeline, including WSL and SSH deployments. It shares the SDK connection
 implementation with Pi extensions (see
 [Provider Runtime](provider-runtime.md#terminal-mcp-launch-integration)).
 
-`commandcode/` is also the reference template for a TUI-only, non-ACP CLI.
+Qualified newer Command Code versions also support structured Chat through `command-code acp`; older installations remain terminal-only. Detection qualifies these presentation capabilities separately. The ACP harness retains its own filesystem/terminal ownership, and native usage updates, not prompt consumption, report context occupancy. See `detection.acp.test.ts` and `acp.test.ts` in the provider folder for the compatibility contracts.
 
 ## fx
 

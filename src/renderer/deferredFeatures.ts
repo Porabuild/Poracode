@@ -2,6 +2,10 @@ import { preloadable } from "@/renderer/utils/preloadable";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { createDeferredPrewarmRunner } from "@/renderer/utils/deferredPrewarm";
 
+export const DeferredFeedbackDialog = preloadable(() =>
+  import("@/renderer/components/common/FeedbackDialog").then((module) => module.FeedbackDialog),
+);
+
 export const DeferredThreadForkDialog = preloadable(() =>
   import("@/renderer/components/thread/ThreadForkDialog").then((module) => module.ThreadForkDialog),
 );

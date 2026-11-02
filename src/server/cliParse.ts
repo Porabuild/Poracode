@@ -107,10 +107,16 @@ export interface TuiCliOptions {
   readonly prompt?: string;
   readonly auto?: boolean;
   readonly directory?: string;
+  /** One-time pairing link of a remote host to pair with and open. */
+  readonly pairingUrl?: string;
+  /** Label for the server `--pair` saves. */
+  readonly serverName?: string;
+  /** A saved server's name or id to open instead of the local host. */
+  readonly server?: string;
 }
 
 const TUI_USAGE =
-  "Usage: poracode tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [DIRECTORY]";
+  "Usage: poracode tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [--pair LINK [--name NAME] | --server NAME] [DIRECTORY]";
 
 export function assertTuiTerminal(stdinIsTTY: boolean, stdoutIsTTY: boolean) {
   if (!stdinIsTTY || !stdoutIsTTY)
@@ -127,9 +133,21 @@ export function parseTuiCliOptions(args: readonly string[]): TuiCliOptions {
       session: { type: "string" },
       prompt: { type: "string" },
       auto: { type: "boolean" },
+      pair: { type: "string" },
+      name: { type: "string" },
+      server: { type: "string" },
     },
   });
-  if (parsed.positionals.length > 1 || parsed.values.session === "" || parsed.positionals[0] === "")
+  if (
+    parsed.positionals.length > 1 ||
+    parsed.values.session === "" ||
+    parsed.positionals[0] === "" ||
+    parsed.values.pair === "" ||
+    parsed.values.server === "" ||
+    parsed.values.name?.trim() === "" ||
+    (parsed.values.pair !== undefined && parsed.values.server !== undefined) ||
+    (parsed.values.name !== undefined && parsed.values.pair === undefined)
+  )
     throw new Error(TUI_USAGE);
   return {
     ...(parsed.values.continue !== undefined ? { continue: parsed.values.continue } : {}),
@@ -137,6 +155,9 @@ export function parseTuiCliOptions(args: readonly string[]): TuiCliOptions {
     ...(parsed.values.prompt !== undefined ? { prompt: parsed.values.prompt } : {}),
     ...(parsed.values.auto !== undefined ? { auto: parsed.values.auto } : {}),
     ...(parsed.positionals[0] !== undefined ? { directory: parsed.positionals[0] } : {}),
+    ...(parsed.values.pair !== undefined ? { pairingUrl: parsed.values.pair } : {}),
+    ...(parsed.values.name !== undefined ? { serverName: parsed.values.name.trim() } : {}),
+    ...(parsed.values.server !== undefined ? { server: parsed.values.server } : {}),
   };
 }
 
@@ -250,7 +271,7 @@ export function parseServerCliCommand(
     return "upgrade";
   }
   throw new Error(
-    "Usage: poracode [tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [DIRECTORY] | " +
+    "Usage: poracode [tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [--pair LINK [--name NAME] | --server NAME] [DIRECTORY] | " +
       "-p|--print PROMPT [--provider PROVIDER] [--model MODEL] [--effort EFFORT] [--format text|json] [--directory PATH] | " +
       "serve [--open|--no-open] [--config PATH] [--host HOST] [--port PORT] | " +
       "setup | activate | doctor | logs | backup | init-tls | upgrade | pair | status | stop | --version | --help]",

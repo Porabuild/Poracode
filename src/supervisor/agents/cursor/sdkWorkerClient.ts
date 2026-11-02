@@ -44,7 +44,13 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
  */
 const START_REQUEST_TIMEOUT_MS = 180_000;
 const MAX_LINE_BYTES = 16 * 1024 * 1024;
-const FATAL_REQUEST_TIMEOUT_METHODS = new Set(["initialize", "start", "cancel", "reload"]);
+const FATAL_REQUEST_TIMEOUT_METHODS = new Set([
+  "initialize",
+  "start",
+  "summarize",
+  "cancel",
+  "reload",
+]);
 
 type WslLocation = Extract<ProjectLocation, { kind: "wsl" }>;
 
@@ -140,10 +146,11 @@ function formatTimeoutBudget(timeoutMs: number): string {
 
 function cursorSdkWorkerTimeoutMessage(method: string, timeoutMs: number): string {
   const base = `Cursor SDK worker request ${method} timed out after ${formatTimeoutBudget(timeoutMs)}.`;
-  // A timed-out `start` may still materialize server-side after the host has
-  // torn the worker down, leaving a run the user can neither see nor stop
-  // from Poracode. Say so: the next step is the dashboard, not a blind retry.
-  return method === "start"
+  // A timed-out `start`/`summarize` may still materialize server-side after
+  // the host has torn the worker down, leaving a run the user can neither
+  // see nor stop from Poracode. Say so: the next step is the dashboard, not
+  // a blind retry.
+  return method === "start" || method === "summarize"
     ? `${base} The run may still start server-side and consume quota; check the Cursor dashboard before retrying in a new thread.`
     : base;
 }
@@ -218,6 +225,14 @@ export class CursorSdkWorkerClient {
 
   async start(input: CursorSdkWorkerStartInput): Promise<CursorSdkWorkerStartResult> {
     return this.request<CursorSdkWorkerStartResult>("start", input, this.startTimeoutMs);
+  }
+
+  /**
+   * `agent.summarize()` provisions a run the same way `send` does, so it
+   * shares the `start` budget and timeout fatal-handling.
+   */
+  async summarize(): Promise<CursorSdkWorkerStartResult> {
+    return this.request<CursorSdkWorkerStartResult>("summarize", {}, this.startTimeoutMs);
   }
 
   async steer(runId: string, text: string): Promise<CursorSdkWorkerSteerResult> {

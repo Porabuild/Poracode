@@ -7,6 +7,8 @@ import {
   GitPullRequest,
   Globe,
   MessageSquare,
+  Pin,
+  Star,
   Trash2,
 } from "lucide-react";
 import { Header, Label, ListBox, ListLayout, Tooltip, Virtualizer } from "@heroui/react";
@@ -83,6 +85,14 @@ export interface BranchListBoxProps {
   threadsByBranch: Map<string, Thread[]>;
   allowWorktreeDelete?: boolean;
   selectionOnly?: boolean;
+  /** Row name set as the project's default worktree base. */
+  defaultWorktreeBranch?: string | undefined;
+  /** Enables the per-row default toggle; receives the new default (`undefined` clears it). */
+  onDefaultWorktreeBranchChange?: ((branchName: string | undefined) => void) | undefined;
+  /** Row names pinned to the top of the project's branch pickers. */
+  pinnedBranches?: ReadonlySet<string>;
+  /** Enables the per-row pin-to-top toggle. */
+  onTogglePinned?: ((branchName: string) => void) | undefined;
   onSelect: (branchName: string) => void;
   onDelete: (branch: { name: string; remote?: string; isRemote?: boolean }) => void;
   onOpenPrReview: (args: OpenPrReviewArgs) => void;
@@ -108,6 +118,10 @@ export const BranchListBox = forwardRef<BranchListBoxHandle, BranchListBoxProps>
       threadsByBranch,
       allowWorktreeDelete = true,
       selectionOnly = false,
+      defaultWorktreeBranch,
+      onDefaultWorktreeBranchChange,
+      pinnedBranches,
+      onTogglePinned,
       onSelect,
       onDelete,
       onOpenPrReview,
@@ -199,7 +213,12 @@ export const BranchListBox = forwardRef<BranchListBoxHandle, BranchListBoxProps>
           aria-label={t`Branches`}
           className={`poracode-menu max-h-60 overflow-y-auto ${mobile ? "" : VIRTUALIZED_COMPACT_DROPDOWN_ITEM_CLASS}`}
           items={items}
-          dependencies={[activeBranchName, showMobileKeyboardHighlight]}
+          dependencies={[
+            activeBranchName,
+            showMobileKeyboardHighlight,
+            defaultWorktreeBranch,
+            pinnedBranches,
+          ]}
           selectedKeys={new Set([selectedKey])}
           selectionMode="single"
           disallowEmptySelection
@@ -266,6 +285,18 @@ export const BranchListBox = forwardRef<BranchListBoxHandle, BranchListBoxProps>
                   isDeleting={isDeleting}
                   allowWorktreeDelete={allowWorktreeDelete}
                   selectionOnly={selectionOnly}
+                  isWorktreeDefault={branch.name === defaultWorktreeBranch}
+                  {...(onDefaultWorktreeBranchChange ? { onDefaultWorktreeBranchChange } : {})}
+                  isPinned={pinnedBranches?.has(branch.name) ?? false}
+                  {...(onTogglePinned
+                    ? {
+                        onTogglePinned: (name: string) => {
+                          // Pinning moves the row; keep the list where the user is.
+                          skipScrollRef.current = true;
+                          onTogglePinned(name);
+                        },
+                      }
+                    : {})}
                   onDelete={onDelete}
                   onOpenPrReview={onOpenPrReview}
                 />
@@ -289,6 +320,10 @@ function BranchRowBody(props: {
   isDeleting: boolean;
   allowWorktreeDelete: boolean;
   selectionOnly: boolean;
+  isWorktreeDefault: boolean;
+  onDefaultWorktreeBranchChange?: (branchName: string | undefined) => void;
+  isPinned: boolean;
+  onTogglePinned?: (branchName: string) => void;
   onDelete: (branch: { name: string; remote?: string; isRemote?: boolean }) => void;
   onOpenPrReview: (args: OpenPrReviewArgs) => void;
 }) {
@@ -303,6 +338,10 @@ function BranchRowBody(props: {
     isDeleting,
     allowWorktreeDelete,
     selectionOnly,
+    isWorktreeDefault,
+    onDefaultWorktreeBranchChange,
+    isPinned,
+    onTogglePinned,
     onDelete,
     onOpenPrReview,
   } = props;
@@ -388,6 +427,28 @@ function BranchRowBody(props: {
             </Tooltip.Content>
           </Tooltip>
         )}
+        {onDefaultWorktreeBranchChange && (
+          <RowToggle
+            isOn={isWorktreeDefault}
+            label={t`Use ${branch.name} as default worktree base`}
+            tooltip={
+              isWorktreeDefault ? t`Default for new worktrees` : t`Use as default for new worktrees`
+            }
+            icon={Star}
+            onToggle={() =>
+              onDefaultWorktreeBranchChange(isWorktreeDefault ? undefined : branch.name)
+            }
+          />
+        )}
+        {onTogglePinned && (
+          <RowToggle
+            isOn={isPinned}
+            label={t`Pin ${branch.name} to top`}
+            tooltip={isPinned ? t`Unpin` : t`Pin to top`}
+            icon={Pin}
+            onToggle={() => onTogglePinned(branch.name)}
+          />
+        )}
         {isSelected && !isDeleting && <Check className="size-3.5 shrink-0 text-foreground" />}
         <div className="flex w-5 shrink-0 items-center justify-center">
           {isDeleting ? (
@@ -410,5 +471,41 @@ function BranchRowBody(props: {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Row toggle with a stable label (`aria-pressed` carries the state) that stays
+ * visible while on and is revealed on hover (always on touch) while off. Stops
+ * propagation so toggling never selects the row.
+ */
+function RowToggle(props: {
+  isOn: boolean;
+  label: string;
+  tooltip: string;
+  icon: typeof Pin;
+  onToggle: () => void;
+}) {
+  const Icon = props.icon;
+  return (
+    <Tooltip delay={150}>
+      <Tooltip.Trigger tabIndex={-1} role="none">
+        <button
+          type="button"
+          aria-label={props.label}
+          aria-pressed={props.isOn}
+          className={`flex items-center justify-center rounded border-0 bg-transparent p-0 transition ${props.isOn ? "text-foreground" : "text-muted/55 opacity-0 hover:text-foreground group-hover:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:opacity-100"}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onToggle();
+          }}
+        >
+          <Icon className={`size-3.5 ${props.isOn ? "fill-current" : ""}`} />
+        </button>
+      </Tooltip.Trigger>
+      <Tooltip.Content placement="top">{props.tooltip}</Tooltip.Content>
+    </Tooltip>
   );
 }

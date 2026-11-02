@@ -219,6 +219,7 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
       security.enforceHostHeader(req);
       let session: { readonly sessionId: string };
       let playbackSignal: AbortSignal | undefined;
+      let releaseMediaHold: (() => void) | undefined;
       try {
         const query = new URLSearchParams(input.rawQuery);
         if (query.has("parentMediaTicket")) {
@@ -253,6 +254,11 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
           }
           session = this.authority.authenticateSession(grant.sessionId, ENVIRONMENT_USE_SCOPES);
           playbackSignal = grant.signal;
+          // Parent-side attachment grants get the same surviving-stream
+          // treatment as the child's: the validated child lease declared the
+          // disposition at mint time.
+          if (grant.value.attachment)
+            releaseMediaHold = this.mediaGrants.hold(query.get("parentMediaTicket")!);
         } else session = this.authenticateParentRequest(req);
       } catch (error) {
         // Mark ONLY the authentication step's own 401/403 (missing or invalid
@@ -266,7 +272,11 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
         }
         throw error;
       }
-      await this.proxyHttpLeg(req, res, session.sessionId, input, playbackSignal);
+      try {
+        await this.proxyHttpLeg(req, res, session.sessionId, input, playbackSignal);
+      } finally {
+        releaseMediaHold?.();
+      }
     } catch (error) {
       if (res.destroyed) return;
       if (!res.headersSent) {

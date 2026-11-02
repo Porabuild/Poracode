@@ -12,6 +12,7 @@ import {
 } from "@/host/remote/RemoteAccessServer";
 import { generateSelfSignedTlsMaterial } from "@/host/remote/server/tlsMaterial";
 import {
+  CHROME_BRIDGE_REPLACED_CLOSE_CODE,
   CHROME_SIDEBAR_EXTENSION_IDS,
   CHROME_SIDEBAR_PROTOCOL_VERSION as SIDEBAR,
   chromeBridgeClientProofMessage,
@@ -311,6 +312,16 @@ describe("sidebar bootstrap compatibility and authentication", () => {
     expect(code).toBe(1008);
     expect(host.bridge.getConnection()).toBe(connection);
     expect((await requestBootstrap(trusted, "still-trusted")).bootstrap).not.toBeNull();
+  });
+
+  it("tells the connection a newer extension replaces that it was replaced", async () => {
+    const host = await startHost();
+    const first = await connect(host, { sidebarBootstrapVersion: SIDEBAR });
+    const closed = once(first, "close");
+    const second = await connect(host, { sidebarBootstrapVersion: SIDEBAR });
+    const [code] = (await closed) as [number];
+    expect(code).toBe(CHROME_BRIDGE_REPLACED_CLOSE_CODE);
+    expect((await requestBootstrap(second, "replacement")).bootstrap).not.toBeNull();
   });
 
   it("gives an already-installed pre-upgrade 0.2.0 worker (raw bridgeToken, protocol 1) no credential, proof or authentication", async () => {

@@ -18,6 +18,7 @@ import {
   useThreadIsWaitingForBackground,
 } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import {
   hydrateThreadRuntimeItems,
   loadOlderThreadRuntimeItems,
@@ -41,11 +42,14 @@ import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/Chat
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatReaderFollowContext, createChatReaderFollowSignal } from "./chatReaderFollow";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
+import { ChatStatusBubble } from "./ChatStatusBubble";
 import { threadRuntimeStatusLabel } from "../ThreadHeaderStatus";
 import {
+  ChatShimmerStatus,
   ChatStatusFooter,
+  ChatTailStatus,
   ChatTurnElapsedFooter,
-  ChatWorktreeProvisioningFooter,
+  ChatTurnStatus,
   type TurnTiming,
 } from "./ChatTurnElapsed";
 import {
@@ -401,6 +405,14 @@ export function ChatPane(props: ChatPaneProps) {
   );
   const isConnecting = useAppStore((s) => s.connectingThreadIds[threadId] !== undefined);
   const hydrationStatus = useAppStore((s) => s.runtimeHydrationStatus[threadId]);
+  // Published while the thread's composer bubble row is mounted; missing means
+  // this pane has no bubble row and the status stays in the transcript tail.
+  const statusSlot = useComposerBubbleSlotStore((s) => s.status[threadId] ?? null);
+  // The row floats over the transcript, so reserve its band at the scroll end
+  // and never let the tail come to rest underneath the bubbles. The compact
+  // composer and the bubble row never coexist, so either one owns the inset.
+  const bubbleRowInset = useComposerBubbleSlotStore((s) => s.endInset[threadId] ?? 0);
+  const bottomInset = props.bottomInset ?? bubbleRowInset;
   // Detached background work keeps the thread doing real work after the
   // foreground turn settles. Treat that as "still working" for the tail-loader
   // timer (so it keeps ticking "Working for ...") without touching `status` -
@@ -472,6 +484,19 @@ export function ChatPane(props: ChatPaneProps) {
         />
       </div>
     ) : null;
+  // The live status rides the bubble row's leading edge when the thread has
+  // one; otherwise it stays in the transcript tail.
+  const liveStatus = isWorktreeProvisioning ? (
+    <ChatShimmerStatus text={t`Creating worktree…`} />
+  ) : isConnecting || status === "launching" ? (
+    <ChatShimmerStatus text={threadRuntimeStatusLabel(thread, t, { isConnecting })} />
+  ) : showWorkingTimer && turn ? (
+    <ChatTurnStatus
+      turn={turn}
+      isPaused={isTurnPaused}
+      isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
+    />
+  ) : null;
   const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
   const isHydrating = isEmpty && hydrationStatus === "pending";
   // The tail loader displays the most recent completed turn's frozen elapsed
@@ -526,7 +551,7 @@ export function ChatPane(props: ChatPaneProps) {
               threadId={threadId}
               entries={listEntries}
               isTurnActive={isLive}
-              {...(props.bottomInset ? { bottomInset: props.bottomInset } : {})}
+              {...(bottomInset ? { bottomInset } : {})}
               {...(isManagedThread
                 ? {
                     onInitialLayoutReady: () => {
@@ -567,18 +592,16 @@ export function ChatPane(props: ChatPaneProps) {
                 ) : null
               }
               footer={
-                isWorktreeProvisioning ? (
-                  <ChatWorktreeProvisioningFooter />
-                ) : isConnecting || status === "launching" ? (
-                  // Keep the completed turn's fork row while reconnecting so the
-                  // swap to "Worked for" keeps the footer height and the pinned
-                  // transcript does not jump.
-                  <div className="group/checkpoint">
-                    <ChatStatusFooter
-                      text={threadRuntimeStatusLabel(thread, t, { isConnecting })}
-                    />
-                    {tailForkAction}
-                  </div>
+                liveStatus ? (
+                  // With a bubble row the status rides it and the row's end
+                  // inset already reserves that band, so the tail keeps only
+                  // the completed turn's fork row while reconnecting.
+                  statusSlot && !tailForkAction ? null : (
+                    <div className="group/checkpoint">
+                      {statusSlot ? null : <ChatTailStatus>{liveStatus}</ChatTailStatus>}
+                      {tailForkAction}
+                    </div>
+                  )
                 ) : isHydrating && !showWorkingTimer ? (
                   <ChatStatusFooter text={t`Loading messages…`} />
                 ) : showTailLoader && tailTurn ? (
@@ -662,6 +685,9 @@ export function ChatPane(props: ChatPaneProps) {
                 props.onInitialScrollSettled?.();
               }}
             />
+            {statusSlot && liveStatus ? (
+              <ChatStatusBubble slot={statusSlot}>{liveStatus}</ChatStatusBubble>
+            ) : null}
             <SubAgentOpenController
               key={`subagent:${threadId}`}
               threadId={threadId}

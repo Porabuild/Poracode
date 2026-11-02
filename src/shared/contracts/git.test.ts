@@ -5,6 +5,7 @@ import {
   generatePrSummaryPayloadSchema,
   generateTitlePayloadSchema,
 } from "./git";
+import { gitBranchListResultSchema } from "./gitResults";
 
 /** The shared non-selection fields every generation payload carries. */
 function basePayload() {
@@ -149,5 +150,22 @@ describe("generation payload canonical selection", () => {
         selection: { model: "m", fast: "false" },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("gitBranchListResultSchema", () => {
+  const branches = [{ name: "main", current: true, commit: "abc", isRemote: false }];
+
+  it("accepts a pre-upgrade branch list without a default branch", () => {
+    expect(gitBranchListResultSchema.parse({ current: "main", branches })).toEqual({
+      current: "main",
+      branches,
+    });
+  });
+
+  it("keeps the remote default branch when the host reports one", () => {
+    expect(
+      gitBranchListResultSchema.parse({ current: "main", branches, defaultBranch: "origin/main" }),
+    ).toEqual({ current: "main", branches, defaultBranch: "origin/main" });
   });
 });

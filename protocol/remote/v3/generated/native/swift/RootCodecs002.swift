@@ -201,7 +201,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGitListBranchesU2EResult: RemoteRootCodec<ProceduregitListBranchesResult_458a450839> = .init(id: "procedure.gitListBranches.result", schema: RemoteSchemas.schema_458a4508393abce2)
+  static let procedureU2EGitListBranchesU2EResult: RemoteRootCodec<ProceduregitListBranchesResult_cbe0ba2411> = .init(id: "procedure.gitListBranches.result", schema: RemoteSchemas.schema_cbe0ba241100dba5)
 }
 
 public extension RemoteRootCodecs {
@@ -225,7 +225,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EGitProjectSnapshotU2EResult: RemoteRootCodec<ProceduregitProjectSnapshotResult_35889b09eb> = .init(id: "procedure.gitProjectSnapshot.result", schema: RemoteSchemas.schema_35889b09eb72e208)
+  static let procedureU2EGitProjectSnapshotU2EResult: RemoteRootCodec<ProceduregitProjectSnapshotResult_d581274b50> = .init(id: "procedure.gitProjectSnapshot.result", schema: RemoteSchemas.schema_d581274b5086148c)
 }
 
 public extension RemoteRootCodecs {
@@ -322,6 +322,14 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EGitWorktreeStatusBatchU2EResult: RemoteRootCodec<ProceduregitWorktreeStatusBatchResult_1b23732705> = .init(id: "procedure.gitWorktreeStatusBatch.result", schema: RemoteSchemas.schema_1b2373270569d6e5)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EHexVoiceU2ERequest: RemoteRootCodec<ProcedurehexVoiceRequest_2ae8d538fe> = .init(id: "procedure.hexVoice.request", schema: RemoteSchemas.schema_2ae8d538fe55c35d)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EHexVoiceU2EResult: RemoteRootCodec<ProcedurehexVoiceResult_46060d35e2> = .init(id: "procedure.hexVoice.result", schema: RemoteSchemas.schema_46060d35e2ab13d1)
 }
 
 public extension RemoteRootCodecs {
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EReadTerminalScrollbackU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.readTerminalScrollback.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadTerminalScrollbackU2EResult: RemoteRootCodec<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .init(id: "procedure.readTerminalScrollback.result", schema: RemoteSchemas.schema_bf0b727f7b1c6d07)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadTerminalSizeU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.readTerminalSize.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
 }

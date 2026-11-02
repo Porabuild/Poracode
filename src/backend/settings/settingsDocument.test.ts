@@ -3,6 +3,28 @@ import { defaultSharedSettings } from "@/shared/settings";
 import { SettingsDocumentError, decodeSettingsDocument } from "./settingsDocument";
 
 describe("settings document migration", () => {
+  it("adds native voice defaults while preserving legacy audio choices", () => {
+    const document = decodeSettingsDocument({
+      $poracodeSettingsVersion: 3,
+      audio: {
+        showVoiceInputButton: false,
+        microphoneDeviceId: "mic-1",
+        transcriptionLanguage: "de",
+        transcriptionModel: "base",
+        useWebGpu: false,
+      },
+    });
+    expect(document.settings.audio).toEqual({
+      showVoiceInputButton: false,
+      microphoneDeviceId: "mic-1",
+      transcriptionLanguage: "de",
+      transcriptionModel: "base",
+      transcriptionBackend: "transformers",
+      hexModel: "parakeet_v3",
+      useWebGpu: false,
+    });
+  });
+
   it.each([1, 2])(
     "preserves v%s sidebar preferences and history-related settings on upgrade",
     (version) => {

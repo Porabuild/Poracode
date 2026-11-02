@@ -9,9 +9,11 @@ import { DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
 import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
 import { toLocalFileUrl } from "@/shared/promptContent";
 import {
+  getRemoteBridgeClient,
   getRemoteBridgeImageReadiness,
   installRemoteBridge,
   setRemoteBridgeClient,
+  subscribeRemoteBridgeClient,
   subscribeRemoteBridgeImages,
 } from "./remoteBridge";
 import { useRemoteBridgeImageReadiness } from "./useRemoteBridgeImages";
@@ -22,6 +24,27 @@ import {
 } from "@/renderer/state/browserPresentationIntents";
 
 describe("remote bridge", () => {
+  it("notifies subscribers after the active client changes", () => {
+    const first = {} as RemoteDesktopClient;
+    const second = {} as RemoteDesktopClient;
+    const listener = vi.fn<() => ReturnType<typeof getRemoteBridgeClient>>(() =>
+      getRemoteBridgeClient(),
+    );
+    const unsubscribe = subscribeRemoteBridgeClient(listener);
+
+    setRemoteBridgeClient(first);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(getRemoteBridgeClient()).toBe(first);
+    setRemoteBridgeClient(first);
+    expect(listener).toHaveBeenCalledTimes(1);
+    setRemoteBridgeClient(second);
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(listener.mock.results.map(({ value }) => value)).toEqual([first, second]);
+    unsubscribe();
+    setRemoteBridgeClient(null);
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
   it("retires browser presentation and selection intents when the owner client changes", () => {
     setRemoteBridgeClient({} as RemoteDesktopClient);
     const lease = beginBrowserPresentation({ kind: "bookmark-bar", visible: true });

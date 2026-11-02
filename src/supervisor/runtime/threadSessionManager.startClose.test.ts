@@ -586,6 +586,7 @@ describe("ThreadSessionManager start guards", () => {
         forceCloseActiveTurn: true,
         // The submitted message never ran: offer to resume it.
         interruptedTurn: "error",
+        canResumeWithConfig: true,
       }),
     );
     const runtimeEvents = events.flatMap((event) =>
@@ -1182,6 +1183,35 @@ describe("ThreadSessionManager start guards", () => {
         interruptedTurn: null,
       }),
     );
+  });
+
+  it("publishes accepted Stop before the provider acknowledges cancellation", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const emit = vi.fn<(event: SupervisorEvent) => void>();
+    const manager = createManager("codex", adapter, emit);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    runtime.status = "working";
+    runtime.interruptedTurn = null;
+    runtime.reportedInterruptedTurn = null;
+    manager.sessions.set(runtime.threadId, runtime);
+    const cancellation = deferred<void>();
+    structuredSession.interruptTurn = vi.fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>(
+      () => cancellation.promise,
+    );
+
+    const stopping = manager.interruptThread({ threadId: runtime.threadId });
+
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread-state",
+        status: "working",
+        interruptedTurn: null,
+        turnStopRequested: true,
+      }),
+    );
+    cancellation.resolve();
+    await stopping;
   });
 
   it("preserves bookkeeping errors for never-known session ids", async () => {

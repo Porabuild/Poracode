@@ -940,11 +940,11 @@ describe("ThreadOutputPipeline / cut-off turn marker", () => {
     const emit = vi.fn<() => void>();
     const p = pipeline(emit);
     // ACP reports the error status first; the failed turn event follows it.
-    const session = liveSession({ turnStopRequested: true });
+    const session = liveSession({ presentationMode: "gui", turnStopRequested: true });
     p.updateState(session, "error", "error", "Quota exceeded");
     p.noteTurnFailed(session);
     expect(states(emit)).toHaveLength(1);
-    expect(states(emit)[0]).not.toHaveProperty("interruptedTurn");
+    expect(states(emit)[0]).toMatchObject({ interruptedTurn: null, turnStopRequested: true });
 
     // The next turn is the user's again: its failure marks it.
     p.updateState(session, "working", "working");

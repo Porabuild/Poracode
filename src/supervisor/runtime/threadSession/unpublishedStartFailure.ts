@@ -64,7 +64,7 @@ export function publishUnpublishedStartFailure(
     status: "error",
     attention: "error",
     errorMessage: message,
-    canResumeWithConfig: allocated?.canResumeWithConfig ?? false,
+    canResumeWithConfig: allocated?.canResumeWithConfig ?? options.carriedPrompt === true,
     sessionConfigOptions: null,
     ...(allocated ? { agentKind: allocated.agentKind, sessionRef: allocated.sessionRef } : {}),
     ...(options.carriedPrompt ? { interruptedTurn: "error" as const } : {}),

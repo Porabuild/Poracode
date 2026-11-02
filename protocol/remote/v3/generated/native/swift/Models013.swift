@@ -156,18 +156,21 @@ public struct ProceduregitListBranchesResultU2DBranchesU2DItem_6602e9e9c3: Codab
   }
 }
 
-public struct ProceduregitListBranchesResult_458a450839: Codable, Sendable, RemoteModelMetadata {
+public struct ProceduregitListBranchesResult_cbe0ba2411: Codable, Sendable, RemoteModelMetadata {
   public var branches: [ProceduregitListBranchesResultU2DBranchesU2DItem_6602e9e9c3]
   public var current: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
+  public var defaultBranch: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "branches", typeName: "[ProceduregitListBranchesResultU2DBranchesU2DItem_6602e9e9c3]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "current", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "defaultBranch", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
     case branches = "branches"
     case current = "current"
+    case defaultBranch = "defaultBranch"
   }
 }
 
@@ -267,7 +270,7 @@ public struct ProceduregitProjectSnapshotRequest_7e2ac4b648: Codable, Sendable, 
   }
 }
 
-public typealias ProceduregitProjectSnapshotResultU2DBranches_d715cb198a = ProceduregitListBranchesResult_458a450839?
+public typealias ProceduregitProjectSnapshotResultU2DBranches_86a79adde4 = ProceduregitListBranchesResult_cbe0ba2411?
 
 public typealias ProceduregitProjectSnapshotResultU2DGhAvailable_78c0e367e5 = Bool?
 
@@ -275,14 +278,14 @@ public typealias ProceduregitProjectSnapshotResultU2DStatus_98139abfca = Procedu
 
 public typealias ProceduregitProjectSnapshotResultU2DWorktrees_694e88722e = [ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6]?
 
-public struct ProceduregitProjectSnapshotResult_35889b09eb: Codable, Sendable, RemoteModelMetadata {
-  public var branches: RemoteField<ProceduregitListBranchesResult_458a450839>
+public struct ProceduregitProjectSnapshotResult_d581274b50: Codable, Sendable, RemoteModelMetadata {
+  public var branches: RemoteField<ProceduregitListBranchesResult_cbe0ba2411>
   public var ghAvailable: RemoteField<Bool>
   public var status: RemoteField<ProceduregetGitStatusResult_c1d4a9f752>
   public var worktrees: RemoteField<[ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6]>
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "branches", typeName: "ProceduregitListBranchesResult_458a450839", required: true, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "branches", typeName: "ProceduregitListBranchesResult_cbe0ba2411", required: true, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "ghAvailable", typeName: "Bool", required: true, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "status", typeName: "ProceduregetGitStatusResult_c1d4a9f752", required: true, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "worktrees", typeName: "[ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6]", required: true, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),

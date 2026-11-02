@@ -1,7 +1,7 @@
 import { sidebarThreadChoices } from "./sidebarChoices";
-import { installSidebarAutoConnect } from "./autoConnect";
+import { installSidebarAutoConnect, takeOverSidebarConnection } from "./autoConnect";
 import { useEffect, useState } from "react";
-import { Spinner } from "@heroui/react";
+import { Button, Spinner } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import { isHomeProject } from "@/shared/homeScope";
 import { ChatSidebarHeader } from "./ChatSidebarHeader";
@@ -29,7 +29,9 @@ const captureBrowserFocus = createBrowserFocusCapture();
 /** A client of the same server and chat surface, with one visible conversation. */
 export function ChatSidebarView() {
   const { checked, initialConnectSettled } = useRemoteServerConnection({ autoConnect: false });
-  const [autoError, setAutoError] = useState<"upgradeRequired" | "connection" | null>(null);
+  const [autoError, setAutoError] = useState<
+    "upgradeRequired" | "inUseElsewhere" | "connection" | null
+  >(null);
   const [draftEpoch, setDraftEpoch] = useState(0);
   useRestoredRemoteThreadLifecycle(checked);
   const server = useRemoteServersStore(selectBrowserBridgeServer);
@@ -58,7 +60,11 @@ export function ChatSidebarView() {
     if (!initialConnectSettled) return;
     return installSidebarAutoConnect((error) =>
       setAutoError(
-        error === null ? null : error === "upgradeRequired" ? "upgradeRequired" : "connection",
+        error === null
+          ? null
+          : error === "upgradeRequired" || error === "inUseElsewhere"
+            ? error
+            : "connection",
       ),
     );
   }, [initialConnectSettled]);
@@ -84,10 +90,17 @@ export function ChatSidebarView() {
                   <p className="text-sm text-muted">
                     {autoError === "upgradeRequired" ? (
                       <Trans>Update Poracode to use browser chats.</Trans>
+                    ) : autoError === "inUseElsewhere" ? (
+                      <Trans>Poracode is connected to another browser.</Trans>
                     ) : (
                       <Trans>Start Poracode to chat in your browser.</Trans>
                     )}
                   </p>
+                  {autoError === "inUseElsewhere" ? (
+                    <Button size="sm" variant="secondary" onPress={takeOverSidebarConnection}>
+                      <Trans>Use in this browser</Trans>
+                    </Button>
+                  ) : null}
                   {autoError === "connection" ? (
                     <p role="alert" className="text-sm text-muted">
                       <Trans>Unable to connect. Retrying…</Trans>

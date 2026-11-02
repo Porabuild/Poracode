@@ -76,6 +76,8 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
       // distinguish "not supplied" from an explicit empty list.
       mcpServers: projectSchema.shape.mcpServers.unwrap().removeDefault().nullable().optional(),
       ghAccount: projectSchema.shape.ghAccount.unwrap().nullable().optional(),
+      worktreeBaseBranch: projectSchema.shape.worktreeBaseBranch.unwrap().nullable().optional(),
+      pinnedBranches: projectSchema.shape.pinnedBranches.unwrap().nullable().optional(),
       disabled: projectSchema.shape.disabled,
     }),
   }),

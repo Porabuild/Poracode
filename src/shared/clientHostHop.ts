@@ -55,6 +55,8 @@
 // same-bundle host/supervisor fields; existing procedure payloads remain valid.
 // The cut-off turn marker on threads and thread-state events is optional; absent
 // means an older host and leaves the renderer's marker alone.
+// Optional thread-state.turnStopRequested persists accepted Stop during cancellation;
+// older readers ignore it. It adds no operation or public Thread marker value.
 // Agent vision adds a read-only native request; existing hop-18 messages remain
 // valid, and older native dispatchers reject the unknown operation before effects.
 export const CLIENT_HOST_HOP_VERSION = 18 as const;

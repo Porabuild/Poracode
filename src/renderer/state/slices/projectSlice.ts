@@ -74,6 +74,10 @@ export interface ProjectSlice {
     projectId: string,
     worktreeLocation: ProjectWorktreeLocation | undefined,
   ) => void;
+  /** `undefined` unpins the base (new worktrees use the remote default branch). */
+  updateProjectWorktreeBaseBranch: (projectId: string, baseBranch: string | undefined) => void;
+  /** An empty list clears the project's pinned branches. */
+  updateProjectPinnedBranches: (projectId: string, pinnedBranches: string[]) => void;
   /** `undefined` clears the override (supervisor auto-detects the account). */
   updateProjectGhAccount: (projectId: string, ghAccount: GitHubAccountRef | undefined) => void;
   /** An empty list clears the project override entirely. */
@@ -300,6 +304,28 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
           return rest;
         }
         return { ...project, worktreeLocation };
+      }),
+    })),
+  updateProjectWorktreeBaseBranch: (projectId, baseBranch) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (!baseBranch) {
+          const { worktreeBaseBranch: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, worktreeBaseBranch: baseBranch };
+      }),
+    })),
+  updateProjectPinnedBranches: (projectId, pinnedBranches) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (pinnedBranches.length === 0) {
+          const { pinnedBranches: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, pinnedBranches };
       }),
     })),
   updateProjectGhAccount: (projectId, ghAccount) =>

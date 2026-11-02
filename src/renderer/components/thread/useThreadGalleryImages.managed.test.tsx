@@ -12,7 +12,15 @@ import {
   setupManagedImageFixture,
   teardownManagedImageFixture,
 } from "@/renderer/state/managedLoopbackImages.testFixtures";
-import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { remoteImageRef } from "@/shared/remote";
@@ -373,10 +381,12 @@ it("updates a mounted gallery and lightbox with every image from one tool row", 
   expect(document.querySelector("[data-images-bubble]")).toHaveTextContent("3");
   expect(document.querySelector("[data-images-dock]")).toHaveTextContent("3");
   expect(screen.getByText("2 / 3")).toBeInTheDocument();
-  expect(screen.getByRole("img")).toHaveAttribute("src", inline);
+  // The expanded dock mosaic also renders thumbnails; scope to the lightbox.
+  const lightbox = () => within(document.querySelector(".poracode-image-lightbox") as HTMLElement);
+  expect(lightbox().getByRole("img")).toHaveAttribute("src", inline);
   fireEvent.click(screen.getByRole("button", { name: "Previous image" }));
-  expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
-  fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
+  expect(lightbox().getByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
+  // The images dock starts expanded, so the mosaic tiles are already mounted.
   fireEvent.click(screen.getByRole("button", { name: "Open image 3 of 3" }));
   expect(screen.getByText("3 / 3")).toBeInTheDocument();
 });

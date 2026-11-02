@@ -25,12 +25,14 @@ import {
   rewriteMarkdownLocalImageUrls,
 } from "@/shared/markdownLocalImages";
 import { isChatVideoSource } from "@/shared/chatVideo";
+import { isChatDownloadSource } from "@/shared/chatFile";
 import { getProjectFsPath } from "@/shared/wsl";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { CodeBlock } from "./CodeBlock";
 import { CopyTextButton } from "./CopyTextButton";
 import { MarkdownImage } from "./MarkdownImage";
+import { MarkdownFile } from "./MarkdownFile";
 import { MarkdownVideo } from "./MarkdownVideo";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
@@ -78,6 +80,7 @@ function buildRehypePlugins(): RehypePlugins {
         return [
           rehypeLocalImageUrls,
           allowLocalImageProtocol(plugin),
+          rehypeFileOnlyLists,
           [rehypeStrongTextRunComponents, STRONG_TEXT_RUN_OPTIONS],
         ];
       }
@@ -344,7 +347,8 @@ const transformMarkdownUrl: UrlTransform = (url, key, node) =>
     isChatVideoSource(
       url,
       node.tagName === "video" || node.tagName === "source" ? "video/*" : undefined,
-    ))
+    )) ||
+  (key === "href" && isChatDownloadSource(url))
     ? url
     : defaultUrlTransform(url, key, node);
 
@@ -354,6 +358,32 @@ interface MarkdownHastNode {
   tagName?: string;
   properties?: Record<string, unknown>;
   children?: MarkdownHastNode[];
+}
+
+/**
+ * True only for a `<ul>` whose items are each exactly one standalone artifact
+ * link (optionally wrapped in a single `<p>`). Mixed, nested, task, source or
+ * prose lists keep ordinary bullets.
+ */
+function isFileOnlyMarkdownList(node: MarkdownHastNode | undefined): boolean {
+  const meaningful = (children: MarkdownHastNode[] | undefined) =>
+    (children ?? []).filter((child) => !(child.type === "text" && !(child.value ?? "").trim()));
+  const singleArtifactAnchor = (children: MarkdownHastNode[] | undefined): boolean => {
+    const parts = meaningful(children);
+    if (parts.length !== 1) return false;
+    const [part] = parts;
+    if (part?.tagName === "a")
+      return (
+        typeof part.properties?.href === "string" && isChatDownloadSource(part.properties.href)
+      );
+    if (part?.tagName === "p") return singleArtifactAnchor(part.children);
+    return false;
+  };
+  const items = meaningful(node?.children);
+  return (
+    items.length > 0 &&
+    items.every((li) => li.tagName === "li" && singleArtifactAnchor(li.children))
+  );
 }
 
 function replaceRawHtmlWithText(node: MarkdownHastNode): void {
@@ -367,6 +397,27 @@ function replaceRawHtmlWithText(node: MarkdownHastNode): void {
 function rehypeLocalImageUrls() {
   return (tree: MarkdownHastNode) => {
     rewriteLocalImageUrls(tree);
+  };
+}
+
+/** Marks artifact-only unordered lists so CSS can drop their bullets/indent. */
+function rehypeFileOnlyLists() {
+  return (tree: MarkdownHastNode) => {
+    const pending = [tree];
+    while (pending.length > 0) {
+      const node = pending.pop();
+      if (!node?.children) continue;
+      if (node.tagName === "ul" && isFileOnlyMarkdownList(node)) {
+        const props = (node.properties ??= {});
+        const existing = props.className;
+        const classes = [
+          ...(Array.isArray(existing) ? existing : typeof existing === "string" ? [existing] : []),
+          "poracode-chat-file-list",
+        ];
+        props.className = classes;
+      }
+      for (const child of node.children) pending.push(child);
+    }
   };
 }
 
@@ -496,6 +547,13 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
 
   if (isChatVideoSource(href)) {
     return <MarkdownVideo src={href} name={flattenMdChildren(props.children)} />;
+  }
+
+  // A recognized local artifact link becomes a download card before the
+  // project path/folder chip fallback gets a chance to claim it.
+  if (isChatDownloadSource(href)) {
+    // The card shows the real basename; the link label stays out of the name.
+    return <MarkdownFile src={href} />;
   }
 
   if (/^(https?|mailto):/i.test(href)) {
