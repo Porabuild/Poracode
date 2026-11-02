@@ -74,6 +74,7 @@ vi.mock("@legendapp/list/react", async () => {
         className?: string;
         contentContainerClassName?: string;
         contentContainerStyle?: React.CSSProperties;
+        contentInsetEndAdjustment?: number;
         onLoad?: () => void;
         onStartReached?: () => void;
         onKeyDownCapture?: React.KeyboardEventHandler<HTMLDivElement>;
@@ -158,6 +159,7 @@ vi.mock("@legendapp/list/react", async () => {
           <div
             className={`legend-list-content-container ${props.contentContainerClassName ?? ""}`}
             style={props.contentContainerStyle}
+            data-end-inset={props.contentInsetEndAdjustment}
           >
             {props.data.length === 0 ? props.ListEmptyComponent : null}
             {props.data.map((item, index) => (
@@ -3218,6 +3220,7 @@ describe("ChatPane", () => {
 
     afterEach(() => {
       useComposerBubbleSlotStore.getState().setSlot("status", "thread-gui", null);
+      useComposerBubbleSlotStore.getState().setEndInset("thread-gui", 0);
       slot.remove();
       useAppStore.setState({
         runtimeOpenTurnByThread: {},
@@ -3240,6 +3243,26 @@ describe("ChatPane", () => {
       expect(bubble).toHaveClass("poracode-floating-chrome--bubble");
       expect(container).not.toContainElement(label);
       expect(container.querySelector("[data-chat-status-placeholder]")).not.toBeNull();
+    });
+
+    it("reserves the bubble row's floating band below the transcript tail", () => {
+      useComposerBubbleSlotStore.getState().setEndInset("thread-gui", 34);
+
+      const { container } = renderChatPane(makeThread());
+
+      expect(container.querySelector(".legend-list-content-container")).toHaveAttribute(
+        "data-end-inset",
+        "34",
+      );
+    });
+
+    it("keeps the compact composer's inset when no bubble row is mounted", () => {
+      const { container } = renderChatPane(makeThread(), { bottomInset: 90 });
+
+      expect(container.querySelector(".legend-list-content-container")).toHaveAttribute(
+        "data-end-inset",
+        "90",
+      );
     });
 
     it("shows worktree provisioning in the slot only", () => {

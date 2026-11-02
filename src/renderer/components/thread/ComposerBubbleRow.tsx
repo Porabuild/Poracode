@@ -23,12 +23,15 @@ export function ComposerBubbleRow({
   children: ReactNode;
 }) {
   const setSlot = useComposerBubbleSlotStore((s) => s.setSlot);
+  const setEndInset = useComposerBubbleSlotStore((s) => s.setEndInset);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const [displaced, setDisplaced] = useState(false);
 
   useLayoutEffect(() => {
     const row = rowRef.current;
-    if (!row) return;
+    const wrapper = wrapperRef.current;
+    if (!row || !wrapper) return;
     const measure = () => {
       const rowRect = row.getBoundingClientRect();
       let bubblesLeft: number | null = null;
@@ -51,13 +54,21 @@ export function ComposerBubbleRow({
           controlWidth: CONTROL_WIDTH_PX,
         }),
       );
+      // Publish the band this floating row covers above the composer so the
+      // transcript can reserve it at the scroll end. The wrapper's bottom
+      // margin is part of that band.
+      const { height } = wrapper.getBoundingClientRect();
+      const marginBottom = Number.parseFloat(getComputedStyle(wrapper).marginBottom) || 0;
+      setEndInset(threadId, height > 0 ? Math.ceil(height + marginBottom) : 0);
     };
     measure();
     const observer = new ResizeObserver(measure);
+    observer.observe(wrapper);
     observer.observe(row);
     for (const child of row.children) observer.observe(child);
     const mutations = new MutationObserver(() => {
       observer.disconnect();
+      observer.observe(wrapper);
       observer.observe(row);
       for (const child of row.children) observer.observe(child);
       measure();
@@ -67,18 +78,22 @@ export function ComposerBubbleRow({
       mutations.disconnect();
       observer.disconnect();
     };
-  }, []);
+  }, [setEndInset, threadId]);
 
   useLayoutEffect(
     () => () => {
       setSlot("control", threadId, null);
       setSlot("status", threadId, null);
+      setEndInset(threadId, 0);
     },
-    [setSlot, threadId],
+    [setEndInset, setSlot, threadId],
   );
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-full z-10 mb-1.5 flex flex-col gap-1.5">
+    <div
+      ref={wrapperRef}
+      className="pointer-events-none absolute inset-x-0 bottom-full z-10 mb-1.5 flex flex-col gap-1.5"
+    >
       <div
         ref={(el) => setSlot("control", threadId, el)}
         data-displaced={displaced ? "" : undefined}
@@ -90,7 +105,7 @@ export function ComposerBubbleRow({
       />
       <div
         ref={rowRef}
-        className="flex flex-wrap items-center justify-end gap-1.5 pr-3 *:pointer-events-auto"
+        className="flex min-h-7 flex-wrap items-center justify-end gap-1.5 pr-3 *:pointer-events-auto"
       >
         <div
           ref={(el) => setSlot("status", threadId, el)}
