@@ -90,22 +90,23 @@ export function splitPaneInLayout(
   edge: "left" | "right" | "top" | "bottom",
   slotId?: string,
 ): PaneLayout {
-  if (layout.kind === "leaf") {
-    if (layout.paneId !== targetPaneId) return layout;
-    const axis = edge === "left" || edge === "right" ? "vertical" : "horizontal";
-    const children: PaneLayout[] =
-      edge === "left" || edge === "top"
-        ? [makePaneLeaf(newPaneId, slotId), layout]
-        : [layout, makePaneLeaf(newPaneId, slotId)];
-    return makeSplit(axis, children);
-  }
+  const newPane = makePaneLeaf(newPaneId, uniquePaneSlotId(layout, slotId ?? newPaneId));
+  return splitPane(layout);
 
-  return normalizeLayout({
-    ...layout,
-    children: layout.children.map((child) =>
-      splitPaneInLayout(child, targetPaneId, newPaneId, edge, slotId),
-    ) as [PaneLayout, PaneLayout, ...PaneLayout[]],
-  });
+  function splitPane(node: PaneLayout): PaneLayout {
+    if (node.kind === "leaf") {
+      if (node.paneId !== targetPaneId) return node;
+      const axis = edge === "left" || edge === "right" ? "vertical" : "horizontal";
+      const children: PaneLayout[] =
+        edge === "left" || edge === "top" ? [newPane, node] : [node, newPane];
+      return makeSplit(axis, children);
+    }
+
+    return normalizeLayout({
+      ...node,
+      children: node.children.map(splitPane) as [PaneLayout, PaneLayout, ...PaneLayout[]],
+    });
+  }
 }
 
 export function removePaneFromLayout(layout: PaneLayout, paneId: string): PaneLayout | null {
@@ -137,13 +138,55 @@ export function insertPaneInLayout(
     target.path,
     target.axis,
     target.index,
-    makePaneLeaf(paneId, slotId),
+    makePaneLeaf(paneId, uniquePaneSlotId(layout, slotId ?? paneId)),
   );
 }
 
 export function findPaneSlotId(layout: PaneLayout, paneId: string): string | null {
-  const pane = findPaneLeaf(layout, paneId);
+  const pane = findPaneLeaf(normalizePaneSlots(layout), paneId);
   return pane ? (pane.slotId ?? pane.paneId) : null;
+}
+
+function uniquePaneSlotId(layout: PaneLayout, slotId: string): string {
+  const reserved = new Set<string>();
+  walk(layout, (_paneId, paneSlotId) => reserved.add(paneSlotId));
+  return availablePaneSlotId(reserved, slotId);
+}
+
+function availablePaneSlotId(reserved: Set<string>, slotId: string): string {
+  let candidate = slotId;
+  for (let suffix = 1; reserved.has(candidate); suffix++) candidate = `${slotId}:${suffix}`;
+  return candidate;
+}
+
+/** Repair old colliding layouts without changing uncontested slot identities. */
+export function normalizePaneSlots(layout: PaneLayout): PaneLayout {
+  const reserved = new Set<string>();
+  let hasCollision = false;
+  walk(layout, (_paneId, slotId) => {
+    if (reserved.has(slotId)) hasCollision = true;
+    reserved.add(slotId);
+  });
+  if (!hasCollision) return layout;
+  const seen = new Set<string>();
+  return repair(layout);
+
+  function repair(node: PaneLayout): PaneLayout {
+    if (node.kind === "split") {
+      const children = node.children.map(repair) as typeof node.children;
+      return children.every((child, index) => child === node.children[index])
+        ? node
+        : { ...node, children };
+    }
+    const slotId = node.slotId ?? node.paneId;
+    if (!seen.has(slotId)) {
+      seen.add(slotId);
+      return node;
+    }
+    const uniqueSlotId = availablePaneSlotId(reserved, slotId);
+    reserved.add(uniqueSlotId);
+    return { ...node, slotId: uniqueSlotId };
+  }
 }
 
 export function adjustInsertTargetForRemoval(
@@ -284,12 +327,12 @@ function mapPaneLayout(
 }
 
 function makePaneLeaf(paneId: string, slotId?: string): PaneLayout {
-  return slotId ? { kind: "leaf", paneId, slotId } : { kind: "leaf", paneId };
+  return slotId && slotId !== paneId ? { kind: "leaf", paneId, slotId } : { kind: "leaf", paneId };
 }
 
-function walk(layout: PaneLayout, visitor: (paneId: string) => void) {
+function walk(layout: PaneLayout, visitor: (paneId: string, slotId: string) => void) {
   if (layout.kind === "leaf") {
-    visitor(layout.paneId);
+    visitor(layout.paneId, layout.slotId ?? layout.paneId);
     return;
   }
 
