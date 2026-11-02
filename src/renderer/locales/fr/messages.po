@@ -18004,7 +18004,9 @@ msgstr "Connectez-vous sur le bureau appairé, puis actualisez cet état."
 msgid "Sign in required"
 msgstr "Connexion requise"
 
+#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "Se connecter à {0}"

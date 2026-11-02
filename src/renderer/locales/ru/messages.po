@@ -18005,7 +18005,9 @@ msgstr "Войдите на сопряжённом рабочем столе, з
 msgid "Sign in required"
 msgstr "Требуется вход"
 
+#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "Войти в {0}"

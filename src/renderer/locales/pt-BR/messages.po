@@ -18005,10 +18005,12 @@ msgstr "Entre no desktop pareado e depois atualize este status."
 msgid "Sign in required"
 msgstr "É necessário fazer login"
 
+#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
-msgstr "Iniciar sessão na Devin {0}"
+msgstr "Iniciar sessão em {0}"
 
 #: src/renderer/components/providers/fx/FxProviderSettings.tsx
 msgid "Sign in to the AI backends fx can use, and sign out of them here."

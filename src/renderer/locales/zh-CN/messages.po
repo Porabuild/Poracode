@@ -18004,7 +18004,9 @@ msgstr "请在已配对的桌面端登录，然后刷新此状态。"
 msgid "Sign in required"
 msgstr "需要登录"
 
+#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "登录 {0}"

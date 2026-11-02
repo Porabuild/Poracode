@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { BuiltInMcpServerId, McpServer } from "@/shared/contracts";
 import { McpServersManager } from "@/renderer/components/mcp/McpServersManager";
@@ -8,11 +7,8 @@ import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
 import { saveProjectMcpServers } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
-import {
-  ensureProjectMcpServersLoaded,
-  isProjectMcpServersLoaded,
-  loadAuthoritativeProjectMcpServers,
-} from "@/renderer/state/projectSettings/projectSettingsLoader";
+import { loadAuthoritativeProjectMcpServers } from "@/renderer/state/projectSettings/projectSettingsLoader";
+import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { isHomeProject } from "@/shared/homeScope";
@@ -35,10 +31,7 @@ export function McpServersSettings() {
   const projects = useAppStore((state) => state.projects);
   // Catalog rows don't carry private MCP settings; open this page's workspace
   // section with them resident instead of reading "not loaded" as empty.
-  useEffect(() => {
-    if (!workspaceProject || isProjectMcpServersLoaded(workspaceProject)) return;
-    void ensureProjectMcpServersLoaded(workspaceProject.id).catch(() => undefined);
-  }, [workspaceProject]);
+  useResidentProjectMcpServers(workspaceProject);
   const isReachable = useReachableProjectFilter();
   const importProjects = projects
     .filter((project) => !isHomeProject(project) && isReachable(project))

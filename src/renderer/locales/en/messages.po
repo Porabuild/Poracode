@@ -18014,7 +18014,9 @@ msgstr "Sign in on the paired desktop, then refresh this status."
 msgid "Sign in required"
 msgstr "Sign in required"
 
+#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "Sign in to {0}"
