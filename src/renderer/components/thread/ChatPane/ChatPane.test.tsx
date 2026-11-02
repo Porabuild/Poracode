@@ -3242,7 +3242,10 @@ describe("ChatPane", () => {
       expect(bubble).not.toBeNull();
       expect(bubble).toHaveClass("poracode-floating-chrome--bubble");
       expect(container).not.toContainElement(label);
-      expect(container.querySelector("[data-chat-status-placeholder]")).not.toBeNull();
+      expect(within(container).queryByText(/Working for/)).toBeNull();
+      // The bubble row's end inset reserves its band, so the tail adds no row.
+      const content = container.querySelector(".legend-list-content-container");
+      expect(content?.querySelector(":scope > .pb-2")).toBeNull();
     });
 
     it("reserves the bubble row's floating band below the transcript tail", () => {
@@ -3308,7 +3311,6 @@ describe("ChatPane", () => {
 
       expect(within(container).getByText("Worked for 1m 15s")).toBeInTheDocument();
       expect(slot).toBeEmptyDOMElement();
-      expect(container.querySelector("[data-chat-status-placeholder]")).toBeNull();
     });
 
     it("moves the reconnect status into the bubble and keeps the fork row", () => {
@@ -3338,14 +3340,13 @@ describe("ChatPane", () => {
         within(slot).getByText("Resuming session…").closest("[data-chat-status-bubble]"),
       ).not.toBeNull();
       expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
-      expect(container.querySelector("[data-chat-status-placeholder]")).not.toBeNull();
+      expect(within(container).queryByText(/Resuming session/)).toBeNull();
 
       act(() => {
         useAppStore.getState().finishThreadConnecting(thread.id, "connection-1");
       });
 
       expect(slot).toBeEmptyDOMElement();
-      expect(container.querySelector("[data-chat-status-placeholder]")).toBeNull();
       expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
     });

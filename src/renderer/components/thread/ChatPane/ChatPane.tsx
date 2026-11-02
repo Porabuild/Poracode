@@ -48,7 +48,6 @@ import {
   ChatShimmerStatus,
   ChatStatusFooter,
   ChatTailStatus,
-  ChatTailStatusPlaceholder,
   ChatTurnElapsedFooter,
   ChatTurnStatus,
   type TurnTiming,
@@ -486,7 +485,7 @@ export function ChatPane(props: ChatPaneProps) {
       </div>
     ) : null;
   // The live status rides the bubble row's leading edge when the thread has
-  // one; the transcript keeps a same-height placeholder in its place.
+  // one; otherwise it stays in the transcript tail.
   const liveStatus = isWorktreeProvisioning ? (
     <ChatShimmerStatus text={t`Creating worktree…`} />
   ) : isConnecting || status === "launching" ? (
@@ -594,17 +593,15 @@ export function ChatPane(props: ChatPaneProps) {
               }
               footer={
                 liveStatus ? (
-                  // Keep the completed turn's fork row while reconnecting so the
-                  // swap to "Worked for" keeps the footer height and the pinned
-                  // transcript does not jump.
-                  <div className="group/checkpoint">
-                    {statusSlot ? (
-                      <ChatTailStatusPlaceholder />
-                    ) : (
-                      <ChatTailStatus>{liveStatus}</ChatTailStatus>
-                    )}
-                    {tailForkAction}
-                  </div>
+                  // With a bubble row the status rides it and the row's end
+                  // inset already reserves that band, so the tail keeps only
+                  // the completed turn's fork row while reconnecting.
+                  statusSlot && !tailForkAction ? null : (
+                    <div className="group/checkpoint">
+                      {statusSlot ? null : <ChatTailStatus>{liveStatus}</ChatTailStatus>}
+                      {tailForkAction}
+                    </div>
+                  )
                 ) : isHydrating && !showWorkingTimer ? (
                   <ChatStatusFooter text={t`Loading messages…`} />
                 ) : showTailLoader && tailTurn ? (

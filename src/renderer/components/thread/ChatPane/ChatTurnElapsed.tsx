@@ -57,19 +57,6 @@ export function ChatShimmerStatus({ text }: { text: string }) {
   );
 }
 
-export function ChatTailStatusPlaceholder() {
-  // Holds the tail row's exact height while the status shows in the bubble
-  // row, so the transcript end stays clear of the pill and the later swap to
-  // "Worked for" does not move the pinned tail.
-  return (
-    <ChatTailStatus>
-      <span aria-hidden="true" className="invisible" data-chat-status-placeholder="">
-        {"\u00a0"}
-      </span>
-    </ChatTailStatus>
-  );
-}
-
 export function ChatTurnElapsedFooter(props: ChatTurnStatusProps) {
   return (
     <ChatTailStatus>
