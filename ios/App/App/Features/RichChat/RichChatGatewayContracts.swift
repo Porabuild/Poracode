@@ -76,6 +76,27 @@ protocol RichChatHistoryGateway: Sendable {
     target: RichChatThreadTarget,
     projectLocation: ProjectLocation
   ) async throws -> RichChatCheckpointCollection
+
+  /// Mint → authenticated streamed GET → release for one chat file card on the
+  /// selected host. The unique private result file is caller-owned.
+  func downloadRichFile(
+    target: RichChatThreadTarget,
+    request: RichChatFileAccess,
+    projectLocation: ProjectLocation,
+    suggestedName: String
+  ) async throws -> RichChatFileDownload
+}
+
+extension RichChatHistoryGateway {
+  /// Default for test fakes: fail closed, never fabricate a file.
+  func downloadRichFile(
+    target _: RichChatThreadTarget,
+    request _: RichChatFileAccess,
+    projectLocation _: ProjectLocation,
+    suggestedName _: String
+  ) async throws -> RichChatFileDownload {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
 }
 
 protocol RichChatConversationGateway: Sendable {

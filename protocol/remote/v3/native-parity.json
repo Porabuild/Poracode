@@ -3175,24 +3175,39 @@
         "batch": "attachments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
+              "ios/App/App/Transport/RichChat/RichChatFileMediaRemoteAPI.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Generated wire codecs are available; native transport, editor UI, and chat file-download adoption (the additive attachment disposition) are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/RichChat/UI/RichChatFileCard.swift",
+              "ios/App/App/Features/RichChat/UI/RichChatMarkdownParsing.swift",
+              "ios/App/App/Features/RichChat/RichChatFilePolicy.swift"
+            ],
+            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/RichChatRemoteFileTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Generated wire codecs are available; native transport, editor UI, and chat file-download adoption (the additive attachment disposition) are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatFileCard.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichMarkdownParser.kt",
+              "android/app/src/main/kotlin/com/poracode/app/chat/RichChatFilePolicy.kt"
+            ],
+            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
           }
         }
       },
@@ -3202,24 +3217,39 @@
         "batch": "attachments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
+              "ios/App/App/Transport/RichChat/RichChatFileMediaRemoteAPI.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Generated wire codecs are available; native transport, editor UI, and chat file-download adoption (the additive attachment disposition) are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/RichChat/UI/RichChatFileCard.swift",
+              "ios/App/App/Features/RichChat/UI/RichChatMarkdownParsing.swift",
+              "ios/App/App/Features/RichChat/RichChatFilePolicy.swift"
+            ],
+            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/RichChatRemoteFileTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Generated wire codecs are available; native transport, editor UI, and chat file-download adoption (the additive attachment disposition) are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatFileCard.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichMarkdownParser.kt",
+              "android/app/src/main/kotlin/com/poracode/app/chat/RichChatFilePolicy.kt"
+            ],
+            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
           }
         }
       },
@@ -3229,24 +3259,39 @@
         "batch": "attachments",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+              "ios/App/App/Transport/RichChat/RichChatRawHTTPClient.swift",
+              "ios/App/App/Transport/RichChat/RichChatFileMediaRemoteAPI.swift"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/RichChat/UI/RichChatFileCard.swift",
+              "ios/App/App/Features/RichChat/UI/RichChatMarkdownParsing.swift",
+              "ios/App/App/Features/RichChat/RichChatFilePolicy.swift"
+            ],
+            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
           }
         },
         "android": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/RichChatRemoteFileTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHttpExecutor.kt"
+            ]
           },
           "ui": {
-            "disposition": "planned",
-            "evidence": [],
-            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatFileCard.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichMarkdownParser.kt",
+              "android/app/src/main/kotlin/com/poracode/app/chat/RichChatFilePolicy.kt"
+            ],
+            "note": "Native chat file-download cards adopt the attachment flow end to end (mint, authenticated stream, release). Device proof and native editor media/video playback remain pending."
           }
         }
       },

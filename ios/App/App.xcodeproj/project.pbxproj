@@ -352,6 +352,7 @@
 		A1000000000000000000007E /* RichContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000007E /* RichContent.swift */; };
 		A1000000000000000000007F /* RichJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000007F /* RichJSON.swift */; };
 		A10000000000000000000080 /* RichMediaPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000080 /* RichMediaPolicy.swift */; };
+	FP1100000000000000000001 /* RichChatFilePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FP2100000000000000000001 /* RichChatFilePolicy.swift */; };
 		A10000000000000000000C01 /* RichFollowUpQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C01 /* RichFollowUpQueue.swift */; };
 		A10000000000000000000C02 /* RichFollowUpQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C02 /* RichFollowUpQueueView.swift */; };
 		A10000000000000000000081 /* RichPendingSteer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000081 /* RichPendingSteer.swift */; };
@@ -398,6 +399,7 @@
 		A1000000000000000000009C /* GeneratedRichChatProcedureContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000009C /* GeneratedRichChatProcedureContract.swift */; };
 		A1000000000000000000009D /* RichChatRawHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000009D /* RichChatRawHTTPClient.swift */; };
 		A1000000000000000000009E /* RichChatRemoteAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000009E /* RichChatRemoteAPI.swift */; };
+	FD1100000000000000000001 /* RichChatFileMediaRemoteAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2100000000000000000001 /* RichChatFileMediaRemoteAPI.swift */; };
 		A1000000000000000000009F /* RichChatTerminalWire.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000009F /* RichChatTerminalWire.swift */; };
 		A100000000000000000000A0 /* RichChatTransportModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000A0 /* RichChatTransportModels.swift */; };
 		A100000000000000000000A1 /* SelectedRichChatConversationGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000A1 /* SelectedRichChatConversationGateway.swift */; };
@@ -430,6 +432,7 @@
 		RC1200000000000000000001 /* RichChatTranscriptComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = RC2200000000000000000001 /* RichChatTranscriptComponents.swift */; };
 		RX1100000000000000000001 /* RichChatTranscriptActivityComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = RX2100000000000000000001 /* RichChatTranscriptActivityComponents.swift */; };
 		RX1200000000000000000001 /* RichChatMessageTextComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = RX2200000000000000000001 /* RichChatMessageTextComponents.swift */; };
+		FC1100000000000000000001 /* RichChatFileCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2100000000000000000001 /* RichChatFileCard.swift */; };
 		MD1100000000000000000001 /* RichChatMarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = MD2100000000000000000001 /* RichChatMarkdownView.swift */; };
 		SH1100000000000000000001 /* RichChatSyntaxHighlighting.swift in Sources */ = {isa = PBXBuildFile; fileRef = SH2100000000000000000001 /* RichChatSyntaxHighlighting.swift */; };
 		RCI100000000000000000001 /* RichChatComposerInlineControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = RCI200000000000000000001 /* RichChatComposerInlineControls.swift */; };
@@ -492,6 +495,8 @@
 		3C330440AF5E98FA5937FB83 /* RichChatTruncationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB74C9800C6C0951B6A150BF /* RichChatTruncationTests.swift */; };
 		A100000000000000000000C9 /* RichChatAuxiliaryControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000C9 /* RichChatAuxiliaryControllerTests.swift */; };
 		A100000000000000000000CA /* RichChatPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000CA /* RichChatPresentationTests.swift */; };
+	FT1100000000000000000002 /* RichChatMarkdownFileCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FT2100000000000000000002 /* RichChatMarkdownFileCardTests.swift */; };
+	FT1100000000000000000001 /* RichChatFilePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FT2100000000000000000001 /* RichChatFilePolicyTests.swift */; };
 		A100000000000000000000CB /* ProjectWorkspaceTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000CB /* ProjectWorkspaceTestSupport.swift */; };
 		A100000000000000000000CC /* GeneratedProjectWorkspaceContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000CC /* GeneratedProjectWorkspaceContractTests.swift */; };
 		A100000000000000000000CD /* ProjectWorkspaceRemoteAPITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000CD /* ProjectWorkspaceRemoteAPITests.swift */; };
@@ -1199,6 +1204,7 @@
 		B1000000000000000000007E /* RichContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichContent.swift; sourceTree = "<group>"; };
 		B1000000000000000000007F /* RichJSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichJSON.swift; sourceTree = "<group>"; };
 		B10000000000000000000080 /* RichMediaPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichMediaPolicy.swift; sourceTree = "<group>"; };
+	FP2100000000000000000001 /* RichChatFilePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatFilePolicy.swift; sourceTree = "<group>"; };
 		B10000000000000000000C01 /* RichFollowUpQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichFollowUpQueue.swift; sourceTree = "<group>"; };
 		B10000000000000000000C02 /* RichFollowUpQueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichFollowUpQueueView.swift; sourceTree = "<group>"; };
 		B10000000000000000000081 /* RichPendingSteer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichPendingSteer.swift; sourceTree = "<group>"; };
@@ -1245,6 +1251,7 @@
 		B1000000000000000000009C /* GeneratedRichChatProcedureContract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedRichChatProcedureContract.swift; sourceTree = "<group>"; };
 		B1000000000000000000009D /* RichChatRawHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatRawHTTPClient.swift; sourceTree = "<group>"; };
 		B1000000000000000000009E /* RichChatRemoteAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatRemoteAPI.swift; sourceTree = "<group>"; };
+	FD2100000000000000000001 /* RichChatFileMediaRemoteAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatFileMediaRemoteAPI.swift; sourceTree = "<group>"; };
 		B1000000000000000000009F /* RichChatTerminalWire.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalWire.swift; sourceTree = "<group>"; };
 		B100000000000000000000A0 /* RichChatTransportModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTransportModels.swift; sourceTree = "<group>"; };
 		B100000000000000000000A1 /* SelectedRichChatConversationGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectedRichChatConversationGateway.swift; sourceTree = "<group>"; };
@@ -1277,6 +1284,7 @@
 		RC2200000000000000000001 /* RichChatTranscriptComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTranscriptComponents.swift; sourceTree = "<group>"; };
 		RX2100000000000000000001 /* RichChatTranscriptActivityComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTranscriptActivityComponents.swift; sourceTree = "<group>"; };
 		RX2200000000000000000001 /* RichChatMessageTextComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatMessageTextComponents.swift; sourceTree = "<group>"; };
+	FC2100000000000000000001 /* RichChatFileCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatFileCard.swift; sourceTree = "<group>"; };
 		MD2100000000000000000001 /* RichChatMarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatMarkdownView.swift; sourceTree = "<group>"; };
 		SH2100000000000000000001 /* RichChatSyntaxHighlighting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatSyntaxHighlighting.swift; sourceTree = "<group>"; };
 		RCI200000000000000000001 /* RichChatComposerInlineControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerInlineControls.swift; sourceTree = "<group>"; };
@@ -1339,6 +1347,8 @@
 		EB74C9800C6C0951B6A150BF /* RichChatTruncationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTruncationTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000C9 /* RichChatAuxiliaryControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatAuxiliaryControllerTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000CA /* RichChatPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatPresentationTests.swift; sourceTree = "<group>"; };
+	FT2100000000000000000002 /* RichChatMarkdownFileCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatMarkdownFileCardTests.swift; sourceTree = "<group>"; };
+	FT2100000000000000000001 /* RichChatFilePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatFilePolicyTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000CB /* ProjectWorkspaceTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceTestSupport.swift; sourceTree = "<group>"; };
 		B100000000000000000000CC /* GeneratedProjectWorkspaceContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedProjectWorkspaceContractTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000CD /* ProjectWorkspaceRemoteAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceRemoteAPITests.swift; sourceTree = "<group>"; };
@@ -2025,6 +2035,7 @@
 				B1000000000000000000009C /* GeneratedRichChatProcedureContract.swift */,
 				B1000000000000000000009D /* RichChatRawHTTPClient.swift */,
 				B1000000000000000000009E /* RichChatRemoteAPI.swift */,
+				FD2100000000000000000001 /* RichChatFileMediaRemoteAPI.swift */,
 				B1000000000000000000009F /* RichChatTerminalWire.swift */,
 				B100000000000000000000A0 /* RichChatTransportModels.swift */,
 				B100000000000000000000A1 /* SelectedRichChatConversationGateway.swift */,
@@ -2278,6 +2289,7 @@
 				B1000000000000000000007F /* RichJSON.swift */,
 				B6B6B6B70000000000000002 /* RichRuntimeEventSize.swift */,
 				B10000000000000000000080 /* RichMediaPolicy.swift */,
+				FP2100000000000000000001 /* RichChatFilePolicy.swift */,
 				B10000000000000000000081 /* RichPendingSteer.swift */,
 				B10000000000000000000C01 /* RichFollowUpQueue.swift */,
 				B10000000000000000000082 /* RichRequests.swift */,
@@ -2324,6 +2336,7 @@
 				RC2200000000000000000001 /* RichChatTranscriptComponents.swift */,
 				RX2100000000000000000001 /* RichChatTranscriptActivityComponents.swift */,
 				RX2200000000000000000001 /* RichChatMessageTextComponents.swift */,
+				FC2100000000000000000001 /* RichChatFileCard.swift */,
 				MD2100000000000000000001 /* RichChatMarkdownView.swift */,
 				SH2100000000000000000001 /* RichChatSyntaxHighlighting.swift */,
 				RCI200000000000000000001 /* RichChatComposerInlineControls.swift */,
@@ -2751,6 +2764,8 @@
 				EB74C9800C6C0951B6A150BF /* RichChatTruncationTests.swift */,
 				B100000000000000000000C9 /* RichChatAuxiliaryControllerTests.swift */,
 				B100000000000000000000CA /* RichChatPresentationTests.swift */,
+				FT2100000000000000000002 /* RichChatMarkdownFileCardTests.swift */,
+				FT2100000000000000000001 /* RichChatFilePolicyTests.swift */,
 				B100000000000000000000CB /* ProjectWorkspaceTestSupport.swift */,
 				B100000000000000000000CC /* GeneratedProjectWorkspaceContractTests.swift */,
 				B100000000000000000000CD /* ProjectWorkspaceRemoteAPITests.swift */,
@@ -3637,6 +3652,7 @@
 				A1000000000000000000007E /* RichContent.swift in Sources */,
 				A1000000000000000000007F /* RichJSON.swift in Sources */,
 				A10000000000000000000080 /* RichMediaPolicy.swift in Sources */,
+				FP1100000000000000000001 /* RichChatFilePolicy.swift in Sources */,
 				A10000000000000000000081 /* RichPendingSteer.swift in Sources */,
 				A10000000000000000000C01 /* RichFollowUpQueue.swift in Sources */,
 				A10000000000000000000C02 /* RichFollowUpQueueView.swift in Sources */,
@@ -3686,6 +3702,7 @@
 				A1000000000000000000009C /* GeneratedRichChatProcedureContract.swift in Sources */,
 				A1000000000000000000009D /* RichChatRawHTTPClient.swift in Sources */,
 				A1000000000000000000009E /* RichChatRemoteAPI.swift in Sources */,
+				FD1100000000000000000001 /* RichChatFileMediaRemoteAPI.swift in Sources */,
 				A1000000000000000000009F /* RichChatTerminalWire.swift in Sources */,
 				A100000000000000000000A0 /* RichChatTransportModels.swift in Sources */,
 				A100000000000000000000A1 /* SelectedRichChatConversationGateway.swift in Sources */,
@@ -3722,6 +3739,7 @@
 				RC1200000000000000000001 /* RichChatTranscriptComponents.swift in Sources */,
 				RX1100000000000000000001 /* RichChatTranscriptActivityComponents.swift in Sources */,
 				RX1200000000000000000001 /* RichChatMessageTextComponents.swift in Sources */,
+				FC1100000000000000000001 /* RichChatFileCard.swift in Sources */,
 				MD1100000000000000000001 /* RichChatMarkdownView.swift in Sources */,
 				SH1100000000000000000001 /* RichChatSyntaxHighlighting.swift in Sources */,
 				RCI100000000000000000001 /* RichChatComposerInlineControls.swift in Sources */,
@@ -4054,6 +4072,8 @@
 				3C330440AF5E98FA5937FB83 /* RichChatTruncationTests.swift in Sources */,
 				A100000000000000000000C9 /* RichChatAuxiliaryControllerTests.swift in Sources */,
 				A100000000000000000000CA /* RichChatPresentationTests.swift in Sources */,
+				FT1100000000000000000002 /* RichChatMarkdownFileCardTests.swift in Sources */,
+				FT1100000000000000000001 /* RichChatFilePolicyTests.swift in Sources */,
 				A100000000000000000000CB /* ProjectWorkspaceTestSupport.swift in Sources */,
 				A100000000000000000000CC /* GeneratedProjectWorkspaceContractTests.swift in Sources */,
 				A100000000000000000000CD /* ProjectWorkspaceRemoteAPITests.swift in Sources */,

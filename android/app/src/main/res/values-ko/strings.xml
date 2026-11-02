@@ -163,4 +163,6 @@
     <string name="rich_chat_crew_no_edits">파일을 편집하지 말라는 지시입니다. 강제되지는 않습니다.</string>
     <string name="rich_chat_crew_policy_only">크루만</string>
     <string name="rich_chat_crew_policy_first">크루 우선</string>
+    <string name="rich_chat_download_file">%1$s 다운로드</string>
+    <string name="rich_chat_download_failed">파일을 다운로드할 수 없습니다.</string>
 </resources>

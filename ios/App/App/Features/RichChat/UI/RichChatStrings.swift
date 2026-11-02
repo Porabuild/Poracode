@@ -223,6 +223,20 @@ enum RichChatStrings {
   static let retry = value("rich_chat_retry", "Try Again")
   static let cancel = value("rich_chat_cancel", "Cancel")
 
+  static func downloadFile(_ fileName: String) -> String {
+    String(
+      format: value("rich_chat_download_file", "Download %@"),
+      fileName
+    )
+  }
+
+  static func downloadFailed(_ fileName: String) -> String {
+    String(
+      format: value("rich_chat_download_failed", "Unable to download %@."),
+      fileName
+    )
+  }
+
   static let truncateAction = value("rich_chat_truncate_action", "Delete From Here")
   static let truncateAccessibilityLabel = value(
     "rich_chat_truncate_accessibility",

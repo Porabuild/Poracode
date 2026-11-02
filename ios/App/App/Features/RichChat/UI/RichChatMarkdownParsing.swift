@@ -3,6 +3,10 @@ import Foundation
 enum RichChatMarkdownBlock: Equatable {
   case heading(level: Int, text: String)
   case paragraph(String)
+  case fileCard(RichChatFileRef)
+  /// Unordered list whose every row is a standalone local-artifact link —
+  /// rendered as cards without bullets. Mixed lists keep their markers.
+  case fileCardList([RichChatFileRef])
   case orderedList([String])
   case unorderedList([String])
   case code(language: String?, source: String)
@@ -67,6 +71,22 @@ enum RichChatMarkdownParser {
         continue
       }
 
+      // 4-space/tab indented text is code, never lists or cards.
+      if line.hasPrefix("    ") || line.hasPrefix("\t") {
+        var code: [String] = []
+        while index < lines.count,
+          lines[index].hasPrefix("    ") || lines[index].hasPrefix("\t") ||
+          lines[index].trimmingCharacters(in: .whitespaces).isEmpty
+        {
+          code.append(lines[index])
+          index += 1
+        }
+        var source = code.joined(separator: "\n")
+        while source.hasSuffix("\n") { source.removeLast() }
+        blocks.append(.code(language: nil, source: source))
+        continue
+      }
+
       if orderedItem(from: line) != nil {
         var items: [String] = []
         while index < lines.count, let item = orderedItem(from: lines[index]) {
@@ -84,7 +104,19 @@ enum RichChatMarkdownParser {
           items.append(item)
           index += 1
         }
-        blocks.append(.unorderedList(items))
+        // An unordered list made exclusively of standalone artifact links is a
+        // card list with no markers; anything else keeps bullet semantics.
+        // Indented rows are code, never card candidates.
+        let indented = items.contains { $0.hasPrefix("    ") || $0.hasPrefix("\t") }
+        let cards: [RichChatFileRef] = indented ? [] : items.compactMap { item -> RichChatFileRef? in
+          guard let link = RichChatFilePolicy.markdownLink(in: item) else { return nil }
+          return RichChatFilePolicy.markdownFileRef(src: link.destination, name: nil)
+        }
+        if items.count == cards.count, !cards.isEmpty {
+          blocks.append(.fileCardList(cards))
+        } else {
+          blocks.append(.unorderedList(items))
+        }
         continue
       }
 
@@ -94,7 +126,18 @@ enum RichChatMarkdownParser {
         paragraph.append(lines[index])
         index += 1
       }
-      blocks.append(.paragraph(paragraph.joined(separator: "\n")))
+      let paragraphText = paragraph.joined(separator: "\n")
+      // A paragraph whose whole content is one standalone artifact link is a
+      // file card, not prose. 4-space/tab indented text stays code.
+      let isCodeIndented = paragraphText.hasPrefix("    ") || paragraphText.hasPrefix("\t")
+      if paragraph.count == 1, !isCodeIndented,
+        let link = RichChatFilePolicy.markdownLink(in: paragraphText),
+        let card = RichChatFilePolicy.markdownFileRef(src: link.destination, name: nil)
+      {
+        blocks.append(.fileCard(card))
+      } else {
+        blocks.append(.paragraph(paragraphText))
+      }
     }
 
     return blocks

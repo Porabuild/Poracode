@@ -163,4 +163,6 @@
     <string name="rich_chat_crew_no_edits">Indicación de no editar archivos. No se aplica.</string>
     <string name="rich_chat_crew_policy_only">Solo equipo</string>
     <string name="rich_chat_crew_policy_first">Equipo primero</string>
+    <string name="rich_chat_download_file">Descargar %1$s</string>
+    <string name="rich_chat_download_failed">No se pudo descargar el archivo.</string>
 </resources>

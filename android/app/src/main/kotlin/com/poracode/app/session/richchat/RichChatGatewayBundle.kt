@@ -27,6 +27,8 @@ data class RichChatGatewayBundle(
     val commands: RichThreadCommandTransport? = null,
     val terminalWatch: RichTerminalWatchTransport? = null,
     val binary: RichChatBinaryBodyExecutor? = null,
+    /** Optional chat-file download transport; null on transports without it. */
+    val files: com.poracode.app.transport.richchat.RichChatFileTransport? = null,
 )
 
 fun interface RichChatGatewayProvider {

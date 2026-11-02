@@ -1,29 +1,22 @@
 package com.poracode.app.ui.richchat
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,8 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
@@ -55,12 +46,10 @@ import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.session.richchat.acknowledgeHistoryGap
 import com.poracode.app.session.richchat.readHistoryGapIfSupported
 import com.poracode.app.session.threads.ThreadLifecycleController
-import com.poracode.app.ui.GitSummaryText
 import com.poracode.app.ui.components.EmptyStateView
 import com.poracode.app.ui.components.ErrorStateView
 import com.poracode.app.ui.components.LoadingStateView
 import com.poracode.app.ui.terminal.RichTerminalPane
-import com.poracode.app.ui.thread.ThreadLifecycleActions
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.jsonPrimitive
@@ -130,6 +119,7 @@ fun RichChatThreadScreen(
     val title = thread?.title?.ifBlank { null } ?: stringResource(R.string.rich_chat_conversation)
     var pendingTruncateItemId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
     var pendingRevertItemId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
+    val fileDownloadSnackbarHost = remember { SnackbarHostState() }
     var showCloseDialog by rememberSaveable(threadId) { mutableStateOf(false) }
     val canMutate = canOperate && state.selection != null && !mutating && !refreshing
     var forkIntent by rememberSaveable(threadId, state.selection?.host?.connectionId, state.selection?.host?.bindingGeneration, stateSaver = RichChatForkIntent.Saver) { mutableStateOf<RichChatForkIntent?>(null) }
@@ -251,6 +241,7 @@ fun RichChatThreadScreen(
     }
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(fileDownloadSnackbarHost) },
         topBar = {
             RichChatThreadTopBar(
                 title = title,
@@ -433,62 +424,62 @@ fun RichChatThreadScreen(
                                 modifier = controlModifier,
                             )
                         }
-                        if (maxWidth >= 760.dp) {
-                            Row(Modifier.fillMaxSize()) {
-                                RichTimelineView(
-                                    transcript,
-                                    state.olderCursor,
-                                    state.olderTurnsCursor,
-                                    state.loadingOlder || refreshing,
-                                    runtime,
-                                    onLoadOlder = { scope.launch { runtime.chat.loadOlder() } },
-                                    canMutate = canMutate,
-                                    onTruncateItem = { pendingTruncateItemId = it },
-                                    revertableItemIds = revertableItemIds,
-                                    onRevertItem = { pendingRevertItemId = it },
-                                    onForkItem = requestFork,
-                                    forkBoundaryItemId = forkBoundaryItemId,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                VerticalDivider()
-                                controlContent(
-                                    Modifier
-                                        .width(320.dp)
-                                        .verticalScroll(rememberScrollState())
-                                        .padding(12.dp),
-                                )
-                            }
-                        } else {
-                            Column(Modifier.fillMaxSize()) {
-                                RichTimelineView(
-                                    transcript,
-                                    state.olderCursor,
-                                    state.olderTurnsCursor,
-                                    state.loadingOlder || refreshing,
-                                    runtime,
-                                    onLoadOlder = { scope.launch { runtime.chat.loadOlder() } },
-                                    canMutate = canMutate,
-                                    onTruncateItem = { pendingTruncateItemId = it },
-                                    revertableItemIds = revertableItemIds,
-                                    onRevertItem = { pendingRevertItemId = it },
-                                    onForkItem = requestFork,
-                                    forkBoundaryItemId = forkBoundaryItemId,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                RichChatCompactControlDock(
-                                    runtime = runtime,
-                                    items = transcript.itemsInOrder,
-                                    agentStatus = agentStatus,
-                                    requests = transcript.openRequests,
-                                    pendingSteer = transcript.pendingSteer,
-                                    checkpointState = checkpointState,
-                                    projectLocation = projectLocation,
-                                    selection = state.selection,
-                                    config = state.config,
-                                    canOperate = canOperate,
-                                    busy = mutating || refreshing,
-                                    onOpenAgentSettings = onOpenAgentSettings,
-                                )
+                        val timelineContent: @Composable (Modifier) -> Unit = { timelineModifier ->
+                            RichTimelineView(
+                                transcript,
+                                state.olderCursor,
+                                state.olderTurnsCursor,
+                                state.loadingOlder || refreshing,
+                                runtime,
+                                onLoadOlder = { scope.launch { runtime.chat.loadOlder() } },
+                                canMutate = canMutate,
+                                onTruncateItem = { pendingTruncateItemId = it },
+                                revertableItemIds = revertableItemIds,
+                                onRevertItem = { pendingRevertItemId = it },
+                                onForkItem = requestFork,
+                                forkBoundaryItemId = forkBoundaryItemId,
+                                modifier = timelineModifier,
+                            )
+                        }
+                        val fileActions = projectLocation?.let {
+                            RichChatFileActions(
+                                runtime.media, it, context.cacheDir,
+                                fileDownloadSnackbarHost,
+                                "${threadId}:${state.selection?.generation}",
+                            )
+                        }
+                        CompositionLocalProvider(
+                            LocalRichChatFileActions provides fileActions,
+                        ) {
+                            if (maxWidth >= 760.dp) {
+                                Row(Modifier.fillMaxSize()) {
+                                    timelineContent(Modifier.weight(1f))
+                                    VerticalDivider()
+                                    controlContent(
+                                        Modifier
+                                            .width(320.dp)
+                                            .verticalScroll(rememberScrollState())
+                                            .padding(12.dp),
+                                    )
+                                }
+                            } else {
+                                Column(Modifier.fillMaxSize()) {
+                                    timelineContent(Modifier.weight(1f))
+                                    RichChatCompactControlDock(
+                                        runtime = runtime,
+                                        items = transcript.itemsInOrder,
+                                        agentStatus = agentStatus,
+                                        requests = transcript.openRequests,
+                                        pendingSteer = transcript.pendingSteer,
+                                        checkpointState = checkpointState,
+                                        projectLocation = projectLocation,
+                                        selection = state.selection,
+                                        config = state.config,
+                                        canOperate = canOperate,
+                                        busy = mutating || refreshing,
+                                        onOpenAgentSettings = onOpenAgentSettings,
+                                    )
+                                }
                             }
                         }
                     }

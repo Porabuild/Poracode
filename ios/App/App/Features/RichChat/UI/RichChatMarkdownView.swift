@@ -28,6 +28,14 @@ struct RichChatMarkdownView: View {
     case .paragraph(let text):
       inlineText(text)
         .poracodeChatText(.body)
+    case .fileCard(let ref):
+      RichChatFileCard(ref: ref)
+    case .fileCardList(let refs):
+      VStack(alignment: .leading, spacing: 6) {
+        ForEach(Array(refs.enumerated()), id: \.offset) { _, ref in
+          RichChatFileCard(ref: ref)
+        }
+      }
     case .orderedList(let items):
       VStack(alignment: .leading, spacing: 4) {
         ForEach(Array(items.enumerated()), id: \.offset) { index, item in
@@ -37,7 +45,20 @@ struct RichChatMarkdownView: View {
     case .unorderedList(let items):
       VStack(alignment: .leading, spacing: 4) {
         ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-          listRow(marker: "•", text: item)
+          if let link = RichChatFilePolicy.markdownLink(in: item),
+            let ref = RichChatFilePolicy.markdownFileRef(src: link.destination, name: nil)
+          {
+            HStack(alignment: .center, spacing: 8) {
+              Text("•")
+                .poracodeChatText(.body, weight: .medium)
+                .foregroundStyle(.secondary)
+                .frame(width: 20, alignment: .trailing)
+              RichChatFileCard(ref: ref)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+          } else {
+            listRow(marker: "•", text: item)
+          }
         }
       }
     case .code(let language, let source):
