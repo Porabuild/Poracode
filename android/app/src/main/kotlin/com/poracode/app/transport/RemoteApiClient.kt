@@ -17,14 +17,12 @@ import com.poracode.app.protocol.GeneratedRemoteV3Contract
 import com.poracode.app.protocol.PairingException
 import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.RemoteAccessScopes
-import com.poracode.app.protocol.RemoteSocketPolicy
 import com.poracode.app.protocol.settings.GeneratedRemoteV3SettingsContract
 import com.poracode.app.protocol.settings.SettingsRouteId
 import com.poracode.app.transport.environments.EnvironmentRequestCoordinator
 import com.poracode.app.transport.settings.SettingsRemoteV3Adapters
 import java.net.URLEncoder
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -478,23 +476,6 @@ class RemoteApiClient(
     companion object {
         const val MAX_RESPONSE_BYTES: Long = 64L * 1024L * 1024L
 
-        /**
-         * Shared base client (WS7 finding 5): one connection pool + dispatcher
-         * thread budget for every transport. `newBuilder()` derivatives (each
-         * RemoteApiClient) inherit them instead of each owning a full stack.
-         */
-        private val sharedBaseClient: OkHttpClient by lazy {
-            OkHttpClient.Builder()
-                .connectTimeout(RemoteSocketPolicy.CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                .readTimeout(RemoteSocketPolicy.REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                .writeTimeout(RemoteSocketPolicy.REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                .callTimeout(RemoteSocketPolicy.REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                .followRedirects(false)
-                .followSslRedirects(false)
-                .retryOnConnectionFailure(false)
-                .build()
-        }
-
-        fun defaultClient(): OkHttpClient = sharedBaseClient
+        fun defaultClient(): OkHttpClient = RemoteHttpClients.sharedBaseClient
     }
 }

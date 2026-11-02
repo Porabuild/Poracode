@@ -25,6 +25,12 @@ struct RichChatTranscriptSurface: View {
       RichChatNoticeBanner(notice: notice)
       content
     }
+    .environment(
+      \.richChatFileDownloads,
+      projectLocation.map {
+        RichChatFileDownloadContext(controller: mediaController, location: $0)
+      }
+    )
   }
 
   @ViewBuilder
