@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { setImmediate } from "node:timers/promises";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 
@@ -20,7 +21,7 @@ const script = () =>
 type WorkerEvent = {
   waitUntil(work: Promise<unknown>): void;
   data?: unknown;
-  request?: { method: string; url: string; mode: RequestMode };
+  request?: { method: string; url: string; mode: RequestMode; cache: RequestCache };
   respondWith?(response: Promise<Response> | Response): void;
 };
 
@@ -36,7 +37,7 @@ function workerFixture() {
     new URL(typeof input === "string" ? input : input.url, origin).href;
   const state = {
     offline: false,
-    routes: new Map<string, () => Response>([
+    routes: new Map<string, () => Response | Promise<Response>>([
       ["/", () => html(shell)],
       ["/manifest.webmanifest", () => new Response("{}")],
       ["/app-icon.svg", () => new Response("<svg/>")],
@@ -114,6 +115,21 @@ function workerFixture() {
     listener({ ...event, waitUntil: (promise) => work.push(promise) });
     return Promise.all(work);
   }
+  function startRequest(path: string, mode: RequestMode, cache: RequestCache = "default") {
+    let response: Promise<Response> | undefined;
+    const lifetime = dispatch("fetch", {
+      request: { method: "GET", url: key(path), mode, cache },
+      respondWith: (value) => {
+        response = Promise.resolve(value);
+      },
+    });
+    for (const timer of timers.splice(0)) {
+      expect(timer.delay).toBe(500);
+      timer.callback();
+    }
+    if (!response) throw new Error("Request was not intercepted");
+    return { response, lifetime };
+  }
   return {
     state,
     stores,
@@ -132,20 +148,10 @@ function workerFixture() {
     },
     message: (urls: string[]) =>
       dispatch("message", { data: { type: "cache-build-assets", urls } }),
-    async request(path: string, mode: RequestMode) {
-      let response: Promise<Response> | undefined;
-      const lifetime = dispatch("fetch", {
-        request: { method: "GET", url: key(path), mode },
-        respondWith: (value) => {
-          response = Promise.resolve(value);
-        },
-      });
-      for (const timer of timers.splice(0)) {
-        expect(timer.delay).toBe(500);
-        timer.callback();
-      }
+    startRequest,
+    async request(path: string, mode: RequestMode, cache: RequestCache = "default") {
+      const { response, lifetime } = startRequest(path, mode, cache);
       try {
-        if (!response) throw new Error("Request was not intercepted");
         return await response;
       } finally {
         await lifetime;
@@ -155,6 +161,47 @@ function workerFixture() {
 }
 
 describe("service-worker shell installation and offline integrity", () => {
+  it.each(["no-cache", "reload"] as const)(
+    "waits for the current deployment with cache mode %s instead of serving the previous shell",
+    async (cache) => {
+      const fixture = workerFixture();
+      const network = Promise.withResolvers<Response>();
+      fixture.state.routes.set("/threads", () => network.promise);
+
+      // Start from a released cache whose entry module exists but whose
+      // not-yet-loaded lazy modules were removed by a newer deployment.
+      const pending = fixture.startRequest("/threads", "navigate", cache);
+      await setImmediate();
+      network.resolve(html(shell));
+
+      const response = await pending.response;
+      await pending.lifetime;
+      expect(await response.text()).toBe(shell);
+    },
+  );
+
+  it("keeps the fast cached shell fallback for ordinary slow navigations", async () => {
+    const fixture = workerFixture();
+    const network = Promise.withResolvers<Response>();
+    fixture.state.routes.set("/threads", () => network.promise);
+    const pending = fixture.startRequest("/threads", "navigate");
+    const response = await pending.response;
+    network.resolve(html(shell));
+    await pending.lifetime;
+    expect(await response.text()).toBe(fixture.previousShell);
+  });
+
+  it.each(["no-cache", "reload"] as const)(
+    "preserves the previous offline shell when cache mode %s cannot reach the network",
+    async (cache) => {
+      const fixture = workerFixture();
+      fixture.state.offline = true;
+      const response = await fixture.request("/threads", "navigate", cache);
+      expect(await response.text()).toBe(fixture.previousShell);
+      expect(fixture.deleted).toEqual([]);
+    },
+  );
+
   it("retires the previous cache only after a complete shell installs", async () => {
     const fixture = workerFixture();
     await fixture.upgrade();
