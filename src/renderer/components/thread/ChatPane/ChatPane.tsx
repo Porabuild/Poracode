@@ -409,6 +409,11 @@ export function ChatPane(props: ChatPaneProps) {
   // Published while the thread's composer bubble row is mounted; missing means
   // this pane has no bubble row and the status stays in the transcript tail.
   const statusSlot = useComposerBubbleSlotStore((s) => s.status[threadId] ?? null);
+  // The row floats over the transcript, so reserve its band at the scroll end
+  // and never let the tail come to rest underneath the bubbles. The compact
+  // composer and the bubble row never coexist, so either one owns the inset.
+  const bubbleRowInset = useComposerBubbleSlotStore((s) => s.endInset[threadId] ?? 0);
+  const bottomInset = props.bottomInset ?? bubbleRowInset;
   // Detached background work keeps the thread doing real work after the
   // foreground turn settles. Treat that as "still working" for the tail-loader
   // timer (so it keeps ticking "Working for ...") without touching `status` -
@@ -547,7 +552,7 @@ export function ChatPane(props: ChatPaneProps) {
               threadId={threadId}
               entries={listEntries}
               isTurnActive={isLive}
-              {...(props.bottomInset ? { bottomInset: props.bottomInset } : {})}
+              {...(bottomInset ? { bottomInset } : {})}
               {...(isManagedThread
                 ? {
                     onInitialLayoutReady: () => {

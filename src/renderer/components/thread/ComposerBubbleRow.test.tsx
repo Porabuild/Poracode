@@ -31,6 +31,7 @@ describe("ComposerBubbleRow", () => {
   afterEach(() => {
     useComposerBubbleSlotStore.getState().setSlot("control", "t1", null);
     useComposerBubbleSlotStore.getState().setSlot("status", "t1", null);
+    useComposerBubbleSlotStore.getState().setEndInset("t1", 0);
   });
 
   it("publishes its slots for the thread and clears them on unmount", () => {
@@ -46,12 +47,34 @@ describe("ComposerBubbleRow", () => {
     const row = container.querySelector(".flex-wrap")!;
     expect(row.firstElementChild).toBe(status);
     expect(status).toHaveClass("mr-auto", "empty:hidden");
+    // Keeps one bubble line reserved while the row is momentarily empty, so
+    // the published transcript band never collapses to zero.
+    expect(row).toHaveClass("min-h-7");
     // The status pill sits flush with the composer's left edge.
     expect(row).toHaveClass("pr-3");
     expect(row).not.toHaveClass("px-3");
     unmount();
     expect(useComposerBubbleSlotStore.getState().control["t1"]).toBeUndefined();
     expect(useComposerBubbleSlotStore.getState().status["t1"]).toBeUndefined();
+  });
+
+  it("publishes the band it floats over, including its composer gap", async () => {
+    const { container, rerender, unmount } = render(
+      <ComposerBubbleRow threadId="t1">{rowChildren()}</ComposerBubbleRow>,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    wrapper.getBoundingClientRect = () => rect(0, 400);
+    wrapper.style.marginBottom = "6px";
+    await act(async () => {
+      rerender(
+        <ComposerBubbleRow threadId="t1">{rowChildren(<span key="extra" />)}</ComposerBubbleRow>,
+      );
+      await Promise.resolve();
+    });
+    expect(useComposerBubbleSlotStore.getState().endInset["t1"]).toBe(34);
+
+    unmount();
+    expect(useComposerBubbleSlotStore.getState().endInset["t1"]).toBeUndefined();
   });
 
   it("moves the slot onto its own centered row when bubbles reach the center", async () => {
