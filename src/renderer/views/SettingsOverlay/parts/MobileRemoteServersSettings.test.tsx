@@ -129,6 +129,18 @@ describe("MobileRemoteServersSettings", () => {
     expect(screen.getByLabelText("One-time pairing token")).toBeInTheDocument();
   });
 
+  it("opens the in-app QR scanner instead of the device camera", () => {
+    render(<MobileRemoteServersSettings />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Pair a connection" }));
+    fireEvent.click(screen.getByRole("button", { name: "Scan QR code" }));
+
+    expect(screen.getByRole("dialog", { name: "Scan pairing QR code" })).toBeInTheDocument();
+    // The photo fallback must stay a gallery picker; `capture` would hand the
+    // scan back to the native camera app.
+    expect(document.querySelector('input[type="file"]')).not.toHaveAttribute("capture");
+  });
+
   it("pastes and connects with the same pairing-link flow as the welcome drawer", async () => {
     clipboard.readText.mockResolvedValue(
       "https://app-nightly.poracode.com/?host=http%3A%2F%2F192.168.1.20%3A49152#token=lc_pair_test",

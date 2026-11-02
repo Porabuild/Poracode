@@ -41,6 +41,7 @@ import {
 } from "@/renderer/pairingDirect";
 import { initialPairingIntentState } from "@/shared/remote/contract/pairingMachine";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
+import { QrScanner } from "@/renderer/components/common/QrScanner";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import {
@@ -270,6 +271,8 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
   const [endpoint, setEndpoint] = useState("");
   const [token, setToken] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanRejection, setScanRejection] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const { busy, error, run } = useAsyncOperation();
   // The candidate decision runs on the shared pairing machine (direct in-app
@@ -298,6 +301,34 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
     setToken(parsed.token);
   };
 
+  const runPairing = (pairingEndpoint: string, pairingToken: string, pairingSource: string) => {
+    setValidationError(null);
+    // A deliberate new pairing clears a settled intent first; `pairInFlight`
+    // refuses a second begin, matching the native coordinators.
+    intentState.current = resetSettledPairingIntent(
+      intentState.current,
+      pairingEndpoint,
+      pairingToken,
+    );
+    const step = beginDirectPair(intentState.current, pairingEndpoint, pairingToken);
+    if (!step.began) {
+      setValidationError(t`Enter the pairing URL shown on your desktop.`);
+      return;
+    }
+    intentState.current = step.state;
+    run(async () => {
+      try {
+        await pairServer({ endpoint: pairingEndpoint, token: pairingSource });
+        intentState.current = commitDirectPair(intentState.current, pairingEndpoint, pairingToken);
+        await connectAll();
+        props.onClose();
+      } catch (cause) {
+        intentState.current = failDirectPair(intentState.current, pairingEndpoint, pairingToken);
+        throw cause;
+      }
+    });
+  };
+
   const onPair = () => {
     if (!canPair) return;
 
@@ -324,31 +355,43 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
       pairingSource = pairingToken;
     }
 
-    setValidationError(null);
-    // A deliberate new pairing clears a settled intent first; `pairInFlight`
-    // refuses a second begin, matching the native coordinators.
-    intentState.current = resetSettledPairingIntent(
-      intentState.current,
-      pairingEndpoint,
-      pairingToken,
-    );
-    const step = beginDirectPair(intentState.current, pairingEndpoint, pairingToken);
-    if (!step.began) {
-      setValidationError(t`Enter the pairing URL shown on your desktop.`);
-      return;
+    runPairing(pairingEndpoint, pairingToken, pairingSource);
+  };
+
+  const closeScanner = () => {
+    setScanning(false);
+    setScanRejection(null);
+  };
+
+  const openScanner = () => {
+    setScanRejection(null);
+    setScanning(true);
+  };
+
+  /**
+   * Pairs from a live camera decode. A code that is not a pairing link leaves
+   * the scanner running — and says why — so an unrelated QR code drifting into
+   * frame does not dump the user back to the form.
+   */
+  const pairFromScan = (value: string): boolean => {
+    const parsed = parsePairingUrlParts(value);
+    if (!parsed) {
+      setScanRejection(t`That isn't a Poracode pairing code.`);
+      return false;
     }
-    intentState.current = step.state;
-    run(async () => {
-      try {
-        await pairServer({ endpoint: pairingEndpoint, token: pairingSource });
-        intentState.current = commitDirectPair(intentState.current, pairingEndpoint, pairingToken);
-        await connectAll();
-        props.onClose();
-      } catch (cause) {
-        intentState.current = failDirectPair(intentState.current, pairingEndpoint, pairingToken);
-        throw cause;
-      }
-    });
+    let pairingEndpoint: string;
+    try {
+      pairingEndpoint = normalizePairingEndpoint(parsed.host ?? parsed.url.toString());
+    } catch {
+      setScanRejection(t`That isn't a Poracode pairing code.`);
+      return false;
+    }
+    closeScanner();
+    setPairingUrl(value);
+    setEndpoint(pairingEndpoint);
+    setToken(parsed.token);
+    runPairing(pairingEndpoint, parsed.token, value);
+    return true;
   };
 
   const pastePairingLink = async () => {
@@ -382,158 +425,175 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
   };
 
   return (
-    <BottomSheet label={t`Pair a connection`} onClose={props.onClose}>
-      <div className="m-sheet-head">
-        <span>{t`Pair a connection`}</span>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-0.5 pb-1">
-        <div className="space-y-3">
-          <p className="text-xs leading-5 text-muted">
-            <Trans>
-              Open Settings → Remote Access in Poracode on your desktop, then scan the QR code from
-              here — or enter the endpoint and pairing token manually.
-            </Trans>
-          </p>
-          <input
-            ref={scanInputRef}
-            className="sr-only"
-            type="file"
-            accept="image/*"
-            capture="environment"
-            aria-label={t`Scan QR code`}
-            onChange={(event) => void onScanFile(event.currentTarget.files?.[0])}
-          />
-          <Button
-            fullWidth
-            variant="secondary"
-            className="!rounded-2xl"
-            onPress={() => scanInputRef.current?.click()}
-            isDisabled={busy}
-          >
-            <QrCode className="size-4" />
-            <Trans>Scan QR code</Trans>
-          </Button>
-          {canInstallApp ? (
-            <Button
-              fullWidth
-              variant="secondary"
-              className="!rounded-2xl"
-              onPress={() => void promptInstall()}
-              isDisabled={busy}
-            >
-              <Download className="size-4" />
-              <Trans>Add to Home Screen</Trans>
-            </Button>
-          ) : null}
-
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-3">
-              <label
-                htmlFor="mobile-poracode-pairing-link"
-                className="flex items-center gap-2 text-xs font-medium text-foreground"
-              >
-                <Link2 className="size-4 text-muted" />
-                <Trans>Pairing link</Trans>
-              </label>
+    <>
+      {/* Photo fallback for the live scanner. No `capture` attribute: choosing a
+          photo must open the gallery, not the device camera. */}
+      <input
+        ref={scanInputRef}
+        className="sr-only"
+        type="file"
+        accept="image/*"
+        aria-label={t`QR Code`}
+        onChange={(event) => void onScanFile(event.currentTarget.files?.[0])}
+      />
+      {scanning ? null : (
+        <BottomSheet label={t`Pair a connection`} onClose={props.onClose}>
+          <div className="m-sheet-head">
+            <span>{t`Pair a connection`}</span>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-0.5 pb-1">
+            <div className="space-y-3">
+              <p className="text-xs leading-5 text-muted">
+                <Trans>
+                  Open Settings → Remote Access in Poracode on your desktop, then scan the QR code
+                  from here — or enter the endpoint and pairing token manually.
+                </Trans>
+              </p>
               <Button
-                isIconOnly
-                aria-label={t`Paste`}
-                size="sm"
-                variant="ghost"
-                className="size-7 min-h-7 min-w-7 p-0"
-                isDisabled={busy || !canReadClipboard}
-                onPress={() => void pastePairingLink()}
+                fullWidth
+                variant="secondary"
+                className="!rounded-2xl"
+                onPress={openScanner}
+                isDisabled={busy}
               >
-                <ClipboardPaste className="size-3.5" />
+                <QrCode className="size-4" />
+                <Trans>Scan QR code</Trans>
               </Button>
+              {canInstallApp ? (
+                <Button
+                  fullWidth
+                  variant="secondary"
+                  className="!rounded-2xl"
+                  onPress={() => void promptInstall()}
+                  isDisabled={busy}
+                >
+                  <Download className="size-4" />
+                  <Trans>Add to Home Screen</Trans>
+                </Button>
+              ) : null}
+
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <label
+                    htmlFor="mobile-poracode-pairing-link"
+                    className="flex items-center gap-2 text-xs font-medium text-foreground"
+                  >
+                    <Link2 className="size-4 text-muted" />
+                    <Trans>Pairing link</Trans>
+                  </label>
+                  <Button
+                    isIconOnly
+                    aria-label={t`Paste`}
+                    size="sm"
+                    variant="ghost"
+                    className="size-7 min-h-7 min-w-7 p-0"
+                    isDisabled={busy || !canReadClipboard}
+                    onPress={() => void pastePairingLink()}
+                  >
+                    <ClipboardPaste className="size-3.5" />
+                  </Button>
+                </div>
+                <Input
+                  id="mobile-poracode-pairing-link"
+                  aria-label={t`Pairing URL`}
+                  className="h-12 w-full text-base"
+                  value={pairingUrl}
+                  placeholder={t`Paste pairing URL…`}
+                  inputMode="url"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  disabled={busy}
+                  onChange={(event) => {
+                    setPairingUrl(event.currentTarget.value);
+                    setValidationError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") onPair();
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center gap-3 text-xs text-muted">
+                <span className="h-px flex-1 bg-border" />
+                <Trans>or</Trans>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <span className="flex items-center gap-2 text-xs font-medium text-foreground">
+                  <SlidersHorizontal className="size-4 text-muted" />
+                  <Trans>Manual connection</Trans>
+                </span>
+                <Input
+                  aria-label={t`Server base URL`}
+                  className="h-12 w-full text-base"
+                  value={endpoint}
+                  placeholder={t`Server base URL`}
+                  inputMode="url"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  disabled={busy}
+                  onChange={(event) => {
+                    updatePairingField(event.currentTarget.value, setEndpoint);
+                    setValidationError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") onPair();
+                  }}
+                />
+                <Input
+                  aria-label={t`One-time pairing token`}
+                  className="h-12 w-full text-base"
+                  type="password"
+                  value={token}
+                  placeholder={t`One-time pairing token`}
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  disabled={busy}
+                  onChange={(event) => {
+                    updatePairingField(event.currentTarget.value, setToken);
+                    setValidationError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") onPair();
+                  }}
+                />
+              </div>
+              <Button
+                fullWidth
+                variant="primary"
+                className="poracode-mobile-pair-connect h-12 justify-center !rounded-2xl"
+                isDisabled={!canPair}
+                onPress={onPair}
+              >
+                {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+                {busy ? <Trans>Pairing…</Trans> : <Trans>Connect</Trans>}
+              </Button>
+              {validationError || error ? (
+                <p role="alert" className="text-xs text-danger">
+                  {validationError ?? error}
+                </p>
+              ) : null}
             </div>
-            <Input
-              id="mobile-poracode-pairing-link"
-              aria-label={t`Pairing URL`}
-              className="h-12 w-full text-base"
-              value={pairingUrl}
-              placeholder={t`Paste pairing URL…`}
-              inputMode="url"
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-              disabled={busy}
-              onChange={(event) => {
-                setPairingUrl(event.currentTarget.value);
-                setValidationError(null);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") onPair();
-              }}
-            />
           </div>
-
-          <div className="flex items-center gap-3 text-xs text-muted">
-            <span className="h-px flex-1 bg-border" />
-            <Trans>or</Trans>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <span className="flex items-center gap-2 text-xs font-medium text-foreground">
-              <SlidersHorizontal className="size-4 text-muted" />
-              <Trans>Manual connection</Trans>
-            </span>
-            <Input
-              aria-label={t`Server base URL`}
-              className="h-12 w-full text-base"
-              value={endpoint}
-              placeholder={t`Server base URL`}
-              inputMode="url"
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-              disabled={busy}
-              onChange={(event) => {
-                updatePairingField(event.currentTarget.value, setEndpoint);
-                setValidationError(null);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") onPair();
-              }}
-            />
-            <Input
-              aria-label={t`One-time pairing token`}
-              className="h-12 w-full text-base"
-              type="password"
-              value={token}
-              placeholder={t`One-time pairing token`}
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-              disabled={busy}
-              onChange={(event) => {
-                updatePairingField(event.currentTarget.value, setToken);
-                setValidationError(null);
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") onPair();
-              }}
-            />
-          </div>
-          <Button
-            fullWidth
-            variant="primary"
-            className="poracode-mobile-pair-connect h-12 justify-center !rounded-2xl"
-            isDisabled={!canPair}
-            onPress={onPair}
-          >
-            {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-            {busy ? <Trans>Pairing…</Trans> : <Trans>Connect</Trans>}
-          </Button>
-          {validationError || error ? (
-            <p role="alert" className="text-xs text-danger">
-              {validationError ?? error}
-            </p>
-          ) : null}
-        </div>
-      </div>
-    </BottomSheet>
+        </BottomSheet>
+      )}
+      {scanning ? (
+        <QrScanner
+          rejection={scanRejection}
+          onResult={pairFromScan}
+          onCancel={closeScanner}
+          onPickPhoto={() => {
+            closeScanner();
+            scanInputRef.current?.click();
+          }}
+          onEnterManually={closeScanner}
+        />
+      ) : null}
+    </>
   );
 }
 
