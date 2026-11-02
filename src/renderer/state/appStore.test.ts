@@ -2844,8 +2844,49 @@ describe("group view layout restore", () => {
       projects: [],
       threads: [],
       groupLayouts: {},
+      focusedPaneId: null,
       view: { kind: "home" },
     }));
+  });
+
+  it.each([0, 1, 2])("selects clicked group member %i on first open and saved restore", (index) => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+    const ids = ["parent", "fork", "sibling"].map(
+      (prompt) =>
+        useAppStore.getState().createThread({
+          projectId: project.id,
+          agentKind: "codex",
+          config: { model: "m" },
+          prompt,
+          groupId: "group-1",
+        }).id,
+    );
+    useAppStore.setState({ view: { kind: "home" }, focusedPaneId: ids[(index + 1) % 3]! });
+
+    useAppStore.getState().openThread(ids[index]!);
+
+    const view = useAppStore.getState().view;
+    expect(view).toMatchObject({ kind: "thread", activeGroupId: "group-1" });
+    expect(view.kind === "thread" && view.panes).toEqual([...ids].reverse());
+    expect(useAppStore.getState().focusedPaneId).toBe(ids[index]);
+
+    useAppStore.getState().closeGroupView();
+    useAppStore.getState().setFocusedPane("stale-pane");
+    useAppStore.getState().openThread(ids[index]!);
+    expect(useAppStore.getState().view).toEqual(view);
+    expect(useAppStore.getState().focusedPaneId).toBe(ids[index]);
+
+    for (const id of ids) {
+      useAppStore.getState().openThread(id);
+      expect(useAppStore.getState().view).toEqual(view);
+      expect(useAppStore.getState().focusedPaneId).toBe(id);
+    }
+
+    useAppStore.getState().closePane(ids[index]!);
+    useAppStore.getState().openThread(ids[index]!);
+    const reopened = useAppStore.getState();
+    expect(reopened.view.kind === "thread" && reopened.view.panes).toContain(ids[index]);
+    expect(reopened.focusedPaneId).toBe(ids[index]);
   });
 
   it("opens four or more group threads in a balanced two-row grid", () => {
@@ -3025,5 +3066,6 @@ describe("group view layout restore", () => {
     expect(view.kind === "thread" && view.activeGroupId).toBe(groupId);
     expect(view.kind === "thread" && view.panes).toEqual([ids[0], ids[1], ids[2], ids[3]]);
     expect(view.kind === "thread" && view.paneLayout).toEqual(savedLayout);
+    expect(useAppStore.getState().focusedPaneId).toBe(ids[2]);
   });
 });
