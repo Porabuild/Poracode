@@ -31,6 +31,15 @@ Match the canonical dialog look — do not restyle. Reference: `CreatePrModal`, 
 
 Three modes: light, dark, system. Resolved via the `useResolvedAppearance()` hook in `components/ui/provider.tsx`. Theme is applied as a class on the root element and synced to Electron window chrome via IPC. The xterm.js terminal theme reads CSS variables for background/foreground/cursor colors.
 
+### Radius and hairline scale
+
+`src/renderer/styles.css` sets a sharp global `--radius: 0.125rem` (2px), and HeroUI derives the Tailwind `rounded-xs`…`rounded-4xl` scale from it, so those classes render much smaller than Tailwind's defaults: `rounded-xl` = 3px, `rounded-2xl` = 4px, `rounded-3xl` = 6px, `rounded-4xl` = 8px. Pick radii by matching the existing surface, not by the class name:
+
+- **Floating panels** (composer shell, `FindBar`, thread side tool rail): `rounded-4xl` / `var(--radius-4xl)`. Floating controls over content share the `floatingGlassSurfaceClass` material (`components/layout/floatingGlass.ts`).
+- **Buttons inside them:** `rounded-3xl`, the HeroUI `Button` default.
+
+Hairline borders are foreground mixes: `--hairline-soft` (3%, barely visible: the tool rail edge, quiet cards), `--hairline` (9%, default dividers), `--hairline-strong` (15%, primary inputs such as the composer).
+
 ## Layout
 
 - **AppShell** (`views/MainView/parts/AppShell/`): collapsible sidebar (collapses to an icon rail) + main content + optional right panel, with drag-to-resize and persisted widths.
