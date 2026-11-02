@@ -7347,7 +7347,7 @@ html[data-compact-layout]
     .poracode-composer-shell
     .poracode-composer-toolbar
     > :has(.poracode-composer-send)
-    > :not(.poracode-composer-send) {
+    > :not(.poracode-composer-send):not(:has(.poracode-composer-send)) {
     display: none;
   }
 }
