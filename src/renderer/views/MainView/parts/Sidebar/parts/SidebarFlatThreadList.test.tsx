@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
@@ -645,6 +645,38 @@ describe("SidebarFlatThreadList", () => {
     // Only the done rows scroll inside the pinned section; its header stays put.
     expect(doneHeader.closest(".overflow-y-auto")).toBeNull();
     expect(doneRow.closest(".overflow-y-auto")).not.toBeNull();
+  });
+
+  it("eases the capped Done viewport open only when the section expands", () => {
+    useSidebarUiStore.setState({ collapsedWorktrees: { "done:__flat__": true } });
+    useAppStore.setState({
+      projects: [homeProject, localProject],
+      threads: [makeThread("d1", "local-1", "2026-08-01T09:00:00.000Z", { done: true })],
+    });
+    const animate = vi.fn<(keyframes: Keyframe[], timing: KeyframeAnimationOptions) => Animation>(
+      () => ({ playState: "finished" }) as Animation,
+    );
+    Object.defineProperty(HTMLElement.prototype, "animate", { configurable: true, value: animate });
+    const clientHeight = vi
+      .spyOn(HTMLElement.prototype, "clientHeight", "get")
+      .mockReturnValue(800);
+
+    try {
+      render(<SidebarFlatThreadList sortMode="updated" />);
+      const section = screen.getByText(/^done-label in/).parentElement!;
+      expect(section).toHaveStyle({ maxHeight: "50%" });
+      expect(animate).not.toHaveBeenCalled();
+
+      act(() => useSidebarUiStore.getState().toggleWorktreeCollapsed("done:__flat__"));
+
+      expect(animate).toHaveBeenCalledOnce();
+      expect(animate.mock.contexts[0]).toBe(
+        screen.getByText(/^thread:d1 in/).closest(".overflow-y-auto"),
+      );
+    } finally {
+      clientHeight.mockRestore();
+      delete (HTMLElement.prototype as { animate?: unknown }).animate;
+    }
   });
 
   it("pages the pinned Done section without paging the main list", () => {
