@@ -19,7 +19,7 @@ import {
   resolveCommandCodePromptErrorReason,
 } from "./acp";
 import { normalizeCommandCodePermissionRequest } from "./acpRequests";
-import { normalizeCommandCodeSessionUpdate } from "./acpUpdates";
+import { createCommandCodeSessionUpdateTransform } from "./acpUpdates";
 import { commandCodeMcpLaunch } from "./mcp";
 import { commandCodeDetectionSpec, defaultCommandCodeCapabilities } from "./detection";
 import {
@@ -181,7 +181,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
           // The harness owns filesystem and terminal permissions itself.
           acpFsTextCapability: false,
           acpTerminalCapability: false,
-          acpSessionUpdateTransform: normalizeCommandCodeSessionUpdate,
+          acpSessionUpdateTransform: createCommandCodeSessionUpdateTransform(),
         },
         {
           resolveMode: resolveCommandCodeAcpMode,
