@@ -1,6 +1,7 @@
-import { dbGetThreads, dbMarkLiveThreadsInactive } from "@/host/db";
+import { dbGetThread, dbGetThreads, dbMarkLiveThreadsInactive } from "@/host/db";
 import { isThreadTurnActive } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { pendingThreadStopRequested } from "@/host/remote/server/pendingInterruptedTurns";
 
 /** Commit supervisor-reset state once and describe each publication group.
  * Callers retain custody of their distinct event destinations.
@@ -10,7 +11,7 @@ export function inactivateLiveThreads(): {
   inactiveEvents: SupervisorEvent[];
 } {
   const threads = dbGetThreads();
-  dbMarkLiveThreadsInactive();
+  dbMarkLiveThreadsInactive(threads.filter(pendingThreadStopRequested).map((thread) => thread.id));
   return {
     queueEvents: threads.map((thread) => ({
       type: "thread-follow-up-queue",
@@ -25,6 +26,8 @@ export function inactivateLiveThreads(): {
         status: "inactive",
         attention: "none",
         canResumeWithConfig: thread.canResumeWithConfig,
+        // Matches the row `dbMarkLiveThreadsInactive` just wrote.
+        interruptedTurn: dbGetThread(thread.id)?.interruptedTurn ?? null,
       })),
   };
 }

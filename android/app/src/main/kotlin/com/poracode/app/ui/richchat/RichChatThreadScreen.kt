@@ -62,6 +62,8 @@ fun RichChatThreadScreen(
     userHiddenModels: kotlinx.serialization.json.JsonObject? = null,
     threadLifecycleController: ThreadLifecycleController,
     thread: RemoteThread?,
+    /** The live catalog row; a resume relaunch is admitted against it, never the history read. */
+    catalogThread: RemoteThread? = null,
     agentStatus: AgentStatusEntry?,
     projectLocation: ProjectLocation?,
     canOperate: Boolean,
@@ -107,12 +109,14 @@ fun RichChatThreadScreen(
     var workspaceFiles by remember(threadId) {
         mutableStateOf(emptyList<ProjectFileEntry>())
     }
-    val isTurnActive = RichChatUiLogic.generationActive(
-        state.activeOperations,
-        hasOpenTurn = state.transcript?.openTurn == true,
+    val currentThreadForComposer = RichChatResumePlanner.threadForComposer(
+        catalogThread,
+        thread ?: mentionThreads.firstOrNull { it.id == state.selection?.threadId },
     )
-    val currentThreadForComposer = thread
-        ?: mentionThreads.firstOrNull { it.id == state.selection?.threadId }
+    val resume = rememberRichChatThreadResume(
+        runtime, threadId, catalogThread, threadLifecycleController, projectLocation,
+    )
+    val isTurnActive = resume.isTurnActive(state, currentThreadForComposer)
     val sending = "send" in state.activeOperations
     val refreshing = "history" in state.activeOperations
     val mutating = state.activeOperations.any { it != "history" && it != "older" }
@@ -131,6 +135,8 @@ fun RichChatThreadScreen(
     val closeThreadLabel = stringResource(R.string.rich_chat_close_thread)
     val canConfigure = canOperate && agentStatus != null &&
         (thread?.canResumeWithConfig == true || thread?.status == "launching")
+    val resumePlan = resume.plan(currentThreadForComposer, state, canOperate && !uploading,
+        composerEmpty = draft.isBlank() && queuedSegments.isEmpty() && attachments.isEmpty())
 
     LaunchedEffect(
         RichChatMentionCatalog.trailingMentionQuery(draft),
@@ -207,6 +213,7 @@ fun RichChatThreadScreen(
     /** Sends, or while a turn is active steers by default / queues on the
      * long-press affordance — desktop parity through followUpSubmitAction. */
     fun submitComposer(queueInsteadOfSteer: Boolean) {
+        val rowAtSubmit = currentThreadForComposer
         scope.launch {
             when (
                 submitRichChatComposer(
@@ -218,7 +225,7 @@ fun RichChatThreadScreen(
                     isTurnActive = isTurnActive,
                     activeRequest = state.transcript?.openRequests?.firstOrNull(),
                     queueInsteadOfSteer = queueInsteadOfSteer,
-                )
+                ).also { resume.settle(it, rowAtSubmit) }
             ) {
                 is RichChatOperationResult.Success -> {
                     draft = ""
@@ -275,15 +282,7 @@ fun RichChatThreadScreen(
                     attachments = attachments,
                     sending = sending,
                     uploading = uploading,
-                    errorText = attachmentError?.let {
-                        stringResource(
-                            when (it) {
-                                AttachmentUiError.Invalid -> R.string.rich_chat_attachment_invalid
-                                AttachmentUiError.UploadFailed -> R.string.rich_chat_attachment_upload_failed
-                                AttachmentUiError.CameraUnavailable -> R.string.rich_chat_camera_unavailable
-                            },
-                        )
-                    },
+                    errorText = attachmentError?.let { stringResource(it.messageRes()) },
                     configuration = composerConfiguration,
                     agentStatus = agentStatus,
                     canConfigure = canConfigure,
@@ -337,6 +336,8 @@ fun RichChatThreadScreen(
                     onSend = { submitComposer(queueInsteadOfSteer = false) },
                     onQueueSend = { submitComposer(queueInsteadOfSteer = true) },
                     onInterrupt = { scope.launch { runtime.chat.interrupt() } },
+                    resumePlan = resumePlan,
+                    onResume = { resume.resume(resumePlan, composerConfiguration, state, currentThreadForComposer) },
                 )
             }
         },

@@ -3,9 +3,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent } from "@/shared/contracts";
+import { BackendHostCore } from "@/backend/BackendHostCore";
+import { inactivateLiveThreads } from "@/backend/inactivateLiveThreads";
 import { nativeBindingEnv, sqliteAvailable, testThread } from "@/host/db/runtimeItems.testFixtures";
 import { closeDatabase, getSqlite, initDatabase } from "@/host/db/connection";
-import { dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
+import {
+  dbGetThread,
+  dbMarkLiveThreadsInactive,
+  dbUpsertProject,
+  dbUpsertThread,
+} from "@/host/db/projectsThreads";
 import {
   dbApplyThreadRuntimeEvents,
   dbFlushThreadRuntimeWrites,
@@ -17,6 +24,7 @@ import {
   getRuntimePersistenceSample,
   getRuntimePersistenceState,
 } from "@/host/db/runtimePersistenceRuntime";
+import { withPendingInterruptedTurn } from "./pendingInterruptedTurns";
 import { persistSupervisorEvent, resetDeferredThreadResetsForTests } from "./runtimePersistence";
 
 const THREAD_ID = "thread-1";
@@ -133,5 +141,281 @@ describe.skipIf(!sqliteAvailable)("persistSupervisorEvent failure contract", () 
     expect(published).toEqual(["thread-reset"]);
     expect(await dbGetThreadRuntimeItems(THREAD_ID)).toHaveLength(0);
     expect(getRuntimePersistenceState()?.state).not.toBe("refusing");
+  });
+
+  it.each([
+    { reported: "error" as const, stored: "error" },
+    { reported: null, stored: undefined },
+  ])(
+    "keeps a reported cut-off marker ($reported) when a newer state replaces its queued write",
+    async ({ reported, stored }) => {
+      vi.useFakeTimers();
+      dbUpsertThread(testThread(), 0, undefined, "restart");
+      const state = {
+        type: "thread-state",
+        threadId: THREAD_ID,
+        attention: "none",
+        canResumeWithConfig: true,
+      } as const;
+      persistSupervisorEvent({ ...state, status: "error", interruptedTurn: reported });
+      persistSupervisorEvent({ ...state, status: "idle" });
+      // Reads made before the row write lands already show the reported marker.
+      expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!).interruptedTurn).toBe(stored);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(dbGetThread(THREAD_ID)).toMatchObject({ status: "idle" });
+      expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBe(stored);
+      expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!)).toEqual(dbGetThread(THREAD_ID));
+    },
+  );
+
+  it("rejects a departed provider's failure before snapshot projection and coalescing", async () => {
+    vi.useFakeTimers();
+    dbUpsertThread({ ...testThread(), agentKind: "provider-b" }, 0);
+    const state = {
+      type: "thread-state",
+      threadId: THREAD_ID,
+      attention: "none",
+      canResumeWithConfig: true,
+    } as const;
+    expect(
+      persistSupervisorEvent({
+        ...state,
+        agentKind: "provider-a",
+        status: "error",
+        interruptedTurn: "error",
+      }),
+    ).toMatchObject({ kind: "withhold" });
+    expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!).interruptedTurn).toBeUndefined();
+    persistSupervisorEvent({ ...state, agentKind: "provider-b", status: "idle" });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(THREAD_ID)).toMatchObject({ agentKind: "provider-b", status: "idle" });
+    expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBeUndefined();
+  });
+
+  it.each(["working", "idle"] as const)(
+    "keeps accepted Stop across an immediate restart while cancellation is %s",
+    async (status) => {
+      vi.useFakeTimers();
+      dbUpsertThread({ ...testThread(), status: "working" }, 0);
+      const state = {
+        type: "thread-state",
+        threadId: THREAD_ID,
+        attention: "none",
+        canResumeWithConfig: true,
+        turnStopRequested: true,
+      } as const;
+      persistSupervisorEvent({ ...state, status: "working", interruptedTurn: null });
+      // A later status coalesces the clear while the provider winds down.
+      persistSupervisorEvent({ ...state, status });
+      expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!).interruptedTurn).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(10);
+      expect(
+        getSqlite().prepare("SELECT interrupted_turn FROM threads WHERE id = ?").get(THREAD_ID),
+      ).toEqual({ interrupted_turn: status === "working" ? "stopped" : null });
+      expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBeUndefined();
+      dbMarkLiveThreadsInactive();
+      expect(dbGetThread(THREAD_ID)).toMatchObject({ status: "inactive" });
+      expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBeUndefined();
+    },
+  );
+
+  it("clears Stop intent when the next turn starts, so a later restart is recoverable", async () => {
+    vi.useFakeTimers();
+    dbUpsertThread({ ...testThread(), status: "idle" }, 0, undefined, "stopped");
+    persistSupervisorEvent({
+      type: "thread-state",
+      threadId: THREAD_ID,
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+      interruptedTurn: null,
+    });
+    await vi.advanceTimersByTimeAsync(10);
+    dbMarkLiveThreadsInactive();
+    expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBe("restart");
+  });
+
+  it.each([false, true])("keeps Stop across reset before queue flush (busy: %s)", async (busy) => {
+    vi.useFakeTimers();
+    dbUpsertThread({ ...testThread(), status: "working" }, 0);
+    const write = busy
+      ? vi.spyOn(getSqlite(), "transaction").mockImplementationOnce(() => {
+          throw Object.assign(new Error("database is locked"), { code: "SQLITE_BUSY" });
+        })
+      : null;
+    persistSupervisorEvent({
+      type: "thread-state",
+      threadId: THREAD_ID,
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+      interruptedTurn: null,
+      turnStopRequested: true,
+    });
+    write?.mockRestore();
+
+    expect(
+      getSqlite().prepare("SELECT interrupted_turn FROM threads WHERE id = ?").get(THREAD_ID),
+    ).toEqual({ interrupted_turn: busy ? null : "stopped" });
+    const { inactiveEvents } = inactivateLiveThreads();
+    expect(inactiveEvents).toEqual([
+      expect.objectContaining({ threadId: THREAD_ID, interruptedTurn: null }),
+    ]);
+    for (const event of inactiveEvents) persistSupervisorEvent(event);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(THREAD_ID)).toMatchObject({ status: "inactive" });
+    expect(dbGetThread(THREAD_ID)).not.toHaveProperty("interruptedTurn");
+  });
+
+  it("retains Stop until a not-yet-visible thread row can be written", async () => {
+    vi.useFakeTimers();
+    getSqlite().prepare("DELETE FROM threads WHERE id = ?").run(THREAD_ID);
+    persistSupervisorEvent({
+      type: "thread-state",
+      threadId: THREAD_ID,
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+      interruptedTurn: null,
+      turnStopRequested: true,
+    });
+    dbUpsertThread({ ...testThread(), status: "working" }, 0);
+    await vi.advanceTimersByTimeAsync(10);
+    dbMarkLiveThreadsInactive();
+    expect(dbGetThread(THREAD_ID)).not.toHaveProperty("interruptedTurn");
+  });
+
+  it("does not project or coalesce a valid pending marker after provider replacement", async () => {
+    vi.useFakeTimers();
+    dbUpsertThread({ ...testThread(), agentKind: "provider-a" }, 0);
+    const state = {
+      type: "thread-state",
+      threadId: THREAD_ID,
+      attention: "none",
+      canResumeWithConfig: true,
+    } as const;
+    persistSupervisorEvent({
+      ...state,
+      agentKind: "provider-a",
+      status: "error",
+      interruptedTurn: "error",
+    });
+    expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!).interruptedTurn).toBe("error");
+    dbUpsertThread({ ...testThread(), agentKind: "provider-b" }, 0);
+    expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!).interruptedTurn).toBeUndefined();
+    persistSupervisorEvent({ ...state, agentKind: "provider-b", status: "idle" });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBeUndefined();
+  });
+
+  it("does not let a late failure overwrite the successor's already queued completion", async () => {
+    vi.useFakeTimers();
+    dbUpsertThread({ ...testThread(), agentKind: "provider-b", status: "working" }, 0);
+    const state = {
+      type: "thread-state",
+      threadId: THREAD_ID,
+      attention: "none",
+      canResumeWithConfig: true,
+    } as const;
+    persistSupervisorEvent({ ...state, agentKind: "provider-b", status: "idle" });
+    persistSupervisorEvent({
+      ...state,
+      agentKind: "provider-a",
+      status: "error",
+      interruptedTurn: "error",
+    });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(THREAD_ID)).toMatchObject({ status: "idle", agentKind: "provider-b" });
+    expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBeUndefined();
+  });
+
+  it.each(["success", "missing", "last", "failed"] as const)(
+    "retires pre-rewind state only after a successful public rewind (%s)",
+    async (outcome) => {
+      dbUpsertThread({ ...testThread(), status: "idle" }, 0);
+      dbApplyThreadRuntimeEvents(
+        THREAD_ID,
+        ["checkpoint", "failed-reply"].map((itemId) => ({
+          type: "item.started" as const,
+          threadId: THREAD_ID,
+          itemId,
+          itemType: "assistant_message" as const,
+        })),
+      );
+      await dbFlushThreadRuntimeWrites(THREAD_ID);
+      vi.useFakeTimers();
+      const state = {
+        type: "thread-state",
+        threadId: THREAD_ID,
+        attention: "none",
+        canResumeWithConfig: true,
+      } as const;
+      persistSupervisorEvent({ ...state, status: "working", interruptedTurn: null });
+      persistSupervisorEvent({ ...state, status: "error", interruptedTurn: "error" });
+      expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!).interruptedTurn).toBe("error");
+      const onEvent = vi.fn<() => void>();
+      const host = Object.assign(Object.create(BackendHostCore.prototype), {
+        closing: false,
+        options: { onEvent },
+      }) as BackendHostCore;
+      const checkpoint =
+        outcome === "missing" ? "missing" : outcome === "last" ? "failed-reply" : "checkpoint";
+      getSqlite().pragma(`query_only = ${outcome === "failed" ? "ON" : "OFF"}`);
+      let truncated = false;
+      let failure: unknown;
+      try {
+        truncated = host.truncateThreadRuntime(THREAD_ID, checkpoint).truncated;
+      } catch (error) {
+        failure = error;
+      } finally {
+        getSqlite().pragma("query_only = OFF");
+      }
+      expect(truncated).toBe(outcome === "success");
+      expect(failure instanceof Error).toBe(outcome === "failed");
+      const expected = outcome === "success" ? undefined : "error";
+      expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!).interruptedTurn).toBe(expected);
+      expect(onEvent).toHaveBeenCalledTimes(outcome === "success" ? 1 : 0);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBe(expected);
+      // A later turn still owns its newly admitted interruption.
+      persistSupervisorEvent({ ...state, status: "error", interruptedTurn: "restart" });
+      expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!).interruptedTurn).toBe("restart");
+      await vi.advanceTimersByTimeAsync(10);
+      expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBe("restart");
+    },
+  );
+
+  it("binds older untagged events to the provider that owned the thread at admission", async () => {
+    vi.useFakeTimers();
+    dbUpsertThread({ ...testThread(), agentKind: "provider-a" }, 0);
+    persistSupervisorEvent({
+      type: "thread-state",
+      threadId: THREAD_ID,
+      attention: "none",
+      canResumeWithConfig: true,
+      status: "error",
+      interruptedTurn: "error",
+    });
+    dbUpsertThread({ ...testThread(), agentKind: "provider-b", status: "idle" }, 0);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(THREAD_ID)).toMatchObject({ status: "idle", agentKind: "provider-b" });
+    expect(withPendingInterruptedTurn(dbGetThread(THREAD_ID)!).interruptedTurn).toBeUndefined();
+  });
+
+  it("publishes state for a thread whose row is not visible yet and writes it once the row lands", async () => {
+    vi.useFakeTimers();
+    const threadId = "thread-not-yet-visible";
+    const event = {
+      type: "thread-state",
+      threadId,
+      agentKind: "codex",
+      attention: "none",
+      canResumeWithConfig: true,
+      status: "idle",
+    } as const;
+    expect(persistSupervisorEvent(event)).toEqual({ kind: "publish", event });
+    dbUpsertThread({ ...testThread(), id: threadId }, 1);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(threadId)).toMatchObject({ status: "idle", canResumeWithConfig: true });
   });
 });

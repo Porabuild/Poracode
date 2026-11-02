@@ -1,4 +1,8 @@
 import { expect, it, vi } from "vitest";
+import {
+  notePendingInterruptedTurn,
+  settlePendingInterruptedTurn,
+} from "./pendingInterruptedTurns";
 import { ThreadLiveReadState, seedThreadLiveReadState } from "./threadLiveReadState";
 import { SessionConfigInventory } from "./sessionConfigInventory";
 import type { RemoteBroadcastEvent, RemoteServerContext } from "./context";
@@ -202,4 +206,32 @@ it("keeps known completion after exit but cannot certify an unowned runtime leve
     runtimeStateCurrent: true,
     thread: { status: "idle" },
   });
+});
+
+it("shows a reported cut-off marker until its row write lands", () => {
+  const state = new ThreadLiveReadState();
+  const cutOff = { ...thread, interruptedTurn: "restart" as const };
+  notePendingInterruptedTurn(thread, "error");
+  expect(state.projectSnapshotRuntime(thread).thread.interruptedTurn).toBe("error");
+  state.observe({ ...working, status: "idle", attention: "none" });
+  expect(state.projectSnapshotRuntime(thread)).toMatchObject({
+    runtimeStateCurrent: true,
+    thread: { interruptedTurn: "error" },
+  });
+  notePendingInterruptedTurn(thread, null);
+  expect(state.projectSnapshotRuntime(cutOff).thread).not.toHaveProperty("interruptedTurn");
+  settlePendingInterruptedTurn(thread.id);
+  expect(state.projectSnapshotRuntime(cutOff).thread.interruptedTurn).toBe("restart");
+});
+
+it("does not project a departed provider's pending marker into a successor snapshot", () => {
+  const state = new ThreadLiveReadState();
+  notePendingInterruptedTurn(thread, "error");
+  try {
+    expect(
+      state.projectSnapshotRuntime({ ...thread, agentKind: "successor" }).thread,
+    ).not.toHaveProperty("interruptedTurn");
+  } finally {
+    settlePendingInterruptedTurn(thread.id);
+  }
 });

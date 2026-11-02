@@ -9,7 +9,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_89c3e54d73> = .init(id: "route.shell-snapshot.response", schema: RemoteSchemas.schema_89c3e54d7347d9f8)
+  static let routeU2EShellU2DSnapshotU2EResponse: RemoteRootCodec<RouteshellU2DSnapshotResponse_ad5850d87c> = .init(id: "route.shell-snapshot.response", schema: RemoteSchemas.schema_ad5850d87cc2755c)
 }
 
 public extension RemoteRootCodecs {
@@ -125,7 +125,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DHistoryU2DChangesU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryU2DChangesResponse_93164e7f93> = .init(id: "route.thread-history-changes.response", schema: RemoteSchemas.schema_93164e7f93d9ccbf)
+  static let routeU2EThreadU2DHistoryU2DChangesU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryU2DChangesResponse_b3517b8a1d> = .init(id: "route.thread-history-changes.response", schema: RemoteSchemas.schema_b3517b8a1d6beda1)
 }
 
 public extension RemoteRootCodecs {
@@ -169,7 +169,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DHistoryU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryResponse_4cbd1d296d> = .init(id: "route.thread-history.response", schema: RemoteSchemas.schema_4cbd1d296de43081)
+  static let routeU2EThreadU2DHistoryU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryResponse_32b9dd2896> = .init(id: "route.thread-history.response", schema: RemoteSchemas.schema_32b9dd28960e8996)
 }
 
 public extension RemoteRootCodecs {
@@ -189,7 +189,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DListU2EResponse: RemoteRootCodec<RoutethreadU2DListResponse_43f8841d5c> = .init(id: "route.thread-list.response", schema: RemoteSchemas.schema_43f8841d5cda148a)
+  static let routeU2EThreadU2DListU2EResponse: RemoteRootCodec<RoutethreadU2DListResponse_ee73ccabe6> = .init(id: "route.thread-list.response", schema: RemoteSchemas.schema_ee73ccabe697663c)
 }
 
 public extension RemoteRootCodecs {

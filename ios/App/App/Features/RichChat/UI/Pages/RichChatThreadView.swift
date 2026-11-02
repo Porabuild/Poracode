@@ -12,6 +12,7 @@ struct RichChatThreadView: View {
   @State private var isConfirmingClose = false
   @State private var composerExpanded = false
   @State var fork = RichChatForkState()
+  @State var resumeState = RichChatThreadResumeState()
 
   init(session: AppSession, threadID: String, title: String) {
     self.session = session
@@ -182,7 +183,7 @@ struct RichChatThreadView: View {
       isExpanded: $composerExpanded,
       baseConfiguration: thread?.config ?? .empty,
       canOperate: canOperate,
-      isTurnActive: suite.transcript.state.transcript?.openTurn == true || threadStatusIsWorking,
+      isTurnActive: isComposerTurnActive,
       controller: suite.conversation,
       requestController: suite.requests,
       activeRequest: suite.transcript.state.transcript?.openRequests.first,
@@ -198,7 +199,8 @@ struct RichChatThreadView: View {
       fileMentionController: fileMentionController,
       skillPickerContext: skillPickerContext,
       sessionActions: suite.sessionActions,
-      onInsertIntoComposer: pageState.insertIntoComposerDraft
+      onInsertIntoComposer: pageState.insertIntoComposerDraft,
+      resumeContext: composerResume
     )
   }
 
@@ -228,9 +230,7 @@ struct RichChatThreadView: View {
     guard let thread else { return false }
     return ThreadPresentationFilter.isTerminalPresentation(thread.presentationMode)
   }
-  private var threadStatusIsWorking: Bool {
-    thread?.status == "working"
-  }
+  var threadStatusIsWorking: Bool { thread?.status == "working" }
   private var activeConfiguration: ThreadConfig {
     draftState.configuration ?? thread?.config ?? .empty
   }

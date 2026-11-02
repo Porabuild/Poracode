@@ -41,6 +41,8 @@ struct RichChatComposerView: View {
   var sessionActions: RichChatSessionActionsController?
   /// Explicit draft insertion only; a revise suggestion is never sent by the app.
   var onInsertIntoComposer: (String) -> Void = { _ in }
+  /// Cut-off turn resume and the send-settled hook (RichChatComposerResume.swift).
+  var resumeContext = RichChatComposerResumeContext()
 
   @State private var importing = false
   @State private var attachmentError: String?
@@ -106,12 +108,13 @@ struct RichChatComposerView: View {
       || !queuedSegments.isEmpty || !skills.isEmpty || !mcps.isEmpty
     let canSend = hasPrompt || !attachments.isEmpty
     let canOpenControls = agentStatus != nil && canConfigure
+    let resume = resumeAction(canSend: canSend)
     return RichChatAdaptiveComposer(
       text: $draft,
       selection: $draftSelection,
       isExpanded: $composerExpanded,
       hasPrompt: hasPrompt,
-      hasTrailingAction: canSend || isTurnActive || controller.state.isSending,
+      hasTrailingAction: canSend || isTurnActive || controller.state.isSending || resume != nil,
       submit: { send() }
     ) {
       RichChatComposerInlineConfiguration(
@@ -163,6 +166,7 @@ struct RichChatComposerView: View {
         importing: importing,
         isResolvingRequest: requestController.state.resolvingRequestID != nil,
         queue: { send(queueInsteadOfSteer: true) },
+        resume: resume,
         interrupt: { Task { await controller.interrupt() } },
         send: { send() }
       )
@@ -257,15 +261,9 @@ struct RichChatComposerView: View {
     let queuesFollowUp = turnActive && queueInsteadOfSteer
     onSubmissionStarted()
     Task {
-      if let activeRequest,
-        let denial = RichChatPresentation.composerDenyResolution(for: activeRequest)
-      {
-        guard canResolveRequests,
-          await requestController.resolve(denial, request: activeRequest)
-        else {
-          onSubmissionFinished(false)
-          return
-        }
+      guard await declinePendingApproval() else {
+        onSubmissionFinished(false)
+        return
       }
       let succeeded: Bool
       if queuesFollowUp {
@@ -303,6 +301,7 @@ struct RichChatComposerView: View {
         composerExpanded = false
       }
       onSubmissionFinished(succeeded)
+      resumeContext.sendSettled(succeeded)
     }
   }
 }
