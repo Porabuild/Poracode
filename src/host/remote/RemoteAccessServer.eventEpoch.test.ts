@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { runtimeEventSchema } from "@/shared/contracts/runtimeEvent";
+import type { RuntimeEvent } from "@/shared/contracts";
+import { RuntimeEventBuffer } from "@/supervisor/runtime/threadSession/runtimeEventBuffer";
 import { closeDatabase, initDatabase } from "@/host/db";
 import { RemoteDesktopClient } from "@/shared/remote/client";
 import { remoteShellSnapshotSchema } from "@/shared/remote";
@@ -180,6 +182,51 @@ async function epochA() {
     .toBe(5);
   return { dataDir, a, token, epoch: epoch! };
 }
+
+describe("runtime producer live delivery and reconnect replay", () => {
+  it.each([0, 2])(
+    "delivers a multi-thread burst with %i initial clients without global resync",
+    async (count) => {
+      const host = await startInstance(newDataDir());
+      const token = await pair(host.info);
+      const live = await Promise.all(Array.from({ length: count }, () => open(host, token)));
+      const events: RuntimeEvent[] = Array.from({ length: 3 }, (_, index) => ({
+        type: "content.delta",
+        threadId: `thread-${index}`,
+        itemId: "item",
+        stream: "assistant_text",
+        delta: "x".repeat(900_000),
+      }));
+      const buffer = new RuntimeEventBuffer((event) => host.server.publishSupervisorEvent(event));
+      try {
+        for (const event of events) buffer.append(event.threadId, event);
+        buffer.flush();
+      } finally {
+        buffer.clear();
+      }
+      const replay = await open(host, token, { lastSeenSeq: 0 });
+      for (const client of [...live, replay]) {
+        await expect
+          .poll(() => client.frames.filter((frame) => frame.type === "event").length)
+          .toBe(3);
+        expect(client.frames.some((frame) => frame.type === "resync-required")).toBe(false);
+        expect(client.socket.readyState).toBe(WebSocket.OPEN);
+        const received = client.frames.filter((frame) => frame.type === "event");
+        expect(received.map((frame) => frame.seq)).toEqual([1, 2, 3]);
+        expect(
+          received.flatMap((frame) => {
+            const event = frame.event as RemoteBroadcastEvent;
+            if (event.type === "thread-runtime-event") return [event.event];
+            if (event.type === "thread-runtime-events") return event.events;
+            if (event.type === "thread-runtime-events-multi")
+              return event.batches.flatMap((batch) => batch.events);
+            throw new Error(`Unexpected event: ${event.type}`);
+          }),
+        ).toEqual(events);
+      }
+    },
+  );
+});
 
 describe("event-stream epoch: declared clients", () => {
   it.each(["bounded", "legacy"] as const)(

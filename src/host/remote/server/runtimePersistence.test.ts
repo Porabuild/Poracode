@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent } from "@/shared/contracts";
 import { nativeBindingEnv, sqliteAvailable, testThread } from "@/host/db/runtimeItems.testFixtures";
@@ -16,6 +17,9 @@ import {
   getRuntimeDurableGapPendingThreadIds,
   getRuntimePersistenceSample,
   getRuntimePersistenceState,
+  attachRuntimePersistenceDurableGapFromCurrentConnection,
+  armRuntimeThreadForLaunch,
+  barrierRuntimeWrites,
 } from "@/host/db/runtimePersistenceRuntime";
 import { persistSupervisorEvent, resetDeferredThreadResetsForTests } from "./runtimePersistence";
 
@@ -68,6 +72,89 @@ describe.skipIf(!sqliteAvailable)("persistSupervisorEvent failure contract", () 
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
     vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("retries real SQLite writer contention with ordered usage and transcript custody", async () => {
+    attachRuntimePersistenceDurableGapFromCurrentConnection();
+    armRuntimeThreadForLaunch(THREAD_ID);
+    const sqlite = getSqlite();
+    const blocker = new Database(
+      join(dir, "state.sqlite"),
+      nativeBindingEnv ? { nativeBinding: nativeBindingEnv } : {},
+    );
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const usage = (counter: number): RuntimeEvent => ({
+      type: "usage.spent",
+      threadId: THREAD_ID,
+      usage: {
+        counterKind: "cumulative",
+        counter,
+        scopeId: "contention",
+        epoch: 0,
+        sampleId: `cumulative-${counter}`,
+      },
+    });
+    const call: RuntimeEvent = {
+      type: "usage.spent",
+      threadId: THREAD_ID,
+      usage: {
+        counterKind: "per-call",
+        counter: 50,
+        scopeId: "contention-call",
+        epoch: 0,
+        sampleId: "call-once",
+      },
+    };
+    try {
+      blocker.exec("BEGIN IMMEDIATE");
+      expect(
+        persistSupervisorEvent({
+          type: "thread-runtime-events",
+          threadId: THREAD_ID,
+          events: [started(), delta("before"), usage(1000)],
+        }),
+      ).toMatchObject({ kind: "publish" });
+      expect(barrierRuntimeWrites(THREAD_ID)).toMatchObject({
+        kind: "degraded",
+        errorClass: "retryable",
+        error: { code: "SQLITE_BUSY" },
+      });
+      expect(errors).toHaveBeenCalled();
+      expect(sqlite.prepare("SELECT COUNT(*) AS n FROM thread_runtime_items").get()).toEqual({
+        n: 0,
+      });
+      expect(sqlite.prepare("SELECT COUNT(*) AS n FROM usage_events").get()).toEqual({ n: 0 });
+      expect(
+        persistSupervisorEvent({
+          type: "thread-runtime-events",
+          threadId: THREAD_ID,
+          events: [delta("after"), usage(1200), call, call],
+        }),
+      ).toMatchObject({ kind: "publish" });
+      expect(getRuntimePersistenceSample()?.pendingEvents).toBe(7);
+      blocker.exec("COMMIT");
+      await expect.poll(() => getRuntimePersistenceSample()?.pendingEvents).toBe(0);
+      expect((await dbGetThreadRuntimeItems(THREAD_ID))[0]?.streams.command_output).toBe(
+        "beforeafter",
+      );
+      expect(sqlite.prepare("SELECT SUM(value) AS n FROM usage_events").get()).toEqual({ n: 250 });
+      expect(
+        persistSupervisorEvent({
+          type: "thread-runtime-events",
+          threadId: THREAD_ID,
+          events: [usage(1000), usage(1200), call],
+        }),
+      ).toMatchObject({ kind: "publish" });
+      await dbFlushThreadRuntimeWrites(THREAD_ID);
+      expect(sqlite.prepare("SELECT SUM(value) AS n FROM usage_events").get()).toEqual({ n: 250 });
+      expect(sqlite.prepare("SELECT COUNT(*) AS n FROM usage_token_samples").get()).toEqual({
+        n: 1,
+      });
+    } finally {
+      if (blocker.inTransaction) blocker.exec("ROLLBACK");
+      blocker.close();
+    }
   });
 
   it("never throws into the supervisor handler and refuses to accept without durable evidence", async () => {
