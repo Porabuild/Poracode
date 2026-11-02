@@ -178,7 +178,9 @@ export function QrScanner(props: {
       role="dialog"
       aria-modal="true"
       aria-label={t`Scan pairing QR code`}
-      className="fixed inset-0 z-[60] flex flex-col bg-black"
+      // Above the settings overlay (z-50) and bottom-sheet backdrop (z-80): the
+      // scanner opens from inside a settings sheet.
+      className="fixed inset-0 z-[90] flex flex-col bg-black"
     >
       {error ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">

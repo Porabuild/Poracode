@@ -12,8 +12,8 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { isIosInstallBrowser, useCanInstall, promptInstall } from "@/renderer/pwa/install";
+import { QrScanner } from "@/renderer/components/common/QrScanner";
 import type { Pairing } from "../usePairing";
-import { QrScanner } from "./QrScanner";
 
 /**
  * The live scanner plus its standard wiring, so each surface only has to say what
