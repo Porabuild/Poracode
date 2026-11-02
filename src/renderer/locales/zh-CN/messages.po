@@ -1908,7 +1908,7 @@ msgstr "允许代理读/写 cookie 和存储"
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "请在浏览器设置中允许此站点访问摄像头后重试，或在下方输入端点和令牌。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
 msgstr "请在浏览器设置中允许此站点访问摄像头后重试，或改为粘贴配对链接。"
 
@@ -3078,7 +3078,7 @@ msgstr "日历"
 msgid "Camera"
 msgstr "相机"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "摄像头访问已被阻止"
 
@@ -3549,7 +3549,7 @@ msgstr "请选择实验使用的本地基准分支。"
 msgid "Choose a parent folder"
 msgstr "选择父文件夹"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Choose a photo"
 msgstr "选择照片"
 
@@ -4072,7 +4072,7 @@ msgstr "关闭拉取请求"
 msgid "Close run details"
 msgstr "关闭运行详情"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Close scanner"
 msgstr "关闭扫描器"
 
@@ -5355,7 +5355,7 @@ msgstr "无法扫描 MCP 服务器配置。"
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "无法安排 Lightcode 数据导入。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "无法启动摄像头"
 
@@ -9412,7 +9412,7 @@ msgstr "进行中"
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "在 Safari 中点按“分享”，然后选择“添加到主屏幕”。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
 msgstr "应用内摄像头扫描仅支持 HTTPS 或 localhost。请改用手机相机应用扫描桌面上的二维码，或粘贴配对链接。"
 
@@ -12198,7 +12198,7 @@ msgstr "未找到分支"
 msgid "No browser tab open"
 msgstr "没有打开浏览器选项卡"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "No camera found"
 msgstr "未找到摄像头"
 
@@ -13839,11 +13839,11 @@ msgstr "粘贴具名服务器对象，或以 mcpServers 键封装的对象。"
 msgid "Paste in input"
 msgstr "粘贴到输入中"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste link"
 msgstr "粘贴链接"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste pairing link"
 msgstr "粘贴配对链接"
 
@@ -14174,7 +14174,7 @@ msgstr "插件"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "插件会以你的账户权限执行代码。请安装来自可信作者的软件包。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "对准“设置”→“远程访问”中的二维码"
 
@@ -14994,6 +14994,7 @@ msgid "Qoder CLI"
 msgstr "Qoder CLI"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "QR Code"
 msgstr "二维码"
 
@@ -16910,7 +16911,7 @@ msgstr "已保存的 shell"
 msgid "Scan pairing code"
 msgstr "扫描配对码"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "扫描配对二维码"
 
@@ -16934,7 +16935,7 @@ msgstr "扫描桌面端“远程访问”中显示的配对码。"
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "扫描{wslDistro}来查找已安装的 CLI。这通常需要几秒钟。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scanning needs a secure connection"
 msgstr "扫描需要安全连接"
 
@@ -18003,7 +18004,9 @@ msgstr "请在已配对的桌面端登录，然后刷新此状态。"
 msgid "Sign in required"
 msgstr "需要登录"
 
+#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "登录 {0}"
@@ -18277,7 +18280,7 @@ msgstr "其他…"
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "启动摄像头时出错。请改为在下方输入端点和令牌进行配对。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "启动摄像头时出错。请改为粘贴配对链接，或选择二维码照片。"
 
@@ -18584,7 +18587,7 @@ msgstr "启动中"
 msgid "Starting agent…"
 msgstr "正在启动智能体…"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Starting camera…"
 msgstr "正在启动摄像头…"
 
@@ -19301,6 +19304,7 @@ msgid "That conversation is no longer available."
 msgstr "该对话已不可用。"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "That isn't a Poracode pairing code."
 msgstr "这不是 Poracode 的配对码。"
 
@@ -20155,7 +20159,7 @@ msgstr "此桌面上的 Poracode 版本不支持浏览器转发。请在桌面�
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "此设备没有可用摄像头。请改为在下方输入端点和令牌进行配对。"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "此设备没有可用摄像头。请改为粘贴配对链接，或选择二维码照片。"
 

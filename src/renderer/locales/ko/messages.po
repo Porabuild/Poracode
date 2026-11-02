@@ -1908,7 +1908,7 @@ msgstr "에이전트가 쿠키 및 저장소를 읽고 쓸 수 있도록 허용"
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "브라우저 설정에서 이 사이트의 카메라 접근을 허용하고 다시 시도하거나, 아래에 엔드포인트와 토큰을 입력하세요."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
 msgstr "브라우저 설정에서 이 사이트의 카메라 접근을 허용하고 다시 시도하거나, 대신 페어링 링크를 붙여넣으세요."
 
@@ -3078,7 +3078,7 @@ msgstr "캘린더"
 msgid "Camera"
 msgstr "카메라"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "카메라 접근이 차단됨"
 
@@ -3549,7 +3549,7 @@ msgstr "실험에 사용할 로컬 기준 브랜치를 선택하세요."
 msgid "Choose a parent folder"
 msgstr "상위 폴더 선택"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Choose a photo"
 msgstr "사진 선택"
 
@@ -4072,7 +4072,7 @@ msgstr "풀 리퀘스트 닫기"
 msgid "Close run details"
 msgstr "실행 세부 정보 닫기"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Close scanner"
 msgstr "스캐너 닫기"
 
@@ -5355,7 +5355,7 @@ msgstr "MCP 서버 구성을 스캔할 수 없습니다."
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "Lightcode 데이터 가져오기를 예약할 수 없습니다."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "카메라를 시작할 수 없습니다"
 
@@ -9412,7 +9412,7 @@ msgstr "진행 중"
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "Safari에서 공유를 누른 다음 홈 화면에 추가를 선택하세요."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
 msgstr "앱 내 카메라 스캔은 HTTPS 또는 localhost에서만 작동합니다. 대신 휴대폰의 카메라 앱으로 데스크톱 코드를 스캔하거나 페어링 링크를 붙여넣으세요."
 
@@ -12199,7 +12199,7 @@ msgstr "브랜치를 찾을 수 없습니다."
 msgid "No browser tab open"
 msgstr "브라우저 탭이 열려 있지 않습니다."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "No camera found"
 msgstr "카메라를 찾을 수 없음"
 
@@ -13840,11 +13840,11 @@ msgstr "이름이 지정된 서버 객체 또는 mcpServers 키로 감싼 객체
 msgid "Paste in input"
 msgstr "입력에 붙여넣기"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste link"
 msgstr "링크 붙여넣기"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste pairing link"
 msgstr "페어링 링크 붙여넣기"
 
@@ -14175,7 +14175,7 @@ msgstr "플러그인"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "플러그인은 계정 권한으로 코드를 실행합니다. 신뢰할 수 있는 제작자의 패키지를 설치하세요."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "설정 → 원격 접근의 QR 코드를 향하세요"
 
@@ -14995,6 +14995,7 @@ msgid "Qoder CLI"
 msgstr "Qoder CLI"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "QR Code"
 msgstr "QR 코드"
 
@@ -16911,7 +16912,7 @@ msgstr "저장된 셸"
 msgid "Scan pairing code"
 msgstr "페어링 코드 스캔"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "페어링 QR 코드 스캔"
 
@@ -16935,7 +16936,7 @@ msgstr "데스크톱의 원격 액세스에 표시된 페어링 코드를 스캔
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "설치된 CLI를 찾기 위해 {wslDistro}을(를) 검색하는 중입니다. 이 작업은 일반적으로 몇 초 정도 걸립니다."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scanning needs a secure connection"
 msgstr "스캔에는 보안 연결이 필요합니다"
 
@@ -18004,7 +18005,9 @@ msgstr "페어링된 데스크톱에서 로그인한 다음 이 상태를 새로
 msgid "Sign in required"
 msgstr "로그인이 필요합니다"
 
+#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "{0}에 로그인"
@@ -18278,7 +18281,7 @@ msgstr "기타…"
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "카메라를 시작하는 중 문제가 발생했습니다. 대신 아래에 엔드포인트와 토큰을 입력하여 페어링하세요."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "카메라를 시작하는 중 문제가 발생했습니다. 대신 페어링 링크를 붙여넣거나 코드 사진을 선택하세요."
 
@@ -18585,7 +18588,7 @@ msgstr "시작 중"
 msgid "Starting agent…"
 msgstr "에이전트 시작 중…"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Starting camera…"
 msgstr "카메라 시작 중…"
 
@@ -19302,6 +19305,7 @@ msgid "That conversation is no longer available."
 msgstr "해당 대화는 더 이상 사용할 수 없습니다."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "That isn't a Poracode pairing code."
 msgstr "이것은 Poracode 페어링 코드가 아닙니다."
 
@@ -20156,7 +20160,7 @@ msgstr "이 데스크톱의 Poracode 버전은 브라우저 포워딩을 지원�
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "이 기기에는 사용할 수 있는 카메라가 없습니다. 대신 아래에 엔드포인트와 토큰을 입력하여 페어링하세요."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "이 기기에는 사용할 수 있는 카메라가 없습니다. 대신 페어링 링크를 붙여넣거나 코드 사진을 선택하세요."
 

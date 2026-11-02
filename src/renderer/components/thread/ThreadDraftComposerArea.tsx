@@ -38,6 +38,7 @@ import {
 import { ComposerVoiceInput } from "@/renderer/components/composer/ComposerVoiceInput";
 import { LiveVoiceButton } from "@/renderer/components/composer/LiveVoiceControls";
 import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
+import { composerCustomMcpItems } from "@/renderer/components/composer/composerCustomMcpServers";
 import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
@@ -80,15 +81,13 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { resolveModelLabel } from "@/renderer/components/providers/modelDisplay";
 import { launchExperiment } from "@/renderer/actions/experimentActions";
 import { openMcpServersSettings } from "@/renderer/actions/panelActions";
-import {
-  updateProjectMcpServers,
-  updateProjectWorktreeBaseBranch,
-} from "@/renderer/actions/projectActions";
+import { updateProjectWorktreeBaseBranch } from "@/renderer/actions/projectActions";
 import {
   ExperimentDraftTargets,
   type ExperimentDraftCandidate,
 } from "@/renderer/components/experiment/ExperimentDraftTargets";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
 import { registerMountedProjectDraft } from "@/renderer/state/mountedProjectDrafts";
 import { composerSeedQueue } from "@/renderer/state/projectReferences";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -363,7 +362,6 @@ export function ThreadDraftComposerArea(props: {
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const setMcpServerEnabled = useSharedSettings((s) => s.setMcpServerEnabled);
   const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
-  const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
   const providerMcpSettings = useSharedSettings((s) => s.agentSettings[props.selectedAgent.kind]);
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
@@ -554,6 +552,7 @@ export function ThreadDraftComposerArea(props: {
       }
     },
   }));
+  useResidentProjectMcpServers(props.project);
   // User-configured MCP servers (global + this project's workspace scope).
   // Toggling flips the server's persistent `enabled` flag — the same switch as
   // the MCP Servers settings page — because custom servers bind at launch from
@@ -562,32 +561,19 @@ export function ThreadDraftComposerArea(props: {
   // what actually launches. Provider-owned MCP rows are shown read-only here;
   // their settings page remains the single place that changes them.
   const projectCustomMcpServers = props.project.mcpServers ?? [];
-  const projectCustomMcpIds = new Set(projectCustomMcpServers.map((server) => server.id));
   const mergedCustomMcpServers = mergeMcpServers(userCustomMcpServers, projectCustomMcpServers);
   const visibleCustomMcpServers = providerOwnsMcp
     ? providerOwnsMcpForComposer
       ? mergedCustomMcpServers.filter((server) => server.enabled)
       : []
     : mergedCustomMcpServers;
-  const customMcpServers: ComposerCustomMcpItem[] = visibleCustomMcpServers.map((server) => {
-    const isProject = projectCustomMcpIds.has(server.id);
-    const scopedServers = isProject ? projectCustomMcpServers : userCustomMcpServers;
-    return {
-      id: `${isProject ? "project" : "user"}:${server.id}`,
-      name: server.name,
-      enabled: server.enabled,
-      ...(!providerOwnsMcp
-        ? {
-            onToggle: (next: boolean) => {
-              const nextServers = scopedServers.map((item) =>
-                item.id === server.id ? { ...item, enabled: next } : item,
-              );
-              if (isProject) updateProjectMcpServers(props.project.id, nextServers);
-              else setUserCustomMcpServers(nextServers);
-            },
-          }
-        : {}),
-    };
+  const customMcpServers: ComposerCustomMcpItem[] = composerCustomMcpItems({
+    servers: visibleCustomMcpServers,
+    userServers: userCustomMcpServers,
+    projectServers: projectCustomMcpServers,
+    projectId: props.project.id,
+    projectLocation: props.project.location,
+    editable: !providerOwnsMcp,
   });
   // Composer chips represent per-thread *mentions* only: a server whose config
   // flag is on for this draft but that isn't persistently enabled. Persistently

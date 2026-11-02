@@ -1913,7 +1913,7 @@ msgstr "Allow agents to read/write cookies and storage"
 #~ msgid "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 #~ msgstr "Allow camera access for this site in your browser settings and try again — or enter the endpoint and token below."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
 msgstr "Allow camera access for this site in your browser settings and try again, or paste the pairing link instead."
 
@@ -3087,7 +3087,7 @@ msgstr "Calendar"
 msgid "Camera"
 msgstr "Camera"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Camera access blocked"
 msgstr "Camera access blocked"
 
@@ -3558,7 +3558,7 @@ msgstr "Choose a local base branch for the experiment."
 msgid "Choose a parent folder"
 msgstr "Choose a parent folder"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Choose a photo"
 msgstr "Choose a photo"
 
@@ -4081,7 +4081,7 @@ msgstr "Close pull request"
 msgid "Close run details"
 msgstr "Close run details"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Close scanner"
 msgstr "Close scanner"
 
@@ -5364,7 +5364,7 @@ msgstr "Couldn't scan MCP server configurations."
 msgid "Couldn't schedule the Lightcode data import."
 msgstr "Couldn't schedule the Lightcode data import."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
 msgstr "Couldn't start the camera"
 
@@ -9421,7 +9421,7 @@ msgstr "In progress"
 msgid "In Safari, tap Share, then Add to Home Screen."
 msgstr "In Safari, tap Share, then Add to Home Screen."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
 msgstr "In-app camera scanning only works over HTTPS or on localhost. Scan the desktop code with your phone's camera app instead, or paste the pairing link."
 
@@ -12208,7 +12208,7 @@ msgstr "No branches found"
 msgid "No browser tab open"
 msgstr "No browser tab open"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "No camera found"
 msgstr "No camera found"
 
@@ -13849,11 +13849,11 @@ msgstr "Paste either a named server object or an object wrapped in an mcpServers
 msgid "Paste in input"
 msgstr "Paste in input"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste link"
 msgstr "Paste link"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Paste pairing link"
 msgstr "Paste pairing link"
 
@@ -14184,7 +14184,7 @@ msgstr "Plugins"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "Plugins run code with your account's access. Install packages from authors you trust."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Point at the QR code in Settings → Remote Access"
 
@@ -15004,6 +15004,7 @@ msgid "Qoder CLI"
 msgstr "Qoder CLI"
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "QR Code"
 msgstr "QR Code"
 
@@ -16920,7 +16921,7 @@ msgstr "Saved shell"
 msgid "Scan pairing code"
 msgstr "Scan pairing code"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scan pairing QR code"
 msgstr "Scan pairing QR code"
 
@@ -16944,7 +16945,7 @@ msgstr "Scan the pairing code shown in Remote Access on your desktop."
 msgid "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 msgstr "Scanning {wslDistro} for installed CLIs. This usually takes a couple of seconds."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Scanning needs a secure connection"
 msgstr "Scanning needs a secure connection"
 
@@ -18013,7 +18014,9 @@ msgstr "Sign in on the paired desktop, then refresh this status."
 msgid "Sign in required"
 msgstr "Sign in required"
 
+#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
+#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "Sign in to {0}"
@@ -18287,7 +18290,7 @@ msgstr "Something else…"
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "Something went wrong starting the camera. Paste the pairing link or pick a photo of the code instead."
 
@@ -18594,7 +18597,7 @@ msgstr "Starting"
 msgid "Starting agent…"
 msgstr "Starting agent…"
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "Starting camera…"
 msgstr "Starting camera…"
 
@@ -19311,6 +19314,7 @@ msgid "That conversation is no longer available."
 msgstr "That conversation is no longer available."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "That isn't a Poracode pairing code."
 msgstr "That isn't a Poracode pairing code."
 
@@ -20165,7 +20169,7 @@ msgstr "This desktop's Poracode version doesn't support browser forwarding. Upda
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "This device has no usable camera. Enter the endpoint and token below to pair instead."
 
-#: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/QrScanner.tsx
+#: src/renderer/components/common/QrScanner.tsx
 msgid "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
 msgstr "This device has no usable camera. Paste the pairing link or pick a photo of the code instead."
 
