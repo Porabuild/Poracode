@@ -131,6 +131,9 @@
     <string name="rich_chat_app_controls">Controles de la aplicación</string>
     <string name="rich_chat_remove_context">Quitar %1$s</string>
     <string name="rich_chat_send_steer">Enviar instrucción de seguimiento</string>
+    <string name="rich_chat_resend_last_message">Reenviar el último mensaje</string>
+    <string name="rich_chat_resume_response">Reanudar respuesta</string>
+    <string name="rich_chat_resume_continue_prompt">Continúa desde donde lo dejaste.</string>
     <string name="rich_chat_queue_title">Seguimientos en cola (%1$d)</string>
     <string name="rich_chat_queue_steer_now">Dirigir ahora</string>
     <string name="rich_chat_queue_edit">Editar mensaje en cola</string>

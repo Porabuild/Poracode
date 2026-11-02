@@ -60,6 +60,7 @@ export function custodyLifecycle(router: RuntimeEventRouter) {
     outputPipeline: {
       emitState: () => {},
       updateState: () => {},
+      noteTurnFailed: () => {},
       handlePtyData: () => {},
       clearSessionTimers: () => {},
     },

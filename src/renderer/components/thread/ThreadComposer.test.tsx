@@ -685,3 +685,44 @@ it("keeps ordinary controls in order without adding a pairing or duplicate effor
   expect(screen.getAllByRole("button", { name: "Effort and context" })).toHaveLength(1);
   expect(screen.getAllByRole("button", { name: "Fast" })).toHaveLength(1);
 });
+
+describe("ThreadComposer resume button", () => {
+  beforeEach(() => {
+    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+  });
+  afterEach(() => {
+    MockResizeObserver.reset();
+    globalThis.ResizeObserver = originalResizeObserver;
+  });
+
+  function renderWithResume(props: { onStop?: () => void } = {}) {
+    const onPress = vi.fn<() => void>();
+    render(
+      <ThreadComposer
+        controls={[]}
+        placeholder="Send a message..."
+        prompt=""
+        submitDisabled
+        submitLabel="Send message"
+        resume={{ label: "Resume response", onPress }}
+        onPromptChange={vi.fn<(value: string) => void>()}
+        onSubmit={vi.fn<() => void>()}
+        {...props}
+      />,
+    );
+    return onPress;
+  }
+
+  it("takes the empty composer's send slot", () => {
+    const onPress = renderWithResume();
+    expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Resume response" }));
+    expect(onPress).toHaveBeenCalledOnce();
+  });
+
+  it("gives way to Stop while a turn runs", () => {
+    renderWithResume({ onStop: vi.fn<() => void>() });
+    expect(screen.getByRole("button", { name: "Stop response" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Resume response" })).toBeNull();
+  });
+});

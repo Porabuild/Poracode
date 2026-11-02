@@ -420,6 +420,74 @@ describe("working state during prompt admission", () => {
     expect(waiting.result.current).toBe(true);
   });
 
+  it("offers the resume again when a resume send fails", async () => {
+    const cutOff: Thread = { ...idle, interruptedTurn: "restart" };
+    useAppStore.setState({ threads: [cutOff] });
+    const sending = performThreadInputSubmit({
+      thread: cutOff,
+      prompt: "Continue from where you left off.",
+      transport: {
+        sendThreadInput: async () => {
+          expect(currentThread().interruptedTurn).toBeUndefined();
+          throw new Error("rejected");
+        },
+      },
+    });
+    await expect(sending).rejects.toThrow("rejected");
+    expect(currentThread().interruptedTurn).toBe("restart");
+  });
+
+  it("keeps a resume retired when Stop settled the thread before the send failed", async () => {
+    const cutOff: Thread = { ...idle, interruptedTurn: "restart" };
+    useAppStore.setState({ threads: [cutOff] });
+    const sending = performThreadInputSubmit({
+      thread: cutOff,
+      prompt: "Continue from where you left off.",
+      transport: {
+        sendThreadInput: async () => {
+          // The user pressed Stop while the send was still pending.
+          useAppStore.getState().updateThreadRuntime(idle.id, {
+            status: "inactive",
+            attention: "none",
+            canResumeWithConfig: true,
+            forceCloseActiveTurn: true,
+            interruptedTurn: null,
+          });
+          throw new Error("rejected");
+        },
+      },
+    });
+    await expect(sending).rejects.toThrow("rejected");
+    expect(currentThread().interruptedTurn).toBeUndefined();
+  });
+
+  it("keeps a resume retired when Stop cleared it while the send held the thread working", async () => {
+    const cutOff: Thread = { ...idle, interruptedTurn: "restart" };
+    useAppStore.setState({ threads: [cutOff] });
+    const sending = performThreadInputSubmit({
+      thread: cutOff,
+      prompt: "Continue from where you left off.",
+      transport: {
+        sendThreadInput: async () => {
+          // Stop retires the turn while the pending send still shows working.
+          dispatchRemoteSupervisorEvent({
+            type: "thread-state",
+            threadId: idle.id,
+            agentKind: idle.agentKind,
+            status: "idle",
+            attention: "none",
+            canResumeWithConfig: true,
+            interruptedTurn: null,
+          });
+          expect(currentThread().status).toBe("working");
+          throw new Error("rejected");
+        },
+      },
+    });
+    await expect(sending).rejects.toThrow("rejected");
+    expect(currentThread().interruptedTurn).toBeUndefined();
+  });
+
   it("lets real completion settle the thread even before the submit response arrives", async () => {
     const response = deferred();
     const sending = performThreadInputSubmit({

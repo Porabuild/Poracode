@@ -77,8 +77,9 @@ describe("database migration registry", () => {
       [67, "record per-thread token usage by crew member"],
       [68, "count streamed per-call usage growth"],
       [69, "project branch pins"],
+      [70, "remember turns cut off before they finished"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(69);
+    expect(LATEST_SCHEMA_VERSION).toBe(70);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -116,8 +117,8 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 69,
-      name: "project branch pins",
+      version: 70,
+      name: "remember turns cut off before they finished",
       rollback: "rollback-compatible",
     });
     // Migrations below the floor keep their reviewed defaults.

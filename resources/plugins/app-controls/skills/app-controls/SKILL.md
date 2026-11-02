@@ -26,6 +26,21 @@ with `get_settings` (`section: "installedPlugins"`). Attach files or images to
 the first message with `attachments: [{path, mimeType?}]`; paths must be absolute
 files on this host, and image MIME types are inferred from their extension.
 
+With `worktree: {enabled: true}`, `create_thread` creates and assigns the child's
+checkout before launching the agent there. The caller provisions it through
+this option; do not also tell the child to create its own worktree. Delegate
+with: "Your worktree is already created and is your current working directory.
+Use it for all task changes and checks; do not create another task worktree."
+Use the returned `worktreePath` for follow-up Git tools.
+
+For an already assigned worktree, confirm it with `get_current_thread` and
+`git rev-parse --show-toplevel` before edits. Check or update a stale base in
+place. Requests to work independently or "in your own new worktree" are already
+satisfied by the assigned checkout. Create or switch to a different task
+checkout only when the user explicitly requests a different one. If no worktree
+is assigned, follow the task's request for checkout isolation. Disposable test
+fixture worktrees do not replace the task checkout.
+
 ## Workflow
 
 Use `commit` for a commit, `create-pr` for publishing a PR with verification and any useful UI screenshots, and

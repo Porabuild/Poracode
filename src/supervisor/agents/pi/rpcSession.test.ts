@@ -71,6 +71,10 @@ rl.on("line", (line) => {
       send({ type: "agent_settled" });
       return;
     }
+    if (text.includes("CRASH")) {
+      send({ type: "agent_start" });
+      process.exit(1);
+    }
     if (text.includes("FAIL")) {
       send({ type: "agent_start" });
       send({ type: "message_update", assistantMessageEvent: { type: "error", error: { errorMessage: "MOCK_PROVIDER_ERROR" } } });
@@ -302,6 +306,19 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
       }
     } finally {
       await first.session.dispose();
+    }
+  });
+
+  it("fails a turn whose process dies without a Stop", async () => {
+    const { session, events } = await createSession();
+    try {
+      await session.startTurn("CRASH", { model: "mock/model", effort: "off" });
+      await waitFor(events, (event) => event.type === "session.exited");
+      expect(
+        events.filter((event) => event.type === "turn.completed").map((event) => event.state),
+      ).toEqual(["failed"]);
+    } finally {
+      await session.dispose();
     }
   });
 

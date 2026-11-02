@@ -26,6 +26,7 @@ These protect process ownership, the provider plugin model, and users' persisted
 - **Every compatibility boundary is versioned on purpose.** Persisted state, caches and derived indexes, serialized manifests, wire/IPC protocols, and deployed helpers/plugins can meet artifacts written by an older or newer app. When you change one, audit its version and every mirrored copy, decide whether existing artifacts remain valid, and add a pre-upgrade regression test. Bump, migrate, or invalidate only as compatibility requires. Checklist and inventory: [versioning.md](.agents/docs/versioning.md).
 - **User-facing renderer strings are localized in the same change.** Wrap them in a Lingui macro, run `bun run i18n:extract`, and fill the new `msgstr` in all 12 non-English catalogs; an empty translation ships a half-English UI. Full procedure: [i18n.md](.agents/docs/i18n.md).
 - **Windows projects use a native Windows cwd.** WSL agent commands run through `wsl.exe -d <distro> --cd <linuxPath> --exec <agent command>`.
+- **Keep the assigned worktree.** Use a thread's assigned checkout for task changes and checks, and update its base in place. Create or switch task checkouts only when the user explicitly requests a different one; disposable test fixtures are separate.
 
 ## Conventions
 

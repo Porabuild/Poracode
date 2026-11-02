@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AssistChip
@@ -110,6 +111,9 @@ fun RichChatComposer(
     /** Long-press on send while a turn is active: queue instead of steer. */
     onQueueSend: (() -> Unit)? = null,
     onInterrupt: () -> Unit,
+    /** Empty-composer resume for a cut-off turn; null keeps the plain send button. */
+    resumePlan: RichChatResumePlan? = null,
+    onResume: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var showControls by rememberSaveable(contextKey) { mutableStateOf(false) }
@@ -345,6 +349,26 @@ fun RichChatComposer(
                         Icon(
                             Icons.Filled.Stop,
                             contentDescription = stringResource(R.string.rich_chat_stop_generation),
+                        )
+                    }
+                } else if (resumePlan != null && !hasSendableContent) {
+                    // A turn cut off by an error or a restart is picked back up
+                    // from the empty composer, so nobody has to type "continue".
+                    FilledIconButton(
+                        onClick = onResume,
+                        enabled = enabled && !uploading,
+                        modifier = Modifier
+                            .testTag("rich_chat_resume_turn")
+                            .size(48.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = stringResource(
+                                when (resumePlan) {
+                                    is RichChatResumePlan.Resend -> R.string.rich_chat_resend_last_message
+                                    RichChatResumePlan.Continue -> R.string.rich_chat_resume_response
+                                },
+                            ),
                         )
                     }
                 } else {

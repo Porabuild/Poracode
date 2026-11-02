@@ -111,6 +111,12 @@ struct RichChatComposerConfigurationIcon: View {
   }
 }
 
+/// The empty composer's resume for a cut-off turn: its spoken label and action.
+struct RichChatComposerResumeAction {
+  let label: String
+  let perform: () -> Void
+}
+
 struct RichChatComposerTrailingAction: View {
   let hasPrompt: Bool
   let isTurnActive: Bool
@@ -119,6 +125,8 @@ struct RichChatComposerTrailingAction: View {
   let importing: Bool
   let isResolvingRequest: Bool
   var queue: (() -> Void)?
+  /// Replaces the empty composer's send button for a cut-off turn.
+  var resume: RichChatComposerResumeAction? = nil
   let interrupt: () -> Void
   let send: () -> Void
 
@@ -135,6 +143,20 @@ struct RichChatComposerTrailingAction: View {
       .buttonStyle(.plain)
       .accessibilityLabel(RichChatStrings.stop)
       .accessibilityIdentifier("native-e2e.interrupt")
+    } else if !hasPrompt, let resume {
+      // A turn cut off by an error or a restart is picked back up from the
+      // empty composer, so nobody has to type "continue".
+      Button(action: resume.perform) {
+        Image(systemName: "play.fill")
+          .font(.system(size: 12, weight: .semibold))
+          .foregroundStyle(Color.white)
+          .frame(width: 32, height: 32)
+          .background(Color.accentColor.opacity(0.78), in: Circle())
+      }
+      .buttonStyle(.plain)
+      .disabled(importing || isResolvingRequest)
+      .accessibilityLabel(resume.label)
+      .accessibilityIdentifier("native-e2e.resume")
     } else if hasPrompt || showsSendWhenEmpty {
       // While a turn is active the plain tap steers (desktop default); a
       // long-press menu offers queueing the same draft as a follow-up — one

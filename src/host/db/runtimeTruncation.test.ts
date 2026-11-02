@@ -1,9 +1,10 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
-import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
+import { onProjectThreadDataChanged } from "./projectThreadChanges";
+import { dbGetThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
   dbAppendThreadCompletedTurn,
   dbApplyThreadRuntimeEvents,
@@ -182,5 +183,35 @@ describe.skipIf(!sqliteAvailable)("dbTruncateThreadRuntimeAfter mutation contrac
     expect(dbGetThreadCompletedTurns("thread-1").map((turn) => turn.anchorItemId)).toEqual([
       "item-b",
     ]);
+  });
+
+  it("clears the cut-off marker together with the rewound tail", () => {
+    dbUpsertThread(testThread(), 0, undefined, "error");
+    seedItems(["item-a", "item-b"]);
+    const changed = vi.fn<() => void>();
+    const stopListening = onProjectThreadDataChanged(changed);
+
+    expect(dbTruncateThreadRuntimeAfter("thread-1", "item-b").truncated).toBe(false);
+    expect(dbGetThread("thread-1")?.interruptedTurn).toBe("error");
+    expect(dbTruncateThreadRuntimeAfter("thread-1", "item-a").truncated).toBe(true);
+    stopListening();
+
+    expect(dbGetThread("thread-1")).not.toHaveProperty("interruptedTurn");
+    expect(changed).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the rewound tail when clearing the cut-off marker fails", async () => {
+    dbUpsertThread(testThread(), 0, undefined, "error");
+    seedItems(["item-a", "item-b"]);
+    await dbFlushThreadRuntimeWrites("thread-1");
+    getSqlite().exec(
+      "CREATE TRIGGER reject_marker BEFORE UPDATE OF interrupted_turn ON threads BEGIN SELECT RAISE(ABORT, 'blocked marker'); END",
+    );
+    expect(() => dbTruncateThreadRuntimeAfter("thread-1", "item-a")).toThrow("blocked marker");
+    expect((await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id)).toEqual([
+      "item-a",
+      "item-b",
+    ]);
+    expect(dbGetThread("thread-1")?.interruptedTurn).toBe("error");
   });
 });
