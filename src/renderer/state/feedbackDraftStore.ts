@@ -6,7 +6,6 @@ type FeedbackDraft = {
   title: string;
   details: string;
   files: File[];
-  diagnostics: boolean;
   delivery: FeedbackDelivery | null;
 };
 const emptyDraft = (): FeedbackDraft => ({
@@ -14,7 +13,6 @@ const emptyDraft = (): FeedbackDraft => ({
   title: "",
   details: "",
   files: [],
-  diagnostics: true,
   delivery: null,
 });
 // Memory only: retain the receipt across modal/sidebar unmounts so retries cannot

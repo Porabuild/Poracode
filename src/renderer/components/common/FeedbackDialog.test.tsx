@@ -66,7 +66,8 @@ it("renders native fields, keeps the service error visible, and adds/removes loc
   fireEvent.change(screen.getByRole("textbox", { name: "Title" }), {
     target: { value: "Native form" },
   });
-  fireEvent.click(screen.getByRole("button", { name: "Idea" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Idea" }));
+  expect(screen.getByRole("tab", { name: "Idea" })).toHaveAttribute("aria-selected", "true");
   expect(screen.getByRole("textbox", { name: "What would you like to see?" })).toBeInTheDocument();
   fireEvent.change(document.querySelector('input[type="file"]')!, {
     target: { files: [new File(["image"], "screenshot.png", { type: "image/png" })] },
@@ -75,8 +76,18 @@ it("renders native fields, keeps the service error visible, and adds/removes loc
   expect(screen.getByRole("status")).toHaveTextContent("Feedback is temporarily unavailable");
   fireEvent.click(screen.getByRole("button", { name: "Remove screenshot.png" }));
   expect(screen.queryByText("screenshot.png")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Preview" }));
-  expect(screen.getByText("Poracode 2.0.0; win32")).toBeInTheDocument();
+});
+
+it("always includes diagnostics without an opt-out or preview control", async () => {
+  render(<FeedbackDialog isOpen onOpenChange={vi.fn<(open: boolean) => void>()} />);
+  await screen.findByText("Feedback is temporarily unavailable. Please try again later.");
+  expect(screen.queryByRole("checkbox")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Preview" })).toBeNull();
+  expect(
+    screen.getByText(
+      "Valid feedback is posted publicly on GitHub with your app version and platform.",
+    ),
+  ).toBeInTheDocument();
 });
 
 it("sends without a challenge and retries the same receipt after reopening", async () => {
