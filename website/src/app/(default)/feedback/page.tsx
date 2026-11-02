@@ -6,7 +6,9 @@ export default function FeedbackPage() {
   return (
     <main className="min-h-screen bg-[#24242b] p-5 text-white">
       <nav className="mx-auto mb-12 flex max-w-4xl justify-between">
-        <Link href="/">Pora.code</Link>
+        <Link href="/" prefetch={false}>
+          Pora.code
+        </Link>
         <a href="https://github.com/Porabuild/Poracode/issues">Browse public issues</a>
       </nav>
       <div className="mx-auto grid max-w-4xl gap-10 md:grid-cols-[1fr_500px]">

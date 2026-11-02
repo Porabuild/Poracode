@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Bug, Globe, Lightbulb, Paperclip, Search, X } from "lucide-react";
 import Image from "next/image";
-import { put } from "@vercel/blob/client";
 import {
   deliverFeedback,
   FeedbackDeliveryError,
@@ -132,8 +131,14 @@ export function FeedbackForm() {
                 ? "Finishing your report on GitHub…"
                 : `Uploading attachment ${progress.upload}…`,
           ),
-        upload: (grant, file) =>
-          put(grant.path, file, { access: "private", token: grant.token, contentType: grant.type }),
+        upload: async (grant, file) => {
+          const { put } = await import("@vercel/blob/client");
+          return put(grant.path, file, {
+            access: "private",
+            token: grant.token,
+            contentType: grant.type,
+          });
+        },
       });
       if ("pending" in result) {
         setMessage("Still processing. Send again to check the same report.");
