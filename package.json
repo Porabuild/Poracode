@@ -81,7 +81,7 @@
     "typecheck": "bun check -p tsconfig.json",
     "typecheck:tsc": "bun run tsc --noEmit -p tsconfig.json",
     "architecture:check": "node scripts/architecture-imports.mjs audit && node --test scripts/architecture-imports.test.mjs",
-    "typecheck:website": "bun run --cwd website typecheck",
+    "typecheck:website": "bun run --cwd website typecheck && bun run --cwd website typecheck:tests",
     "lint": "bun lint --deny-warnings . && bun lint --type-aware --deny-warnings -c .oxlintrc.type-aware.json .",
     "lint:fix": "cross-env npm_lifecycle_event=lint bun lint --fix . && cross-env npm_lifecycle_event=lint bun lint --type-aware --fix -c .oxlintrc.type-aware.json .",
     "fmt": "bun fmt",
