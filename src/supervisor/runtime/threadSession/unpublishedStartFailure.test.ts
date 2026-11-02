@@ -37,6 +37,52 @@ describe("unpublished startup failure delivery", () => {
     ]);
     expect(router.hasPending()).toBe(false);
   });
+
+  it("keeps a failed start with the user's message resumable, but not a plain reopen", () => {
+    const delivered: SupervisorEvent[] = [];
+    const router = new RuntimeEventRouter((event) => {
+      delivered.push(event);
+    });
+
+    publishUnpublishedStartFailure("resumed", new Error("Agent missing"), router, {
+      carriedPrompt: true,
+    });
+    publishUnpublishedStartFailure("reopened", new Error("Agent missing"), router);
+    router.flush();
+
+    const states = delivered.filter((event) => event.type === "thread-state");
+    expect(states[0]).toMatchObject({
+      threadId: "resumed",
+      interruptedTurn: "error",
+      canResumeWithConfig: true,
+    });
+    expect(states[1]).toMatchObject({ threadId: "reopened", canResumeWithConfig: false });
+    expect(states[1]).not.toHaveProperty("interruptedTurn");
+  });
+
+  it("preserves an allocated session's explicit resume capability on a failed submitted start", () => {
+    const delivered: SupervisorEvent[] = [];
+    const router = new RuntimeEventRouter((event) => {
+      delivered.push(event);
+    });
+    const error = retainUnpublishedStartSessionRef(
+      new Error("Configuration rejected"),
+      "allocated",
+      "fixture",
+      { providerSessionId: "session", discoveredAt: "2026-11-02T10:00:00Z" },
+      false,
+    );
+    publishUnpublishedStartFailure("allocated", error, router, { carriedPrompt: true });
+    router.flush();
+    expect(delivered).toContainEqual(
+      expect.objectContaining({
+        type: "thread-state",
+        interruptedTurn: "error",
+        canResumeWithConfig: false,
+        sessionRef: expect.objectContaining({ providerSessionId: "session" }),
+      }),
+    );
+  });
 });
 
 it("keeps reused error captures scoped to the exact failed thread and consumes them once", () => {

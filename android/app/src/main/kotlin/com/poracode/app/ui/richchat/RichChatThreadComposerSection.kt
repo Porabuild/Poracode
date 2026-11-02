@@ -63,6 +63,8 @@ internal fun RichChatThreadComposerSection(
     onSend: () -> Unit,
     onQueueSend: (() -> Unit)?,
     onInterrupt: () -> Unit,
+    resumePlan: RichChatResumePlan?,
+    onResume: () -> Unit,
 ) {
     Column(Modifier.imePadding().navigationBarsPadding()) {
         followUpQueue?.let { queue ->
@@ -115,6 +117,8 @@ internal fun RichChatThreadComposerSection(
             onSend = onSend,
             onQueueSend = onQueueSend,
             onInterrupt = onInterrupt,
+            resumePlan = resumePlan,
+            onResume = onResume,
         )
     }
 }

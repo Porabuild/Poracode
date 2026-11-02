@@ -37,6 +37,10 @@ import { gitStatePatchSchema } from "../../gitState";
 // optional and old thread rows remain valid. Older hosts never receive the kind.
 // Optional thread tool overrides remain additive: absent maps keep old defaults,
 // and the host retains durable choices when older clients omit them on mutation.
+// Optional thread.interruptedTurn is additive: old readers ignore it and old hosts
+// omit it, so no resume button shows. Only the host writes it (schema 70).
+// Optional thread-state.turnStopRequested is host persistence input; older event
+// readers ignore it. The private stored "stopped" value is never a Thread marker.
 // The optional mediaFileRequest.disposition:"attachment" download option stays
 // additive within v14: old clients never send it, an old host strips or rejects
 // the field and keeps answering nonmedia with typed unsupported_media_type, and

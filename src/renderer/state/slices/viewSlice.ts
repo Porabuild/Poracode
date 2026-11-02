@@ -234,6 +234,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           if (state.view.panes.includes(threadId)) {
             const cleared = clearFinished(state.threads, [threadId]);
             return {
+              focusedPaneId: threadId,
               ...(cleared ? { threads: cleared } : {}),
               ...keepAlivePatch(state, threadId),
             };
@@ -257,6 +258,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           };
           const cleared = clearFinished(state.threads, nextView.panes);
           return {
+            focusedPaneId: threadId,
             ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
             ...keepAlivePatch(state, threadId),
           };
@@ -265,6 +267,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const cleared = clearFinished(state.threads, [threadId]);
         const gl = saveGroupLayout(state);
         return {
+          focusedPaneId: threadId,
           groupLayouts: gl,
           view: nextView,
           ...(cleared ? { threads: cleared } : {}),
@@ -284,6 +287,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           if (nextView) {
             const cleared = clearFinished(state.threads, nextView.panes);
             return {
+              focusedPaneId: threadId,
               groupLayouts: gl,
               view: nextView,
               ...(cleared ? { threads: cleared } : {}),
@@ -297,6 +301,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         if (state.view.panes.includes(threadId)) {
           const cleared = clearFinished(state.threads, [threadId]);
           return {
+            focusedPaneId: threadId,
             ...(cleared ? { threads: cleared } : {}),
             ...keepAlivePatch(state, threadId),
           };
@@ -305,6 +310,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const nextPanes = nextView.kind === "thread" ? nextView.panes : [threadId];
         const cleared = clearFinished(state.threads, nextPanes);
         return {
+          focusedPaneId: threadId,
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
           ...keepAlivePatch(state, threadId),
         };
@@ -312,6 +318,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const nextView: AppView = { kind: "thread", panes: [threadId] };
       const cleared = clearFinished(state.threads, [threadId]);
       return {
+        focusedPaneId: threadId,
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
         ...keepAlivePatch(state, threadId),
       };

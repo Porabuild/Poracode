@@ -131,6 +131,9 @@
     <string name="rich_chat_app_controls">Керування застосунком</string>
     <string name="rich_chat_remove_context">Вилучити %1$s</string>
     <string name="rich_chat_send_steer">Надіслати подальшу вказівку</string>
+    <string name="rich_chat_resend_last_message">Надіслати останнє повідомлення повторно</string>
+    <string name="rich_chat_resume_response">Відновити відповідь</string>
+    <string name="rich_chat_resume_continue_prompt">Продовж з місця зупинки.</string>
     <string name="rich_chat_queue_title">Відкладені доручення (%1$d)</string>
     <string name="rich_chat_queue_steer_now">Скерувати зараз</string>
     <string name="rich_chat_queue_edit">Редагувати повідомлення в черзі</string>

@@ -131,6 +131,9 @@
     <string name="rich_chat_app_controls">Управление приложением</string>
     <string name="rich_chat_remove_context">Удалить %1$s</string>
     <string name="rich_chat_send_steer">Отправить уточнение</string>
+    <string name="rich_chat_resend_last_message">Отправить последнее сообщение повторно</string>
+    <string name="rich_chat_resume_response">Возобновить ответ</string>
+    <string name="rich_chat_resume_continue_prompt">Продолжи с места остановки.</string>
     <string name="rich_chat_queue_title">Отложенные задания (%1$d)</string>
     <string name="rich_chat_queue_steer_now">Направить сейчас</string>
     <string name="rich_chat_queue_edit">Изменить сообщение в очереди</string>

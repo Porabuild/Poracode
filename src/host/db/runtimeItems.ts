@@ -41,6 +41,7 @@ import {
   tryRunThreadRuntimeMutation,
 } from "./runtimePersistenceRuntime";
 import { clearThreadDurableGapRowsInTransaction } from "./runtimeDurableGap";
+import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import {
   readThreadContextUsageInSqlite,
   readThreadTokenUsageInSqlite,
@@ -798,6 +799,7 @@ export function dbTruncateThreadRuntimeAfter(
   return tryRunThreadRuntimeMutation(threadId, "truncate", () => {
     const sqlite = getSqlite();
     let truncated = false;
+    let clearedInterruptedTurn = false;
     let removedCompletedTurnAnchors: string[] = [];
     withRuntimeBusyTimeout(() => {
       sqlite
@@ -836,9 +838,18 @@ export function dbTruncateThreadRuntimeAfter(
             .run(threadId, checkpoint.position);
           truncated = deletedItems.changes > 0;
           removedCompletedTurnAnchors = [...new Set(removedTurnAnchors)];
+          if (!truncated) return;
+          // A cut-off turn is always the latest one, so the rewind removed it.
+          clearedInterruptedTurn =
+            sqlite
+              .prepare(
+                "UPDATE threads SET interrupted_turn = NULL WHERE id = ? AND interrupted_turn IS NOT NULL",
+              )
+              .run(threadId).changes > 0;
         })
         .immediate();
     });
+    if (clearedInterruptedTurn) notifyProjectThreadDataChanged();
     return { truncated, removedCompletedTurnAnchors };
   });
 }

@@ -5,10 +5,6 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-internal val schema_debc0ac62b48b9e2: RemoteSchema by lazy {
-    RemoteSchema(type = "number", maximum = 10.0, exclusiveMinimum = 0.0, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_df0bab02c94f0c14: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("agentKind"), properties = mapOf("agentKind" to schema_7d62681c6488867d, "crewRoleId" to schema_7d62681c6488867d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -383,6 +379,10 @@ internal val schema_ee5346688873f70f: RemoteSchema by lazy {
 
 internal val schema_ee6af1c3c62ad32f: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("slash"), JsonPrimitive("dollar"), JsonPrimitive("prompt"), JsonPrimitive("skill")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_ee73ccabe697663c: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("nextCursor", "runtimeSummariesByThread", "threads"), properties = mapOf("gitSummariesByThread" to schema_aca97eda78815baa, "inventoryFrontier" to schema_36fea325bf1aca70, "nextCursor" to schema_2d0b6ec9f2b2decf, "reads" to schema_4659e6d395f41e16, "runtimeSummariesByThread" to schema_fc9d6f4c2617a24d, "threads" to schema_d98248ab3a8be49f), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_ee8a6a87417deae2: RemoteSchema by lazy {

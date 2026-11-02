@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { Button } from "@heroui/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FloatingComposerDock } from "./FloatingComposerDock";
@@ -139,6 +140,69 @@ describe("FloatingComposerDock", () => {
     scrollLockMock.focusWithoutScroll.mockClear();
     scrollLockMock.lockComposeScroll.mockClear();
     scrollLockMock.unlockComposeScroll.mockClear();
+  });
+
+  it.each(["mouse", "touch"])(
+    "keeps the pinned recovery target stable through its first %s press",
+    (pointerType) => {
+      const onPress = vi.fn<() => void>();
+      render(
+        <FloatingComposerDock
+          keyboardKey="thread-1"
+          scrimLabel="Close composer"
+          collapsedTapLabel="Open composer"
+          inputHasContent
+        >
+          <div data-composer-input-anchor="">
+            <div
+              role="textbox"
+              aria-label="Composer input"
+              contentEditable
+              suppressContentEditableWarning
+              tabIndex={0}
+            />
+          </div>
+          <div className="tooltip__trigger">
+            <Button
+              className="poracode-composer-send"
+              aria-label="Resume response"
+              onPress={onPress}
+            >
+              <svg data-testid="recovery-icon" />
+            </Button>
+          </div>
+        </FloatingComposerDock>,
+      );
+      const button = screen.getByRole("button", { name: "Resume response" });
+      const icon = screen.getByTestId("recovery-icon");
+      const dock = document.querySelector(".m-compose-dock");
+      fireEvent.pointerDown(icon, { pointerType, pointerId: 1, button: 0, isPrimary: true });
+      expect(dock).not.toHaveAttribute("data-expanded");
+      act(() => button.focus());
+      expect(dock).not.toHaveAttribute("data-expanded");
+      expect(document.activeElement).toBe(button);
+      fireEvent.pointerUp(icon, { pointerType, pointerId: 1, button: 0, isPrimary: true });
+      fireEvent.click(button);
+      expect(onPress).toHaveBeenCalledOnce();
+      expect(scrollLockMock.focusWithoutScroll).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the collapsed recovery target stable on keyboard focus", () => {
+    render(
+      <FloatingComposerDock
+        keyboardKey="thread-1"
+        scrimLabel="Close composer"
+        collapsedTapLabel="Open composer"
+        inputHasContent
+      >
+        <button type="button" className="poracode-composer-send">
+          Resume response
+        </button>
+      </FloatingComposerDock>,
+    );
+    act(() => screen.getByRole("button", { name: "Resume response" }).focus());
+    expect(document.querySelector(".m-compose-dock")).not.toHaveAttribute("data-expanded");
   });
 
   it("reports composer focus before focusing the editor on guarded first focus", () => {
