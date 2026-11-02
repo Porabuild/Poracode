@@ -26,6 +26,7 @@ import {
   devinAcpConfigOptionsNormalizerFor,
   devinAcpLiveConfigActionDescriptors,
 } from "./acp/sessionConfiguration";
+import { DEVIN_ACP_PROMPT_STEERING, devinAcpPromptUsageSampleId } from "./acp/promptSteering";
 import { projectQualifiedAllowOtherPresentation } from "./acp/allowOtherPresentation";
 import { devinAcpSessionActionDescriptors } from "./acp/sessionActions";
 import { resolveDevinAcpMode } from "./acp/sessionModes";
@@ -292,6 +293,9 @@ export function createDevinStructuredSessionLauncher(
                 allowUnlistedSelectValue: allowDevinCloudRepositorySelection,
               }
             : {}),
+          // Negotiated at initialize; installed 3000.11.234 accepts a plain
+          // concurrent native session/prompt with no steering marker.
+          promptSteering: DEVIN_ACP_PROMPT_STEERING,
           resolveModelConfig: createDevinAcpModelResolver({
             families: families ?? [],
             ...(isCloud ? { cloud: true } : {}),
@@ -310,6 +314,10 @@ export function createDevinStructuredSessionLauncher(
               ? {
                   promptUsageCounterKind: "per-call" as const,
                   promptUsageReportsContext: false,
+                  // Folded replies repeat one native userMessageId; the hook
+                  // turns that into one ledger sample (additive identity,
+                  // no stored-data migration) instead of double-counting.
+                  promptUsageSampleId: devinAcpPromptUsageSampleId,
                   // Live receipt (root-live-config-qualification-2.json): a
                   // local 3000.11.3 session accepted a `model` setter WHILE a
                   // prompt was pending, echoed the dependent thought level,

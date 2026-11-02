@@ -292,6 +292,15 @@ export interface AcpSessionBehavior {
   allowConfigWritesDuringPrompt?: boolean;
   /** Prompt usage may describe one call instead of a session-cumulative counter. */
   promptUsageCounterKind?: "cumulative" | "per-call";
+  /**
+   * Provider identity shared by prompt replies that repeat one consumption
+   * sample. Returning the same suffix for two replies folds them into one
+   * ledger sample instead of counting native-repeated usage twice. The
+   * returned value is only the namespaced suffix inside the shared
+   * `acp-prompt-v1:` sample id — additive identities, no stored-data
+   * migration; absent keeps the per-turn/per-steer fallback exactly.
+   */
+  promptUsageSampleId?: (response: PromptResponse) => string | undefined;
   /** False when prompt consumption cannot measure context-window occupancy. */
   promptUsageReportsContext?: boolean;
   /** Stop painting message and thought chunks as soon as the user cancels. */
@@ -1950,7 +1959,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         ...(this.behavior?.promptUsageCounterKind === "per-call"
           ? {
               counterKind: "per-call" as const,
-              sampleId: `acp-prompt-v1:${this.usageScopeId}:${this.usageEpoch}:${turnId}${sampleSuffix}`,
+              sampleId: `acp-prompt-v1:${this.usageScopeId}:${this.usageEpoch}:${this.behavior.promptUsageSampleId?.(result) ?? `${turnId}${sampleSuffix}`}`,
               turnId,
             }
           : {}),
