@@ -63,6 +63,7 @@ Procedures live in `.agents/skills/` (`.claude/skills` is a symlink to it):
 - `finalize` — review, manual QA, fix, verify, commit, push, PR, and merge after checks pass when the user says "Finalize".
 - `commit`, `pull-request`, `verify`, `address-pr-feedback` — the individual change workflows.
 - `interactive-testing` — drive the real Electron app over CDP, including screenshots; `provider-chat-smoke` extends it for provider chat and ACP sessions.
+- `add-provider`, `supported-version-update` - end-to-end provider integration and supported-release qualification, including native steering.
 - `mobile-apps` — mobile web/PWA, iOS, and Android work.
 - `release-notes` — changelog entries for a release.
 - `heroui-react` — vendored HeroUI v3 reference (tracked in `skills-lock.json`; update from upstream, don't edit).
@@ -73,6 +74,7 @@ Read the doc for the area you are changing:
 
 - [architecture.md](.agents/docs/architecture.md) — feature placement, ownership, dependency boundaries, transports, stores, build, database, git.
 - [agent-adapters.md](.agents/docs/agent-adapters.md) — provider isolation rules, adapter contract, plugin architecture, new-provider checklist.
+- [provider-integration-lessons.md](.agents/docs/provider-integration-lessons.md) - source/test-backed cross-provider checks and audited provider/profile evidence index.
 - [provider-notes.md](.agents/docs/provider-notes.md) — per-provider behavior; read before changing one provider.
 - [provider-runtime.md](.agents/docs/provider-runtime.md) — shared ACP, MCP launch, and hook runtime subsystems.
 - [editing-rules.md](.agents/docs/editing-rules.md) — React Compiler, store subscriptions, render isolation, cleanup.
