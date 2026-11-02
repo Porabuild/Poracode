@@ -3,7 +3,7 @@ import { composerDraftStorage } from "./composerDraftStorage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readRawBrowserMetadataRecordForTest } from "./browserMetadataCacheRecords";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
-import { findPaneSlotId, type PaneLayout } from "@/shared/paneLayout";
+import { findPaneSlotId, normalizePaneSlots, type PaneLayout } from "@/shared/paneLayout";
 import {
   readStoredSizes,
   splitStorageKey,
@@ -46,6 +46,33 @@ describe("appStore runtime config sync", () => {
     }));
     usePanelStore.getState().setGitHubActionsContext(null);
     useThreadFollowUpQueueStore.getState().reset();
+  });
+
+  it("repairs v5 active and saved group slot collisions during hydration", () => {
+    const paneLayout: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: "b", slotId: "a" },
+        { kind: "leaf", paneId: "a" },
+        { kind: "leaf", paneId: "c" },
+      ],
+    };
+    const persisted = {
+      view: { kind: "thread", panes: ["b", "a", "c"], paneLayout },
+      groupLayouts: { group: { panes: ["b", "a", "c"], paneLayout } },
+    };
+    const merge = useAppStore.persist.getOptions().merge!;
+    const merged = merge(persisted, { ...useAppStore.getState(), groupLayouts: {} });
+    expect(merged.view.kind).toBe("thread");
+    if (merged.view.kind !== "thread") throw new Error("Expected restored panes");
+    expect(merged.view.paneLayout).toMatchObject({
+      children: [{ paneId: "b", slotId: "a" }, { paneId: "a", slotId: "a:1" }, { paneId: "c" }],
+    });
+    expect(merged.groupLayouts.group?.paneLayout).toEqual(merged.view.paneLayout);
+    expect(merge(persisted, merged).view).toEqual(merged.view);
+    expect(paneLayout.children[1]).toEqual({ kind: "leaf", paneId: "a" });
+    expect(useAppStore.persist.getOptions().version).toBe(5);
   });
 
   it("commits app metadata to the async cache when only a draft changes", async () => {
@@ -3006,7 +3033,7 @@ describe("group view layout restore", () => {
     });
   });
 
-  it("restores the saved pane layout when clicking a thread inside a group from outside the group view", () => {
+  it.each([false, true])("restores a saved group layout with colliding slots: %s", (colliding) => {
     const project = useAppStore.getState().addProject({
       kind: "windows",
       path: "C:\\repo",
@@ -3033,7 +3060,7 @@ describe("group view layout restore", () => {
           kind: "split",
           axis: "vertical",
           children: [
-            { kind: "leaf", paneId: ids[0]! },
+            { kind: "leaf", paneId: ids[0]!, ...(colliding ? { slotId: ids[1]! } : {}) },
             { kind: "leaf", paneId: ids[1]! },
           ],
         },
@@ -3065,7 +3092,7 @@ describe("group view layout restore", () => {
     expect(view.kind).toBe("thread");
     expect(view.kind === "thread" && view.activeGroupId).toBe(groupId);
     expect(view.kind === "thread" && view.panes).toEqual([ids[0], ids[1], ids[2], ids[3]]);
-    expect(view.kind === "thread" && view.paneLayout).toEqual(savedLayout);
+    expect(view.kind === "thread" && view.paneLayout).toEqual(normalizePaneSlots(savedLayout));
     expect(useAppStore.getState().focusedPaneId).toBe(ids[2]);
   });
 });
