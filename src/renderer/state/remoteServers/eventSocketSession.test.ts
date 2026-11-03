@@ -284,6 +284,7 @@ function runtimeEventFrame(seq: number, threadId = "t1"): string {
 /** Answers every posted decode request with the real decode result, so a test
  * can hold the worker's responses and release them deterministically. */
 function respondToDecodeRequests(worker: FakeEngineWorker): void {
+  worker.autoRespond = true;
   for (const request of worker.posted) {
     if (request.type !== "decode-remote") continue;
     const result = decodeRemoteSocketFrame(request.raw);

@@ -6,11 +6,13 @@ import {
 } from "./chatRuntimePersister";
 import { retainRendererEventInterest } from "./rendererEventInterests";
 import { useAppStore } from "./appStore";
-import { isProjectedRemoteEntityId } from "./remoteProjection";
+import { isProjectedRemoteEntityId, remoteOwner } from "./remoteProjection";
 import { recoverRemoteRuntimeHistory } from "./remote/sync";
+import { useRemoteServersStore } from "./remoteServersStore";
+import { pendingRemoteThreadOpen } from "./remoteServers/pendingRemoteThreadOpens";
 
 interface RuntimeThreadReader {
-  readonly ready: Promise<void>;
+  readonly ready: Promise<boolean | void>;
   release(): void;
 }
 
@@ -48,9 +50,41 @@ export function adoptRuntimeThreadReader(threadId: string): RuntimeThreadReader 
   return retainRuntimeThreadReader(threadId);
 }
 
-/** One owner for both a local reader's bounded window and its live stream. */
+/** One owner for a thread's bounded window and its host's live stream. */
 export function retainRuntimeThreadReader(threadId: string): RuntimeThreadReader {
   retainThreadRuntimeItems(threadId);
+  const owner = remoteOwner(
+    useAppStore.getState().threads.find((thread) => thread.id === threadId),
+  );
+  if (owner) {
+    let active = true;
+    const state = useAppStore.getState();
+    if (!hasHydratedThreadRuntimeItems(threadId))
+      state.setRuntimeHydrationStatus(threadId, "pending");
+    const ready = (
+      pendingRemoteThreadOpen(threadId) ??
+      useRemoteServersStore.getState().openRemoteThread(owner.desktopId, owner.remoteId, {
+        focus: false,
+      })
+    ).then((opened) => {
+      if (
+        active &&
+        !opened &&
+        !pendingRemoteThreadOpen(threadId) &&
+        !hasHydratedThreadRuntimeItems(threadId)
+      )
+        useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+      return opened;
+    });
+    return {
+      ready,
+      release: () => {
+        if (!active) return;
+        active = false;
+        releaseThreadRuntimeItems(threadId);
+      },
+    };
+  }
   const interest = retainRendererEventInterest("runtime", threadId);
   const continuous = interest.continuous;
   let active = true;

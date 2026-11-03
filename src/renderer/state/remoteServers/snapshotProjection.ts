@@ -29,8 +29,6 @@ import { beginHistorySnapshotRead } from "@/renderer/state/historyResumeRegistry
 import { remoteHistoryResumeAuthority } from "@/renderer/state/historyResumeApplied";
 import { finalizeProjectRemoval } from "@/renderer/state/projectRemovalPresentation";
 import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
-import { resetRemoteThreadProjection } from "@/renderer/state/remote/resetThreadProjection";
-import { selectActiveSubAgentParentItemIds } from "@/renderer/state/subAgentSelectors";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { applyCachedSlashCommandCatalogs, fetchSlashCommandCatalog } from "./slashCommandCatalogs";
 import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollowUpQueueStore";
@@ -51,7 +49,6 @@ import {
 import {
   addRemoteServerThreadItemInterest,
   bumpRemoteServerSnapshotSeq,
-  currentRemoteServerThreadItemInterests,
   currentRemoteServerGeneration,
   getRemoteServerEventSocketEntry,
   hasRemoteServerCursorSyncV2,
@@ -466,13 +463,8 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       if (!appeared) throw new Error(i18n._(msg`Unable to start the remote thread.`));
       cancellation = await compensateIfAbandoned();
       if (cancellation) return cancellation;
-      // This client's own launch is already on screen (the optimistic user
-      // message): opening it must not reset that projection, or the message
-      // blinks out until the host history lands. Authoritative history then
-      // arbitrates the overlap as for any restored reader.
       await get().openRemoteThread(input.desktopId, result.threadId, {
         focus: options?.focus ?? true,
-        preserveLoadedHistory: true,
       });
       cancellation = await compensateIfAbandoned();
       if (cancellation) return cancellation;
@@ -484,8 +476,6 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       threadId: string,
       options?: {
         readonly focus?: boolean;
-        /** Retain the visible restored reader until authoritative history arbitrates overlap. */
-        readonly preserveLoadedHistory?: boolean;
         readonly quiet?: boolean;
         readonly signal?: AbortSignal;
       },
@@ -524,15 +514,6 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
             );
           };
           const viewThreadId = remoteThreadId(desktopId, threadId);
-          if (
-            options?.preserveLoadedHistory !== true &&
-            (previousOpenThread?.desktopId !== desktopId ||
-              previousOpenThread.threadId !== threadId) &&
-            !currentRemoteServerThreadItemInterests(desktopId).includes(threadId) &&
-            selectActiveSubAgentParentItemIds(useAppStore.getState(), viewThreadId).length === 0
-          ) {
-            resetRemoteThreadProjection(viewThreadId);
-          }
           setHydratingRemoteServerThreadItemInterest(desktopId, threadId, previousOpenThread);
           // Hydrate the thread's history into the shared, threadId-keyed runtime
           // store so the desktop ChatPane renders it (coexists with local threads).
@@ -656,9 +637,8 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
             resumeRead.finish(snapshot.runtimeResumeCursor, snapshot.snapshotSeq);
             recordAuthoritativeHistoryInstall(desktopId, threadId, snapshot.snapshotSeq);
           } else resumeRead.cancel();
-          // This open superseded the pane's first read (its projection reset
-          // cancelled it), so the "pending" that read set is this open's to end:
-          // left behind, it would keep underfilled-history paging off for good.
+          // End the shared reader's loading state after the authoritative tail
+          // installs, unless an independent hydration still owns it.
           if (
             useAppStore.getState().runtimeHydrationStatus[viewThreadId] === "pending" &&
             !hasPendingThreadRuntimeHydration(viewThreadId)

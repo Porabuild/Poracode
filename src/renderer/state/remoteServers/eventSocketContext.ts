@@ -76,6 +76,7 @@ export interface EventSocketConnectionContext {
    * Bulk frames never fall back to a synchronous UI parse on failure; the
    * typed rejection drives the client-detected-loss resync below. */
   readonly decodeFrame: (raw: string) => Promise<DecodeFrameResult>;
+  readonly renewDecoder: () => void;
   /** Platform has no Worker global at all (some embeds, jsdom tests): frames
    * are consumed inline at receive time, exactly as the pre-A3 client did.
    * This is a capability, never a failure fallback. */

@@ -9,6 +9,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { useThreadForkStore } from "@/renderer/state/threadForkStore";
 import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
+import * as runtimeInterestHydration from "@/renderer/state/runtimeInterestHydration";
 import { useRevertedPromptStore } from "../revertedPrompt";
 import { ChatPane } from "./ChatPane";
 import { byTextContent } from "@/renderer/testUtils/text";
@@ -491,6 +492,32 @@ describe("ChatPane", () => {
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
     },
   );
+
+  it.each([false, true])("reveals measured history immediately for remote=%s", (remote) => {
+    const thread: Thread = {
+      ...makeThread(),
+      ...(remote ? { remoteServerId: "remote-host", remoteId: "remote-thread" } : {}),
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Measured history");
+    const height = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+    const reader = vi.spyOn(runtimeInterestHydration, "adoptRuntimeThreadReader").mockReturnValue({
+      ready: Promise.resolve(),
+      release: () => {},
+    });
+    const frames = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
+    const onInitialScrollSettled = vi.fn<() => void>();
+    try {
+      const { container, unmount } = renderChatPane(thread, { onInitialScrollSettled });
+      expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+      expect(getContentElement(getScrollElement(container))).not.toHaveClass("opacity-0");
+      unmount();
+    } finally {
+      height.mockRestore();
+      reader.mockRestore();
+      frames.mockRestore();
+    }
+  });
 
   it("waits for the initial history layout before paging at the start", async () => {
     const thread = makeThread();

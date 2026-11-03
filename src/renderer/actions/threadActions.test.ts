@@ -8,6 +8,7 @@ import { normalizeStoredThreadStatus } from "@/renderer/state/slices/helpers";
 import { useAppStore } from "@/renderer/state/appStore";
 import { nativeVisualUiKey, useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import * as runtimeInterestHydration from "@/renderer/state/runtimeInterestHydration";
+import * as chatRuntimePersister from "@/renderer/state/chatRuntimePersister";
 import {
   forgetPendingCatalogEdit,
   projectPendingCatalogEdit,
@@ -355,6 +356,46 @@ describe("threadActions", () => {
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
     expect(useAppStore.getState().connectingThreadIds[thread.id]).toEqual(expect.any(String));
   });
+
+  it.each([false, true])(
+    "opens cached GUI history on the next frame while the host refreshes for remote=%s",
+    async (remote) => {
+      vi.useFakeTimers();
+      const history = Promise.withResolvers<boolean>();
+      const thread = makeThread({
+        id: `cached-${remote}`,
+        presentationMode: "gui",
+        status: "inactive",
+        canResumeWithConfig: true,
+        ...(remote ? { remoteServerId: "host", remoteId: "cached" } : {}),
+      });
+      useAppStore.setState({ threads: [thread] });
+      const hydrated = vi
+        .spyOn(chatRuntimePersister, "hasHydratedThreadRuntimeItems")
+        .mockReturnValue(true);
+      const release = vi.fn<() => void>();
+      const prepare = vi
+        .spyOn(runtimeInterestHydration, "prepareRuntimeThreadReader")
+        .mockReturnValue({ ready: history.promise, release });
+      try {
+        openThread(thread.id);
+        expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
+        await vi.advanceTimersByTimeAsync(50);
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+        expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+        history.resolve(true);
+        await history.promise;
+        expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
+        useAppStore.getState().openHome();
+        expect(release).toHaveBeenCalledOnce();
+      } finally {
+        history.resolve(false);
+        prepare.mockRestore();
+        hydrated.mockRestore();
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it("retires a prepared navigation after pane adoption without releasing the pane's reader", async () => {
     const thread = makeThread({ presentationMode: "gui", status: "idle" });
@@ -818,7 +859,7 @@ describe("threadActions", () => {
       openThread(thread.id);
 
       await waitFor(() => {
-        expect(openRemoteThread).toHaveBeenCalledWith("desktop-1", "rt-1");
+        expect(openRemoteThread).toHaveBeenCalledWith("desktop-1", "rt-1", { focus: false });
       });
       await waitFor(() => {
         expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
@@ -853,7 +894,7 @@ describe("threadActions", () => {
       openThread(thread.id);
 
       await waitFor(() => {
-        expect(openRemoteThread).toHaveBeenCalledWith("desktop-1", "rt-1");
+        expect(openRemoteThread).toHaveBeenCalledWith("desktop-1", "rt-1", { focus: false });
       });
       // Flush the .then gate (microtasks) before asserting nothing was queued.
       await new Promise((resolve) => setTimeout(resolve, 0));

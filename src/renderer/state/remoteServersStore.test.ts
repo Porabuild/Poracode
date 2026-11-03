@@ -4635,7 +4635,7 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().openThread?.thread.title).toBe("Remote rt-1 resynced");
   });
 
-  it("clears old goal and plan rows before reopening an unsubscribed remote view", async () => {
+  it("does not clear cached goal and plan rows before applying remote history", async () => {
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
     await pairIsolated(() => makeSocket());
     const id = remoteThreadId("d1", "rt-1");
@@ -4656,7 +4656,7 @@ describe("useRemoteServersStore", () => {
       },
     ]);
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
-    expect(useAppStore.getState().runtimeItemIdsByThread[id]).toBeUndefined();
+    expect(useAppStore.getState().runtimeItemIdsByThread[id]).toEqual(["old-goal", "old-plan"]);
     expect(sync.applyThreadSnapshot).toHaveBeenCalled();
   });
 

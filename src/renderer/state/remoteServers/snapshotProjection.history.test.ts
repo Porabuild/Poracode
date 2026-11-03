@@ -234,7 +234,6 @@ it("preserves a restored reader prefix while its first online attach awaits hist
   );
   const attached = actions.openRemoteThread(connection, "thread", {
     focus: false,
-    preserveLoadedHistory: true,
   });
   expect(useAppStore.getState().runtimeItemIdsByThread[viewThread]).toContain("row-80");
   resolve(page(120, 160, 1));
@@ -257,20 +256,24 @@ it("replaces a restored reader with an authoritative disjoint tail", async () =>
   expect(
     await actions.openRemoteThread(connection, "thread", {
       focus: false,
-      preserveLoadedHistory: true,
     }),
   ).toBe(true);
   expect(useAppStore.getState().runtimeItemIdsByThread[viewThread]).not.toContain("row-80");
   expect(runtimeHistoryBoundary(viewThread).cursor).toBe(120);
 });
 
-it("still resets an unwatched projection for an ordinary open", async () => {
+it("keeps an unwatched reader's cached history when its refresh fails", async () => {
   const { actions, boundedThreadHistory } = harness();
   useAppStore
     .getState()
     .hydrateThreadRuntimeItems(viewThread, page(80, 150, 0).page.runtimeItems as RuntimeChatItem[]);
-  boundedThreadHistory.mockResolvedValueOnce(page(120, 160, 1));
-  expect(await actions.openRemoteThread(connection, "thread", { focus: false })).toBe(true);
-  expect(useAppStore.getState().runtimeItemIdsByThread[viewThread]).not.toContain("row-80");
-  expect(runtimeHistoryBoundary(viewThread).cursor).toBe(120);
+  runtimeHistoryBoundary(viewThread).cursor = 80;
+  boundedThreadHistory.mockRejectedValueOnce(
+    new RemoteClientError("Host offline", 503, "unavailable"),
+  );
+  expect(await actions.openRemoteThread(connection, "thread", { focus: false, quiet: true })).toBe(
+    false,
+  );
+  expect(useAppStore.getState().runtimeItemIdsByThread[viewThread]).toContain("row-80");
+  expect(runtimeHistoryBoundary(viewThread).cursor).toBe(80);
 });
