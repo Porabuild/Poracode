@@ -442,6 +442,7 @@ describe("ThreadView", () => {
         mcpServers: [],
         disabledBuiltInMcpServerIds: [],
         disabledBuiltInMcpTools: {},
+        projectPluginOverrides: {},
         initialSize: {
           cols: 120,
           rows: 40,
