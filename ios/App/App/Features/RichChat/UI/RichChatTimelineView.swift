@@ -199,7 +199,7 @@ struct RichChatTimelineView: View {
     for item in rawItems {
       if let parent = item.parentItemID, inheritedIDs.contains(parent) { inheritedIDs.insert(item.id) }
     }
-    return RichChatTimelineActions(
+    var actions = RichChatTimelineActions(
       lastVisibleItemID: projection?.visibleEntries.last?.lastItemID,
       rawItems: projection?.rawItems ?? [],
       completedTurns: controller.state.displayedCompletedTurns(in: projection),
@@ -207,14 +207,6 @@ struct RichChatTimelineView: View {
       isTurnActive: controller.state.transcript?.openTurn == true,
       inheritedItemIDs: inheritedIDs,
       mcpAppThreadID: appTarget?.threadID,
-      controlMcpApp: canOperate ? { payload in
-        guard conversation.state.target == appTarget else { throw RichChatGatewayError.unavailable }
-        return try await conversation.controlMcpApp(payload)
-      } : nil,
-      sendMcpAppMessage: canOperate ? { text in
-        guard conversation.state.target == appTarget else { return false }
-        return await conversation.send(RichChatSendInput(prompt: text, config: config))
-      } : nil,
       requestRevert: allowsActions && allowsCheckpointRevert
         ? { plan in revertIntent = plan } : nil,
       requestTruncate: allowsActions
@@ -227,6 +219,17 @@ struct RichChatTimelineView: View {
           truncateIntent = RichChatTruncateIntent(id: itemID)
         } : nil
     )
+    if canOperate {
+      actions.controlMcpApp = { payload in
+        guard conversation.state.target == appTarget else { throw RichChatGatewayError.unavailable }
+        return try await conversation.controlMcpApp(payload)
+      }
+      actions.sendMcpAppMessage = { text in
+        guard conversation.state.target == appTarget else { return false }
+        return await conversation.send(RichChatSendInput(prompt: text, config: config))
+      }
+    }
+    return actions
   }
 
   private var isBusy: Bool {
