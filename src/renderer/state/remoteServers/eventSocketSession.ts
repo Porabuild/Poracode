@@ -135,6 +135,7 @@ export async function startRemoteServerEventStream(
     connectTimeout: null,
     healthPingInterval: null,
     health: null,
+    dispose: () => decodeLane.dispose(),
   };
   setRemoteServerEventSocketEntry(connectionKey, entry);
   /** Socket the in-flight resync promise belongs to. A recovery must never be
@@ -191,6 +192,8 @@ export async function startRemoteServerEventStream(
   const disconnectSocket = (socket: RemoteSocketLike) => {
     if (!isCurrent() || entry.socket !== socket) return;
     entry.socket = null;
+    entry.disposeFrames?.();
+    delete entry.disposeFrames;
     clearRemoteServerEventSocketConnectTimeout(entry);
     clearRemoteServerEventSocketHealth(entry);
     forgetRemoteServerCursorSyncV2(connectionKey);
@@ -324,6 +327,7 @@ export async function startRemoteServerEventStream(
         forceReconnect,
         noteClientDetectedLoss,
         decodeFrame: (raw) => decodeLane.decodeRemote(raw),
+        renewDecoder: () => decodeLane.renew(),
         decodeInline: !engine.isWorkerSupported(),
         recovery,
         resyncSlots,
@@ -368,6 +372,8 @@ export async function startRemoteServerEventStream(
           entry.socket === socket
         ) {
           entry.socket = null;
+          entry.disposeFrames?.();
+          delete entry.disposeFrames;
           clearRemoteServerEventSocketConnectTimeout(entry);
           clearRemoteServerEventSocketHealth(entry);
           forgetRemoteServerCursorSyncV2(connectionKey);
@@ -398,6 +404,8 @@ export async function startRemoteServerEventStream(
       const retireSession = (message: string) => {
         setRemoteServerFailure(connectionKey, "error", message);
         deleteRemoteServerEventSocketEntry(connectionKey);
+        entry.disposeFrames?.();
+        entry.dispose?.();
         setAgentVisionSocketSender(connectionKey, null);
         forgetRemoteServerCursorSyncV2(connectionKey);
         setRemoteTerminalSocketSender(connectionKey, null);
