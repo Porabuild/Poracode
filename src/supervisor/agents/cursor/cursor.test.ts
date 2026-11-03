@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { RequestError } from "@agentclientprotocol/sdk";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
+import { classifySupervisorIpcFailure } from "@/supervisor/diagnostics/sentry";
 
 // Logout command tests only assert argv wrapping; skip WSL PATH probes that
 // hang when the full suite spawns many wsl.exe processes in parallel.
@@ -254,13 +257,31 @@ describe("createCursorAdapter capabilities", () => {
 });
 
 describe("rewriteCursorLoadSessionError", () => {
-  it("returns the Cursor-specific 'resume not supported' copy", () => {
-    const raw = new Error("Invalid params");
+  it("marks Cursor's exact unsupported-resume rejection as an expected outcome", () => {
+    const raw = RequestError.invalidParams({ message: 'Session "ses-1" not found' });
     const out = rewriteCursorLoadSessionError(raw, "ses-1");
+    expect(out).toBeInstanceOf(DiagnosticError);
     expect(out.message).toBe(
       "Cursor's ACP integration doesn't currently support resuming chat sessions. Start a new thread to continue.",
     );
     expect((out as { cause?: unknown }).cause).toBe(raw);
+    expect(classifySupervisorIpcFailure(out, "startThread")).toMatchObject({
+      failureClass: "expected-operational",
+      treatment: "drop",
+      domain: "cursor.acp",
+      errorClass: "session-resume-unsupported",
+    });
+  });
+
+  it("keeps an unrelated resume failure reportable", () => {
+    const raw = RequestError.internalError({ details: "Temporary server failure" });
+    const out = rewriteCursorLoadSessionError(raw, "ses-1");
+    expect(out).not.toBeInstanceOf(DiagnosticError);
+    expect((out as { cause?: unknown }).cause).toBe(raw);
+    expect(classifySupervisorIpcFailure(out, "startThread")).toMatchObject({
+      failureClass: "unknown",
+      treatment: "capture",
+    });
   });
 });
 

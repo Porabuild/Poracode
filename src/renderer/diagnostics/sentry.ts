@@ -110,6 +110,7 @@ export function initializeRendererSentry(): boolean {
       return null;
     },
     beforeSend(event) {
+      // Electron forwards renderer envelopes to main, where the process budget runs once.
       return prepareRendererSentryEvent(event as unknown as SentryEventLike) as unknown as
         | typeof event
         | null;

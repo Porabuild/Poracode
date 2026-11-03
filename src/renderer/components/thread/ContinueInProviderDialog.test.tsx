@@ -1,10 +1,12 @@
 import { extractContextPayloadSchema } from "@/shared/contracts/git";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
 import type { AgentStatus, Thread } from "@/shared/contracts";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
@@ -133,7 +135,79 @@ describe("ContinueInProviderDialog handoff flow", () => {
       runtimeItemsByIdByThread: {},
       threadMentionToolsAvailableByThreadId: {},
     } as never);
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
   });
+
+  it.each(["gui", "terminal"] as const)(
+    "loads the selected remote target's commands in the %s handoff composer",
+    async (mode) => {
+      const remoteThread = { ...thread, agentKind: "codex", remoteServerId: "handoff-host" };
+      const statuses = [agent("codex", "Codex", "gui"), agent("claude", "Claude", mode)];
+      const commands = [{ id: "goal", label: "goal", description: "Set a goal" }];
+      let resolveCatalog!: (value: { kind: string; commands: typeof commands }) => void;
+      const agentSlashCommands = vi.fn<RemoteDesktopClient["agentSlashCommands"]>(
+        () => new Promise((resolve) => (resolveCatalog = resolve)),
+      );
+      const previousFactory = useRemoteServersStore.getState().clientFactory;
+      useRemoteServersStore.setState({
+        clientFactory: () =>
+          ({ setTokenLifecycle: () => {}, agentSlashCommands }) as unknown as RemoteDesktopClient,
+        servers: [
+          {
+            desktopId: "handoff-host",
+            label: "Remote",
+            endpoint: `http://handoff-catalog-${mode}.test/`,
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: {
+          "handoff-host": {
+            status: "online",
+            projects: [],
+            threads: [],
+            agentStatuses: { windows: statuses, wsl: [], updatedAt: "now" },
+          },
+        },
+      });
+      function RemoteHandoff() {
+        const installedAgents = useRemoteServersStore(
+          (state) => state.runtime["handoff-host"]!.agentStatuses!.windows,
+        );
+        return (
+          <AppProvider>
+            <ContinueInProviderDialog
+              isOpen
+              thread={remoteThread}
+              projectLocation={{ kind: "posix", path: "/repo", remoteServerId: "handoff-host" }}
+              installedAgents={installedAgents}
+              onClose={() => {}}
+              onContinue={() => {}}
+            />
+          </AppProvider>
+        );
+      }
+      const view = render(<RemoteHandoff />);
+      try {
+        await waitFor(() => expect(agentSlashCommands).toHaveBeenCalledWith("claude"));
+        const editor = screen.getByRole("textbox");
+        editor.textContent = "/g";
+        const range = document.createRange();
+        range.setStart(editor.firstChild!, 2);
+        range.collapse(true);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        fireEvent.input(editor);
+        expect(screen.queryByRole("option", { name: /goal/ })).not.toBeInTheDocument();
+        await act(async () => resolveCatalog({ kind: "claude", commands }));
+        expect(await screen.findByRole("option", { name: /goal/ })).toBeInTheDocument();
+        expect(agentSlashCommands).toHaveBeenCalledOnce();
+      } finally {
+        view.unmount();
+        useRemoteServersStore.setState({ clientFactory: previousFactory });
+      }
+    },
+  );
 
   it("can add, remove, and re-add Plan for the target provider", () => {
     renderDialog({

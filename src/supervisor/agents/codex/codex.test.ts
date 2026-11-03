@@ -1,6 +1,8 @@
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
+import { classifySupervisorIpcFailure } from "@/supervisor/diagnostics/sentry";
 import {
   createCodexAdapter,
   deriveCodexStructuredState,
@@ -3161,15 +3163,60 @@ describe("CodexStructuredSession", () => {
       },
     };
 
-    await expect(
-      (session as unknown as CodexStructuredSession).openThread(
+    const error = await (session as unknown as CodexStructuredSession)
+      .openThread(
         { model: "gpt-5.4" },
         { providerSessionId: "01a0", discoveredAt: "2026-05-10T12:00:00.000Z" },
-      ),
-    ).rejects.toThrow(/open in another Codex app/u);
+      )
+      .catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(DiagnosticError);
+    expect(error).toMatchObject({
+      message: expect.stringMatching(/open in another Codex app/u),
+      diagnostic: {
+        failureClass: "expected-operational",
+        domain: "codex.acp",
+        errorClass: "session-in-use",
+      },
+    });
+    expect(classifySupervisorIpcFailure(error, "startThread")).toMatchObject({
+      failureClass: "expected-operational",
+      treatment: "drop",
+      domain: "codex.acp",
+      errorClass: "session-in-use",
+    });
     // Unlike a missing thread, a held lock must not fall back to a fresh thread:
     // that would silently start the conversation over.
     expect(requests).toEqual(["thread/resume"]);
+  });
+
+  it("keeps an unrelated Codex resume failure reportable", async () => {
+    const session = createSessionShell();
+    session["threadId"] = "local-thread";
+    session["remoteThreadId"] = undefined;
+    session["launchOptions"] = {};
+    session["activated"] = true;
+    session["isDisposed"] = false;
+    session["resumeActiveStatusSuppressionUntil"] = new Map();
+    const cause = new Error("unexpected resume failure");
+    session["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string) => {
+        if (method === "thread/resume") throw cause;
+        return {};
+      },
+    };
+
+    const error = await (session as unknown as CodexStructuredSession)
+      .openThread(
+        { model: "gpt-5.4" },
+        { providerSessionId: "01a0", discoveredAt: "2026-05-10T12:00:00.000Z" },
+      )
+      .catch((failure: unknown) => failure);
+    expect(error).toBe(cause);
+    expect(classifySupervisorIpcFailure(error, "startThread")).toMatchObject({
+      failureClass: "unknown",
+      treatment: "capture",
+    });
   });
 
   it("does not surface resume-time active status as new work", async () => {

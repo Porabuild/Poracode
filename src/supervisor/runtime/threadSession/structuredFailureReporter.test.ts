@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
 import { OpenCodeReadinessTimeoutError } from "../../agents/opencode/sdkServer";
 import type { SessionRuntime } from "../sessionTypes";
 
@@ -122,6 +123,36 @@ describe("StructuredFailureReporter", () => {
     reporter.capture(session, new Error("provider response parser failed"));
 
     expect(captureSupervisorException).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([false, true])("honors expected diagnostic metadata through a cause: %s", (wrapped) => {
+    const reporter = new StructuredFailureReporter();
+    const session = createSession();
+    const error = new DiagnosticError("A provider session is already open.", {
+      failureClass: "expected-operational",
+      domain: "provider.session",
+      errorClass: "session-in-use",
+    });
+
+    reporter.capture(session, wrapped ? new Error("Restart failed.", { cause: error }) : error);
+
+    expect(captureSupervisorException).not.toHaveBeenCalled();
+    reporter.capture(session, new Error("An unrelated product failure."));
+    expect(captureSupervisorException).toHaveBeenCalledOnce();
+  });
+
+  it("keeps product-defect diagnostic metadata reportable", () => {
+    const reporter = new StructuredFailureReporter();
+    reporter.capture(
+      createSession(),
+      new DiagnosticError("Provider response parser failed.", {
+        failureClass: "product-defect",
+        domain: "provider.session",
+        errorClass: "response-parser-failed",
+      }),
+    );
+
+    expect(captureSupervisorException).toHaveBeenCalledOnce();
   });
 
   it("does not capture a typed OpenCode readiness timeout", () => {

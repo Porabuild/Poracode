@@ -29,8 +29,11 @@ import { beginHistorySnapshotRead } from "@/renderer/state/historyResumeRegistry
 import { remoteHistoryResumeAuthority } from "@/renderer/state/historyResumeApplied";
 import { finalizeProjectRemoval } from "@/renderer/state/projectRemovalPresentation";
 import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { applyCachedSlashCommandCatalogs, fetchSlashCommandCatalog } from "./slashCommandCatalogs";
+import {
+  applyCachedSlashCommandCatalogs,
+  fetchSlashCommandCatalog,
+  refreshSlashCommandCatalogs,
+} from "./slashCommandCatalogs";
 import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollowUpQueueStore";
 import {
   hasPendingThreadRuntimeHydration,
@@ -393,7 +396,39 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
     if (page.gitState) syncRemoteGitStateSnapshot(connectionKey, page.gitState);
   };
 
+  const loadAgentSlashCommands = async (desktopId: string, agentKind: string): Promise<void> => {
+    const server = findServer(desktopId);
+    if (!server) return;
+    const generation = currentRemoteServerGeneration(desktopId);
+    await fetchSlashCommandCatalog(server.endpoint, agentKind, () =>
+      withClient(desktopId, (client) => client.agentSlashCommands(agentKind)).then(
+        (result) => result.commands,
+      ),
+    );
+    if (
+      findServer(desktopId)?.endpoint !== server.endpoint ||
+      currentRemoteServerGeneration(desktopId) !== generation
+    ) {
+      return;
+    }
+    set((state) => {
+      const current = state.runtime[desktopId];
+      if (!current?.agentStatuses) return state;
+      return {
+        runtime: {
+          ...state.runtime,
+          [desktopId]: {
+            ...current,
+            agentStatuses: applyCachedSlashCommandCatalogs(server.endpoint, current.agentStatuses),
+          },
+        },
+      };
+    });
+    syncDesktopBrowserBridgeClient(get());
+  };
+
   return {
+    loadAgentSlashCommands,
     launchRemoteThread: async (
       input: StartRemoteNewThreadInput & { readonly desktopId: string },
       options?: { readonly isPendingLaunchOwned?: () => boolean; readonly focus?: boolean },
@@ -651,32 +686,10 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           // the opened thread's agent catalog is fetched once, on first use.
           const openedThread = snapshot.thread;
           if (openedThread.agentKind) {
-            const catalogScope = currentServer.endpoint;
-            void fetchSlashCommandCatalog(catalogScope, openedThread.agentKind, () =>
-              withClient(desktopId, (client) =>
-                client.agentSlashCommands(openedThread.agentKind),
-              ).then((result) => result.commands),
-            )
-              .then(() => {
-                const statuses = get().runtime[desktopId]?.agentStatuses;
-                if (!statuses) return;
-                const patched = applyCachedSlashCommandCatalogs(catalogScope, statuses);
-                set((state) => {
-                  const latest = state.runtime[desktopId];
-                  if (!latest || latest.agentStatuses !== statuses) return state;
-                  return {
-                    runtime: {
-                      ...state.runtime,
-                      [desktopId]: { ...latest, agentStatuses: patched },
-                    },
-                  };
-                });
-                useAgentStatusesStore.getState().setAgentStatuses(patched.windows);
-              })
-              .catch(() => {
-                // Slash commands stay absent until the next open/refresh; the
-                // menu must not crash or toast for a lazy enhancement.
-              });
+            void loadAgentSlashCommands(desktopId, openedThread.agentKind).catch(() => {
+              // Slash commands stay absent until the next open/refresh; the
+              // menu must not crash or toast for a lazy enhancement.
+            });
           }
           await startRemoteServerEventStream(currentServer);
           const eventSocket = getRemoteServerEventSocketEntry(desktopId)?.socket;
@@ -763,7 +776,13 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           includeAgentStatuses
             ? client
                 .agentStatuses({ omitSlashCommands: true })
-                .then((statuses) => applyCachedSlashCommandCatalogs(server.endpoint, statuses))
+                .then((statuses) =>
+                  isLatest()
+                    ? refreshSlashCommandCatalogs(server.endpoint, statuses, (kind) =>
+                        client.agentSlashCommands(kind).then((result) => result.commands),
+                      )
+                    : statuses,
+                )
             : Promise.resolve(cached()?.agentStatuses);
         // The request starts eagerly so it overlaps the shell probe, but the
         // probe may throw or be superseded before anything awaits this

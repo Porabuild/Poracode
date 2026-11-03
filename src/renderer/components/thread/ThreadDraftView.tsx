@@ -22,6 +22,7 @@ import type { ProviderModelSelectionIntent } from "@/renderer/components/common/
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { dispatchManagedRootProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import {
@@ -71,6 +72,8 @@ import {
   type ThreadCrewBinding,
 } from "@/shared/crew";
 import { friendlyError } from "@/shared/messages";
+import { NewsLine } from "@/renderer/components/newsLine/NewsLine";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
@@ -257,6 +260,8 @@ export function ThreadDraftView(props: {
   const upsertCrew = useSharedSettings((s) => s.upsertCrew);
   const helperOptions = useCrewHelperOptions();
   const sharedSettingsHydrated = useSharedSettings((s) => s.sharedSettingsHydrated);
+  const newsLineEnabled = useSharedSettings((s) => s.newsLineEnabled);
+  const compactLayout = useCompactLayout();
   const isHomeScope = isHomeProject(project);
   const scopeLabel = isHomeScope ? HOME_PROJECT_NAME : undefined;
   const remoteConnection = useRemoteServersStore((state) => {
@@ -299,6 +304,7 @@ export function ThreadDraftView(props: {
     : preferredAgentKind;
   const selectedAgent =
     installedAgents.find((status) => status.kind === effectiveAgentKind) ?? installedAgents[0];
+  useAgentSlashCommandCatalog(project.remoteServerId, selectedAgent?.kind);
   // One complete draft config: own empty/false carriers, absence, and the
   // selection binding survive restore, edits, persistence, and launch. The
   // scalar reads below are display projections only.
@@ -1650,6 +1656,10 @@ export function ThreadDraftView(props: {
     ? ""
     : `${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`;
   const blockMaxWidthClass = props.quickComposer ? "" : "max-w-[720px]";
+  // Wait for authoritative settings so an opted-out user never mounts (or fetches
+  // for) the line on defaults, and leave compact layouts to the composer alone.
+  const showNewsLine =
+    newsLineEnabled && sharedSettingsHydrated && !compactLayout && !props.chatOnly;
 
   const handlePresentationChange = (next: ThreadPresentationMode) => {
     // A deliberate switch while inside a family relation must prove an exact
@@ -1835,9 +1845,12 @@ export function ThreadDraftView(props: {
             onStart={onStart}
           />
         </div>
-        {/* Absorbs the slack below the anchored composer in the full draft view. */}
+        {/* Absorbs the slack below the anchored composer in the full draft view.
+            The news line lives here so it can never move the composer. */}
         {compactComposer ? null : (
-          <div aria-hidden data-draft-slack="" className="min-h-0 w-full flex-1" />
+          <div data-draft-slack="" className="flex min-h-0 w-full flex-1 flex-col items-center">
+            {showNewsLine ? <NewsLine className={`mt-3 w-full ${blockMaxWidthClass}`} /> : null}
+          </div>
         )}
       </div>
     </div>
