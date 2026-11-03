@@ -26,6 +26,10 @@ await test("Turbo invalidates inputs, restores outputs, and bypasses unsafe buil
   const config = JSON.parse(fs.readFileSync(join(root, "turbo.json"), "utf8"));
   const manifest = JSON.parse(fs.readFileSync(join(root, "package.json"), "utf8"));
   write("scripts/turbo.mjs", fs.readFileSync(launcher, "utf8"));
+  write(
+    "scripts/heavy-run-gate.mjs",
+    fs.readFileSync(join(root, "scripts/heavy-run-gate.mjs"), "utf8"),
+  );
   write("node_modules/vite/package.json", JSON.stringify({ name: "vite", type: "module" }));
   write(
     "node_modules/vite/bin/vite.js",

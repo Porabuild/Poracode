@@ -42,6 +42,8 @@ bun run verify
 
 `verify` runs fresh format, lint, and type checks, then the full unit suite. Under `finalize`, which merges only after CI passes on the exact pushed head, CI's sharded `bun run test` replaces the local run: run `bun run checks --force` locally plus the focused tests (focused gate step 2). Every other flow runs `verify`.
 
+Other worktrees may be verifying on the same machine. `bun run test` and executed Turbo tasks queue behind `scripts/heavy-run-gate.mjs` (2 concurrent heavy runs per repository); a "waiting for a free slot" message is expected, not a hang. Do not bypass the gate or launch the full suite another way to jump the queue.
+
 ## Conditional gates
 
 Add these when the change touches the matching area:
