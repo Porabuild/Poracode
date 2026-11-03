@@ -59,6 +59,11 @@ msgstr "{0, plural, one {# character} other {# characters}}"
 msgid "{0, plural, one {# check} other {# checks}}"
 msgstr "{0, plural, one {# check} other {# checks}}"
 
+#. placeholder {0}: notes.length
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, one {# comment} other {# comments}}"
+
 #. placeholder {0}: drafts.length
 #: src/renderer/views/PullRequestsOverlay/changes/ReviewDraftSummary.tsx
 msgid "{0, plural, one {# draft comment} other {# draft comments}}"
@@ -3118,6 +3123,7 @@ msgstr "Can't use this model selection on that surface"
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -3861,6 +3867,10 @@ msgstr "CLI hooks"
 msgid "Click"
 msgstr "Click"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Click a line to comment on it. Drag across line numbers or Shift-click to select a range."
+msgstr "Click a line to comment on it. Drag across line numbers or Shift-click to select a range."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Click a shortcut to record a new key, or ＋ to add another."
@@ -3900,6 +3910,7 @@ msgstr "Cloning…"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
@@ -4364,11 +4375,16 @@ msgstr "Command to revise"
 msgid "Commands"
 msgstr "Commands"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityComposer.tsx
 msgid "Comment"
 msgstr "Comment"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
+msgid "Comment on the selected lines"
+msgstr "Comment on the selected lines"
 
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityComposer.tsx
@@ -4388,6 +4404,7 @@ msgstr "commented"
 msgid "Commented"
 msgstr "Commented"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
 msgid "Comments"
 msgstr "Comments"
@@ -6998,6 +7015,7 @@ msgstr "Edit {0}"
 msgid "Edit {serverName}"
 msgstr "Edit {serverName}"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 msgid "Edit comment"
 msgstr "Edit comment"
@@ -10250,6 +10268,7 @@ msgstr "Learned selections"
 msgid "Learning and research"
 msgstr "Learning and research"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
@@ -10318,9 +10337,20 @@ msgstr "Light"
 msgid "Lightcode data import is unavailable with a custom data folder."
 msgstr "Lightcode data import is unavailable with a custom data folder."
 
+#. placeholder {0}: r.startLine
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Line {0}"
+msgstr "Line {0}"
+
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
 msgid "Line comments are only available on the whole review, not on a single commit."
 msgstr "Line comments are only available on the whole review, not on a single commit."
+
+#. placeholder {0}: r.startLine
+#. placeholder {1}: r.endLine
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Lines {0}–{1}"
+msgstr "Lines {0}–{1}"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
@@ -13496,6 +13526,10 @@ msgstr "Operator"
 msgid "Optional"
 msgstr "Optional"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Optional comments on the plan as a whole"
+msgstr "Optional comments on the plan as a whole"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
@@ -13589,6 +13623,10 @@ msgstr "Output"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "Over pace — runs out early"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Overall feedback"
+msgstr "Overall feedback"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overridden by project"
@@ -14115,6 +14153,14 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "Plan"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Plan line {lineNumber}"
+msgstr "Plan line {lineNumber}"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Plan lines"
+msgstr "Plan lines"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Plan mode reasoning effort"
@@ -15602,6 +15648,10 @@ msgstr "Remove candidate {0}"
 #~ msgid "Remove Claude profile"
 #~ msgstr "Remove Claude profile"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
+msgid "Remove comment"
+msgstr "Remove comment"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove connection"
@@ -15957,6 +16007,10 @@ msgstr "Request changes"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Request details"
 msgstr "Request details"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Request revision"
+msgstr "Request revision"
 
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityRows.tsx
 msgid "requested changes"
@@ -16433,6 +16487,11 @@ msgstr "Review my recent work and summarize today's priorities and next steps."
 msgid "Review on request"
 msgstr "Review on request"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Review plan"
+msgstr "Review plan"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Review PR"
 msgstr "Review PR"
@@ -16805,6 +16864,7 @@ msgstr "Saturation and brightness"
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -17439,6 +17499,10 @@ msgstr "Select candidate {0} ({label}) as winner"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "Select device"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Select lines in the plan to comment on them."
+msgstr "Select lines in the plan to comment on them."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Select machine"

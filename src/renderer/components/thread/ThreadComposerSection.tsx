@@ -1275,6 +1275,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     agentStatus={agentStatus}
                     notice={composerNotices}
                     onRestoreComposerFocus={restoreComposerFocus}
+                    onSubmitInput={props.onSubmitInput}
                     {...(props.onOpenProjectRelativePath
                       ? {
                           onOpenPlanFile: (path: string) => props.onOpenProjectRelativePath?.(path),
@@ -1404,6 +1405,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             ? { onTodoDockRetire: props.onTodoDockRetire }
                             : {})}
                           onCancelPendingSteer={() => clearThreadPendingSteer(thread.id)}
+                          onSubmitInput={props.onSubmitInput}
                           {...(props.onOpenProjectRelativePath
                             ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
                             : {})}

@@ -59,6 +59,11 @@ msgstr "{0, plural, one {#자} other {#자}}"
 msgid "{0, plural, one {# check} other {# checks}}"
 msgstr "{0, plural, other {#회 검사}}"
 
+#. placeholder {0}: notes.length
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, other {댓글 #개}}"
+
 #. placeholder {0}: drafts.length
 #: src/renderer/views/PullRequestsOverlay/changes/ReviewDraftSummary.tsx
 msgid "{0, plural, one {# draft comment} other {# draft comments}}"
@@ -3109,6 +3114,7 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -3852,6 +3858,10 @@ msgstr "CLI 후크"
 msgid "Click"
 msgstr "클릭"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Click a line to comment on it. Drag across line numbers or Shift-click to select a range."
+msgstr "줄을 클릭해 댓글을 남기세요. 줄 번호를 드래그하거나 Shift+클릭으로 범위를 선택할 수 있습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "단축키를 클릭하여 새 키를 기록하거나 ＋를 눌러 추가하세요."
@@ -3891,6 +3901,7 @@ msgstr "복제 중…"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
@@ -4355,11 +4366,16 @@ msgstr "수정할 명령어"
 msgid "Commands"
 msgstr "명령"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityComposer.tsx
 msgid "Comment"
 msgstr "댓글"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
+msgid "Comment on the selected lines"
+msgstr "선택한 줄에 댓글 달기"
 
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityComposer.tsx
@@ -4379,6 +4395,7 @@ msgstr "댓글을 달았습니다."
 msgid "Commented"
 msgstr "댓글 작성함"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
 msgid "Comments"
 msgstr "댓글"
@@ -6989,6 +7006,7 @@ msgstr "{0} 편집"
 msgid "Edit {serverName}"
 msgstr "{serverName} 편집"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 msgid "Edit comment"
 msgstr "댓글 편집"
@@ -10241,6 +10259,7 @@ msgstr "학습된 선택"
 msgid "Learning and research"
 msgstr "학습 및 연구"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
@@ -10309,9 +10328,20 @@ msgstr "라이트"
 msgid "Lightcode data import is unavailable with a custom data folder."
 msgstr "사용자 지정 데이터 폴더에서는 Lightcode 데이터를 가져올 수 없습니다."
 
+#. placeholder {0}: r.startLine
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Line {0}"
+msgstr "{0}번 줄"
+
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
 msgid "Line comments are only available on the whole review, not on a single commit."
 msgstr "줄 댓글은 리뷰 전체에서만 사용할 수 있으며, 개별 커밋에서는 사용할 수 없습니다."
+
+#. placeholder {0}: r.startLine
+#. placeholder {1}: r.endLine
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Lines {0}–{1}"
+msgstr "{0}–{1}번 줄"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
@@ -13487,6 +13517,10 @@ msgstr "운영자"
 msgid "Optional"
 msgstr "선택 사항"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Optional comments on the plan as a whole"
+msgstr "계획 전체에 대한 선택 의견"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "선택적 상태 후크. 설치된 후크는 자동으로 업데이트됩니다. 누락된 후크는 자동으로 설치되지 않습니다."
@@ -13580,6 +13614,10 @@ msgstr "출력"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "사용 속도 초과 — 조기 소진"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Overall feedback"
+msgstr "전체 피드백"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overridden by project"
@@ -14106,6 +14144,14 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "계획"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Plan line {lineNumber}"
+msgstr "계획 {lineNumber}번 줄"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Plan lines"
+msgstr "계획 줄"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Plan mode reasoning effort"
@@ -15593,6 +15639,10 @@ msgstr "후보 {0} 제거"
 #~ msgid "Remove Claude profile"
 #~ msgstr "Claude 프로필 삭제"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
+msgid "Remove comment"
+msgstr "댓글 삭제"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove connection"
@@ -15948,6 +15998,10 @@ msgstr "변경 요청"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Request details"
 msgstr "요청 세부정보"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Request revision"
+msgstr "수정 요청"
 
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityRows.tsx
 msgid "requested changes"
@@ -16424,6 +16478,11 @@ msgstr "최근 작업을 검토하고 오늘의 우선순위와 다음 단계를
 msgid "Review on request"
 msgstr "요청 시 검토"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Review plan"
+msgstr "계획 검토"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Review PR"
 msgstr "PR 검토"
@@ -16796,6 +16855,7 @@ msgstr "채도와 밝기"
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -17430,6 +17490,10 @@ msgstr "후보 {0}({label}): 우승자로 선택"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "기기 선택"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Select lines in the plan to comment on them."
+msgstr "계획에서 줄을 선택해 댓글을 남기세요."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Select machine"
