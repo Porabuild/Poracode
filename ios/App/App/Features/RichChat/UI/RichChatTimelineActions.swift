@@ -47,6 +47,22 @@ struct RichChatTimelineActions {
     requestTruncate: nil
   )
 
+  mutating func bindMcpAppActions(
+    conversation: RichChatConversationController, config: [String: RichJSON], canOperate: Bool
+  ) {
+    let target = conversation.state.target
+    mcpAppThreadID = target?.threadID
+    guard canOperate else { return }
+    controlMcpApp = { payload in
+      guard conversation.state.target == target else { throw RichChatGatewayError.unavailable }
+      return try await conversation.controlMcpApp(payload)
+    }
+    sendMcpAppMessage = { text in
+      guard conversation.state.target == target else { return false }
+      return await conversation.send(RichChatSendInput(prompt: text, config: config))
+    }
+  }
+
   func canCopy(item: RichRuntimeItem, text: String) -> Bool {
     RichChatMessageCopyEligibility.isEligible(
       item: item,
