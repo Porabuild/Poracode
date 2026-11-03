@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { delimiter, dirname, join } from "node:path";
 
@@ -29,10 +30,13 @@ process.env[pathKey] = `${dirname(process.execPath)}${delimiter}${process.env[pa
 
 if (Object.hasOwn(commands, task)) {
   if (process.env.TURBO_HASH) {
+    // Only a cache miss executes here, so cached runs never queue. The gate keeps
+    // parallel worktrees from running these heavy tasks all at once.
+    const { runGated } = await import(
+      pathToFileURL(join(import.meta.dirname, "heavy-run-gate.mjs")).href
+    );
     for (const [executable, ...command] of commands[task]) {
-      const result = spawnSync(executable, [...command, ...args], {
-        stdio: "inherit",
-        windowsHide: true,
+      const status = await runGated(executable, [...command, ...args], {
         env: {
           ...process.env,
           ...(executable === process.execPath && command[0] !== "run"
@@ -40,8 +44,7 @@ if (Object.hasOwn(commands, task)) {
             : {}),
         },
       });
-      if (result.error) throw result.error;
-      if (result.status !== 0) process.exit(result.status ?? 1);
+      if (status !== 0) process.exit(status);
     }
     process.exit(0);
   }

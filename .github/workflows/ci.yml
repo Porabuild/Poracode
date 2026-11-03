@@ -88,7 +88,7 @@ jobs:
         run: node --test scripts/dev-runtime-watch.test.mjs scripts/dev-launch.test.mjs scripts/vite-lingui-macro-worker.test.mjs
 
       - name: Turbo cache regression tests
-        run: node --test scripts/turbo.test.mjs
+        run: node --test scripts/turbo.test.mjs scripts/heavy-run-gate.test.mjs
 
       - name: Architecture boundary audit and analyzer tests
         run: bun run architecture:check
