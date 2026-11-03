@@ -6,7 +6,7 @@ import type { ChangelogChangeKind, ChangelogRelease } from "@/shared/changelog";
 
 const KIND_ORDER: ChangelogChangeKind[] = ["added", "improved", "fixed"];
 
-const KIND_ICON: Record<ChangelogChangeKind, { icon: LucideIcon; className: string }> = {
+export const KIND_ICON: Record<ChangelogChangeKind, { icon: LucideIcon; className: string }> = {
   added: { icon: Plus, className: "text-success" },
   improved: { icon: ArrowUp, className: "text-accent" },
   fixed: { icon: Wrench, className: "text-muted" },
@@ -39,14 +39,15 @@ function formatReleaseDate(iso: string): string {
   return dateFormatterFor(i18n.locale)?.format(date) ?? iso;
 }
 
+/** Localized section label for each change kind ("New", "Improved", "Fixed"). */
+export function useChangelogKindLabels(): Record<ChangelogChangeKind, string> {
+  const { t } = useLingui();
+  return { added: t`New`, improved: t`Improved`, fixed: t`Fixed` };
+}
+
 function ReleaseBlock(props: { release: ChangelogRelease }) {
   const { release } = props;
-  const { t } = useLingui();
-  const kindLabel: Record<ChangelogChangeKind, string> = {
-    added: t`New`,
-    improved: t`Improved`,
-    fixed: t`Fixed`,
-  };
+  const kindLabel = useChangelogKindLabels();
   const groups = KIND_ORDER.map((kind) => ({
     kind,
     items: release.changes.filter((change) => change.kind === kind),

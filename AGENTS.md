@@ -49,6 +49,7 @@ These protect process ownership, the provider plugin model, and users' persisted
 - **Debugging:** for runtime and chat bugs (timers, notifications, resume, launch), trace thread runtime state before changing the display layer. For performance complaints, look for render invalidation, measurement loops, and sync I/O before cosmetic fixes.
 - **File size:** split a file into focused modules once it grows past one responsibility rather than extending it; large mixed files are where regressions hide.
 - **TypeScript:** with `exactOptionalPropertyTypes`, use a conditional spread instead of passing `undefined` to an optional prop.
+- **New features:** a new Settings section, sidebar shortcut, or built-in MCP server needs a feature discovery entry or a `NOT_PROMOTED` reason (`featureCatalog.test.ts` enforces it); procedure in the `news-line` skill.
 - **Scratch output:** investigation dumps, screenshots, and temporary files go in `tmp/` or `.tmp/` (gitignored), never the repo root or tracked folders.
 - **Test cleanup:** when a run finishes, fails, or you abandon it, delete the disposable trees it created. A managed smoke session under `~/.poracode-smoke` is a frozen app of about 2.6 GB: stop it, copy any report or screenshot you will cite into `tmp/`, then delete that session directory. Do the same for other large generated trees this run no longer needs (native-e2e run directories, derived data). Honor `PORACODE_NATIVE_E2E_KEEP=1`. Leave small evidence the open task still cites, including `tmp/pr-shots/`. Never delete another live session, the real Poracode profile, or the smoke parent itself. Procedure: [interactive-testing](.agents/skills/interactive-testing/SKILL.md#safety-and-teardown).
 
@@ -79,6 +80,7 @@ Procedures live in `.agents/skills/` (`.claude/skills` is a symlink to it):
 - `add-provider`, `supported-version-update` - end-to-end provider integration and supported-release qualification, including native steering.
 - `mobile-apps` — mobile web/PWA, iOS, and Android work.
 - `release-notes` — changelog entries for a release.
+- `news-line` — new-thread news line content: feature discovery entries, remote announcements in `news.json`, tips, and promotions.
 - `heroui-react` — vendored HeroUI v3 reference (tracked in `skills-lock.json`; update from upstream, don't edit).
 
 ## Docs
@@ -93,6 +95,7 @@ Read the doc for the area you are changing:
 - [editing-rules.md](.agents/docs/editing-rules.md) — React Compiler, store subscriptions, render isolation, cleanup.
 - [ui-patterns.md](.agents/docs/ui-patterns.md) — component reuse, dialogs, theme, layout, module loading.
 - [i18n.md](.agents/docs/i18n.md) — localization workflow, macros, terminology.
+- [news-line.md](.agents/docs/news-line.md) — new-thread news line sources, feature discovery, and the remote `news.json` feed.
 - [versioning.md](.agents/docs/versioning.md) — compatibility-boundary checklist and inventory. Past rationale is archived in `docs/versioning-history.md`; don't load it by default.
 - [computer-use.md](.agents/docs/computer-use.md) — the `computer_use` MCP server and native helper; only when changing that subsystem.
 - [docs/MOBILE_DEV.md](docs/MOBILE_DEV.md) — `bun run dev:ios`, simulator pairing, deep linking.
