@@ -3,8 +3,7 @@
  * store only once its listing URL is set here.
  */
 export const EXTENSION_STORE_URLS: Readonly<Record<"chrome" | "edge", string | null>> = {
-  // https://chromewebstore.google.com/detail/<item id>
-  chrome: null,
+  chrome: "https://chromewebstore.google.com/detail/poracode/idhpcefbiobbcccipohielcldnhobcgm",
   // https://microsoftedge.microsoft.com/addons/detail/<extension id>
   edge: null,
 };

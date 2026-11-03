@@ -1,8 +1,10 @@
-import { ArrowLeft, ArrowRight, Box, Plug, Sparkles, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Box, Download, Plug, Sparkles, TriangleAlert } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Button, ToggleSwitch } from "@/renderer/components/common";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
+import { readBridge } from "@/renderer/bridge";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import type { PluginInstallation } from "@/shared/contracts/pluginCatalog";
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
@@ -166,6 +168,23 @@ export function PluginDetail(props: {
               </h1>
             </div>
             <div className="flex max-w-full flex-wrap items-center gap-1.5">
+              {plugin.source === "bundled" && plugin.name === "chrome-tools" ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => {
+                    const bridge = readBridge();
+                    const url =
+                      "https://chromewebstore.google.com/detail/poracode/idhpcefbiobbcccipohielcldnhobcgm";
+                    void (isBrowserClientRuntime()
+                      ? bridge.openExternal(url)
+                      : bridge.openExternalNative(url));
+                  }}
+                >
+                  <Download className="size-4" />
+                  <Trans>Install Chrome extension</Trans>
+                </Button>
+              ) : null}
               {/* "Try now" opens a home-scope thread, which cannot see a
                   package that belongs to one project's repository. */}
               {examplePrompt && coreSkill && plugin.source !== "project" ? (

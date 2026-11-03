@@ -9700,6 +9700,10 @@ msgstr "Installer l'application"
 msgid "Install bundles of skills and MCP servers built for the Agent Plugins specification."
 msgstr "Installez des ensembles de compétences et de serveurs MCP conçus selon la spécification Agent Plugins."
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Install Chrome extension"
+msgstr "Installer l’extension Chrome"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
 msgstr "Installer les hooks CLI"

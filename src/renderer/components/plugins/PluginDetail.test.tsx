@@ -9,11 +9,24 @@ import { PluginDetail } from "./PluginDetail";
 import { useLocalizedPluginCatalog } from "./pluginCopy";
 
 const actionMocks = vi.hoisted(() => ({
+  browser: false,
+  openExternal: vi.fn<(url: string) => Promise<void>>(async () => undefined),
+  openExternalNative: vi.fn<(url: string) => Promise<void>>(async () => undefined),
   newThreadFromText:
     vi.fn<(projectId: string, text: string, options?: ComposerSeedOptions) => void>(),
   ensureHomeScopeProject: vi.fn<() => Promise<{ id: string }>>(async () => ({
     id: "home-project",
   })),
+}));
+
+vi.mock("@/renderer/bridge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/bridge")>()),
+  readBridge: () => actionMocks,
+}));
+
+vi.mock("@/renderer/clientRuntime", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/clientRuntime")>()),
+  isBrowserClientRuntime: () => actionMocks.browser,
 }));
 
 vi.mock("@/renderer/actions/notesActions", () => ({
@@ -100,6 +113,7 @@ describe("PluginDetail", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    actionMocks.browser = false;
     seedBuiltInPlugins();
     useSharedSettings.setState({ installedPlugins: {}, disabledBuiltInMcpServers: {} });
     usePanelStore.setState({ settingsOpen: false });
@@ -153,6 +167,28 @@ describe("PluginDetail", () => {
     expect(screen.queryByRole("button", { name: "Uninstall" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Install" })).not.toBeInTheDocument();
     expect(screen.getByText("Built-in")).toBeInTheDocument();
+  });
+
+  it.each([false, true])("opens the published Chrome extension (browser client: %s)", (browser) => {
+    actionMocks.browser = browser;
+    function ChromePluginDetail() {
+      const plugin = useLocalizedPluginCatalog().find(
+        (candidate) => candidate.plugin.name === "chrome-tools",
+      )!;
+      return <PluginDetail plugin={plugin} hostPlatform="win32" onBack={() => undefined} />;
+    }
+    render(<ChromePluginDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install Chrome extension" }));
+
+    expect(
+      browser ? actionMocks.openExternal : actionMocks.openExternalNative,
+    ).toHaveBeenCalledWith(
+      "https://chromewebstore.google.com/detail/poracode/idhpcefbiobbcccipohielcldnhobcgm",
+    );
+    expect(
+      browser ? actionMocks.openExternalNative : actionMocks.openExternal,
+    ).not.toHaveBeenCalled();
   });
 
   it("keeps the Terminal plugin always on", () => {
