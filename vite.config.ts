@@ -53,6 +53,8 @@ const CLIENT_OPTIMIZED_DEPS = [
   "@lingui/core/macro",
   "@lingui/react",
   "@lingui/react/macro",
+  "@modelcontextprotocol/client",
+  "@modelcontextprotocol/ext-apps/app-bridge",
   "@monaco-editor/react",
   // Without this, `noDiscovery` leaves it unbundled in dev, so it imports its
   // own copy of React and every AnimatedNumber throws an invalid-hook-call.
