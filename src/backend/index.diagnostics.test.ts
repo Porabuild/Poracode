@@ -15,6 +15,7 @@ import {
 
 const state = vi.hoisted(() => ({
   sent: [] as BackendHostOutboundMessage[],
+  reportError: null as ((error: unknown) => void) | null,
 }));
 
 vi.mock("@/shared/diagnostics/nodePerformanceDiagnostics", () => ({
@@ -31,6 +32,9 @@ vi.mock("./BackendHostCore", () => ({
     }
   },
   BackendHostCore: class {
+    constructor(options: { supervisor: { reportError(error: unknown): void } }) {
+      state.reportError = options.supervisor.reportError;
+    }
     supervisorClient = { call: async () => null };
     disposeSupervisor = async () => {};
     closeDatabase() {}
@@ -54,6 +58,7 @@ let deliver: (message: unknown) => void;
 beforeEach(async () => {
   vi.resetModules();
   state.sent = [];
+  state.reportError = null;
   delete (globalThis as Record<string, unknown>).__poracodeBackendDiagnostics;
   previousListeners = new Map(
     ownedEvents.map((event) => [event, new Set(process.listeners(event))]),
@@ -149,6 +154,34 @@ it("exposes the read-only describe handle when PORACODE_BACKEND_DIAGNOSTICS=1", 
     },
   });
   await reply("initialize");
+
+  const failure = Object.assign(new TypeError("private prompt /private/path credential"), {
+    code: "ENOSPC",
+  });
+  failure.stack = "TypeError: private\n    at /private/backendHost.cjs:321:4";
+  state.reportError!(failure);
+  const diagnostic = state.sent.find((message) => message.kind === "error" && message.diagnostic);
+  expect(diagnostic).toMatchObject({
+    message: "Backend operation failed.",
+    diagnostic: {
+      cause: {
+        "poracode.cause_reason": "filesystem",
+        "poracode.cause_code": "ENOSPC",
+        "poracode.cause_type": "type-error",
+      },
+      frames: [{ bundle: "backendHost.cjs", line: 321, column: 4 }],
+    },
+  });
+  expect(JSON.stringify(diagnostic)).not.toContain("private");
+  state.reportError!(new Error("Supervisor exited with code 3221226091"));
+  expect(state.sent.at(-1)).toMatchObject({
+    kind: "error",
+    message: "Supervisor exited with code 3221226091",
+  });
+  const reports = state.sent.filter((message) => message.kind === "error").length;
+  state.reportError!(Object.assign(new Error("private"), { code: "ABORT_ERR" }));
+  state.reportError!(Object.assign(new Error("private"), { code: "ECONNRESET" }));
+  expect(state.sent.filter((message) => message.kind === "error")).toHaveLength(reports);
 
   // IPC surface.
   deliver({

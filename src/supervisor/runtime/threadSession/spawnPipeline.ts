@@ -2119,7 +2119,11 @@ export class SpawnPipeline {
       if (error instanceof MockAgentLaunchBlockedError) {
         throw error;
       }
-      const diagnosticError = new StructuredRuntimeDiagnosticError("session-creation", agentKind);
+      const diagnosticError = new StructuredRuntimeDiagnosticError(
+        "session-creation",
+        agentKind,
+        error,
+      );
       if (workspaceScope?.additionalDirectories.length || presentationMode === "gui") {
         // The startThread IPC boundary owns GUI startup failures. Throw one
         // privacy-safe classified error instead of capturing here and then

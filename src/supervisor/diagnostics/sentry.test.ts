@@ -1,5 +1,9 @@
 import Module from "node:module";
 import { describe, expect, it, vi } from "vitest";
+import type { SentryEventLike } from "@/shared/diagnostics/sentryPrivacy";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
+import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
+import { StructuredRuntimeDiagnosticError } from "../runtime/threadSession/structuredRuntimeDiagnosticError";
 import {
   HostResourceBusyError,
   HostResourcePolicyUnavailableError,
@@ -268,6 +272,130 @@ function expectTransient(operation: string, error: Error, errorClass: string): v
 }
 
 describe("supervisor Sentry policy", () => {
+  it("sends safe reasons through the actual capture and beforeSend path", async () => {
+    vi.resetModules();
+    let beforeSend: (event: SentryEventLike) => SentryEventLike | null = () => null;
+    let tags: Record<string, unknown> = {};
+    const events: Array<SentryEventLike | null> = [];
+    const metrics = vi.fn<(name: string, count: number, options: unknown) => void>();
+    const sdk = {
+      init: (options: { beforeSend: typeof beforeSend }) => {
+        beforeSend = options.beforeSend;
+      },
+      setContext: () => {},
+      isEnabled: () => true,
+      metrics: { count: metrics },
+      withScope: (callback: (scope: unknown) => void) =>
+        callback({
+          setTags: (value: Record<string, unknown>) => {
+            tags = value;
+          },
+          setFingerprint: () => {},
+          setLevel: () => {},
+          addBreadcrumb: () => {},
+        }),
+      captureException: (error: Error) => {
+        events.push(beforeSend({ message: error.message, tags }));
+      },
+    };
+    const loader = Module as unknown as { _load(request: string, ...args: unknown[]): unknown };
+    const originalLoad = loader._load;
+    const spy = vi
+      .spyOn(loader, "_load")
+      .mockImplementation((request, ...args) =>
+        request === "@sentry/node" ? sdk : originalLoad(request, ...args),
+      );
+    const previousDsn = process.env.SENTRY_DSN;
+    process.env.SENTRY_DSN = "https://public@example.test/1";
+    try {
+      const reporter = await import("./sentry");
+      expect(reporter.initializeSupervisorSentry({ appVersion: "test", isDev: false })).toBe(true);
+      reporter.captureSupervisorIpcFailure(
+        Object.assign(new Error("Command failed: private-command\nprivate-stderr"), {
+          cmd: "private-command",
+          code: 128,
+        }),
+        "gitFetch",
+      );
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        message: "Command failed: [redacted]",
+        tags: { "poracode.cause_reason": "subprocess-exit", "poracode.exit_code": "128" },
+      });
+      expect(JSON.stringify(events)).not.toContain("private");
+      reporter.captureSupervisorIpcFailure(
+        Object.assign(new Error("private"), { code: "ABORT_ERR" }),
+        "gitFetch",
+      );
+      reporter.captureSupervisorIpcFailure(
+        Object.assign(new Error("private"), { code: "ECONNRESET" }),
+        "gitFetch",
+      );
+      expect(events).toHaveLength(1);
+      expect(metrics).toHaveBeenCalledOnce();
+      reporter.captureSupervisorIpcFailure(new TypeError("Parser invariant failed."), "gitFetch");
+      expect(events).toHaveLength(2);
+      expect(events[1]?.tags).toMatchObject({ "poracode.cause_type": "type-error" });
+    } finally {
+      spy.mockRestore();
+      if (previousDsn === undefined) delete process.env.SENTRY_DSN;
+      else process.env.SENTRY_DSN = previousDsn;
+    }
+  });
+  it.each(["ABORT_ERR", "ECONNRESET", "ETIMEDOUT"])(
+    "routes structural %s away from bug events",
+    (code) => {
+      const error = Object.assign(new Error("private"), { code });
+      expect(classifySupervisorIpcFailure(error, "gitFetch").treatment).toBe(
+        code === "ABORT_ERR" ? "drop" : "metric",
+      );
+      expect(
+        classifySupervisorFailure(
+          new StructuredRuntimeDiagnosticError("turn", "codex", error),
+          "structured-runtime-turn",
+        ).treatment,
+      ).toBe(code === "ABORT_ERR" ? "drop" : "metric");
+    },
+  );
+
+  it.each(["ABORT_ERR", "ECONNRESET"])(
+    "keeps explicit product defects reportable despite a %s cause",
+    (code) => {
+      const source = new DiagnosticError(
+        "private payload",
+        { failureClass: "product-defect", domain: "provider.session", errorClass: "parser-failed" },
+        { cause: Object.assign(new Error("private cause"), { code }) },
+      );
+      const wrapped = new Error("private wrapper", { cause: source });
+      for (const error of [
+        source,
+        wrapped,
+        new StructuredRuntimeDiagnosticError("turn", "codex", wrapped),
+      ]) {
+        expect(classifySupervisorIpcFailure(error, "sendThreadInput")).toMatchObject({
+          treatment: "capture",
+          errorClass: "parser-failed",
+          domain: "provider.session",
+        });
+        expect(classifySupervisorFailure(error, "structured-runtime-turn").treatment).toBe(
+          "capture",
+        );
+        expect(buildErrorCauseTags(error)["poracode.cause_code"]).toBe(code);
+      }
+      expect(
+        JSON.stringify(new StructuredRuntimeDiagnosticError("turn", "codex", wrapped)),
+      ).not.toContain("private");
+    },
+  );
+
+  it.each([128, 9, "ENOENT", "EPERM"])("keeps unknown subprocess %s observable", (code) => {
+    expect(
+      classifySupervisorIpcFailure(
+        Object.assign(new Error("Command failed: private"), { code }),
+        "gitFetch",
+      ).treatment,
+    ).toBe("capture");
+  });
   it("does not initialize reporting in local development", () => {
     const originalDsn = process.env.SENTRY_DSN;
     process.env.SENTRY_DSN = "https://public@example.test/1";

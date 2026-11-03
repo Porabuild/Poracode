@@ -267,7 +267,7 @@ function classifyError(error: unknown, operation: string): Error {
     );
   }
 
-  return new Error(`gh ${operation} failed: ${msg}`);
+  return new Error(`gh ${operation} failed: ${msg}`, { cause: error });
 }
 
 interface RunGhOptions {
@@ -1047,7 +1047,10 @@ export class GitHubService {
         const results = await this.runGhBatch(location, commands);
         const prResult = results[0]!;
         if (!prResult.ok) {
-          throw new Error(`gh pr list exited ${prResult.exitCode}`);
+          throw Object.assign(new Error(`gh pr list exited ${prResult.exitCode}`), {
+            exitCode: prResult.exitCode,
+            ...(prResult.signal ? { signal: prResult.signal } : {}),
+          });
         }
         let viewerLogin: string | undefined;
         if (needsLogin && results[1]?.ok) {

@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/electron/renderer";
 import { readBridge } from "@/renderer/bridge";
+import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
 import {
   buildRuntimeDiagnosticTags,
   sanitizeSentryEvent,
@@ -150,9 +151,10 @@ export function captureRendererException(
 ): void {
   if (!Sentry.isEnabled()) return;
   Sentry.withScope((scope) => {
-    if (context) {
-      scope.setTags(buildRuntimeDiagnosticTags(context));
-    }
+    scope.setTags({
+      ...(context ? buildRuntimeDiagnosticTags(context) : {}),
+      ...buildErrorCauseTags(error),
+    });
     if (componentStack) {
       const reactComponents = extractSafeReactComponentTree(componentStack);
       if (reactComponents.length > 0) {
