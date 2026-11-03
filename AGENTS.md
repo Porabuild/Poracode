@@ -6,11 +6,23 @@ Universal AI agent orchestrator with Electron, web/PWA, and independent native i
 
 ## Commands
 
-- Package manager: `Bun` (version pinned in `package.json#packageManager`); Node >= 26.13.0.
+- Package manager: `Bun` (version pinned in `package.json#packageManager`); Node >= 26.13.0. On Windows, use `node scripts/setup-bun.mjs --run run <script>` for the `bun run <script>` commands below.
 - Installed CLI: bare interactive `poracode` opens the TUI; use `poracode -p "PROMPT" --directory PATH` for one-shot runs and `poracode serve --open` for the web app.
-- `bun run dev` — run the app. `bun run build` then `bun run dist` — package it.
+
+| When                                                                                  | Use                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Develop the full Electron app                                                         | `bun run dev`                                                                                                                                                                                            |
+| Launch Electron against an existing renderer server                                   | `bun run dev:electron`                                                                                                                                                                                   |
+| Watch and rebuild host bundles without launching Electron                             | `bun run dev:runtime`                                                                                                                                                                                    |
+| Get quick feedback while editing                                                      | `bun run checks` (format, lint, and types; cached)                                                                                                                                                       |
+| Fix lint or formatting                                                                | `bun run lint --fix`; `bun run fmt`                                                                                                                                                                      |
+| Validate a focused change before handoff                                              | The [verify skill's focused gate](.agents/skills/verify/SKILL.md#focused-gate-default): touched-file lint/format, nearby tests, and `bun run typecheck --force`                                          |
+| Validate runtime/IPC/build changes, satisfy an all-checks request, or mark a PR ready | `bun run verify` (fresh format, lint, and type checks, then the full unit suite); the [verify skill](.agents/skills/verify/SKILL.md#full-gate) owns conditional gates and the `finalize` CI substitution |
+| Build and package the desktop app                                                     | `bun run build`, then `bun run dist`                                                                                                                                                                     |
+
 - Local renderer builds skip hidden source maps; set `PORACODE_SOURCEMAPS=1` to generate them. Release CI generates them on the Sentry upload job.
-- `bun run typecheck` (Bun, all available cores; `bun run typecheck:tsc` compares with TypeScript 7), `bun run lint` (Bun), `bun run fmt` / `bun run fmt:check` (Bun), `bun run test` (vitest).
+- Individual checks: `bun run typecheck` (Bun, all available cores), `bun run lint`, `bun run fmt:check`; `bun run typecheck:tsc` is only for comparison with TypeScript 7. `bun run test` runs the Vitest suite.
+- Checks and the desktop renderer cache automatically through Turbo. Use `--force` on those commands when fresh execution is needed (for example, `bun run checks --force` or `bun run build --force`); `verify` already forces its checks. CI always runs fresh. Electron/native preparation and tests remain uncached; web/extension targets and forwarded task arguments bypass caching. The launcher fingerprints OS, architecture, actual Node, and Bun revision. Local cache expires after 7 days and is capped at 1 GB.
 - TUI: `bun run tui:install`, `bun run tui:typecheck`, `bun run tui:test`, `bun run tui:dev`; validation harness and compile smoke: `bun run --cwd tui dev:opencode-server` and `bun run --cwd tui build:smoke`.
 - Targeted tests: `bun run vitest run <paths>`. Jest-only flags such as `--runInBand` do not exist here.
 - The pre-commit hook runs lint-staged (Bun lint `--type-aware --fix --deny-warnings` and format) and then `bun run typecheck`.
@@ -43,7 +55,7 @@ These protect process ownership, the provider plugin model, and users' persisted
 ## Done means
 
 - The requested change works, with no unrequested features, refactors, or docs. Tests that prove the change, and any regression test a rule above requires, are part of the change.
-- Checks ran for real: for a focused change, nearby tests plus touched-file lint and format plus `bun run typecheck`; when asked to make everything green or before a PR is marked ready, the full gate. The `verify` skill owns the exact list.
+- Checks ran for real: follow the [verify skill](.agents/skills/verify/SKILL.md) for the focused or full gate and conditional checks. Cached `bun run checks` is development feedback; focused handoff uses `bun run typecheck --force`, and the full gate uses `bun run verify`.
 - For shared behavior, check desktop and standalone composition paths and the affected client contracts. Verify relevant no-client, multi-client, and reconnect behavior; a renderer test alone does not prove host behavior or native-client parity. Platform-only work needs only its affected surfaces.
 - The report names what was verified and what was not.
 - Disposable test output this run created is gone, unless the user asked to keep that session. Cited smoke reports and screenshots live in `tmp/`; the session directory under `~/.poracode-smoke` does not.

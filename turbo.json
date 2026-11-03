@@ -1,0 +1,34 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "ui": "stream",
+  "concurrency": "1",
+  "envMode": "strict",
+  "noUpdateNotifier": true,
+  "cacheMaxAge": "7d",
+  "cacheMaxSize": "1GB",
+  "remoteCache": { "enabled": false },
+  "globalDependencies": [".env", ".env.*", "packages/codex-protocol/generated/**"],
+  "globalEnv": ["PORACODE_TOOLCHAIN_CACHE_KEY", "NODE_ENV", "NODE_OPTIONS", "BUN_OPTIONS"],
+  "tasks": {
+    "//#build": {
+      "dependsOn": ["//#build:renderer"],
+      "cache": false,
+      "passThroughEnv": ["*"]
+    },
+    "//#fmt:check": { "outputs": [] },
+    "//#lint": { "outputs": [] },
+    "//#typecheck": { "outputs": [] },
+    "//#build:renderer": {
+      "outputs": ["dist/renderer/**"],
+      "env": [
+        "PORACODE_*",
+        "VITE_*",
+        "POSTHOG_*",
+        "VERCEL_ENV",
+        "CI",
+        "BABEL_ENV",
+        "BROWSERSLIST_*"
+      ]
+    }
+  }
+}
