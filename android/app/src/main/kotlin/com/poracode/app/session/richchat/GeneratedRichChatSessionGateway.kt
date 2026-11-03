@@ -492,11 +492,5 @@ class GeneratedRichChatSessionGateway(
         }
     }
 
-    private fun invalidResponse(mutation: Boolean = false): Nothing = throw RichChatGatewayException(
-        500,
-        "invalid_response",
-        mutation,
-    )
-
     private fun unavailable(code: String): Nothing = throw RichChatGatewayException(501, code, false)
 }

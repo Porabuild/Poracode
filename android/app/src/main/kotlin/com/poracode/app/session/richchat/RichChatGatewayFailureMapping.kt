@@ -39,6 +39,12 @@ internal const val RICH_CHAT_PROCEDURE_NOT_ALLOWED = "git_procedure_not_allowed"
  */
 internal const val THREAD_SESSION_ABSENCE_REFUSAL_CODE = "unknown_thread_session"
 
+internal fun invalidResponse(mutation: Boolean = false): Nothing = throw RichChatGatewayException(
+    500,
+    "invalid_response",
+    mutation,
+)
+
 internal fun Exception.sanitized(mutation: Boolean): RichChatGatewayException = when (this) {
     is RichChatAuthorizationException -> RichChatGatewayException(status, "forbidden", false, this)
     is RichChatRemoteRejectedException -> RichChatGatewayException(status, "remote_error", false, this)
