@@ -1,6 +1,22 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_a02c812507215fb8 = RemoteSchema(type: "object", required: Set(["destinationScope", "mode", "sourcePath"]), properties: ["availability": RemoteSchemas.schema_9c8337f42f233534, "destinationScope": RemoteSchemas.schema_ac6ea0fc110d7efb, "mode": RemoteSchemas.schema_aa2d0958d3ec845a, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27, "replace": RemoteSchemas.schema_f8b6dd8128e8bfe0, "sourcePath": RemoteSchemas.schema_36fea325bf1aca70, "sourceProjectLocation": RemoteSchemas.schema_080f9cc154af9e27, "sourceWslDistro": RemoteSchemas.schema_36fea325bf1aca70, "wslDistro": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_a03f50bc643a4820 = RemoteSchema(type: "object", required: Set(["code", "message"]), properties: ["code": RemoteSchemas.schema_2fbfd962f52fe805, "fingerprint": RemoteSchemas.schema_d3359b6d5db5b90d, "keyType": RemoteSchemas.schema_a016251474d39e0d, "message": RemoteSchemas.schema_ac157d37d82304b4], additionalAllowed: false, unknownPolicy: .reject)
+}
+
+public extension RemoteSchemas {
+  static let schema_a04ed367065645a0 = RemoteSchema(type: "object", required: Set(["kind", "models"]), properties: ["kind": RemoteSchemas.schema_18e932ea73363819, "models": RemoteSchemas.schema_b445f14c3106fc97], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_a050e4e43216f73b = RemoteSchema(type: "string", literals: [.string("cron")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_a087b069daed224f = RemoteSchema(type: "object", required: Set(["destination", "kind", "serverId", "source"]), properties: ["destination": RemoteSchemas.schema_dc99757951407418, "kind": RemoteSchemas.schema_a77c8545896b4c52, "serverId": RemoteSchemas.schema_36fea325bf1aca70, "source": RemoteSchemas.schema_dc99757951407418], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -82,6 +98,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_a66324f9a46c480b = RemoteSchema(type: "object", required: Set(["headers", "type", "url"]), properties: ["headers": RemoteSchemas.schema_c3ac2139868061bb, "type": RemoteSchemas.schema_3120d80990432c9a, "url": RemoteSchemas.schema_7ac95086b2ca282e], additionalAllowed: true, unknownPolicy: .strip, semanticIds: ["mcp.valid-url"])
+}
+
+public extension RemoteSchemas {
+  static let schema_a663eabb01251186 = RemoteSchema(type: "object", required: Set(["executionHost", "kind", "retryAt"]), properties: ["executionHost": RemoteSchemas.schema_bf0b727f7b1c6d07, "kind": RemoteSchemas.schema_daefe10db0766411, "retryAt": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -325,6 +345,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_b191f81602296a89 = RemoteSchema(type: "string", literals: [.string("all"), .string("open")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_b202a6626ea9d1ee = RemoteSchema(type: "string", maxLength: 600, unknownPolicy: .strip)
 }
 
@@ -422,28 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_b6f2d95e2bc1e84c = RemoteSchema(type: "object", required: Set(["config", "prompt", "threadId"]), properties: ["clientContext": RemoteSchemas.schema_b23ca9582f16c4d7, "config": RemoteSchemas.schema_281d24bbbaa46745, "prompt": RemoteSchemas.schema_bf0b727f7b1c6d07, "segments": RemoteSchemas.schema_4392338ffc80bed7, "threadId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_b796dbfba5908fbc = RemoteSchema(type: "string", literals: [.string("readResource")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_b79d8f64de4f41bd = RemoteSchema(type: "object", required: Set(["kind", "worktreePath"]), properties: ["isNewWorktree": RemoteSchemas.schema_feeb8bb50144d96d, "kind": RemoteSchemas.schema_49f72e8cc565067e, "worktreeBranch": RemoteSchemas.schema_bf0b727f7b1c6d07, "worktreePath": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_b7ac3adaa07b7aa4 = RemoteSchema(type: "string", literals: [.string("session.started")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_b7c373d0981a5441 = RemoteSchema(type: "null", unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_b7f9b9a51ee842c4 = RemoteSchema(type: "string", literals: [.string("prompts"), .string("tokens")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_b84e449d1a150abf = RemoteSchema(type: "object", additionalSchema: RemoteSchemas.schema_36fea325bf1aca70, propertyNames: RemoteSchemas.schema_36fea325bf1aca70, unknownPolicy: .strip)
 }

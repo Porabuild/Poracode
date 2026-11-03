@@ -15,6 +15,7 @@ function projectSnapshot(desktopId: string, snapshot: GitStateSnapshot): void {
 
   for (const project of Object.values(snapshot.projects)) {
     const projectId = remoteProjectId(desktopId, project.ref.projectId);
+    store.setGithubPollingProblem(projectId, project.githubPollingProblem ?? null);
     store.setProjectSnapshot(projectId, {
       ...(project.status ? { status: project.status } : {}),
       ...(project.branches ? { branches: project.branches } : {}),

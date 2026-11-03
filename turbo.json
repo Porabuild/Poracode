@@ -8,6 +8,11 @@
   "cacheMaxSize": "1GB",
   "remoteCache": { "enabled": false },
   "globalDependencies": [".env", ".env.*", "packages/codex-protocol/generated/**"],
+  "globalPassThroughEnv": [
+    "PORACODE_HEAVY_GATE_SLOTS",
+    "PORACODE_HEAVY_GATE_DISABLE",
+    "PORACODE_HEAVY_GATE_HELD"
+  ],
   "globalEnv": ["PORACODE_TOOLCHAIN_CACHE_KEY", "NODE_ENV", "NODE_OPTIONS", "BUN_OPTIONS"],
   "tasks": {
     "//#build": {

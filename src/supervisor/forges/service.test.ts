@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ForgeRepository, GhGetPrDetailsResult, PrData } from "@/shared/contracts";
 import { forgeMergePrAtHeadPayloadSchema } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { GitHubService } from "../github";
 import { FORGE_CAPABILITIES } from "./connection";
 import { ForgeApi, type ForgeHttp } from "./api";
@@ -66,6 +67,119 @@ function fixture(repository = "team/app") {
 }
 
 describe("shared source-host review dispatch", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it.each(["feature", "other"])(
+    "honors explicit retry after an overlapping %s poll",
+    async (branch) => {
+      const f = fixture();
+      const pending = Promise.withResolvers<never>();
+      f.scoped.mockReturnValueOnce(pending.promise);
+      vi.spyOn(f.github, "getPrForBranch").mockResolvedValue(pr);
+      const background = f.service.pollPullRequests({ projectLocation: location, branch });
+      const retry = f.service.pollPullRequests({
+        projectLocation: location,
+        branch: "feature",
+        retry: true,
+      });
+      pending.reject(new Error("Bad credentials"));
+      expect(await background).toMatchObject({ status: "blocked" });
+      expect(await retry).toMatchObject({ status: "ready", prs: { feature: { number: 7 } } });
+      expect(f.scoped).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("returns one host-scoped authentication problem across concurrent background readers, without a rejected IPC operation", async () => {
+    const f = fixture();
+    vi.spyOn(f.github, "checkGhAvailable").mockResolvedValue({ available: true });
+    expect(await f.service.checkAvailable(location)).toEqual({ available: true });
+    f.scoped.mockRejectedValue(
+      new Error("To get started with GitHub CLI, please run: gh auth login"),
+    );
+    const captureIpcFailure = vi.fn<(error: unknown) => void>();
+    const results = await Promise.all([
+      f.service.pollPullRequests({ projectLocation: location, branch: "feature" }),
+      f.service.pollPullRequests({ projectLocation: location, branch: "other" }),
+      f.service.pollPullRequests({ projectLocation: location }),
+    ]).catch(captureIpcFailure);
+    expect(captureIpcFailure).not.toHaveBeenCalled();
+    expect(f.scoped).toHaveBeenCalledTimes(1);
+    expect(results).toEqual(
+      Array(3).fill({
+        status: "blocked",
+        problem: expect.objectContaining({
+          kind: "authentication",
+          executionHost: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it.each(["Bad credentials (HTTP 401)", msg("forge.credentials")])(
+    "keeps credential errors out of background rejection: %s",
+    async (message) => {
+      const f = fixture();
+      f.scoped.mockRejectedValue(new Error(message));
+      expect(await f.service.pollPullRequests({ projectLocation: location })).toMatchObject({
+        status: "blocked",
+        problem: { kind: "authentication" },
+      });
+      await expect(
+        f.service.getPrForBranch({ projectLocation: location, branch: "feature" }),
+      ).rejects.toThrow(message);
+    },
+  );
+
+  it("backs off on the execution host, retries on demand, and clears the problem after recovery", async () => {
+    vi.useFakeTimers();
+    const f = fixture();
+    f.scoped.mockRejectedValue(new Error("Bad credentials"));
+    const input = { projectLocation: location, branch: "feature" };
+    const first = await f.service.pollPullRequests(input);
+    expect(first).toMatchObject({
+      status: "blocked",
+      problem: { retryAt: new Date(Date.now() + 30_000).toISOString() },
+    });
+    await vi.advanceTimersByTimeAsync(30_000);
+    const second = await f.service.pollPullRequests(input);
+    expect(second).toMatchObject({
+      status: "blocked",
+      problem: { retryAt: new Date(Date.now() + 60_000).toISOString() },
+    });
+    await f.service.pollPullRequests(input);
+    expect(f.scoped).toHaveBeenCalledTimes(2);
+    f.scoped.mockResolvedValue({
+      service: f.github,
+      host: "https://github.com",
+      repository: "team/app",
+    });
+    const read = vi.spyOn(f.github, "getPrForBranch").mockResolvedValue(pr);
+    expect(await f.service.pollPullRequests({ ...input, retry: true })).toMatchObject({
+      status: "ready",
+      prs: { feature: { number: 7 } },
+    });
+    read.mockResolvedValue(null);
+    expect(await f.service.pollPullRequests(input)).toMatchObject({ status: "ready", prs: {} });
+  });
+
+  it("names the WSL execution runtime and isolates projects and unknown failures", async () => {
+    const f = fixture();
+    f.scoped.mockRejectedValue(new Error("Bad credentials"));
+    const wsl = {
+      kind: "wsl" as const,
+      distro: "Ubuntu",
+      linuxPath: "/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+    };
+    expect(await f.service.pollPullRequests({ projectLocation: wsl })).toMatchObject({
+      status: "blocked",
+      problem: { executionHost: expect.stringContaining("WSL Ubuntu") },
+    });
+    f.scoped.mockRejectedValue(new Error("a parser invariant failed"));
+    await expect(f.service.pollPullRequests({ projectLocation: location })).rejects.toThrow(
+      "a parser invariant failed",
+    );
+  });
   it("edits only a comment proven to belong to the selected review and account", async () => {
     const f = fixture();
     f.read.mockResolvedValue({

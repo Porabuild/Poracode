@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
 import { defineConfig, type TestProjectInlineConfiguration } from "vitest/config";
 import babel from "@rolldown/plugin-babel";
@@ -36,6 +37,15 @@ function rendererProject(
   };
 }
 
+// A single run keeps half the cores. When scripts/heavy-run-gate.mjs reports
+// peers (other worktrees running heavy tasks), split that same budget so the
+// machine is not oversubscribed. CI and ungated runs keep the plain 50%.
+const gatePeers = Number.parseInt(process.env.PORACODE_HEAVY_GATE_PEERS ?? "", 10);
+const maxWorkers =
+  !process.env.CI && gatePeers > 1
+    ? Math.max(2, Math.floor(availableParallelism() / 2 / gatePeers))
+    : "50%";
+
 export default defineConfig({
   plugins: [runtimePayloadProjectionVitePlugin(import.meta.dirname)],
   test: {
@@ -44,7 +54,7 @@ export default defineConfig({
     // (mock history is cleared before each test, implementations are kept).
     clearMocks: true,
     // Leave capacity for compiler subprocesses and large JSDOM module graphs.
-    maxWorkers: "50%",
+    maxWorkers,
     // Default 5s is too tight for tests that vi.resetModules() + dynamic-import
     // under heavy parallel load. Raise to 15s so import jitter doesn't flake
     // the suite; per-test timeouts can still override.

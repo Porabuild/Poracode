@@ -5,10 +5,8 @@ import { useLingui } from "@lingui/react/macro";
 import type { ThreadDockKind, ThreadDocksPlacement } from "@/shared/settings";
 import { toggleThreadDocksPanel } from "@/renderer/actions/panelActions";
 import {
-  floatingGlassActiveClass,
-  floatingGlassBubbleActiveClass,
-  floatingGlassBubbleClass,
-  floatingGlassSurfaceClass,
+  floatingBubbleActiveClass,
+  floatingBubblePillClass,
 } from "@/renderer/components/layout/floatingGlass";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
@@ -174,9 +172,7 @@ function DockBubble({
       aria-label={active ? t`Hide ${label}` : t`Show ${label}`}
       aria-pressed={active}
       data-dock-bubble={kind}
-      className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors ${
-        active ? `${floatingGlassActiveClass} ${floatingGlassBubbleActiveClass}` : ""
-      }`}
+      className={`${floatingBubblePillClass} px-2.5 ${active ? floatingBubbleActiveClass : ""}`}
       onClick={onPress ?? (() => toggleThreadDocksPanel(kind))}
     >
       {icon}

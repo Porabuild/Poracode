@@ -131,6 +131,7 @@ export const REMOTE_PROCEDURE_SPECS = {
   gitGetWorktreeOwner: read("projectLocation"),
   ghCheckAvailable: read("projectLocation"),
   ghGetPrForBranch: read("projectLocation"),
+  ghPollPullRequests: read("projectLocation"),
   ghListPrs: read("projectLocation"),
   forgeGetRepository: read("projectLocation"),
   forgeGetPrViewedFiles: read("projectLocation"),

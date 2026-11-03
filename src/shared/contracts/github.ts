@@ -257,6 +257,14 @@ export const ghListPrsPayloadSchema = z.object({
 });
 export type GhListPrsPayload = z.infer<typeof ghListPrsPayloadSchema>;
 
+export const ghPollPullRequestsPayloadSchema = z.object({
+  projectLocation: projectLocationSchema,
+  branch: z.string().min(1).optional(),
+  state: z.enum(["all", "open"]).optional(),
+  retry: z.boolean().optional(),
+});
+export type GhPollPullRequestsPayload = z.infer<typeof ghPollPullRequestsPayloadSchema>;
+
 export interface GhListPrsResult {
   /** Latest PR per head branch, keyed by head branch name. */
   prs: Record<string, PrData>;

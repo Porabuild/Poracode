@@ -6,9 +6,13 @@ import {
   installRuntimeHistoryRecovery,
   retryThreadRuntimeItems,
 } from "./runtimeInterestHydration";
+import { trackPendingRemoteThreadOpen } from "./remoteServers/pendingRemoteThreadOpens";
 
 const mocks = vi.hoisted(() => ({
   hydrationStatus: {} as Record<string, "pending" | "failed">,
+  threads: [] as { id: string; remoteServerId: string; remoteId: string }[],
+  setHydrationStatus: vi.fn<(threadId: string, status: string) => void>(),
+  openRemoteThread: vi.fn<() => Promise<boolean>>(async () => true),
   hydrated: vi.fn<(threadId: string) => boolean>(() => false),
   hydrate: vi.fn<(threadId: string) => Promise<void>>(async () => {}),
   retain: vi.fn<(threadId: string) => void>(),
@@ -30,13 +34,24 @@ vi.mock("./chatRuntimePersister", () => ({
 }));
 vi.mock("./rendererEventInterests", () => ({ retainRendererEventInterest: mocks.retainInterest }));
 vi.mock("./remote/sync", () => ({ recoverRemoteRuntimeHistory: mocks.recoverRemote }));
+vi.mock("./remoteServersStore", () => ({
+  useRemoteServersStore: { getState: () => ({ openRemoteThread: mocks.openRemoteThread }) },
+}));
 vi.mock("./appStore", () => ({
-  useAppStore: { getState: () => ({ runtimeHydrationStatus: mocks.hydrationStatus }) },
+  useAppStore: {
+    getState: () => ({
+      threads: mocks.threads,
+      runtimeHydrationStatus: mocks.hydrationStatus,
+      setRuntimeHydrationStatus: mocks.setHydrationStatus,
+    }),
+  },
 }));
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.hydrated.mockReturnValue(false);
   mocks.hydrationStatus = {};
+  mocks.threads = [];
+  mocks.openRemoteThread.mockResolvedValue(true);
 });
 
 it.each([false, true])(
@@ -192,4 +207,70 @@ it("does not fetch a pane that was released while its live interest was pending"
   ready();
   await Promise.resolve();
   expect(mocks.hydrate).not.toHaveBeenCalled();
+});
+
+it("transfers a remote reader to its pane without a second host read or local interest", async () => {
+  const id = "remote:host:thread:prepared";
+  mocks.threads = [{ id, remoteServerId: "host", remoteId: "prepared" }];
+  const adopted = vi.fn<() => void>();
+  const prepared = prepareRuntimeThreadReader(id, adopted);
+  await expect(prepared.ready).resolves.toBe(true);
+  const pane = adoptRuntimeThreadReader(id);
+  prepared.release();
+  expect(adopted).toHaveBeenCalledOnce();
+  expect(mocks.openRemoteThread).toHaveBeenCalledExactlyOnceWith("host", "prepared", {
+    focus: false,
+  });
+  expect(mocks.retainInterest).not.toHaveBeenCalled();
+  expect(mocks.hydrate).not.toHaveBeenCalled();
+  expect(mocks.release).not.toHaveBeenCalled();
+  pane.release();
+  pane.release();
+  expect(mocks.release).toHaveBeenCalledExactlyOnceWith(id);
+});
+
+it("shares the remote attach already in flight while preparing its reader", async () => {
+  const id = "remote:host:thread:pending";
+  mocks.threads = [{ id, remoteServerId: "host", remoteId: "pending" }];
+  const history = Promise.withResolvers<boolean>();
+  void trackPendingRemoteThreadOpen(id, history.promise);
+  const reader = prepareRuntimeThreadReader(id);
+  expect(mocks.openRemoteThread).not.toHaveBeenCalled();
+  history.resolve(true);
+  await expect(reader.ready).resolves.toBe(true);
+  reader.release();
+});
+
+it("joins existing history ownership when a remote pane mounts without navigation", async () => {
+  const id = "remote:host:thread:mounted";
+  mocks.threads = [{ id, remoteServerId: "host", remoteId: "mounted" }];
+  const hydration = Promise.withResolvers<void>();
+  mocks.hydrate.mockReturnValueOnce(hydration.promise);
+  const reader = adoptRuntimeThreadReader(id);
+  expect(mocks.openRemoteThread).not.toHaveBeenCalled();
+  expect(mocks.retainInterest).not.toHaveBeenCalled();
+  expect(mocks.hydrate).toHaveBeenCalledExactlyOnceWith(id);
+  expect(mocks.retain).toHaveBeenCalledExactlyOnceWith(id);
+  hydration.resolve();
+  await reader.ready;
+  expect(mocks.setHydrationStatus).not.toHaveBeenCalled();
+  reader.release();
+  expect(mocks.release).toHaveBeenCalledExactlyOnceWith(id);
+});
+
+it("reports a failed remote baseline without treating cached history as missing", async () => {
+  const id = "remote:host:thread:failed";
+  mocks.threads = [{ id, remoteServerId: "host", remoteId: "failed" }];
+  mocks.openRemoteThread.mockResolvedValue(false);
+  const reader = prepareRuntimeThreadReader(id);
+  await expect(reader.ready).resolves.toBe(false);
+  expect(mocks.setHydrationStatus).toHaveBeenLastCalledWith(id, "failed");
+  reader.release();
+
+  mocks.setHydrationStatus.mockClear();
+  mocks.hydrated.mockReturnValue(true);
+  const cached = prepareRuntimeThreadReader(id);
+  await expect(cached.ready).resolves.toBe(false);
+  expect(mocks.setHydrationStatus).not.toHaveBeenCalled();
+  cached.release();
 });

@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.procedureU2EGhUpdatePrBranchU2ERequest: RemoteRootCodec<ProcedureghUpdatePrBranchRequest_e96ebdc8b8>
+    get() = RemoteRootCodec("procedure.ghUpdatePrBranch.request", serializer<ProcedureghUpdatePrBranchRequest_e96ebdc8b8>(), schema_e96ebdc8b8af5200)
+
+val RemoteRootCodecs.procedureU2EGitAbortMergeU2ERequest: RemoteRootCodec<ProceduregitAbortMergeRequest_64dd00a3a5>
+    get() = RemoteRootCodec("procedure.gitAbortMerge.request", serializer<ProceduregitAbortMergeRequest_64dd00a3a5>(), schema_64dd00a3a569fc23)
+
 val RemoteRootCodecs.procedureU2EGitAbortMergeU2EResult: RemoteRootCodec<ProceduregitAbortMergeResult_5bb2b4a4a0>
     get() = RemoteRootCodec("procedure.gitAbortMerge.result", serializer<ProceduregitAbortMergeResult_5bb2b4a4a0>(), schema_5bb2b4a4a0c3c485)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2EDeviceU2DFrameU2EResponse: RemoteRootCodec<Routedev
 
 val RemoteRootCodecs.routeU2EDeviceU2DInspectU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7>
     get() = RemoteRootCodec("route.device-inspect.path", serializer<RoutedeviceU2DActionPath_eef64882a7>(), schema_eef64882a7b017fb)
-
-val RemoteRootCodecs.routeU2EDeviceU2DInspectU2EResponse: RemoteRootCodec<RoutedeviceU2DInspectResponse_b664e76046>
-    get() = RemoteRootCodec("route.device-inspect.response", serializer<RoutedeviceU2DInspectResponse_b664e76046>(), schema_b664e76046bb1915)
-
-val RemoteRootCodecs.routeU2EDeviceU2DInventoryU2EResponse: RemoteRootCodec<RoutedeviceU2DInventoryResponse_32a902996b>
-    get() = RemoteRootCodec("route.device-inventory.response", serializer<RoutedeviceU2DInventoryResponse_32a902996b>(), schema_32a902996bba88be)

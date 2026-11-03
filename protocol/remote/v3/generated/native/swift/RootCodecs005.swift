@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let routeU2ESchedulesU2DCommandU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_bc1920595e> = .init(id: "route.schedules-command.response", schema: RemoteSchemas.schema_bc1920595e8cfd89)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2ESchedulesU2DReadU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_bc1920595e> = .init(id: "route.schedules-read.response", schema: RemoteSchemas.schema_bc1920595e8cfd89)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2ESettingsU2DReadU2EResponse: RemoteRootCodec<RoutesettingsU2DReadResponse_f87159e788> = .init(id: "route.settings-read.response", schema: RemoteSchemas.schema_f87159e7882b195f)
 }
 

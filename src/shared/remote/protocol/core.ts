@@ -45,6 +45,8 @@ import { gitStatePatchSchema } from "../../gitState";
 // additive within v14: old clients never send it, an old host strips or rejects
 // the field and keeps answering nonmedia with typed unsupported_media_type, and
 // no request/response discriminator meaning changes, so no version bump.
+// GitHub polling adds an opt-in read procedure and optional project status.
+// Old snapshots stay valid; native Git state entries preserve unknown fields.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 

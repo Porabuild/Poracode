@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EDeviceU2DInspectU2EResponse: RemoteRootCodec<RoutedeviceU2DInspectResponse_b664e76046>
+    get() = RemoteRootCodec("route.device-inspect.response", serializer<RoutedeviceU2DInspectResponse_b664e76046>(), schema_b664e76046bb1915)
+
+val RemoteRootCodecs.routeU2EDeviceU2DInventoryU2EResponse: RemoteRootCodec<RoutedeviceU2DInventoryResponse_32a902996b>
+    get() = RemoteRootCodec("route.device-inventory.response", serializer<RoutedeviceU2DInventoryResponse_32a902996b>(), schema_32a902996bba88be)
+
 val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DApiU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7>
     get() = RemoteRootCodec("route.device-preview-android-api.path", serializer<RoutedeviceU2DActionPath_eef64882a7>(), schema_eef64882a7b017fb)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2EScheduleU2DRunU2DCommandU2EResponse: RemoteRootCode
 
 val RemoteRootCodecs.routeU2EScheduleU2DRunU2DInboxU2EQuery: RemoteRootCodec<RouteautomationsU2DSnapshotQuery_8cdebfa85e>
     get() = RemoteRootCodec("route.schedule-run-inbox.query", serializer<RouteautomationsU2DSnapshotQuery_8cdebfa85e>(), schema_8cdebfa85eb53602)
-
-val RemoteRootCodecs.routeU2EScheduleU2DRunU2DInboxU2EResponse: RemoteRootCodec<RoutescheduleU2DRunU2DInboxResponse_d9b927ff80>
-    get() = RemoteRootCodec("route.schedule-run-inbox.response", serializer<RoutescheduleU2DRunU2DInboxResponse_d9b927ff80>(), schema_d9b927ff80c17b5c)
-
-val RemoteRootCodecs.routeU2EScheduleU2DRunsU2DReadU2EQuery: RemoteRootCodec<RoutescheduleU2DRunsU2DReadQuery_08eb4244d2>
-    get() = RemoteRootCodec("route.schedule-runs-read.query", serializer<RoutescheduleU2DRunsU2DReadQuery_08eb4244d2>(), schema_08eb4244d2d3b53e)

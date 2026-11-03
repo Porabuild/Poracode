@@ -13,6 +13,7 @@ import type {
   PrReviewSummary,
   PrReviewThread,
   ForgeRepository,
+  GithubPollingProblem,
 } from "@/shared/contracts";
 
 export interface WorktreeSourceInfo {
@@ -22,6 +23,7 @@ export interface WorktreeSourceInfo {
 }
 
 interface GitState {
+  githubPollingProblems: Record<string, GithubPollingProblem | null>;
   statuses: Record<string, GitStatusResult>;
   worktreeStatuses: Record<string, GitStatusResult>;
   worktrees: Record<string, GitWorktreeInfo[]>;
@@ -45,6 +47,7 @@ interface GitProjectSnapshot {
 }
 
 interface GitActions {
+  setGithubPollingProblem: (projectId: string, problem: GithubPollingProblem | null) => void;
   setStatus: (projectId: string, status: GitStatusResult) => void;
   clearStatus: (projectId: string) => void;
   setWorktreeStatus: (worktreePath: string, status: GitStatusResult) => void;
@@ -514,6 +517,14 @@ function schedulePersist(state: GitState) {
 const initialPersisted = loadPersistedSnapshot();
 
 export const useGitStore = create<GitState & GitActions>()((set, get) => ({
+  githubPollingProblems: {},
+  setGithubPollingProblem: (projectId, problem) => {
+    if (JSON.stringify(get().githubPollingProblems[projectId] ?? null) === JSON.stringify(problem))
+      return;
+    set((state) => ({
+      githubPollingProblems: { ...state.githubPollingProblems, [projectId]: problem },
+    }));
+  },
   statuses: initialPersisted.statuses ?? {},
   worktreeStatuses: initialPersisted.worktreeStatuses ?? {},
   worktrees: initialPersisted.worktrees ?? {},
@@ -842,6 +853,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
 
 export function resetGitStoreCache(): void {
   useGitStore.setState({
+    githubPollingProblems: {},
     statuses: {},
     worktreeStatuses: {},
     worktrees: {},

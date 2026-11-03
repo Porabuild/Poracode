@@ -19,12 +19,7 @@ import {
 } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
-import {
-  hydrateThreadRuntimeItems,
-  loadOlderThreadRuntimeItems,
-  releaseThreadRuntimeItems,
-  retainThreadRuntimeItems,
-} from "@/renderer/state/chatRuntimePersister";
+import { loadOlderThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { adoptRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
 import { useInitialTimelineLayout } from "./parts/useInitialTimelineLayout";
 import {
@@ -340,15 +335,9 @@ export function ChatPane(props: ChatPaneProps) {
   ]);
 
   useEffect(() => {
-    if (isRemoteThread) {
-      retainThreadRuntimeItems(threadId);
-      void hydrateThreadRuntimeItems(threadId);
-      return () => releaseThreadRuntimeItems(threadId);
-    }
-
     const reader = adoptRuntimeThreadReader(threadId);
     return () => reader.release();
-  }, [isRemoteThread, threadId]);
+  }, [threadId]);
 
   useEffect(() => {
     if (!targetContext || isHomeScope) return;
@@ -552,14 +541,10 @@ export function ChatPane(props: ChatPaneProps) {
               entries={listEntries}
               isTurnActive={isLive}
               {...(bottomInset ? { bottomInset } : {})}
-              {...(isManagedThread
-                ? {
-                    onInitialLayoutReady: () => {
-                      if (timelineEntries.length > 0 && (scrollRef.current?.clientHeight ?? 0) > 0)
-                        initialTimelineLayout.markReady();
-                    },
-                  }
-                : {})}
+              onInitialLayoutReady={() => {
+                if (timelineEntries.length > 0 && (scrollRef.current?.clientHeight ?? 0) > 0)
+                  initialTimelineLayout.markReady();
+              }}
               setScrollContainer={setScrollContainer}
               scrollContentRef={contentRef}
               onContentHeightChange={() => scrollControlsRef.current?.onContentHeightChange()}

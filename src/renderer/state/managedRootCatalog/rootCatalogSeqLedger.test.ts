@@ -16,6 +16,7 @@ const harness = vi.hoisted(() => ({
   supervisorListeners: [] as Array<
     (event: SupervisorEvent, seq?: number, space?: EventSequenceSpace) => void
   >,
+  activationListeners: [] as Array<(activation: null) => void>,
   provider: null as null | {
     connectionSeq: (connectionKey: string) => number;
     appliedThreadSeq: (connectionKey: string, threadId: string) => number | undefined;
@@ -39,6 +40,12 @@ vi.mock("@/renderer/bridge", () => ({
 vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   readManagedLoopbackActivation: () => null,
+  subscribeManagedLoopbackActivation: (listener: (activation: null) => void) => {
+    harness.activationListeners.push(listener);
+    return () => {
+      harness.activationListeners.splice(harness.activationListeners.indexOf(listener), 1);
+    };
+  },
 }));
 
 vi.mock("@/renderer/state/remoteServers/catalog/boundedCatalogController", () => ({
@@ -112,5 +119,29 @@ describe("managed root catalog seq ledger spaces", () => {
     dispatch({ type: "thread-exited", threadId: "t-a", exitCode: null }, 6, "loopback");
     expect(harness.provider!.connectionSeq(MANAGED_ROOT_CATALOG_KEY)).toBe(6);
     expect(harness.provider!.appliedThreadSeq(MANAGED_ROOT_CATALOG_KEY, "t-a")).toBe(6);
+  });
+
+  it("records each thread in a shared runtime batch before catalog arbitration", () => {
+    dispatch(
+      {
+        type: "thread-runtime-events-multi",
+        batches: [
+          { threadId: "t-a", events: [] },
+          { threadId: "t-b", events: [] },
+        ],
+      },
+      6,
+      "loopback",
+    );
+    expect(harness.provider!.appliedThreadSeq(MANAGED_ROOT_CATALOG_KEY, "t-a")).toBe(6);
+    expect(harness.provider!.appliedThreadSeq(MANAGED_ROOT_CATALOG_KEY, "t-b")).toBe(6);
+  });
+
+  it("does not carry pre-restart catalog guards into a replacement activation", () => {
+    dispatch({ type: "thread-reset", threadId: "t-a" }, 500, "loopback");
+    for (const listener of harness.activationListeners) listener(null);
+    dispatch({ type: "thread-reset", threadId: "t-a" }, 1, "loopback");
+    expect(harness.provider!.connectionSeq(MANAGED_ROOT_CATALOG_KEY)).toBe(1);
+    expect(harness.provider!.appliedThreadSeq(MANAGED_ROOT_CATALOG_KEY, "t-a")).toBe(1);
   });
 });

@@ -52,6 +52,7 @@ import { useConflictResolver, type ConflictResolverLaunchInput } from "./parts/u
 import { ConflictResolutionActions } from "./parts/ConflictResolutionActions";
 import { CommitSyncPanel } from "./parts/CommitSyncPanel";
 import { PrSection } from "./parts/PrSection";
+import { GithubPollingNotice } from "@/renderer/components/common/GithubPollingNotice";
 import { CreatePrModal } from "./parts/CreatePrModal";
 import { ActionPhaseLabel } from "./parts/ActionPhaseLabel";
 import { GitReviewSection } from "./parts/GitReviewSection";
@@ -568,6 +569,7 @@ export function GitReviewSidebar(props: {
             />
           )}
 
+          <GithubPollingNotice project={project} onRecovered={onRefresh} />
           {showPrSection && ghAvailable && hasPr && effectivePrKey && (
             <PrSection
               prKey={effectivePrKey}

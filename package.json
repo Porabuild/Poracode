@@ -90,7 +90,7 @@
     "lint": "bun scripts/turbo.mjs lint",
     "fmt": "bun fmt",
     "fmt:check": "bun scripts/turbo.mjs fmt:check",
-    "test": "vitest run --configLoader runner",
+    "test": "node scripts/heavy-run-gate.mjs -- node ./node_modules/vitest/vitest.mjs run --configLoader runner",
     "test:perf:cli-hook": "vitest run --configLoader runner --config vitest.perf.config.ts src/supervisor/runtime/cliHookEventChain.perf.test.ts",
     "test:perf:browser": "cross-env PORACODE_BROWSER_BENCH=1 vitest run --configLoader runner --config vitest.perf.config.ts src/main/browser/browserWorkflow.perf.test.ts",
     "test:perf:remote": "vitest run --configLoader runner --config vitest.perf.config.ts src/renderer/state/remote/remoteProtocol.perf.test.ts",

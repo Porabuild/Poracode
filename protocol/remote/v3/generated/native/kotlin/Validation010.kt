@@ -5,6 +5,22 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_9f1edfda198d533d: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("git-state-interests")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_9f20fb68ee791598: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("turn.started")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_9f6b436502c63c75: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("agent-vision-watch")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_9f6e05a566c74be3: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("heapUsedBytes", "rssBytes", "uptimeSeconds"), properties = mapOf("heapUsedBytes" to schema_56aa0e45cbdce0d0, "rssBytes" to schema_56aa0e45cbdce0d0, "uptimeSeconds" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_9f74d08dab3e4182: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("agentKind", "config", "initialSize", "projectLocation", "threadId"), properties = mapOf("agentInstanceId" to schema_fa4a387c10f5125f, "agentKind" to schema_36fea325bf1aca70, "clientContext" to schema_b23ca9582f16c4d7, "config" to schema_281d24bbbaa46745, "disabledBuiltInMcpServerIds" to schema_8d017de5d26dce37, "disabledBuiltInMcpTools" to schema_fdad254a8bac8914, "ensureRunning" to schema_d2dd3595e1b5e5dc, "initialInstructions" to schema_36fea325bf1aca70, "initialSize" to schema_55ee222c096690dc, "invariantDisabledBuiltInMcpServerIds" to schema_8d017de5d26dce37, "mcpServers" to schema_7f86e779ad379105, "mentionHandoff" to schema_d2dd3595e1b5e5dc, "presentationMode" to schema_6508684ba659826b, "projectLocation" to schema_080f9cc154af9e27, "projectPluginOverrides" to schema_6db96506f253ef73, "prompt" to schema_38d1a07d3b9b1c82, "providerSwitch" to schema_06461b14925bc6d2, "questionAnswer" to schema_4d59c815dfec80c4, "segments" to schema_4392338ffc80bed7, "sessionRef" to schema_25df6feb29c4a959, "threadId" to schema_36fea325bf1aca70, "userMessageItemId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -123,6 +139,10 @@ internal val schema_a633f9a256d1d0c9: RemoteSchema by lazy {
 
 internal val schema_a66324f9a46c480b: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("headers", "type", "url"), properties = mapOf("headers" to schema_c3ac2139868061bb, "type" to schema_3120d80990432c9a, "url" to schema_7ac95086b2ca282e), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP, semanticIds = listOf("mcp.valid-url"))
+}
+
+internal val schema_a663eabb01251186: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("executionHost", "kind", "retryAt"), properties = mapOf("executionHost" to schema_bf0b727f7b1c6d07, "kind" to schema_daefe10db0766411, "retryAt" to schema_bf0b727f7b1c6d07), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_a6940e107dbdb450: RemoteSchema by lazy {
@@ -365,6 +385,10 @@ internal val schema_b176186fb3da3d3b: RemoteSchema by lazy {
     RemoteSchema(unionKind = "oneOf", options = listOf(schema_48916cddaaeb3b09, schema_dade9637aede6170, schema_3897f50212cb0b25, schema_a633f9a256d1d0c9, schema_17b50a5a251b31ce, schema_bd23acb1d60bc91b, schema_8f58c1d1acd8bc3c, schema_0ad133ee5894107b, schema_95d0adeb5b1f4c44, schema_4655073d71f8e50b, schema_e65689e97e7d91c3, schema_f1c1581e1729d48e), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_b191f81602296a89: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("all"), JsonPrimitive("open")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_b202a6626ea9d1ee: RemoteSchema by lazy {
     RemoteSchema(type = "string", maxLength = 600, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -423,28 +447,4 @@ internal val schema_b53074e6b68baa67: RemoteSchema by lazy {
 
 internal val schema_b588ef57ebadea7a: RemoteSchema by lazy {
     RemoteSchema(unionKind = "oneOf", options = listOf(schema_4ec1d31e87eeb7a4, schema_a93427ae1fb25d32), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_b5c1f44eaf04477b: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("assistant_text"), JsonPrimitive("reasoning_text"), JsonPrimitive("plan_text"), JsonPrimitive("command_output"), JsonPrimitive("file_change_output")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_b5e66c2e9667a210: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("bearer-access-token")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_b5ff559bbe30e3ad: RemoteSchema by lazy {
-    RemoteSchema(type = "object", properties = mapOf("agentKind" to schema_36fea325bf1aca70, "cwd" to schema_36fea325bf1aca70, "query" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_b61004d40d3caef8: RemoteSchema by lazy {
-    RemoteSchema(type = "string", pattern = "^([01]\\d|2[0-3]):[0-5]\\d$", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_b6411354a37352f2: RemoteSchema by lazy {
-    RemoteSchema(unionKind = "anyOf", options = listOf(schema_38754692c8b5ebef, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_b664e76046bb1915: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("format", "text", "version"), properties = mapOf("format" to schema_f1ccd99fb2bc2c2f, "text" to schema_ee49ed668eec9d78, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

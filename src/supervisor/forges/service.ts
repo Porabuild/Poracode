@@ -1,6 +1,6 @@
 import { msg } from "@/shared/messages";
 import { createHash } from "node:crypto";
-import { homedir } from "node:os";
+import { homedir, hostname } from "node:os";
 import { join } from "node:path";
 import { poracodeBaseDirFromEnv } from "@/shared/poracodePaths";
 import { splitUnifiedDiff, viewedFingerprint } from "@/shared/reviewDiff";
@@ -41,8 +41,11 @@ import type {
   ForgeSubmitPrReviewDraftPayload,
   PrData,
   ProjectLocation,
+  GhPollPullRequestsPayload,
+  GhPollPullRequestsResult,
+  GithubPollingProblem,
 } from "@/shared/contracts";
-import { GitHubService } from "../github";
+import { GitHubService, GhUnavailableError, classifyError } from "../github";
 import type { WslBridgeClient } from "../wsl/bridge/client";
 import { AzureReview, type AzurePatches } from "./azure";
 import { BitbucketReview } from "./bitbucket";
@@ -54,6 +57,7 @@ import { GitLabReview } from "./gitlab";
 import { ForgeRuntime } from "./runtime";
 import { unsupported, type ForgeReviewAdapter } from "./types";
 import { ForgeViewedFilesStore } from "./viewedFiles";
+import { projectLocationKey } from "@/shared/projectIdentity";
 import {
   ForgeReviewGuideStore,
   reviewGuideFingerprint,
@@ -78,12 +82,94 @@ function netChanges<T>(add: T[], remove: T[], key: (value: T) => string) {
 
 /** Shared review entrypoint for desktop, remote/native clients, MCP and watches. */
 export class ForgeReviewService {
+  private readonly pollingProblems = new Map<
+    string,
+    { problem: GithubPollingProblem; attempts: number }
+  >();
+  private readonly pollingInFlight = new Map<string, Promise<GhPollPullRequestsResult>>();
+
+  async pollPullRequests(input: GhPollPullRequestsPayload): Promise<GhPollPullRequestsResult> {
+    const scope = projectLocationKey(input.projectLocation);
+    const key = `${scope}\0${input.branch ?? ""}\0${input.state ?? "all"}`;
+    const pending = this.pollingInFlight.get(key);
+    if (pending) {
+      if (!input.retry) return pending;
+      await pending.catch(() => undefined);
+      return this.pollPullRequests(input);
+    }
+    const blocked = this.pollingProblems.get(scope);
+    if (!input.retry && blocked && Date.now() < Date.parse(blocked.problem.retryAt))
+      return { status: "blocked", problem: blocked.problem };
+    // Serialize the first probe for a project, so concurrent branch/list readers
+    // observe its credential failure before starting more gh processes.
+    const other = [...this.pollingInFlight.entries()].find(([entry]) =>
+      entry.startsWith(`${scope}\0`),
+    );
+    if (other) {
+      await other[1];
+      return this.pollPullRequests(input);
+    }
+    const request = this.readPollingPullRequests(input, scope).finally(() =>
+      this.pollingInFlight.delete(key),
+    );
+    this.pollingInFlight.set(key, request);
+    return request;
+  }
+
+  private async readPollingPullRequests(
+    input: GhPollPullRequestsPayload,
+    scope: string,
+  ): Promise<GhPollPullRequestsResult> {
+    let github = false;
+    try {
+      const connection = await this.connections.resolve(input.projectLocation);
+      github = connection?.source.forge === "github";
+      const adapter = connection
+        ? await this.fromConnection(connection, input.projectLocation)
+        : null;
+      const pullRequests = adapter ? await adapter.list(input.state ?? "all", input.branch) : [];
+      const prs: Record<string, PrData> = {};
+      for (const row of pullRequests)
+        if (!prs[row.headBranch] || row.pr.number > prs[row.headBranch]!.number)
+          prs[row.headBranch] = row.pr;
+      this.pollingProblems.delete(scope);
+      this.onPollingProblem?.(input.projectLocation, null);
+      return {
+        status: "ready",
+        prs,
+        pullRequests,
+        ...(adapter?.source.account ? { viewerLogin: adapter.source.account.login } : {}),
+      };
+    } catch (error) {
+      // Reuse gh's existing classification; unknown operational failures still reject.
+      const classified = github ? classifyError(error, "poll") : error;
+      const credentialFailure =
+        github && error instanceof Error && error.message === msg("forge.credentials");
+      if (!(classified instanceof GhUnavailableError) && !credentialFailure) throw error;
+      const attempts = (this.pollingProblems.get(scope)?.attempts ?? 0) + 1;
+      const delay = Math.min(30_000 * 2 ** Math.min(attempts - 1, 4), 5 * 60_000);
+      const problem: GithubPollingProblem = {
+        kind: credentialFailure ? "authentication" : (classified as GhUnavailableError).kind,
+        executionHost:
+          input.projectLocation.kind === "wsl"
+            ? `${hostname()} / WSL ${input.projectLocation.distro}`
+            : hostname(),
+        retryAt: new Date(Date.now() + delay).toISOString(),
+      };
+      this.pollingProblems.set(scope, { problem, attempts });
+      this.onPollingProblem?.(input.projectLocation, problem);
+      return { status: "blocked", problem };
+    }
+  }
   private wslClient: WslBridgeClient | undefined;
   private readonly runtime: ForgeRuntime;
   private readonly connections: Pick<ForgeConnections, "resolve">;
   private readonly azurePatches = new Map<string, Promise<AzurePatches>>();
   private readonly viewedFiles: ForgeViewedFilesStore;
   private readonly guides: ForgeReviewGuideStore;
+  private readonly onPollingProblem:
+    | ((location: ProjectLocation, problem: GithubPollingProblem | null) => void)
+    | undefined;
   constructor(
     private readonly github: GitHubService,
     options?: {
@@ -91,8 +177,10 @@ export class ForgeReviewService {
       connections?: Pick<ForgeConnections, "resolve">;
       viewedFiles?: ForgeViewedFilesStore;
       guides?: ForgeReviewGuideStore;
+      onPollingProblem?: (location: ProjectLocation, problem: GithubPollingProblem | null) => void;
     },
   ) {
+    this.onPollingProblem = options?.onPollingProblem;
     this.runtime = options?.runtime ?? new ForgeRuntime(() => this.wslClient);
     this.connections = options?.connections ?? new ForgeConnections(this.runtime);
     this.viewedFiles =

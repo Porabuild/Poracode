@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let procedureU2EReadExternalFileU2EResult: RemoteRootCodec<ProcedurereadExternalFileResult_9ba1e93599> = .init(id: "procedure.readExternalFile.result", schema: RemoteSchemas.schema_9ba1e93599d271dc)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EReadProjectFileU2ERequest: RemoteRootCodec<ProceduredeleteProjectEntryRequest_56df8e6416> = .init(id: "procedure.readProjectFile.request", schema: RemoteSchemas.schema_56df8e6416f18e3e)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EReadProjectFileU2EResult: RemoteRootCodec<ProcedurereadProjectFileResult_891e9ab241> = .init(id: "procedure.readProjectFile.result", schema: RemoteSchemas.schema_891e9ab2413a4e77)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EEnvironmentU2DDisconnectU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec> = .init(id: "route.environment-disconnect.response", schema: RemoteSchemas.schema_8428abfcec0a8b32)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DGetU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2> = .init(id: "route.environment-get.path", schema: RemoteSchemas.schema_149c9d9dd2191aa3)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DGetU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec> = .init(id: "route.environment-get.response", schema: RemoteSchemas.schema_8428abfcec0a8b32)
 }

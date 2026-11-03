@@ -317,6 +317,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     ghCheckAvailable: (payload) => reviews.checkAvailable(payload.projectLocation),
     ghCreatePr: (payload) => reviews.createPr(payload),
     ghGetPrForBranch: (payload) => reviews.getPrForBranch(payload),
+    ghPollPullRequests: (payload) => reviews.pollPullRequests(payload),
     ghListPrs: (payload) => reviews.listPrs(payload),
     ghListPullRequests: (payload) => reviews.listPullRequests(payload),
     ghListWorkflows: (payload) => github.listWorkflows(payload.projectLocation, payload.ghAccount),

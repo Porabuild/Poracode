@@ -9888,6 +9888,10 @@ msgstr "Instalar Cursor SDK"
 msgid "Install Cursor SDK in {environment}"
 msgstr "Instalar Cursor SDK en {environment}"
 
+#: src/renderer/components/common/GithubPollingNotice.tsx
+msgid "Install GitHub CLI (gh) on {executionHost}, then retry."
+msgstr "Instala GitHub CLI (gh) en {executionHost} y vuelve a intentarlo."
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Install Hex"
 msgstr "Instalar Hex"
@@ -14695,6 +14699,11 @@ msgstr "Automatización de PR: Corrección automática"
 msgid "PR automation: Auto Merge"
 msgstr "Automatización de PR: Fusión automática"
 
+#: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "PR data is unavailable; cached results may be stale."
+msgstr "Los datos de las PR no están disponibles; los resultados en caché pueden estar desactualizados."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
 msgstr "Opciones de PR"
@@ -16501,6 +16510,7 @@ msgstr "Solo el uso conservado en este host."
 #: src/renderer/bootstrap.ts
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -16980,6 +16990,10 @@ msgstr "Ejecutar comando"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Run experiment"
 msgstr "Ejecutar experimento"
+
+#: src/renderer/components/common/GithubPollingNotice.tsx
+msgid "Run gh auth login in a terminal on {executionHost}, then retry. If GH_TOKEN or GITHUB_TOKEN is set, update or remove the invalid token there."
+msgstr "Ejecuta gh auth login en un terminal de {executionHost} y vuelve a intentarlo. Si GH_TOKEN o GITHUB_TOKEN está definido, actualiza o elimina allí el token no válido."
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Run in a separate worktree"

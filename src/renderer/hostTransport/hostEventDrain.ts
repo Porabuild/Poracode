@@ -5,38 +5,33 @@ import {
   ClientEngineProtocolMismatchError,
   ClientEngineTimeoutError,
   ClientEngineWorkerUnavailableError,
-  type ClientEngineWorkerMode,
 } from "@/renderer/state/remote/engine";
-import type { DesktopFrameDecodeResult } from "@/renderer/state/remote/engine/decode";
-import type { DesktopLoopbackFrame } from "./desktopLoopbackFrames";
+import {
+  CLIENT_ENGINE_LANE_MAX_PENDING,
+  CLIENT_ENGINE_LANE_MAX_BYTES,
+  CLIENT_ENGINE_LANE_MAX_AGE_MS,
+  CLIENT_ENGINE_LANE_IN_FLIGHT,
+} from "@/renderer/state/remote/engine/protocol";
 
 /**
- * A3: the managed loopback leg's private decode port. The production
- * implementation is a client-engine lane; tests inject fakes. `workerMode`
- * lets the drain expose a truthful reduced state without probing the worker
- * with every frame.
+ * Each host supplies its authorized frame decoder. Queueing and recovery
+ * bounds are shared; private desktop envelopes never enter the public decoder.
  */
-export interface DesktopLoopbackDecodePort {
-  decodeDesktopFrame(raw: string): Promise<DesktopFrameDecodeResult>;
+export interface HostFrameDecodePort<Frame> {
+  decodeFrame(raw: string): Promise<Frame | null>;
   /** New socket generation: pending results from the old socket are fenced. */
   renew(): void;
   dispose(): void;
-  readonly workerMode: ClientEngineWorkerMode;
 }
 
-export type DesktopLoopbackDrainUnavailableReason =
-  | "worker"
-  | "overflow"
-  | "bytes"
-  | "age"
-  | "disposed";
+export type HostEventDrainUnavailableReason = "worker" | "overflow" | "bytes" | "age" | "disposed";
 
-export interface DesktopLoopbackFrameDrainOptions {
-  readonly decode: DesktopLoopbackDecodePort;
-  readonly onFrame: (frame: DesktopLoopbackFrame) => void;
+export interface HostEventDrainOptions<Frame> {
+  readonly decode: HostFrameDecodePort<Frame>;
+  readonly onFrame: (frame: Frame, bytes: number) => void;
   /** Typed recovery signal: the drain cannot decode bulk frames anymore and
    * the leg must be re-established (never a synchronous UI parse burst). */
-  readonly onUnavailable: (reason: DesktopLoopbackDrainUnavailableReason) => void;
+  readonly onUnavailable: (reason: HostEventDrainUnavailableReason) => void;
   readonly maxPending?: number;
   readonly maxBytes?: number;
   readonly maxAgeMs?: number;
@@ -53,18 +48,13 @@ interface QueuedFrame {
 /** A decoded frame parked out of order. It still holds the frame (and the
  * bytes charged when it arrived) until the gap routes it or the drain
  * authoritatively discards it. */
-interface DecodedFrame {
-  readonly frame: DesktopLoopbackFrame | null;
+interface DecodedFrame<Frame> {
+  readonly frame: Frame | null;
   readonly bytes: number;
 }
 
-const DEFAULT_MAX_PENDING = 64;
-const DEFAULT_MAX_BYTES = 4 * 1024 * 1024;
-const DEFAULT_MAX_AGE_MS = 5_000;
-const DEFAULT_IN_FLIGHT = 8;
-
 /**
- * Per-socket ordered, bounded drain between the managed loopback socket and the
+ * Per-socket ordered, bounded drain between a host socket and the
  * off-thread client engine.
  *
  * Ordering: every pushed frame gets a monotonic sequence and decoded results
@@ -85,7 +75,7 @@ const DEFAULT_IN_FLIGHT = 8;
  * synchronous bulk fallback — the leg owner closes and re-establishes
  * (resync) instead.
  */
-export class DesktopLoopbackFrameDrain {
+export class HostEventDrain<Frame> {
   private readonly maxPending: number;
   private readonly maxBytes: number;
   private readonly maxAgeMs: number;
@@ -93,22 +83,22 @@ export class DesktopLoopbackFrameDrain {
   private generation = 0;
   private disposed = false;
   private unavailable = false;
-  private unavailableReason: DesktopLoopbackDrainUnavailableReason | null = null;
+  private unavailableReason: HostEventDrainUnavailableReason | null = null;
   private nextSequence = 0;
   private nextToRoute = 0;
   private queued: QueuedFrame[] = [];
   private queuedBytes = 0;
   private outstanding = 0;
   private outstandingBytes = 0;
-  private readonly decoded = new Map<number, DecodedFrame>();
+  private readonly decoded = new Map<number, DecodedFrame<Frame>>();
   private decodedBytes = 0;
   private ageTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly options: DesktopLoopbackFrameDrainOptions) {
-    this.maxPending = options.maxPending ?? DEFAULT_MAX_PENDING;
-    this.maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
-    this.maxAgeMs = options.maxAgeMs ?? DEFAULT_MAX_AGE_MS;
-    this.inFlightLimit = options.inFlight ?? DEFAULT_IN_FLIGHT;
+  constructor(private readonly options: HostEventDrainOptions<Frame>) {
+    this.maxPending = options.maxPending ?? CLIENT_ENGINE_LANE_MAX_PENDING;
+    this.maxBytes = options.maxBytes ?? CLIENT_ENGINE_LANE_MAX_BYTES;
+    this.maxAgeMs = options.maxAgeMs ?? CLIENT_ENGINE_LANE_MAX_AGE_MS;
+    this.inFlightLimit = options.inFlight ?? CLIENT_ENGINE_LANE_IN_FLIGHT;
   }
 
   /** True while bulk frames can no longer be decoded for the current socket. */
@@ -116,7 +106,7 @@ export class DesktopLoopbackFrameDrain {
     return this.disposed || this.unavailable;
   }
 
-  unavailableMessageReason(): DesktopLoopbackDrainUnavailableReason | null {
+  unavailableMessageReason(): HostEventDrainUnavailableReason | null {
     return this.unavailableReason;
   }
 
@@ -204,12 +194,12 @@ export class DesktopLoopbackFrameDrain {
       this.outstanding += 1;
       const generation = this.generation;
       void this.options.decode
-        .decodeDesktopFrame(frame.raw)
+        .decodeFrame(frame.raw)
         .then((result) => {
           if (this.disposed || generation !== this.generation) return;
           this.outstanding -= 1;
           this.outstandingBytes -= frame.bytes;
-          this.recordResult(frame.sequence, result.ok ? result.frame : null, frame.bytes);
+          this.recordResult(frame.sequence, result, frame.bytes);
           this.pump();
         })
         .catch((error: unknown) => {
@@ -224,7 +214,7 @@ export class DesktopLoopbackFrameDrain {
   /** Parks one decoded result, then routes every frame the parked set makes
    * contiguous. Parked results keep charging count/bytes until routed;
    * consumer routing must never corrupt that accounting. */
-  private recordResult(sequence: number, frame: DesktopLoopbackFrame | null, bytes: number): void {
+  private recordResult(sequence: number, frame: Frame | null, bytes: number): void {
     this.decoded.set(sequence, { frame, bytes });
     this.decodedBytes += bytes;
     while (this.decoded.has(this.nextToRoute)) {
@@ -234,7 +224,7 @@ export class DesktopLoopbackFrameDrain {
       this.nextToRoute += 1;
       if (next.frame) {
         try {
-          this.options.onFrame(next.frame);
+          this.options.onFrame(next.frame, next.bytes);
         } catch {
           // A routing failure must not leave the accounting charged or turn
           // into an unhandled rejection; HTTP snapshots stay authoritative.
@@ -269,7 +259,7 @@ export class DesktopLoopbackFrameDrain {
     this.ageTimer = null;
   }
 
-  private markUnavailable(reason: DesktopLoopbackDrainUnavailableReason): void {
+  private markUnavailable(reason: HostEventDrainUnavailableReason): void {
     if (this.disposed || this.unavailable) return;
     this.unavailable = true;
     this.unavailableReason = reason;
@@ -289,7 +279,7 @@ export class DesktopLoopbackFrameDrain {
     this.options.onUnavailable(reason);
   }
 
-  private reasonFromError(error: unknown): DesktopLoopbackDrainUnavailableReason {
+  private reasonFromError(error: unknown): HostEventDrainUnavailableReason {
     if (error instanceof ClientEngineLaneOverflowError) return "overflow";
     if (
       error instanceof ClientEngineWorkerUnavailableError ||

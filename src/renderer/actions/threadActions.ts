@@ -304,32 +304,6 @@ export function openThread(
   if (thread && options?.switchWorkspace) {
     switchWorkspaceForProject(thread.projectId);
   }
-  const owner = remoteOwner(thread);
-  if (owner) {
-    store.setPendingActiveThread(threadId);
-    startTransition(() => {
-      if (options?.reopenRuntime === false) suppressAutomaticThreadReopen(threadId);
-      if (options?.standalone) store.openThreadStandalone(threadId);
-      else store.openThread(threadId);
-      store.setPendingActiveThread(null);
-      if (options?.focusComposer !== false) store.requestComposerFocus(threadId);
-    });
-    // Same open pipeline as local: hydrate remote history, then if still
-    // inactive queue the empty-prompt reopen. ThreadView runs
-    // performInitialThreadLaunch, which uses remote startThread instead of
-    // local IPC — the only intentional difference.
-    void useRemoteServersStore
-      .getState()
-      .openRemoteThread(owner.desktopId, owner.remoteId)
-      .then((opened) => {
-        // Reopen only when this open actually applied. A superseded open (the
-        // user already clicked another thread) or a failed one (host
-        // unreachable — the relaunch would fail noisily) resolves false.
-        if (opened && threadRuntimeReopenEnabled && options?.reopenRuntime !== false)
-          reopenStoredThread(threadId);
-      });
-    return;
-  }
   const standalone = options?.standalone ?? findExperimentByThreadId(threadId) !== undefined;
 
   // Phase 1 (urgent): flip the optimistic active-thread id in its own cheap
@@ -391,14 +365,19 @@ export function openThread(
   // A slow host read must still reveal the pane's existing loading state.
   // Retain its live stream too, so the mounted reader adopts this baseline
   // across the interest grace period instead of starting a second recovery.
-  if (thread?.presentationMode === "gui" && !hasHydratedThreadRuntimeItems(threadId)) {
+  if (thread?.presentationMode === "gui" || remoteOwner(thread)) {
+    const hydrated = hasHydratedThreadRuntimeItems(threadId);
     let unsubscribe = () => {};
     let active = true;
     let opened = false;
+    let ready = false;
+    let succeeded = false;
+    let frameId: number | undefined;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const retire = () => {
       active = false;
       clearTimeout(timeoutId);
+      if (frameId !== undefined) cancelAnimationFrame(frameId);
       unsubscribe();
       if (cancelPendingThreadOpen === cancel) cancelPendingThreadOpen = null;
     };
@@ -429,14 +408,19 @@ export function openThread(
       opened = true;
       if (!applyOpen(reopenRuntime)) return cancel();
     };
-    timeoutId = setTimeout(() => finishOpen(false), THREAD_OPEN_HISTORY_WAIT_MS);
-    const finishRead = () => {
-      if (!opened) return finishOpen(true);
+    const finishRead = (result: boolean | void) => {
+      ready = true;
+      succeeded = result !== false;
+      if (!opened) {
+        if (!hydrated) finishOpen(succeeded);
+        return;
+      }
       // The pane can adopt the reader while the baseline is still pending.
       // Reconnect only after that read settles, while this navigation still
       // owns the visible pane; a late read must not restart a departed thread.
       const state = useAppStore.getState();
       if (
+        succeeded &&
         requestId === openThreadRequestId &&
         state.view.kind === "thread" &&
         state.view.panes.includes(threadId) &&
@@ -446,7 +430,13 @@ export function openThread(
         reopenStoredThread(threadId);
       }
     };
-    void reader.ready.then(finishRead, finishRead);
+    if (hydrated) {
+      frameId = requestAnimationFrame(() => finishOpen(ready && succeeded));
+      if (!opened) timeoutId = setTimeout(() => finishOpen(ready && succeeded), 50);
+    } else {
+      timeoutId = setTimeout(() => finishOpen(false), THREAD_OPEN_HISTORY_WAIT_MS);
+    }
+    void reader.ready.then(finishRead, () => finishRead(false));
     return;
   }
   // Defer the heavy pane swap one frame so the urgent highlight commit paints

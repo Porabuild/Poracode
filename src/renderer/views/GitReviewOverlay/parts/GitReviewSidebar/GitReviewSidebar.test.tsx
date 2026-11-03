@@ -11,6 +11,10 @@ import type {
 } from "@/shared/contracts";
 
 const bridgeMock = vi.hoisted(() => ({
+  ghPollPullRequests: async (input: { branch: string }) => {
+    const pr = await bridgeMock.ghGetPrForBranch();
+    return { status: "ready", prs: pr ? { [input.branch]: pr } : {}, pullRequests: [] };
+  },
   gitStage: vi.fn<() => Promise<void>>(),
   gitUnstage: vi.fn<() => Promise<void>>(),
   gitRevert: vi.fn<() => Promise<void>>(),

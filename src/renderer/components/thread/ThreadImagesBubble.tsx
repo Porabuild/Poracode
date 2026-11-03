@@ -3,10 +3,8 @@ import { FileText, Images } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { toggleThreadDocksPanel } from "@/renderer/actions/panelActions";
 import {
-  floatingGlassActiveClass,
-  floatingGlassBubbleActiveClass,
-  floatingGlassBubbleClass,
-  floatingGlassSurfaceClass,
+  floatingBubbleActiveClass,
+  floatingBubblePillClass,
 } from "@/renderer/components/layout/floatingGlass";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useThreadGalleryImages } from "./useThreadGalleryImages";
@@ -43,8 +41,8 @@ export function ThreadImagesBubble({ threadId }: { threadId: string }) {
       }
       aria-pressed={panelShowing}
       data-images-bubble="true"
-      className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition-colors ${
-        panelShowing ? `${floatingGlassActiveClass} ${floatingGlassBubbleActiveClass}` : ""
+      className={`${floatingBubblePillClass} px-2.5 ${
+        panelShowing ? floatingBubbleActiveClass : ""
       }`}
       onClick={() => toggleThreadDocksPanel("images")}
     >

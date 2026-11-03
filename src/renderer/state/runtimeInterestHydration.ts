@@ -6,11 +6,13 @@ import {
 } from "./chatRuntimePersister";
 import { retainRendererEventInterest } from "./rendererEventInterests";
 import { useAppStore } from "./appStore";
-import { isProjectedRemoteEntityId } from "./remoteProjection";
+import { isProjectedRemoteEntityId, remoteOwner } from "./remoteProjection";
 import { recoverRemoteRuntimeHistory } from "./remote/sync";
+import { useRemoteServersStore } from "./remoteServersStore";
+import { pendingRemoteThreadOpen } from "./remoteServers/pendingRemoteThreadOpens";
 
 interface RuntimeThreadReader {
-  readonly ready: Promise<void>;
+  readonly ready: Promise<boolean | void>;
   release(): void;
 }
 
@@ -24,7 +26,7 @@ export function prepareRuntimeThreadReader(
   threadId: string,
   onAdopted: () => void = () => {},
 ): RuntimeThreadReader {
-  const reader = retainRuntimeThreadReader(threadId);
+  const reader = retainRuntimeThreadReader(threadId, true);
   const prepared = { reader, onAdopted };
   preparedReaders.set(threadId, prepared);
   return {
@@ -48,9 +50,47 @@ export function adoptRuntimeThreadReader(threadId: string): RuntimeThreadReader 
   return retainRuntimeThreadReader(threadId);
 }
 
-/** One owner for both a local reader's bounded window and its live stream. */
-export function retainRuntimeThreadReader(threadId: string): RuntimeThreadReader {
+/** One owner for a thread's bounded window and its host's live stream.
+ * Only navigation starts a remote open; mounting joins its existing history owner. */
+export function retainRuntimeThreadReader(
+  threadId: string,
+  openRemote = false,
+): RuntimeThreadReader {
   retainThreadRuntimeItems(threadId);
+  const owner = remoteOwner(
+    useAppStore.getState().threads.find((thread) => thread.id === threadId),
+  );
+  if (owner) {
+    let active = true;
+    const state = useAppStore.getState();
+    if (openRemote && !hasHydratedThreadRuntimeItems(threadId))
+      state.setRuntimeHydrationStatus(threadId, "pending");
+    const ready = (
+      pendingRemoteThreadOpen(threadId) ??
+      (openRemote
+        ? useRemoteServersStore.getState().openRemoteThread(owner.desktopId, owner.remoteId, {
+            focus: false,
+          })
+        : hydrateThreadRuntimeItems(threadId))
+    ).then((opened) => {
+      if (
+        active &&
+        opened === false &&
+        !pendingRemoteThreadOpen(threadId) &&
+        !hasHydratedThreadRuntimeItems(threadId)
+      )
+        useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+      return opened;
+    });
+    return {
+      ready,
+      release: () => {
+        if (!active) return;
+        active = false;
+        releaseThreadRuntimeItems(threadId);
+      },
+    };
+  }
   const interest = retainRendererEventInterest("runtime", threadId);
   const continuous = interest.continuous;
   let active = true;

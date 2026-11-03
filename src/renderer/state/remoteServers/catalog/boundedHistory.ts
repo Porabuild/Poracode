@@ -10,8 +10,6 @@ import type { CompletedTurnRecord } from "@/renderer/state/slices/runtimeEventSl
 import {
   __resetBoundedHistoryRegistryForTest,
   advanceBoundedHistoryTailCursor,
-  boundedClientInvoker,
-  managedRootHistoryClient,
   readBoundedHistoryTail,
 } from "./boundedHistoryRegistry";
 
@@ -137,19 +135,5 @@ export async function loadOlderBoundedCompletedTurns(viewThreadId: string): Prom
     });
     return page.completedTurnsNextCursor !== null;
   };
-  if (tail.connectionKind === "managed-root") {
-    const managed = managedRootHistoryClient();
-    if (!managed) return false;
-    return applyPage(managed.client);
-  }
-  const invoke = boundedClientInvoker();
-  if (!invoke) return false;
-  return invoke(tail.desktopId, applyPage);
+  return tail.session.withClient(applyPage) ?? false;
 }
-
-/**
- * Back-compat alias of {@link loadOlderBoundedCompletedTurns} for the remote
- * continuation registration; kept so existing remote-only callers/tests read
- * unchanged while the implementation dispatches by tail connection kind.
- */
-export const loadOlderRemoteCompletedTurns = loadOlderBoundedCompletedTurns;

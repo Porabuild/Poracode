@@ -428,6 +428,12 @@ val RemoteRootCodecs.procedureU2EGhMarkPrReadyU2ERequest: RemoteRootCodec<Proced
 val RemoteRootCodecs.procedureU2EGhMergePrU2ERequest: RemoteRootCodec<ProcedureghMergePrRequest_39d6579ca7>
     get() = RemoteRootCodec("procedure.ghMergePr.request", serializer<ProcedureghMergePrRequest_39d6579ca7>(), schema_39d6579ca7450396)
 
+val RemoteRootCodecs.procedureU2EGhPollPullRequestsU2ERequest: RemoteRootCodec<ProcedureghPollPullRequestsRequest_559c498a02>
+    get() = RemoteRootCodec("procedure.ghPollPullRequests.request", serializer<ProcedureghPollPullRequestsRequest_559c498a02>(), schema_559c498a020be6ad)
+
+val RemoteRootCodecs.procedureU2EGhPollPullRequestsU2EResult: RemoteRootCodec<ProcedureghPollPullRequestsResult_729d8ec224>
+    get() = RemoteRootCodec("procedure.ghPollPullRequests.result", serializer<ProcedureghPollPullRequestsResult_729d8ec224>(), schema_729d8ec2243ca0f3)
+
 val RemoteRootCodecs.procedureU2EGhPostPrCommentU2ERequest: RemoteRootCodec<ProcedureghPostPrCommentRequest_189279e83c>
     get() = RemoteRootCodec("procedure.ghPostPrComment.request", serializer<ProcedureghPostPrCommentRequest_189279e83c>(), schema_189279e83c3a2ce4)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.procedureU2EGhRerunWorkflowRunU2ERequest: RemoteRootCodec<P
 
 val RemoteRootCodecs.procedureU2EGhSubmitPrReviewU2ERequest: RemoteRootCodec<ProcedureghSubmitPrReviewRequest_09cbc76a2a>
     get() = RemoteRootCodec("procedure.ghSubmitPrReview.request", serializer<ProcedureghSubmitPrReviewRequest_09cbc76a2a>(), schema_09cbc76a2a7d52d2)
-
-val RemoteRootCodecs.procedureU2EGhUpdatePrBranchU2ERequest: RemoteRootCodec<ProcedureghUpdatePrBranchRequest_e96ebdc8b8>
-    get() = RemoteRootCodec("procedure.ghUpdatePrBranch.request", serializer<ProcedureghUpdatePrBranchRequest_e96ebdc8b8>(), schema_e96ebdc8b8af5200)
-
-val RemoteRootCodecs.procedureU2EGitAbortMergeU2ERequest: RemoteRootCodec<ProceduregitAbortMergeRequest_64dd00a3a5>
-    get() = RemoteRootCodec("procedure.gitAbortMerge.request", serializer<ProceduregitAbortMergeRequest_64dd00a3a5>(), schema_64dd00a3a569fc23)

@@ -5,6 +5,18 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_7dccd2754fedc801: RemoteSchema by lazy {
+    RemoteSchema(defaultValue = JsonNull, unionKind = "anyOf", options = listOf(schema_95e237e57720296e, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_7dce940bfe881c07: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("description", "kind", "taskId"), properties = mapOf("description" to schema_bf0b727f7b1c6d07, "kind" to schema_32b2db2eaac8458c, "lastProgressAt" to schema_f696f11685898ba7, "progress" to schema_dfc3f3726c991dbe, "startedAt" to schema_f696f11685898ba7, "stopAction" to schema_4f399075769723a3, "taskId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_7ded875dbc20840e: RemoteSchema by lazy {
+    RemoteSchema(type = "object", additionalSchema = schema_665acf486e1a0586, propertyNames = schema_bf0b727f7b1c6d07, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_7df0b39f181cc45b: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("enter"), JsonPrimitive("backspace"), JsonPrimitive("tab"), JsonPrimitive("escape"), JsonPrimitive("arrow-up"), JsonPrimitive("arrow-down"), JsonPrimitive("arrow-left"), JsonPrimitive("arrow-right")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -435,16 +447,4 @@ internal val schema_8ce7154e450128c7: RemoteSchema by lazy {
 
 internal val schema_8cec6a74a97374d7: RemoteSchema by lazy {
     RemoteSchema(type = "integer", minimum = 0.0, maximum = 9600044.0, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_8d017de5d26dce37: RemoteSchema by lazy {
-    RemoteSchema(type = "array", items = schema_13f43aaaf56911fa, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_8d030d3e3d2256ff: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("setup")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_8d15f7f900e19f14: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("anchor"), properties = mapOf("anchor" to schema_98ef330d70f2e681), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
