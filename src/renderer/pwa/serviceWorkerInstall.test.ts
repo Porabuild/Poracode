@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { setImmediate } from "node:timers/promises";
 import { runInNewContext } from "node:vm";
-import { describe, expect, it } from "vitest";
+import { MessageChannel } from "node:worker_threads";
+import { describe, expect, it, vi } from "vitest";
 
 const workerSource = readFileSync(
   resolve(import.meta.dirname, "../../../public/service-worker.js"),
@@ -18,25 +19,37 @@ const script = () =>
     headers: { "content-type": "application/javascript" },
   });
 
+type FixtureClient = {
+  type: "window";
+  url: string;
+  postMessage(message: unknown, ports: MessagePort[]): void;
+  navigate(url: string): Promise<unknown>;
+};
+
 type WorkerEvent = {
   waitUntil(work: Promise<unknown>): void;
   data?: unknown;
+  source?: { scriptURL: string } | FixtureClient;
   request?: { method: string; url: string; mode: RequestMode; cache: RequestCache };
   respondWith?(response: Promise<Response> | Response): void;
 };
 
 /** Exercise actual worker handlers and Cache semantics, without a browser scheduler. */
-function workerFixture() {
+function workerFixture(source = workerSource) {
   const stores = new Map<string, Map<string, Response>>();
   const listeners = new Map<string, (event: WorkerEvent) => void>();
   const timers: Array<{ callback: () => void; delay: number }> = [];
   const deleted: string[] = [];
   let claims = 0;
   let skips = 0;
+  const controlMessages: unknown[] = [];
+  const workerIdentity = { scriptURL: `${origin}/service-worker.js` };
   const key = (input: string | { url: string }) =>
     new URL(typeof input === "string" ? input : input.url, origin).href;
   const state = {
     offline: false,
+    clients: [] as FixtureClient[],
+    installing: false,
     routes: new Map<string, () => Response | Promise<Response>>([
       ["/", () => html(shell)],
       ["/manifest.webmanifest", () => new Response("{}")],
@@ -94,18 +107,30 @@ function workerFixture() {
     ]),
   );
   stores.set("unrelated-cache", new Map());
-  runInNewContext(workerSource, {
+  runInNewContext(source, {
     URL,
     Response,
     caches,
     fetch,
-    setTimeout: (callback: () => void, delay: number) => timers.push({ callback, delay }),
+    MessageChannel,
+    clearTimeout,
+    setTimeout: (callback: () => void, delay: number) => {
+      if (delay !== 500) return setTimeout(callback, delay);
+      timers.push({ callback, delay });
+      return 0;
+    },
     self: {
       location: new URL(`${origin}/service-worker.js`),
       addEventListener: (type: string, listener: (event: WorkerEvent) => void) =>
         listeners.set(type, listener),
       skipWaiting: () => skips++,
-      clients: { claim: async () => claims++ },
+      clients: { claim: async () => claims++, matchAll: async () => state.clients },
+      registration: {
+        get installing() {
+          return state.installing ? {} : null;
+        },
+        active: { postMessage: (message: unknown) => controlMessages.push(message) },
+      },
     },
   });
   async function dispatch(type: string, event: Omit<WorkerEvent, "waitUntil"> = {}) {
@@ -148,6 +173,10 @@ function workerFixture() {
     },
     message: (urls: string[]) =>
       dispatch("message", { data: { type: "cache-build-assets", urls } }),
+    refresh: () => dispatch("message", { data: controlMessages.shift(), source: workerIdentity }),
+    activateWaiting: () => dispatch("message", { data: { type: "activate-build" } }),
+    checkBuild: (version: string, client: FixtureClient) =>
+      dispatch("message", { data: { type: "check-build", version }, source: client }),
     startRequest,
     async request(path: string, mode: RequestMode, cache: RequestCache = "default") {
       const { response, lifetime } = startRequest(path, mode, cache);
@@ -202,11 +231,11 @@ describe("service-worker shell installation and offline integrity", () => {
     },
   );
 
-  it("retires the previous cache only after a complete shell installs", async () => {
+  it("activates a complete shell immediately while retaining the previous asset graph", async () => {
     const fixture = workerFixture();
     await fixture.upgrade();
-    expect(fixture.skips).toBe(0);
-    expect(fixture.deleted).toEqual([oldName]);
+    expect(fixture.skips).toBe(1);
+    expect(fixture.deleted).toEqual([]);
     expect(fixture.claims).toBe(1);
     expect(fixture.stores.has("unrelated-cache")).toBe(true);
     fixture.state.offline = true;
@@ -214,13 +243,163 @@ describe("service-worker shell installation and offline integrity", () => {
     expect(await (await fixture.request("/assets/current.js", "cors")).text()).toContain(
       "build = 'current'",
     );
+    expect(await (await fixture.request("/assets/previous.js", "cors")).text()).toBe("previous();");
+  });
+
+  it("accepts the activation handshake after an installed update reaches waiting", async () => {
+    const fixture = workerFixture();
+    await fixture.activateWaiting();
+    expect(fixture.skips).toBe(1);
+    expect(fixture.deleted).toEqual([]);
+  });
+
+  it("keeps the installed offline shell when an online navigation sees a newer deployment", async () => {
+    const fixture = workerFixture();
+    await fixture.upgrade();
+    const nextShell = shell.replaceAll("current", "next");
+    fixture.state.routes.set("/", () => html(nextShell));
+    expect(await (await fixture.request("/", "navigate", "reload")).text()).toBe(nextShell);
+    fixture.state.offline = true;
+    expect(await (await fixture.request("/", "navigate")).text()).toBe(shell);
+  });
+
+  it("bounds retained build caches without deleting unrelated origin data", async () => {
+    const fixture = workerFixture();
+    fixture.stores.set("poracode-pwa-legacy-failed-install", new Map());
+    await fixture.upgrade();
+    expect(fixture.deleted).toEqual([]);
+    await fixture.refresh();
+    expect(fixture.deleted).toEqual([oldName, "poracode-pwa-legacy-failed-install"]);
+    expect(fixture.stores.has("unrelated-cache")).toBe(true);
+  });
+
+  it("joins all client navigations and retains legacy graphs until every client has the new build", async () => {
+    const fixture = workerFixture();
+    const gate = Promise.withResolvers<void>();
+    const versions = ["previous", "previous"];
+    let navigations = 0;
+    for (const index of [0, 1]) {
+      fixture.state.clients.push({
+        type: "window",
+        url: `${origin}/thread/${index}?host=saved#resume`,
+        postMessage: (_message, ports) => ports[0]!.postMessage({ version: versions[index] }),
+        navigate: async (url) => {
+          const target = new URL(url);
+          expect(target.pathname).toBe(`/thread/${index}`);
+          expect(target.searchParams.get("host")).toBe("saved");
+          expect(target.searchParams.has("__poracode_reload")).toBe(true);
+          expect(target.hash).toBe("#resume");
+          navigations++;
+          await gate.promise;
+          versions[index] = "__PORACODE_BUILD_VERSION__";
+        },
+      });
+    }
+    // Debris from a released worker must not displace the still-live graph.
+    fixture.stores.set("poracode-pwa-legacy-failed-install", new Map());
+    await fixture.upgrade();
+    let settled = false;
+    const refresh = fixture.refresh().then(() => {
+      settled = true;
+    });
+    try {
+      await vi.waitFor(() => expect(navigations).toBe(2));
+      expect(settled).toBe(false);
+      expect(fixture.deleted).toEqual([]);
+      fixture.state.offline = true;
+      expect(await (await fixture.request("/assets/previous.js", "cors")).text()).toBe(
+        "previous();",
+      );
+    } finally {
+      gate.resolve();
+      await refresh;
+    }
+    expect(settled).toBe(true);
+    expect(fixture.stores.has(oldName)).toBe(false);
+    expect(fixture.stores.has(currentName)).toBe(true);
+  });
+
+  it("keeps a legacy client's graph if its navigation fails", async () => {
+    const fixture = workerFixture();
+    fixture.state.clients.push({
+      type: "window",
+      url: `${origin}/thread/1`,
+      postMessage: (_message, ports) => ports[0]!.postMessage({ version: "previous" }),
+      navigate: async () => {
+        throw new Error("navigation interrupted");
+      },
+    });
+    await fixture.upgrade();
+    await fixture.refresh();
+    expect(fixture.deleted).toEqual([]);
+    fixture.state.offline = true;
+    expect(await (await fixture.request("/assets/previous.js", "cors")).text()).toBe("previous();");
+  });
+
+  it("does not prune the active build when an installing worker receives optional warming", async () => {
+    const fixture = workerFixture();
+    await fixture.message([`${origin}/assets/current.js`]);
+    expect(fixture.deleted).toEqual([]);
+    expect(fixture.stores.has(oldName)).toBe(true);
+    fixture.state.offline = true;
+    expect(await (await fixture.request("/assets/previous.js", "cors")).text()).toBe("previous();");
+  });
+
+  it("refreshes a resumed old document when this worker was already activated", async () => {
+    const fixture = workerFixture();
+    let version = "previous";
+    let navigations = 0;
+    const client: FixtureClient = {
+      type: "window",
+      url: `${origin}/thread/resumed`,
+      postMessage: (_message, ports) => ports[0]!.postMessage({ version }),
+      navigate: async () => {
+        navigations++;
+        version = "__PORACODE_BUILD_VERSION__";
+      },
+    };
+    fixture.state.clients.push(client);
+    await fixture.upgrade();
+    await fixture.checkBuild("previous", client);
+    expect(navigations).toBe(1);
+    expect(fixture.stores.has(oldName)).toBe(false);
+  });
+
+  it("does not reload a newer document back through an older worker during installation", async () => {
+    const fixture = workerFixture();
+    let navigations = 0;
+    const client: FixtureClient = {
+      type: "window",
+      url: `${origin}/thread/newer-document`,
+      postMessage: (_message, ports) => ports[0]!.postMessage({ version: "next" }),
+      navigate: async () => {
+        navigations++;
+      },
+    };
+    fixture.state.clients.push(client);
+    await fixture.upgrade();
+    fixture.state.installing = true;
+    await fixture.checkBuild("next", client);
+    expect(navigations).toBe(0);
+    expect(fixture.deleted).toEqual([]);
+  });
+
+  it("does not let a retiring active worker delete the next worker's in-progress cache", async () => {
+    const fixture = workerFixture();
+    await fixture.upgrade();
+    const futureName = "poracode-pwa-next-install";
+    fixture.stores.set(futureName, new Map());
+    await fixture.refresh();
+    expect(fixture.stores.has(oldName)).toBe(false);
+    expect(fixture.stores.has(currentName)).toBe(true);
+    expect(fixture.stores.has(futureName)).toBe(true);
   });
 
   it("rejects a missing shell while retaining the previous offline build", async () => {
     const fixture = workerFixture();
     fixture.state.offline = true;
     await expect(fixture.upgrade()).rejects.toThrow("simulated offline");
-    expect(fixture.deleted).toEqual([]);
+    expect(fixture.deleted).toEqual([currentName]);
     expect(fixture.claims).toBe(0);
     expect(await (await fixture.request("/", "navigate")).text()).toBe(fixture.previousShell);
     expect(await (await fixture.request("/assets/previous.js", "cors")).text()).toBe("previous();");
@@ -232,17 +411,44 @@ describe("service-worker shell installation and offline integrity", () => {
       throw new TypeError("network interrupted");
     });
     await expect(fixture.upgrade()).rejects.toThrow("network interrupted");
-    expect(fixture.deleted).toEqual([]);
+    expect(fixture.deleted).toEqual([currentName]);
     expect(fixture.claims).toBe(0);
+    expect(fixture.stores.has(currentName)).toBe(false);
     fixture.state.offline = true;
     expect(await (await fixture.request("/", "navigate")).text()).toBe(fixture.previousShell);
+  });
+
+  it("rejects an update missing a required dynamic startup chunk even when the entry is cached", async () => {
+    const fixture = workerFixture(
+      workerSource.replace(
+        '"__PORACODE_STARTUP_ASSET_URLS__"',
+        JSON.stringify(["assets/current.js", "assets/remoteBridge-current.js"]),
+      ),
+    );
+    await expect(fixture.upgrade()).rejects.toThrow("remoteBridge-current.js");
+    expect(fixture.skips).toBe(0);
+    expect(fixture.stores.has(currentName)).toBe(false);
+    expect(fixture.stores.has(oldName)).toBe(true);
+    fixture.state.offline = true;
+    expect(await (await fixture.request("/", "navigate")).text()).toBe(fixture.previousShell);
+  });
+
+  it("rejects a different deployment's shell during installation", async () => {
+    const fixture = workerFixture();
+    fixture.state.routes.set("/", () =>
+      html('<meta name="poracode-build-version" content="another-deployment">' + shell),
+    );
+    await expect(fixture.upgrade()).rejects.toThrow("deployment changed");
+    expect(fixture.skips).toBe(0);
+    expect(fixture.deleted).toEqual([currentName]);
+    expect(fixture.stores.has(oldName)).toBe(true);
   });
 
   it("does not replace the previous build with an HTTP-200 error page", async () => {
     const fixture = workerFixture();
     fixture.state.routes.set("/", () => html("<h1>Temporarily unavailable</h1>"));
     await expect(fixture.upgrade()).rejects.toThrow("no build assets");
-    expect(fixture.deleted).toEqual([]);
+    expect(fixture.deleted).toEqual([currentName]);
     expect(fixture.claims).toBe(0);
   });
 
@@ -250,8 +456,8 @@ describe("service-worker shell installation and offline integrity", () => {
     const fixture = workerFixture();
     fixture.state.routes.set("/assets/current.js", () => html(shell));
     await expect(fixture.upgrade()).rejects.toThrow("build asset");
-    expect(fixture.stores.get(currentName)?.has(`${origin}/assets/current.js`)).toBe(false);
-    expect(fixture.deleted).toEqual([]);
+    expect(fixture.stores.has(currentName)).toBe(false);
+    expect(fixture.deleted).toEqual([currentName]);
     expect(fixture.claims).toBe(0);
   });
 

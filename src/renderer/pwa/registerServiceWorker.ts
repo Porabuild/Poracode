@@ -30,6 +30,7 @@ function cacheLoadedBuildAssets(
 export function registerCanonicalServiceWorker(): void {
   if (import.meta.env.DEV || hasElectronHostBridge()) return;
   if (!("serviceWorker" in navigator) || window.isSecureContext === false) return;
+  if (navigator.onLine === false) return;
 
   const register = () => {
     const buildBasePath = getBuildAssetBase();
@@ -38,7 +39,7 @@ export function registerCanonicalServiceWorker(): void {
       : "/service-worker.js";
     const scope = buildBasePath.startsWith("/") ? buildBasePath : "/";
     navigator.serviceWorker
-      .register(scriptUrl, { scope })
+      .register(scriptUrl, { scope, updateViaCache: "none" })
       .then((registration) => cacheLoadedBuildAssets(registration, buildBasePath))
       .catch(() => {
         // Offline/install support is best-effort and must never block startup.

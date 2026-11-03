@@ -277,7 +277,13 @@ export const functionalAreas = [
   {
     id: "remote-client",
     title: "Remote access, adaptive client, chat sidebar, pairing, and push",
-    patterns: [/^src\/renderer\/(?:browser|native|pwa|sidebar)\//, /remote/i, /pairing/i, /push/i],
+    patterns: [
+      /^src\/renderer\/(?:browser|native|pwa|sidebar)\//,
+      /^src\/renderer\/staleBuildRecovery\./,
+      /remote/i,
+      /pairing/i,
+      /push/i,
+    ],
     automated: ["settings"],
     manual: ["remote-client"],
   },
