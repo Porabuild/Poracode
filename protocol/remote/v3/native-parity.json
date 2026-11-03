@@ -9469,6 +9469,40 @@
         }
       },
       {
+        "id": "controlMcpApp",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/RichChat/GeneratedMcpAppContract.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatConversationGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/RichChat/UI/RichChatMcpAppView.swift"],
+            "note": "The isolated app content view is implemented; iOS build and paired-host device journeys remain unverified on this Windows host."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedMcpAppContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/GeneratedRichChatSessionGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichMcpAppView.kt"
+            ],
+            "note": "The isolated app content view compiles; a paired-host device journey remains unverified."
+          }
+        }
+      },
+      {
         "id": "invokeThreadSessionAction",
         "batch": "rich-chat-requests",
         "ios": {

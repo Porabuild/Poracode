@@ -59,6 +59,9 @@
 // older readers ignore it. It adds no operation or public Thread marker value.
 // Agent vision adds a read-only native request; existing hop-18 messages remain
 // valid, and older native dispatchers reject the unknown operation before effects.
+// controlMcpApp is additive and invoked only for a versioned host-issued tool
+// result reference. Older hosts never issue references and reject the new name;
+// older clients ignore the metadata and retain the ordinary tool result.
 export const CLIENT_HOST_HOP_VERSION = 18 as const;
 /** The previous artifact hop, kept as an old reader for pre-upgrade regressions. */
 export const PREVIOUS_CLIENT_HOST_HOP_VERSION = 17 as const;

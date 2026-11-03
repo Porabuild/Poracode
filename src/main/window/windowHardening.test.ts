@@ -10,6 +10,7 @@ import {
   buildRendererAdditionalArguments,
   noteRendererWindowClose,
   requestTrackedRendererReload,
+  setManagedMcpAppSandboxEndpoint,
 } from "./windowHardening";
 
 type Handler = (...args: unknown[]) => void;
@@ -40,6 +41,53 @@ function createWindowHarness() {
 const killed = { reason: "killed", exitCode: 9 } satisfies RenderProcessGoneDetails;
 
 describe("inline visual frame navigation", () => {
+  it("admits only the current authenticated host sandbox and never redirects or main navigation", () => {
+    const { window, handlers } = createWindowHarness();
+    installAppNavigationGuards(window, { isDev: false });
+    const navigate = (url: string) => {
+      const preventDefault = vi.fn<() => void>();
+      handlers.get("will-frame-navigate")!({ url, isMainFrame: false, preventDefault });
+      return preventDefault;
+    };
+    const sandbox = "http://127.0.0.1:49153/mcp-apps/sandbox/v1?csp=%7B%7D#parent";
+    expect(navigate(sandbox)).toHaveBeenCalledOnce();
+    setManagedMcpAppSandboxEndpoint(window.webContents, "http://127.0.0.1:49153");
+    expect(navigate(sandbox)).not.toHaveBeenCalled();
+    for (const url of [
+      "http://127.0.0.1:49154/mcp-apps/sandbox/v1",
+      "http://localhost:49153/mcp-apps/sandbox/v1",
+      "http://127.0.0.1:49153/",
+      "http://127.0.0.1:49153/api/git/call",
+      "http://127.0.0.1:49153/mcp-apps/sandbox/v1/",
+      "http://secret@127.0.0.1:49153/mcp-apps/sandbox/v1",
+    ])
+      expect(navigate(url)).toHaveBeenCalledOnce();
+    for (const event of ["will-navigate", "will-redirect"]) {
+      const preventDefault = vi.fn<() => void>();
+      handlers.get(event)!({ preventDefault }, sandbox);
+      expect(preventDefault).toHaveBeenCalledOnce();
+    }
+    setManagedMcpAppSandboxEndpoint(window.webContents, "https://127.0.0.1:49154");
+    expect(navigate(sandbox)).toHaveBeenCalledOnce();
+    expect(navigate("https://127.0.0.1:49154/mcp-apps/sandbox/v1")).not.toHaveBeenCalled();
+    setManagedMcpAppSandboxEndpoint(window.webContents, null);
+    expect(navigate("https://127.0.0.1:49154/mcp-apps/sandbox/v1")).toHaveBeenCalledOnce();
+    for (const endpoint of ["https://external.test", "file:///private", "invalid"]) {
+      setManagedMcpAppSandboxEndpoint(window.webContents, endpoint);
+      expect(navigate(`${endpoint}/mcp-apps/sandbox/v1`)).toHaveBeenCalledOnce();
+    }
+    const other = createWindowHarness();
+    installAppNavigationGuards(other.window, { isDev: false });
+    setManagedMcpAppSandboxEndpoint(window.webContents, "http://127.0.0.1:49153");
+    const preventDefault = vi.fn<() => void>();
+    other.handlers.get("will-frame-navigate")!({
+      url: sandbox,
+      isMainFrame: false,
+      preventDefault,
+    });
+    expect(preventDefault).toHaveBeenCalledOnce();
+  });
+
   it("blocks redirects to the removed feedback verifier and its challenge origin", () => {
     const { window, handlers } = createWindowHarness();
     installAppNavigationGuards(window, { isDev: false });

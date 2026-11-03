@@ -3,6 +3,9 @@ package com.poracode.app.transport.richchat
 import kotlinx.serialization.json.JsonObject
 
 interface RichChatRemoteTransport {
+    suspend fun controlMcpApp(payload: JsonObject): JsonObject {
+        throw RichChatTransportUnavailableException()
+    }
     suspend fun truncateRuntime(threadId: String, itemId: String)
     suspend fun checkpointRevert(threadId: String, payload: JsonObject): String
     suspend fun threadCommand(threadId: String, command: JsonObject) {

@@ -121,6 +121,7 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   importSkills: { imported: [] },
   installMarketplaceSkill: { installed: "/skills/demo" },
   discoverExternalMcpServers: { groups: [] },
+  controlMcpApp: { result: { tools: [] } },
   probeMcpServer: {
     status: "available",
     latencyMs: 12,

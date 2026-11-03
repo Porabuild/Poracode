@@ -46,6 +46,18 @@ export const functionalAreas = [
     manual: ["changed-surface"],
   },
   {
+    id: "mcp-apps",
+    title: "Interactive MCP Apps in chat",
+    patterns: [
+      /mcpApps/i,
+      /McpApp(Session|Card|Presentation|View)/,
+      /mcpAppSandbox/i,
+      /mcpAppBridge/,
+    ],
+    automated: ["baseline"],
+    manual: ["changed-surface", "ipc-roundtrip", "provider-live", "remote-client"],
+  },
+  {
     id: "device-workspace",
     title: "Host-managed iOS Simulator and Android Emulator workspace",
     patterns: [/\/devices\//, /deviceWorkspace/i, /appControlsMcp\/deviceProof/],

@@ -191,6 +191,7 @@ struct RichChatTimelineView: View {
   }
 
   private func timelineActions(for projection: RichTimelineProjection?) -> RichChatTimelineActions {
+    let appTarget = conversation.state.target
     let allowsActions = canOperate && !isRefreshing && !isBusy
     let rawItems = projection?.rawItems ?? []
     let boundaryIndex = rawItems.firstIndex { $0.id == forkBoundaryItemID }
@@ -205,6 +206,15 @@ struct RichChatTimelineView: View {
       checkpoints: checkpointController.state.collection,
       isTurnActive: controller.state.transcript?.openTurn == true,
       inheritedItemIDs: inheritedIDs,
+      mcpAppThreadID: appTarget?.threadID,
+      controlMcpApp: canOperate ? { payload in
+        guard conversation.state.target == appTarget else { throw RichChatGatewayError.unavailable }
+        return try await conversation.controlMcpApp(payload)
+      } : nil,
+      sendMcpAppMessage: canOperate ? { text in
+        guard conversation.state.target == appTarget else { return false }
+        return await conversation.send(RichChatSendInput(prompt: text, config: config))
+      } : nil,
       requestRevert: allowsActions && allowsCheckpointRevert
         ? { plan in revertIntent = plan } : nil,
       requestTruncate: allowsActions

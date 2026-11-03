@@ -278,6 +278,11 @@ class GeneratedRichChatSessionGateway(
         }
     }
 
+    override suspend fun controlMcpApp(lease: RichChatHostLease, threadId: String, payload: JsonObject): JsonObject =
+        invokeThreadProcedure(lease, threadId, payload, RichChatCapability.Operate, true) {
+            rich.controlMcpApp(payload)
+        }
+
     override suspend fun invokeSessionAction(
         lease: RichChatHostLease,
         threadId: String,

@@ -36,6 +36,8 @@ import {
   isStaleTerminalWatchId,
 } from "../../../src/host/remote/server/terminalCursorSync";
 import { MAX_ATTACHMENT_BODY_BYTES } from "../../../src/host/remote/server/requestBody";
+import { readMcpAppReference } from "../../../src/shared/contracts/mcpApps";
+import { readMcpAppResource } from "../../../src/shared/mcpAppResources";
 
 const fixtureDirectory = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 
@@ -44,6 +46,7 @@ const FIXTURE_NAMES = [
   "checkpoint-turn-sequences.json",
   "rich-content-blocks.json",
   "rich-image-markers.json",
+  "rich-mcp-apps.json",
   "rich-persisted-transcript.json",
   "rich-request-events.json",
   "rich-stream-cases.json",
@@ -97,6 +100,18 @@ const pendingSteerEnvelopeSchema: z.ZodType<
 });
 
 describe("remote v3 rich chat fixture foundation", () => {
+  it("keeps current MCP App references distinct from historical source and future metadata", () => {
+    const fixture = readFixture<{ runtimeItems: { payload: { result: unknown } }[] }>(
+      "rich-mcp-apps.json",
+    );
+    const [live, historical, future] = fixture.runtimeItems;
+    expect(readMcpAppReference(live!.payload.result)?.resourceUri).toBe("ui://fixture/deployment");
+    expect(readMcpAppResource(live!.payload.result)?.text).toContain("Deployment");
+    expect(readMcpAppReference(historical!.payload.result)).toBeUndefined();
+    expect(readMcpAppResource(historical!.payload.result)?.text).toContain("Historical");
+    expect(readMcpAppReference(future!.payload.result)).toBeUndefined();
+  });
+
   it("keeps every new fixture standalone, plain JSON, and compact", () => {
     for (const name of FIXTURE_NAMES) {
       const raw = readFileSync(join(fixtureDirectory, name), "utf8");

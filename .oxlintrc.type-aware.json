@@ -13,5 +13,11 @@
     "typescript/no-misused-spread": "error",
     "typescript/only-throw-error": "error"
   },
-  "ignorePatterns": ["dist", "node_modules", "tui/**"]
+  "ignorePatterns": [
+    "dist",
+    "node_modules",
+    "tui/**",
+    "ios/App/App/Resources/mcp-app-host.js",
+    "android/app/src/main/assets/mcp-app-host.js"
+  ]
 }

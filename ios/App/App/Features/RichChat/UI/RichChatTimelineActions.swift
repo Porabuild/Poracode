@@ -35,6 +35,9 @@ struct RichChatTimelineActions {
   var checkpoints = RichChatCheckpointCollection(checkpoints: [], turns: [])
   var isTurnActive = false
   var inheritedItemIDs: Set<String> = []
+  var mcpAppThreadID: String?
+  var controlMcpApp: (([String: RichJSON]) async throws -> RichJSON)?
+  var sendMcpAppMessage: ((String) async -> Bool)?
   var requestRevert: ((RichChatMessageRevertPlan) -> Void)?
   let requestTruncate: ((String) -> Void)?
 

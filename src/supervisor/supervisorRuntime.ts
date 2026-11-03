@@ -108,6 +108,7 @@ import { resolveWslHostAccess } from "./wsl/hostAccess";
 import { disposeWslStagingService } from "./wsl/staging";
 import { McpOAuthService } from "./mcp/McpOAuthService";
 import { McpOAuthRelay } from "./mcp/McpOAuthRelay";
+import { McpAppsService } from "./mcp/McpAppsService";
 import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
@@ -203,6 +204,7 @@ export class SupervisorRuntime {
   readonly mcpOAuthService: McpOAuthService;
   readonly mcpAuthenticationService: McpAuthenticationService;
   private readonly mcpOAuthRelay: McpOAuthRelay;
+  readonly mcpAppsService: McpAppsService;
   readonly mcpProbeService: McpProbeService;
   readonly skillsService: SkillsService;
   readonly sessionImportService: SessionImportService;
@@ -255,6 +257,9 @@ export class SupervisorRuntime {
     this.baseDir = baseDir;
     this.mcpOAuthService = new McpOAuthService({ baseDir });
     this.mcpOAuthRelay = new McpOAuthRelay(this.mcpOAuthService, {
+      resolveHostAccess: (distro) => resolveWslHostAccess(distro),
+    });
+    this.mcpAppsService = new McpAppsService({
       resolveHostAccess: (distro) => resolveWslHostAccess(distro),
     });
     this.mcpProbeService = new McpProbeService({
@@ -591,6 +596,7 @@ export class SupervisorRuntime {
         });
       },
       prepareMcpToolFilters,
+      mcpApps: this.mcpAppsService,
       resolvePluginLaunchContributions: async (projectLocation, agentKind, selection) => {
         const envContext =
           projectLocation.kind === "wsl"
@@ -1256,6 +1262,7 @@ export class SupervisorRuntime {
       () => retireMacKeychainCommands(),
       () => this.agentRegistryService.disposeAcpAuthentications(),
       () => this.mcpOAuthRelay.dispose(),
+      () => this.mcpAppsService.dispose(),
       () => this.mcpOAuthService.dispose(),
       () => this.mcpAuthenticationService.dispose(),
       () => this.hexVoiceService.dispose(),

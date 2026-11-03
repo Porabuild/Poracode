@@ -86,6 +86,7 @@ export const REMOTE_PROCEDURE_SPECS = {
   workflowAgentChat: read("location"),
 
   // Skills and MCP
+  controlMcpApp: mutating(operate("thread")),
   scanSkills: read("optionalProjectLocation"),
   listSkillMarketplace: read("desktop"),
   setSkillEnabled: operate("optionalProjectLocation"),

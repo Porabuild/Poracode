@@ -129,6 +129,7 @@ export interface SessionRuntime {
   launchPrompt: string;
   /** Retained until the first provider turn accepts the inherited conversation. */
   pendingInitialInstructions?: string | undefined;
+  mcpAppContext?: (() => string | undefined) | undefined;
   initialInstructionsApplied?: true;
   onInitialInstructionsApplied?: () => void;
   outputLength: number;

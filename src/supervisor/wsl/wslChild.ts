@@ -41,25 +41,7 @@ export interface WslLineChildOpts {
  * so the caller can attach exit handlers and tear it down.
  */
 export function spawnWslLineChild(opts: WslLineChildOpts): ChildProcess {
-  const env: Record<string, string | undefined> = { ...process.env };
-
-  if (opts.env && Object.keys(opts.env).length > 0) {
-    let wslenv = env.WSLENV ?? "";
-    const present = new Set(
-      wslenv
-        .split(":")
-        .map((entry) => entry.replace(/\/.*/, ""))
-        .filter((entry) => entry.length > 0),
-    );
-    for (const [key, value] of Object.entries(opts.env)) {
-      env[key] = value;
-      if (!present.has(key)) {
-        wslenv = wslenv ? `${wslenv}:${key}` : key;
-        present.add(key);
-      }
-    }
-    env.WSLENV = wslenv;
-  }
+  const env: Record<string, string | undefined> = { ...process.env, ...wslEnvironment(opts.env) };
 
   const cwdArgs = opts.cwd ? ["--cd", opts.cwd] : [];
   const stdio: StdioOptions = [opts.stdin ?? "ignore", "pipe", opts.stderr ?? "ignore"];
@@ -77,6 +59,32 @@ export function spawnWslLineChild(opts: WslLineChildOpts): ChildProcess {
   });
 
   return child;
+}
+
+/** Forward values through the process environment, keeping credentials out of argv. */
+export function wslEnvironment(
+  overrides: Record<string, string> = {},
+  inherited = process.env.WSLENV,
+): Record<string, string> {
+  const env = { ...overrides };
+  if (Object.keys(overrides).length > 0) {
+    let wslenv = inherited ?? "";
+    const present = new Set(
+      wslenv
+        .split(":")
+        .map((entry) => entry.replace(/\/.*/, ""))
+        .filter((entry) => entry.length > 0),
+    );
+    for (const key of Object.keys(overrides)) {
+      if (!present.has(key)) {
+        wslenv = wslenv ? `${wslenv}:${key}` : key;
+        present.add(key);
+      }
+    }
+    env.WSLENV = wslenv;
+  }
+
+  return env;
 }
 
 /**

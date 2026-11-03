@@ -7,6 +7,7 @@ import type { Tool, Transport } from "@modelcontextprotocol/server";
 import { createServer } from "node:http";
 import { PassThrough } from "node:stream";
 import { createUpstreamTransport, startFilterProxy, type FilterProxy } from "./mcpToolFilterProxy";
+import { MCP_APP_EXTENSION, MCP_APP_MIME_TYPE, readMcpAppResource } from "@/shared/mcpAppResources";
 
 const proxies: FilterProxy[] = [];
 const clients: Client[] = [];
@@ -100,6 +101,7 @@ async function startProxyThroughMemory(options: {
   disabledTools: string[];
   onDownstreamClose?: () => void;
   isolateConnectionFailures?: boolean;
+  mcpApps?: boolean;
 }): Promise<{ proxy: FilterProxy; downstream: Client }> {
   const [proxyUpstream, fixtureSide] = InMemoryTransport.createLinkedPair();
   const [proxyDownstream, clientSide] = InMemoryTransport.createLinkedPair();
@@ -109,6 +111,7 @@ async function startProxyThroughMemory(options: {
     serverName: "filter-fixture",
     disabledTools: options.disabledTools,
     ...(options.isolateConnectionFailures ? { isolateConnectionFailures: true } : {}),
+    ...(options.mcpApps ? { mcpApps: true } : {}),
     upstreamTransport: proxyUpstream as unknown as Transport,
     downstreamTransport: proxyDownstream as unknown as Transport,
   });
@@ -156,6 +159,155 @@ async function startStalledSseFixture() {
 }
 
 describe("mcpToolFilterProxy", () => {
+  it("keeps legacy proxies source-only without advertising an Apps host", async () => {
+    const upstream = await startUpstreamFixture();
+    const { proxy } = await startProxyThroughMemory({ upstream, disabledTools: [] });
+    expect(
+      upstream.server.getClientCapabilities()?.extensions?.[MCP_APP_EXTENSION],
+    ).toBeUndefined();
+    expect(proxy.apps).toBeUndefined();
+  });
+
+  it("reuses model discovery until the server announces changed tools", async () => {
+    const upstream = await startUpstreamFixture();
+    upstream.server.registerCapabilities({ tools: { listChanged: true } });
+    const { downstream } = await startProxyThroughMemory({ upstream, disabledTools: [] });
+    await downstream.listTools();
+    expect(upstream.listCursors).toEqual([undefined, "page2"]);
+    await downstream.callTool({ name: "alpha" });
+    await downstream.callTool({ name: "alpha" });
+    expect(upstream.listCursors).toEqual([undefined, "page2"]);
+    upstream.server.setRequestHandler("tools/list", async () => ({
+      tools: [{ ...ALPHA_TOOL, _meta: { ui: { visibility: ["app"] } } }],
+    }));
+    await upstream.server.notification({ method: "notifications/tools/list_changed" });
+    expect(await downstream.callTool({ name: "alpha" })).toMatchObject({ isError: true });
+    expect(upstream.calls).toHaveLength(2);
+  });
+
+  it("binds Apps discovery, resources and live calls to the original connection", async () => {
+    const upstream = await startUpstreamFixture();
+    upstream.server.registerCapabilities({ resources: {} });
+    const appOnly: Tool = {
+      name: "refresh",
+      inputSchema: { type: "object" },
+      _meta: { ui: { visibility: ["app"], resourceUri: "ui://gamma/view" } },
+    };
+    const modelOnly: Tool = {
+      name: "deploy",
+      inputSchema: { type: "object" },
+      _meta: { ui: { visibility: ["model"] } },
+    };
+    const resource = {
+      uri: "ui://gamma/view",
+      mimeType: MCP_APP_MIME_TYPE,
+      text: "<h1>Deployment</h1>",
+      _meta: { ui: { csp: { connectDomains: ["https://app.test"] }, prefersBorder: true } },
+    };
+    let tools = [GAMMA_TOOL, appOnly, modelOnly, DISABLED_TOOL];
+    upstream.server.setRequestHandler("tools/list", async () => ({ tools }));
+    const readResource = vi.fn<() => Promise<{ contents: (typeof resource)[] }>>(async () => ({
+      contents: [resource],
+    }));
+    upstream.server.setRequestHandler("resources/read", readResource);
+    const { proxy, downstream } = await startProxyThroughMemory({
+      upstream,
+      disabledTools: [DISABLED_TOOL.name],
+      mcpApps: true,
+    });
+    expect(upstream.server.getClientCapabilities()?.extensions?.[MCP_APP_EXTENSION]).toEqual({
+      mimeTypes: [MCP_APP_MIME_TYPE],
+    });
+    expect((await downstream.listTools()).tools.map((tool) => tool.name)).toEqual([
+      "gamma",
+      "deploy",
+    ]);
+    expect((await proxy.apps!.listTools()).map((tool) => tool.name)).toEqual(["gamma", "refresh"]);
+    const result = await downstream.callTool({ name: "gamma", arguments: { id: "one" } });
+    expect(result).toMatchObject({
+      structuredContent: { value: "structured-gamma" },
+      _meta: { upstreamMeta: 7 },
+    });
+    expect(readMcpAppResource(result)).toEqual(resource);
+    expect(await proxy.apps!.readToolResource("gamma")).toEqual(resource);
+    expect(await proxy.apps!.readToolResource("refresh")).toEqual(resource);
+    expect(await proxy.apps!.callTool({ name: "refresh", arguments: { id: "one" } })).toMatchObject(
+      {
+        content: [{ type: "text", text: "echo:refresh" }],
+      },
+    );
+    const callsBeforeRefusals = upstream.calls.length;
+    expect(await downstream.callTool({ name: "refresh", arguments: {} })).toMatchObject({
+      isError: true,
+    });
+    await expect(proxy.apps!.callTool({ name: "deploy" })).rejects.toThrow("unavailable");
+    await expect(proxy.apps!.callTool({ name: DISABLED_TOOL.name })).rejects.toThrow("unavailable");
+    await expect(proxy.apps!.callTool({ name: "unknown" })).rejects.toThrow("unavailable");
+    expect(upstream.calls).toHaveLength(callsBeforeRefusals);
+    const readsBeforeRefusals = readResource.mock.calls.length;
+    await expect(proxy.apps!.readToolResource("deploy")).rejects.toThrow("unavailable");
+    await expect(proxy.apps!.readToolResource(DISABLED_TOOL.name)).rejects.toThrow("unavailable");
+    await expect(proxy.apps!.readToolResource("https://other.test/private")).rejects.toThrow(
+      "unavailable",
+    );
+    expect(readResource).toHaveBeenCalledTimes(readsBeforeRefusals);
+    // A stale app must not retain a tool after the server changes visibility.
+    tools = [GAMMA_TOOL, { ...appOnly, _meta: { ui: { visibility: ["model"] } } }];
+    await expect(proxy.apps!.callTool({ name: "refresh" })).rejects.toThrow("unavailable");
+    expect(upstream.calls).toHaveLength(callsBeforeRefusals);
+    await proxy.close();
+    await expect(proxy.apps!.listTools()).rejects.toThrow(/abort/iu);
+    await expect(proxy.apps!.callTool({ name: "gamma" })).rejects.toThrow(/abort/iu);
+    await expect(proxy.apps!.readToolResource("gamma")).rejects.toThrow(/abort/iu);
+  });
+
+  it("retires app work when upstream disconnects, including with failure isolation", async () => {
+    const upstream = await startUpstreamFixture();
+    const { proxy } = await startProxyThroughMemory({
+      upstream,
+      disabledTools: [],
+      isolateConnectionFailures: true,
+      mcpApps: true,
+    });
+    await upstream.server.close();
+    await expect(proxy.apps!.listTools()).rejects.toThrow(/abort/iu);
+  });
+
+  it("cancels an app request without terminating the provider connection", async () => {
+    const upstream = await startUpstreamFixture();
+    const started = Promise.withResolvers<void>();
+    const cancelled = Promise.withResolvers<void>();
+    upstream.server.setRequestHandler("tools/call", async (request, extra) => {
+      if (request.params.name !== "gamma") return { content: [] };
+      started.resolve();
+      await new Promise<void>((resolve) => {
+        extra.mcpReq.signal.addEventListener(
+          "abort",
+          () => {
+            cancelled.resolve();
+            resolve();
+          },
+          { once: true },
+        );
+      });
+      return { content: [], structuredContent: { value: "cancelled" } };
+    });
+    const { proxy, downstream } = await startProxyThroughMemory({
+      upstream,
+      disabledTools: [],
+      mcpApps: true,
+    });
+    const controller = new AbortController();
+    const pending = proxy.apps!.callTool({ name: "gamma" }, controller.signal);
+    const rejection = pending.catch((error: unknown) => error);
+    await started.promise;
+    controller.abort();
+    expect(await rejection).toMatchObject({ message: expect.stringMatching(/abort|cancel/iu) });
+    await cancelled.promise;
+    expect(await downstream.callTool({ name: "alpha" })).toMatchObject({ content: [] });
+    expect((await proxy.apps!.listTools()).some((tool) => tool.name === "gamma")).toBe(true);
+  });
+
   it.each([false, true])("bounds stalled SSE startup with isolation %s", async (isolation) => {
     const fixture = await startStalledSseFixture();
     const [proxySide, clientSide] = InMemoryTransport.createLinkedPair();

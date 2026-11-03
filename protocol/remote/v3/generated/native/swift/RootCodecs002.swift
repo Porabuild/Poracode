@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let procedureU2EGhGetPrChecksU2EResult: RemoteRootCodec<ProcedureforgeGetPrChecksResult_437e2d5d20> = .init(id: "procedure.ghGetPrChecks.result", schema: RemoteSchemas.schema_437e2d5d20b6b495)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGhGetPrDetailsU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a> = .init(id: "procedure.ghGetPrDetails.request", schema: RemoteSchemas.schema_868bf1042a1bbba1)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EGhGetPrDetailsU2EResult: RemoteRootCodec<ProcedureforgeGetPrDetailsResult_a412a228f3> = .init(id: "procedure.ghGetPrDetails.result", schema: RemoteSchemas.schema_a412a228f3b07cd3)
 }
 
@@ -353,7 +361,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EInvokeThreadSessionActionU2EResult: RemoteRootCodec<ProcedureinvokeThreadSessionActionRequestU2DPayload_e6958017da> = .init(id: "procedure.invokeThreadSessionAction.result", schema: RemoteSchemas.schema_e6958017dac6cd3b)
+  static let procedureU2EInvokeThreadSessionActionU2EResult: RemoteRootCodec<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da> = .init(id: "procedure.invokeThreadSessionAction.result", schema: RemoteSchemas.schema_e6958017dac6cd3b)
 }
 
 public extension RemoteRootCodecs {
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EReadProjectFileU2ERequest: RemoteRootCodec<ProceduredeleteProjectEntryRequest_56df8e6416> = .init(id: "procedure.readProjectFile.request", schema: RemoteSchemas.schema_56df8e6416f18e3e)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadProjectFileU2EResult: RemoteRootCodec<ProcedurereadProjectFileResult_891e9ab241> = .init(id: "procedure.readProjectFile.result", schema: RemoteSchemas.schema_891e9ab2413a4e77)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadTerminalScrollbackU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.readTerminalScrollback.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
 }

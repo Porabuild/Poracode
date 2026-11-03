@@ -1,0 +1,79 @@
+{
+  "runtimeItems": [
+    {
+      "id": "live-deployment-app",
+      "type": "mcp_tool_call",
+      "state": "completed",
+      "streams": {},
+      "payload": {
+        "name": "deployment",
+        "status": "success",
+        "args": { "id": "deployment-1" },
+        "result": {
+          "content": [
+            {
+              "type": "resource",
+              "resource": {
+                "uri": "ui://fixture/deployment",
+                "mimeType": "text/html;profile=mcp-app",
+                "text": "<h1>Deployment</h1>"
+              }
+            }
+          ],
+          "structuredContent": { "status": "BUILDING" },
+          "_meta": {
+            "com.poracode/mcp-app": {
+              "version": 1,
+              "sessionId": "b4325167-a276-420f-bd51-a46d8e4bfa39",
+              "toolName": "deployment",
+              "resourceUri": "ui://fixture/deployment"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "historical-source",
+      "type": "mcp_tool_call",
+      "state": "completed",
+      "streams": {},
+      "payload": {
+        "name": "deployment",
+        "status": "success",
+        "result": {
+          "content": [
+            {
+              "type": "resource",
+              "resource": {
+                "uri": "ui://fixture/deployment",
+                "mimeType": "text/html;profile=mcp-app",
+                "text": "<h1>Historical</h1>"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "future-reference",
+      "type": "mcp_tool_call",
+      "state": "completed",
+      "streams": {},
+      "payload": {
+        "name": "deployment",
+        "status": "success",
+        "result": {
+          "content": [],
+          "_meta": {
+            "com.poracode/mcp-app": {
+              "version": 2,
+              "sessionId": "b4325167-a276-420f-bd51-a46d8e4bfa39",
+              "toolName": "deployment",
+              "resourceUri": "ui://fixture/deployment"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

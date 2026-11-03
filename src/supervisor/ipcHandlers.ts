@@ -411,6 +411,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     lspSendMessage: (payload) => lsp.sendMessage(payload),
     discoverExternalMcpServers: (payload) => externalMcpDiscovery.discover(payload),
     probeMcpServer: (payload) => mcpProbe.probe(payload),
+    controlMcpApp: (payload) => runtime.mcpAppsService.control(payload),
     beginMcpServerOauth: (payload) => mcpOAuth.begin(payload),
     controlMcpAuthentication: (payload) => runtime.mcpAuthenticationService.control(payload),
     waitMcpServerOauth: (payload) => mcpOAuth.wait(payload),

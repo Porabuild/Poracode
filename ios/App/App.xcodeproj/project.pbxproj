@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F0A100000000000000000001 /* GeneratedMcpAppContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A200000000000000000001 /* GeneratedMcpAppContract.swift */; };
+		F0A100000000000000000002 /* RichMcpAppPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A200000000000000000002 /* RichMcpAppPresentation.swift */; };
+		F0A100000000000000000003 /* RichChatMcpAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A200000000000000000003 /* RichChatMcpAppView.swift */; };
+		F0A100000000000000000004 /* mcp-app-host.js in Resources */ = {isa = PBXBuildFile; fileRef = F0A200000000000000000004 /* mcp-app-host.js */; };
 		FC2000000000000000000005 /* ForgeReviewDiskCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1000000000000000000005 /* ForgeReviewDiskCache.swift */; };
 		FC2000000000000000000001 /* ForgeReviewGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1000000000000000000001 /* ForgeReviewGateway.swift */; };
 		FC2000000000000000000002 /* ForgeReviewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1000000000000000000002 /* ForgeReviewController.swift */; };
@@ -861,6 +865,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F0A200000000000000000001 /* GeneratedMcpAppContract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedMcpAppContract.swift; sourceTree = "<group>"; };
+		F0A200000000000000000002 /* RichMcpAppPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichMcpAppPresentation.swift; sourceTree = "<group>"; };
+		F0A200000000000000000003 /* RichChatMcpAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatMcpAppView.swift; sourceTree = "<group>"; };
+		F0A200000000000000000004 /* mcp-app-host.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "mcp-app-host.js"; sourceTree = "<group>"; };
 		FC1000000000000000000005 /* ForgeReviewDiskCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeReviewDiskCache.swift; sourceTree = "<group>"; };
 		FC1000000000000000000001 /* ForgeReviewGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeReviewGateway.swift; sourceTree = "<group>"; };
 		FC1000000000000000000002 /* ForgeReviewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeReviewController.swift; sourceTree = "<group>"; };
@@ -2045,6 +2053,7 @@
 				B1000000000000000000009C /* GeneratedRichChatProcedureContract.swift */,
 				B1000000000000000000009D /* RichChatRawHTTPClient.swift */,
 				B1000000000000000000009E /* RichChatRemoteAPI.swift */,
+				F0A200000000000000000001 /* GeneratedMcpAppContract.swift */,
 				FD2100000000000000000001 /* RichChatFileMediaRemoteAPI.swift */,
 				B1000000000000000000009F /* RichChatTerminalWire.swift */,
 				B100000000000000000000A0 /* RichChatTransportModels.swift */,
@@ -2296,6 +2305,7 @@
 				SG1000000000000000000001 /* Providers */,
 				B1000000000000000000007D /* RichCheckpoints.swift */,
 				B1000000000000000000007E /* RichContent.swift */,
+				F0A200000000000000000002 /* RichMcpAppPresentation.swift */,
 				B1000000000000000000007F /* RichJSON.swift */,
 				B6B6B6B70000000000000002 /* RichRuntimeEventSize.swift */,
 				B10000000000000000000080 /* RichMediaPolicy.swift */,
@@ -2356,6 +2366,7 @@
 				DD1000000000000000000002 /* RichChatMessageActionStrings.swift */,
 				DJ1000000000000000000001 /* RichChatComposerSkills.swift */,
 				B100000000000000000000B7 /* RichChatImageView.swift */,
+				F0A200000000000000000003 /* RichChatMcpAppView.swift */,
 				B100000000000000000000B8 /* RichChatRequestView.swift */,
 				B100000000000000000000B9 /* RichChatGoalSteerView.swift */,
 				B10000000000000000000C02 /* RichFollowUpQueueView.swift */,
@@ -2601,6 +2612,7 @@
 				PJ1000000000000000000006 /* ProjectSettings.xcstrings */,
 				DD1000000000000000000003 /* RichChatMessageActions.xcstrings */,
 				D42000000000000000000003 /* notification.mp3 */,
+				F0A200000000000000000004 /* mcp-app-host.js */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -3293,6 +3305,7 @@
 				PJ2000000000000000000006 /* ProjectSettings.xcstrings in Resources */,
 				D41000000000000000000003 /* notification.mp3 in Resources */,
 				A10000000000000000000072 /* native-bindings.json in Resources */,
+				F0A100000000000000000004 /* mcp-app-host.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3717,6 +3730,9 @@
 				A1000000000000000000009C /* GeneratedRichChatProcedureContract.swift in Sources */,
 				A1000000000000000000009D /* RichChatRawHTTPClient.swift in Sources */,
 				A1000000000000000000009E /* RichChatRemoteAPI.swift in Sources */,
+				F0A100000000000000000001 /* GeneratedMcpAppContract.swift in Sources */,
+				F0A100000000000000000002 /* RichMcpAppPresentation.swift in Sources */,
+				F0A100000000000000000003 /* RichChatMcpAppView.swift in Sources */,
 				FD1100000000000000000001 /* RichChatFileMediaRemoteAPI.swift in Sources */,
 				A1000000000000000000009F /* RichChatTerminalWire.swift in Sources */,
 				A100000000000000000000A0 /* RichChatTransportModels.swift in Sources */,

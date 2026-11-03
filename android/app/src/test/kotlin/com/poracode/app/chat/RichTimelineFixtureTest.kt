@@ -11,6 +11,16 @@ import org.junit.Test
 
 class RichTimelineFixtureTest {
     @Test
+    fun mcpAppsStayStandaloneAndOnlyCurrentHostReferencesAreActive() {
+        val fixture = readRichFixture("rich-mcp-apps.json")
+        val items = RichContentDecoder.decodePersistedItems(fixture.getValue("runtimeItems"))!!
+        assertEquals("deployment", McpAppPresentation.from(items[0])?.title)
+        assertEquals(null, McpAppPresentation.from(items[1]))
+        assertEquals(null, McpAppPresentation.from(items[2]))
+        assertTrue(RichTimeline.project(items).visibleEntries.filterIsInstance<RichTimelineEntry.Item>().any { it.node.item.id == "live-deployment-app" })
+    }
+
+    @Test
     fun persistedTranscriptBuildsLosslessRawTreeAndVisibleNestedTimeline() {
         val fixture = readRichFixture("rich-persisted-transcript.json")
         val items = RichContentDecoder.decodePersistedItems(fixture.getValue("runtimeItems"))!!

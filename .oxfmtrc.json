@@ -1,6 +1,8 @@
 {
   "endOfLine": "lf",
   "ignorePatterns": [
+    "ios/App/App/Resources/mcp-app-host.js",
+    "android/app/src/main/assets/mcp-app-host.js",
     "protocol/remote/v3/generated/**",
     "tui/opencode/**",
     "tui/node_modules/**",
