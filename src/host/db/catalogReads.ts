@@ -142,6 +142,7 @@ const PROJECT_PHASE1_JSON_COLUMNS = [
   "p.worktree_location",
   "p.gh_account",
   "p.pinned_branches",
+  "p.plugin_overrides",
 ] as const;
 
 /** Every field `rowToThread` reads except `terminal_prompt`, which the wire
@@ -202,6 +203,7 @@ const PROJECT_PHASE2_COLUMNS = [
   "gh_account",
   "worktree_base_branch",
   "pinned_branches",
+  "plugin_overrides",
   "workspace_id",
   "disabled",
   "sort_order",

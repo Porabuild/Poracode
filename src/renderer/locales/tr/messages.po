@@ -279,6 +279,11 @@ msgstr "{0} kancaları kuruldu."
 msgid "{0} hooks removed for {envName}."
 msgstr "{0} kancaları {envName} için kaldırıldı."
 
+#. placeholder {0}: entry.name
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "{0} in this project"
+msgstr "Bu projede {0}"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "{0} install targets"
@@ -3691,6 +3696,10 @@ msgstr "Nasıl kaydedeceğinizi ve konuşmanızın nerede yazıya geçirileceği
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
 msgstr "İçe aktarma hedefini seç"
+
+#: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
+msgid "Choose project"
+msgstr "Proje seç"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Choose shells for the Terminal panel and Poracode's internal commands."
@@ -11003,6 +11012,10 @@ msgstr "Poracode'un desteklenen aracıları başlatırken eklediği MCP sunucusu
 #~ msgid "Manage the skills Poracode makes available to supported agents. Project skills can be managed in each project's settings."
 #~ msgstr "Poracode'un desteklenen aracılara sunduğu becerileri yönetin. Proje becerileri her projenin ayarlarından yönetilebilir."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Manage this project's plugins from a Poracode client on its host."
+msgstr "Bu projenin eklentilerini, ana makinesindeki bir Poracode istemcisinden yönetin."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #~ msgid "Manage workspaces"
 #~ msgstr "Çalışma alanlarını yönet"
@@ -12587,6 +12600,10 @@ msgstr "Bu bilgisayarda içe aktarılabilir oturum bulunamadı."
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "Bu proje için seçilebilir modellere sahip yüklü bir ajan yok."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "No installed plugins can be switched per project. Install plugins from Settings, then choose them here."
+msgstr "Proje başına açılıp kapatılabilen yüklü eklenti yok. Ayarlar’dan eklenti yükleyin, ardından burada seçin."
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No installed plugins yet."
 msgstr "Henüz yüklü eklenti yok."
@@ -13128,6 +13145,7 @@ msgstr "kapalı"
 
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "Kapalı"
@@ -13170,6 +13188,7 @@ msgstr "Önce en eski"
 msgid "on"
 msgstr "açık"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "Gün"
@@ -13268,6 +13287,10 @@ msgstr "Yeni bir tarayıcı sekmesi aç"
 #: src/renderer/components/newsLine/newsTips.ts
 msgid "Open a new thread side by side"
 msgstr "Yan yana yeni bir konu açın"
+
+#: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
+msgid "Open a project's MCP settings"
+msgstr "Bir projenin MCP ayarlarını aç"
 
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
@@ -14434,6 +14457,10 @@ msgstr "plugin.json, bu sürümün desteklemediği bir Agent Plugins sürümün�
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Plugins"
@@ -14964,6 +14991,11 @@ msgstr "Proje simgesi: {label}"
 msgid "project managed"
 msgstr "proje tarafından yönetiliyor"
 
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Project MCP servers"
+msgstr "Proje MCP sunucuları"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -15000,6 +15032,7 @@ msgid "Project-specific overrides on top of the global search settings."
 msgstr "Genel arama ayarlarının yanı sıra projeye özel geçersiz kılmalar."
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -17873,6 +17906,11 @@ msgstr "Sunucu temel URL'si"
 #: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Sunucu çevrimdışı — bu konuşma güncel olmayabilir."
+
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Servers in a project's settings apply only to that project and override global servers with the same name. To move a global server, edit it and change its scope."
+msgstr "Bir projenin ayarlarındaki sunucular yalnızca o projede geçerlidir ve aynı adlı genel sunucuları geçersiz kılar. Genel bir sunucuyu taşımak için düzenleyip kapsamını değiştirin."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
@@ -21309,6 +21347,10 @@ msgstr "Deneyin"
 msgid "Try now"
 msgstr "Şimdi dene"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
+msgstr "Bu projedeki iş parçacıkları için yüklü eklentileri açın veya kapatın. İş parçacığının kendi eklenti seçimleri yine önceliklidir; çalışan iş parçacıkları değişiklikleri bir sonraki başlatmada uygular."
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
@@ -22407,6 +22449,14 @@ msgstr "Varsayılan yazı tipini kullan"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "Algılanan oturum kullanılsın mı?"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Use global (off)"
+msgstr "Genel ayarı kullan (kapalı)"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Use global (on)"
+msgstr "Genel ayarı kullan (açık)"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

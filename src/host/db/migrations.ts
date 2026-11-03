@@ -1087,6 +1087,14 @@ export const DATABASE_MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 71,
+    name: "project plugin overrides",
+    // Additive nullable column; older app versions ignore it, so a project's
+    // plugin overrides are simply inert on a downgraded build.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "plugin_overrides", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1216,6 +1224,7 @@ const SAFE_COLUMN_REPAIRS = [
   ["projects", "gh_account", "TEXT"],
   ["projects", "worktree_base_branch", "TEXT"],
   ["projects", "pinned_branches", "TEXT"],
+  ["projects", "plugin_overrides", "TEXT"],
   ["projects", "workspace_id", "TEXT"],
   ["projects", "disabled", "INTEGER NOT NULL DEFAULT 0"],
   ["threads", "done", "INTEGER NOT NULL DEFAULT 0"],
@@ -1298,6 +1307,7 @@ const REQUIRED_COLUMNS = {
     "gh_account",
     "worktree_base_branch",
     "pinned_branches",
+    "plugin_overrides",
     "workspace_id",
     "disabled",
     "sort_order",

@@ -582,6 +582,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
       "mcp model context protocol tools server stdio http sse workspace user built-in crossagent routing crossagents subagent delegate delegation guide instructions spawn agent model",
     desktopOnly: true,
   },
+  {
+    section: "mcpServers",
+    anchor: "mcpServers.projects",
+    title: msg`Project MCP servers`,
+    description: msg`Servers in a project's settings apply only to that project and override global servers with the same name. To move a global server, edit it and change its scope.`,
+    keywords: "mcp project workspace scope per-project move override",
+    desktopOnly: true,
+  },
 
   // Plugins
   {

@@ -333,6 +333,67 @@ describe("native plugin metadata demand", () => {
       expect(servers.some((server) => server.id === "browser")).toBe(false);
     },
   );
+  it("applies project plugin switches beneath thread choices on launch, follow-up and refresh", async () => {
+    const structured = createStructuredSession();
+    const { adapter, createStructuredSession: factory } = createAdapter(structured);
+    const contributions = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["resolvePluginLaunchContributions"]>
+    >(async () => ({ mcpServers: [], builtInMcpServerIds: [], nativePlugins: [] }));
+    const policy = vi.fn<NonNullable<ThreadSessionManagerOptions["filterPluginSkillSegments"]>>(
+      async ({ segments }) => segments,
+    );
+    const manager = createManager(adapter, () => {}, {
+      resolvePluginLaunchContributions: contributions,
+      filterPluginSkillSegments: policy,
+    });
+    const segments: PromptSegment[] = [
+      {
+        kind: "skill",
+        name: "fixture",
+        path: "/fixture/SKILL.md",
+        invocation: "$fixture",
+        provider: "fixture",
+        scope: "global",
+      },
+    ];
+    const effective = { sentry: true, github: true };
+    await manager.startThread({
+      threadId: THREAD_ID,
+      projectLocation: PROJECT_LOCATION,
+      agentKind: AGENT_KIND,
+      config: { model: "fixture-model", pluginOverrides: { github: true } },
+      prompt: "$fixture",
+      segments,
+      initialSize: INITIAL_SIZE,
+      presentationMode: "gui",
+      projectPluginOverrides: { sentry: true, github: false },
+    });
+    expect(contributions).toHaveBeenCalledWith(PROJECT_LOCATION, AGENT_KIND, {
+      includeExternalServers: true,
+      pluginOverrides: effective,
+    });
+    expect(policy).toHaveBeenCalledWith(expect.objectContaining({ pluginOverrides: effective }));
+
+    manager.sessions.get(THREAD_ID)!.status = "idle";
+    policy.mockClear();
+    await manager.sendThreadInput({
+      threadId: THREAD_ID,
+      prompt: "$fixture again",
+      segments,
+      config: { model: "fixture-model" },
+    });
+    await vi.waitFor(() => expect(structured.startTurn).toHaveBeenCalledTimes(2));
+    expect(policy).toHaveBeenCalledWith(expect.objectContaining({ pluginOverrides: effective }));
+    // The project layer stays out of the thread's own persisted choices.
+    expect(manager.sessions.get(THREAD_ID)!.config.pluginOverrides).toEqual({ github: true });
+
+    const resolve = factory.mock.calls[0]![0].resolveMcpServersForTurn!;
+    await resolve(manager.sessions.get(THREAD_ID)!.config, () => true);
+    expect(contributions).toHaveBeenLastCalledWith(PROJECT_LOCATION, AGENT_KIND, {
+      includeExternalServers: false,
+      pluginOverrides: effective,
+    });
+  });
   it("starts and submits plain text without waiting for native plugin inventory", async () => {
     const structured = createStructuredSession();
     const { adapter } = createAdapter(structured);

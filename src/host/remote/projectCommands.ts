@@ -542,6 +542,7 @@ function applyProjectPatch(
     "ghAccount",
     "worktreeBaseBranch",
     "pinnedBranches",
+    "pluginOverrides",
   ] as const) {
     if (patch[key] !== null) continue;
     const { [key]: _, ...rest } = updated;

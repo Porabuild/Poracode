@@ -3756,10 +3756,20 @@
             "type": "object"
           },
           "__schema27": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "__schema28": {
             "minLength": 1,
             "type": "string"
           },
-          "__schema28": {
+          "__schema29": {
             "additionalProperties": true,
             "properties": {
               "questions": {
@@ -3816,7 +3826,13 @@
             "type": "object",
             "x-poracode-unknownFields": "strip"
           },
-          "__schema29": {
+          "__schema3": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+            "type": "string"
+          },
+          "__schema30": {
             "additionalProperties": true,
             "properties": {
               "contextStrategy": {
@@ -3853,21 +3869,15 @@
             "type": "object",
             "x-poracode-unknownFields": "strip"
           },
-          "__schema3": {
-            "maxLength": 120,
-            "minLength": 1,
-            "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
-            "type": "string"
-          },
-          "__schema30": {
+          "__schema31": {
             "const": true,
             "type": "boolean"
           },
-          "__schema31": {
+          "__schema32": {
             "minLength": 1,
             "type": "string"
           },
-          "__schema32": {
+          "__schema33": {
             "additionalProperties": true,
             "properties": {
               "browserFocus": {
@@ -4312,7 +4322,7 @@
             "$ref": "#/$defs/__schema2"
           },
           "clientContext": {
-            "$ref": "#/$defs/__schema32"
+            "$ref": "#/$defs/__schema33"
           },
           "config": {
             "$ref": "#/$defs/__schema4"
@@ -4324,7 +4334,7 @@
             "$ref": "#/$defs/__schema26"
           },
           "initialInstructions": {
-            "$ref": "#/$defs/__schema31"
+            "$ref": "#/$defs/__schema32"
           },
           "initialSize": {
             "$ref": "#/$defs/__schema13"
@@ -4336,7 +4346,7 @@
             "$ref": "#/$defs/__schema16"
           },
           "mentionHandoff": {
-            "$ref": "#/$defs/__schema30"
+            "$ref": "#/$defs/__schema31"
           },
           "presentationMode": {
             "$ref": "#/$defs/__schema15"
@@ -4344,14 +4354,17 @@
           "projectLocation": {
             "$ref": "#/$defs/__schema1"
           },
+          "projectPluginOverrides": {
+            "$ref": "#/$defs/__schema27"
+          },
           "prompt": {
             "$ref": "#/$defs/__schema11"
           },
           "providerSwitch": {
-            "$ref": "#/$defs/__schema29"
+            "$ref": "#/$defs/__schema30"
           },
           "questionAnswer": {
-            "$ref": "#/$defs/__schema28"
+            "$ref": "#/$defs/__schema29"
           },
           "segments": {
             "$ref": "#/$defs/__schema12"
@@ -4363,7 +4376,7 @@
             "$ref": "#/$defs/__schema0"
           },
           "userMessageItemId": {
-            "$ref": "#/$defs/__schema27"
+            "$ref": "#/$defs/__schema28"
           }
         },
         "required": [
@@ -34229,10 +34242,20 @@
             "type": "object"
           },
           "__schema27": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "__schema28": {
             "minLength": 1,
             "type": "string"
           },
-          "__schema28": {
+          "__schema29": {
             "additionalProperties": true,
             "properties": {
               "questions": {
@@ -34289,7 +34312,13 @@
             "type": "object",
             "x-poracode-unknownFields": "strip"
           },
-          "__schema29": {
+          "__schema3": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+            "type": "string"
+          },
+          "__schema30": {
             "additionalProperties": true,
             "properties": {
               "contextStrategy": {
@@ -34326,21 +34355,15 @@
             "type": "object",
             "x-poracode-unknownFields": "strip"
           },
-          "__schema3": {
-            "maxLength": 120,
-            "minLength": 1,
-            "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
-            "type": "string"
-          },
-          "__schema30": {
+          "__schema31": {
             "const": true,
             "type": "boolean"
           },
-          "__schema31": {
+          "__schema32": {
             "minLength": 1,
             "type": "string"
           },
-          "__schema32": {
+          "__schema33": {
             "additionalProperties": true,
             "properties": {
               "browserFocus": {
@@ -34785,7 +34808,7 @@
             "$ref": "#/$defs/__schema2"
           },
           "clientContext": {
-            "$ref": "#/$defs/__schema32"
+            "$ref": "#/$defs/__schema33"
           },
           "config": {
             "$ref": "#/$defs/__schema4"
@@ -34797,7 +34820,7 @@
             "$ref": "#/$defs/__schema26"
           },
           "initialInstructions": {
-            "$ref": "#/$defs/__schema31"
+            "$ref": "#/$defs/__schema32"
           },
           "initialSize": {
             "$ref": "#/$defs/__schema13"
@@ -34809,7 +34832,7 @@
             "$ref": "#/$defs/__schema16"
           },
           "mentionHandoff": {
-            "$ref": "#/$defs/__schema30"
+            "$ref": "#/$defs/__schema31"
           },
           "presentationMode": {
             "$ref": "#/$defs/__schema15"
@@ -34817,14 +34840,17 @@
           "projectLocation": {
             "$ref": "#/$defs/__schema1"
           },
+          "projectPluginOverrides": {
+            "$ref": "#/$defs/__schema27"
+          },
           "prompt": {
             "$ref": "#/$defs/__schema11"
           },
           "providerSwitch": {
-            "$ref": "#/$defs/__schema29"
+            "$ref": "#/$defs/__schema30"
           },
           "questionAnswer": {
-            "$ref": "#/$defs/__schema28"
+            "$ref": "#/$defs/__schema29"
           },
           "segments": {
             "$ref": "#/$defs/__schema12"
@@ -34836,7 +34862,7 @@
             "$ref": "#/$defs/__schema0"
           },
           "userMessageItemId": {
-            "$ref": "#/$defs/__schema27"
+            "$ref": "#/$defs/__schema28"
           }
         },
         "required": [
@@ -55719,6 +55745,23 @@
                         }
                       ]
                     },
+                    "pluginOverrides": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": {
+                            "type": "boolean"
+                          },
+                          "propertyNames": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "scripts": {
                       "anyOf": [
                         {
@@ -56792,6 +56835,16 @@
                   },
                   "type": "array"
                 },
+                "pluginOverrides": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "propertyNames": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
                 "remoteId": {
                   "minLength": 1,
                   "type": "string"
@@ -57726,6 +57779,16 @@
                       "type": "string"
                     },
                     "type": "array"
+                  },
+                  "pluginOverrides": {
+                    "additionalProperties": {
+                      "type": "boolean"
+                    },
+                    "propertyNames": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
                   },
                   "remoteId": {
                     "minLength": 1,
@@ -67443,6 +67506,16 @@
                       "type": "string"
                     },
                     "type": "array"
+                  },
+                  "pluginOverrides": {
+                    "additionalProperties": {
+                      "type": "boolean"
+                    },
+                    "propertyNames": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
                   },
                   "remoteId": {
                     "minLength": 1,
@@ -78664,6 +78737,16 @@
                 }
               ]
             },
+            "projectPluginOverrides": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "propertyNames": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "object"
+            },
             "prompt": {
               "default": "",
               "type": "string"
@@ -80208,7 +80291,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:a65b270a4d20fb2badcea5587ab071391e75f587cb1473f7d192ed60e970eace",
+  "sourceHash": "sha256:a28648352642c1ad0f19617b072464b5030a90245a203586acd2989b3b7f6daf",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

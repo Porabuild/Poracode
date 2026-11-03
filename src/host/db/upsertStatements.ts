@@ -22,13 +22,13 @@ export function prepareProjectUpsertStatement(
     INSERT INTO projects (
       id, name, icon, location_kind, location_path, location_distro, location_linux_path,
       location_unc_path, last_draft_config, scripts, search_settings, worktree_location,
-      mcp_servers, gh_account, worktree_base_branch, pinned_branches, workspace_id,
-      disabled, sort_order, created_at
+      mcp_servers, gh_account, worktree_base_branch, pinned_branches, plugin_overrides,
+      workspace_id, disabled, sort_order, created_at
     ) VALUES (
       @id, @name, @icon, @locationKind, @locationPath, @locationDistro, @locationLinuxPath,
       @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @worktreeLocation,
-      @mcpServers, @ghAccount, @worktreeBaseBranch, @pinnedBranches, @workspaceId,
-      @disabled, @sortOrder, @createdAt
+      @mcpServers, @ghAccount, @worktreeBaseBranch, @pinnedBranches, @pluginOverrides,
+      @workspaceId, @disabled, @sortOrder, @createdAt
     )
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
@@ -46,6 +46,7 @@ export function prepareProjectUpsertStatement(
       gh_account = excluded.gh_account,
       worktree_base_branch = excluded.worktree_base_branch,
       pinned_branches = excluded.pinned_branches,
+      plugin_overrides = excluded.plugin_overrides,
       workspace_id = excluded.workspace_id,
       disabled = excluded.disabled,
       sort_order = excluded.sort_order

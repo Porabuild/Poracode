@@ -9,6 +9,7 @@ import type {
   ProjectSearchSettings,
   ProjectWorktreeLocation,
 } from "@/shared/contracts";
+import { areToolOverridesEqual, nonEmptyPluginOverrides } from "@/shared/contracts";
 import { deriveLocationFromPath } from "@/shared/createProject";
 import { friendlyError, msg as resolveMessage } from "@/shared/messages";
 import { findProjectLocationConflict } from "@/shared/projectIdentity";
@@ -174,6 +175,33 @@ export function toggleProjectPinnedBranch(projectId: string, branch: string): vo
     dispatchRemoteProjectMutation(
       project,
       { pinnedBranches: pinnedBranches.length > 0 ? pinnedBranches : null },
+      apply,
+    )
+  )
+    return;
+  apply();
+}
+
+/**
+ * Turn one Agent Plugin on or off for a project, or with `null` let it follow
+ * the global plugin state again. Threads pick the change up on their next launch.
+ */
+export function setProjectPluginOverride(
+  projectId: string,
+  pluginName: string,
+  enabled: boolean | null,
+): void {
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  if (!project) return;
+  const { [pluginName]: _, ...rest } = project.pluginOverrides ?? {};
+  const pluginOverrides = enabled === null ? rest : { ...rest, [pluginName]: enabled };
+  if (areToolOverridesEqual(pluginOverrides, project.pluginOverrides ?? {})) return;
+  const apply = () =>
+    useAppStore.getState().updateProjectPluginOverrides(projectId, pluginOverrides);
+  if (
+    dispatchRemoteProjectMutation(
+      project,
+      { pluginOverrides: nonEmptyPluginOverrides(pluginOverrides) ?? null },
       apply,
     )
   )

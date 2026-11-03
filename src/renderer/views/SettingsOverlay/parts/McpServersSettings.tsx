@@ -1,9 +1,11 @@
 import { useLingui } from "@lingui/react/macro";
 import type { BuiltInMcpServerId, McpServer } from "@/shared/contracts";
+import { McpProjectSettingsPicker } from "@/renderer/components/mcp/McpProjectSettingsPicker";
 import { McpServersManager } from "@/renderer/components/mcp/McpServersManager";
 import { sharedSettingsServerPersistence } from "@/renderer/components/mcp/mcpServersMutation";
 import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginCopy";
 import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
+import { openProjectSettings } from "@/renderer/actions/panelActions";
 import { saveProjectMcpServers } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
@@ -13,7 +15,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { isHomeProject } from "@/shared/homeScope";
 import { Button } from "@/renderer/components/common/Button";
-import { SettingsPage } from "./SettingsForm";
+import { SettingRow, SettingsPage } from "./SettingsForm";
 import { CrossagentRoutingSection } from "./CrossagentRoutingSection";
 
 export function McpServersSettings() {
@@ -65,6 +67,19 @@ export function McpServersSettings() {
       description={t`Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings.`}
       bodyClassName="space-y-5"
     >
+      <SettingRow
+        anchorId="mcpServers.projects"
+        title={t`Project MCP servers`}
+        description={t`Servers in a project's settings apply only to that project and override global servers with the same name. To move a global server, edit it and change its scope.`}
+      >
+        <McpProjectSettingsPicker
+          projects={importProjects}
+          onOpen={(projectId) => {
+            usePanelStore.getState().closeSettings();
+            openProjectSettings(projectId, "mcp");
+          }}
+        />
+      </SettingRow>
       <div data-settings-anchor="mcpServers.manage">
         <McpServersManager
           key={workspaceProject?.id ?? "user-only"}

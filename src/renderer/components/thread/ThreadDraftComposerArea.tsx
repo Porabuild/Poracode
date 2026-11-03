@@ -473,11 +473,13 @@ export function ThreadDraftComposerArea(props: {
     props.project.location,
     props.selectedAgent.kind,
     props.presentationMode,
+    props.project.pluginOverrides,
   );
   const pluginMentions = usePluginMentionItems(
     props.project.location,
     props.selectedAgent.kind,
     props.presentationMode,
+    props.project.pluginOverrides,
   );
   const slashLookupContext = {
     agentKind: props.selectedAgent.kind,

@@ -13,6 +13,7 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { resolveLaunchPluginOverrides } from "@/shared/contracts";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
@@ -465,15 +466,24 @@ export function ContinueInProviderDialog(props: {
   const [commandPanelPosition, setCommandPanelPosition] = useState<CommandPanelPosition | null>(
     null,
   );
+  const projectPluginOverrides = useAppStore(
+    (s) => s.projects.find((project) => project.id === thread.projectId)?.pluginOverrides,
+  );
+  const pluginOverrides = resolveLaunchPluginOverrides(
+    projectPluginOverrides,
+    thread.config.pluginOverrides,
+  );
   const { commands: skillCommands } = useSkillSlashCommandState(
     props.projectLocation,
     selectedKind,
     targetPresentationMode,
+    pluginOverrides,
   );
   const pluginMentions = usePluginMentionItems(
     props.projectLocation,
     selectedKind,
     targetPresentationMode,
+    pluginOverrides,
   );
   const threadMentions = useThreadMentionItems(
     {

@@ -39,7 +39,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
       DATABASE_MIGRATIONS.filter((migration) => migration.version > 68).map(
         (migration) => migration.version,
       ),
-    ).toEqual([69, 70]);
+    ).toEqual([69, 70, 71]);
     old.close();
     initDatabase(path);
     return before;
@@ -53,7 +53,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
     expect(dbGetThread("thread-2")).not.toHaveProperty("interruptedTurn");
     expect(
       getSqlite().prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "70" });
+    ).toEqual({ value: "71" });
   });
 
   it("marks only turns still running at boot as cut off by the restart", () => {
@@ -119,7 +119,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
     );
     expect(
       getSqlite().prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "70" });
+    ).toEqual({ value: "71" });
   });
 
   it("keeps an earlier failure across a restart", () => {

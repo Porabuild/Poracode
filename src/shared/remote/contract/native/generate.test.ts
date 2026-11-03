@@ -90,7 +90,7 @@ describe("remote v3 native binding generator", () => {
         // Host-owned Hex voice transcription adds one typed procedure and schema roots.
         // The optional mediaFileRequest `disposition` attachment literal moves the source hash.
         // Background PR polling adds one read procedure and its typed status result.
-        sourceHash: "sha256:a65b270a4d20fb2badcea5587ab071391e75f587cb1473f7d192ed60e970eace",
+        sourceHash: "sha256:a28648352642c1ad0f19617b072464b5030a90245a203586acd2989b3b7f6daf",
         manifestHash: "sha256:112aff22c48994414f73d50d40f0b71e3e2df5ea094325b9affb02084fe5add6",
         counts: {
           routes: 119,
@@ -101,7 +101,7 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 552,
-          structuralTypes: 1285,
+          structuralTypes: 1286,
           semanticValidators: 25,
           swiftFiles: 78,
           kotlinFiles: 68,

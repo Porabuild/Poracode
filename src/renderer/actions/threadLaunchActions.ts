@@ -157,12 +157,12 @@ async function performInitialThreadLaunchPending(
   }
 
   const sharedSettings = useSharedSettings.getState();
-  const projectMcpServers =
-    useAppStore.getState().projects.find((project) => project.id === thread.projectId)
-      ?.mcpServers ?? [];
+  const launchProject = useAppStore
+    .getState()
+    .projects.find((project) => project.id === thread.projectId);
   const mcpLaunchSnapshot = resolveMcpLaunchSnapshot(
     sharedSettings,
-    projectMcpServers,
+    launchProject,
     thread.config.mcpServerOverrides,
   );
   useAppStore.getState().setThreadMcpLaunchCustomServerNames(

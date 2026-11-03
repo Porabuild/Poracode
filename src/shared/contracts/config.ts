@@ -160,7 +160,17 @@ export function isThreadConfigEqual(
   );
 }
 
-function areToolOverridesEqual(
+/** Plugin manifest name -> enabled, as stored on a project. */
+export const pluginOverridesSchema = z.record(z.string().min(1), z.boolean());
+
+/** Switch records are stored only when non-empty; an empty record means "inherit everything". */
+export function nonEmptyPluginOverrides(
+  overrides: Readonly<Record<string, boolean>> | undefined,
+): Record<string, boolean> | undefined {
+  return overrides && Object.keys(overrides).length > 0 ? { ...overrides } : undefined;
+}
+
+export function areToolOverridesEqual(
   left: Record<string, boolean> | undefined,
   right: Record<string, boolean> | undefined,
 ): boolean {

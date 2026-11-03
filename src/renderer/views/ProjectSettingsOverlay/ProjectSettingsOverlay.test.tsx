@@ -57,6 +57,22 @@ describe("ProjectSettingsOverlay", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("opens on a deep-linked section, then navigates back to the section index", () => {
+    layout.compact = true;
+
+    render(
+      <ProjectSettingsOverlay projectId={project.id} initialSection="search" onClose={() => {}} />,
+    );
+
+    const main = screen.getByRole("main");
+    expect(
+      within(main).getByText("Project-specific overrides on top of the global search settings."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(within(main).getByRole("button", { name: "Plugins" })).toBeInTheDocument();
+  });
+
   it("uses the compact header and an icon-only bottom add action", () => {
     layout.compact = true;
 

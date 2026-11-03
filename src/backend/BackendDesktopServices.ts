@@ -442,7 +442,7 @@ export class BackendDesktopServices {
           dbPath: initialize.dbPath,
         },
         resolveMcpLaunchSnapshot: (projectId) =>
-          resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
+          resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)),
       });
     } else this.administration = null;
   }

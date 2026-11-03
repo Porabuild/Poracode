@@ -36,6 +36,15 @@ function pluginSkillScanKey(installedPlugins: InstalledPlugins): string {
   );
 }
 
+/** Stable key for project/thread plugin switches, which change which plugin skills are enabled. */
+function pluginOverridesScanKey(overrides: Readonly<Record<string, boolean>> | undefined): string {
+  return overrides
+    ? JSON.stringify(
+        Object.entries(overrides).toSorted(([left], [right]) => left.localeCompare(right)),
+      )
+    : "";
+}
+
 function requestSkillScan(
   requestKey: string,
   payload: ScanSkillsPayload,
@@ -65,10 +74,11 @@ export function useSkills(
   agentKind?: string,
   wslDistro?: string,
   presentationMode?: ThreadPresentationMode,
+  pluginOverrides?: Readonly<Record<string, boolean>>,
 ) {
   const installedPlugins = useSharedSettings((state) => state.installedPlugins);
   const pluginRevision = usePlugins((state) => state.revision);
-  const requestKey = `${agentKind ?? ""}\0${wslDistro ?? ""}\0${presentationMode ?? ""}\0${projectLocation ? JSON.stringify(projectLocation) : ""}\0${pluginSkillScanKey(installedPlugins)}\0${pluginRevision}`;
+  const requestKey = `${agentKind ?? ""}\0${wslDistro ?? ""}\0${presentationMode ?? ""}\0${projectLocation ? JSON.stringify(projectLocation) : ""}\0${pluginSkillScanKey(installedPlugins)}\0${pluginRevision}\0${pluginOverridesScanKey(pluginOverrides)}`;
   const cachedScan = scanCache.get(requestKey);
   const [scanState, setScanState] = useState<
     | {
@@ -93,6 +103,7 @@ export function useSkills(
           ...(wslDistro ? { wslDistro } : {}),
           ...(agentKind ? { agentKind } : {}),
           ...(presentationMode ? { presentationMode } : {}),
+          ...(pluginOverrides ? { pluginOverrides: { ...pluginOverrides } } : {}),
         },
         reusePending,
       );
@@ -126,20 +137,25 @@ export function useSkillSlashCommands(
   projectLocation: ProjectLocation,
   agentKind: string,
   presentationMode?: ThreadPresentationMode,
+  pluginOverrides?: Readonly<Record<string, boolean>>,
 ): AgentSlashCommand[] {
-  return useSkillSlashCommandState(projectLocation, agentKind, presentationMode).commands;
+  return useSkillSlashCommandState(projectLocation, agentKind, presentationMode, pluginOverrides)
+    .commands;
 }
 
+/** `pluginOverrides` are the launch's effective switches (project beneath thread). */
 export function useSkillSlashCommandState(
   projectLocation: ProjectLocation,
   agentKind: string,
   presentationMode?: ThreadPresentationMode,
+  pluginOverrides?: Readonly<Record<string, boolean>>,
 ) {
   const { scan, loading, error } = useSkills(
     projectLocation,
     agentKind,
     undefined,
     presentationMode,
+    pluginOverrides,
   );
   const localizedPlugins = useLocalizedPluginCatalog(projectLocation);
   return {
@@ -192,8 +208,15 @@ export function usePluginMentionItems(
   projectLocation: ProjectLocation,
   agentKind: string,
   presentationMode?: ThreadPresentationMode,
+  pluginOverrides?: Readonly<Record<string, boolean>>,
 ): PluginMentionItem[] {
-  const { scan } = useSkills(projectLocation, agentKind, undefined, presentationMode);
+  const { scan } = useSkills(
+    projectLocation,
+    agentKind,
+    undefined,
+    presentationMode,
+    pluginOverrides,
+  );
   const localizedPlugins = useLocalizedPluginCatalog(projectLocation);
   const installedPlugins = useSharedSettings((state) => state.installedPlugins);
   const disabledBuiltIns = useSharedSettings((state) => state.disabledBuiltInMcpServers);
@@ -202,7 +225,11 @@ export function usePluginMentionItems(
 
   return localizedPlugins.flatMap((localized): PluginMentionItem[] => {
     const plugin = localized.plugin;
-    const state = resolveInstalledPluginState(plugin, installedPlugins);
+    const state = resolveInstalledPluginState(
+      plugin,
+      installedPlugins,
+      pluginOverrides ? { ...pluginOverrides } : undefined,
+    );
     const core = getPluginCoreSkill(plugin);
     if (
       !state?.enabled ||
