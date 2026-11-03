@@ -59,11 +59,31 @@ describe("StructuredFailureReporter", () => {
       expect.objectContaining({
         message: "Structured runtime transport failed.",
         name: "StructuredRuntimeDiagnosticError",
+        diagnosticCause: expect.objectContaining({
+          "poracode.cause_reason": "subprocess-exit",
+          "poracode.exit_code": "9",
+        }),
       }),
       expect.objectContaining({
         "poracode.feature_area": "structured-runtime-transport",
       }),
     );
+  });
+
+  it("preserves a parser defect's type without retaining its provider payload", () => {
+    new StructuredFailureReporter().capture(
+      createSession(),
+      new SyntaxError("private-prompt private-token"),
+    );
+    const diagnostic = captureSupervisorException.mock.calls[0]![0];
+    expect(diagnostic).toMatchObject({
+      diagnosticCause: {
+        "poracode.cause_reason": "unknown",
+        "poracode.cause_type": "syntax-error",
+      },
+    });
+    expect(JSON.stringify(diagnostic)).not.toContain("private");
+    expect(diagnostic).not.toHaveProperty("cause");
   });
 
   it.each([

@@ -131,6 +131,8 @@ export function closeRemoteServerEventSocket(
   if (options.preserveReplayState) setRemoteTerminalSocketSender(desktopId, null);
   else resetRemoteTerminalFeed(desktopId);
   if (!entry) return;
+  entry.disposeFrames?.();
+  entry.dispose?.();
   if (entry.reconnectTimer) {
     clearTimeout(entry.reconnectTimer);
     entry.reconnectTimer = null;

@@ -1,4 +1,5 @@
 import { isChatSidebarSurface } from "./clientSurface";
+import { installFeatureUsageTracking } from "@/renderer/state/featureUsageTracking";
 import { toast } from "@heroui/react";
 import { msg as linguiMsg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -353,6 +354,7 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       ...(browserClientRuntime ? [] : [installRemoteGitSummaryPublisher()]),
       installRemoteProjectWorkspaceSync(),
       installThreadOutputPruning(),
+      installFeatureUsageTracking(),
     ]
   : [];
 let uninstallProductAnalytics: (() => void) | null = null;

@@ -2,6 +2,7 @@ import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
+import { HostSession, hostEventThreadIds } from "@/renderer/hostTransport/hostSession";
 import {
   REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
   REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
@@ -97,8 +98,7 @@ export { MANAGED_ROOT_CATALOG_KEY } from "./managedRootOrderFence";
  * `thread-osc-*`, `thread-scrollback-resync`, …): they carry an independent
  * sequence whose head must never raise the shared live head.
  */
-let rootConnectionSeq = 0;
-const rootThreadAppliedSeqs = new Map<string, number>();
+const rootSession = new HostSession();
 
 function noteRootDispatchSequence(
   event: unknown,
@@ -109,11 +109,7 @@ function noteRootDispatchSequence(
   // default (see PreloadIpcTransport.dispatch).
   if (space !== undefined && space !== "loopback") return;
   if (typeof seq !== "number") return;
-  rootConnectionSeq = Math.max(rootConnectionSeq, seq);
-  const threadId = (event as { readonly threadId?: unknown } | null)?.threadId;
-  if (typeof threadId !== "string") return;
-  const previous = rootThreadAppliedSeqs.get(threadId) ?? 0;
-  if (seq > previous) rootThreadAppliedSeqs.set(threadId, seq);
+  rootSession.recordApplied(seq, hostEventThreadIds(event));
 }
 
 /**
@@ -223,10 +219,10 @@ function configureController(): void {
       },
       appliedThreadSeq: (connectionKey, threadId) =>
         connectionKey === MANAGED_ROOT_CATALOG_KEY
-          ? rootThreadAppliedSeqs.get(threadId)
+          ? rootSession.threadSequence(threadId)
           : undefined,
       connectionSeq: (connectionKey) =>
-        connectionKey === MANAGED_ROOT_CATALOG_KEY ? rootConnectionSeq : 0,
+        connectionKey === MANAGED_ROOT_CATALOG_KEY ? rootSession.appliedSequence() : 0,
       // The guard is the live dispatch sequence at install time; page snapshot
       // seqs live in a different space and are deliberately not mixed in.
       bumpConnectionSeq: () => {},
@@ -499,6 +495,7 @@ function arraysEqual(left: readonly string[], right: readonly string[]): boolean
 }
 
 function applyActivation(activation: ManagedLoopbackActivationSnapshot | null): void {
+  rootSession.clearApplied();
   // A replaced (or dropped) authority invalidates every in-flight order walk of
   // BOTH kinds: a delayed page from the retired activation must never paint its
   // order over the successor's state.
@@ -596,7 +593,6 @@ export function __resetManagedRootCatalogRuntimeForTest(): void {
   configureBoundedHistoryManagedRootClient(null);
   __resetManagedRootLaunchMetadataCapabilityForTest();
   __resetManagedRootOrderFenceForTest();
-  rootConnectionSeq = 0;
-  rootThreadAppliedSeqs.clear();
+  rootSession.clearApplied();
   disposeBoundedCatalog(MANAGED_ROOT_CATALOG_KEY);
 }

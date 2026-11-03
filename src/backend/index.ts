@@ -1,4 +1,7 @@
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
+import { serializeBackendDiagnosticError } from "@/shared/diagnostics/backendDiagnosticError";
+import { classifyErrorCause } from "@/shared/diagnostics/errorCause";
+import { sanitizeSentryEvent } from "@/shared/diagnostics/sentryPrivacy";
 import { DESKTOP_HOST_CONTROL_VERSION } from "@/shared/desktopHostControl";
 import { validateDesktopControlGrant } from "./ownership/delegatedHostControl";
 import { dirname, join } from "node:path";
@@ -174,11 +177,15 @@ function reportError(
   error: unknown,
   tags?: import("@/shared/diagnostics/sentryPrivacy").PoracodeDiagnosticTags,
 ): void {
+  if (classifyErrorCause(error, "backend")) return;
+  const safeTags = tags ? sanitizeSentryEvent({ tags }).tags : undefined;
+  const diagnostic = serializeBackendDiagnosticError(error);
   send({
     version: BACKEND_HOST_PROTOCOL_VERSION,
     kind: "error",
-    message: error instanceof Error ? error.message : String(error),
-    ...(tags ? { tags } : {}),
+    message: diagnostic.message ?? "Backend operation failed.",
+    diagnostic,
+    ...(safeTags ? { tags: safeTags } : {}),
   });
 }
 

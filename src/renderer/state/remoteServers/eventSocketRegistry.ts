@@ -5,6 +5,7 @@ import {
 import type { OpenRemoteThread, RemoteSocketLike } from "./types";
 import { noteHistoryDeliveryGap } from "../historyResumeRegistry";
 import { remoteThreadId } from "../remoteProjection";
+import { HostSession, hostEventThreadIds } from "@/renderer/hostTransport/hostSession";
 
 /**
  * Process-local state for the desktop-as-client event sockets (one per paired
@@ -35,39 +36,30 @@ export interface RemoteServerEventSocketEntry {
   connectTimeout: ReturnType<typeof setTimeout> | null;
   healthPingInterval: ReturnType<typeof setInterval> | null;
   health: RemoteSocketHealthMonitor<RemoteSocketLike> | null;
+  disposeFrames?: () => void;
+  dispose?: () => void;
   /** Re-baselines the current connection's interested threads. */
   recoverInterestedThreads?: (beforeReplay?: () => void) => Promise<boolean>;
 }
 
 const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();
-const remoteServerSnapshotSeqByDesktopId = new Map<string, number>();
-/**
- * Server event-stream epoch (`eventEpoch=v1`) the resume watermark is bound
- * to. Seeded by the first snapshot or socket handshake. Absent for a host
- * that reports no epoch; the reconnect then sends no `lastSeenEpoch`.
- */
-const remoteServerSnapshotEpochByDesktopId = new Map<string, string>();
-/**
- * Fence for asynchronous HTTP watermark updates: renewed whenever the epoch
- * binding changes, so a reply requested under an earlier binding (possibly
- * served by the previous server instance) can never raise the new epoch's
- * cursor. Values come from one counter and are never reused.
- */
-const remoteServerResumeFenceByDesktopId = new Map<string, number>();
-let remoteServerResumeFenceCounter = 0;
-/**
- * Highest event seq applied per thread from each server's live stream. The
- * resume watermark above is per server, so it cannot arbitrate one thread's
- * snapshot writes: an unrelated thread's newer event would wrongly freeze it.
- * Keyed [desktopId][remoteThreadId]; shares the watermark's lifecycle.
- */
-const remoteThreadAppliedSeqByDesktopId = new Map<string, Map<string, number>>();
+/** Resume epochs, HTTP reply fences, and per-thread live sequences share
+ * the same session owner used by the managed catalog. */
+const hostSessions = new Map<string, HostSession>();
+
+function hostSession(desktopId: string): HostSession {
+  let session = hostSessions.get(desktopId);
+  if (!session) {
+    session = new HostSession();
+    hostSessions.set(desktopId, session);
+  }
+  return session;
+}
 const remoteServerThreadItemInterests = new Map<string, readonly string[]>();
 /** Desktops whose current connection negotiated cursor-sync v2: their thread
  * history fetches may omit the inlined terminal scrollback (WS3 #2) because
  * the chunked watch baseline carries the tail instead. */
 const remoteServerCursorSyncV2ByDesktopId = new Set<string>();
-const remoteServerIdentityGenerationByDesktopId = new Map<string, number>();
 
 // ── Socket entry registry ────────────────────────────────────────────
 
@@ -111,17 +103,17 @@ export function clearRemoteServerEventSocketConnectTimeout(
 // ── Server-wide resume watermark ─────────────────────────────────────
 
 export function remoteServerSnapshotSeq(desktopId: string): number {
-  return remoteServerSnapshotSeqByDesktopId.get(desktopId) ?? 0;
+  return hostSession(desktopId).resumeSeq;
 }
 
 /** Epoch the watermark is bound to; undefined while unbound. */
 export function remoteServerSnapshotEpoch(desktopId: string): string | undefined {
-  return remoteServerSnapshotEpochByDesktopId.get(desktopId);
+  return hostSession(desktopId).epoch;
 }
 
 /** Capture before an HTTP read whose `snapshotSeq` may bump the watermark. */
 export function remoteServerResumeFence(desktopId: string): number {
-  return remoteServerResumeFenceByDesktopId.get(desktopId) ?? 0;
+  return hostSession(desktopId).resumeFence;
 }
 
 /**
@@ -139,16 +131,13 @@ export function bumpRemoteServerSnapshotSeq(
   if (
     epoch !== undefined &&
     remoteServerSnapshotSeq(desktopId) === 0 &&
-    !remoteServerSnapshotEpochByDesktopId.has(desktopId) &&
+    remoteServerSnapshotEpoch(desktopId) === undefined &&
     !remoteServerEventSockets.has(desktopId)
   ) {
     setRemoteServerSnapshotSeq(desktopId, seq, epoch);
     return;
   }
-  remoteServerSnapshotSeqByDesktopId.set(
-    desktopId,
-    Math.max(remoteServerSnapshotSeq(desktopId), seq),
-  );
+  hostSession(desktopId).advanceResume(seq, fence);
 }
 
 /**
@@ -157,19 +146,11 @@ export function bumpRemoteServerSnapshotSeq(
  * is unbound (a legacy HTTP snapshot cannot name the instance that served it).
  */
 export function setRemoteServerSnapshotSeq(desktopId: string, seq: number, epoch?: string): void {
-  remoteServerSnapshotSeqByDesktopId.set(desktopId, seq);
-  if (remoteServerSnapshotEpochByDesktopId.get(desktopId) === epoch) return;
-  if (epoch === undefined) remoteServerSnapshotEpochByDesktopId.delete(desktopId);
-  else remoteServerSnapshotEpochByDesktopId.set(desktopId, epoch);
-  remoteServerResumeFenceCounter += 1;
-  remoteServerResumeFenceByDesktopId.set(desktopId, remoteServerResumeFenceCounter);
+  hostSession(desktopId).bindResume(seq, epoch);
 }
 
 export function deleteRemoteServerSnapshotSeq(desktopId: string): void {
-  remoteServerSnapshotSeqByDesktopId.delete(desktopId);
-  remoteServerSnapshotEpochByDesktopId.delete(desktopId);
-  remoteServerResumeFenceCounter += 1;
-  remoteServerResumeFenceByDesktopId.set(desktopId, remoteServerResumeFenceCounter);
+  hostSession(desktopId).clearResume();
 }
 
 // ── Per-thread applied-seq watermarks ────────────────────────────────
@@ -179,21 +160,15 @@ export function recordRemoteThreadAppliedSeq(
   threadId: string,
   seq: number,
 ): void {
-  let byThread = remoteThreadAppliedSeqByDesktopId.get(desktopId);
-  if (!byThread) {
-    byThread = new Map();
-    remoteThreadAppliedSeqByDesktopId.set(desktopId, byThread);
-  }
-  if ((byThread.get(threadId) ?? 0) >= seq) return;
-  byThread.set(threadId, seq);
+  hostSession(desktopId).recordApplied(seq, [threadId]);
 }
 
 export function remoteThreadAppliedSeq(desktopId: string, threadId: string): number | undefined {
-  return remoteThreadAppliedSeqByDesktopId.get(desktopId)?.get(threadId);
+  return hostSession(desktopId).threadSequence(threadId);
 }
 
 export function clearRemoteThreadAppliedSeqs(desktopId: string): void {
-  remoteThreadAppliedSeqByDesktopId.delete(desktopId);
+  hostSession(desktopId).clearApplied();
 }
 
 // ── Thread item interests ────────────────────────────────────────────
@@ -201,16 +176,7 @@ export function clearRemoteThreadAppliedSeqs(desktopId: string): void {
 /** Thread ids a supervisor event frame touches: the supervisory field, or the
  * per-thread batches of a multi frame. */
 export function supervisorEventThreadIds(event: unknown): readonly string[] {
-  if (!event || typeof event !== "object") return [];
-  const record = event as { threadId?: unknown; batches?: unknown };
-  if (typeof record.threadId === "string") return [record.threadId];
-  if (!Array.isArray(record.batches)) return [];
-  const threadIds: string[] = [];
-  for (const batch of record.batches) {
-    const batchThreadId = (batch as { threadId?: unknown } | null)?.threadId;
-    if (typeof batchThreadId === "string") threadIds.push(batchThreadId);
-  }
-  return threadIds;
+  return hostEventThreadIds(event);
 }
 
 export function sameRemoteServerThreadItemInterests(
@@ -322,14 +288,11 @@ export function forgetRemoteServerCursorSyncV2(desktopId: string): void {
 // ── Identity generation fence ────────────────────────────────────────
 
 export function currentRemoteServerGeneration(desktopId: string): number {
-  return remoteServerIdentityGenerationByDesktopId.get(desktopId) ?? 0;
+  return hostSession(desktopId).generation;
 }
 
 export function bumpRemoteServerGeneration(desktopId: string): void {
-  remoteServerIdentityGenerationByDesktopId.set(
-    desktopId,
-    currentRemoteServerGeneration(desktopId) + 1,
-  );
+  hostSession(desktopId).generation += 1;
 }
 
 // ── Test reset ───────────────────────────────────────────────────────
@@ -338,10 +301,6 @@ export function bumpRemoteServerGeneration(desktopId: string): void {
  * inline before the extraction. The socket map itself is torn down by the
  * store's closeAll path, which also deletes per-desktop watermarks. */
 export function __resetEventSocketRegistryForTest(): void {
-  remoteServerSnapshotSeqByDesktopId.clear();
-  remoteServerSnapshotEpochByDesktopId.clear();
-  remoteServerResumeFenceByDesktopId.clear();
-  remoteThreadAppliedSeqByDesktopId.clear();
+  hostSessions.clear();
   remoteServerThreadItemInterests.clear();
-  remoteServerIdentityGenerationByDesktopId.clear();
 }

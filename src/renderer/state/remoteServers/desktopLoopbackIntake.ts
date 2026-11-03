@@ -13,22 +13,36 @@ import {
   type LoopbackRequestContext,
 } from "./desktopLoopbackAuth";
 import {
-  DesktopLoopbackFrameDrain,
-  type DesktopLoopbackDecodePort,
-  type DesktopLoopbackDrainUnavailableReason,
-} from "./desktopLoopbackFrameDrain";
-import { routeDesktopLoopbackFrame, type DesktopLoopbackFramePorts } from "./desktopLoopbackFrames";
+  HostEventDrain,
+  type HostEventDrainUnavailableReason,
+} from "@/renderer/hostTransport/hostEventDrain";
+import type { DesktopFrameDecodeResult } from "@/renderer/state/remote/engine/decode";
+import {
+  routeDesktopLoopbackFrame,
+  type DesktopLoopbackFramePorts,
+  type DesktopLoopbackFrame,
+} from "./desktopLoopbackFrames";
 import { createManagedItemInterestTracker, sameItemInterests } from "./desktopLoopbackInterests";
 import { DesktopLoopbackLiveness } from "./desktopLoopbackLiveness";
 import {
   createDomDesktopLoopbackSocket,
   type DesktopLoopbackSocket,
 } from "./desktopLoopbackSocket";
-import { getManagedLoopbackEngine } from "@/renderer/state/remote/engine";
+import {
+  getManagedLoopbackEngine,
+  type ClientEngineWorkerMode,
+} from "@/renderer/state/remote/engine";
 import { withRuntimeHistoryNoticesDeclaration } from "@/renderer/state/remote/historyNoticeCapability";
 import { withBoundedCatalogChangesDeclaration } from "@/renderer/state/remote/boundedCatalogChangesCapability";
 
 export type { DesktopLoopbackSocket } from "./desktopLoopbackSocket";
+
+export interface DesktopLoopbackDecodePort {
+  decodeDesktopFrame(raw: string): Promise<DesktopFrameDecodeResult>;
+  renew(): void;
+  dispose(): void;
+  readonly workerMode: ClientEngineWorkerMode;
+}
 
 /**
  * Desktop loopback event intake (V5 plan 2.5): the managed desktop renderer's
@@ -278,7 +292,7 @@ export class DesktopLoopbackIntake {
   /** A3: the private loopback decode seam (off-thread when the platform has a
    * Worker) plus its ordered bounded drain. */
   private readonly decodePort: DesktopLoopbackDecodePort;
-  private readonly drain: DesktopLoopbackFrameDrain;
+  private readonly drain: HostEventDrain<DesktopLoopbackFrame>;
   private readonly decodeRetryBaseMs: number;
   /** Bounded reduced-state reconnect cadence (no transport escalation). */
   private decodeRetryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -326,8 +340,15 @@ export class DesktopLoopbackIntake {
         key: `managed-loopback:${nextManagedLoopbackLaneId++}`,
       });
     this.decodeRetryBaseMs = deps.decodeRetryDelayMs ?? DECODE_RETRY_BASE_MS;
-    this.drain = new DesktopLoopbackFrameDrain({
-      decode: this.decodePort,
+    this.drain = new HostEventDrain({
+      decode: {
+        decodeFrame: (raw) =>
+          this.decodePort
+            .decodeDesktopFrame(raw)
+            .then((result) => (result.ok ? result.frame : null)),
+        renew: () => this.decodePort.renew(),
+        dispose: () => this.decodePort.dispose(),
+      },
       onFrame: (frame) => {
         // A routed frame proves the decode lane works: the reduced-state
         // backoff starts over only then, never merely because a socket opened.
@@ -813,7 +834,7 @@ export class DesktopLoopbackIntake {
    * an immediate close/reconnect loop, and never a bootstrap escalation that
    * cannot repair a worker outage.
    */
-  private noteDecodeUnavailable(_reason: DesktopLoopbackDrainUnavailableReason): void {
+  private noteDecodeUnavailable(_reason: HostEventDrainUnavailableReason): void {
     if (this.disposed) return;
     const socket = this.socket;
     if (socket) {

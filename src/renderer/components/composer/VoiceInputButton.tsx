@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { recordFeatureSignal } from "@/renderer/state/featureUsageStore";
 import { Mic, Square, X } from "lucide-react";
 import { toast, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -201,6 +202,7 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
     }
 
     async function startRecording() {
+      recordFeatureSignal("command:composer.start-dictation");
       if (!navigator.mediaDevices?.getUserMedia) {
         toast.danger(
           window.isSecureContext === false

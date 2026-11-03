@@ -562,6 +562,14 @@ msgstr "{commentCount, plural, one {# komentarz} few {# komentarze} many {# kome
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {# agent znaleziony} few {# agenci znalezieni} many {# agentów znalezionych} other {# agenta znalezionego}}"
 
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
+msgstr "{current, plural, one {# dzień} few {# dni} many {# dni} other {# dnia}} z rzędu · twój rekord to {longest}"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
+msgstr "{current, plural, one {# dzień} few {# dni} many {# dni} other {# dnia}} z rzędu · twoja najdłuższa seria"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -633,6 +641,10 @@ msgstr "{imported, plural, one {Zaimportowano # sesję.} few {Zaimportowano # se
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 #~ msgstr "{installedCount, plural, one {# agent gotowy} few {# agenci gotowi} many {# agentów gotowych} other {# agenta gotowego}}"
+
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
+msgid "{issues, plural, one {# good first issue is} other {# good first issues are}} open. Want to contribute?"
+msgstr "{issues, plural, one {Otwarte jest # zgłoszenie dla początkujących} few {Otwarte są # zgłoszenia dla początkujących} many {Otwartych jest # zgłoszeń dla początkujących} other {Otwartych jest # zgłoszenia dla początkujących}}. Chcesz pomóc?"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{judgeLabel} is comparing the anonymized diffs…"
@@ -742,6 +754,10 @@ msgstr "Zaliczono {passed} z {0}"
 msgid "{percent}% full"
 msgstr "{percent}% zapełnienia"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "{percent}% used"
+msgstr "Wykorzystano {percent}%"
+
 #. placeholder {0}: bridge.appVersion
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "{productName} was updated to v{0}."
@@ -754,6 +770,14 @@ msgstr "{projectLocation} (wyłączone)"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
 msgstr "Ustawienia: {projectName}"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
+msgstr "{prompts, plural, one {# prompt} few {# prompty} many {# promptów} other {# promptu}} w tym tygodniu"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
+msgstr "{prompts, plural, one {# prompt} few {# prompty} many {# promptów} other {# promptu}} w tym tygodniu · najaktywniej: {weekday}"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -986,6 +1010,10 @@ msgstr "<0/> rozpoczął(-ęła) wątek recenzji"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "<0/>% Full"
 msgstr "Zapełnione w <0/>%"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "<0>{label}</0> handles {percent}% of your prompts"
+msgstr "<0>{label}</0> obsługuje {percent}% twoich promptów"
 
 #. placeholder {0}: checks.length
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
@@ -1320,6 +1348,11 @@ msgstr "Aktywne przekierowania"
 msgid "Activity"
 msgstr "Aktywność"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Activity highlights"
+msgstr "Podsumowanie aktywności"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Activity insights"
 msgstr "Analiza aktywności"
@@ -1399,6 +1432,10 @@ msgstr "Dodaj projekt, aby używać GitHub Actions."
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 msgid "Add a public Git repository or a local marketplace. Review supported components before installing."
 msgstr "Dodaj publiczne repozytorium Git lub lokalny katalog. Przed instalacją sprawdź obsługiwane składniki."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Add a server"
+msgstr "Dodaj serwer"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
@@ -1879,6 +1916,10 @@ msgstr "Wszystkie projekty"
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 msgid "All pull requests"
 msgstr "Wszystkie żądania ściągnięcia"
+
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "All release notes"
+msgstr "Wszystkie informacje o wersjach"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -2704,6 +2745,10 @@ msgstr "Podstawowy (CLI)"
 msgid "Behind base"
 msgstr "Za gałęzią bazową"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Behind the scenes from the person building Poracode"
+msgstr "Kulisy od osoby, która tworzy Poracode"
+
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Beta next-generation OpenCode runtime with native GUI sessions."
 msgstr "Beta środowiska wykonawczego OpenCode nowej generacji z natywnymi sesjami GUI."
@@ -2865,6 +2910,10 @@ msgstr "Przenieś zapisane hasła i pliki cookie z zainstalowanej przeglądarki.
 msgid "Bring Uncommitted Changes"
 msgstr "Przenieś niezatwierdzone zmiany"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Bring your existing CLI agent conversations into Poracode"
+msgstr "Przenieś swoje rozmowy z agentami CLI do Poracode"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
 msgstr "Przeglądaj"
@@ -2878,9 +2927,14 @@ msgstr "Przeglądaj ekosystem"
 msgid "Browse for parent folder"
 msgstr "Wyszukaj folder nadrzędny"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Browse plugins"
 msgstr "Przeglądaj wtyczki"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Browse skills"
+msgstr "Przeglądaj umiejętności"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Browse your GitHub repositories or paste a clone URL."
@@ -3242,6 +3296,10 @@ msgstr "Elementy sterujące przechwytywaniem i widokiem"
 msgid "Capture audio from this device."
 msgstr "Przechwytuj dźwięk z tego urządzenia."
 
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "carousel"
+msgstr "karuzela"
+
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -3438,6 +3496,10 @@ msgstr "Sprawdź aktualizacje"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "Sprawdź moje ostatnie postępy i podaj jedną konkretną rekomendację, co zrobić dalej."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Check on your agents from your phone"
+msgstr "Sprawdzaj swoich agentów z telefonu"
 
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrCheckoutMenu.tsx
@@ -3897,6 +3959,7 @@ msgstr "Klonowanie…"
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
@@ -4733,6 +4796,10 @@ msgstr "Połącz"
 #~ msgid "Connect a server"
 #~ msgstr "Połącz serwer"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Connect agents to your own tools with MCP servers"
+msgstr "Połącz agentów z własnymi narzędziami przez serwery MCP"
+
 #: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
@@ -5407,13 +5474,25 @@ msgstr "Utwórz"
 msgid "Create a pull request for candidate {0} ({label})"
 msgstr "Utwórz pull request dla kandydata {0} ({label})"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Create a schedule"
+msgstr "Utwórz harmonogram"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Create a second Cursor account with its own User API key. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
 msgstr "Utwórz drugie konto Cursor z własnym kluczem API użytkownika. Cursor CLI i ACP współdzielą jedno logowanie na komputerze, więc pozostają na głównej kafelce Cursor."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Create a theme"
+msgstr "Utwórz motyw"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "Utwórz przydatną rutynę jednym kliknięciem i dostosuj ją w dowolnym momencie."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Create a workspace"
+msgstr "Utwórz obszar roboczy"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 msgid "Create custom theme"
@@ -5521,6 +5600,10 @@ msgstr "Tworzenie PR…"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Creating worktree…"
 msgstr "Tworzenie drzewa roboczego…"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Creator on X"
+msgstr "Twórca na X"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Credential missing"
@@ -6511,6 +6594,10 @@ msgstr "Devin proponuje poprawione polecenie; przeglądasz je, zanim cokolwiek s
 msgid "Devin's own login (default)"
 msgstr "Własny login Devina (domyślny)"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Dictate prompts instead of typing them"
+msgstr "Dyktuj prompty zamiast je pisać"
+
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
@@ -7269,6 +7356,10 @@ msgstr "Rozpoznawanie mowy w języku angielskim."
 msgid "Enhanced (Hooks)"
 msgstr "Ulepszone (haki)"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Enjoying Poracode? A star helps others find it"
+msgstr "Podoba ci się Poracode? Gwiazdka pomaga innym go znaleźć"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Enter"
 msgstr "Enter"
@@ -7761,6 +7852,10 @@ msgstr "Eksportuj serwery MCP"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
 msgstr "Eksportuj motyw"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Extend Poracode with plugins"
+msgstr "Rozszerz Poracode wtyczkami"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
@@ -8276,6 +8371,10 @@ msgstr "Naprawiono"
 msgid "Fixed delay"
 msgstr "Stałe opóźnienie"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Fixed in {version}"
+msgstr "Naprawiono w {version}"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Fixer"
 msgstr "Naprawiacz"
@@ -8330,6 +8429,12 @@ msgstr "Folder przechowujący wszystkie drzewa robocze. Wskazówka: Dev Drive w 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "Folder przechowujący drzewa robocze tego projektu. Zresetuj, aby użyć ustawienia globalnego."
+
+#. placeholder {0}: "@poracode"
+#. placeholder {0}: "@serg_vecher"
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Follow {0}"
+msgstr "Obserwuj {0}"
 
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Follow up..."
@@ -8578,6 +8683,10 @@ msgstr "Pobierz sugestię"
 msgid "Get task"
 msgstr "Pobierz zadanie"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Get the extension"
+msgstr "Pobierz rozszerzenie"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
@@ -8662,6 +8771,10 @@ msgstr "Gwiazdki GitHub"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Gitignored files to copy from the main project into each new worktree. Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
 msgstr "Pliki ignorowane przez Git do skopiowania z głównego projektu do każdego nowego drzewa roboczego. Wzorce w stylu Gitignore, po jednym w wierszu (np. <0>.env.*</0>)."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Give each thread its own worktree so agents never collide"
+msgstr "Daj każdemu wątkowi własne drzewo robocze, by agenci sobie nie przeszkadzali"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "GLM 5.2 (optional label)"
@@ -8789,6 +8902,10 @@ msgstr "Nazwa grupy"
 msgid "Group open threads"
 msgstr "Grupuj otwarte wątki"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Group projects into workspaces, like work and side projects"
+msgstr "Grupuj projekty w obszary robocze, np. praca i projekty poboczne"
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Grupuj projekty, aby pasek boczny, harmonogramy i żądania ściągnięcia pokazywały tylko jeden zestaw naraz. Przełączaj je u dołu paska bocznego."
@@ -8841,6 +8958,10 @@ msgstr "Twarde przeładowanie"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
 msgid "Has unsent draft"
 msgstr "Zawiera niewysłaną wersję roboczą"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Have one agent hand work to another with Crossagents"
+msgstr "Niech jeden agent przekazuje pracę drugiemu dzięki Crossagents"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Headers"
@@ -9031,6 +9152,10 @@ msgstr "Ukryj zadania; nadal będą działać"
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
 msgstr "Ukryj terminal"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Hide this"
+msgstr "Ukryj"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
@@ -9278,6 +9403,7 @@ msgstr "Realizuje zadanie modelu głównego w całości i weryfikuje je najwęż
 #~ msgstr "Realizuje zadanie modelu głównego w całości: edytuje pliki, uruchamia build i testy, opisuje zmiany."
 
 #. Settings section: import existing CLI sessions as threads
+#: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Import"
@@ -9427,6 +9553,10 @@ msgstr "Importowane sesje uwzględniają tylko zarejestrowane użycie. Usunięte
 msgid "Improved"
 msgstr "Ulepszono"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Improved in {version}"
+msgstr "Ulepszono w {version}"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "In progress"
 msgstr "W toku"
@@ -9456,6 +9586,11 @@ msgstr "Nieaktywny"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "Include in sync"
 msgstr "Uwzględnij w synchronizacji"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include your streaks, prompt counts, and usage limits in the news line."
+msgstr "Pokazuj swoje serie, liczbę promptów i limity użycia na pasku wiadomości."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Includes the first attempt."
@@ -9998,6 +10133,10 @@ msgstr "JSON"
 msgid "Judging…"
 msgstr "Ocenianie…"
 
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Jump to any file in your project"
+msgstr "Przejdź do dowolnego pliku w projekcie"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
 msgstr "Przejdź do sekcji"
@@ -10298,9 +10437,25 @@ msgstr "Identyfikator starszego połączenia"
 msgid "Less"
 msgstr "Mniej"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let agents use desktop apps in the background with Computer Use"
+msgstr "Pozwól agentom obsługiwać aplikacje desktopowe w tle dzięki Computer Use"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let agents work in your real Chrome with the Poracode extension"
+msgstr "Pozwól agentom pracować w Twoim prawdziwym Chrome z rozszerzeniem Poracode"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let an agent write your commit message and pull request"
+msgstr "Pozwól agentowi napisać wiadomość commita i pull request"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Let an AI judge compare the candidate changes."
 msgstr "Pozwól sędziemu AI porównać zmiany kandydatów."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let several agents split one task with a crew"
+msgstr "Pozwól kilku agentom podzielić zadanie w ekipie"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the embedded page. Off by default — turn on only when you trust the loaded sites and the agent."
@@ -10764,6 +10919,10 @@ msgstr "macOS"
 #: src/renderer/components/providers/devin/modelFamilyPresentation.tsx
 msgid "Main"
 msgstr "Model główny"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Make Poracode yours with a custom theme"
+msgstr "Dopasuj Poracode do siebie własnym motywem"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
@@ -12003,6 +12162,11 @@ msgstr "Nowy folder"
 #~ msgid "New folder name"
 #~ msgstr "Nazwa nowego folderu"
 
+#: src/renderer/components/newsLine/useDiscoveryItems.tsx
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "New in {version}"
+msgstr "Nowość w {version}"
+
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
 msgstr "Nowy wiersz"
@@ -12112,6 +12276,16 @@ msgstr "Nowe drzewo robocze"
 msgid "Newest first"
 msgstr "Najnowsze najpierw"
 
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "News"
+msgstr "Wiadomości"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "News line"
+msgstr "Pasek wiadomości"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Next"
 msgstr "Dalej"
@@ -12135,6 +12309,10 @@ msgstr "Następne dopasowanie"
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Next page"
 #~ msgstr "Następna strona"
+
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "Next point"
+msgstr "Następny punkt"
 
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
@@ -13058,6 +13236,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "Możesz edytować tylko własne komentarze w tym pull requeście."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/utils/prStatus.ts
@@ -13085,6 +13264,10 @@ msgstr "Otwórz {location} w zmianach"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "Otwórz nową kartę przeglądarki"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Open a new thread side by side"
+msgstr "Otwórz nowy wątek obok"
 
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
@@ -13225,6 +13408,10 @@ msgstr "Otwórz folder"
 msgid "Open fullscreen"
 msgstr "Otwórz pełny ekran"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Open Git"
+msgstr "Otwórz Git"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Open Git panel"
 msgstr "Otwórz panel Git"
@@ -13361,6 +13548,7 @@ msgstr "Otwórz podgląd"
 msgid "Open Project Settings"
 msgstr "Otwórz Ustawienia projektu"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 msgid "Open pull requests"
 msgstr "Otwarte żądania ściągnięcia"
@@ -13433,6 +13621,14 @@ msgstr "Otwórz terminal"
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Open terminal in worktree"
 msgstr "Otwórz terminal w worktree"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Open the browser"
+msgstr "Otwórz przeglądarkę"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Open the built-in browser next to your chat"
+msgstr "Otwórz wbudowaną przeglądarkę obok czatu"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Open the conversation to continue this run."
@@ -13695,6 +13891,10 @@ msgstr "Sparuj połączenie"
 msgid "Pair a desktop from Connections to forward its ports."
 msgstr "Sparuj komputer w sekcji Połączenia, aby przekierowywać jego porty."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Pair a phone"
+msgstr "Sparuj telefon"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Sparuj telefon, tablet lub przeglądarkę z tym komputerem."
@@ -13944,6 +14144,10 @@ msgstr "Wstrzymaj pobieranie"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "Wstrzymaj cel"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Pause news"
+msgstr "Wstrzymaj wiadomości"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
@@ -14239,6 +14443,10 @@ msgstr "Wtyczki"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "Wtyczki wykonują kod z uprawnieniami Twojego konta. Instaluj pakiety zaufanych autorów."
 
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "Point {position} of {total} in {version}"
+msgstr "Punkt {position} z {total} w {version}"
+
 #: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Skieruj aparat na kod QR w Ustawienia → Dostęp zdalny"
@@ -14327,6 +14535,10 @@ msgstr "Poracode Helper zwrócił nieprawidłową odpowiedź."
 msgid "Poracode is connected to another browser."
 msgstr "Poracode jest połączony z inną przeglądarką."
 
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
+msgid "Poracode just passed {count} stars on GitHub"
+msgstr "Poracode właśnie przekroczył {count} gwiazdek na GitHubie"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode może czekać na zapisane dane lub usługę działającą w tle. Możesz czekać dalej, uruchomić aplikację ponownie lub zainstalować dostępną aktualizację."
@@ -14334,6 +14546,10 @@ msgstr "Poracode może czekać na zapisane dane lub usługę działającą w tle
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #~ msgid "Poracode never runs the suggestion — inserting only fills the composer for you to edit and send."
 #~ msgstr "Poracode nigdy nie wykonuje sugestii — wstawienie tylko wypełnia kompozytor, abyś mógł ją edytować i wysłać."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Poracode on X"
+msgstr "Poracode na X"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -14561,6 +14777,10 @@ msgstr "Podgląd"
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
 msgstr "Podgląd {0}"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Previous"
+msgstr "Poprzedni"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
 msgid "Previous category"
@@ -15465,6 +15685,14 @@ msgstr "Odświeżanie stanu uwierzytelnienia {env} {0}."
 msgid "Relationship diagram"
 msgstr "Diagram relacji"
 
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "Release note"
+msgstr "Informacja o wersji"
+
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Release notes and tips, first on X"
+msgstr "Informacje o wersjach i porady, najpierw na X"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -16080,6 +16308,10 @@ msgstr "Przywróć domyślne"
 msgid "Reset zoom"
 msgstr "Zresetuj powiększenie"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "resets in {countdown}"
+msgstr "reset za {countdown}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "Zmień rozmiar szuflady przeglądarki"
@@ -16221,6 +16453,10 @@ msgstr "Wznów pobieranie"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Wznów cel"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Resume news"
+msgstr "Wznów wiadomości"
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
@@ -16419,6 +16655,10 @@ msgstr "Sprawdź {0}"
 msgid "Review {0} from {1}"
 msgstr "Sprawdź {0} ze źródła {1}"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Review and merge pull requests without leaving Poracode"
+msgstr "Przeglądaj i scalaj pull requesty bez wychodzenia z Poracode"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
 msgstr "Przegląd i Sumaryzator to jedyne główne typy agentów, które akceptuje CLI Devina. Natywne persony to definicje podagentów w plikach samego Devina — nie można ich wybrać tutaj."
@@ -16522,6 +16762,10 @@ msgstr "Recenzja została wysłana"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Review update"
 msgstr "Sprawdź aktualizację"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Review your changes in the Git panel"
+msgstr "Przejrzyj zmiany w panelu Git"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Review, manually test, fix, commit, push, create a PR, and merge after checks pass."
@@ -16685,6 +16929,14 @@ msgstr "Akcje uruchomienia"
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Run again"
 msgstr "Uruchom ponownie"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Run agents on a schedule, like a nightly test fix"
+msgstr "Uruchamiaj agentów według harmonogramu, np. nocne poprawki testów"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Run any command from the command palette"
+msgstr "Uruchom dowolne polecenie z palety poleceń"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -17393,6 +17645,10 @@ msgstr "Bezpieczeństwo"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Katalog ukierunkowany na bezpieczeństwo ze zweryfikowanymi metadanymi skilli."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "See how"
+msgstr "Zobacz jak"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Zobacz więcej"
@@ -17660,6 +17916,10 @@ msgstr "Ustaw kolor grupy"
 msgid "Set in Poracode."
 msgstr "Ustawiono w Poracode."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Set it up"
+msgstr "Skonfiguruj"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Set location"
 msgstr "Ustaw lokalizację"
@@ -17679,6 +17939,10 @@ msgstr "Ustaw skrót"
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Set up Hex…"
 msgstr "Skonfiguruj Hex…"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Set up voice"
+msgstr "Skonfiguruj głos"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Set when this session started — start a new thread to change MCP servers"
@@ -17919,6 +18183,10 @@ msgstr "Pokaż mniej"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "Pokaż serwery MCP z {providerLabel}"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Show me"
+msgstr "Pokaż"
+
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -17949,6 +18217,10 @@ msgstr "Pokaż lub ukryj panel przeglądarki"
 #: src/renderer/commands/registry.ts
 msgid "Show or hide the sidebar"
 msgstr "Pokaż lub ukryj pasek boczny"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Show or hide the terminal panel"
+msgstr "Pokaż lub ukryj panel terminala"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
@@ -17997,6 +18269,11 @@ msgstr "Pokaż przycisk mikrofonu w kompozytorze."
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Show thread tools"
 msgstr "Pokaż narzędzia wątku"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show updates, tips, and community links below the new-thread composer."
+msgstr "Pokazuj nowości, porady i linki społeczności pod polem tworzenia nowego wątku."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -18552,6 +18829,10 @@ msgstr "Przygotowane"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Staged ({0})"
 msgstr "Przygotowane ({0})"
+
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Star on GitHub"
+msgstr "Daj gwiazdkę na GitHubie"
 
 #: src/renderer/commands/registry.ts
 msgid "Star or unstar the current chat or model"
@@ -19250,6 +19531,10 @@ msgstr "Dane wyjściowe zadania"
 msgid "Task tags"
 msgstr "Tagi zadań"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Teach your agents reusable procedures with skills"
+msgstr "Naucz agentów powtarzalnych procedur dzięki umiejętnościom"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Teal"
 msgstr "Morski"
@@ -19376,6 +19661,10 @@ msgstr "Dyktando testowe"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Przetestuj mikrofon"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Test web apps with agents in the built-in browser"
+msgstr "Testuj aplikacje webowe z agentami we wbudowanej przeglądarce"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Tester"
@@ -21000,6 +21289,10 @@ msgstr "Wyzwalacze:"
 #~ msgid "Trust and connect"
 #~ msgstr "Zaufaj i połącz"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Try a crew"
+msgstr "Wypróbuj ekipę"
+
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Try a different search or project filter."
 #~ msgstr "Spróbuj innego wyszukiwania lub filtra projektu."
@@ -21007,6 +21300,10 @@ msgstr "Wyzwalacze:"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Try different keywords or choose a category."
 msgstr "Spróbuj innych słów kluczowych lub wybierz kategorię."
+
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Try it"
+msgstr "Wypróbuj"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Try now"
@@ -21993,6 +22290,7 @@ msgstr "URL lub głęboki link"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
@@ -22343,6 +22641,10 @@ msgstr "Tylko podgląd"
 msgid "View options"
 msgstr "Opcje widoku"
 
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "View profile"
+msgstr "Zobacz profil"
+
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "View raw"
 msgstr "Wyświetl surowy tekst"
@@ -22678,6 +22980,7 @@ msgid "What would you like to see?"
 msgstr "Co chcesz zobaczyć?"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "What's New"
@@ -23066,6 +23369,10 @@ msgstr "Masz nieukończoną recenzję na hoście źródłowym. Prześlij ją lub
 msgid "You’re all caught up."
 msgstr "Wszystko gotowe."
 
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "You're most active around {hourLabel}"
+msgstr "Najaktywniejszy jesteś około {hourLabel}"
+
 #: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 msgid "You're on the latest version"
 msgstr "Masz najnowszą wersję"
@@ -23097,6 +23404,10 @@ msgstr "Twoje lokalne zmiany są zapisane w skrytce i zostaną ponownie zastosow
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "Twoje lokalne zmiany zostały zapisane w skrytce i zostaną ponownie zastosowane po rozwiązaniu scalania."
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "Your longest task ran {duration}"
+msgstr "Twoje najdłuższe zadanie trwało {duration}"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."

@@ -621,6 +621,17 @@ final class RichChatPresentationTests: XCTestCase {
     XCTAssertEqual(fallback.providerID, "codex")
   }
 
+  func testCursorUsageRingsShowTheSharedWeeklyPool() {
+    for providerID in ["cursor", "cursor:work"] {
+      let presentation = RichChatProviderUsagePresentation(
+        providerID: providerID,
+        label: "Cursor",
+        snapshot: providerUsageSnapshot(providerID, percent: 9)
+      )
+      XCTAssertEqual(presentation.rings, RichChatUsageRings(outerPercent: 9, innerPercent: nil))
+    }
+  }
+
   private func providerUsageSnapshot(
     _ providerID: String,
     percent: Double

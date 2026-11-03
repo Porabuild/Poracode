@@ -155,6 +155,28 @@ describe("shared settings defaults", () => {
     });
   });
 
+  it("shows the news line with no dismissed promotions for pre-news-line settings", () => {
+    const prior = { sidebarTranslucency: false, homeScopeEnabled: false };
+    expect(normalizeSharedSettings(prior)).toMatchObject({
+      ...prior,
+      newsLineEnabled: true,
+      newsLineActivity: true,
+      dismissedPromotions: [],
+    });
+  });
+
+  it("keeps promotion ids written by a newer app and resets only a malformed list", () => {
+    const saved = {
+      newsLineEnabled: false,
+      dismissedPromotions: ["github-star", "future-promotion"],
+    };
+    expect(normalizeSharedSettings(saved)).toMatchObject(saved);
+    expect(
+      normalizeSharedSettings({ dismissedPromotions: "github-star" }).dismissedPromotions,
+    ).toEqual([]);
+    expect(normalizeSharedSettings({ newsLineActivity: "no" }).newsLineActivity).toBe(true);
+  });
+
   it("defaults absent or malformed font preferences while retaining saved family names", () => {
     expect(normalizeSharedSettings({ agentTerminalFontSize: 16 }).terminalFontFamily).toBe("");
     expect(normalizeSharedSettings({ terminalFontFamily: 123 }).terminalFontFamily).toBe("");

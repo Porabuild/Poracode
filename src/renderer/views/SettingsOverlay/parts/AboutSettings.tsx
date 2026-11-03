@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CREATOR_X_URL, PORACODE_REPO_URL, PORACODE_X_URL } from "@/shared/communityLinks";
 import { Button, toast } from "@heroui/react";
 import { Download, ExternalLink, RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -12,7 +13,6 @@ import { SettingRow, SettingsPage } from "./SettingsForm";
 import appIconStableUrl from "../../../../../build/icon.png";
 import appIconNightlyUrl from "../../../../../build/icon-nightly.png";
 
-const GITHUB_REPO = "https://github.com/Porabuild/Poracode";
 const WEBSITE_URL = "https://poracode.com/";
 const currentYear = new Date().getFullYear();
 
@@ -225,19 +225,27 @@ export function AboutSettings() {
             <Trans comment="External link to the product website">Website</Trans>
           </AboutLink>
           <br />
-          <AboutLink href={GITHUB_REPO}>
+          <AboutLink href={PORACODE_REPO_URL}>
             <Trans>GitHub Repository</Trans>
           </AboutLink>
           <br />
-          <AboutLink href={`${GITHUB_REPO}/releases`}>
+          <AboutLink href={PORACODE_X_URL}>
+            <Trans>Poracode on X</Trans>
+          </AboutLink>
+          <br />
+          <AboutLink href={CREATOR_X_URL}>
+            <Trans>Creator on X</Trans>
+          </AboutLink>
+          <br />
+          <AboutLink href={`${PORACODE_REPO_URL}/releases`}>
             <Trans comment="Link to the list of release notes">Changelog</Trans>
           </AboutLink>
           <br />
-          <AboutLink href={`${GITHUB_REPO}/issues`}>
+          <AboutLink href={`${PORACODE_REPO_URL}/issues`}>
             <Trans>Report an Issue</Trans>
           </AboutLink>
           <br />
-          <AboutLink href={`${GITHUB_REPO}/blob/master/LICENSE`}>
+          <AboutLink href={`${PORACODE_REPO_URL}/blob/master/LICENSE`}>
             <Trans comment="Link to the license file">License</Trans>
           </AboutLink>
         </div>

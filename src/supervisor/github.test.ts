@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
 
 const execFileAsyncMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<{ stdout: string }>>(),
@@ -502,6 +503,16 @@ describe("GitHubService", () => {
   });
 
   describe("listPrs", () => {
+    it("preserves the underlying command's exit code through its user-facing wrapper", async () => {
+      const original = Object.assign(
+        new Error("Command failed: gh private-command\nprivate-stderr"),
+        { code: 9 },
+      );
+      execFileAsyncMock.mockRejectedValue(original);
+      await expect(new GitHubService().listPrs(location)).rejects.toMatchObject({
+        cause: original,
+      });
+    });
     it("keys PRs by head branch and maps PR data", async () => {
       const prJson = JSON.stringify([
         {
@@ -1386,6 +1397,26 @@ describe("GitHubService", () => {
   });
 
   describe("getPrForBranch with rollup", () => {
+    it("preserves WSL exit status and signal through polling error classification", async () => {
+      const service = new GitHubService();
+      const processBatch = vi.fn<
+        () => Promise<{ results: import("./wsl/bridge/client").WslProcessExecResult[] }>
+      >(async () => ({
+        results: [
+          { ok: false, exitCode: 9, signal: "SIGTERM", stdout: "", stderr: "request failed" },
+        ],
+      }));
+      service.setWslClient({ processBatch } as never);
+      const failure = await service
+        .getPrForBranch(wslLocation, "feature")
+        .catch((error: unknown) => error);
+      expect(buildErrorCauseTags(failure)).toMatchObject({
+        "poracode.cause_reason": "signal",
+        "poracode.exit_code": "9",
+        "poracode.signal": "SIGTERM",
+      });
+    });
+
     it("preserves WSL authentication stderr for classification", async () => {
       const service = new GitHubService();
       const processBatch = vi.fn<

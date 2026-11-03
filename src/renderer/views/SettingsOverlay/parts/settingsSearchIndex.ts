@@ -75,6 +75,21 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "general",
+    anchor: "general.newsLine",
+    title: msg`News line`,
+    description: msg`Show updates, tips, and community links below the new-thread composer.`,
+    keywords: "news changelog updates tips promotion github star x twitter follow ticker",
+  },
+  {
+    section: "general",
+    anchor: "general.newsLineActivity",
+    title: msg`Activity highlights`,
+    description: msg`Include your streaks, prompt counts, and usage limits in the news line.`,
+    keywords: "news insights stats streak prompts usage limits personal",
+    conditional: true,
+  },
+  {
+    section: "general",
     anchor: "general.sidebarShortcuts",
     title: msg`Sidebar shortcuts`,
     description: msg`Choose which shortcuts appear in the sidebar footer.`,

@@ -31,7 +31,13 @@ It is an object with a newest-first `releases` array. Do not invent fields:
       "title": "Short headline without the version number",
       "summary": "One or two sentences — the release's elevator pitch.",
       "changes": [
-        { "kind": "added", "label": "Projects", "text": "One complete, user-facing sentence." },
+        {
+          "kind": "added",
+          "label": "Projects",
+          "text": "One complete, user-facing sentence.",
+          "headline": "Short line for the news line",
+          "feature": "workspaces"
+        },
         { "kind": "fixed", "text": "A mixed-scope fix that needs no label." }
       ]
     }
@@ -40,7 +46,9 @@ It is an object with a newest-first `releases` array. Do not invent fields:
 ```
 
 `kind` is `added` | `improved` | `fixed`. `label` is an optional short product
-prefix. Release-note text stays English; only the surrounding app UI is
+prefix. `headline` is an optional one-line summary of `text` (70 characters or
+fewer) that the new-thread news line shows instead of the full sentence; older
+apps ignore it. `feature` is an optional discovery feature id (see below). Release-note text stays English; only the surrounding app UI is
 localized.
 
 ## 1. Gather evidence
@@ -128,6 +136,13 @@ the range adds it.
   roughly 6–14 bullets for a major or busy patch, 2–5 for a small hotfix.
   Folding related commits is distillation; dropping discoverability work because
   a bigger headline exists is not.
+- **feature:** on the `added` change that introduces a feature with a news line
+  discovery entry, set its id from `src/shared/featureDiscovery.ts`. The app
+  promotes it as new for 30 days to people who have not used it. If the feature
+  has no entry yet, add one first (`news-line` skill).
+- **headline:** write one for every change: the user benefit in 70 characters
+  or fewer, sentence case, no trailing period, and without repeating the
+  `label`, which renders beside it.
 - **label:** only when the whole sentence belongs to one obvious surface
   (`Remote`, `Claude`, `Plugins`, `Security`); omit it for mixed or uncertain
   scope. Labeled and unlabeled changes can mix.

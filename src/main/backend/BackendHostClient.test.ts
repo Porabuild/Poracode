@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { serializeBackendDiagnosticError } from "@/shared/diagnostics/backendDiagnosticError";
 import type { DesktopHostControlGrant } from "@/shared/desktopHostControl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -378,6 +379,31 @@ describe("BackendHostClient", () => {
     expect(onReset).toHaveBeenCalledOnce();
     expect(reportError).toHaveBeenCalledWith(
       expect.objectContaining({ message: "worker warning" }),
+      undefined,
+    );
+  });
+
+  it("reports safe backend source coordinates rather than the receiver's stack", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client, reportError } = createClient();
+    await startClient(client, child);
+    const source = Object.assign(new TypeError("private"), { code: "ENOSPC" });
+    source.stack = "TypeError: private\n    at /private/backendHost.cjs:123:4";
+    child.emit("message", {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "error",
+      message: "Backend operation failed.",
+      diagnostic: serializeBackendDiagnosticError(source),
+    });
+    expect(reportError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        stack: "Error: Backend operation failed.\n    at backendHost.cjs:123:4",
+        diagnosticCause: expect.objectContaining({
+          "poracode.cause_code": "ENOSPC",
+          "poracode.cause_type": "type-error",
+        }),
+      }),
       undefined,
     );
   });

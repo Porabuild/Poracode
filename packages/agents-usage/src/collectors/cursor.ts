@@ -17,6 +17,10 @@ import type { UsageSnapshot, UsageWindow } from "../types";
  */
 
 export const CURSOR_USAGE_ENDPOINT = "https://cursor.com/api/usage-summary";
+export const CURSOR_SHARED_USAGE_ENDPOINT =
+  "https://cursor.com/api/dashboard/get-sand-usage-status";
+export const CURSOR_BILLING_USAGE_ENDPOINT =
+  "https://cursor.com/api/dashboard/v2/usage-status?scope=user";
 /**
  * cursor-agent exchanges a User API key (`crsr_…`) for a short-lived session
  * JWT through this endpoint, then reads DashboardService over api2. Cursor
@@ -70,7 +74,32 @@ const MEMBERSHIP_LABELS: Record<string, string> = {
   business: "Cursor Business",
   team: "Cursor Team",
   enterprise: "Cursor Enterprise",
+  plus: "Cursor Plus",
+  premium: "Cursor Premium",
+  super: "Cursor Super",
+  unified_plus: "Cursor Plus",
+  unified_premium: "Cursor Premium",
+  unified_super: "Cursor Super",
+  unified_ultra: "Cursor Ultra",
 };
+
+interface CursorSharedUsage {
+  isUnified?: boolean;
+  usagePercent?: number;
+  hasNonZeroIncludedLimit?: boolean;
+  includedLimitZero?: boolean;
+  nextResetTimestampUtc?: string;
+}
+
+interface CursorBillingUsage {
+  availability?: string;
+  monthlyUsage?: {
+    usedCents?: number;
+    limitCents?: number | null;
+    periodStart?: string;
+    resetsAt?: string;
+  };
+}
 
 function centsToUsd(value: number | undefined): number | undefined {
   if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
@@ -153,6 +182,7 @@ export function parseCursorUsage(
   body: unknown,
   account: { plan?: string; email?: string },
   nowMs: number,
+  additional?: { shared?: unknown; billing?: unknown },
 ): UsageSnapshot {
   const summary = (body ?? {}) as CursorUsageSummary;
   const plan = summary.individualUsage?.plan ?? {};
@@ -164,6 +194,80 @@ export function parseCursorUsage(
     account.plan;
 
   const windows: UsageWindow[] = [];
+  const shared = additional?.shared as CursorSharedUsage | undefined;
+  // Ultra exists on both billing systems; the shared-pool flag distinguishes it.
+  const unified =
+    shared?.isUnified === true ||
+    /^(?:unified_|plus$|premium$|super$)/i.test(
+      membership ?? account.plan?.replace(/^Cursor /, "") ?? "",
+    );
+
+  if (unified) {
+    const percent = clampPercent(shared?.usagePercent);
+    const reset = toResetMs(shared?.nextResetTimestampUtc);
+    const hasLimit =
+      shared?.includedLimitZero === undefined
+        ? shared?.hasNonZeroIncludedLimit
+        : !shared.includedLimitZero;
+    if (percent !== undefined && hasLimit === true && reset !== undefined && reset > nowMs) {
+      windows.push({
+        id: "weekly",
+        label: "Weekly",
+        usedPercent: percent,
+        unit: "percent",
+        resetsAt: reset,
+      });
+    }
+    const billing = additional?.billing as CursorBillingUsage | undefined;
+    const monthly = billing?.monthlyUsage;
+    let cost: UsageSnapshot["cost"];
+    const used =
+      typeof monthly?.usedCents === "number" && monthly.usedCents >= 0
+        ? centsToUsd(monthly.usedCents)
+        : undefined;
+    const limit =
+      typeof monthly?.limitCents === "number" && monthly.limitCents >= 0
+        ? centsToUsd(monthly.limitCents)
+        : undefined;
+    const start = toResetMs(monthly?.periodStart);
+    const end = toResetMs(monthly?.resetsAt);
+    if (
+      billing?.availability === "available" &&
+      used !== undefined &&
+      start !== undefined &&
+      start <= nowMs &&
+      end !== undefined &&
+      end > nowMs &&
+      (used > 0 || (limit ?? 0) > 0)
+    ) {
+      if (limit !== undefined && limit > 0) {
+        windows.push({
+          id: "extra-usage",
+          label: "Extra usage",
+          unit: "usd",
+          currency: "USD",
+          used,
+          limit,
+          usedPercent: Math.min(100, (used / limit) * 100),
+          resetsAt: end,
+        });
+      } else {
+        cost = { amount: used, currency: "USD", period: "cycle", estimated: false };
+      }
+    }
+    return {
+      providerId: "cursor",
+      status: windows.some((w) => w.id === "weekly") ? "ok" : "error",
+      windows,
+      fetchedAt: nowMs,
+      ...(cost ? { cost } : {}),
+      ...(!windows.some((w) => w.id === "weekly")
+        ? { error: "Shared weekly usage unavailable" }
+        : {}),
+      ...(planName ? { plan: planName } : {}),
+      ...(account.email ? { authenticatedAs: account.email } : {}),
+    };
+  }
 
   const autoPercent = clampPercent(plan.autoPercentUsed);
   if (autoPercent !== undefined) {
@@ -280,7 +384,39 @@ export async function collectCursor(
     ...(token.subscriptionType ? { plan: token.subscriptionType } : {}),
     ...(typeof token.raw?.email === "string" ? { email: token.raw.email } : {}),
   };
-  return parseCursorUsage(parsed, account, now);
+  const additional = await collectCursorAdditionalUsage(host, cookieValue);
+  return parseCursorUsage(parsed, account, now, additional);
+}
+
+/** Optional dashboard reads use the same account as the primary usage request. */
+async function collectCursorAdditionalUsage(
+  host: HostPort,
+  cookieValue: string,
+): Promise<{ shared?: unknown; billing?: unknown }> {
+  async function read(url: string, method: "GET" | "POST"): Promise<unknown> {
+    try {
+      const res = await host.http.request({
+        url,
+        method,
+        headers: {
+          Cookie: `WorkosCursorSessionToken=${cookieValue}`,
+          "Content-Type": "application/json",
+          Origin: "https://cursor.com",
+        },
+        ...(method === "POST" ? { body: "{}" } : {}),
+        timeoutMs: 5_000,
+      });
+      return res.status >= 200 && res.status < 300 ? JSON.parse(res.body) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  const shared = await read(CURSOR_SHARED_USAGE_ENDPOINT, "POST");
+  const billing =
+    (shared as CursorSharedUsage | undefined)?.isUnified === true
+      ? await read(CURSOR_BILLING_USAGE_ENDPOINT, "GET")
+      : undefined;
+  return { shared, billing };
 }
 
 interface CursorPeriodPlanUsage {
@@ -312,6 +448,7 @@ export function parseCursorPeriodUsage(
   nowMs: number,
   providerId = "cursor",
   includedAmountCents?: number,
+  additional?: { shared?: unknown; billing?: unknown },
 ): UsageSnapshot {
   const period = (body ?? {}) as CursorPeriodUsage;
   const plan = period.planUsage ?? {};
@@ -336,22 +473,24 @@ export function parseCursorPeriodUsage(
     },
     account,
     nowMs,
+    additional,
   );
   return { ...snapshot, providerId };
 }
 
-function emailFromJwt(accessToken: string): string | undefined {
+function accountFromJwt(accessToken: string): { email?: string; userId?: string } {
   const payload = accessToken.split(".")[1];
-  if (!payload) return undefined;
+  if (!payload) return {};
   try {
     const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
       email?: unknown;
+      sub?: unknown;
     };
-    return typeof claims.email === "string" && claims.email.trim()
-      ? claims.email.trim()
-      : undefined;
+    const email = typeof claims.email === "string" ? claims.email.trim() : undefined;
+    const userId = typeof claims.sub === "string" ? claims.sub.split("|").pop()?.trim() : undefined;
+    return { ...(email ? { email } : {}), ...(userId ? { userId } : {}) };
   } catch {
-    return undefined;
+    return {};
   }
 }
 
@@ -502,7 +641,11 @@ async function collectCursorFromApiKeyUnchecked(
     }
   }
 
-  const email = emailFromJwt(accessToken);
+  const { email, userId } = accountFromJwt(accessToken);
+  const cookieValue = userId ? `${encodeURIComponent(userId)}%3A%3A${accessToken}` : undefined;
+  const additional = cookieValue
+    ? await collectCursorAdditionalUsage(host, cookieValue)
+    : undefined;
   return parseCursorPeriodUsage(
     usageBody,
     {
@@ -512,5 +655,6 @@ async function collectCursorFromApiKeyUnchecked(
     now,
     providerId,
     includedAmountCents,
+    additional,
   );
 }

@@ -276,7 +276,7 @@ export function classifyError(error: unknown, operation: string): Error {
     );
   }
 
-  return new Error(`gh ${operation} failed: ${msg}`);
+  return new Error(`gh ${operation} failed: ${msg}`, { cause: error });
 }
 
 interface RunGhOptions {

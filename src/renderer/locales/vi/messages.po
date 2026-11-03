@@ -562,6 +562,14 @@ msgstr "{commentCount, plural, other {# bình luận}}"
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {# tác nhân đã tìm thấy} other {# tác nhân đã tìm thấy}}"
 
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
+msgstr "{current, plural, other {# ngày}} liên tiếp · kỷ lục của bạn là {longest}"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
+msgstr "{current, plural, other {# ngày}} liên tiếp · chuỗi dài nhất của bạn"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -633,6 +641,10 @@ msgstr "{imported, plural, one {Đã nhập # phiên.} other {Đã nhập # phi�
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 #~ msgstr "{installedCount, plural, one {# tác nhân đã sẵn sàng} other {# tác nhân đã sẵn sàng}}"
+
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
+msgid "{issues, plural, one {# good first issue is} other {# good first issues are}} open. Want to contribute?"
+msgstr "{issues, plural, other {Đang có # issue dành cho người mới}}. Bạn muốn đóng góp không?"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{judgeLabel} is comparing the anonymized diffs…"
@@ -742,6 +754,10 @@ msgstr "Đã đạt {passed} trên {0} kiểm tra"
 msgid "{percent}% full"
 msgstr "{percent}% đầy"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "{percent}% used"
+msgstr "Đã dùng {percent}%"
+
 #. placeholder {0}: bridge.appVersion
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "{productName} was updated to v{0}."
@@ -754,6 +770,14 @@ msgstr "{projectLocation} (bị vô hiệu hóa)"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
 msgstr "Cài đặt {projectName}"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
+msgstr "{prompts, plural, other {# prompt}} tuần này"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
+msgstr "{prompts, plural, other {# prompt}} tuần này · hoạt động nhiều nhất vào {weekday}"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -986,6 +1010,10 @@ msgstr "<0/> đã bắt đầu một luồng đánh giá"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "<0/>% Full"
 msgstr "<0/>% Đầy"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "<0>{label}</0> handles {percent}% of your prompts"
+msgstr "<0>{label}</0> xử lý {percent}% prompt của bạn"
 
 #. placeholder {0}: checks.length
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
@@ -1320,6 +1348,11 @@ msgstr "Chuyển tiếp đang hoạt động"
 msgid "Activity"
 msgstr "Hoạt động"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Activity highlights"
+msgstr "Điểm nổi bật về hoạt động"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Activity insights"
 msgstr "Phân tích hoạt động"
@@ -1399,6 +1432,10 @@ msgstr "Thêm dự án để sử dụng GitHub Actions."
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 msgid "Add a public Git repository or a local marketplace. Review supported components before installing."
 msgstr "Thêm kho Git công khai hoặc danh mục cục bộ. Xem các thành phần được hỗ trợ trước khi cài đặt."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Add a server"
+msgstr "Thêm máy chủ"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
@@ -1879,6 +1916,10 @@ msgstr "Tất cả dự án"
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 msgid "All pull requests"
 msgstr "Tất cả pull request"
+
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "All release notes"
+msgstr "Tất cả ghi chú phát hành"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -2704,6 +2745,10 @@ msgstr "Cơ bản (CLI)"
 msgid "Behind base"
 msgstr "Chậm hơn nhánh gốc"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Behind the scenes from the person building Poracode"
+msgstr "Hậu trường từ người xây dựng Poracode"
+
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Beta next-generation OpenCode runtime with native GUI sessions."
 msgstr "Runtime OpenCode thế hệ mới bản beta với các phiên GUI gốc."
@@ -2865,6 +2910,10 @@ msgstr "Chuyển mật khẩu và cookie đã lưu từ một trình duyệt đ�
 msgid "Bring Uncommitted Changes"
 msgstr "Mang theo các thay đổi chưa được cam kết"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Bring your existing CLI agent conversations into Poracode"
+msgstr "Đưa các cuộc trò chuyện với tác nhân CLI hiện có vào Poracode"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
 msgstr "Duyệt"
@@ -2878,9 +2927,14 @@ msgstr "Khám phá hệ sinh thái"
 msgid "Browse for parent folder"
 msgstr "Duyệt tìm thư mục mẹ"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Browse plugins"
 msgstr "Duyệt plugin"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Browse skills"
+msgstr "Duyệt skill"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Browse your GitHub repositories or paste a clone URL."
@@ -3242,6 +3296,10 @@ msgstr "Điều khiển chụp và xem"
 msgid "Capture audio from this device."
 msgstr "Ghi lại âm thanh từ thiết bị này."
 
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "carousel"
+msgstr "băng chuyền"
+
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -3438,6 +3496,10 @@ msgstr "Kiểm tra các bản cập nhật"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "Kiểm tra tiến độ gần đây của tôi và đưa ra một đề xuất cụ thể về việc cần làm tiếp theo."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Check on your agents from your phone"
+msgstr "Theo dõi các tác nhân từ điện thoại"
 
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrCheckoutMenu.tsx
@@ -3897,6 +3959,7 @@ msgstr "Nhân bản…"
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
@@ -4733,6 +4796,10 @@ msgstr "Kết nối"
 #~ msgid "Connect a server"
 #~ msgstr "Kết nối máy chủ"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Connect agents to your own tools with MCP servers"
+msgstr "Kết nối tác nhân với công cụ của bạn qua máy chủ MCP"
+
 #: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
@@ -5407,13 +5474,25 @@ msgstr "Tạo"
 msgid "Create a pull request for candidate {0} ({label})"
 msgstr "Tạo pull request cho ứng viên {0} ({label})"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Create a schedule"
+msgstr "Tạo lịch biểu"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Create a second Cursor account with its own User API key. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
 msgstr "Tạo tài khoản Cursor thứ hai với khóa API người dùng riêng. Cursor CLI và ACP dùng chung một lần đăng nhập trên máy, nên chúng ở lại ô Cursor chính."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Create a theme"
+msgstr "Tạo chủ đề"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "Tạo một quy trình hữu ích chỉ với một lần nhấp, sau đó điều chỉnh bất cứ lúc nào."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Create a workspace"
+msgstr "Tạo không gian làm việc"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 msgid "Create custom theme"
@@ -5521,6 +5600,10 @@ msgstr "Đang tạo PR…"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Creating worktree…"
 msgstr "Đang tạo cây làm việc…"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Creator on X"
+msgstr "Nhà phát triển trên X"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Credential missing"
@@ -6511,6 +6594,10 @@ msgstr "Devin đề xuất một lệnh đã sửa; bạn xem xét nó trước 
 msgid "Devin's own login (default)"
 msgstr "Đăng nhập riêng của Devin (mặc định)"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Dictate prompts instead of typing them"
+msgstr "Đọc prompt thay vì gõ"
+
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
@@ -7269,6 +7356,10 @@ msgstr "Nhận dạng giọng nói tiếng Anh."
 msgid "Enhanced (Hooks)"
 msgstr "Tăng cường (Móc)"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Enjoying Poracode? A star helps others find it"
+msgstr "Bạn thích Poracode? Một ngôi sao giúp người khác tìm thấy nó"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Enter"
 msgstr "Enter"
@@ -7761,6 +7852,10 @@ msgstr "Xuất máy chủ MCP"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
 msgstr "Xuất giao diện"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Extend Poracode with plugins"
+msgstr "Mở rộng Poracode bằng plugin"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
@@ -8276,6 +8371,10 @@ msgstr "Đã sửa"
 msgid "Fixed delay"
 msgstr "Độ trễ cố định"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Fixed in {version}"
+msgstr "Đã sửa trong {version}"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Fixer"
 msgstr "Người sửa lỗi"
@@ -8330,6 +8429,12 @@ msgstr "Thư mục chứa tất cả các cây làm việc. Mẹo: một Dev Dri
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "Thư mục chứa các cây làm việc của dự án này. Đặt lại để dùng thiết lập toàn cục."
+
+#. placeholder {0}: "@poracode"
+#. placeholder {0}: "@serg_vecher"
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Follow {0}"
+msgstr "Theo dõi {0}"
 
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Follow up..."
@@ -8578,6 +8683,10 @@ msgstr "Nhận gợi ý"
 msgid "Get task"
 msgstr "Nhận nhiệm vụ"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Get the extension"
+msgstr "Tải tiện ích"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
@@ -8662,6 +8771,10 @@ msgstr "Sao GitHub"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Gitignored files to copy from the main project into each new worktree. Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
 msgstr "Các tệp được Gitignored để sao chép từ dự án chính vào từng cây làm việc mới. Các mẫu kiểu Gitignore, mỗi mẫu một dòng (ví dụ: <0>.env.*</0>)."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Give each thread its own worktree so agents never collide"
+msgstr "Cho mỗi luồng một cây làm việc riêng để các tác nhân không xung đột"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "GLM 5.2 (optional label)"
@@ -8789,6 +8902,10 @@ msgstr "Tên nhóm"
 msgid "Group open threads"
 msgstr "Nhóm chủ đề mở"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Group projects into workspaces, like work and side projects"
+msgstr "Nhóm dự án vào không gian làm việc, như công việc và dự án cá nhân"
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Nhóm các dự án để thanh bên, lịch biểu và pull request chỉ hiển thị một nhóm mỗi lần. Chuyển giữa chúng ở cuối thanh bên."
@@ -8841,6 +8958,10 @@ msgstr "Tải lại cứng"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
 msgid "Has unsent draft"
 msgstr "Có bản nháp chưa gửi"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Have one agent hand work to another with Crossagents"
+msgstr "Để một tác nhân chuyển việc cho tác nhân khác bằng Crossagents"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Headers"
@@ -9031,6 +9152,10 @@ msgstr "Ẩn tác vụ; chúng vẫn tiếp tục chạy"
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
 msgstr "Ẩn thiết bị đầu cuối"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Hide this"
+msgstr "Ẩn mục này"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
@@ -9278,6 +9403,7 @@ msgstr "Làm trọn tác vụ của mô hình chính và xác minh bằng bản 
 #~ msgstr "Làm trọn tác vụ của mô hình chính: sửa tệp, chạy build và kiểm thử, rồi báo những gì đã đổi."
 
 #. Settings section: import existing CLI sessions as threads
+#: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Import"
@@ -9427,6 +9553,10 @@ msgstr "Phiên được nhập chỉ đóng góp mức sử dụng đã ghi nh�
 msgid "Improved"
 msgstr "Cải thiện"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Improved in {version}"
+msgstr "Đã cải thiện trong {version}"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "In progress"
 msgstr "Đang chạy"
@@ -9456,6 +9586,11 @@ msgstr "Không hoạt động"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "Include in sync"
 msgstr "Thêm vào đồng bộ hóa"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include your streaks, prompt counts, and usage limits in the news line."
+msgstr "Hiển thị chuỗi ngày, số prompt và giới hạn sử dụng của bạn trong dòng tin tức."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Includes the first attempt."
@@ -9998,6 +10133,10 @@ msgstr "JSON"
 msgid "Judging…"
 msgstr "Đang đánh giá…"
 
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Jump to any file in your project"
+msgstr "Chuyển nhanh đến bất kỳ tệp nào trong dự án"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
 msgstr "Chuyển đến phần"
@@ -10298,9 +10437,25 @@ msgstr "ID kết nối cũ"
 msgid "Less"
 msgstr "Ít"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let agents use desktop apps in the background with Computer Use"
+msgstr "Để tác nhân dùng ứng dụng máy tính ở chế độ nền với Computer Use"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let agents work in your real Chrome with the Poracode extension"
+msgstr "Để tác nhân làm việc trong Chrome thật của bạn với tiện ích Poracode"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let an agent write your commit message and pull request"
+msgstr "Để tác nhân viết thông điệp commit và pull request cho bạn"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Let an AI judge compare the candidate changes."
 msgstr "Để AI đánh giá so sánh các thay đổi của ứng viên."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let several agents split one task with a crew"
+msgstr "Để nhiều tác nhân chia nhau một tác vụ theo nhóm"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the embedded page. Off by default — turn on only when you trust the loaded sites and the agent."
@@ -10764,6 +10919,10 @@ msgstr "macOS"
 #: src/renderer/components/providers/devin/modelFamilyPresentation.tsx
 msgid "Main"
 msgstr "Mô hình chính"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Make Poracode yours with a custom theme"
+msgstr "Biến Poracode thành của riêng bạn với chủ đề tùy chỉnh"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
@@ -12003,6 +12162,11 @@ msgstr "Thư mục mới"
 #~ msgid "New folder name"
 #~ msgstr "Tên thư mục mới"
 
+#: src/renderer/components/newsLine/useDiscoveryItems.tsx
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "New in {version}"
+msgstr "Mới trong {version}"
+
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
 msgstr "Dòng mới"
@@ -12112,6 +12276,16 @@ msgstr "Cây làm việc mới"
 msgid "Newest first"
 msgstr "Mới nhất trước"
 
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "News"
+msgstr "Tin tức"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "News line"
+msgstr "Dòng tin tức"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Next"
 msgstr "Tiếp"
@@ -12135,6 +12309,10 @@ msgstr "Kết quả tiếp theo"
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Next page"
 #~ msgstr "Trang tiếp theo"
+
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "Next point"
+msgstr "Mục tiếp theo"
 
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
@@ -13058,6 +13236,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "Bạn chỉ có thể sửa bình luận của mình trong yêu cầu hợp nhất này."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/utils/prStatus.ts
@@ -13085,6 +13264,10 @@ msgstr "Mở {location} trong thay đổi"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "Mở tab trình duyệt mới"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Open a new thread side by side"
+msgstr "Mở một luồng mới bên cạnh"
 
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
@@ -13225,6 +13408,10 @@ msgstr "Mở thư mục"
 msgid "Open fullscreen"
 msgstr "Mở toàn màn hình"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Open Git"
+msgstr "Mở Git"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Open Git panel"
 msgstr "Mở bảng Git"
@@ -13361,6 +13548,7 @@ msgstr "Mở xem trước"
 msgid "Open Project Settings"
 msgstr "Mở cài đặt dự án"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 msgid "Open pull requests"
 msgstr "Pull request đang mở"
@@ -13433,6 +13621,14 @@ msgstr "Mở terminal"
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Open terminal in worktree"
 msgstr "Mở terminal trong worktree"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Open the browser"
+msgstr "Mở trình duyệt"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Open the built-in browser next to your chat"
+msgstr "Mở trình duyệt tích hợp bên cạnh cuộc trò chuyện"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Open the conversation to continue this run."
@@ -13695,6 +13891,10 @@ msgstr "Ghép đôi một kết nối"
 msgid "Pair a desktop from Connections to forward its ports."
 msgstr "Ghép đôi một máy tính từ Kết nối để chuyển tiếp các cổng của nó."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Pair a phone"
+msgstr "Ghép nối điện thoại"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Ghép đôi điện thoại, máy tính bảng hoặc trình duyệt với máy tính này."
@@ -13944,6 +14144,10 @@ msgstr "Tạm dừng tải xuống"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "Tạm dừng mục tiêu"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Pause news"
+msgstr "Tạm dừng tin tức"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
@@ -14239,6 +14443,10 @@ msgstr "Plugin"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "Plugin thực thi mã với quyền truy cập của tài khoản bạn. Hãy cài gói từ tác giả đáng tin cậy."
 
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "Point {position} of {total} in {version}"
+msgstr "Mục {position}/{total} trong {version}"
+
 #: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Hướng vào mã QR trong Cài đặt → Truy cập từ xa"
@@ -14327,6 +14535,10 @@ msgstr "Poracode Helper đã trả về phản hồi không hợp lệ."
 msgid "Poracode is connected to another browser."
 msgstr "Poracode đang kết nối với một trình duyệt khác."
 
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
+msgid "Poracode just passed {count} stars on GitHub"
+msgstr "Poracode vừa vượt mốc {count} sao trên GitHub"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode có thể đang chờ dữ liệu đã lưu hoặc một dịch vụ nền. Bạn có thể tiếp tục chờ, khởi động lại hoặc cài đặt bản cập nhật hiện có."
@@ -14334,6 +14546,10 @@ msgstr "Poracode có thể đang chờ dữ liệu đã lưu hoặc một dịch
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #~ msgid "Poracode never runs the suggestion — inserting only fills the composer for you to edit and send."
 #~ msgstr "Poracode không bao giờ chạy gợi ý — chèn chỉ điền vào bộ soạn để bạn chỉnh sửa và gửi."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Poracode on X"
+msgstr "Poracode trên X"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -14561,6 +14777,10 @@ msgstr "Xem trước"
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
 msgstr "Xem trước {0}"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Previous"
+msgstr "Trước"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
 msgid "Previous category"
@@ -15465,6 +15685,14 @@ msgstr "Đang làm mới trạng thái xác thực {env} {0}."
 msgid "Relationship diagram"
 msgstr "Sơ đồ quan hệ"
 
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "Release note"
+msgstr "Ghi chú phát hành"
+
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Release notes and tips, first on X"
+msgstr "Ghi chú phát hành và mẹo, có trước trên X"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -16080,6 +16308,10 @@ msgstr "Đặt lại về mặc định"
 msgid "Reset zoom"
 msgstr "Đặt lại mức thu phóng"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "resets in {countdown}"
+msgstr "đặt lại sau {countdown}"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "Thay đổi kích thước ngăn trình duyệt"
@@ -16221,6 +16453,10 @@ msgstr "Tiếp tục tải xuống"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Tiếp tục mục tiêu"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Resume news"
+msgstr "Tiếp tục tin tức"
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
@@ -16419,6 +16655,10 @@ msgstr "Xem xét {0}"
 msgid "Review {0} from {1}"
 msgstr "Xem xét {0} từ {1}"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Review and merge pull requests without leaving Poracode"
+msgstr "Xem xét và hợp nhất pull request mà không rời Poracode"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
 msgstr "Xem lại và Tóm tắt là những loại tác nhân gốc duy nhất mà CLI của Devin chấp nhận. Persona gốc tùy chỉnh là định nghĩa tác nhân con được cấu hình trong tệp của chính Devin — không thể chọn ở đây."
@@ -16522,6 +16762,10 @@ msgstr "Đã gửi bài đánh giá"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Review update"
 msgstr "Xem xét bản cập nhật"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Review your changes in the Git panel"
+msgstr "Xem lại thay đổi trong bảng Git"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Review, manually test, fix, commit, push, create a PR, and merge after checks pass."
@@ -16685,6 +16929,14 @@ msgstr "Thao tác lượt chạy"
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Run again"
 msgstr "Chạy lại"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Run agents on a schedule, like a nightly test fix"
+msgstr "Chạy tác nhân theo lịch, như sửa kiểm thử hằng đêm"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Run any command from the command palette"
+msgstr "Chạy mọi lệnh từ bảng lệnh"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -17393,6 +17645,10 @@ msgstr "Bảo mật"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Danh mục tập trung vào bảo mật với siêu dữ liệu skill đã được xác minh."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "See how"
+msgstr "Xem cách làm"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Xem thêm"
@@ -17660,6 +17916,10 @@ msgstr "Đặt màu nhóm"
 msgid "Set in Poracode."
 msgstr "Đã đặt trong Poracode."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Set it up"
+msgstr "Thiết lập"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Set location"
 msgstr "Đặt vị trí"
@@ -17679,6 +17939,10 @@ msgstr "Đặt phím tắt"
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Set up Hex…"
 msgstr "Thiết lập Hex…"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Set up voice"
+msgstr "Thiết lập giọng nói"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Set when this session started — start a new thread to change MCP servers"
@@ -17919,6 +18183,10 @@ msgstr "Hiển thị ít hơn"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "Hiện máy chủ MCP từ {providerLabel}"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Show me"
+msgstr "Xem"
+
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -17949,6 +18217,10 @@ msgstr "Hiển thị hoặc ẩn bảng điều khiển trình duyệt"
 #: src/renderer/commands/registry.ts
 msgid "Show or hide the sidebar"
 msgstr "Hiển thị hoặc ẩn thanh bên"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Show or hide the terminal panel"
+msgstr "Hiện hoặc ẩn bảng terminal"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
@@ -17997,6 +18269,11 @@ msgstr "Hiển thị nút micrô trong trình soạn thảo."
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Show thread tools"
 msgstr "Hiện công cụ luồng"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show updates, tips, and community links below the new-thread composer."
+msgstr "Hiển thị cập nhật, mẹo và liên kết cộng đồng bên dưới ô soạn luồng mới."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -18552,6 +18829,10 @@ msgstr "Đã stage"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Staged ({0})"
 msgstr "Đã stage ({0})"
+
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Star on GitHub"
+msgstr "Gắn sao trên GitHub"
 
 #: src/renderer/commands/registry.ts
 msgid "Star or unstar the current chat or model"
@@ -19250,6 +19531,10 @@ msgstr "Đầu ra nhiệm vụ"
 msgid "Task tags"
 msgstr "Thẻ tác vụ"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Teach your agents reusable procedures with skills"
+msgstr "Dạy tác nhân các quy trình tái sử dụng bằng skill"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Teal"
 msgstr "Xanh mòng kỹ"
@@ -19376,6 +19661,10 @@ msgstr "Kiểm tra chính tả"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Kiểm tra micrô"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Test web apps with agents in the built-in browser"
+msgstr "Kiểm thử ứng dụng web với tác nhân trong trình duyệt tích hợp"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Tester"
@@ -21000,6 +21289,10 @@ msgstr "Trình kích hoạt:"
 #~ msgid "Trust and connect"
 #~ msgstr "Tin cậy và kết nối"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Try a crew"
+msgstr "Thử một nhóm"
+
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Try a different search or project filter."
 #~ msgstr "Thử cụm tìm kiếm hoặc bộ lọc dự án khác."
@@ -21007,6 +21300,10 @@ msgstr "Trình kích hoạt:"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Try different keywords or choose a category."
 msgstr "Thử từ khóa khác hoặc chọn một danh mục."
+
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Try it"
+msgstr "Dùng thử"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Try now"
@@ -21993,6 +22290,7 @@ msgstr "URL hoặc liên kết sâu"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
@@ -22343,6 +22641,10 @@ msgstr "Chỉ xem"
 msgid "View options"
 msgstr "Tùy chọn xem"
 
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "View profile"
+msgstr "Xem hồ sơ"
+
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "View raw"
 msgstr "Xem văn bản thô"
@@ -22678,6 +22980,7 @@ msgid "What would you like to see?"
 msgstr "Bạn muốn thấy điều gì?"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "What's New"
@@ -23066,6 +23369,10 @@ msgstr "Bạn có một đánh giá chưa hoàn tất trên máy chủ nguồn. 
 msgid "You’re all caught up."
 msgstr "Bạn đã xem hết."
 
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "You're most active around {hourLabel}"
+msgstr "Bạn hoạt động nhiều nhất vào khoảng {hourLabel}"
+
 #: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 msgid "You're on the latest version"
 msgstr "Bạn đang dùng phiên bản mới nhất"
@@ -23097,6 +23404,10 @@ msgstr "Các thay đổi cục bộ của bạn đang được lưu trong stash 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "Các thay đổi cục bộ của bạn đã được lưu vào stash và sẽ được áp dụng lại sau khi hợp nhất được giải quyết."
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "Your longest task ran {duration}"
+msgstr "Tác vụ dài nhất của bạn chạy {duration}"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."
