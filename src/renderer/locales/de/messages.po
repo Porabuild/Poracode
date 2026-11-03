@@ -19232,6 +19232,12 @@ msgstr "Terminal für {projectName}"
 msgid "Terminal input"
 msgstr "Terminaleingabe"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
+msgid "Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again."
+msgstr "Terminaleingabe fehlgeschlagen. Einige Eingaben haben die Shell möglicherweise nicht erreicht. Öffne das Terminal erneut, bevor du weitertippst."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "Terminal nicht bereit – Auswahl zum Composer hinzugefügt."

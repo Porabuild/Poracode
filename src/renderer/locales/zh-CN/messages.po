@@ -19231,6 +19231,12 @@ msgstr "{projectName}的终端"
 msgid "Terminal input"
 msgstr "终端输入"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
+msgid "Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again."
+msgstr "终端输入失败。部分输入可能未到达 shell。请重新打开终端后再继续输入。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "终端未就绪 — 已将所选内容添加到编辑器。"

@@ -19232,6 +19232,12 @@ msgstr "Thiết bị đầu cuối cho {projectName}"
 msgid "Terminal input"
 msgstr "Đầu vào đầu cuối"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
+msgid "Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again."
+msgstr "Nhập vào thiết bị đầu cuối thất bại. Một số nội dung nhập có thể chưa đến được shell. Hãy mở lại thiết bị đầu cuối trước khi tiếp tục nhập."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "Thiết bị đầu cuối chưa sẵn sàng - đã thêm lựa chọn vào trình soạn thảo."

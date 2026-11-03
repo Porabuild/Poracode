@@ -13,7 +13,11 @@ import type {
 } from "@/shared/ipc";
 import type { GitStatePatch, GitStateSnapshot } from "@/shared/gitState";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
-import { PORACODE_REMOTE_PROTOCOL_VERSION, type RemoteGitSummaries } from "@/shared/remote";
+import {
+  PORACODE_REMOTE_PROTOCOL_VERSION,
+  type RemoteGitSummaries,
+  type RemoteWebSocketClientMessage,
+} from "@/shared/remote";
 import { REMOTE_HTTP_BRIDGE_VERSION } from "@/shared/remote/httpBridgeProtocol";
 import { PORACODE_CLIENT_RUNTIME_VERSION } from "@/shared/clientRuntime";
 import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
@@ -23,7 +27,10 @@ import {
   noteProjectCommandResultsCapability,
   __resetProjectCommandResultsCapabilityForTest,
 } from "./remote/projectCommandResultsCapability";
-import { EnvironmentCascadeConfirmationRequiredError } from "./remoteServers/sessionReconnect";
+import {
+  closeRemoteServerEventSocket,
+  EnvironmentCascadeConfirmationRequiredError,
+} from "./remoteServers/sessionReconnect";
 import * as refreshTokens from "./remoteServers/refreshTokens";
 import { environmentChildGrantSubject } from "./remoteServers/environmentSessions";
 import {
@@ -51,7 +58,11 @@ import { useSharedSettings } from "./sharedSettingsStore";
 import { useWorkspaceStore } from "./workspaceStore";
 import { useGitStore } from "./gitStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "./slices/threadSlice";
-import { onRemoteTerminalExited, watchRemoteTerminal } from "./remoteTerminalFeed";
+import {
+  onRemoteTerminalExited,
+  setRemoteTerminalSocketSender,
+  watchRemoteTerminal,
+} from "./remoteTerminalFeed";
 import { remoteProjectId, remoteThreadId, projectRemoteProject } from "./remoteProjection";
 import {
   __resetProjectSettingsLoaderForTest,
@@ -4080,6 +4091,158 @@ describe("useRemoteServersStore", () => {
     unsubscribe();
     expect(send).toHaveBeenCalledWith(JSON.stringify({ type: "terminal-unwatch", id: "rt-1" }));
   });
+
+  it.each(["reconnect", "force-connect-all"])(
+    "restores a mounted terminal's retained history and live output after %s",
+    async (action) => {
+      const sends = [
+        vi.fn<(data: string) => void>(),
+        vi.fn<(data: string) => void>(),
+        vi.fn<(data: string) => void>(),
+      ];
+      const sockets = sends.map((send) => makeSocket({ send }));
+      let connection = 0;
+      let revoked = false;
+      useRemoteServersStore.getState().setSocketFactory(() => sockets[connection++]!);
+      useRemoteServersStore.getState().setClientFactory(
+        factoryFor(
+          makeClient({
+            environment: async () => {
+              if (revoked) throw new RemoteClientError("Revoked", 401, "unauthorized");
+              return {
+                ...makeEnvironment(),
+                capabilities: { terminalCursorSync: { versions: [1, 2] } },
+              };
+            },
+          }),
+        ),
+      );
+      await useRemoteServersStore
+        .getState()
+        .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+      const onSnapshot =
+        vi.fn<NonNullable<Parameters<typeof watchRemoteTerminal>[2]["onSnapshot"]>>();
+      const onOutput = vi.fn<(data: string) => void>();
+      const onDisconnected = vi.fn<() => void>();
+      const unsubscribe = watchRemoteTerminal("d1", "rt-1", {
+        onSnapshot,
+        onOutput,
+        onDisconnected,
+        onReset: () => {},
+        onExited: () => {},
+      });
+      const otherSend = vi.fn<() => boolean>(() => true);
+      const otherDisconnected = vi.fn<() => void>();
+      setRemoteTerminalSocketSender("d2", otherSend, { cursorSyncVersion: 2 });
+      const unsubscribeOther = watchRemoteTerminal("d2", "rt-1", {
+        onOutput: () => {},
+        onReset: () => {},
+        onExited: () => {},
+        onDisconnected: otherDisconnected,
+      });
+      const first = sends[0]!.mock.calls
+        .map(([data]) => JSON.parse(data) as RemoteWebSocketClientMessage)
+        .find((message) => message.type === "terminal-watch");
+      expect(first?.cursorSync?.version).toBe(2);
+      sockets[0]!.onmessage?.({
+        data: JSON.stringify({
+          type: "terminal-watch-baseline-chunk",
+          id: "rt-1",
+          cursorSync: {
+            version: 2,
+            watchId: first?.cursorSync?.watchId,
+            generation: "g1",
+            chunkIndex: 0,
+            chunkCount: 1,
+            fromCursor: 0,
+            toCursor: 7,
+            data: "HISTORY",
+            resumeServed: false,
+            processState: "running",
+            terminalSize: null,
+          },
+        }),
+      });
+      expect(onSnapshot).toHaveBeenLastCalledWith(expect.objectContaining({ data: "HISTORY" }));
+
+      if (action === "reconnect") await useRemoteServersStore.getState().reconnectServer("d1");
+      else await useRemoteServersStore.getState().connectAll({ forceTransportReconnect: true });
+      expect(onDisconnected).toHaveBeenCalledTimes(1);
+      expect(sockets[0]!.close).toHaveBeenCalledTimes(1);
+      const resumed = sends[1]!.mock.calls
+        .map(([data]) => JSON.parse(data) as RemoteWebSocketClientMessage)
+        .find((message) => message.type === "terminal-watch");
+      expect(resumed?.cursorSync).toMatchObject({
+        version: 2,
+        resume: { generation: "g1", cursor: 7 },
+      });
+      expect(resumed?.cursorSync?.watchId).not.toBe(first?.cursorSync?.watchId);
+      sockets[1]!.onmessage?.({
+        data: JSON.stringify({
+          type: "terminal-watch-baseline-chunk",
+          id: "rt-1",
+          cursorSync: {
+            version: 2,
+            watchId: resumed?.cursorSync?.watchId,
+            generation: "g1",
+            chunkIndex: 0,
+            chunkCount: 1,
+            fromCursor: 7,
+            toCursor: 11,
+            data: "-GAP",
+            resumeServed: true,
+            processState: "running",
+            terminalSize: null,
+          },
+        }),
+      });
+      expect(onSnapshot).toHaveBeenLastCalledWith(
+        expect.objectContaining({ data: "HISTORY-GAP", toCursor: 11 }),
+      );
+      sockets[0]!.onmessage?.({
+        data: JSON.stringify({ type: "terminal-output", id: "rt-1", data: "stale" }),
+      });
+      sockets[1]!.onmessage?.({
+        data: JSON.stringify({
+          type: "terminal-output",
+          id: "rt-1",
+          data: "-LIVE",
+          cursorSync: {
+            version: 1,
+            watchId: resumed?.cursorSync?.watchId,
+            generation: "g1",
+            fromCursor: 11,
+            toCursor: 16,
+          },
+        }),
+      });
+      expect(onOutput.mock.calls).toEqual([["-LIVE"]]);
+
+      // Hard retirement must dispose listeners even without a socket entry.
+      closeRemoteServerEventSocket("d1", { preserveReplayState: true });
+      if (action === "reconnect") useRemoteServersStore.getState().removeServer("d1");
+      else {
+        revoked = true;
+        await useRemoteServersStore.getState().reconnectServer("d1");
+        revoked = false;
+      }
+      expect(useRemoteServersStore.getState().runtime.d1?.status).toBe(
+        action === "reconnect" ? undefined : "error",
+      );
+      expect(connection).toBe(2);
+      await useRemoteServersStore
+        .getState()
+        .pairServer({ endpoint: "192.168.1.9:38987", token: "b" });
+      expect(sends[2]!.mock.calls.map(([data]) => JSON.parse(data))).not.toContainEqual(
+        expect.objectContaining({ type: "terminal-watch", id: "rt-1" }),
+      );
+      expect(otherSend).toHaveBeenCalledTimes(1);
+      expect(otherDisconnected).not.toHaveBeenCalled();
+      unsubscribe();
+      unsubscribeOther();
+    },
+  );
 
   it("refreshes shell snapshot when remote thread metadata changes over the socket", async () => {
     const socket: RemoteSocketLike = { close: vi.fn<() => void>(), onmessage: null, onclose: null };

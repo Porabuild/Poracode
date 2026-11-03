@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { toast } from "@heroui/react";
-import { readBridge } from "@/renderer/bridge";
-import { friendlyError } from "@/shared/messages";
+import { useLingui } from "@lingui/react/macro";
+import { sendTerminalInput } from "@/renderer/components/terminal/terminalInputQueue";
 
 const CTRL_TAB_SEQUENCE = "\x1b[9;5u";
 
@@ -90,13 +90,16 @@ function encodeKey(key: string, modifiers: Record<Modifier, boolean>): string {
 
 /** Touch keyboard and common terminal key chords for the compact terminal page. */
 export function MobileTerminalAccessory(props: { readonly terminalId: string }) {
+  const { t } = useLingui();
   const [modifiers, setModifiers] = useState<Record<Modifier, boolean>>(NO_MODIFIERS);
 
   function send(data: string): void {
     if (!data) return;
-    void readBridge()
-      .writeTerminal({ threadId: props.terminalId, data })
-      .catch((error: unknown) => toast.danger(friendlyError(error)));
+    if (!sendTerminalInput(props.terminalId, data)) {
+      toast.danger(
+        t`Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again.`,
+      );
+    }
   }
 
   function sendKey(key: string): void {

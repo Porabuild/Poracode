@@ -19232,6 +19232,12 @@ msgstr "Термінал для {projectName}"
 msgid "Terminal input"
 msgstr "Ввід у термінал"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
+msgid "Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again."
+msgstr "Помилка введення в термінал. Частина введених даних могла не дійти до оболонки. Відкрийте термінал знову, перш ніж продовжувати введення."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "Термінал не готовий — вибір додано в композер."
