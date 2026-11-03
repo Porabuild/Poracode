@@ -10,6 +10,16 @@ export const FIXTURE_PROJECT_LOCATION = {
 } as const;
 
 const REQUEST_OVERRIDES: Partial<Record<RemoteProcedureName, Record<string, unknown>>> = {
+  controlMcpApp: {
+    app: {
+      version: 1,
+      sessionId: "00000000-0000-4000-8000-000000000001",
+      toolName: "show_deployment",
+      resourceUri: "ui://fixture/deployment",
+    },
+    requestId: "00000000-0000-4000-8000-000000000002",
+    action: { type: "listTools" },
+  },
   forgeGetPrViewedFiles: {
     forgeAccount: { forge: "github", host: "https://github.com", login: "fixture" },
     forgeRepository: "acme/app",
