@@ -19,6 +19,7 @@ import {
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
 import { ensureProjectMcpServersLoaded } from "@/renderer/state/projectSettings/projectSettingsLoader";
+import type { ProjectSettingsSection } from "@/renderer/state/projectSettings/sections";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
@@ -205,7 +206,7 @@ export function toggleBrowserPanel(): void {
   }
 }
 
-export function openProjectSettings(projectId: string): void {
+export function openProjectSettings(projectId: string, section?: ProjectSettingsSection): void {
   // Settings surfaces must not read a not-yet-loaded projection as "configured
   // empty": make the private settings resident before the overlay paints, for
   // BOTH owner shapes — the loader resolves paired mirror vs managed root in
@@ -213,7 +214,7 @@ export function openProjectSettings(projectId: string): void {
   void ensureProjectMcpServersLoaded(projectId).catch((error) =>
     toast.danger(friendlyError(error)),
   );
-  usePanelStore.getState().openProjectSettings(projectId);
+  usePanelStore.getState().openProjectSettings(projectId, section);
 }
 
 /**

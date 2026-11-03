@@ -21,10 +21,22 @@ condition. Heartbeats require a same-project, same-agent GUI conversation.
 `mcpServers` maps configured server ids to booleans, and `plugins` maps installed
 manifest names to booleans. These choices are per thread and survive resume;
 global hard disables and provider/platform restrictions still apply. Discover
-custom server ids with `list_mcp_servers`/`get_project` and installed plugin names
+custom server ids with `list_mcp_servers` (pass the target `projectId`) and installed plugin names
 with `get_settings` (`section: "installedPlugins"`). Attach files or images to
 the first message with `attachments: [{path, mimeType?}]`; paths must be absolute
 files on this host, and image MIME types are inferred from their extension.
+
+Custom MCP servers are global (shared settings) or belong to one project; a
+project server overrides a global one with the same name in that project. The
+`*_mcp_server` tools take `scope: "global" | "project"` and `projectId`; project
+scope defaults to the calling thread's project, and the Home project has none.
+`list_mcp_servers` shows both scopes and marks overrides; `move_mcp_server`
+moves a server between them with its secrets. When the user asks for a server
+"in this project", use project scope. `authenticate_mcp_server` starts OAuth for
+an HTTP/SSE server: give the user the returned `authorizationUrl`, then poll with
+`action: "wait"` and the `flowId`. Projects also switch installed Agent Plugins
+with `update_project` `plugins` (`null` follows the global state); the thread's
+own `plugins` choices still win.
 
 With `worktree: {enabled: true}`, `create_thread` creates and assigns the child's
 checkout before launching the agent there. The caller provisions it through

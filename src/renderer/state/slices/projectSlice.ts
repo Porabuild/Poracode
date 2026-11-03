@@ -78,6 +78,11 @@ export interface ProjectSlice {
   updateProjectWorktreeBaseBranch: (projectId: string, baseBranch: string | undefined) => void;
   /** An empty list clears the project's pinned branches. */
   updateProjectPinnedBranches: (projectId: string, pinnedBranches: string[]) => void;
+  /** An empty record clears every plugin switch (all plugins inherit global state). */
+  updateProjectPluginOverrides: (
+    projectId: string,
+    pluginOverrides: Record<string, boolean>,
+  ) => void;
   /** `undefined` clears the override (supervisor auto-detects the account). */
   updateProjectGhAccount: (projectId: string, ghAccount: GitHubAccountRef | undefined) => void;
   /** An empty list clears the project override entirely. */
@@ -326,6 +331,17 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
           return rest;
         }
         return { ...project, pinnedBranches };
+      }),
+    })),
+  updateProjectPluginOverrides: (projectId, pluginOverrides) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (Object.keys(pluginOverrides).length === 0) {
+          const { pluginOverrides: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, pluginOverrides };
       }),
     })),
   updateProjectGhAccount: (projectId, ghAccount) =>

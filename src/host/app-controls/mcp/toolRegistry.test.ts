@@ -8,8 +8,10 @@ vi.mock("@/host/db/conversationSearch", () => ({
     (typeof import("@/host/db/conversationSearch"))["dbSearchConversations"]
   >(async () => ({ version: 1, entries: [], nextCursor: null, indexing: false })),
 }));
+import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL } from "@/shared/plugins/spec";
 import type {
   AgentStatusesResponse,
+  LoadedPlugin,
   CloseThreadPayload,
   GitProjectSnapshotResult,
   GitWorktreeInfo,
@@ -76,6 +78,37 @@ const thread = {
   config: { model: "gpt-5.6", effort: "high", fast: true },
 } as Thread;
 
+function loadedPlugin(name: string, builtInMcpServerIds: string[] = []): LoadedPlugin {
+  return {
+    name,
+    source: "user",
+    root: `/plugins/${name}`,
+    manifest: { $schema: AGENT_PLUGINS_MANIFEST_SCHEMA_URL, name, version: "1.0.0" },
+    poracode: {
+      category: "developer-tools",
+      featured: false,
+      communityMaintained: false,
+      defaultEnabled: true,
+      alwaysEnabled: false,
+      nativePluginNames: [],
+      builtInMcpServerIds,
+      skills: {},
+    },
+    skills: [],
+    mcpServers: [],
+    diagnostics: [],
+  } as LoadedPlugin;
+}
+
+function installed(...names: string[]): SharedSettings["installedPlugins"] {
+  return Object.fromEntries(
+    names.map((name) => [
+      name,
+      { version: "1.0.0", enabled: true, disabledSkillIds: [], disabledMcpServerNames: [] },
+    ]),
+  );
+}
+
 function makeThread(overrides: Partial<Thread>): Thread {
   return {
     id: "t",
@@ -128,6 +161,7 @@ function context(
     prDetails?: PrDetails;
     prDiff?: string;
     probeResult?: McpProbeResult;
+    plugins?: LoadedPlugin[];
     authenticatedUrls?: string[];
     skillScan?: SkillScanResult;
   } = {},
@@ -336,6 +370,13 @@ function context(
     getMcpOauthStatus: vi.fn<SC["getMcpOauthStatus"]>(async () => ({
       authenticatedUrls: options.authenticatedUrls ?? [],
     })),
+    beginMcpServerOauth: vi.fn<SC["beginMcpServerOauth"]>(async () => ({ status: "authorized" })),
+    listPlugins: vi.fn<SC["listPlugins"]>(async () => ({
+      plugins: options.plugins ?? [],
+      userPluginsDir: "/plugins",
+    })),
+    waitMcpServerOauth: vi.fn<SC["waitMcpServerOauth"]>(async () => ({ status: "authorized" })),
+    clearMcpServerOauth: vi.fn<SC["clearMcpServerOauth"]>(async () => undefined),
     scanSkills: vi.fn<SC["scanSkills"]>(
       async () =>
         options.skillScan ?? {
@@ -1243,6 +1284,83 @@ describe("Poracode app control tools — projects", () => {
     expect(updateProject).toHaveBeenCalledWith(
       expect.objectContaining({ id: "p1", name: "Renamed" }),
     );
+  });
+
+  it("update_project switches plugins per project and null restores the global state", async () => {
+    const pluginProjects = [
+      {
+        id: "p1",
+        name: "Alpha",
+        location: { kind: "posix", path: "/work/alpha" },
+        pluginOverrides: { linear: false },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      } as Project,
+    ];
+    const { ctx, updateProject } = context({
+      projects: pluginProjects,
+      plugins: [loadedPlugin("sentry"), loadedPlugin("linear")],
+      settings: { ...defaultSharedSettings, installedPlugins: installed("sentry", "linear") },
+    });
+
+    const result = (await dispatchTool(
+      "update_project",
+      { projectId: "p1", plugins: { sentry: true, linear: null } },
+      ctx,
+    )) as { project: { pluginOverrides?: Record<string, boolean> } };
+
+    expect(result.project.pluginOverrides).toEqual({ sentry: true });
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "p1", pluginOverrides: { sentry: true } }),
+    );
+
+    await dispatchTool("update_project", { projectId: "p1", plugins: { linear: null } }, ctx);
+    expect(updateProject.mock.calls.at(-1)![0]).not.toHaveProperty("pluginOverrides");
+
+    const detail = (await dispatchTool("get_project", { projectId: "p1" }, ctx)) as {
+      pluginOverrides?: Record<string, boolean>;
+    };
+    expect(detail.pluginOverrides).toEqual({ linear: false });
+  });
+
+  it("update_project refuses unknown, uninstalled, and built-in tool plugins", async () => {
+    const { ctx, updateProject } = context({
+      projects,
+      plugins: [
+        loadedPlugin("sentry"),
+        loadedPlugin("figma"),
+        { ...loadedPlugin("browser-tools", ["browser"]), source: "bundled" },
+      ],
+      settings: { ...defaultSharedSettings, installedPlugins: installed("sentry") },
+    });
+    for (const [name, error] of [
+      ["missing", /not installed: missing/],
+      ["figma", /not installed: figma/],
+      ["browser-tools", /not switched per project/],
+    ] as const) {
+      await expect(
+        dispatchTool("update_project", { projectId: "p1", plugins: { [name]: false } }, ctx),
+      ).rejects.toThrow(error);
+    }
+    // Clearing a stale switch needs no catalog check.
+    await dispatchTool("update_project", { projectId: "p1", plugins: { missing: null } }, ctx);
+    expect(updateProject).toHaveBeenCalledTimes(1);
+  });
+
+  it("update_project refuses plugin switches on the Home project", async () => {
+    const { ctx, updateProject } = context({
+      projects: [
+        {
+          id: HOME_PROJECT_ID,
+          name: "Home",
+          location: { kind: "posix", path: "/home" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        } as Project,
+      ],
+    });
+    await expect(
+      dispatchTool("update_project", { projectId: HOME_PROJECT_ID, plugins: { x: true } }, ctx),
+    ).rejects.toThrow(/Home project has no plugin switches/);
+    expect(updateProject).not.toHaveBeenCalled();
   });
 
   it("update_project files a project into a workspace and can unfile it", async () => {
@@ -2942,6 +3060,17 @@ describe("Poracode app control tools — skills", () => {
   const projects = [
     { id: "p1", name: "Alpha", location: { kind: "posix", path: "/work/alpha" } } as Project,
   ];
+
+  it("list_skills scans with the project's plugin switches beneath the caller's own", async () => {
+    const { ctx, supervisor } = context({
+      projects: [{ ...projects[0]!, pluginOverrides: { sentry: true, linear: true } } as Project],
+      threads: [{ ...thread, config: { ...thread.config, pluginOverrides: { linear: false } } }],
+    });
+    await dispatchTool("list_skills", { projectId: "p1" }, ctx);
+    expect(supervisor.scanSkills).toHaveBeenCalledWith(
+      expect.objectContaining({ pluginOverrides: { sentry: true, linear: false } }),
+    );
+  });
 
   it("list_skills groups global and project scopes", async () => {
     const skillScan: SkillScanResult = {

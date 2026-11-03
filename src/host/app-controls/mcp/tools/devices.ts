@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { deviceActionSchema } from "@/shared/deviceWorkspace";
+import { callerPluginOverrides } from "./pluginOverrides";
 import type { AppControlsToolContext, ToolDomain } from "./types";
 
 function service(ctx: AppControlsToolContext) {
@@ -8,8 +9,11 @@ function service(ctx: AppControlsToolContext) {
   const { deviceWorkspace: devices } = ctx;
   const threadId = ctx.identity.threadId;
   const authorize = () => {
-    if (ctx.settings.read().installedPlugins?.devices?.enabled === false)
-      throw new Error("The Devices plugin is disabled. Enable it in Plugins to use device tools.");
+    const override = callerPluginOverrides(ctx)?.devices;
+    if ((override ?? ctx.settings.read().installedPlugins?.devices?.enabled) === false)
+      throw new Error(
+        "The Devices plugin is disabled for this thread. Enable it in Plugins (or in this project's Plugins settings) to use device tools.",
+      );
     if (!ctx.getThread(threadId)) throw new Error("The owning thread is unavailable.");
     devices.authorizeAgent(threadId, ctx.identity.deviceProof);
   };

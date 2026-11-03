@@ -25,6 +25,12 @@ const server = (name: string, enabled = true): McpServer => ({
 });
 
 describe("duplicate project settings", () => {
+  it("recovers the duplicate's plugin switches while the original's choices win", () => {
+    const first = { ...original, pluginOverrides: { sentry: true } };
+    const newer = { ...readded, pluginOverrides: { sentry: false, linear: true } };
+    const merged = dedupeProjects([newer, first]).projects[0]!;
+    expect(merged.pluginOverrides).toEqual({ sentry: true, linear: true });
+  });
   it("keeps independently renamed MCP entries separately editable when their old IDs collide", () => {
     const first = { ...original, mcpServers: [server("memory")] };
     const newer = { ...readded, mcpServers: [{ ...server("renamed-memory"), id: "memory" }] };

@@ -62,6 +62,7 @@ export function AppOverlays() {
   const projects = useAppStore((s) => s.projects);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const projectSettingsId = usePanelStore((s) => s.projectSettingsId);
+  const projectSettingsSection = usePanelStore((s) => s.projectSettingsSection);
   const projectSettingsOverlayVisible =
     projectSettingsId !== null && !(compactLayout && mobileUtilityPage === "projectSettings");
   const gitOverlayOpen = usePanelStore((s) => s.gitOverlayOpen);
@@ -141,7 +142,9 @@ export function AppOverlays() {
         {projectSettingsOverlayVisible && projectSettingsId && (
           <Suspense fallback={<OverlayLoader />}>
             <DeferredProjectSettingsOverlay
+              key={`${projectSettingsId}:${projectSettingsSection ?? ""}`}
               projectId={projectSettingsId}
+              initialSection={projectSettingsSection}
               onClose={() => usePanelStore.getState().closeProjectSettings()}
             />
           </Suspense>

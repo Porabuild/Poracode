@@ -31,6 +31,7 @@ import {
   BUILT_IN_MCP_SERVER_NAMES,
   DEFAULT_MCP_SERVER_TIMEOUT_MS,
   resolveEnabledMcpServers,
+  resolveLaunchPluginOverrides,
 } from "@/shared/contracts";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import { msg } from "@/shared/messages";
@@ -469,14 +470,17 @@ export class SpawnPipeline {
     const requestedPresentation = payload.presentationMode ?? adapter.capabilities.presentationMode;
     const usesTerminalPresentation = requestedPresentation === "terminal";
     const useStructuredFlow = isServerControlled || !usesTerminalPresentation;
+    // Project switches sit beneath the thread's own choices; both are re-read per launch.
+    const launchPluginOverrides = resolveLaunchPluginOverrides(
+      payload.projectPluginOverrides,
+      runtimeConfig.pluginOverrides,
+    );
     const pluginContributions = (await ctx.options.resolvePluginLaunchContributions?.(
       executionLocation,
       payload.agentKind,
       {
         includeExternalServers: true,
-        ...(runtimeConfig.pluginOverrides
-          ? { pluginOverrides: runtimeConfig.pluginOverrides }
-          : {}),
+        ...(launchPluginOverrides ? { pluginOverrides: launchPluginOverrides } : {}),
         ...(payload.segments?.some((segment) => segment.kind === "skill" && segment.pluginId)
           ? { nativePluginAdapter: adapter }
           : {}),
@@ -504,9 +508,7 @@ export class SpawnPipeline {
           presentationMode: requestedPresentation,
           nativePlugins,
           segments: wslSegments,
-          ...(runtimeConfig.pluginOverrides
-            ? { pluginOverrides: runtimeConfig.pluginOverrides }
-            : {}),
+          ...(launchPluginOverrides ? { pluginOverrides: launchPluginOverrides } : {}),
         })) ?? wslSegments)
       : wslSegments;
     let effectiveSegments =
@@ -577,6 +579,9 @@ export class SpawnPipeline {
       disabledBuiltInMcpServerIds: payload.disabledBuiltInMcpServerIds ?? [],
       disabledBuiltInMcpTools: payload.disabledBuiltInMcpTools ?? {},
       pluginBuiltInMcpServerIds: pluginContributions.builtInMcpServerIds,
+      ...(payload.projectPluginOverrides
+        ? { projectPluginOverrides: payload.projectPluginOverrides }
+        : {}),
     };
     const optimisticMcpLaunchSnapshot: McpLaunchSnapshot = {
       mcpServers: [],
@@ -2049,14 +2054,16 @@ export class SpawnPipeline {
           : {}),
         resolveMcpServersForTurn: async (turnConfig, isCurrent) => {
           if (!isCurrent()) return [];
+          const turnPluginOverrides = resolveLaunchPluginOverrides(
+            mcpLaunchSnapshot.projectPluginOverrides,
+            turnConfig.pluginOverrides,
+          );
           const contributions = await this.ctx.options.resolvePluginLaunchContributions?.(
             projectLocation,
             agentKind,
             {
               includeExternalServers: false,
-              ...(turnConfig.pluginOverrides
-                ? { pluginOverrides: turnConfig.pluginOverrides }
-                : {}),
+              ...(turnPluginOverrides ? { pluginOverrides: turnPluginOverrides } : {}),
             },
           );
           if (!isCurrent()) return [];

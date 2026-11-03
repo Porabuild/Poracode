@@ -269,6 +269,7 @@ export function dbUpdateProject(project: Project): void {
          gh_account = @ghAccount,
          worktree_base_branch = @worktreeBaseBranch,
          pinned_branches = @pinnedBranches,
+         plugin_overrides = @pluginOverrides,
          workspace_id = @workspaceId,
          disabled = @disabled
        WHERE id = @id`,

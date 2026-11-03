@@ -3633,10 +3633,20 @@
           "type": "object"
         },
         "__schema27": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "propertyNames": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "__schema28": {
           "minLength": 1,
           "type": "string"
         },
-        "__schema28": {
+        "__schema29": {
           "additionalProperties": true,
           "properties": {
             "questions": {
@@ -3693,7 +3703,13 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema29": {
+        "__schema3": {
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+          "type": "string"
+        },
+        "__schema30": {
           "additionalProperties": true,
           "properties": {
             "contextStrategy": {
@@ -3730,21 +3746,15 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema3": {
-          "maxLength": 120,
-          "minLength": 1,
-          "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
-          "type": "string"
-        },
-        "__schema30": {
+        "__schema31": {
           "const": true,
           "type": "boolean"
         },
-        "__schema31": {
+        "__schema32": {
           "minLength": 1,
           "type": "string"
         },
-        "__schema32": {
+        "__schema33": {
           "additionalProperties": true,
           "properties": {
             "browserFocus": {
@@ -4189,7 +4199,7 @@
           "$ref": "#/$defs/__schema2"
         },
         "clientContext": {
-          "$ref": "#/$defs/__schema32"
+          "$ref": "#/$defs/__schema33"
         },
         "config": {
           "$ref": "#/$defs/__schema4"
@@ -4201,7 +4211,7 @@
           "$ref": "#/$defs/__schema26"
         },
         "initialInstructions": {
-          "$ref": "#/$defs/__schema31"
+          "$ref": "#/$defs/__schema32"
         },
         "initialSize": {
           "$ref": "#/$defs/__schema13"
@@ -4213,7 +4223,7 @@
           "$ref": "#/$defs/__schema16"
         },
         "mentionHandoff": {
-          "$ref": "#/$defs/__schema30"
+          "$ref": "#/$defs/__schema31"
         },
         "presentationMode": {
           "$ref": "#/$defs/__schema15"
@@ -4221,14 +4231,17 @@
         "projectLocation": {
           "$ref": "#/$defs/__schema1"
         },
+        "projectPluginOverrides": {
+          "$ref": "#/$defs/__schema27"
+        },
         "prompt": {
           "$ref": "#/$defs/__schema11"
         },
         "providerSwitch": {
-          "$ref": "#/$defs/__schema29"
+          "$ref": "#/$defs/__schema30"
         },
         "questionAnswer": {
-          "$ref": "#/$defs/__schema28"
+          "$ref": "#/$defs/__schema29"
         },
         "segments": {
           "$ref": "#/$defs/__schema12"
@@ -4240,7 +4253,7 @@
           "$ref": "#/$defs/__schema0"
         },
         "userMessageItemId": {
-          "$ref": "#/$defs/__schema27"
+          "$ref": "#/$defs/__schema28"
         }
       },
       "required": [
@@ -32679,10 +32692,20 @@
           "type": "object"
         },
         "__schema27": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "propertyNames": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "__schema28": {
           "minLength": 1,
           "type": "string"
         },
-        "__schema28": {
+        "__schema29": {
           "additionalProperties": true,
           "properties": {
             "questions": {
@@ -32739,7 +32762,13 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema29": {
+        "__schema3": {
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+          "type": "string"
+        },
+        "__schema30": {
           "additionalProperties": true,
           "properties": {
             "contextStrategy": {
@@ -32776,21 +32805,15 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema3": {
-          "maxLength": 120,
-          "minLength": 1,
-          "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
-          "type": "string"
-        },
-        "__schema30": {
+        "__schema31": {
           "const": true,
           "type": "boolean"
         },
-        "__schema31": {
+        "__schema32": {
           "minLength": 1,
           "type": "string"
         },
-        "__schema32": {
+        "__schema33": {
           "additionalProperties": true,
           "properties": {
             "browserFocus": {
@@ -33235,7 +33258,7 @@
           "$ref": "#/$defs/__schema2"
         },
         "clientContext": {
-          "$ref": "#/$defs/__schema32"
+          "$ref": "#/$defs/__schema33"
         },
         "config": {
           "$ref": "#/$defs/__schema4"
@@ -33247,7 +33270,7 @@
           "$ref": "#/$defs/__schema26"
         },
         "initialInstructions": {
-          "$ref": "#/$defs/__schema31"
+          "$ref": "#/$defs/__schema32"
         },
         "initialSize": {
           "$ref": "#/$defs/__schema13"
@@ -33259,7 +33282,7 @@
           "$ref": "#/$defs/__schema16"
         },
         "mentionHandoff": {
-          "$ref": "#/$defs/__schema30"
+          "$ref": "#/$defs/__schema31"
         },
         "presentationMode": {
           "$ref": "#/$defs/__schema15"
@@ -33267,14 +33290,17 @@
         "projectLocation": {
           "$ref": "#/$defs/__schema1"
         },
+        "projectPluginOverrides": {
+          "$ref": "#/$defs/__schema27"
+        },
         "prompt": {
           "$ref": "#/$defs/__schema11"
         },
         "providerSwitch": {
-          "$ref": "#/$defs/__schema29"
+          "$ref": "#/$defs/__schema30"
         },
         "questionAnswer": {
-          "$ref": "#/$defs/__schema28"
+          "$ref": "#/$defs/__schema29"
         },
         "segments": {
           "$ref": "#/$defs/__schema12"
@@ -33286,7 +33312,7 @@
           "$ref": "#/$defs/__schema0"
         },
         "userMessageItemId": {
-          "$ref": "#/$defs/__schema27"
+          "$ref": "#/$defs/__schema28"
         }
       },
       "required": [
@@ -52356,6 +52382,23 @@
                     }
                   ]
                 },
+                "pluginOverrides": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": {
+                        "type": "boolean"
+                      },
+                      "propertyNames": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "scripts": {
                   "anyOf": [
                     {
@@ -53427,6 +53470,16 @@
               },
               "type": "array"
             },
+            "pluginOverrides": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "propertyNames": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "object"
+            },
             "remoteId": {
               "minLength": 1,
               "type": "string"
@@ -54292,6 +54345,16 @@
                   "type": "string"
                 },
                 "type": "array"
+              },
+              "pluginOverrides": {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "propertyNames": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "object"
               },
               "remoteId": {
                 "minLength": 1,
@@ -63599,6 +63662,16 @@
                   "type": "string"
                 },
                 "type": "array"
+              },
+              "pluginOverrides": {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "propertyNames": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "object"
               },
               "remoteId": {
                 "minLength": 1,
@@ -74114,6 +74187,16 @@
             }
           ]
         },
+        "projectPluginOverrides": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "propertyNames": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "object"
+        },
         "prompt": {
           "default": "",
           "type": "string"
@@ -75499,5 +75582,5 @@
   },
   "manifestHash": "sha256:8610a924b95a7183c022541eb14e4503678021b20689389f6352938262bc6db8",
   "protocolVersion": 14,
-  "sourceHash": "sha256:cf134692fb8450d1d668d8f3225d49f6e607c615dc8c40595630406559053e36"
+  "sourceHash": "sha256:0adb045f9cbc10b90622b0e63514aa9ce425db7d458f68b7c2529c63941530a4"
 }

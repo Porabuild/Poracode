@@ -12,7 +12,7 @@ import { toast } from "@heroui/react";
 import { ChevronDown, Monitor, Settings2, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
-import { isThreadTurnActive } from "@/shared/contracts";
+import { isThreadTurnActive, resolveLaunchPluginOverrides } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { sendTerminalInput } from "../terminal/terminalInputQueue";
 import type { FollowUpBehavior } from "@/shared/settings";
@@ -514,12 +514,25 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
   ];
+  const projectPluginOverrides = useAppStore(
+    (s) => s.projects.find((candidate) => candidate.id === thread.projectId)?.pluginOverrides,
+  );
+  const pluginOverrides = resolveLaunchPluginOverrides(
+    projectPluginOverrides,
+    thread.config.pluginOverrides,
+  );
   const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
     projectLocation,
     thread.agentKind,
     presentationMode,
+    pluginOverrides,
   );
-  const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
+  const pluginMentions = usePluginMentionItems(
+    projectLocation,
+    thread.agentKind,
+    presentationMode,
+    pluginOverrides,
+  );
   // One row per tool: a plugin that wraps a built-in server replaces that
   // server's own mention instead of sitting next to an identical row, and only
   // while this thread actually carries that server.

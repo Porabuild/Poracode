@@ -339,6 +339,7 @@ describe("applyRemoteProjectCommand", () => {
       ghAccount: { host: "github.com", login: "octocat" },
       worktreeBaseBranch: "origin/main",
       pinnedBranches: ["release"],
+      pluginOverrides: { sentry: true },
       createdAt: NOW,
     });
 
@@ -354,6 +355,7 @@ describe("applyRemoteProjectCommand", () => {
           ghAccount: null,
           worktreeBaseBranch: null,
           pinnedBranches: null,
+          pluginOverrides: null,
         },
       },
       deps,
@@ -372,6 +374,27 @@ describe("applyRemoteProjectCommand", () => {
     expect(result.response.project).not.toHaveProperty("ghAccount");
     expect(result.response.project).not.toHaveProperty("worktreeBaseBranch");
     expect(result.response.project).not.toHaveProperty("pinnedBranches");
+    expect(result.response.project).not.toHaveProperty("pluginOverrides");
+  });
+
+  it("replaces project plugin switches through the patch", async () => {
+    const { deps, projects, updateProject } = makeDeps();
+    projects.push({
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      pluginOverrides: { sentry: true, linear: false },
+      createdAt: NOW,
+    });
+
+    await applyRemoteProjectCommand(
+      { kind: "update", projectId: "p1", patch: { pluginOverrides: { linear: true } } },
+      deps,
+    );
+
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "p1", pluginOverrides: { linear: true } }),
+    );
   });
 
   it("sets and updates the project icon through the patch", async () => {

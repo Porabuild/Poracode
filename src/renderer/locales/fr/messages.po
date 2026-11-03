@@ -279,6 +279,11 @@ msgstr "Hooks {0} installés."
 msgid "{0} hooks removed for {envName}."
 msgstr "Hooks {0} retirés pour {envName}."
 
+#. placeholder {0}: entry.name
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "{0} in this project"
+msgstr "{0} dans ce projet"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "{0} install targets"
@@ -3629,6 +3634,10 @@ msgstr "Choisissez comment vous enregistrez et où votre discours est transcrit.
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
 msgstr "Choisir la destination de l’importation"
+
+#: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
+msgid "Choose project"
+msgstr "Choisir un projet"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Choose shells for the Terminal panel and Poracode's internal commands."
@@ -10840,6 +10849,10 @@ msgstr "Gérez les configurations de serveurs MCP que Poracode ajoute au démarr
 #~ msgid "Manage the skills Poracode makes available to supported agents. Project skills can be managed in each project's settings."
 #~ msgstr "Gérez les compétences que Poracode met à la disposition des agents pris en charge. Les compétences de projet peuvent être gérées dans les paramètres de chaque projet."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Manage this project's plugins from a Poracode client on its host."
+msgstr "Gérez les plugins de ce projet depuis un client Poracode sur son hôte."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #~ msgid "Manage workspaces"
 #~ msgstr "Gérer les espaces de travail"
@@ -12404,6 +12417,10 @@ msgstr "Aucune session importable trouvée sur cet ordinateur."
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "Aucun agent installé proposant des modèles sélectionnables n’est disponible pour ce projet."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "No installed plugins can be switched per project. Install plugins from Settings, then choose them here."
+msgstr "Aucun plugin installé ne peut être activé ou désactivé par projet. Installez des plugins depuis les Réglages, puis choisissez-les ici."
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No installed plugins yet."
 msgstr "Aucun plugin installé pour le moment."
@@ -12945,6 +12962,7 @@ msgstr "Désactivé"
 
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "Désactivé"
@@ -12987,6 +13005,7 @@ msgstr "Plus anciens d'abord"
 msgid "on"
 msgstr "sur"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "Le"
@@ -13080,6 +13099,10 @@ msgstr "Ouvrir {location} dans les modifications"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "Ouvrir un nouvel onglet du navigateur"
+
+#: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
+msgid "Open a project's MCP settings"
+msgstr "Ouvrir les réglages MCP d’un projet"
 
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
@@ -14225,6 +14248,10 @@ msgstr "plugin.json vise une version d'Agent Plugins que cette build ne prend pa
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Plugins"
@@ -14734,6 +14761,11 @@ msgstr "Icône du projet : {label}"
 msgid "project managed"
 msgstr "géré par le projet"
 
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Project MCP servers"
+msgstr "Serveurs MCP du projet"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -14770,6 +14802,7 @@ msgid "Project-specific overrides on top of the global search settings."
 msgstr "Remplacements spécifiques au projet en plus des paramètres de recherche globaux."
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -17602,6 +17635,11 @@ msgstr "URL de base du serveur"
 #: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Serveur hors ligne – cette conversation est peut-être obsolète."
+
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Servers in a project's settings apply only to that project and override global servers with the same name. To move a global server, edit it and change its scope."
+msgstr "Les serveurs des réglages d’un projet s’appliquent uniquement à ce projet et remplacent les serveurs globaux portant le même nom. Pour déplacer un serveur global, modifiez-le et changez sa portée."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
@@ -20997,6 +21035,10 @@ msgstr "Essayez d’autres mots-clés ou choisissez une catégorie."
 msgid "Try now"
 msgstr "Essayer"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
+msgstr "Activez ou désactivez les plugins installés pour les fils de ce projet. Les choix de plugins propres à un fil restent prioritaires ; les fils en cours appliquent les changements à leur prochain lancement."
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
@@ -22094,6 +22136,14 @@ msgstr "Utiliser la police par défaut"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "Utiliser la session détectée ?"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Use global (off)"
+msgstr "Utiliser le réglage global (désactivé)"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Use global (on)"
+msgstr "Utiliser le réglage global (activé)"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

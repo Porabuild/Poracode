@@ -66,9 +66,17 @@ import type {
   InterruptThreadPayload,
   ListProjectTreePayload,
   ListProjectTreeResult,
+  McpOauthBeginPayload,
+  McpOauthBeginResult,
+  McpOauthClearPayload,
+  McpOauthStatusPayload,
   McpOauthStatusResult,
+  McpOauthWaitPayload,
+  McpOauthWaitResult,
   McpProbePayload,
   McpProbeResult,
+  ListPluginsPayload,
+  ListPluginsResult,
   PrComment,
   PrData,
   Project,
@@ -281,8 +289,16 @@ export interface AppControlsSupervisorCaller {
   probeMcpServer(payload: McpProbePayload): Promise<McpProbeResult>;
   /** Re-resolve + apply an agent kind's MCP set to its live sessions (hot-reload). */
   reloadAgentMcpServers(payload: ReloadAgentMcpServersPayload): Promise<void>;
-  /** OAuth authentication status for configured MCP servers. */
-  getMcpOauthStatus(): Promise<McpOauthStatusResult>;
+  /** OAuth authentication status, scoped to a project's runtime when given (WSL token store). */
+  getMcpOauthStatus(payload?: McpOauthStatusPayload): Promise<McpOauthStatusResult>;
+  /** Start an OAuth sign-in for one HTTP/SSE MCP server. */
+  beginMcpServerOauth(payload: McpOauthBeginPayload): Promise<McpOauthBeginResult>;
+  /** Wait for a started OAuth sign-in to finish (or expire). */
+  waitMcpServerOauth(payload: McpOauthWaitPayload): Promise<McpOauthWaitResult>;
+  /** Forget the stored OAuth credential for one MCP endpoint URL. */
+  clearMcpServerOauth(payload: McpOauthClearPayload): Promise<void>;
+  /** Agent Plugin packages visible to a project (bundled, user, and its own). */
+  listPlugins(payload: ListPluginsPayload): Promise<ListPluginsResult>;
   /** Scan installed skills (global + optional project scope). */
   scanSkills(payload: ScanSkillsPayload): Promise<SkillScanResult>;
   /** Enable or disable one skill. */

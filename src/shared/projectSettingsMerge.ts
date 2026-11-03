@@ -40,6 +40,9 @@ export function mergeProjectSettings(canonical: Project, duplicate: Project): Pr
       return id === server.id ? server : { ...server, id };
     });
   }
+  if (canonical.pluginOverrides || duplicate.pluginOverrides) {
+    merged.pluginOverrides = { ...duplicate.pluginOverrides, ...canonical.pluginOverrides };
+  }
   if (canonical.searchSettings || duplicate.searchSettings) {
     const primary = canonical.searchSettings;
     const fallback = duplicate.searchSettings;

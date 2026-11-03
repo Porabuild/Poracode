@@ -130,6 +130,7 @@ export function installDevBridge(): void {
         notesPanelOpen: false,
         settingsOpen: false,
         projectSettingsId: null,
+        projectSettingsSection: null,
         settingsSection: null,
         settingsAnchor: null,
         createProjectModalOpen: false,

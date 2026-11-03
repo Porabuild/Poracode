@@ -3,7 +3,11 @@ import {
   workspaceGrantRevisionSchema,
 } from "@/shared/workspaceDirectorySelection";
 import type { ProjectLocation, Project, Thread } from "@/shared/contracts";
-import { threadTurnInterruptionSchema } from "@/shared/contracts";
+import {
+  nonEmptyPluginOverrides,
+  pluginOverridesSchema,
+  threadTurnInterruptionSchema,
+} from "@/shared/contracts";
 import {
   readPersistedProjectDraftConfig,
   readPersistedThreadConfig,
@@ -31,6 +35,7 @@ export interface ProjectRow {
   gh_account: string | null;
   worktree_base_branch: string | null;
   pinned_branches: string | null;
+  plugin_overrides: string | null;
   workspace_id: string | null;
   disabled: number;
   sort_order: number;
@@ -101,6 +106,9 @@ export function projectMutableRow(project: Project) {
     ghAccount: project.ghAccount ? JSON.stringify(project.ghAccount) : null,
     worktreeBaseBranch: project.worktreeBaseBranch ?? null,
     pinnedBranches: project.pinnedBranches?.length ? JSON.stringify(project.pinnedBranches) : null,
+    pluginOverrides: nonEmptyPluginOverrides(project.pluginOverrides)
+      ? JSON.stringify(project.pluginOverrides)
+      : null,
     workspaceId: project.workspaceId ?? null,
     disabled: (project.disabled ? 1 : 0) as SqliteBool,
   };
@@ -146,6 +154,7 @@ export function rowToProject(row: ProjectRow): Project {
     ...(row.gh_account ? { ghAccount: JSON.parse(row.gh_account) } : {}),
     ...(row.worktree_base_branch ? { worktreeBaseBranch: row.worktree_base_branch } : {}),
     ...(row.pinned_branches ? { pinnedBranches: JSON.parse(row.pinned_branches) } : {}),
+    ...readPluginOverrides(row.plugin_overrides),
     ...(row.workspace_id ? { workspaceId: row.workspace_id } : {}),
     ...(row.disabled ? { disabled: true } : {}),
     createdAt: row.created_at,
@@ -205,5 +214,17 @@ export function safeParse(json: string): unknown {
     return JSON.parse(json);
   } catch {
     return undefined;
+  }
+}
+
+/** A malformed stored value is inert (every plugin inherits) rather than fatal to the row. */
+function readPluginOverrides(value: string | null): Pick<Project, "pluginOverrides"> {
+  if (!value) return {};
+  try {
+    const parsed = pluginOverridesSchema.safeParse(JSON.parse(value));
+    const pluginOverrides = parsed.success ? nonEmptyPluginOverrides(parsed.data) : undefined;
+    return pluginOverrides ? { pluginOverrides } : {};
+  } catch {
+    return {};
   }
 }

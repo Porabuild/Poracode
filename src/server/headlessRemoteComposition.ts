@@ -658,11 +658,7 @@ export async function composeHeadlessRemoteHost(
         }
       },
       resolveMcpLaunchSnapshot: (projectId, overrides) =>
-        resolveMcpLaunchSnapshot(
-          getSharedSettings(),
-          dbGetProject(projectId)?.mcpServers ?? [],
-          overrides,
-        ),
+        resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId), overrides),
       settings: settings.remoteSettingsGateway(settings.mcpSettings),
       attachments: {
         save: (input) => saveUploadedAttachmentFile(paths, input),
@@ -695,7 +691,7 @@ export async function composeHeadlessRemoteHost(
           ? supervisorClient.call(name, payload, callOptions)
           : supervisorClient.call(name, payload),
       resolveMcpLaunchSnapshot: (projectId) =>
-        resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
+        resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)),
       ...(options.sessionExportWorkerPath
         ? { sessionExportWorker: { path: options.sessionExportWorkerPath, dbPath: paths.dbPath } }
         : {}),

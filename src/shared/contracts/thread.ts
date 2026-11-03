@@ -15,7 +15,7 @@ import {
   threadPresentationModeSchema,
   threadStatusSchema,
 } from "./common";
-import { threadConfigSchema } from "./config";
+import { pluginOverridesSchema, threadConfigSchema } from "./config";
 import {
   BUILT_IN_MCP_SERVER_IDS,
   builtInMcpDisabledToolsSchema,
@@ -279,6 +279,8 @@ export const startThreadPayloadSchema = z
     /** Supervisor-owned restrictions that must survive every restart of this thread. */
     invariantDisabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
     disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema.optional(),
+    /** The project's Agent Plugin switches, applied beneath `config.pluginOverrides`. */
+    projectPluginOverrides: pluginOverridesSchema.optional(),
     /**
      * Renderer-allocated id for the user_message item the chat pane has already
      * painted optimistically. The supervisor reuses this id when emitting its

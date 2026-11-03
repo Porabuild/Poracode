@@ -294,6 +294,8 @@ public typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DMcpServers
 
 public typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DPinnedBranches_f26d9689fe = [String]?
 
+public typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DPluginOverrides_636da2bdcb = ProcedureconnectThreadVoiceRequestU2DConfigU2DMcpServerOverrides_6db96506f2?
+
 public struct RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DScriptsU2DOptionU2D1U2DActionsU2DItem_1544bc59ff: Codable, Sendable, RemoteModelMetadata {
   public var command: String
   public var icon: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
@@ -379,13 +381,14 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DWorktreeLocat
 
 public typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DWorktreeLocation_137e14636e = RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DWorktreeLocationU2DOptionU2D1_7eb7e8f44a?
 
-public struct RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404: Codable, Sendable, RemoteModelMetadata {
+public struct RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_80fe2d5ae5: Codable, Sendable, RemoteModelMetadata {
   public var disabled: RemoteField<Bool> = .missing
   public var ghAccount: RemoteField<ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff> = .missing
   public var icon: RemoteField<String> = .missing
   public var mcpServers: RemoteField<[ProcedurebeginMcpServerOauthRequestU2DServer_c04b1452d1]> = .missing
   public var name: RemoteField<String> = .missing
   public var pinnedBranches: RemoteField<[String]> = .missing
+  public var pluginOverrides: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfigU2DMcpServerOverrides_6db96506f2> = .missing
   public var scripts: RemoteField<RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DScriptsU2DOptionU2D1_cd124b21d9> = .missing
   public var searchSettings: RemoteField<RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DSearchSettingsU2DOptionU2D1_3ccadafaab> = .missing
   public var worktreeBaseBranch: RemoteField<String> = .missing
@@ -398,6 +401,7 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404: Cod
     .init(wireName: "mcpServers", typeName: "[ProcedurebeginMcpServerOauthRequestU2DServer_c04b1452d1]", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "name", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "pinnedBranches", typeName: "[String]", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "pluginOverrides", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DMcpServerOverrides_6db96506f2", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "scripts", typeName: "RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DScriptsU2DOptionU2D1_cd124b21d9", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "searchSettings", typeName: "RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DSearchSettingsU2DOptionU2D1_3ccadafaab", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "worktreeBaseBranch", typeName: "String", required: false, nullable: true, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -411,6 +415,7 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404: Cod
     case mcpServers = "mcpServers"
     case name = "name"
     case pinnedBranches = "pinnedBranches"
+    case pluginOverrides = "pluginOverrides"
     case scripts = "scripts"
     case searchSettings = "searchSettings"
     case worktreeBaseBranch = "worktreeBaseBranch"
@@ -418,14 +423,14 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404: Cod
   }
 }
 
-public struct RouteprojectU2DCommandRequestU2DOptionU2D4_da96a7918f: Codable, Sendable, RemoteModelMetadata {
+public struct RouteprojectU2DCommandRequestU2DOptionU2D4_36ba3d858b: Codable, Sendable, RemoteModelMetadata {
   public var kind: RouteprojectU2DCommandRequestU2DOptionU2D4U2DKind_cbc64d1458
-  public var patch: RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404
+  public var patch: RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_80fe2d5ae5
   public var projectId: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "kind", typeName: "RouteprojectU2DCommandRequestU2DOptionU2D4U2DKind_cbc64d1458", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "patch", typeName: "RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "patch", typeName: "RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_80fe2d5ae5", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "projectId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []

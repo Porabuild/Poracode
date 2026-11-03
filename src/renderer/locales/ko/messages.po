@@ -279,6 +279,11 @@ msgstr "{0} 후크가 설치되었습니다."
 msgid "{0} hooks removed for {envName}."
 msgstr "{envName}에 대한 {0} 후크가 제거되었습니다."
 
+#. placeholder {0}: entry.name
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "{0} in this project"
+msgstr "이 프로젝트의 {0}"
+
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "{0} install targets"
@@ -3629,6 +3634,10 @@ msgstr "녹음 방법과 음성이 기록되는 위치를 선택하세요."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
 msgstr "가져오기 대상 선택"
+
+#: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
+msgid "Choose project"
+msgstr "프로젝트 선택"
 
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Choose shells for the Terminal panel and Poracode's internal commands."
@@ -10840,6 +10849,10 @@ msgstr "지원되는 에이전트를 시작할 때 Poracode에서 추가하는 M
 #~ msgid "Manage the skills Poracode makes available to supported agents. Project skills can be managed in each project's settings."
 #~ msgstr "Poracode가 지원되는 에이전트에 제공하는 스킬을 관리합니다. 프로젝트 스킬은 각 프로젝트의 설정에서 관리할 수 있습니다."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Manage this project's plugins from a Poracode client on its host."
+msgstr "이 프로젝트의 플러그인은 해당 호스트의 Poracode 클라이언트에서 관리하세요."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarWorkspaceSwitcher.tsx
 #~ msgid "Manage workspaces"
 #~ msgstr "작업 영역 관리"
@@ -12405,6 +12418,10 @@ msgstr "이 컴퓨터에서 가져올 수 있는 세션을 찾지 못했습니�
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "이 프로젝트에서 선택 가능한 모델이 있는 설치된 에이전트를 사용할 수 없습니다."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "No installed plugins can be switched per project. Install plugins from Settings, then choose them here."
+msgstr "프로젝트별로 전환할 수 있는 설치된 플러그인이 없습니다. 설정에서 플러그인을 설치한 다음 여기에서 선택하세요."
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No installed plugins yet."
 msgstr "아직 설치된 플러그인이 없습니다."
@@ -12946,6 +12963,7 @@ msgstr "꺼짐"
 
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Off"
 msgstr "꺼짐"
@@ -12988,6 +13006,7 @@ msgstr "오래된순"
 msgid "on"
 msgstr "켜짐"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "요일"
@@ -13081,6 +13100,10 @@ msgstr "변경 사항에서 {location} 열기"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "새 브라우저 탭 열기"
+
+#: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
+msgid "Open a project's MCP settings"
+msgstr "프로젝트의 MCP 설정 열기"
 
 #: src/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
@@ -14226,6 +14249,10 @@ msgstr "plugin.json이 이 빌드에서 지원하지 않는 Agent Plugins 버전
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Plugins"
@@ -14735,6 +14762,11 @@ msgstr "프로젝트 아이콘: {label}"
 msgid "project managed"
 msgstr "프로젝트에서 관리"
 
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Project MCP servers"
+msgstr "프로젝트 MCP 서버"
+
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -14771,6 +14803,7 @@ msgid "Project-specific overrides on top of the global search settings."
 msgstr "전역 검색 설정 위에 프로젝트별 재정의가 적용됩니다."
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -17603,6 +17636,11 @@ msgstr "서버 기본 URL"
 #: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "서버가 오프라인입니다. 이 대화는 최신 상태가 아닐 수 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Servers in a project's settings apply only to that project and override global servers with the same name. To move a global server, edit it and change its scope."
+msgstr "프로젝트 설정의 서버는 해당 프로젝트에만 적용되며 이름이 같은 전역 서버를 재정의합니다. 전역 서버를 이동하려면 편집하여 범위를 변경하세요."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
@@ -20998,6 +21036,10 @@ msgstr "다른 키워드를 사용하거나 카테고리를 선택하세요."
 msgid "Try now"
 msgstr "지금 사용해보기"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch."
+msgstr "이 프로젝트의 스레드에서 설치된 플러그인을 켜거나 끕니다. 스레드 자체의 플러그인 선택이 계속 우선하며, 실행 중인 스레드는 다음 실행 시 변경 사항을 적용합니다."
+
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Turn on Auto-merge automatically for pull requests you create in Poracode."
@@ -22095,6 +22137,14 @@ msgstr "기본 글꼴 사용"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "감지된 세션을 사용하시겠습니까?"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Use global (off)"
+msgstr "전역 설정 사용(끔)"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
+msgid "Use global (on)"
+msgstr "전역 설정 사용(켬)"
 
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

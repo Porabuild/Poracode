@@ -104,10 +104,10 @@ data class RouteshellU2DSnapshotResponseU2DWorkspacesU2DItem_33250cfe65(
 }
 
 @Serializable
-data class RouteshellU2DSnapshotResponse_ad5850d87c(
+data class RouteshellU2DSnapshotResponse_893eca5a7b(
     @SerialName("gitState") val gitState: RemoteField<RouteshellU2DSnapshotResponseU2DGitState_039d29a220> = RemoteField.Missing,
     @SerialName("gitSummariesByThread") val gitSummariesByThread: RemoteField<RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78> = RemoteField.Missing,
-    @SerialName("projects") val projects: List<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e>,
+    @SerialName("projects") val projects: List<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10>,
     @SerialName("projectsNextCursor") val projectsNextCursor: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
     @SerialName("reads") val reads: RemoteField<RouteprojectU2DListQueryU2DReads_4659e6d395> = RemoteField.Missing,
     @SerialName("runtimeSummariesByThread") val runtimeSummariesByThread: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26,
@@ -122,7 +122,7 @@ data class RouteshellU2DSnapshotResponse_ad5850d87c(
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("gitState", "RouteshellU2DSnapshotResponseU2DGitState_039d29a220", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("gitSummariesByThread", "RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projects", "List<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projects", "List<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10>", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("projectsNextCursor", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, true, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("runtimeSummariesByThread", "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26", true, false, null, null, null, null, null, null, null, null, listOf()),

@@ -313,11 +313,7 @@ export async function performDesktopRemoteAccessStart(
       dispatchThreadCommand: options.dispatchThreadCommand,
       resolveMcpLaunchSnapshot: (projectId, overrides) => {
         const settings = readSharedSettingsFile(options.paths.settingsPath);
-        return resolveMcpLaunchSnapshot(
-          settings,
-          dbGetProject(projectId)?.mcpServers ?? [],
-          overrides,
-        );
+        return resolveMcpLaunchSnapshot(settings, dbGetProject(projectId), overrides);
       },
       ...(options.browser
         ? { browser: options.browser }

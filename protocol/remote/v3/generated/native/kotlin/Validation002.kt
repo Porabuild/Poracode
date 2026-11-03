@@ -5,10 +5,6 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-internal val schema_11ada4e73a793b0d: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("pending"), JsonPrimitive("completed"), JsonPrimitive("failed"), JsonPrimitive("ambiguous"), JsonPrimitive("skipped_no_turns"), JsonPrimitive("skipped_missing_checkpoint")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_11da754926e41b05: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("append")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -435,6 +431,10 @@ internal val schema_22f3597ef077b931: RemoteSchema by lazy {
 
 internal val schema_22fb635ee9412c65: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("prNumber", "projectId"), properties = mapOf("prNumber" to schema_f58a8b771657d037, "projectId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_2351864622b834c7: RemoteSchema by lazy {
+    RemoteSchema(unionKind = "anyOf", options = listOf(schema_c1f4a31c98798d12, schema_c24d062f64579ed9), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_2363c4dd0a78ce9d: RemoteSchema by lazy {

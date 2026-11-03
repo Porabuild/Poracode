@@ -55,6 +55,7 @@ import {
   type RuntimeEvent,
   type McpLaunchSnapshot,
   type ResolvedMcpServer,
+  resolveLaunchPluginOverrides,
 } from "@/shared/contracts";
 import { effectiveAgentSettings } from "@/shared/machineSettings";
 import { agentEnvForLocation, localMachineKey } from "@/shared/machines";
@@ -1696,6 +1697,10 @@ export class ThreadSessionManager {
     segments: PromptSegment[] | undefined,
   ): Promise<PromptSegment[] | undefined> {
     if (!segments?.some((segment) => segment.kind === "skill")) return segments;
+    const pluginOverrides = resolveLaunchPluginOverrides(
+      session.mcpLaunchSnapshot.projectPluginOverrides,
+      session.config.pluginOverrides,
+    );
     if (
       !session.nativePlugins?.length &&
       segments.some((segment) => segment.kind === "skill" && segment.pluginId)
@@ -1706,18 +1711,14 @@ export class ThreadSessionManager {
         {
           includeExternalServers: false,
           nativePluginAdapter: session.adapter,
-          ...(session.config.pluginOverrides
-            ? { pluginOverrides: session.config.pluginOverrides }
-            : {}),
+          ...(pluginOverrides ? { pluginOverrides } : {}),
         },
       );
       if (contributions) session.nativePlugins = contributions.nativePlugins;
     }
     return (
       (await this.options.filterPluginSkillSegments?.({
-        ...(session.config.pluginOverrides
-          ? { pluginOverrides: session.config.pluginOverrides }
-          : {}),
+        ...(pluginOverrides ? { pluginOverrides } : {}),
         agentKind: session.agentKind,
         projectLocation: session.projectLocation,
         ...(session.presentationMode

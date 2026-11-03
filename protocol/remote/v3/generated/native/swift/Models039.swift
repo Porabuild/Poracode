@@ -179,11 +179,11 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D9_8573967ac3: Codable, Se
   }
 }
 
-public enum RouteprojectU2DCommandRequest_9085134491: Codable, Sendable {
+public enum RouteprojectU2DCommandRequest_3e58e9f152: Codable, Sendable {
   case option1(RouteprojectU2DCommandRequestU2DOptionU2D1_468209f9bb)
   case option2(RouteprojectU2DCommandRequestU2DOptionU2D2_2b7595c3da)
   case option3(RouteprojectU2DCommandRequestU2DOptionU2D3_da66851500)
-  case option4(RouteprojectU2DCommandRequestU2DOptionU2D4_da96a7918f)
+  case option4(RouteprojectU2DCommandRequestU2DOptionU2D4_36ba3d858b)
   case option5(RouteprojectU2DCommandRequestU2DOptionU2D5_27aa975674)
   case option6(RouteprojectU2DCommandRequestU2DOptionU2D6_37addcca5b)
   case option7(RouteprojectU2DCommandRequestU2DOptionU2D7_580efa06e9)
@@ -191,7 +191,7 @@ public enum RouteprojectU2DCommandRequest_9085134491: Codable, Sendable {
   case option9(RouteprojectU2DCommandRequestU2DOptionU2D9_8573967ac3)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, RouteprojectU2DCommandRequest_9085134491)] = []
+    var matches: [(Int, RouteprojectU2DCommandRequest_3e58e9f152)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("add-existing")]), let value = try? container.decode(RouteprojectU2DCommandRequestU2DOptionU2D1_468209f9bb.self) {
       matches.append((1, .option1(value)))
     }
@@ -201,7 +201,7 @@ public enum RouteprojectU2DCommandRequest_9085134491: Codable, Sendable {
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("clone")]), let value = try? container.decode(RouteprojectU2DCommandRequestU2DOptionU2D3_da66851500.self) {
       matches.append((3, .option3(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("update")]), let value = try? container.decode(RouteprojectU2DCommandRequestU2DOptionU2D4_da96a7918f.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("update")]), let value = try? container.decode(RouteprojectU2DCommandRequestU2DOptionU2D4_36ba3d858b.self) {
       matches.append((4, .option4(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("relocate")]), let value = try? container.decode(RouteprojectU2DCommandRequestU2DOptionU2D5_27aa975674.self) {
@@ -220,8 +220,8 @@ public enum RouteprojectU2DCommandRequest_9085134491: Codable, Sendable {
       matches.append((9, .option9(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched RouteprojectU2DCommandRequest_9085134491" : "Ambiguous union RouteprojectU2DCommandRequest_9085134491 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(RouteprojectU2DCommandRequest_9085134491.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched RouteprojectU2DCommandRequest_3e58e9f152" : "Ambiguous union RouteprojectU2DCommandRequest_3e58e9f152 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(RouteprojectU2DCommandRequest_3e58e9f152.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }
@@ -262,7 +262,7 @@ public struct RouteprojectU2DCommandResponseU2DOptionU2D1U2DProjectU2DScripts_51
   }
 }
 
-public struct RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e: Codable, Sendable, RemoteModelMetadata {
+public struct RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10: Codable, Sendable, RemoteModelMetadata {
   public var createdAt: String
   public var disabled: RemoteField<Bool> = .missing
   public var ghAccount: RemoteField<ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff> = .missing
@@ -272,6 +272,7 @@ public struct RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e: 
   public var location: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
   public var name: String
   public var pinnedBranches: RemoteField<[String]> = .missing
+  public var pluginOverrides: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfigU2DMcpServerOverrides_6db96506f2> = .missing
   public var remoteId: RemoteField<String> = .missing
   public var remoteServerId: RemoteField<String> = .missing
   public var scripts: RemoteField<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProjectU2DScripts_51d89a5cbb> = .missing
@@ -290,6 +291,7 @@ public struct RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e: 
     .init(wireName: "location", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "name", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "pinnedBranches", typeName: "[String]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "pluginOverrides", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DMcpServerOverrides_6db96506f2", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "remoteId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "remoteServerId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "scripts", typeName: "RouteprojectU2DCommandResponseU2DOptionU2D1U2DProjectU2DScripts_51d89a5cbb", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -309,6 +311,7 @@ public struct RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e: 
     case location = "location"
     case name = "name"
     case pinnedBranches = "pinnedBranches"
+    case pluginOverrides = "pluginOverrides"
     case remoteId = "remoteId"
     case remoteServerId = "remoteServerId"
     case scripts = "scripts"
@@ -319,15 +322,15 @@ public struct RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e: 
   }
 }
 
-public struct RouteprojectU2DCommandResponseU2DOptionU2D1_f82c2aa6f6: Codable, Sendable, RemoteModelMetadata {
+public struct RouteprojectU2DCommandResponseU2DOptionU2D1_c1f4a31c98: Codable, Sendable, RemoteModelMetadata {
   public var created: RemoteField<Bool> = .missing
-  public var project: RemoteField<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e> = .missing
-  public var projects: [RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e]
+  public var project: RemoteField<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10> = .missing
+  public var projects: [RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "created", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "project", typeName: "RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "projects", typeName: "[RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "project", typeName: "RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projects", typeName: "[RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
@@ -337,15 +340,15 @@ public struct RouteprojectU2DCommandResponseU2DOptionU2D1_f82c2aa6f6: Codable, S
   }
 }
 
-public struct RouteprojectU2DCommandResponseU2DOptionU2D2_c2b3b7b274: Codable, Sendable, RemoteModelMetadata {
+public struct RouteprojectU2DCommandResponseU2DOptionU2D2_c24d062f64: Codable, Sendable, RemoteModelMetadata {
   public var created: RemoteField<Bool> = .missing
   public var ok: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DRolesU2DItemU2DNoEdits_d2dd3595e1
-  public var project: RemoteField<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e> = .missing
+  public var project: RemoteField<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "created", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "ok", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DRolesU2DItemU2DNoEdits_d2dd3595e1", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "project", typeName: "RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "project", typeName: "RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
@@ -355,19 +358,19 @@ public struct RouteprojectU2DCommandResponseU2DOptionU2D2_c2b3b7b274: Codable, S
   }
 }
 
-public enum RouteprojectU2DCommandResponse_585d7373f6: Codable, Sendable {
-  case option1(RouteprojectU2DCommandResponseU2DOptionU2D1_f82c2aa6f6)
-  case option2(RouteprojectU2DCommandResponseU2DOptionU2D2_c2b3b7b274)
+public enum RouteprojectU2DCommandResponse_2351864622: Codable, Sendable {
+  case option1(RouteprojectU2DCommandResponseU2DOptionU2D1_c1f4a31c98)
+  case option2(RouteprojectU2DCommandResponseU2DOptionU2D2_c24d062f64)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, RouteprojectU2DCommandResponse_585d7373f6)] = []
-    if RemoteUnionProbe.matchesObject(decoder), let value = try? container.decode(RouteprojectU2DCommandResponseU2DOptionU2D1_f82c2aa6f6.self) {
+    var matches: [(Int, RouteprojectU2DCommandResponse_2351864622)] = []
+    if RemoteUnionProbe.matchesObject(decoder), let value = try? container.decode(RouteprojectU2DCommandResponseU2DOptionU2D1_c1f4a31c98.self) {
       self = .option1(value); return
     }
-    if RemoteUnionProbe.matchesObject(decoder), let value = try? container.decode(RouteprojectU2DCommandResponseU2DOptionU2D2_c2b3b7b274.self) {
+    if RemoteUnionProbe.matchesObject(decoder), let value = try? container.decode(RouteprojectU2DCommandResponseU2DOptionU2D2_c24d062f64.self) {
       self = .option2(value); return
     }
-    throw DecodingError.typeMismatch(RouteprojectU2DCommandResponse_585d7373f6.self, .init(codingPath: decoder.codingPath, debugDescription: "No union option matched RouteprojectU2DCommandResponse_585d7373f6"))
+    throw DecodingError.typeMismatch(RouteprojectU2DCommandResponse_2351864622.self, .init(codingPath: decoder.codingPath, debugDescription: "No union option matched RouteprojectU2DCommandResponse_2351864622"))
   }
   public func encode(to encoder: Encoder) throws {
     var container = encoder.singleValueContainer()
@@ -423,15 +426,15 @@ public struct RouteprojectU2DListQuery_5e1b33a494: Codable, Sendable, RemoteMode
   }
 }
 
-public struct RouteprojectU2DListResponse_08e2c02f46: Codable, Sendable, RemoteModelMetadata {
+public struct RouteprojectU2DListResponse_d983c015b3: Codable, Sendable, RemoteModelMetadata {
   public var inventoryFrontier: RemoteField<String> = .missing
-  public var projects: [RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e]
+  public var projects: [RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10]
   public var projectsNextCursor: RemoteField<String>
   public var reads: RouteprojectU2DListQueryU2DReads_4659e6d395
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "inventoryFrontier", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "projects", typeName: "[RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_37cd292a9e]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projects", typeName: "[RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_9ee4a9aa10]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "projectsNextCursor", typeName: "String", required: true, nullable: true, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "reads", typeName: "RouteprojectU2DListQueryU2DReads_4659e6d395", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]

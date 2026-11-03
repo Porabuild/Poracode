@@ -6,6 +6,14 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class ProcedureforgeCreatePrResultU2DState_79fd49e14d {
+    @SerialName("open") OPEN,
+    @SerialName("draft") DRAFT,
+    @SerialName("merged") MERGED,
+    @SerialName("closed") CLOSED,
+}
+
+@Serializable
 data class ProcedureforgeCreatePrResult_ea7fc856bb(
     @SerialName("baseBranch") val baseBranch: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
     @SerialName("checksStatus") val checksStatus: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
@@ -425,21 +433,6 @@ data class ProcedureforgeGetPrDetailsResult_a412a228f3(
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("details", "ProcedureforgeGetPrDetailsResultU2DDetails_fb0686e874", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("pr", "ProcedureforgeCreatePrResult_ea7fc856bb", false, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class ProcedureforgeGetPrFilesResultU2DFilesU2DItem_63c18b52ff(
-    @SerialName("additions") val additions: Long,
-    @SerialName("deletions") val deletions: Long,
-    @SerialName("path") val path: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("additions", "Long", true, false, -9007199254740991.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("deletions", "Long", true, false, -9007199254740991.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("path", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

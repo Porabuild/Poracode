@@ -78,6 +78,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
       ghAccount: projectSchema.shape.ghAccount.unwrap().nullable().optional(),
       worktreeBaseBranch: projectSchema.shape.worktreeBaseBranch.unwrap().nullable().optional(),
       pinnedBranches: projectSchema.shape.pinnedBranches.unwrap().nullable().optional(),
+      pluginOverrides: projectSchema.shape.pluginOverrides.unwrap().nullable().optional(),
       disabled: projectSchema.shape.disabled,
     }),
   }),

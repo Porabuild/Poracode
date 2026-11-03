@@ -11,6 +11,7 @@ import { ScriptsSection } from "./parts/ScriptsSection";
 import { ActionsSection } from "./parts/ActionsSection";
 import { SearchSection } from "./parts/SearchSection";
 import { McpSection } from "./parts/McpSection";
+import { PluginsSection } from "./parts/PluginsSection";
 import { SkillsSection } from "./parts/SkillsSection";
 import type { ProjectSettingsSection } from "./parts/types";
 
@@ -18,15 +19,24 @@ export { resolveActionIcon } from "@/renderer/utils/actionIcons";
 
 type CompactSettingsPage = "index" | "section";
 
-export function ProjectSettingsOverlay(props: { projectId: string; onClose: () => void }) {
+export function ProjectSettingsOverlay(props: {
+  projectId: string;
+  /** Deep-link target; mounts keyed on it, so it only seeds the first page. */
+  initialSection?: ProjectSettingsSection | null;
+  onClose: () => void;
+}) {
   const { projectId, onClose } = props;
   const { t } = useLingui();
   const compactLayout = useCompactLayout();
   const projectName = useAppStore(
     (s) => s.projects.find((p) => p.id === projectId)?.name ?? t`Project`,
   );
-  const [activeSection, setActiveSection] = useState<ProjectSettingsSection>("general");
-  const [compactPage, setCompactPage] = useState<CompactSettingsPage>("index");
+  const [activeSection, setActiveSection] = useState<ProjectSettingsSection>(
+    props.initialSection ?? "general",
+  );
+  const [compactPage, setCompactPage] = useState<CompactSettingsPage>(
+    props.initialSection ? "section" : "index",
+  );
   useProductViewTracking(
     {
       key: `project-settings:${activeSection}`,
@@ -56,7 +66,9 @@ export function ProjectSettingsOverlay(props: { projectId: string; onClose: () =
             ? t`Skills`
             : activeSection === "mcp"
               ? t`MCP Servers`
-              : t`Search`;
+              : activeSection === "plugins"
+                ? t`Plugins`
+                : t`Search`;
 
   const sectionContent =
     activeSection === "general" ? (
@@ -69,6 +81,8 @@ export function ProjectSettingsOverlay(props: { projectId: string; onClose: () =
       <SkillsSection projectId={projectId} />
     ) : activeSection === "mcp" ? (
       <McpSection projectId={projectId} />
+    ) : activeSection === "plugins" ? (
+      <PluginsSection projectId={projectId} />
     ) : activeSection === "search" ? (
       <SearchSection projectId={projectId} />
     ) : null;

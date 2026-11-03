@@ -1,4 +1,5 @@
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
+import type { ProjectSettingsSection } from "./projectSettings/sections";
 import { create } from "zustand";
 import type { ThreadDockKind } from "@/shared/settings";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -184,6 +185,8 @@ interface PanelState {
   /** Optional setting row to scroll to after opening a deep-linked section. */
   settingsAnchor: string | null;
   projectSettingsId: string | null;
+  /** Section the project settings view opens on (e.g. "mcp"); null = its default page. */
+  projectSettingsSection: ProjectSettingsSection | null;
   threadSortMode: ThreadSortMode;
   threadListLayout: ThreadListLayout;
   /** Whether the "Start from scratch" create-project modal is open. */
@@ -235,7 +238,7 @@ interface PanelState {
   clearSettingsSection: () => void;
   setActiveSettingsSection: (section: string) => void;
   closeSettings: () => void;
-  openProjectSettings: (projectId: string) => void;
+  openProjectSettings: (projectId: string, section?: ProjectSettingsSection) => void;
   closeProjectSettings: () => void;
   openCreateProjectModal: () => void;
   closeCreateProjectModal: () => void;
@@ -378,6 +381,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   activeSettingsSection: null,
   settingsAnchor: null,
   projectSettingsId: null,
+  projectSettingsSection: null,
   threadSortMode: sanitizeThreadSortMode(initialPersisted?.threadSortMode),
   threadListLayout: sanitizeThreadListLayout(initialPersisted?.threadListLayout),
   createProjectModalOpen: false,
@@ -728,23 +732,27 @@ export const usePanelStore = create<PanelState>()((set) => ({
       ...(state.settingsOpen ? { settingsOpen: false } : {}),
       ...(state.mobileUtilityPage === "settings" ? { mobileUtilityPage: null } : {}),
     })),
-  openProjectSettings: (projectId) =>
+  openProjectSettings: (projectId, section) =>
     set((state) => {
       const compactLayout = isCompactLayoutViewport();
+      const projectSettingsSection = section ?? null;
       if (
         state.projectSettingsId === projectId &&
+        state.projectSettingsSection === projectSettingsSection &&
         (!compactLayout || state.mobileUtilityPage === "projectSettings")
       ) {
         return {};
       }
       return {
         projectSettingsId: projectId,
+        projectSettingsSection,
         ...(compactLayout ? { mobileUtilityPage: "projectSettings" as const } : {}),
       };
     }),
   closeProjectSettings: () =>
     set((state) => ({
       ...(state.projectSettingsId !== null ? { projectSettingsId: null } : {}),
+      ...(state.projectSettingsSection !== null ? { projectSettingsSection: null } : {}),
       ...(state.mobileUtilityPage === "projectSettings" ? { mobileUtilityPage: null } : {}),
     })),
   openCreateProjectModal: () =>
@@ -759,14 +767,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => ({
       ...(state.mobileUtilityPage === page ? {} : { mobileUtilityPage: page }),
       ...(page !== "projectSettings" && state.projectSettingsId !== null
-        ? { projectSettingsId: null }
+        ? { projectSettingsId: null, projectSettingsSection: null }
         : {}),
     })),
   closeMobileUtilityPage: () =>
     set((state) => ({
       ...(state.mobileUtilityPage !== null ? { mobileUtilityPage: null } : {}),
       ...(state.mobileUtilityPage === "projectSettings" && state.projectSettingsId !== null
-        ? { projectSettingsId: null }
+        ? { projectSettingsId: null, projectSettingsSection: null }
         : {}),
     })),
   closeAllPanels: () => {

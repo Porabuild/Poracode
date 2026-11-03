@@ -177,6 +177,8 @@ typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DMcpServers_637f68
 
 typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DPinnedBranches_f26d9689fe = List<String>?
 
+typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DPluginOverrides_636da2bdcb = ProcedureconnectThreadVoiceRequestU2DConfigU2DMcpServerOverrides_6db96506f2?
+
 @Serializable
 data class RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DScriptsU2DOptionU2D1U2DActionsU2DItem_1544bc59ff(
     @SerialName("command") val command: String,
@@ -252,13 +254,14 @@ data class RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DWorktreeLocation
 typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DWorktreeLocation_137e14636e = RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DWorktreeLocationU2DOptionU2D1_7eb7e8f44a?
 
 @Serializable
-data class RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404(
+data class RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_80fe2d5ae5(
     @SerialName("disabled") val disabled: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("ghAccount") val ghAccount: RemoteField<ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff> = RemoteField.Missing,
     @SerialName("icon") val icon: RemoteField<String> = RemoteField.Missing,
     @SerialName("mcpServers") val mcpServers: RemoteField<List<ProcedurebeginMcpServerOauthRequestU2DServer_c04b1452d1>> = RemoteField.Missing,
     @SerialName("name") val name: RemoteField<String> = RemoteField.Missing,
     @SerialName("pinnedBranches") val pinnedBranches: RemoteField<List<String>> = RemoteField.Missing,
+    @SerialName("pluginOverrides") val pluginOverrides: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfigU2DMcpServerOverrides_6db96506f2> = RemoteField.Missing,
     @SerialName("scripts") val scripts: RemoteField<RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DScriptsU2DOptionU2D1_cd124b21d9> = RemoteField.Missing,
     @SerialName("searchSettings") val searchSettings: RemoteField<RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DSearchSettingsU2DOptionU2D1_3ccadafaab> = RemoteField.Missing,
     @SerialName("worktreeBaseBranch") val worktreeBaseBranch: RemoteField<String> = RemoteField.Missing,
@@ -272,6 +275,7 @@ data class RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404(
             RemoteFieldDescriptor("mcpServers", "List<ProcedurebeginMcpServerOauthRequestU2DServer_c04b1452d1>", false, true, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("name", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("pinnedBranches", "List<String>", false, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("pluginOverrides", "ProcedureconnectThreadVoiceRequestU2DConfigU2DMcpServerOverrides_6db96506f2", false, true, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("scripts", "RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DScriptsU2DOptionU2D1_cd124b21d9", false, true, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("searchSettings", "RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DSearchSettingsU2DOptionU2D1_3ccadafaab", false, true, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("worktreeBaseBranch", "String", false, true, null, null, 1, null, null, null, null, null, listOf()),
@@ -281,15 +285,15 @@ data class RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404(
 }
 
 @Serializable
-data class RouteprojectU2DCommandRequestU2DOptionU2D4_da96a7918f(
+data class RouteprojectU2DCommandRequestU2DOptionU2D4_36ba3d858b(
     @SerialName("kind") val kind: RouteprojectU2DCommandRequestU2DOptionU2D4U2DKind_cbc64d1458,
-    @SerialName("patch") val patch: RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404,
+    @SerialName("patch") val patch: RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_80fe2d5ae5,
     @SerialName("projectId") val projectId: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("kind", "RouteprojectU2DCommandRequestU2DOptionU2D4U2DKind_cbc64d1458", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("patch", "RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_c6ebfd6404", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("patch", "RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatch_80fe2d5ae5", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
