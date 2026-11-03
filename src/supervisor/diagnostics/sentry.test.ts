@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import Module from "node:module";
+import { describe, expect, it, vi } from "vitest";
 import {
   HostResourceBusyError,
   HostResourcePolicyUnavailableError,
@@ -12,6 +13,11 @@ import {
   GIT_ADMISSION_QUEUE_FULL_CODE,
   GitProcessAdmissionError,
 } from "../git/gitProcessAdmission";
+
+const sentryMock = vi.hoisted(() => ({
+  init: vi.fn<(options: { beforeSend: (event: never) => unknown }) => void>(),
+  setContext: vi.fn<(name: string, value: Record<string, unknown>) => void>(),
+}));
 
 type ClassificationCase = {
   operation: string;
@@ -35,6 +41,31 @@ const EXPECTED_OPERATIONAL_CASES: ClassificationCase[] = [
     operation: "ghListPrs",
     message: 'GitHub CLI is not authenticated. Run "gh auth login" in the terminal.',
     errorClass: "github-cli-unauthenticated",
+  },
+  {
+    operation: "ghGetPrForBranch",
+    message: 'GitHub CLI is not authenticated. Run "gh auth login" in the terminal.',
+    errorClass: "github-cli-unauthenticated",
+  },
+  {
+    operation: "ghGetPrForBranch",
+    message: "Configure credentials scoped to this exact source host in the project's runtime.",
+    errorClass: "source-host-credentials-unconfigured",
+  },
+  {
+    operation: "ghListPrs",
+    message: "Configure credentials scoped to this exact source host in the project's runtime.",
+    errorClass: "source-host-credentials-unconfigured",
+  },
+  {
+    operation: "readProjectFile",
+    message: "Only files can be opened in the editor.",
+    errorClass: "editor-target-not-file",
+  },
+  {
+    operation: "readProjectFile",
+    message: "Path traversal is not allowed.",
+    errorClass: "project-path-traversal-rejected",
   },
   {
     operation: "interruptThread",
@@ -123,6 +154,21 @@ const EXPECTED_OPERATIONAL_CASES: ClassificationCase[] = [
 ];
 
 const NEAR_MISS_CASES: ClassificationCase[] = [
+  {
+    operation: "ghGetPrForBranch",
+    message: "Configure credentials scoped to this source host in the project's runtime.",
+    errorClass: "source-host-credentials-unconfigured",
+  },
+  {
+    operation: "readProjectFile",
+    message: "Only files can be opened in the editor",
+    errorClass: "editor-target-not-file",
+  },
+  {
+    operation: "readProjectFile",
+    message: "Path traversal is not allowed",
+    errorClass: "project-path-traversal-rejected",
+  },
   {
     operation: "ghListPrs",
     message: 'GitHub CLI is not authenticated. Run "gh auth login" in the terminal!',
@@ -388,9 +434,12 @@ describe("supervisor Sentry policy", () => {
 
   it.each(EXPECTED_OPERATIONAL_CASES.filter((testCase) => testCase.operationScoped !== false))(
     "keeps $errorClass unknown outside its scoped operation",
-    ({ message }) => {
+    ({ operation, message }) => {
       expect.hasAssertions();
-      expectUnknown("readProjectFile", message);
+      expectUnknown(
+        operation === "readProjectFile" ? "writeProjectFile" : "readProjectFile",
+        message,
+      );
     },
   );
 
@@ -454,5 +503,57 @@ describe("supervisor Sentry policy", () => {
       errorClass: "type-error",
       fingerprint: null,
     });
+  });
+});
+
+describe("supervisor Sentry event admission", () => {
+  it("applies the limiter from the configured beforeSend callback", () => {
+    sentryMock.init.mockReset();
+    sentryMock.setContext.mockReset();
+    const originalDsn = process.env.SENTRY_DSN;
+    process.env.SENTRY_DSN = "https://public@example.test/1";
+
+    const moduleLoader = Module as unknown as {
+      _load: (request: string, ...rest: unknown[]) => unknown;
+    };
+    const originalLoad = moduleLoader._load.bind(moduleLoader);
+    const loadSpy = vi
+      .spyOn(moduleLoader, "_load")
+      .mockImplementation((request, ...rest) =>
+        request === "@sentry/node" ? sentryMock : originalLoad(request, ...rest),
+      );
+
+    try {
+      expect(initializeSupervisorSentry({ appVersion: "test", isDev: false })).toBe(true);
+      const beforeSend = sentryMock.init.mock.calls[0]?.[0].beforeSend;
+      expect(beforeSend).toBeDefined();
+      const event = {
+        exception: {
+          values: [
+            {
+              type: "Error",
+              value: "poll failed",
+              stacktrace: {
+                frames: [{ function: "pollProject", filename: "/app/supervisor.cjs", lineno: 12 }],
+              },
+            },
+          ],
+        },
+      };
+
+      expect(beforeSend!(event as never)).not.toBeNull();
+      expect(beforeSend!(event as never)).not.toBeNull();
+      expect(beforeSend!(event as never)).not.toBeNull();
+      expect(beforeSend!(event as never)).toBeNull();
+    } finally {
+      loadSpy.mockRestore();
+      if (originalDsn === undefined) {
+        delete process.env.SENTRY_DSN;
+      } else {
+        process.env.SENTRY_DSN = originalDsn;
+      }
+      sentryMock.init.mockReset();
+      sentryMock.setContext.mockReset();
+    }
   });
 });

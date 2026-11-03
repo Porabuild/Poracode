@@ -1,4 +1,5 @@
 import { ExpectedStructuredRuntimeError } from "../../agents/base";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import type { SessionRuntime } from "../sessionTypes";
 import {
@@ -16,6 +17,11 @@ function isExpectedStructuredFailure(error: unknown): boolean {
   for (let depth = 0; depth < 5 && current !== undefined && !visited.has(current); depth += 1) {
     visited.add(current);
     if (current instanceof ExpectedStructuredRuntimeError) return true;
+    if (
+      current instanceof DiagnosticError &&
+      current.diagnostic.failureClass === "expected-operational"
+    )
+      return true;
     const message =
       current instanceof Error ? current.message : typeof current === "string" ? current : "";
     if (EXPECTED_PROVIDER_OUTCOME.test(message)) return true;

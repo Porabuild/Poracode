@@ -6,6 +6,7 @@ import {
   readBuildSentryEnvironment,
   shouldEnableSentryReporting,
 } from "@/shared/diagnostics/sentryBuildConfig";
+import { createSentryEventLimiter } from "@/shared/diagnostics/sentryEventLimiter";
 import { prepareMainSentryEvent } from "./mainEvent";
 
 const DISABLED_INTEGRATIONS = new Set([
@@ -25,6 +26,7 @@ let mainSentry: MainSentryModule | null | undefined;
 // require-in-the-middle graph) costs ~100ms of synchronous main-thread work to
 // load, so capture paths must not pull it in just to learn it is disabled.
 let mainSentryInitialized = false;
+const shouldSendMainSentryEvent = createSentryEventLimiter();
 
 export type MainSentryOptions = {
   appVersion: string;
@@ -113,10 +115,13 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
       return null;
     },
     beforeSend(event) {
-      return prepareMainSentryEvent(
+      const prepared = prepareMainSentryEvent(
         event as unknown as SentryEventLike,
         process.platform,
-      ) as unknown as typeof event | null;
+      );
+      return prepared && shouldSendMainSentryEvent(prepared)
+        ? (prepared as unknown as typeof event)
+        : null;
     },
     integrations(defaultIntegrations) {
       return defaultIntegrations.filter(
