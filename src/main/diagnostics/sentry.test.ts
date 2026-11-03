@@ -1,5 +1,7 @@
 import Module from "node:module";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as SentryCore from "@sentry/core";
 import type { NodeClient as SentryNodeClient } from "@sentry/node";
 
@@ -7,7 +9,7 @@ const electronMock = vi.hoisted(() => ({
   app: {
     getAppPath: () => ".",
     getName: () => "Poracode",
-    getPath: () => ".tmp/sentry-sdk-test",
+    getPath: vi.fn<() => string>(),
     isPackaged: false,
     name: "Poracode",
     on: vi.fn<(eventName: string, listener: unknown) => void>(),
@@ -28,6 +30,13 @@ const sentryMock = vi.hoisted(() => ({
 
 const originalDsn = process.env.SENTRY_DSN;
 const originalDevOverride = process.env.SENTRY_ENABLE_DEV;
+let directory: string;
+
+beforeEach(() => {
+  mkdirSync("tmp", { recursive: true });
+  directory = mkdtempSync(join(process.cwd(), "tmp", "sentry-main-"));
+  electronMock.app.getPath.mockReturnValue(directory);
+});
 
 afterEach(() => {
   if (originalDsn === undefined) {
@@ -44,6 +53,7 @@ afterEach(() => {
   sentryMock.setContext.mockReset();
   electronMock.app.on.mockClear();
   electronMock.crashReporter.start.mockClear();
+  rmSync(directory, { recursive: true, force: true });
 });
 
 describe("main Sentry configuration", () => {
@@ -125,6 +135,15 @@ describe("main Sentry event admission", () => {
       expect(beforeSend!(event as never)).not.toBeNull();
       expect(beforeSend!(event as never)).not.toBeNull();
       expect(beforeSend!(event as never)).toBeNull();
+      expect(
+        initializeMainSentry({ appVersion: "test-next", isDev: false, channel: "stable" }),
+      ).toBe(true);
+      const restarted = sentryMock.init.mock.calls.at(-1)?.[0].beforeSend;
+      expect(restarted!(event as never)).toBeNull();
+      const ledger = JSON.parse(
+        readFileSync(join(directory, "sentry", "event-budget.json"), "utf8"),
+      );
+      expect(ledger.processEvents).toHaveLength(3);
     } finally {
       loadSpy.mockRestore();
     }
