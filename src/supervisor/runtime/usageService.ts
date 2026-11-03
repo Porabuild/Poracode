@@ -49,7 +49,8 @@ import { withMacKeychainAuthorizationRetry } from "./macKeychain";
 // older readers safely ignore them, and caches without them start at the first cooldown.
 // v14 resolves Kimi's configured OAuth identity and region, so discard v13
 // snapshots that may report a missing login or quota from the legacy account.
-const USAGE_CACHE_VERSION = 14;
+// v15 replaces legacy monthly allowance bars on unified accounts with shared weekly quota.
+const USAGE_CACHE_VERSION = 15;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const REFRESH_POLICIES = new Map(allUsageProviderDescriptors().map((d) => [d.id, d.refreshPolicy]));

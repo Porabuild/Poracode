@@ -27,7 +27,7 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     label: "Cursor",
     mechanism: "oauth-endpoint",
     needsLogin: false,
-    windowIds: ["monthly", "cursor-auto", "cursor-api", "extra-usage"],
+    windowIds: ["weekly", "monthly", "cursor-auto", "cursor-api", "extra-usage"],
   },
   grok: {
     id: "grok",
