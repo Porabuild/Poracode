@@ -68,7 +68,10 @@ import {
   setRemoteHostUpdateRequestSeq,
   takeRemoteServerRowResyncPending,
 } from "./connectionRefresh";
-import { resetRemoteTerminalFeed } from "@/renderer/state/remoteTerminalFeed";
+import {
+  resetRemoteTerminalFeed,
+  setRemoteTerminalSocketSender,
+} from "@/renderer/state/remoteTerminalFeed";
 import {
   terminalCapabilitiesFromEnvironment,
   type TerminalConnectionCapabilities,
@@ -118,7 +121,6 @@ export function closeRemoteServerEventSocket(
   // so a closed/removed server never fires a late GET (finding #5).
   clearRemoteServerRefreshTimer(desktopId);
   const entry = getRemoteServerEventSocketEntry(desktopId);
-  if (!entry) return;
   deleteRemoteServerEventSocketEntry(desktopId);
   if (!options.preserveReplayState) {
     deleteRemoteServerSnapshotSeq(desktopId);
@@ -126,13 +128,15 @@ export function closeRemoteServerEventSocket(
     resetTruncateRecoveryEpoch(desktopId);
     takeRemoteServerRowResyncPending(desktopId);
   }
+  if (options.preserveReplayState) setRemoteTerminalSocketSender(desktopId, null);
+  else resetRemoteTerminalFeed(desktopId);
+  if (!entry) return;
   if (entry.reconnectTimer) {
     clearTimeout(entry.reconnectTimer);
     entry.reconnectTimer = null;
   }
   clearRemoteServerEventSocketConnectTimeout(entry);
   clearRemoteServerEventSocketHealth(entry);
-  resetRemoteTerminalFeed(desktopId);
   if (!entry.socket) return;
   try {
     entry.socket.close();
