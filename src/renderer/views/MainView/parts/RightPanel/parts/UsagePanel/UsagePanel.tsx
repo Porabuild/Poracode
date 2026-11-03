@@ -14,6 +14,7 @@ import { fetchHostUsage } from "@/renderer/components/providers/hostUsage";
 import { readBridge } from "@/renderer/bridge";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { RemoteServerPicker } from "@/renderer/components/common/RemoteServerPicker";
+import { floatingBubblePillClass } from "@/renderer/components/layout/floatingGlass";
 import { MobilePageHeaderActions } from "@/renderer/components/layout/MobilePageHeaderActions";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import {
@@ -310,7 +311,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
               includeLocal={!browserRuntime}
               onChange={setRequestedDesktopId}
               {...(lastUpdated > 0 ? { detail: formatUpdatedAgo(lastUpdated, nowTick, t) } : {})}
-              buttonClassName="pointer-events-auto h-7 min-h-7 max-w-[14rem] rounded-full border border-[color:var(--border)] bg-[var(--content-background)] px-2.5 shadow-sm"
+              buttonClassName={`${floatingBubblePillClass} pointer-events-auto max-w-[14rem] px-2.5`}
               opensUpward
             />
           ) : (

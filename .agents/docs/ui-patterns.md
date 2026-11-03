@@ -35,7 +35,7 @@ Three modes: light, dark, system. Resolved via the `useResolvedAppearance()` hoo
 
 `src/renderer/styles.css` sets a sharp global `--radius: 0.125rem` (2px), and HeroUI derives the Tailwind `rounded-xs`…`rounded-4xl` scale from it, so those classes render much smaller than Tailwind's defaults: `rounded-xl` = 3px, `rounded-2xl` = 4px, `rounded-3xl` = 6px, `rounded-4xl` = 8px. Pick radii by matching the existing surface, not by the class name:
 
-- **Floating panels** (composer shell, `FindBar`, thread side tool rail): `rounded-4xl` / `var(--radius-4xl)`. Floating controls over content share the `floatingGlassSurfaceClass` material (`components/layout/floatingGlass.ts`).
+- **Floating panels** (composer shell, `FindBar`, thread side tool rail): `rounded-4xl` / `var(--radius-4xl)`. Floating controls over content share the `floatingGlassSurfaceClass` material (`components/layout/floatingGlass.ts`). Small floating pills, selectors, and icon buttons (composer bubbles, the usage host picker) build on `floatingBubblePillClass` / `floatingBubbleIconClass` plus `floatingBubbleActiveClass` from the same file and add only padding, tone, and placement; don't hand-roll border, background, or shadow for a new bubble.
 - **Buttons inside them:** `rounded-3xl`, the HeroUI `Button` default.
 
 Hairline borders are foreground mixes: `--hairline-soft` (3%, barely visible: the tool rail edge, quiet cards), `--hairline` (9%, default dividers), `--hairline-strong` (15%, primary inputs such as the composer).

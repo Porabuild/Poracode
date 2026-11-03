@@ -3,9 +3,8 @@ import { useLingui } from "@lingui/react/macro";
 import { MessagesSquare } from "lucide-react";
 import { friendlyError } from "@/shared/messages";
 import {
-  floatingGlassBubbleClass,
-  floatingGlassBubbleActiveClass,
-  floatingGlassSurfaceClass,
+  floatingBubbleActiveClass,
+  floatingBubbleIconClass,
 } from "@/renderer/components/layout/floatingGlass";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSideChatPanelStore } from "./sideChatPanelStore";
@@ -25,7 +24,7 @@ export function SideChatBubble({ threadId }: { threadId: string }) {
           size="sm"
           variant="ghost"
           aria-label={t`Side chat`}
-          className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} ${selected && open ? floatingGlassBubbleActiveClass : ""} size-7 min-h-0 min-w-0 rounded-full p-0 text-muted`}
+          className={`${floatingBubbleIconClass} ${selected && open ? floatingBubbleActiveClass : ""} text-muted`}
           onPress={() => {
             if (selected && open) usePanelStore.setState({ sideChatPanelOpen: false });
             else

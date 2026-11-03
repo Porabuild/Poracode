@@ -9,6 +9,7 @@ import { useHostUsageStore } from "@/renderer/state/hostUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { fetchHostUsage } from "@/renderer/components/providers/hostUsage";
 import { UsagePanelHeaderActions } from "./parts/UsagePanelHeaderActions";
+import { floatingBubblePillClass } from "@/renderer/components/layout/floatingGlass";
 import { UsagePanel } from "./UsagePanel";
 
 const session = vi.hoisted(() => ({ remote: false, compact: false }));
@@ -30,9 +31,18 @@ vi.mock("@/renderer/state/remoteServersStore", async () => {
   };
 });
 vi.mock("@/renderer/components/common/RemoteServerPicker", () => ({
-  RemoteServerPicker: (props: { onChange: (id: string | null) => void; detail?: ReactNode }) => (
+  RemoteServerPicker: (props: {
+    onChange: (id: string | null) => void;
+    detail?: ReactNode;
+    buttonClassName?: string;
+  }) => (
     <>
-      <button type="button" onClick={() => props.onChange(null)}>
+      <button
+        type="button"
+        data-testid="picker-trigger"
+        className={props.buttonClassName}
+        onClick={() => props.onChange(null)}
+      >
         Current host
       </button>
       {props.detail ? <span data-testid="picker-detail">{props.detail}</span> : null}
@@ -170,6 +180,15 @@ describe("usage panel host ownership", () => {
     expect(screen.queryByText(/^Updated /)).toBeNull();
   });
 
+  it("styles the desktop connection picker as a composer bubble", () => {
+    useUsageScopeStore.setState({ desktopId: "a" });
+    const store = useHostUsageStore.getState();
+    store.complete("a", store.begin("a"), [
+      { providerId: "provider", status: "ok", windows: [], fetchedAt: Date.now() },
+    ]);
+    render(<UsagePanel />);
+    expect(screen.getByTestId("picker-trigger").className).toContain(floatingBubblePillClass);
+  });
   it("shows only the refresh time when no connection picker is available", () => {
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useProviderUsageStore.setState({
