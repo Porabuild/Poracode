@@ -23,22 +23,25 @@ node scripts/setup-bun.mjs --run run dev
 
 Handy scripts:
 
-| Script                  | What it does                            |
-| ----------------------- | --------------------------------------- |
-| `bun run dev`           | Run the Electron app in dev mode        |
-| `bun run typecheck`     | Type-check with Bun using all CPU cores |
-| `bun run typecheck:tsc` | Compare with the TypeScript 7 compiler  |
-| `bun run lint`          | Lint with Bun                           |
-| `bun run fmt`           | Format with Bun                         |
-| `bun run test`          | Run the test suite (`vitest`)           |
-| `bun run build`         | Build renderer + electron bundles       |
+| Script           | What it does                             |
+| ---------------- | ---------------------------------------- |
+| `bun run dev`    | Run the Electron app in dev mode         |
+| `bun run checks` | Check formatting, lint and types         |
+| `bun run fmt`    | Format with Bun                          |
+| `bun run test`   | Run the test suite (`vitest`)            |
+| `bun run verify` | Run fresh checks and the full test suite |
+| `bun run build`  | Build renderer + Electron bundles        |
+
+Checks and desktop renderer builds cache automatically; `verify` and CI run fresh. Use `bun run checks --force` or `bun run build --force` to rerun those tasks.
+
+Use `bun run lint --fix` for lint fixes. `dev:electron` launches the app against an existing renderer server; `dev:runtime` only watches and rebuilds the host bundles. `typecheck:tsc` remains available to compare with the TypeScript 7 compiler.
 
 ## Pull request flow
 
 1. Fork the repo and branch from the latest `master`. Name the branch `123-short-slug` when it fixes issue #123, otherwise `<type>/short-slug` (for example `fix/sidebar-pending-identity`).
 2. Keep the change scoped to one thing.
 3. Write commit subjects and the PR title as [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): subject`, imperative, lowercase, no trailing period, 72 characters or fewer. Prefix the issue number when there is one: `#123 fix(sidebar): show worktree identity while pending`.
-4. Before pushing, run `bun run typecheck`, `bun run lint`, `bun run fmt:check`, and `bun run test`. Husky runs `lint-staged` and `typecheck` on commit; don't bypass it with `--no-verify`.
+4. Before pushing, run `bun run verify`. Husky runs `lint-staged` and `typecheck` on commit; don't bypass it with `--no-verify`.
 5. Open a PR against `master` and fill in the template. Start the body with `Closes #123` when it resolves an issue. Add screenshots when they help review a visible UI change (before/after when existing UI looks different), and list only the checks you actually ran.
 6. The `CI` workflow must pass and reviewers must resolve their threads before merge.
 

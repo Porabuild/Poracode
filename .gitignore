@@ -2,6 +2,7 @@ node_modules/
 dist/
 release/
 .vite/
+.turbo/
 coverage/
 # SwiftPM output, including standalone test packages.
 .build/
