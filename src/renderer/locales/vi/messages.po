@@ -9700,6 +9700,10 @@ msgstr "Cài đặt ứng dụng"
 msgid "Install bundles of skills and MCP servers built for the Agent Plugins specification."
 msgstr "Cài các gói skill và máy chủ MCP được xây dựng theo đặc tả Agent Plugins."
 
+#: src/renderer/components/plugins/PluginDetail.tsx
+msgid "Install Chrome extension"
+msgstr "Cài đặt tiện ích Chrome"
+
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Install CLI hooks"
 msgstr "Cài đặt móc CLI"

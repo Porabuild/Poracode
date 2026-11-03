@@ -131,22 +131,22 @@ export function DownloadContent({ release }: { release: ReleaseInfo }) {
                     href={store.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="group flex items-center justify-between px-5 py-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/10 transition-all duration-200"
+                    className="group flex items-center justify-between gap-3 px-5 py-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/10 transition-all duration-200"
                   >
-                    <div className="flex items-center gap-3">
-                      <Download className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
-                      <div>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Download className="w-4 h-4 shrink-0 text-gray-500 group-hover:text-white transition-colors" />
+                      <div className="min-w-0">
                         <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors">
                           {store.id === "chrome" ? "Chrome Web Store" : "Microsoft Edge Add-ons"}
                         </span>
-                        <span className="ml-3 text-xs text-gray-600">
+                        <span className="mt-1 block text-xs text-gray-600 sm:mt-0 sm:ml-3 sm:inline">
                           {store.id === "chrome"
                             ? t("download.extension.chromeHint")
                             : "Microsoft Edge"}
                         </span>
                       </div>
                     </div>
-                    <span className="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">
+                    <span className="shrink-0 whitespace-nowrap text-xs text-gray-600 group-hover:text-gray-400 transition-colors">
                       {t("download.extension.install")} →
                     </span>
                   </a>
