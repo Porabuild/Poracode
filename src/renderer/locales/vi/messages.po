@@ -59,6 +59,11 @@ msgstr "{0, plural, one {# ký tự} other {# ký tự}}"
 msgid "{0, plural, one {# check} other {# checks}}"
 msgstr "{0, plural, other {# lần kiểm tra}}"
 
+#. placeholder {0}: notes.length
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, other {# bình luận}}"
+
 #. placeholder {0}: drafts.length
 #: src/renderer/views/PullRequestsOverlay/changes/ReviewDraftSummary.tsx
 msgid "{0, plural, one {# draft comment} other {# draft comments}}"
@@ -3109,6 +3114,7 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -3852,6 +3858,10 @@ msgstr "Hook CLI"
 msgid "Click"
 msgstr "Nhấp"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Click a line to comment on it. Drag across line numbers or Shift-click to select a range."
+msgstr "Bấm vào một dòng để bình luận. Kéo qua số dòng hoặc Shift+bấm để chọn một khoảng."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "Nhấp vào một phím tắt để ghi lại phím mới, hoặc ＋ để thêm phím khác."
@@ -3891,6 +3901,7 @@ msgstr "Nhân bản…"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
@@ -4355,11 +4366,16 @@ msgstr "Lệnh cần sửa"
 msgid "Commands"
 msgstr "Lệnh"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityComposer.tsx
 msgid "Comment"
 msgstr "Bình luận"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
+msgid "Comment on the selected lines"
+msgstr "Bình luận các dòng đã chọn"
 
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityComposer.tsx
@@ -4379,6 +4395,7 @@ msgstr "đã bình luận"
 msgid "Commented"
 msgstr "Đã bình luận"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
 msgid "Comments"
 msgstr "Bình luận"
@@ -6989,6 +7006,7 @@ msgstr "Chỉnh sửa {0}"
 msgid "Edit {serverName}"
 msgstr "Chỉnh sửa {serverName}"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 msgid "Edit comment"
 msgstr "Sửa bình luận"
@@ -10241,6 +10259,7 @@ msgstr "Lựa chọn đã học"
 msgid "Learning and research"
 msgstr "Học tập và nghiên cứu"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
@@ -10309,9 +10328,20 @@ msgstr "Sáng"
 msgid "Lightcode data import is unavailable with a custom data folder."
 msgstr "Không thể nhập dữ liệu Lightcode khi sử dụng thư mục dữ liệu tùy chỉnh."
 
+#. placeholder {0}: r.startLine
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Line {0}"
+msgstr "Dòng {0}"
+
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
 msgid "Line comments are only available on the whole review, not on a single commit."
 msgstr "Bình luận theo dòng chỉ khả dụng trên toàn bộ đánh giá, không phải trên một commit riêng lẻ."
+
+#. placeholder {0}: r.startLine
+#. placeholder {1}: r.endLine
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Lines {0}–{1}"
+msgstr "Dòng {0}–{1}"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
@@ -13487,6 +13517,10 @@ msgstr "Người vận hành"
 msgid "Optional"
 msgstr "Không bắt buộc"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Optional comments on the plan as a whole"
+msgstr "Nhận xét tùy chọn về toàn bộ kế hoạch"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "Hook trạng thái tùy chọn. Các hook đã cài đặt sẽ tự động cập nhật; hook bị thiếu không bao giờ được cài đặt tự động."
@@ -13580,6 +13614,10 @@ msgstr "Đầu ra"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "Vượt nhịp độ — hết sớm"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Overall feedback"
+msgstr "Phản hồi chung"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overridden by project"
@@ -14106,6 +14144,14 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "kế hoạch"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Plan line {lineNumber}"
+msgstr "Dòng {lineNumber} của kế hoạch"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Plan lines"
+msgstr "Các dòng của kế hoạch"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Plan mode reasoning effort"
@@ -15593,6 +15639,10 @@ msgstr "Xóa ứng viên {0}"
 #~ msgid "Remove Claude profile"
 #~ msgstr "Xóa hồ sơ Claude"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
+msgid "Remove comment"
+msgstr "Xóa bình luận"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove connection"
@@ -15948,6 +15998,10 @@ msgstr "Yêu cầu thay đổi"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Request details"
 msgstr "Yêu cầu chi tiết"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Request revision"
+msgstr "Yêu cầu chỉnh sửa"
 
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityRows.tsx
 msgid "requested changes"
@@ -16424,6 +16478,11 @@ msgstr "Xem lại công việc gần đây của tôi và tóm tắt các ưu ti
 msgid "Review on request"
 msgstr "Đánh giá theo yêu cầu"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Review plan"
+msgstr "Xem xét kế hoạch"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Review PR"
 msgstr "Xem xét PR"
@@ -16796,6 +16855,7 @@ msgstr "Độ bão hòa và độ sáng"
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -17430,6 +17490,10 @@ msgstr "Chọn ứng viên {0} ({label}) làm ứng viên thắng"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "Chọn thiết bị"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Select lines in the plan to comment on them."
+msgstr "Chọn các dòng trong kế hoạch để bình luận."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Select machine"

@@ -5,6 +5,7 @@ import {
   changeThreadConfig,
   clearThreadPendingSteer,
   resolveThreadServerRequest,
+  submitThreadInput,
 } from "@/renderer/actions/threadRuntimeActions";
 import { ThreadPendingSteerStrip } from "@/renderer/components/thread/ThreadPendingSteerStrip";
 import { ThreadFollowUpQueue } from "@/renderer/components/thread/ThreadFollowUpQueue";
@@ -21,6 +22,7 @@ export function ComposerActionDocks(props: {
   readonly notice?: ReactNode;
   readonly onOpenPlanFile?: ((path: string) => void) | undefined;
   readonly onRestoreComposerFocus?: (() => void) | undefined;
+  readonly onSubmitInput?: ((prompt: string) => Promise<void>) | undefined;
 }) {
   const { thread, agentStatus } = props;
   const presentationMode =
@@ -66,6 +68,11 @@ export function ComposerActionDocks(props: {
                 ? { approvalPolicy: optionId }
                 : {}),
             })
+          }
+          onSubmitPlanFeedback={(message) =>
+            props.onSubmitInput
+              ? props.onSubmitInput(message)
+              : submitThreadInput(thread.id, message)
           }
           {...(props.onOpenPlanFile ? { onOpenPlanFile: props.onOpenPlanFile } : {})}
         />

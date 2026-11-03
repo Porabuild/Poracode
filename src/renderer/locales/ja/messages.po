@@ -59,6 +59,11 @@ msgstr "{0, plural, one {# 文字} other {# 文字}}"
 msgid "{0, plural, one {# check} other {# checks}}"
 msgstr "{0, plural, other {# 回のチェック}}"
 
+#. placeholder {0}: notes.length
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, other {#件のコメント}}"
+
 #. placeholder {0}: drafts.length
 #: src/renderer/views/PullRequestsOverlay/changes/ReviewDraftSummary.tsx
 msgid "{0, plural, one {# draft comment} other {# draft comments}}"
@@ -3108,6 +3113,7 @@ msgstr "この画面ではこのモデル設定を使用できません"
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -3851,6 +3857,10 @@ msgstr "CLIフック"
 msgid "Click"
 msgstr "クリック"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Click a line to comment on it. Drag across line numbers or Shift-click to select a range."
+msgstr "行をクリックしてコメントします。行番号をドラッグするか Shift+クリックで範囲を選択できます。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "ショートカットをクリックして新しいキーを記録するか、＋で別のキーを追加します。"
@@ -3890,6 +3900,7 @@ msgstr "クローン作成中…"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
@@ -4354,11 +4365,16 @@ msgstr "修正するコマンド"
 msgid "Commands"
 msgstr "コマンド"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityComposer.tsx
 msgid "Comment"
 msgstr "コメント"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
+msgid "Comment on the selected lines"
+msgstr "選択した行にコメント"
 
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityComposer.tsx
@@ -4378,6 +4394,7 @@ msgstr "コメントした"
 msgid "Commented"
 msgstr "コメント済み"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
 msgid "Comments"
 msgstr "コメント"
@@ -6988,6 +7005,7 @@ msgstr "{0} を編集"
 msgid "Edit {serverName}"
 msgstr "{serverName}を編集"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 msgid "Edit comment"
 msgstr "コメントを編集"
@@ -10240,6 +10258,7 @@ msgstr "学習済みの選択"
 msgid "Learning and research"
 msgstr "学習とリサーチ"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
@@ -10308,9 +10327,20 @@ msgstr "ライト"
 msgid "Lightcode data import is unavailable with a custom data folder."
 msgstr "カスタムデータフォルダーでは Lightcode データをインポートできません。"
 
+#. placeholder {0}: r.startLine
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Line {0}"
+msgstr "{0} 行目"
+
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
 msgid "Line comments are only available on the whole review, not on a single commit."
 msgstr "行コメントはレビュー全体に対してのみ使用でき、個別のコミットには使用できません。"
+
+#. placeholder {0}: r.startLine
+#. placeholder {1}: r.endLine
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Lines {0}–{1}"
+msgstr "{0}–{1} 行目"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
@@ -13485,6 +13515,10 @@ msgstr "オペレーター"
 msgid "Optional"
 msgstr "任意"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Optional comments on the plan as a whole"
+msgstr "プラン全体についての任意のコメント"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "オプションのステータスフック。インストールされたフックは自動的に更新されます。不足しているフックが自動的にインストールされることはありません。"
@@ -13578,6 +13612,10 @@ msgstr "出力"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "オーバーペース — 早めに力尽きてしまう"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Overall feedback"
+msgstr "全体へのフィードバック"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overridden by project"
@@ -14104,6 +14142,14 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "計画"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Plan line {lineNumber}"
+msgstr "プランの {lineNumber} 行目"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Plan lines"
+msgstr "プランの行"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Plan mode reasoning effort"
@@ -15591,6 +15637,10 @@ msgstr "候補 {0} を削除"
 #~ msgid "Remove Claude profile"
 #~ msgstr "Claude プロファイルを削除"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
+msgid "Remove comment"
+msgstr "コメントを削除"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove connection"
@@ -15946,6 +15996,10 @@ msgstr "変更のリクエスト"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Request details"
 msgstr "リクエストの詳細"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Request revision"
+msgstr "修正を依頼"
 
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityRows.tsx
 msgid "requested changes"
@@ -16422,6 +16476,11 @@ msgstr "最近の作業を確認し、今日の優先事項と次のステップ
 msgid "Review on request"
 msgstr "リクエスト時にレビュー"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Review plan"
+msgstr "プランをレビュー"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Review PR"
 msgstr "PRをレビューする"
@@ -16794,6 +16853,7 @@ msgstr "彩度と明度"
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -17428,6 +17488,10 @@ msgstr "候補 {0}（{label}）を勝者として選択"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "デバイスを選択"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Select lines in the plan to comment on them."
+msgstr "プランの行を選択してコメントしてください。"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Select machine"

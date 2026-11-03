@@ -59,6 +59,11 @@ msgstr "{0, plural, one {# 个字符} other {# 个字符}}"
 msgid "{0, plural, one {# check} other {# checks}}"
 msgstr "{0, plural, other {# 次检查}}"
 
+#. placeholder {0}: notes.length
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "{0, plural, one {# comment} other {# comments}}"
+msgstr "{0, plural, other {# 条评论}}"
+
 #. placeholder {0}: drafts.length
 #: src/renderer/views/PullRequestsOverlay/changes/ReviewDraftSummary.tsx
 msgid "{0, plural, one {# draft comment} other {# draft comments}}"
@@ -3109,6 +3114,7 @@ msgstr "无法在此界面使用所选模型配置"
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/pwa/push/WebPushPermissionPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
@@ -3852,6 +3858,10 @@ msgstr "CLI 挂钩"
 msgid "Click"
 msgstr "点击"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Click a line to comment on it. Drag across line numbers or Shift-click to select a range."
+msgstr "点击某一行即可评论。拖动行号或按住 Shift 点击可选择范围。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Click a shortcut to record a new key, or ＋ to add another."
 msgstr "点击快捷键以录制新的按键，或点击 ＋ 添加另一个。"
@@ -3891,6 +3901,7 @@ msgstr "克隆…"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalLayout.tsx
@@ -4355,11 +4366,16 @@ msgstr "要修订的命令"
 msgid "Commands"
 msgstr "命令"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityComposer.tsx
 msgid "Comment"
 msgstr "评论"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
+msgid "Comment on the selected lines"
+msgstr "评论所选行"
 
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityComposer.tsx
@@ -4379,6 +4395,7 @@ msgstr "评论了"
 msgid "Commented"
 msgstr "已评论"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
 msgid "Comments"
 msgstr "评论"
@@ -6989,6 +7006,7 @@ msgstr "编辑 {0}"
 msgid "Edit {serverName}"
 msgstr "编辑 {serverName}"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 msgid "Edit comment"
 msgstr "编辑评论"
@@ -10241,6 +10259,7 @@ msgstr "已学习的选择"
 msgid "Learning and research"
 msgstr "学习与研究"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/DiffAnnotationView.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
@@ -10309,9 +10328,20 @@ msgstr "浅色"
 msgid "Lightcode data import is unavailable with a custom data folder."
 msgstr "使用自定义数据文件夹时无法导入 Lightcode 数据。"
 
+#. placeholder {0}: r.startLine
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Line {0}"
+msgstr "第 {0} 行"
+
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesTab.tsx
 msgid "Line comments are only available on the whole review, not on a single commit."
 msgstr "行评论仅适用于整个审查，不适用于单个提交。"
+
+#. placeholder {0}: r.startLine
+#. placeholder {1}: r.endLine
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Lines {0}–{1}"
+msgstr "第 {0}–{1} 行"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
@@ -13486,6 +13516,10 @@ msgstr "操作员"
 msgid "Optional"
 msgstr "可选"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Optional comments on the plan as a whole"
+msgstr "对整个计划的可选意见"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Optional status hooks. Installed hooks update automatically; missing hooks are never installed automatically."
 msgstr "可选的状态挂钩。已安装的挂钩会自动更新；缺失的挂钩永远不会自动安装。"
@@ -13579,6 +13613,10 @@ msgstr "输出"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
 msgstr "节奏过快 — 提前用完"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Overall feedback"
+msgstr "总体反馈"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Overridden by project"
@@ -14105,6 +14143,14 @@ msgstr "Pixel 8"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Plan"
 msgstr "计划"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Plan line {lineNumber}"
+msgstr "计划第 {lineNumber} 行"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Plan lines"
+msgstr "计划行"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Plan mode reasoning effort"
@@ -15592,6 +15638,10 @@ msgstr "移除候选项 {0}"
 #~ msgid "Remove Claude profile"
 #~ msgstr "删除 Claude 配置文件"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
+msgid "Remove comment"
+msgstr "移除评论"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove connection"
@@ -15947,6 +15997,10 @@ msgstr "请求更改"
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Request details"
 msgstr "请求详情"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Request revision"
+msgstr "请求修订"
 
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityRows.tsx
 msgid "requested changes"
@@ -16423,6 +16477,11 @@ msgstr "查看我最近的工作，并总结今天的优先事项和后续步骤
 msgid "Review on request"
 msgstr "根据要求进行审查"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Review plan"
+msgstr "审阅计划"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Review PR"
 msgstr "审查 PR"
@@ -16795,6 +16854,7 @@ msgstr "饱和度与亮度"
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -17429,6 +17489,10 @@ msgstr "选择候选项 {0}（{label}）作为优胜者"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "选择设备"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
+msgid "Select lines in the plan to comment on them."
+msgstr "在计划中选择行即可评论。"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 msgid "Select machine"
