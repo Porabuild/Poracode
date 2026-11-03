@@ -502,6 +502,16 @@ describe("GitHubService", () => {
   });
 
   describe("listPrs", () => {
+    it("preserves the underlying command's exit code through its user-facing wrapper", async () => {
+      const original = Object.assign(
+        new Error("Command failed: gh private-command\nprivate-stderr"),
+        { code: 9 },
+      );
+      execFileAsyncMock.mockRejectedValue(original);
+      await expect(new GitHubService().listPrs(location)).rejects.toMatchObject({
+        cause: original,
+      });
+    });
     it("keys PRs by head branch and maps PR data", async () => {
       const prJson = JSON.stringify([
         {

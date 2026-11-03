@@ -21,6 +21,11 @@ import {
   isHostResourcePolicyUnavailableError,
 } from "@/shared/hostResourceAdmission";
 import { isGitProcessAdmissionRefusal } from "@/shared/gitProcessAdmission";
+import {
+  buildErrorCauseTags,
+  classifyErrorCause,
+  findDiagnosticFailureMetadata,
+} from "@/shared/diagnostics/errorCause";
 
 type SupervisorSentryModule = typeof import("@sentry/node");
 
@@ -296,11 +301,12 @@ function structuredRuntimeClassification(error: unknown): DiagnosticFailureMetad
   }
   const errorClass = STRUCTURED_RUNTIME_FAILURES.get(error.message);
   return errorClass
-    ? {
-        failureClass: "product-defect",
-        domain: "structured-runtime",
-        errorClass,
-      }
+    ? (findDiagnosticFailureMetadata(error) ??
+        classifyErrorCause(error, "structured-runtime") ?? {
+          failureClass: "product-defect",
+          domain: "structured-runtime",
+          errorClass,
+        })
     : undefined;
 }
 
@@ -375,7 +381,9 @@ export function classifySupervisorIpcFailure(
   return classifyDiagnosticFailure(
     error,
     { domain: "supervisor.ipc", operation },
-    knownSupervisorIpcClassification(error, operation),
+    knownSupervisorIpcClassification(error, operation) ??
+      findDiagnosticFailureMetadata(error) ??
+      classifyErrorCause(error, "supervisor.ipc"),
   );
 }
 
@@ -392,7 +400,13 @@ export function classifySupervisorFailure(
           errorClass: "broken-pipe",
         }
       : undefined);
-  return classifyDiagnosticFailure(error, { domain: "supervisor", operation }, knownClassification);
+  return classifyDiagnosticFailure(
+    error,
+    { domain: "supervisor", operation },
+    knownClassification ??
+      findDiagnosticFailureMetadata(error) ??
+      classifyErrorCause(error, "supervisor"),
+  );
 }
 
 function captureSupervisorFailure(
@@ -407,6 +421,7 @@ function captureSupervisorFailure(
 
   const diagnosticTags: PoracodeDiagnosticTags = {
     ...tags,
+    ...buildErrorCauseTags(error),
     "poracode.error_class": decision.errorClass,
     "poracode.failure_domain": decision.domain,
     "poracode.operation": decision.operation,

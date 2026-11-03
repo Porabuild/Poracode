@@ -8,6 +8,7 @@ import {
 } from "@/shared/diagnostics/sentryBuildConfig";
 import { createSentryEventLimiter } from "@/shared/diagnostics/sentryEventLimiter";
 import { prepareMainSentryEvent } from "./mainEvent";
+import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
 
 const DISABLED_INTEGRATIONS = new Set([
   "ChildProcess",
@@ -152,9 +153,7 @@ export function captureMainException(
   if (!Sentry) return;
   if (!Sentry.isEnabled()) return;
   Sentry.withScope((scope) => {
-    if (tags) {
-      scope.setTags(tags);
-    }
+    scope.setTags({ ...tags, ...buildErrorCauseTags(error) });
     if (fingerprint) {
       scope.setFingerprint(fingerprint);
     }

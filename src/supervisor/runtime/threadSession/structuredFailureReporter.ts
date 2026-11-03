@@ -66,8 +66,15 @@ export class StructuredFailureReporter {
     if (this.reported.has(session)) return;
     this.reported.add(session);
     const failureClass = failureClassFor(error);
+    // This is the shared ACP transport's exact lifecycle message, not provider output.
+    const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+    const transportExit = /^ACP agent exited unexpectedly \(code (-?\d+)\)\.$/u.exec(message);
     captureSupervisorException(
-      new StructuredRuntimeDiagnosticError(failureClass, session.agentKind),
+      new StructuredRuntimeDiagnosticError(
+        failureClass,
+        session.agentKind,
+        transportExit ? { exitCode: Number(transportExit[1]) } : error,
+      ),
       {
         "poracode.feature_area": structuredRuntimeFeatureArea(failureClass),
         "poracode.presentation": session.presentationMode ?? "terminal",
