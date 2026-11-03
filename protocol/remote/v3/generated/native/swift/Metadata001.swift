@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:cf134692fb8450d1d668d8f3225d49f6e607c615dc8c40595630406559053e36"
-  public static let manifestHash = "sha256:8610a924b95a7183c022541eb14e4503678021b20689389f6352938262bc6db8"
+  public static let sourceHash = "sha256:a65b270a4d20fb2badcea5587ab071391e75f587cb1473f7d192ed60e970eace"
+  public static let manifestHash = "sha256:112aff22c48994414f73d50d40f0b71e3e2df5ea094325b9affb02084fe5add6"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -219,6 +219,7 @@ public enum RemoteContractMetadata {
     .init(name: "ghListWorkflows", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProcedureghListWorkflowsRequest_72429c4be5", resultType: "ProcedureghListWorkflowsResult_3994629a32"),
     .init(name: "ghMarkPrReady", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedureghClosePrRequest_868bf1042a", resultType: "RemoteUnit"),
     .init(name: "ghMergePr", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedureghMergePrRequest_39d6579ca7", resultType: "RemoteUnit"),
+    .init(name: "ghPollPullRequests", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProcedureghPollPullRequestsRequest_559c498a02", resultType: "ProcedureghPollPullRequestsResult_729d8ec224"),
     .init(name: "ghPostPrComment", scope: "session:operate", owner: "projectLocation", resultKind: "json", requestType: "ProcedureghPostPrCommentRequest_189279e83c", resultType: "ProcedureforgeGetPrDetailsResultU2DDetailsU2DCommentsU2DItem_cb95bf43ec"),
     .init(name: "ghReopenPr", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedureghClosePrRequest_868bf1042a", resultType: "RemoteUnit"),
     .init(name: "ghRerunWorkflowRun", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedureghRerunWorkflowRunRequest_4492692f82", resultType: "RemoteUnit"),

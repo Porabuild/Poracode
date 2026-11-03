@@ -1386,6 +1386,20 @@ describe("GitHubService", () => {
   });
 
   describe("getPrForBranch with rollup", () => {
+    it("preserves WSL authentication stderr for classification", async () => {
+      const service = new GitHubService();
+      const processBatch = vi.fn<
+        () => Promise<{ results: import("./wsl/bridge/client").WslProcessExecResult[] }>
+      >(async () => ({
+        results: [
+          { ok: false, exitCode: 1, stdout: "", stderr: "Run gh auth login to authenticate" },
+        ],
+      }));
+      service.setWslClient({ processBatch } as never);
+      await expect(service.getPrForBranch(wslLocation, "feature")).rejects.toMatchObject({
+        kind: "authentication",
+      });
+    });
     it("aggregates statusCheckRollup to FAILURE when any check failed", async () => {
       const prJson = JSON.stringify([
         {

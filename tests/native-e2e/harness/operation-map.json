@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:59b7b4a6858a2d691e177e8c13d9be94ed777541b24239408a409467d9594dab",
-  "keyCount": 340,
+  "manifestHash": "sha256:069d9056201661bf44be205f6d44bba40de17290bf41b0ea8f6c831dfeb4bd48",
+  "keyCount": 341,
   "counts": {
     "route": 119,
-    "procedure": 166,
+    "procedure": 167,
     "ws-client": 11,
     "ws-server": 12,
     "replay": 16,
@@ -349,6 +349,10 @@
     "procedure:ghMergePr": {
       "kind": "procedure",
       "id": "ghMergePr"
+    },
+    "procedure:ghPollPullRequests": {
+      "kind": "procedure",
+      "id": "ghPollPullRequests"
     },
     "procedure:ghPostPrComment": {
       "kind": "procedure",

@@ -230,9 +230,17 @@ function parseJsonListOutput(stdout: string): unknown[] {
  * prefetch) degrade these to "no PR data" — the same contract as a repo with
  * no GitHub remote — instead of failing on every refresh cycle.
  */
-export class GhUnavailableError extends Error {}
+export class GhUnavailableError extends Error {
+  constructor(
+    message: string,
+    readonly kind: "authentication" | "unavailable" = "unavailable",
+  ) {
+    super(message);
+  }
+}
 
-function classifyError(error: unknown, operation: string): Error {
+export function classifyError(error: unknown, operation: string): Error {
+  if (error instanceof GhUnavailableError) return error;
   const msg = error instanceof Error ? error.message : String(error);
   const lower = msg.toLowerCase();
 
@@ -264,6 +272,7 @@ function classifyError(error: unknown, operation: string): Error {
   ) {
     return new GhUnavailableError(
       `GitHub CLI is not authenticated. Run "gh auth login" in the terminal.`,
+      "authentication",
     );
   }
 
@@ -1047,7 +1056,7 @@ export class GitHubService {
         const results = await this.runGhBatch(location, commands);
         const prResult = results[0]!;
         if (!prResult.ok) {
-          throw new Error(`gh pr list exited ${prResult.exitCode}`);
+          throw processResultToError(prResult);
         }
         let viewerLogin: string | undefined;
         if (needsLogin && results[1]?.ok) {

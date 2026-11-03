@@ -79,6 +79,20 @@ function summary(overrides: Partial<PrData> = {}) {
 
 function executor(): GitStateExecutor {
   return {
+    ghPollPullRequests: vi.fn<GitStateExecutor["ghPollPullRequests"]>(async function (
+      this: GitStateExecutor,
+      input,
+    ) {
+      if (input.branch) {
+        const data = await this.ghGetPrForBranch({
+          projectLocation: input.projectLocation,
+          branch: input.branch,
+        });
+        return { status: "ready", prs: data ? { [input.branch]: data } : {}, pullRequests: [] };
+      }
+      const result = await this.ghListPullRequests(input);
+      return { status: "ready", prs: {}, ...result };
+    }),
     gitFetch: vi.fn<GitStateExecutor["gitFetch"]>(async () => undefined),
     gitProjectSnapshot: vi.fn<GitStateExecutor["gitProjectSnapshot"]>(async () => ({
       status: status(),
@@ -126,6 +140,7 @@ function createService(overrides: Partial<GitStateServiceOptions> = {}): {
       hostId: "host-1",
       executor: fakeExecutor,
       getProject: (projectId) => (projectId === project.id ? project : null),
+      getProjects: () => [project],
       onPatch: patches,
       now: () => new Date("2026-07-28T12:00:00.000Z"),
       ...overrides,
@@ -134,6 +149,103 @@ function createService(overrides: Partial<GitStateServiceOptions> = {}): {
 }
 
 describe("GitStateService", () => {
+  it("publishes recovery from direct client polling before unrelated host patches", async () => {
+    const { service, patches } = createService();
+    const event = {
+      type: "github-polling-status" as const,
+      projectLocation: project.location,
+      problem: { kind: "authentication" as const, executionHost: "host", retryAt: "later" },
+    };
+    service.observeSupervisorEvent(event);
+    expect(Object.values(service.getSnapshot().projects)[0]?.githubPollingProblem).toEqual(
+      event.problem,
+    );
+    service.observeSupervisorEvent({ ...event, problem: null });
+    await service.refreshTarget({ projectId: project.id, worktreePath: "/repo/wt" });
+    expect(Object.values(service.getSnapshot().projects)[0]?.githubPollingProblem).toBeNull();
+    expect(patches).toHaveBeenCalled();
+    await service.dispose();
+  });
+
+  it("recovers a cached branchless review bundle after its authentication backoff", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    service.applyObservedPullRequest({ projectId: project.id, headBranch: "feature" }, pr());
+    fakeExecutor.ghPollPullRequests = vi
+      .fn<GitStateExecutor["ghPollPullRequests"]>()
+      .mockResolvedValueOnce({
+        status: "blocked",
+        problem: { kind: "authentication", executionHost: "host", retryAt: "2000-01-01T00:00:00Z" },
+      })
+      .mockResolvedValue({ status: "ready", prs: {}, pullRequests: [] });
+    await service.refreshProjectPullRequests(project.id);
+    await service.refreshPullRequestReviewBundle({ projectId: project.id, prNumber: pr().number });
+    expect(fakeExecutor.ghPollPullRequests).toHaveBeenCalledTimes(2);
+    expect(fakeExecutor.ghGetPrFiles).toHaveBeenCalledOnce();
+    expect(Object.values(service.getSnapshot().projects)[0]?.githubPollingProblem).toBeNull();
+    await service.dispose();
+  });
+  it("preserves stale PR associations and publishes a deduplicated problem until a successful empty read", async () => {
+    const { service, executor: fakeExecutor, patches } = createService();
+    await service.refreshPullRequestForBranch(project.id, "feature");
+    const previous = service.getSnapshot();
+    const problem = {
+      kind: "authentication" as const,
+      executionHost: "remote-host / WSL Ubuntu",
+      retryAt: "2026-07-28T12:01:00.000Z",
+    };
+    vi.mocked(fakeExecutor.ghPollPullRequests).mockResolvedValue({ status: "blocked", problem });
+    await service.refreshPullRequestForBranch(project.id, "feature");
+    const blocked = service.getSnapshot();
+    expect(blocked.pullRequestKeyByBranch).toEqual(previous.pullRequestKeyByBranch);
+    expect(blocked.pullRequests).toEqual(previous.pullRequests);
+    expect(Object.values(blocked.projects)[0]?.githubPollingProblem).toEqual(problem);
+    const calls = patches.mock.calls.length;
+    await service.refreshPullRequestForBranch(project.id, "feature");
+    expect(patches).toHaveBeenCalledTimes(calls);
+    await service.refreshPullRequestReviewBundle({
+      projectId: project.id,
+      prNumber: pr().number,
+      branch: "feature",
+    });
+    expect(fakeExecutor.ghGetPrFiles).not.toHaveBeenCalled();
+    vi.mocked(fakeExecutor.ghPollPullRequests).mockResolvedValue({
+      status: "ready",
+      prs: {},
+      pullRequests: [],
+    });
+    await service.refreshPullRequestForBranch(project.id, "feature");
+    expect(Object.values(service.getSnapshot().projects)[0]?.githubPollingProblem).toBeNull();
+    expect(service.getSnapshot().pullRequestKeyByBranch).toEqual({});
+    await service.dispose();
+  });
+
+  it("keeps unavailable first reads distinct from an empty PR list, without any attached client", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    vi.mocked(fakeExecutor.ghPollPullRequests).mockResolvedValue({
+      status: "blocked",
+      problem: { kind: "authentication", executionHost: "server", retryAt: "later" },
+    });
+    await service.refreshProjectPullRequests(project.id);
+    expect(service.getSnapshot().projectPullRequestLists).toEqual({});
+    expect(
+      Object.values(service.getSnapshot().projects)[0]?.githubPollingProblem?.executionHost,
+    ).toBe("server");
+    vi.mocked(fakeExecutor.ghPollPullRequests).mockResolvedValue({
+      status: "ready",
+      prs: {},
+      pullRequests: [],
+    });
+    await service.refreshProjectPullRequests(project.id, { afterMutation: true });
+    expect(fakeExecutor.ghPollPullRequests).toHaveBeenLastCalledWith({
+      projectLocation: project.location,
+      state: "open",
+      retry: true,
+    });
+    expect(
+      Object.values(service.getSnapshot().projectPullRequestLists)[0]?.pullRequestKeys,
+    ).toEqual([]);
+    await service.dispose();
+  });
   beforeEach(() => {
     vi.useRealTimers();
   });

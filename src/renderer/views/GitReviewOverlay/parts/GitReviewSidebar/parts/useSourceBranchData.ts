@@ -1,3 +1,4 @@
+import { pollBranchPr } from "@/renderer/state/githubPolling";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -8,7 +9,7 @@ import { readBridge } from "@/renderer/bridge";
 import { isMergedPrRegression, useGitStore } from "@/renderer/state/gitStore";
 
 export function useSourceBranchData(params: {
-  project: { location: ProjectLocation };
+  project: { id: string; location: ProjectLocation };
   effectiveBranch: string | undefined;
   effectivePrKey: string | undefined;
   supportsReviews: boolean;
@@ -168,8 +169,7 @@ export function useSourceBranchData(params: {
     let isActive = true;
     const capturedKey = prDataRequestKey;
     const previousPr = useGitStore.getState().prData[effectivePrKey];
-    readBridge()
-      .ghGetPrForBranch({ projectLocation: project.location, branch: effectiveBranch })
+    pollBranchPr({ projectLocation: project.location, branch: effectiveBranch }, project.id)
       .then((pr) => {
         if (!isActive || activePrDataKeyRef.current !== capturedKey) return;
         if (isMergedPrRegression(useGitStore.getState().prData[effectivePrKey], pr, previousPr))
@@ -186,6 +186,7 @@ export function useSourceBranchData(params: {
     effectiveBranch,
     effectivePrKey,
     project.location,
+    project.id,
     prDataRequestKey,
   ]);
 

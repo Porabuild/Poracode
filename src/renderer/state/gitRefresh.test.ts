@@ -210,6 +210,7 @@ describe("pending PR refresh", () => {
         forgeGetPrDetails: forgeGetPrDetailsMock,
         checkPrWatch: checkPrWatchMock,
         ghListPrs: ghListPrsMock,
+        ghPollPullRequests: mockPollPullRequests,
       },
     });
     useGitStore.setState({
@@ -218,6 +219,7 @@ describe("pending PR refresh", () => {
       worktrees: {},
       branches: {},
       ghAvailable: {},
+      githubPollingProblems: {},
       prData: {},
       worktreeSourceInfo: {},
       prDetails: {},
@@ -925,6 +927,7 @@ describe("watcher git status refresh", () => {
       worktrees: {},
       branches: {},
       ghAvailable: {},
+      githubPollingProblems: {},
       prData: {},
       worktreeSourceInfo: {},
       prDetails: {},
@@ -1165,6 +1168,7 @@ describe("watcher git status refresh", () => {
         gitGetWorktreeSourceBranch,
         ghGetPrForBranch: getPr,
         ghListPrs: vi.fn<PoracodeBridge["ghListPrs"]>().mockResolvedValue({ prs: {} }),
+        ghPollPullRequests: mockPollPullRequests,
         gitWatchWorktrees: vi
           .fn<PoracodeBridge["gitWatchWorktrees"]>()
           .mockResolvedValue(undefined),
@@ -1216,6 +1220,7 @@ describe("watcher git status refresh", () => {
           .fn<PoracodeBridge["gitGetWorktreeSourceBranch"]>()
           .mockReturnValue(source.promise),
         ghListPrs: vi.fn<PoracodeBridge["ghListPrs"]>().mockResolvedValue({ prs: {} }),
+        ghPollPullRequests: mockPollPullRequests,
         ghGetPrForBranch: vi.fn<PoracodeBridge["ghGetPrForBranch"]>(({ branch }) => {
           if (branch !== "feature/wt") return Promise.resolve(null);
           readStarted.resolve();
@@ -1266,6 +1271,7 @@ describe("watcher git status refresh", () => {
             .mockResolvedValue({ statuses: {} }),
           ghGetPrForBranch: getPr,
           ghListPrs: vi.fn<PoracodeBridge["ghListPrs"]>().mockResolvedValue({ prs: {} }),
+          ghPollPullRequests: mockPollPullRequests,
         },
       });
       useAppStore.setState({ threads: [worktreeThread] });
@@ -1732,3 +1738,17 @@ describe("watcher git status refresh", () => {
     expect(getProjectActiveWorktreePaths(project.id)).toContain(candidatePath);
   });
 });
+
+async function mockPollPullRequests(
+  input: Parameters<PoracodeBridge["ghPollPullRequests"]>[0],
+): ReturnType<PoracodeBridge["ghPollPullRequests"]> {
+  if (input.branch) {
+    const pr = await window.poracode.ghGetPrForBranch({
+      projectLocation: input.projectLocation,
+      branch: input.branch,
+    });
+    return { status: "ready", prs: pr ? { [input.branch]: pr } : {}, pullRequests: [] };
+  }
+  const { prs } = await window.poracode.ghListPrs(input);
+  return { status: "ready", prs, pullRequests: [] };
+}

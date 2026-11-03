@@ -9744,6 +9744,10 @@ msgstr "安装 Cursor SDK"
 msgid "Install Cursor SDK in {environment}"
 msgstr "在 {environment} 中安装 Cursor SDK"
 
+#: src/renderer/components/common/GithubPollingNotice.tsx
+msgid "Install GitHub CLI (gh) on {executionHost}, then retry."
+msgstr "在 {executionHost} 上安装 GitHub CLI (gh)，然后重试。"
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Install Hex"
 msgstr "安装Hex"
@@ -14451,6 +14455,11 @@ msgstr "PR 自动化: 自动修复"
 msgid "PR automation: Auto Merge"
 msgstr "PR 自动化: 自动合并"
 
+#: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "PR data is unavailable; cached results may be stale."
+msgstr "PR 数据不可用；缓存的结果可能已过期。"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
 msgstr "PR 选项"
@@ -16231,6 +16240,7 @@ msgstr "仅显示此主机保留的用量。"
 #: src/renderer/bootstrap.ts
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -16694,6 +16704,10 @@ msgstr "运行命令"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Run experiment"
 msgstr "运行实验"
+
+#: src/renderer/components/common/GithubPollingNotice.tsx
+msgid "Run gh auth login in a terminal on {executionHost}, then retry. If GH_TOKEN or GITHUB_TOKEN is set, update or remove the invalid token there."
+msgstr "在 {executionHost} 上的终端中运行 gh auth login，然后重试。如果设置了 GH_TOKEN 或 GITHUB_TOKEN，请在该主机上更新或移除无效令牌。"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Run in a separate worktree"

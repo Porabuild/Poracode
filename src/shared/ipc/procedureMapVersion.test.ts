@@ -119,7 +119,9 @@ import { isRemoteProcedure } from "../remote/procedures";
 // hop 18 stays compatible.
 // Hex voice is another additive supervisor-owned name. Old peers reject the
 // unknown name before dispatch; existing payloads and the hop remain unchanged.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:10b15076dacc939f0be145c0fcc7f3b261331267f451710e9bd70d571bf1761e`;
+// Background PR polling adds a read name; old remote-14 hosts reject it by name,
+// and the renderer falls back only on that typed refusal. Hop 18 remains compatible.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:327391fb32e06f8ccd7c567b992e4201b272cf4a02d9c19bdbd0d2a229140fec`;
 
 describe("IPC procedure map versioning", () => {
   it("routes Hex voice through the supervisor as an additive procedure", () => {

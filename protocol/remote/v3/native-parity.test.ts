@@ -59,7 +59,7 @@ const UI_DISPOSITIONS = [
 
 const EXPECTED_COUNTS = {
   httpRoutes: 119,
-  procedures: 166,
+  procedures: 167,
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 12,
@@ -295,6 +295,7 @@ const PLANNED_ABSENCE_TOKENS: Record<
       "forgeGetPrCommitDiff",
       "forgeSetPrReaction",
       "forgeSubmitPrReviewDraft",
+      "ghPollPullRequests",
     ].map((token) => [
       token,
       [

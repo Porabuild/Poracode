@@ -1633,6 +1633,11 @@
       "scope": "session:read"
     },
     {
+      "name": "ghPollPullRequests",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
       "name": "ghListPrs",
       "owner": "projectLocation",
       "scope": "session:read"

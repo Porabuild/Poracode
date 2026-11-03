@@ -10,10 +10,13 @@ import type {
   GitWorktreeStatusBatchResult,
   Project,
   ProjectLocation,
+  GhPollPullRequestsPayload,
+  GhPollPullRequestsResult,
 } from "@/shared/contracts";
 import type { GitStatePatch, PullRequestState } from "@/shared/gitState";
 
 export interface GitStateExecutor {
+  ghPollPullRequests(input: GhPollPullRequestsPayload): Promise<GhPollPullRequestsResult>;
   gitFetch(input: {
     projectLocation: ProjectLocation;
     remote: string;
@@ -62,6 +65,7 @@ export interface GitStateServiceOptions {
   readonly hostId: string;
   readonly executor: GitStateExecutor;
   readonly getProject: (projectId: string) => Project | null;
+  readonly getProjects: () => readonly Project[];
   readonly onPatch?: ((patch: GitStatePatch) => void) | undefined;
   readonly now?: (() => Date) | undefined;
   readonly pollIntervalMs?: number | undefined;

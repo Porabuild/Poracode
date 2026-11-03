@@ -7,6 +7,7 @@ import type {
   PrDetails,
   PrFile,
   PrReviewThread,
+  GithubPollingProblem,
 } from "./contracts";
 
 const KEY_SEPARATOR = "\u0000";
@@ -36,6 +37,7 @@ export interface GitProjectState {
   readonly branches?: GitBranchListResult | undefined;
   readonly worktrees?: readonly GitWorktreeInfo[] | undefined;
   readonly ghAvailable?: boolean | undefined;
+  readonly githubPollingProblem?: GithubPollingProblem | null | undefined;
   readonly refreshedAt: string;
 }
 

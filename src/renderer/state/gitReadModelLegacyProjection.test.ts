@@ -12,6 +12,25 @@ import { projectGitReadModelIntoLegacyStore } from "./gitReadModelLegacyProjecti
 describe("projectGitReadModelIntoLegacyStore", () => {
   beforeEach(() => resetGitStoreCache());
 
+  it("projects and clears host polling problems across recovery and old snapshot reconnects", () => {
+    const ref = { hostId: "host", projectId: "project" };
+    const problem = { kind: "authentication" as const, executionHost: "server", retryAt: "later" };
+    const snapshot = {
+      ...emptyGitStateSnapshot(),
+      projects: { project: { ref, refreshedAt: "now", githubPollingProblem: problem } },
+    };
+    projectGitReadModelIntoLegacyStore(snapshot);
+    expect(useGitStore.getState().githubPollingProblems.project).toEqual(problem);
+    projectGitReadModelIntoLegacyStore({
+      ...snapshot,
+      projects: { project: { ref, refreshedAt: "later" } },
+    });
+    expect(useGitStore.getState().githubPollingProblems.project).toBeNull();
+    projectGitReadModelIntoLegacyStore(snapshot);
+    resetGitStoreCache();
+    expect(useGitStore.getState().githubPollingProblems).toEqual({});
+  });
+
   it("projects a canonical PR update into the existing worktree panel cache", () => {
     const targetRef = {
       hostId: "desktop-1",

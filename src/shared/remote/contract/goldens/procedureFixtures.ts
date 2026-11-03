@@ -235,6 +235,7 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   },
   forgeGetPrReviewComments: { comments: [], threads: [] },
   ghGetPrForBranch: null,
+  ghPollPullRequests: { status: "ready", prs: {}, pullRequests: [] },
   ghListPrs: { prs: {} },
   ghListPullRequests: { pullRequests: [] },
   ghGetPrChecks: { checks: [] },
