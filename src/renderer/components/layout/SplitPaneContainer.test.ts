@@ -1,7 +1,16 @@
+import "fake-indexeddb/auto";
 import React from "react";
-import { render } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PaneLayout } from "@/shared/paneLayout";
+import {
+  buildPaneLayoutFromLegacy,
+  findPaneSlotId,
+  swapPaneIdsInLayout,
+  removePaneFromLayout,
+  type PaneLayout,
+} from "@/shared/paneLayout";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useDndHandlers } from "@/renderer/hooks/useDndHandlers";
 import {
   computeLayout,
   resolvePaneDomKey,
@@ -177,6 +186,165 @@ describe("SplitPaneContainer", () => {
 
   afterEach(() => {
     HTMLElement.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+  });
+
+  it.each([
+    ["sidebar", "gui"],
+    ["center-drop", "gui"],
+    ["sidebar", "terminal"],
+    ["center-drop", "terminal"],
+  ] as const)(
+    "disposes replaced panes and renders four surfaces after %s replacement alongside %s",
+    async (replacement, siblingPresentation) => {
+      const project = useAppStore.getState().addProject({ kind: "posix", path: "/pane-fixture" });
+      const seed = useAppStore.getState().createThread({
+        projectId: project.id,
+        agentKind: "codex",
+        config: { model: "test" },
+        prompt: "",
+      });
+      useAppStore.setState({
+        threads: ["a", "b", "c"].map((id) => ({
+          ...seed,
+          id,
+          presentationMode: id === "c" ? siblingPresentation : "gui",
+        })),
+        view: { kind: "thread", panes: ["a", "c"] },
+        groupLayouts: {},
+        keepAlivePaneIds: [],
+      });
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+      const subscriptions = new Set<string>();
+      const ticks = vi.fn<(paneId: string) => void>();
+      let mounts = 0;
+      function Pane({ paneId }: { paneId: string }) {
+        const [instance] = React.useState(() => ++mounts);
+        React.useEffect(() => {
+          subscriptions.add(paneId);
+          const timer = setInterval(() => ticks(paneId), 1000);
+          return () => {
+            subscriptions.delete(paneId);
+            clearInterval(timer);
+          };
+        }, [paneId]);
+        return React.createElement("input", { "data-pane-id": paneId, "data-instance": instance });
+      }
+      function Surface() {
+        const view = useAppStore((state) => state.view);
+        if (view.kind !== "thread") return null;
+        const layout = view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes);
+        return React.createElement(SplitPaneContainer, {
+          layout,
+          getPaneDomKey: (paneId) =>
+            resolvePaneDomKey({
+              paneId,
+              paneSlotId: findPaneSlotId(layout, paneId) ?? paneId,
+              presentationMode: useAppStore
+                .getState()
+                .threads.find((thread) => thread.id === paneId)?.presentationMode,
+            }),
+          renderPane: (paneId) => React.createElement(Pane, { paneId }),
+        });
+      }
+      const { result } = renderHook(useDndHandlers);
+      const { container, unmount } = render(React.createElement(Surface));
+      const originalA = container.querySelector("[data-pane-id='a']");
+      const originalC = container.querySelector<HTMLInputElement>("[data-pane-id='c']")!;
+      originalC.focus();
+      try {
+        await act(async () => {
+          if (replacement === "sidebar") useAppStore.getState().openThread("b");
+          else
+            result.current.handlePaneDrop(
+              { type: "thread", threadId: "b", projectId: project.id },
+              { kind: "replace", paneId: "a" },
+            );
+        });
+        expect(container.querySelector("[data-pane-id='b']")).toBe(originalA);
+        expect(subscriptions).toEqual(new Set(["b", "c"]));
+        await act(async () =>
+          result.current.handlePaneDrop(
+            { type: "thread", threadId: "a", projectId: project.id },
+            {
+              kind: "insert-split",
+              zoneId: "test-insert",
+              target: { path: [], axis: "vertical", index: 1 },
+            },
+          ),
+        );
+        await act(async () => useAppStore.getState().openDraftSideBySide(project.id));
+        const view = useAppStore.getState().view;
+        expect(view.kind).toBe("thread");
+        if (view.kind !== "thread") throw new Error("Expected thread view");
+        expect(view.panes).toHaveLength(4);
+        expect(container.querySelectorAll("[data-pane-id]")).toHaveLength(4);
+        expect(container.querySelector("[data-pane-id='c']")).toBe(originalC);
+        expect(document.activeElement).toBe(originalC);
+        expect(parseFloat(originalC.parentElement!.style.width)).toBeCloseTo(244);
+        expect(errors.mock.calls.filter((args) => String(args[0]).includes("same key"))).toEqual(
+          [],
+        );
+        await act(async () => useAppStore.getState().closePane("b"));
+        expect(container.querySelectorAll("[data-pane-id='b']")).toHaveLength(0);
+        expect(subscriptions.has("b")).toBe(false);
+        ticks.mockClear();
+        await act(async () => vi.advanceTimersByTime(1000));
+        expect(ticks.mock.calls.some(([id]) => id === "b")).toBe(false);
+        await act(async () => useAppStore.getState().openHome());
+        expect(subscriptions.size).toBe(0);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        unmount();
+        errors.mockRestore();
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("renders and reorders a restored colliding layout without remounting surviving panes", () => {
+    const oldLayout: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: "b", slotId: "a" },
+        { kind: "leaf", paneId: "a" },
+        { kind: "leaf", paneId: "c" },
+      ],
+    };
+    const merged = useAppStore.persist.getOptions().merge!(
+      { view: { kind: "thread", panes: ["b", "a", "c"], paneLayout: oldLayout } },
+      { ...useAppStore.getState(), view: { kind: "home" } },
+    );
+    if (merged.view.kind !== "thread" || !merged.view.paneLayout)
+      throw new Error("Expected layout");
+    let layout = merged.view.paneLayout;
+    const renderPane = (paneId: string) => React.createElement("input", { "data-pane-id": paneId });
+    const getPaneDomKey = (paneId: string) =>
+      resolvePaneDomKey({
+        paneId,
+        paneSlotId: findPaneSlotId(layout, paneId)!,
+        presentationMode: "gui",
+      });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { container, rerender } = render(
+        React.createElement(SplitPaneContainer, { layout, renderPane, getPaneDomKey }),
+      );
+      const a = container.querySelector("[data-pane-id='a']");
+      const b = container.querySelector("[data-pane-id='b']");
+      layout = swapPaneIdsInLayout(layout, "a", "b");
+      rerender(React.createElement(SplitPaneContainer, { layout, renderPane, getPaneDomKey }));
+      expect(container.querySelector("[data-pane-id='a']")).toBe(a);
+      expect(container.querySelector("[data-pane-id='b']")).toBe(b);
+      layout = removePaneFromLayout(layout, "b")!;
+      rerender(React.createElement(SplitPaneContainer, { layout, renderPane, getPaneDomKey }));
+      expect(container.querySelectorAll("[data-pane-id]")).toHaveLength(2);
+      expect(container.querySelector("[data-pane-id='a']")).toBe(a);
+      expect(errors.mock.calls).toEqual([]);
+    } finally {
+      errors.mockRestore();
+    }
   });
 
   it("does not render outer drop zones as resize handles or reserve space for them", () => {

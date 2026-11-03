@@ -28,6 +28,14 @@ import { turnClientContextSchema } from "./turnClientContext";
 export const threadStatusSourceSchema = z.enum(["cli_hook", "terminal_parse", "server"]);
 export type ThreadStatusSource = z.infer<typeof threadStatusSourceSchema>;
 
+/**
+ * Why the last turn ended unfinished without the user pressing Stop: the agent
+ * failed (`error`), or the app or agent process restarted mid-turn (`restart`).
+ * Host-owned; drives the composer's resume button and clears when a turn starts.
+ */
+export const threadTurnInterruptionSchema = z.enum(["error", "restart"]);
+export type ThreadTurnInterruption = z.infer<typeof threadTurnInterruptionSchema>;
+
 export const threadForkSourceSchema = z.object({
   version: z.literal(1),
   threadId: z.string().min(1),
@@ -89,6 +97,8 @@ export const threadSchema = z.object({
   threadStatusSource: threadStatusSourceSchema.optional(),
   /** Latest error reason from the runtime, present when `status === "error"`. */
   errorMessage: z.string().optional(),
+  /** Set while the last turn was cut off and can be resumed; absent from older hosts. */
+  interruptedTurn: threadTurnInterruptionSchema.optional(),
   slashCommands: z.array(agentSlashCommandSchema).optional(),
   /** Live session inventory; null clears a retired inventory, absence supports older hosts. */
   sessionConfigOptions: sessionConfigOptionsSchema.nullable().optional(),

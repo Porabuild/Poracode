@@ -162,4 +162,50 @@ describe.skipIf(!sqliteAvailable)("durable thread execution scope", () => {
     });
     expect(dbGetThread(thread.id)?.sessionRef).toEqual(reference);
   });
+
+  it("remembers a cut-off turn until the next turn starts", () => {
+    const settle = (interruptedTurn?: "error" | null) =>
+      persistThreadStateEvent({
+        type: "thread-state",
+        threadId: thread.id,
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        ...(interruptedTurn !== undefined ? { interruptedTurn } : {}),
+      });
+    settle("error");
+    expect(dbGetThread(thread.id)?.interruptedTurn).toBe("error");
+    // An older emitter that never states the marker leaves it alone.
+    settle();
+    expect(dbGetThread(thread.id)?.interruptedTurn).toBe("error");
+    // A session spawned straight into a turn never cleared it itself.
+    persistThreadStateEvent({
+      type: "thread-state",
+      threadId: thread.id,
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    expect(dbGetThread(thread.id)).not.toHaveProperty("interruptedTurn");
+  });
+
+  it("clears a cut-off turn when Stop says so", () => {
+    persistThreadStateEvent({
+      type: "thread-state",
+      threadId: thread.id,
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: true,
+      interruptedTurn: "error",
+    });
+    persistThreadStateEvent({
+      type: "thread-state",
+      threadId: thread.id,
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      interruptedTurn: null,
+    });
+    expect(dbGetThread(thread.id)).not.toHaveProperty("interruptedTurn");
+  });
 });

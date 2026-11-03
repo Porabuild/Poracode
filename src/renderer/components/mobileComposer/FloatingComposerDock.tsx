@@ -342,6 +342,7 @@ export function FloatingComposerDock(props: {
 
   const handleFocusCapture = (event: ReactFocusEvent<HTMLDivElement>) => {
     if (expansionLocked) return;
+    if (event.target instanceof Element && event.target.closest(".poracode-composer-send")) return;
     if (event.target instanceof HTMLElement && !expanded) {
       setExpanded(true);
     }
@@ -457,6 +458,8 @@ export function FloatingComposerDock(props: {
           onFocusCapture={handleFocusCapture}
           onPointerDownCapture={(event) => {
             if (!props.collapsedTapLabel || visuallyExpanded || expansionLocked) return;
+            if (event.target instanceof Element && event.target.closest(".poracode-composer-send"))
+              return;
             event.preventDefault();
             event.stopPropagation();
             expandAndFocus(event.pointerType);

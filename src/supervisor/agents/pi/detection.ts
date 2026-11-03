@@ -102,8 +102,13 @@ async function readPiSettings(location: ProjectLocation, signal?: AbortSignal) {
     const models: PiCliModel[] = Array.isArray(settings.enabledModels)
       ? [...new Set(settings.enabledModels.filter((id): id is string => typeof id === "string"))]
           .map((id) => id.trim())
-          // Globs and bare aliases need Pi's catalogue to resolve; never publish them as IDs.
-          .filter((id) => splitPiModelId(id) && !/[*?[\]{}()!]/u.test(id))
+          // Patterns and thinking suffixes need Pi's catalogue; never publish them as IDs.
+          .filter(
+            (id) =>
+              splitPiModelId(id) &&
+              !/[*?[\]{}()!]/u.test(id) &&
+              !PI_THINKING_LEVELS.some((level) => id.endsWith(`:${level}`)),
+          )
           .map((id) => ({ id }))
       : [];
     const defaultProvider =
