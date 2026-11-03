@@ -11,10 +11,7 @@ import { createPortal, flushSync } from "react-dom";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
-import {
-  floatingGlassBubbleClass,
-  floatingGlassSurfaceClass,
-} from "@/renderer/components/layout/floatingGlass";
+import { floatingBubbleIconClass } from "@/renderer/components/layout/floatingGlass";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { isPanelResizing, subscribePanelResize } from "@/renderer/state/panelResizeSignal";
@@ -975,7 +972,7 @@ export function ChatScrollControls(props: {
          centered via a negative margin, not `-translate-x-1/2`: HeroUI's pressed
          state animates `transform`, which would fight a translate and snap the
          button sideways on click. */
-        className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} size-7 min-w-0 rounded-full text-muted transition-[opacity,color] duration-200 ease-out hover:text-foreground ${
+        className={`${floatingBubbleIconClass} text-muted transition-[opacity,color] duration-200 ease-out hover:text-foreground ${
           bubbleSlot ? "" : "absolute bottom-4 left-1/2 z-10 -ml-3.5"
         } ${showScrollDown ? "opacity-100" : "pointer-events-none opacity-0"}`}
       >
