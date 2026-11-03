@@ -27,6 +27,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import {
   notePendingThreadInputMessage,
   retainPendingThreadInput,
+  threadInterruptedTurnStatements,
 } from "@/renderer/state/pendingThreadInput";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
@@ -120,6 +121,7 @@ async function performThreadInputSubmitPending(
   const presentation = thread.presentationMode ?? "terminal";
   let optimisticUserMessageItemId: string | undefined;
   let markedWorking = false;
+  const interruptedTurnStatementsAtSend = threadInterruptedTurnStatements(thread.id);
   const store = useAppStore.getState();
   if (presentation === "gui" && hasSendablePromptContent(prompt, segments)) {
     optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
@@ -160,10 +162,18 @@ async function performThreadInputSubmitPending(
   const rollbackOptimisticWorking = (resumeFailed = false): void => {
     if (!markedWorking) return;
     markDelivery("failed");
+    // A Stop, or a turn that did start, makes the host state the marker while
+    // this send is pending; that decides whether the turn can be resumed.
+    const hostStatedMarker =
+      threadInterruptedTurnStatements(thread.id) !== interruptedTurnStatementsAtSend;
     store.updateThreadRuntime(thread.id, {
       status: resumeFailed ? "error" : thread.status,
       attention: resumeFailed ? "error" : thread.attention,
       canResumeWithConfig: thread.canResumeWithConfig,
+      // The message never became a turn, so it can still be resumed.
+      ...(!hostStatedMarker
+        ? { interruptedTurn: resumeFailed ? "error" : (thread.interruptedTurn ?? null) }
+        : {}),
       forceCloseActiveTurn: true,
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     });

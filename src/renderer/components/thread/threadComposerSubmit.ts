@@ -47,6 +47,9 @@ import {
  */
 export interface ComposerSubmitContext {
   thread: Thread;
+  /** Sent by the resume button, not typed: a failure leaves the composer empty
+   * so the button stays for another try. */
+  resumesInterruptedTurn?: boolean;
   agentStatus: AgentStatus | undefined;
   presentationMode: ThreadPresentationMode;
   usesTerminalPresentation: boolean;
@@ -110,11 +113,9 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     runtimeLabel: agentStatus?.capabilities.runtimeLabel,
     supportsSideChat: sideChatAvailable(thread.id, ctx.presentationMode),
   };
-  const boundSegments = bindLeadingSkillUnlessLocalAction(
-    segments,
-    ctx.availableCommands,
-    slashLookupContext,
-  );
+  const boundSegments = ctx.resumesInterruptedTurn
+    ? segments
+    : bindLeadingSkillUnlessLocalAction(segments, ctx.availableCommands, slashLookupContext);
   const allSegments = [...attachmentSegments, ...selectorSegments, ...boundSegments];
   const flat = flattenSegments(allSegments);
   // Route side questions before approval denial, queueing or steering. The
@@ -123,7 +124,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     (segment) => segment.kind !== "text" || segment.content.trim().length > 0,
   );
   const sideAction =
-    leadingSegment?.kind === "text"
+    !ctx.resumesInterruptedTurn && leadingSegment?.kind === "text"
       ? resolveLocalSlashCommandAction(flattenSegments(boundSegments), slashLookupContext)
       : null;
   if (sideAction?.kind === "open-side-chat") {
@@ -175,7 +176,9 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     ctx.setHasContent(false);
     ctx.latestSegmentsRef.current = [];
   };
-  const localAction = resolveLocalActionUnlessSkill(allSegments, flat, slashLookupContext);
+  const localAction = ctx.resumesInterruptedTurn
+    ? null
+    : resolveLocalActionUnlessSkill(allSegments, flat, slashLookupContext);
   if (localAction?.kind === "set-mode") {
     changeThreadConfig(thread.id, { ...thread.config, mode: localAction.mode });
     mentionRef.current?.clear();
@@ -339,6 +342,10 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       if (ctx.isCurrentSession()) ctx.onSubmitSuccess?.();
     })
     .catch((error: unknown) => {
+      if (ctx.resumesInterruptedTurn) {
+        if (!isRemoteCommandOutcomeUncertainError(error)) toast.danger(friendlyError(error));
+        return;
+      }
       // Leave the prompt intact so the user can retry.
       useAppStore.getState().saveThreadDraftContent(thread.id, {
         segments: submittedInputSegments,

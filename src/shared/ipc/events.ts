@@ -15,6 +15,7 @@ import type {
   ThreadFollowUpQueueState,
   ThreadStatus,
   ThreadStatusSource,
+  ThreadTurnInterruption,
   UsageLoginConfirmationRequest,
   UsageLoginDeviceCode,
   UsageSnapshot,
@@ -325,6 +326,10 @@ export type SupervisorEvent =
       slashCommands?: AgentSlashCommand[];
       /** Current session controls; null retires them, absence leaves older-host state alone. */
       sessionConfigOptions?: SessionConfigOptions | null;
+      /** Resumable cut-off turn; null clears it, absence leaves older-host state alone. */
+      interruptedTurn?: ThreadTurnInterruption | null;
+      /** Persist explicit Stop even while provider cancellation is still pending. */
+      turnStopRequested?: boolean;
       forceCloseActiveTurn?: boolean;
       threadStatusSource?: ThreadStatusSource;
     }

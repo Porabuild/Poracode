@@ -61,6 +61,37 @@ internal suspend fun submitRichChatComposer(
     }
 }
 
+/**
+ * Picks a cut-off turn back up through the same send path as a typed message:
+ * the unanswered plain-text message again, or [continuePrompt]. When the host
+ * refuses that send because it lost the thread's session, [relaunch] starts
+ * the thread with the same prompt instead.
+ */
+internal suspend fun submitRichChatResume(
+    runtime: RichChatSessionRuntime,
+    plan: RichChatResumePlan,
+    continuePrompt: String,
+    configuration: ThreadConfig,
+    activeRequest: RichOpenRequest?,
+    relaunch: RichChatResumeRelaunch? = null,
+): RichChatOperationResult<Unit>? {
+    val draft = when (plan) {
+        is RichChatResumePlan.Resend -> plan.prompt
+        RichChatResumePlan.Continue -> continuePrompt
+    }
+    val sent = submitRichChatComposer(
+        runtime = runtime,
+        draft = draft,
+        configuration = configuration,
+        queuedSegments = emptyList(),
+        attachments = emptyList(),
+        isTurnActive = false,
+        activeRequest = activeRequest,
+    )
+    val refusal = (sent as? RichChatOperationResult.Failed)?.failure ?: return sent
+    return relaunch?.afterRefusal(runtime, refusal, draft.trim(), configuration) ?: sent
+}
+
 internal enum class RichFollowUpSubmitAction { SEND, STEER, QUEUE }
 
 /** Desktop parity: sending while a turn is active steers by default; the

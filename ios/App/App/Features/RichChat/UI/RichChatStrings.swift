@@ -220,6 +220,12 @@ enum RichChatStrings {
   static let message = value("rich_chat_message_placeholder", "Message")
   static let send = value("rich_chat_send_message", "Send message")
   static let stop = value("rich_chat_stop_generation", "Stop generation")
+  static let resendLastMessage = value("rich_chat_resend_last_message", "Resend last message")
+  static let resumeResponse = value("rich_chat_resume_response", "Resume response")
+  /// Sent to the agent when a cut-off turn had already started answering.
+  static let resumeContinuePrompt = value(
+    "rich_chat_resume_continue_prompt", "Continue from where you left off."
+  )
   static let retry = value("rich_chat_retry", "Try Again")
   static let cancel = value("rich_chat_cancel", "Cancel")
 

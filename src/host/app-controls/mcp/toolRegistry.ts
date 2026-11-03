@@ -55,6 +55,8 @@ if (!APP_CONTROLS_CORE_SKILL || !TERMINAL_CORE_SKILL || !DEVICES_CORE_SKILL) {
 export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "Poracode app controls. " +
   `For threads, git, pull requests, and schedules, ${loadPluginCoreSkillPhrase(APP_CONTROLS_CORE_SKILL)}. ` +
+  "Keep your thread's assigned worktree for task changes and checks unless the user explicitly requests a different task checkout. " +
+  "See the app-controls skill for worktree creation and delegation guidance. " +
   `When reading the Terminal panel, ${loadPluginCoreSkillPhrase(TERMINAL_CORE_SKILL)}. ` +
   `For simulator and emulator work, ${loadPluginCoreSkillPhrase(DEVICES_CORE_SKILL)}. ` +
   "Read and control the running app: device schedules " +

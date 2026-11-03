@@ -67,6 +67,29 @@ afterEach(() => {
 });
 
 describe("RuntimeEventBuffer healthy acknowledgement batching", () => {
+  it("keeps multi-thread envelopes below the default remote live-event budget", () => {
+    const sent: SupervisorEvent[] = [];
+    const onOverflow = vi.fn<NonNullable<RuntimeEventBufferOptions["onOverflow"]>>();
+    const buffer = new RuntimeEventBuffer(
+      (event) => {
+        sent.push(event);
+      },
+      { onOverflow },
+    );
+    const events = Array.from({ length: 3 }, (_, index) =>
+      delta(`thread-${index}`, '界🙂\\"\n'.repeat(90_000)),
+    );
+    for (const event of events) buffer.append(event.threadId, event);
+    buffer.flush();
+
+    expect(sent.flatMap(eventsOf)).toEqual(events);
+    expect(Math.max(...sent.map((event) => Buffer.byteLength(JSON.stringify(event))))).toBeLessThan(
+      2 * 1024 * 1024,
+    );
+    expect(onOverflow).not.toHaveBeenCalled();
+    expect(buffer.pendingStats()).toEqual({ events: 0, bytes: 0, threads: 0 });
+  });
+
   it("keeps the timer cadence for 33 staggered 100 Hz streams with healthy cumulative acks", () => {
     function runCadence(notifyBuffer: boolean) {
       vi.setSystemTime(0);

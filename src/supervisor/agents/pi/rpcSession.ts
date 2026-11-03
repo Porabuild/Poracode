@@ -9,6 +9,7 @@ import type {
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import {
+  buildAgentCommand,
   createKnownSessionRef,
   type CreateStructuredSessionInput,
   type StartTurnOptions,
@@ -181,7 +182,6 @@ export class PiRpcSession implements StructuredSessionHandle {
     if (input.projectLocation.kind === "wsl") {
       throw new Error("Pi structured chat requires a native project; use Pi terminal mode in WSL.");
     }
-    const cwd = input.projectLocation.path;
     const binary = options?.binary ?? resolveAgentBinaryPath(input.projectLocation, "pi") ?? "pi";
     const mcp = await piMcpLaunch(input.projectLocation, input.mcpServers);
 
@@ -197,12 +197,16 @@ export class PiRpcSession implements StructuredSessionHandle {
     }
     args.push(...mcp.args);
 
-    const client = PiRpcClient.spawn({
-      command: binary,
-      args,
-      cwd,
-      ...(mcp.env ? { env: mcp.env } : {}),
-    });
+    const client = PiRpcClient.spawn(
+      input.projectLocation.kind === "windows"
+        ? buildAgentCommand(input.projectLocation, "pi", args, binary, mcp.env)
+        : {
+            command: binary,
+            args,
+            cwd: input.projectLocation.path,
+            ...(mcp.env ? { env: mcp.env } : {}),
+          },
+    );
     try {
       await client.spawnReady;
       return new PiRpcSession(input, client, mcp.cleanup);
@@ -811,7 +815,8 @@ export class PiRpcSession implements StructuredSessionHandle {
 
   private handleExit(): void {
     if (this.disposed) return;
-    if (this.currentTurnId) this.finishTurn("cancelled");
+    // Without a Stop, a process that died mid-turn cut that turn off.
+    if (this.currentTurnId) this.finishTurn(this.interruptRequested ? "cancelled" : "failed");
     const stderr = this.client.stderr;
     this.emit({
       type: "session.exited",

@@ -1,3 +1,4 @@
+import { retirePendingThreadState } from "@/host/remote/server/pendingInterruptedTurns";
 import {
   closeAsyncDatabaseReads,
   enableAsyncDatabaseReads,
@@ -610,6 +611,7 @@ export class BackendHostCore {
     if (!result.truncated) {
       return result;
     }
+    retirePendingThreadState(threadId);
     this.options.onEvent({
       type: "thread-runtime-event",
       threadId,

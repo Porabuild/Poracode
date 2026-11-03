@@ -616,7 +616,7 @@ describe("threadActions", () => {
     });
     useAppStore.setState((state) => ({ ...state, threads: [firstThread, secondThread] }));
 
-    openThread(firstThread.id);
+    openThread(secondThread.id, { focusComposer: false });
 
     expect(hydrateThreadRuntimeItems).not.toHaveBeenCalled();
     expect(useAppStore.getState().view).toEqual({ kind: "home" });
@@ -628,7 +628,8 @@ describe("threadActions", () => {
         activeGroupId: "group-1",
       });
     });
-    expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(firstThread.id);
+    expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(secondThread.id);
+    expect(useAppStore.getState().focusedPaneId).toBe(secondThread.id);
   });
 
   it("prepares an experiment candidate without hydrating or mounting its siblings", async () => {
