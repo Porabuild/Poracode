@@ -30,6 +30,7 @@ function runtimeFixture(disposeNativeRuntime: () => Promise<void>) {
     mcpAuthenticationService: { dispose: async () => {} },
     hexVoiceService: { dispose: disposeHexVoice },
     mcpOAuthRelay: { dispose: async () => {} },
+    mcpAppsService: { dispose: async () => {} },
     lspManager: { dispose },
     threadSessionManager: { dispose: closeThreads },
     subagentRunManager: { retryRetirements: async () => {} },
