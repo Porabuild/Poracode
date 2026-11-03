@@ -77,7 +77,10 @@ describe("canonical service-worker build assets", () => {
     const route = window.location.href;
     registerCanonicalServiceWorker();
     await vi.waitFor(() => expect(active.postMessage).toHaveBeenCalledTimes(2));
-    expect(register).toHaveBeenCalledExactlyOnceWith("/service-worker.js", { scope: "/" });
+    expect(register).toHaveBeenCalledExactlyOnceWith("/service-worker.js", {
+      scope: "/",
+      updateViaCache: "none",
+    });
     const message = {
       type: "cache-build-assets",
       urls: entries.slice(0, 2),
@@ -94,7 +97,10 @@ describe("canonical service-worker build assets", () => {
   it("preserves an old relative build without private metadata", async () => {
     registerCanonicalServiceWorker();
     await vi.waitFor(() => expect(active.postMessage).toHaveBeenCalled());
-    expect(register).toHaveBeenCalledWith("/service-worker.js", { scope: "/" });
+    expect(register).toHaveBeenCalledWith("/service-worker.js", {
+      scope: "/",
+      updateViaCache: "none",
+    });
     expect(active.postMessage).toHaveBeenLastCalledWith({
       type: "cache-build-assets",
       urls: [entries[2]],
@@ -109,6 +115,7 @@ describe("canonical service-worker build assets", () => {
     await vi.waitFor(() => expect(active.postMessage).toHaveBeenCalled());
     expect(register).toHaveBeenCalledExactlyOnceWith("/hosted/service-worker.js", {
       scope: "/hosted/",
+      updateViaCache: "none",
     });
     expect(active.postMessage).toHaveBeenLastCalledWith({
       type: "cache-build-assets",
@@ -141,14 +148,18 @@ describe("canonical service-worker build assets", () => {
     expect(active.postMessage).not.toHaveBeenCalled();
   });
 
-  it.each(["development", "electron", "insecure", "missing-api"])("skips %s delivery", (mode) => {
-    if (mode === "development") vi.stubEnv("DEV", true);
-    if (mode === "electron") runtime.electron = true;
-    if (mode === "insecure") {
-      Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
-    }
-    if (mode === "missing-api") Reflect.deleteProperty(navigator, "serviceWorker");
-    registerCanonicalServiceWorker();
-    expect(register).not.toHaveBeenCalled();
-  });
+  it.each(["development", "electron", "insecure", "missing-api", "offline"])(
+    "skips %s delivery",
+    (mode) => {
+      if (mode === "development") vi.stubEnv("DEV", true);
+      if (mode === "electron") runtime.electron = true;
+      if (mode === "insecure") {
+        Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
+      }
+      if (mode === "missing-api") Reflect.deleteProperty(navigator, "serviceWorker");
+      if (mode === "offline") vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+      registerCanonicalServiceWorker();
+      expect(register).not.toHaveBeenCalled();
+    },
+  );
 });

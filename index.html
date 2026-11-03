@@ -8,6 +8,7 @@
     />
     <meta name="theme-color" content="#070709" />
     <meta name="robots" content="noindex, nofollow" />
+    <meta name="poracode-build-version" content="__PORACODE_BUILD_VERSION__" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Poracode" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -136,6 +137,271 @@
   </head>
   <body class="bg-background text-foreground">
     <div id="root"></div>
+    <style>
+      #poracode-boot:not([hidden]) {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background: var(--background, #070709);
+        color: var(--foreground, #eeeeef);
+        font:
+          14px -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      html.light #poracode-boot {
+        background: var(--background, #fafafa);
+        color: var(--foreground, #18181b);
+      }
+      #poracode-boot-spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: poracode-boot-spin 0.8s linear infinite;
+      }
+      #poracode-boot[data-state="failed"] #poracode-boot-spinner {
+        display: none;
+      }
+      #poracode-boot button {
+        min-height: 36px;
+        padding: 0 16px;
+        border: 1px solid currentColor;
+        border-radius: 8px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        cursor: pointer;
+      }
+      @keyframes poracode-boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #poracode-boot-spinner {
+          animation: none;
+        }
+      }
+    </style>
+    <div id="poracode-boot" hidden>
+      <span>Poracode</span>
+      <span id="poracode-boot-spinner" aria-hidden="true"></span>
+      <span id="poracode-boot-status" role="status" aria-live="polite"></span>
+      <button id="poracode-boot-retry" type="button" hidden></button>
+    </div>
+    <script id="poracode-pwa-boot">
+      // Deliberately inline and independent of the renderer's module graph.
+      // A removed entry/static dependency must not strand an installed PWA.
+      (function () {
+        if (window.poracodeHost || !/^https?:$/.test(location.protocol)) return;
+        if (new URLSearchParams(location.search).get("surface") === "chat-sidebar") return;
+        var messages = __PORACODE_BOOT_MESSAGES__;
+        var workerEnabled = __PORACODE_BOOT_WORKER_ENABLED__;
+        var locale = navigator.language || "en";
+        try {
+          var settings = JSON.parse(localStorage.getItem("poracode-shared-settings") || "null");
+          if (settings && typeof settings.locale === "string" && settings.locale !== "system")
+            locale = settings.locale;
+        } catch (e) {}
+        locale = locale.toLowerCase();
+        var language =
+          Object.keys(messages).find(function (key) {
+            return key.toLowerCase() === locale;
+          }) ||
+          Object.keys(messages).find(function (key) {
+            return key.split("-")[0] === locale.split("-")[0];
+          }) ||
+          "en";
+        var labels = messages[language];
+        var screen = document.getElementById("poracode-boot");
+        var status = document.getElementById("poracode-boot-status");
+        var retry = document.getElementById("poracode-boot-retry");
+        var root = document.getElementById("root");
+        var version = document.querySelector('meta[name="poracode-build-version"]').content;
+        var recovering = false;
+        var ready = false;
+        var reloadKey = "poracode:stale-build-reload";
+        var registration;
+        var recoveryTimer;
+        var bootTimer;
+        function show(state) {
+          screen.hidden = false;
+          screen.dataset.state = state;
+          screen.setAttribute("aria-busy", String(state !== "failed"));
+          status.textContent = labels[state === "failed" ? 2 : state === "updating" ? 1 : 0];
+          retry.hidden = state !== "failed";
+        }
+        function finish() {
+          if (!root.firstElementChild || recovering) return;
+          ready = true;
+          clearTimeout(bootTimer);
+          screen.hidden = true;
+          var url = new URL(location.href);
+          if (url.searchParams.has("__poracode_reload")) {
+            url.searchParams.delete("__poracode_reload");
+            history.replaceState(history.state, "", url);
+          }
+        }
+        function reload() {
+          var url = new URL(location.href);
+          url.searchParams.set("__poracode_reload", String(Date.now()));
+          location.replace(url.href);
+        }
+        function recover(manual) {
+          if (recovering) return;
+          var last = Number(new URL(location.href).searchParams.get("__poracode_reload"));
+          try {
+            last = Math.max(last, Number(sessionStorage.getItem(reloadKey)));
+          } catch (e) {}
+          if (!manual && Date.now() - last < 60000) {
+            show("failed");
+            return;
+          }
+          try {
+            sessionStorage.setItem(reloadKey, String(Date.now()));
+          } catch (e) {}
+          recovering = true;
+          show("updating");
+          clearTimeout(bootTimer);
+          // The worker normally refreshes us after activation. Bound recovery
+          // even when an old worker or a failed update cannot do that.
+          recoveryTimer = setTimeout(reload, 8000);
+          if (registration) {
+            registration.update().catch(function () {});
+          } else if (!workerEnabled || !("serviceWorker" in navigator)) {
+            clearTimeout(recoveryTimer);
+            recoveryTimer = setTimeout(reload, 0);
+          }
+        }
+        function stale(error) {
+          var message = typeof error === "string" ? error : (error && error.message) || "";
+          return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS/.test(
+            message,
+          );
+        }
+        show("loading");
+        retry.textContent = labels[3];
+        retry.addEventListener("click", function () {
+          recover(true);
+        });
+        new MutationObserver(finish).observe(root, { childList: true });
+        bootTimer = setTimeout(function () {
+          if (!ready) show("failed");
+        }, 20000);
+        window.addEventListener("poracode:recover-stale-build", function (event) {
+          event.preventDefault();
+          recover(false);
+        });
+        window.addEventListener("vite:preloadError", function (event) {
+          event.preventDefault();
+          recover(false);
+        });
+        window.addEventListener(
+          "error",
+          function (event) {
+            var target = event.target;
+            if (target && (target.tagName === "SCRIPT" || target.tagName === "LINK")) {
+              var url = target.src || target.href || "";
+              if (url.indexOf("/assets/") !== -1) recover(false);
+            } else if (stale(event.error || event.message)) {
+              event.preventDefault();
+              recover(false);
+            } else if (!ready) {
+              show("failed");
+            }
+          },
+          true,
+        );
+        window.addEventListener("unhandledrejection", function (event) {
+          if (stale(event.reason)) {
+            event.preventDefault();
+            recover(false);
+          } else if (!ready) {
+            show("failed");
+          }
+        });
+        if (!workerEnabled || !("serviceWorker" in navigator) || window.isSecureContext === false)
+          return;
+        var manifest = document.querySelector('link[rel="manifest"]');
+        var base = new URL("./", manifest.href);
+        navigator.serviceWorker.addEventListener("message", function (event) {
+          if (event.data && event.data.type === "poracode-build-activated" && event.ports[0]) {
+            if (event.data.version !== version) {
+              recovering = true;
+              show("updating");
+              clearTimeout(bootTimer);
+              clearTimeout(recoveryTimer);
+              recoveryTimer = setTimeout(reload, 8000);
+            }
+            event.ports[0].postMessage({ version: version });
+          }
+        });
+        // Install these listeners even if the first registration fails offline.
+        // iOS can resume the existing document rather than navigate on reopen.
+        function activateWaiting() {
+          if (registration.waiting) registration.waiting.postMessage({ type: "activate-build" });
+        }
+        function watchInstalling() {
+          if (registration.installing)
+            registration.installing.addEventListener("statechange", activateWaiting);
+          activateWaiting();
+        }
+        function checkActiveBuild() {
+          activateWaiting();
+          if (
+            registration.active &&
+            !registration.installing &&
+            !registration.waiting &&
+            version.indexOf("__") !== 0
+          )
+            registration.active.postMessage({ type: "check-build", version: version });
+        }
+        function check() {
+          if (document.visibilityState === "hidden" || navigator.onLine === false) return;
+          if (registration) {
+            activateWaiting();
+            registration
+              .update()
+              .then(checkActiveBuild)
+              .catch(function () {});
+            return;
+          }
+          navigator.serviceWorker
+            .getRegistration(base.href)
+            .then(function (existing) {
+              return (
+                existing ||
+                navigator.serviceWorker.register(new URL("service-worker.js", base).href, {
+                  scope: base.pathname,
+                  updateViaCache: "none",
+                })
+              );
+            })
+            .then(function (value) {
+              registration = value;
+              registration.addEventListener("updatefound", watchInstalling);
+              watchInstalling();
+              registration
+                .update()
+                .then(checkActiveBuild)
+                .catch(function () {});
+            })
+            .catch(function () {});
+        }
+        window.addEventListener("pageshow", check);
+        window.addEventListener("online", check);
+        document.addEventListener("visibilitychange", check);
+        check();
+      })();
+    </script>
     <script type="module" src="/src/renderer/bootstrap.ts"></script>
   </body>
 </html>

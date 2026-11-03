@@ -54,6 +54,19 @@ describe("stale build recovery", () => {
     expect(reload).toHaveBeenCalledTimes(2);
   });
 
+  it("delegates to the document recovery before using the legacy reload guard", () => {
+    const recover = vi.fn<(event: Event) => void>((event) => event.preventDefault());
+    window.addEventListener("poracode:recover-stale-build", recover);
+    try {
+      expect(reloadForStaleBuild(chunkError)).toBe(true);
+      expect(recover).toHaveBeenCalledOnce();
+      expect(reload).not.toHaveBeenCalled();
+      expect(isStaleBuildReloadPending()).toBe(true);
+    } finally {
+      window.removeEventListener("poracode:recover-stale-build", recover);
+    }
+  });
+
   it("leaves other errors and the Electron renderer to the crash screen", () => {
     expect(reloadForStaleBuild(new Error("render failed"))).toBe(false);
     Object.assign(window, { poracodeHost: {} });
