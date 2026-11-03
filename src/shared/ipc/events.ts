@@ -19,6 +19,8 @@ import type {
   UsageLoginConfirmationRequest,
   UsageLoginDeviceCode,
   UsageSnapshot,
+  ProjectLocation,
+  GithubPollingProblem,
 } from "../contracts";
 import type {
   BrowserDownloadInfo,
@@ -362,6 +364,11 @@ export type SupervisorEvent =
   | { type: "provider-usage"; snapshot: UsageSnapshot }
   | { type: "provider-usage-all"; snapshots: UsageSnapshot[] }
   | { type: "git-changed"; projectId: string }
+  | {
+      type: "github-polling-status";
+      projectLocation: ProjectLocation;
+      problem: GithubPollingProblem | null;
+    }
   | { type: "project-tree-changed"; projectId: string }
   | { type: "lsp-message"; sessionId: string; message: unknown }
   | {

@@ -1,9 +1,9 @@
+import { pollBranchPr } from "@/renderer/state/githubPolling";
 import { useEffect, useId, useRef, useState } from "react";
-import { GitBranch, GitBranchMinus, GitFork, GitPullRequest } from "lucide-react";
+import { GitBranch, GitBranchMinus, GitFork, GitPullRequest, TriangleAlert } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useDraggable } from "@dnd-kit/react";
-import { readBridge } from "@/renderer/bridge";
 import { DiffStat } from "@/renderer/components/common/DiffStat";
 import { useAppStore } from "@/renderer/state/appStore";
 import { isMergedPrRegression, useGitStore } from "@/renderer/state/gitStore";
@@ -74,6 +74,7 @@ export function GitBadge(props: {
   compact?: boolean;
 }) {
   const { t } = useLingui();
+  const pollingProblem = useGitStore((state) => state.githubPollingProblems[props.projectId]);
   const compactLayout = useCompactLayout();
   const elementRef = useRef<HTMLDivElement>(null);
   const dragId = useId();
@@ -165,6 +166,7 @@ export function GitBadge(props: {
       return;
     }
 
+    if (pollingProblem) return;
     let isActive = true;
     const markVerified = () => {
       if (!isActive) return;
@@ -173,14 +175,12 @@ export function GitBadge(props: {
     };
     void coalesceByKey(projectPrVerifications, `${projectPrKey}\0${branch}`, () => {
       const previousPr = useGitStore.getState().prData[projectPrKey];
-      return readBridge()
-        .ghGetPrForBranch({ projectLocation, branch })
-        .then((pr) => {
-          if (useGitStore.getState().statuses[props.projectId]?.branch !== branch) return;
-          if (isMergedPrRegression(useGitStore.getState().prData[projectPrKey], pr, previousPr))
-            return;
-          useGitStore.getState().setPrData(projectPrKey, pr);
-        });
+      return pollBranchPr({ projectLocation, branch }, props.projectId).then((pr) => {
+        if (useGitStore.getState().statuses[props.projectId]?.branch !== branch) return;
+        if (isMergedPrRegression(useGitStore.getState().prData[projectPrKey], pr, previousPr))
+          return;
+        useGitStore.getState().setPrData(projectPrKey, pr);
+      });
     })
       .then(markVerified)
       .catch(() => undefined);
@@ -195,10 +195,37 @@ export function GitBadge(props: {
     branch,
     projectLocation,
     ghAvailable,
+    pollingProblem,
   ]);
 
   const hasChanges = totalInsertions > 0 || totalDeletions > 0;
   const isWorktree = props.worktreePath !== undefined;
+  if (pollingProblem)
+    return (
+      <Tooltip delay={150}>
+        <Tooltip.Trigger>
+          <div
+            ref={elementRef}
+            role="button"
+            tabIndex={0}
+            aria-label={t`PR data is unavailable; cached results may be stale.`}
+            className={`${gitBadgeButtonClass} ${gitBadgeIconPaddingClass} ${props.compact ? "poracode-compact-git-badge" : ""} ${props.isActive ? activeGitBadgeClass : ""}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onPress?.();
+            }}
+            onKeyDown={(event) =>
+              handleKeyActivate(event, () => props.onPress?.(), { stopPropagation: true })
+            }
+          >
+            <TriangleAlert className="size-3 shrink-0 text-warning" />
+          </div>
+        </Tooltip.Trigger>
+        <Tooltip.Content placement="right">
+          <Trans>PR data is unavailable; cached results may be stale.</Trans>
+        </Tooltip.Content>
+      </Tooltip>
+    );
   if (hasStatus && !isRepo) {
     if (isHome) return null;
     return (

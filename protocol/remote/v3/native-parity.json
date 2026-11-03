@@ -7118,6 +7118,33 @@
         }
       },
       {
+        "id": "ghPollPullRequests",
+        "batch": "projects",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Native GitHub polling-status and retry UI has not been implemented."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Native GitHub polling-status and retry UI has not been implemented."
+          }
+        },
+        "note": "The shared renderer uses this additive background read. Native clients preserve the optional host Git-state problem field but do not yet present its recovery control."
+      },
+      {
         "id": "ghGetPrForBranch",
         "batch": "projects",
         "ios": {

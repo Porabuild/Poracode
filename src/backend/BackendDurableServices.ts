@@ -224,6 +224,7 @@ export class BackendDurableServices {
       hostId: options.hostId,
       executor: createGitStateExecutor((name, payload) => supervisor.call(name, payload)),
       getProject: dbGetProject,
+      getProjects: dbGetProjects,
       onPatch: options.onGitPatch,
     });
     this.projectWatchLeases = new ProjectWatchLeases({

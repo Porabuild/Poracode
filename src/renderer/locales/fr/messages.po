@@ -9879,6 +9879,10 @@ msgstr "Installer le SDK Cursor"
 msgid "Install Cursor SDK in {environment}"
 msgstr "Installer le SDK Cursor dans {environment}"
 
+#: src/renderer/components/common/GithubPollingNotice.tsx
+msgid "Install GitHub CLI (gh) on {executionHost}, then retry."
+msgstr "Installez GitHub CLI (gh) sur {executionHost}, puis réessayez."
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Install Hex"
 msgstr "Installer Hex"
@@ -14667,6 +14671,11 @@ msgstr "Automatisation des PR : Correction auto"
 msgid "PR automation: Auto Merge"
 msgstr "Automatisation des PR : Fusion auto"
 
+#: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "PR data is unavailable; cached results may be stale."
+msgstr "Les données des PR sont indisponibles ; les résultats en cache peuvent être obsolètes."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
 msgstr "Options de la PR"
@@ -16467,6 +16476,7 @@ msgstr "Uniquement l’utilisation conservée sur cet hôte."
 #: src/renderer/bootstrap.ts
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -16946,6 +16956,10 @@ msgstr "Exécuter la commande"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Run experiment"
 msgstr "Exécuter l’expérience"
+
+#: src/renderer/components/common/GithubPollingNotice.tsx
+msgid "Run gh auth login in a terminal on {executionHost}, then retry. If GH_TOKEN or GITHUB_TOKEN is set, update or remove the invalid token there."
+msgstr "Exécutez gh auth login dans un terminal sur {executionHost}, puis réessayez. Si GH_TOKEN ou GITHUB_TOKEN est défini, mettez à jour ou supprimez le jeton invalide sur cet hôte."
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Run in a separate worktree"

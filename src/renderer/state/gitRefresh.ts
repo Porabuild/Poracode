@@ -1,3 +1,4 @@
+import { pollBranchPr, pollPullRequests } from "./githubPolling";
 import type { GitStatusDetail, GitStatusResult, PrData, ProjectLocation } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { friendlyError, msg } from "@/shared/messages";
@@ -152,7 +153,9 @@ export async function prefetchBranchPrData(project: {
   branchPrPrefetchInFlight.add(project.id);
   branchPrPrefetchLastRun.set(project.id, Date.now());
   try {
-    const { prs } = await readBridge().ghListPrs({ projectLocation: project.location });
+    const result = await pollPullRequests({ projectLocation: project.location }, project.id);
+    if (result.status === "blocked") return;
+    const { prs } = result;
     branchPrPrefetchCache.set(project.id, prs);
     applyPrefetchedPrData(project.id, prs, false);
   } catch (err) {
@@ -558,10 +561,13 @@ export async function refreshSinglePr(params: {
     try {
       // Discovery follows the current remote/default account. Only the subsequent
       // detail read is pinned to that result; cached identity is not authority.
-      pr = await readBridge().ghGetPrForBranch({
-        projectLocation: params.projectLocation,
-        branch: params.branch,
-      });
+      pr = await pollBranchPr(
+        {
+          projectLocation: params.projectLocation,
+          branch: params.branch,
+        },
+        params.projectId,
+      );
     } catch (error) {
       refuseIdentity(error);
       return undefined;
@@ -650,12 +656,13 @@ async function refreshPostPushPr(key: string): Promise<void> {
   }
 
   entry.attempts += 1;
-  const pr = await readBridge()
-    .ghGetPrForBranch({
+  const pr = await pollBranchPr(
+    {
       projectLocation: entry.target.projectLocation,
       branch: entry.target.branch,
-    })
-    .catch(() => undefined);
+    },
+    entry.target.projectId,
+  ).catch(() => undefined);
   if (postPushPrRefreshEntries.get(key) !== entry) return;
   if (!isPostPushPrRefreshTargetActive(entry.target)) {
     postPushPrRefreshEntries.delete(key);
@@ -962,10 +969,13 @@ export async function refreshGitProject(
           if (!ghAvailable || !t.worktreeBranch || !t.worktreePath) return;
           try {
             previousPrs[t.worktreePath] = useGitStore.getState().prData[t.worktreePath];
-            const pr = await readBridge().ghGetPrForBranch({
-              projectLocation: project.location,
-              branch: t.worktreeBranch,
-            });
+            const pr = await pollBranchPr(
+              {
+                projectLocation: project.location,
+                branch: t.worktreeBranch,
+              },
+              project.id,
+            );
             prUpdates[t.worktreePath] = pr;
           } catch (err) {
             console.warn(
@@ -982,10 +992,13 @@ export async function refreshGitProject(
           try {
             const prKey = buildBranchPrKey(project.id);
             previousPrs[prKey] = useGitStore.getState().prData[prKey];
-            const pr = await readBridge().ghGetPrForBranch({
-              projectLocation: project.location,
-              branch: status.branch,
-            });
+            const pr = await pollBranchPr(
+              {
+                projectLocation: project.location,
+                branch: status.branch,
+              },
+              project.id,
+            );
             prUpdates[prKey] = pr;
           } catch (err) {
             console.warn(

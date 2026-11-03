@@ -176,7 +176,10 @@ export class SupervisorRuntime {
   readonly gitCheckpointService = new GitCheckpointService();
   private _projectWatcher: ProjectWatcher | undefined;
   readonly githubService = new GitHubService();
-  readonly forgeReviewService = new ForgeReviewService(this.githubService);
+  readonly forgeReviewService = new ForgeReviewService(this.githubService, {
+    onPollingProblem: (projectLocation, problem) =>
+      this.emit({ type: "github-polling-status", projectLocation, problem }),
+  });
   readonly fileIndexService = new FileIndexService();
 
   cancelCrossagentRun(runId: string, parentThreadId?: string): Promise<void> {

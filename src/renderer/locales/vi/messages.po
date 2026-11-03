@@ -9879,6 +9879,10 @@ msgstr "Cài đặt Cursor SDK"
 msgid "Install Cursor SDK in {environment}"
 msgstr "Cài đặt Cursor SDK trong {environment}"
 
+#: src/renderer/components/common/GithubPollingNotice.tsx
+msgid "Install GitHub CLI (gh) on {executionHost}, then retry."
+msgstr "Cài đặt GitHub CLI (gh) trên {executionHost}, rồi thử lại."
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Install Hex"
 msgstr "Cài đặt Hex"
@@ -14668,6 +14672,11 @@ msgstr "Tự động hóa PR: Tự động sửa"
 msgid "PR automation: Auto Merge"
 msgstr "Tự động hóa PR: Tự động hợp nhất"
 
+#: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "PR data is unavailable; cached results may be stale."
+msgstr "Không có dữ liệu PR; kết quả trong bộ nhớ đệm có thể đã cũ."
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
 msgstr "Tùy chọn PR"
@@ -16468,6 +16477,7 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/bootstrap.ts
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -16947,6 +16957,10 @@ msgstr "Chạy lệnh"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Run experiment"
 msgstr "Chạy thử nghiệm"
+
+#: src/renderer/components/common/GithubPollingNotice.tsx
+msgid "Run gh auth login in a terminal on {executionHost}, then retry. If GH_TOKEN or GITHUB_TOKEN is set, update or remove the invalid token there."
+msgstr "Chạy gh auth login trong thiết bị đầu cuối trên {executionHost}, rồi thử lại. Nếu GH_TOKEN hoặc GITHUB_TOKEN được đặt, hãy cập nhật hoặc xóa mã thông báo không hợp lệ trên máy đó."
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Run in a separate worktree"

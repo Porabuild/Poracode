@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:cf134692fb8450d1d668d8f3225d49f6e607c615dc8c40595630406559053e36"
-    const val manifestHash = "sha256:8610a924b95a7183c022541eb14e4503678021b20689389f6352938262bc6db8"
+    const val sourceHash = "sha256:a65b270a4d20fb2badcea5587ab071391e75f587cb1473f7d192ed60e970eace"
+    const val manifestHash = "sha256:112aff22c48994414f73d50d40f0b71e3e2df5ea094325b9affb02084fe5add6"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -224,6 +224,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("ghListWorkflows", "session:read", "projectLocation", "json", "ProcedureghListWorkflowsRequest_72429c4be5", "ProcedureghListWorkflowsResult_3994629a32"),
         RemoteProcedureDescriptor("ghMarkPrReady", "session:operate", "projectLocation", "omitted", "ProcedureghClosePrRequest_868bf1042a", "RemoteUnit"),
         RemoteProcedureDescriptor("ghMergePr", "session:operate", "projectLocation", "omitted", "ProcedureghMergePrRequest_39d6579ca7", "RemoteUnit"),
+        RemoteProcedureDescriptor("ghPollPullRequests", "session:read", "projectLocation", "json", "ProcedureghPollPullRequestsRequest_559c498a02", "ProcedureghPollPullRequestsResult_729d8ec224"),
         RemoteProcedureDescriptor("ghPostPrComment", "session:operate", "projectLocation", "json", "ProcedureghPostPrCommentRequest_189279e83c", "ProcedureforgeGetPrDetailsResultU2DDetailsU2DCommentsU2DItem_cb95bf43ec"),
         RemoteProcedureDescriptor("ghReopenPr", "session:operate", "projectLocation", "omitted", "ProcedureghClosePrRequest_868bf1042a", "RemoteUnit"),
         RemoteProcedureDescriptor("ghRerunWorkflowRun", "session:operate", "projectLocation", "omitted", "ProcedureghRerunWorkflowRunRequest_4492692f82", "RemoteUnit"),

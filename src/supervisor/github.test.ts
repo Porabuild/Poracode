@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
 
 const execFileAsyncMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<{ stdout: string }>>(),
@@ -1396,6 +1397,40 @@ describe("GitHubService", () => {
   });
 
   describe("getPrForBranch with rollup", () => {
+    it("preserves WSL exit status and signal through polling error classification", async () => {
+      const service = new GitHubService();
+      const processBatch = vi.fn<
+        () => Promise<{ results: import("./wsl/bridge/client").WslProcessExecResult[] }>
+      >(async () => ({
+        results: [
+          { ok: false, exitCode: 9, signal: "SIGTERM", stdout: "", stderr: "request failed" },
+        ],
+      }));
+      service.setWslClient({ processBatch } as never);
+      const failure = await service
+        .getPrForBranch(wslLocation, "feature")
+        .catch((error: unknown) => error);
+      expect(buildErrorCauseTags(failure)).toMatchObject({
+        "poracode.cause_reason": "signal",
+        "poracode.exit_code": "9",
+        "poracode.signal": "SIGTERM",
+      });
+    });
+
+    it("preserves WSL authentication stderr for classification", async () => {
+      const service = new GitHubService();
+      const processBatch = vi.fn<
+        () => Promise<{ results: import("./wsl/bridge/client").WslProcessExecResult[] }>
+      >(async () => ({
+        results: [
+          { ok: false, exitCode: 1, stdout: "", stderr: "Run gh auth login to authenticate" },
+        ],
+      }));
+      service.setWslClient({ processBatch } as never);
+      await expect(service.getPrForBranch(wslLocation, "feature")).rejects.toMatchObject({
+        kind: "authentication",
+      });
+    });
     it("aggregates statusCheckRollup to FAILURE when any check failed", async () => {
       const prJson = JSON.stringify([
         {

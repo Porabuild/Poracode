@@ -9878,6 +9878,10 @@ msgstr "Cursor SDK をインストール"
 msgid "Install Cursor SDK in {environment}"
 msgstr "{environment} に Cursor SDK をインストール"
 
+#: src/renderer/components/common/GithubPollingNotice.tsx
+msgid "Install GitHub CLI (gh) on {executionHost}, then retry."
+msgstr "{executionHost} に GitHub CLI (gh) をインストールしてから再試行してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 msgid "Install Hex"
 msgstr "Hex をインストールする"
@@ -14666,6 +14670,11 @@ msgstr "PR の自動化: 自動修正"
 msgid "PR automation: Auto Merge"
 msgstr "PR の自動化: 自動マージ"
 
+#: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
+msgid "PR data is unavailable; cached results may be stale."
+msgstr "PR データを取得できません。キャッシュされた結果は古い可能性があります。"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "PR options"
 msgstr "PRオプション"
@@ -16466,6 +16475,7 @@ msgstr "このホストに保存された使用量のみです。"
 #: src/renderer/bootstrap.ts
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -16945,6 +16955,10 @@ msgstr "コマンドの実行"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Run experiment"
 msgstr "実験を実行"
+
+#: src/renderer/components/common/GithubPollingNotice.tsx
+msgid "Run gh auth login in a terminal on {executionHost}, then retry. If GH_TOKEN or GITHUB_TOKEN is set, update or remove the invalid token there."
+msgstr "{executionHost} のターミナルで gh auth login を実行してから再試行してください。GH_TOKEN または GITHUB_TOKEN が設定されている場合は、そのホストで無効なトークンを更新または削除してください。"
 
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Run in a separate worktree"

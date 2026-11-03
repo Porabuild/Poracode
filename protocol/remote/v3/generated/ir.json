@@ -11,8 +11,8 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 102,
-    "procedures": 166,
+    "jsonProcedureResults": 103,
+    "procedures": 167,
     "replayableEventTypes": 16,
     "routes": 119,
     "runtimeEventTypes": 16,
@@ -21,7 +21,7 @@
     "webSocketServerMessages": 12
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:8610a924b95a7183c022541eb14e4503678021b20689389f6352938262bc6db8",
+  "manifestHash": "sha256:112aff22c48994414f73d50d40f0b71e3e2df5ea094325b9affb02084fe5add6",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -21405,6 +21405,556 @@
       "timeout": "long"
     },
     {
+      "name": "ghPollPullRequests",
+      "owner": "projectLocation",
+      "request": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "branch": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "projectLocation": {
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "windows",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "distro": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "const": "wsl",
+                    "type": "string"
+                  },
+                  "linuxPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "uncPath": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "distro",
+                  "linuxPath",
+                  "uncPath"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "kind": {
+                    "const": "posix",
+                    "type": "string"
+                  },
+                  "path": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "path"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              }
+            ]
+          },
+          "retry": {
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "all",
+              "open"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "projectLocation"
+        ],
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$defs": {
+            "__schema0": {
+              "additionalProperties": true,
+              "properties": {
+                "baseBranch": {
+                  "type": "string"
+                },
+                "checksStatus": {
+                  "type": "string"
+                },
+                "headSha": {
+                  "type": "string"
+                },
+                "isCrossRepository": {
+                  "type": "boolean"
+                },
+                "isDraft": {
+                  "type": "boolean"
+                },
+                "mergeStateStatus": {
+                  "enum": [
+                    "BEHIND",
+                    "BLOCKED",
+                    "CLEAN",
+                    "DIRTY",
+                    "DRAFT",
+                    "HAS_HOOKS",
+                    "UNKNOWN",
+                    "UNSTABLE"
+                  ],
+                  "type": "string"
+                },
+                "mergeable": {
+                  "enum": [
+                    "MERGEABLE",
+                    "CONFLICTING",
+                    "UNKNOWN"
+                  ],
+                  "type": "string"
+                },
+                "number": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "reviewDecision": {
+                  "type": "string"
+                },
+                "source": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "account": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "forge": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "host": {
+                          "format": "uri",
+                          "type": "string",
+                          "x-poracode-semanticValidators": [
+                            "forge.host.https"
+                          ]
+                        },
+                        "login": {
+                          "minLength": 1,
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "forge",
+                        "host",
+                        "login"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "capabilities": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "adminMerge": {
+                          "type": "boolean"
+                        },
+                        "autoFix": {
+                          "type": "boolean"
+                        },
+                        "autoMerge": {
+                          "type": "boolean"
+                        },
+                        "checks": {
+                          "type": "boolean"
+                        },
+                        "commentEditing": {
+                          "items": {
+                            "enum": [
+                              "conversation",
+                              "inline"
+                            ],
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "commitDiffs": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "convertToDraft": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "draft": {
+                          "type": "boolean"
+                        },
+                        "edit": {
+                          "type": "boolean"
+                        },
+                        "expectedHeadMerge": {
+                          "type": "boolean"
+                        },
+                        "labels": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "mergeMethods": {
+                          "items": {
+                            "enum": [
+                              "merge",
+                              "squash",
+                              "rebase"
+                            ],
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "reactions": {
+                          "items": {
+                            "$ref": "#/$defs/__schema2"
+                          },
+                          "maxItems": 32,
+                          "type": "array"
+                        },
+                        "rebaseBranch": {
+                          "type": "boolean"
+                        },
+                        "reopen": {
+                          "type": "boolean"
+                        },
+                        "reviewDecisions": {
+                          "items": {
+                            "enum": [
+                              "approve",
+                              "request-changes",
+                              "comment"
+                            ],
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "reviewDrafts": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "reviewGuides": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "reviewRequests": {
+                          "const": true,
+                          "type": "boolean"
+                        },
+                        "reviewThreads": {
+                          "type": "boolean"
+                        },
+                        "updateBranch": {
+                          "type": "boolean"
+                        },
+                        "viewedFiles": {
+                          "enum": [
+                            "forge",
+                            "host"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "mergeMethods",
+                        "reviewDecisions",
+                        "draft",
+                        "reopen",
+                        "updateBranch",
+                        "rebaseBranch",
+                        "edit",
+                        "checks",
+                        "reviewThreads",
+                        "expectedHeadMerge",
+                        "autoMerge",
+                        "autoFix",
+                        "adminMerge"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "forge": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "host": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "remote": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "repository": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "forge",
+                    "host",
+                    "repository",
+                    "remote",
+                    "capabilities"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "state": {
+                  "enum": [
+                    "open",
+                    "draft",
+                    "merged",
+                    "closed"
+                  ],
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "viewerDidAuthor": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "number",
+                "state",
+                "title",
+                "url",
+                "baseBranch",
+                "isDraft",
+                "updatedAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema1": {
+              "enum": [
+                "github",
+                "gitlab",
+                "forgejo",
+                "gitea",
+                "bitbucket",
+                "azure-devops",
+                "gitcafe"
+              ],
+              "type": "string"
+            },
+            "__schema2": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema3": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "prs": {
+                  "additionalProperties": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "pullRequests": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "additions": {
+                        "$ref": "#/$defs/__schema3"
+                      },
+                      "author": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "avatarUrl": {
+                            "type": "string"
+                          },
+                          "login": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "login"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
+                      "deletions": {
+                        "$ref": "#/$defs/__schema3"
+                      },
+                      "headBranch": {
+                        "type": "string"
+                      },
+                      "labels": {
+                        "items": {
+                          "additionalProperties": true,
+                          "properties": {
+                            "color": {
+                              "pattern": "^[0-9a-f]{6}$",
+                              "type": "string"
+                            },
+                            "description": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "name"
+                          ],
+                          "type": "object",
+                          "x-poracode-unknownFields": "strip"
+                        },
+                        "type": "array"
+                      },
+                      "pr": {
+                        "$ref": "#/$defs/__schema0"
+                      },
+                      "repository": {
+                        "type": "string"
+                      },
+                      "reviewRequested": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "pr",
+                      "headBranch",
+                      "additions",
+                      "deletions",
+                      "repository",
+                      "reviewRequested"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                },
+                "status": {
+                  "const": "ready",
+                  "type": "string"
+                },
+                "viewerLogin": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status",
+                "prs",
+                "pullRequests"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "problem": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "executionHost": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "enum": [
+                        "authentication",
+                        "unavailable"
+                      ],
+                      "type": "string"
+                    },
+                    "retryAt": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "executionHost",
+                    "retryAt"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "status": {
+                  "const": "blocked",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "status",
+                "problem"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "scope": "session:read"
+    },
+    {
       "name": "ghPostPrComment",
       "owner": "projectLocation",
       "request": {
@@ -36845,6 +37395,7 @@
     "ghListWorkflows",
     "ghMarkPrReady",
     "ghMergePr",
+    "ghPollPullRequests",
     "ghPostPrComment",
     "ghReopenPr",
     "ghRerunWorkflowRun",
@@ -79657,7 +80208,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:cf134692fb8450d1d668d8f3225d49f6e607c615dc8c40595630406559053e36",
+  "sourceHash": "sha256:a65b270a4d20fb2badcea5587ab071391e75f587cb1473f7d192ed60e970eace",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

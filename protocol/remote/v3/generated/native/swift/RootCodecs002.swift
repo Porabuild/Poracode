@@ -117,6 +117,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EGhPollPullRequestsU2ERequest: RemoteRootCodec<ProcedureghPollPullRequestsRequest_559c498a02> = .init(id: "procedure.ghPollPullRequests.request", schema: RemoteSchemas.schema_559c498a020be6ad)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGhPollPullRequestsU2EResult: RemoteRootCodec<ProcedureghPollPullRequestsResult_729d8ec224> = .init(id: "procedure.ghPollPullRequests.result", schema: RemoteSchemas.schema_729d8ec2243ca0f3)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EGhPostPrCommentU2ERequest: RemoteRootCodec<ProcedureghPostPrCommentRequest_189279e83c> = .init(id: "procedure.ghPostPrComment.request", schema: RemoteSchemas.schema_189279e83c3a2ce4)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EReadExternalFileU2ERequest: RemoteRootCodec<ProcedurereadAbsoluteFileRequest_f6983a322f> = .init(id: "procedure.readExternalFile.request", schema: RemoteSchemas.schema_f6983a322fa14ff5)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadExternalFileU2EResult: RemoteRootCodec<ProcedurereadExternalFileResult_9ba1e93599> = .init(id: "procedure.readExternalFile.result", schema: RemoteSchemas.schema_9ba1e93599d271dc)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EReadProjectFileU2ERequest: RemoteRootCodec<ProceduredeleteProjectEntryRequest_56df8e6416> = .init(id: "procedure.readProjectFile.request", schema: RemoteSchemas.schema_56df8e6416f18e3e)
 }
