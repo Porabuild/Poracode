@@ -296,6 +296,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           set({ socketFactory: factory });
         },
 
+        loadAgentSlashCommands: projection.loadAgentSlashCommands,
         launchRemoteThread: projection.launchRemoteThread,
         openRemoteThread: projection.openRemoteThread,
         closeRemoteThread: projection.closeRemoteThread,

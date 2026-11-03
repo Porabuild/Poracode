@@ -10,6 +10,7 @@ import { toast } from "@heroui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Project, ThreadConfig } from "@/shared/contracts";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import type { SavedCrew, ThreadCrewBinding } from "@/shared/crew";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { selectionBindingMatches } from "@/shared/selectionBinding";
@@ -1867,6 +1868,140 @@ describe("ThreadDraftView", () => {
     // events hydrate the store.
     expect(screen.getByText(/detecting agents/i)).toBeInTheDocument();
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
+  });
+
+  it.each(["terminal", "gui"] as const)(
+    "shows fetched commands in a remote %s draft before a thread exists",
+    async (presentationMode) => {
+      const commands = [{ id: "goal", label: "goal", description: "Set a goal" }];
+      const catalog = deferred<{ kind: string; commands: typeof commands }>();
+      const agentSlashCommands = vi.fn<RemoteDesktopClient["agentSlashCommands"]>(
+        () => catalog.promise,
+      );
+      const client = {
+        setTokenLifecycle: () => {},
+        agentSlashCommands,
+      } as unknown as RemoteDesktopClient;
+      const previousFactory = useRemoteServersStore.getState().clientFactory;
+      useRemoteServersStore.setState({
+        clientFactory: () => client,
+        servers: [
+          {
+            desktopId: "desktop-1",
+            label: "Remote",
+            endpoint: `http://draft-command-ui-${presentationMode}.test/`,
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: {
+          "desktop-1": {
+            status: "online",
+            projects: [],
+            threads: [],
+            agentStatuses: {
+              windows: [
+                {
+                  ...claudeStatus,
+                  capabilities: {
+                    ...claudeStatus.capabilities,
+                    presentationModes: ["terminal", "gui"],
+                  },
+                },
+              ],
+              wsl: [],
+              updatedAt: "now",
+            },
+          },
+        },
+      });
+      useSharedSettings.setState({ lastPresentationModeByAgent: { claude: presentationMode } });
+      function RemoteDraft() {
+        const statuses = useRemoteServersStore(
+          (state) => state.runtime["desktop-1"]!.agentStatuses!.windows,
+        );
+        return (
+          <ThreadDraftView project={remoteProject} agentStatuses={statuses} onStart={() => {}} />
+        );
+      }
+      const view = render(<RemoteDraft />);
+      let panel: ReturnType<typeof render> | undefined;
+      try {
+        await waitFor(() => expect(agentSlashCommands).toHaveBeenCalledWith("claude"));
+        act(() => {
+          const props = composerSpy.mock.lastCall![0] as {
+            inputContent: ReactElement<{ onSlashCommandChange: (query: string) => void }>;
+          };
+          props.inputContent.props.onSlashCommandChange("g");
+        });
+        expect(
+          useRemoteServersStore.getState().runtime["desktop-1"]?.agentStatuses?.windows[0]
+            ?.capabilities.slashCommands,
+        ).toBeUndefined();
+        await act(async () => catalog.resolve({ kind: "claude", commands }));
+        await waitFor(() => {
+          const props = composerSpy.mock.lastCall![0] as {
+            inputContent: ReactElement<{ commandListId?: string }>;
+          };
+          expect(props.inputContent.props.commandListId).toBeDefined();
+        });
+        // This suite stubs the composer shell; render its real command-panel slot.
+        panel = render(
+          (composerSpy.mock.lastCall![0] as { fixedContent: ReactElement }).fixedContent,
+        );
+        expect(screen.getByRole("option", { name: /goal/ })).toBeInTheDocument();
+        expect(useRemoteServersStore.getState().openThread).toBeNull();
+      } finally {
+        panel?.unmount();
+        view.unmount();
+        useRemoteServersStore.setState({ clientFactory: previousFactory });
+      }
+    },
+  );
+
+  it("loads commands for the selected remote provider and retries after reconnect", async () => {
+    const load = vi
+      .spyOn(useRemoteServersStore.getState(), "loadAgentSlashCommands")
+      .mockResolvedValue(undefined);
+    const view = render(
+      <ThreadDraftView project={project} agentStatuses={[claudeStatus]} onStart={() => {}} />,
+    );
+    expect(load).not.toHaveBeenCalled();
+    act(() => {
+      useRemoteServersStore.setState({
+        servers: [
+          {
+            desktopId: "desktop-1",
+            label: "Remote",
+            endpoint: "http://remote/",
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+      });
+    });
+    view.rerender(
+      <ThreadDraftView project={remoteProject} agentStatuses={[claudeStatus]} onStart={() => {}} />,
+    );
+    await waitFor(() => expect(load).toHaveBeenCalledWith("desktop-1", "claude"));
+    view.rerender(
+      <ThreadDraftView project={remoteProject} agentStatuses={[geminiStatus]} onStart={() => {}} />,
+    );
+    await waitFor(() => expect(load).toHaveBeenLastCalledWith("desktop-1", "gemini"));
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+      });
+    });
+    expect(load).toHaveBeenCalledTimes(2);
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+      });
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(3));
+    load.mockRestore();
   });
 
   it("shows the remote connection error instead of the missing-agent message", () => {
