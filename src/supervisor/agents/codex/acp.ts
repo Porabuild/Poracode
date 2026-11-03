@@ -4,6 +4,7 @@ import type {
   ConnectThreadVoiceResult,
 } from "@/shared/contracts/liveVoice";
 import { msg } from "@/shared/messages";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
 import { CodexLiveVoice } from "./liveVoice";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -677,7 +678,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         const message = error instanceof Error ? error.message : String(error);
         if (isSessionInUseResumeError(message)) {
           this.resumeActiveStatusSuppressionUntil.delete(sessionRef.providerSessionId);
-          throw new Error(msg("codex.sessionInUse"), { cause: error });
+          throw new DiagnosticError(
+            msg("codex.sessionInUse"),
+            {
+              failureClass: "expected-operational",
+              domain: "codex.acp",
+              errorClass: "session-in-use",
+            },
+            { cause: error },
+          );
         }
         if (!isRecoverableResumeError(message)) {
           this.resumeActiveStatusSuppressionUntil.delete(sessionRef.providerSessionId);
