@@ -252,6 +252,7 @@ export interface RemoteServersState {
   setClientFactory(factory: RemoteClientFactory): void;
   setSocketFactory(factory: RemoteSocketFactory): void;
   openThread: OpenRemoteThread | null;
+  loadAgentSlashCommands(desktopId: string, agentKind: string): Promise<void>;
   launchRemoteThread(
     input: StartRemoteNewThreadInput & { readonly desktopId: string },
     options?: { readonly isPendingLaunchOwned?: () => boolean; readonly focus?: boolean },

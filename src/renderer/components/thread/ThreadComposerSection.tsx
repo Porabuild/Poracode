@@ -72,6 +72,7 @@ import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import {
   useComposerInputInbox,
@@ -266,6 +267,7 @@ function ComposerAfterControls({ renderExtras, renderVoiceInput }: ComposerAfter
 }
 
 function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread: Thread }) {
+  useAgentSlashCommandCatalog(props.thread.remoteServerId, props.thread.agentKind);
   const implicitMcpServers = useImplicitMcpServers();
   const captureClientContext = useTurnClientContextCapture();
   const {

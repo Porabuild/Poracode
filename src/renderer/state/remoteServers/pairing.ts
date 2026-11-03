@@ -25,7 +25,7 @@ import {
   noteCatalogMutationsCapability,
 } from "@/renderer/state/remote/catalogMutationsCapability";
 import { resetTruncateRecoveryEpoch } from "@/renderer/state/remote/truncateRecovery";
-import { applyCachedSlashCommandCatalogs } from "./slashCommandCatalogs";
+import { refreshSlashCommandCatalogs } from "./slashCommandCatalogs";
 import { syncRemoteGitSummaries } from "./gitSummaries";
 import { replaceCachedProjects } from "./projectCache";
 import { syncRemoteGitStateSnapshot } from "./gitState";
@@ -202,7 +202,11 @@ export function createPairingActions(deps: PairingActionDeps) {
       client.snapshot({ threadListPageLimit: REMOTE_SHELL_THREAD_PAGE_LIMIT }),
       client
         .agentStatuses({ omitSlashCommands: true })
-        .then((statuses) => applyCachedSlashCommandCatalogs(normalized, statuses)),
+        .then((statuses) =>
+          refreshSlashCommandCatalogs(normalized, statuses, (kind) =>
+            client.agentSlashCommands(kind).then((result) => result.commands),
+          ),
+        ),
     ]);
     // v2 connection key: direct/ssh records keep `connectionId === desktopId`,
     // so persisted vault keys, pins, and projections stay byte-identical.

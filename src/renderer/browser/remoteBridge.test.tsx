@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import type { PrWatch, PrWatchInput, PrWatchKey, ProjectNotes } from "@/shared/contracts";
+import { agentStatusSchema } from "@/shared/contracts";
 import { REMOTE_PROCEDURE_SPECS, pickRemoteSettings } from "@/shared/remote";
 import { defaultSharedSettings } from "@/shared/settings";
 import { applyDesktopSettings, resetDesktopSettings } from "./remoteSettingsSync";
@@ -18,6 +19,9 @@ import {
 } from "./remoteBridge";
 import { useRemoteBridgeImageReadiness } from "./useRemoteBridgeImages";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { fetchSlashCommandCatalog } from "@/renderer/state/remoteServers/slashCommandCatalogs";
 import {
   beginBrowserPresentation,
   projectBrowserPresentation,
@@ -61,12 +65,77 @@ describe("remote bridge", () => {
   afterEach(() => {
     setRemoteBridgeClient(null);
     resetDesktopSettings();
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
     vi.restoreAllMocks();
     Object.defineProperty(window, "poracode", {
       configurable: true,
       writable: true,
       value: undefined,
     });
+  });
+
+  it("refreshes used catalogs in both the browser and owning host projections", async () => {
+    const endpoint = "http://browser-catalog-refresh.test/";
+    const status = agentStatusSchema.parse({
+      kind: "claude",
+      label: "Claude",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {},
+    });
+    const oldCommands = [{ id: "review", label: "review" }];
+    const commands = [{ id: "goal", label: "goal" }];
+    await fetchSlashCommandCatalog(endpoint, "claude", async () => oldCommands);
+    const agentSlashCommands = vi
+      .fn<RemoteDesktopClient["agentSlashCommands"]>()
+      .mockResolvedValue({ kind: "claude", commands });
+    const client = {
+      endpoint,
+      agentStatuses: async () => ({ windows: [status], wsl: [], updatedAt: "now" }),
+      agentSlashCommands,
+    } as unknown as RemoteDesktopClient;
+    useRemoteServersStore.setState({
+      servers: [
+        { desktopId: "catalog-host", label: "Host", endpoint, accessToken: "token", scopes: [] },
+      ],
+      runtime: {
+        "catalog-host": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: { windows: [status], wsl: [], updatedAt: "before" },
+        },
+      },
+    });
+    setRemoteBridgeClient(client);
+    installRemoteBridge();
+    const result = await window.poracode.refreshAgentStatuses();
+    expect(result.windows[0]?.capabilities.slashCommands).toEqual(commands);
+    expect(useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.slashCommands).toEqual(
+      commands,
+    );
+    expect(
+      useRemoteServersStore.getState().runtime["catalog-host"]?.agentStatuses?.windows[0]
+        ?.capabilities.slashCommands,
+    ).toEqual(commands);
+    expect(agentSlashCommands.mock.calls).toEqual([["claude"]]);
+  });
+
+  it("does not install a catalog refresh after switching browser hosts", async () => {
+    let resolveStatuses!: (value: { windows: []; wsl: []; updatedAt: string }) => void;
+    const agentStatuses = vi.fn<RemoteDesktopClient["agentStatuses"]>(
+      () => new Promise((resolve) => (resolveStatuses = resolve)),
+    );
+    const first = { endpoint: "http://retired-catalog-host.test/", agentStatuses };
+    setRemoteBridgeClient(first as unknown as RemoteDesktopClient);
+    installRemoteBridge();
+    const pending = window.poracode.refreshAgentStatuses();
+    await vi.waitFor(() => expect(agentStatuses).toHaveBeenCalledOnce());
+    setRemoteBridgeClient({ endpoint: "http://new-catalog-host.test/" } as RemoteDesktopClient);
+    const previous = useAgentStatusesStore.getState().agentStatuses;
+    resolveStatuses({ windows: [], wsl: [], updatedAt: "retired" });
+    await pending;
+    expect(useAgentStatusesStore.getState().agentStatuses).toBe(previous);
   });
 
   it("performs a real usage refresh through the generic host procedure and preserves its payload", async () => {

@@ -17,6 +17,7 @@ import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { readBridge } from "@/renderer/bridge";
+import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import type { ComposerControl } from "./ThreadComposer";
 import { ThreadComposer } from "./ThreadComposer";
 import { isPlanModeControl } from "../providers/composerControlBuilders";
@@ -240,6 +241,7 @@ export function ContinueInProviderDialog(props: {
   });
 
   const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
+  useAgentSlashCommandCatalog(thread.remoteServerId, selectedAgent?.kind, props.isOpen);
   const sourceRuntimeStatus = sourceAgent
     ? agentStatusForPresentation(sourceAgent, sourcePresentationMode, thread.sessionRef)
     : undefined;

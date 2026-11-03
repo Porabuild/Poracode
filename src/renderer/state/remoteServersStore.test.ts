@@ -5,6 +5,7 @@ import {
 } from "./threadFollowUpQueueStore";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, GitStatusResult, Project, Thread } from "@/shared/contracts";
+import { agentStatusSchema } from "@/shared/contracts";
 import type {
   IpcProcedureName,
   IpcProcedurePayload,
@@ -302,6 +303,7 @@ function makeClient(opts?: {
   boundedThreadHistoryItems?: RemoteDesktopClient["boundedThreadHistoryItems"];
   boundedThreadTurns?: RemoteDesktopClient["boundedThreadTurns"];
   agentStatuses?: RemoteDesktopClient["agentStatuses"];
+  agentSlashCommands?: RemoteDesktopClient["agentSlashCommands"];
   environment?: RemoteDesktopClient["environment"];
   environmentHttpBaseUrl?: string;
   hostMode?: "desktop" | "helper";
@@ -379,6 +381,7 @@ function makeClient(opts?: {
       })),
     agentStatuses:
       opts?.agentStatuses ?? (async () => ({ windows: [], wsl: [], updatedAt: "now" })),
+    agentSlashCommands: opts?.agentSlashCommands ?? (async (kind) => ({ kind, commands: [] })),
     snapshot: snapshotImpl,
     boundedShellSnapshot:
       opts?.boundedShellSnapshot ??
@@ -609,6 +612,130 @@ describe("useRemoteServersStore", () => {
     vi.useRealTimers();
     resetClientRuntimeForTest();
     window.poracode = undefined as unknown as typeof window.poracode;
+  });
+
+  it.each(["electron", "browser"])(
+    "loads a remote draft's catalog before opening a thread in %s",
+    async (surface) => {
+      if (surface === "browser") {
+        installBrowserClientRuntime({} as PoracodeBridge);
+        window.poracode = {} as PoracodeBridge;
+      }
+      const status: AgentStatus = {
+        kind: "claude",
+        label: "Claude",
+        installed: true,
+        authState: "authenticated",
+        capabilities: {
+          models: [{ id: "opus", label: "Opus" }],
+          efforts: [],
+          modelEfforts: {},
+          modes: ["agent", "plan"],
+          approvalPolicies: [],
+          sandboxModes: [],
+          settingDefs: [],
+          supportsResume: true,
+          supportsDirectInput: true,
+          liveInputMode: "terminal",
+          presentationMode: "terminal",
+        },
+      };
+      const commands = [{ id: "goal", label: "goal — Set a goal" }];
+      const catalog = deferred<{ kind: string; commands: typeof commands }>();
+      const agentSlashCommands = vi.fn<RemoteDesktopClient["agentSlashCommands"]>(
+        () => catalog.promise,
+      );
+      const client = makeClient({
+        agentStatuses: async () => ({ windows: [status], wsl: [], updatedAt: "now" }),
+        agentSlashCommands,
+      });
+      useRemoteServersStore.getState().setClientFactory(factoryFor(client));
+      await useRemoteServersStore.getState().pairServer({
+        endpoint: `http://draft-catalog-${surface}.test/`,
+        token: "a",
+      });
+      const localStatuses = useAgentStatusesStore.getState().agentStatuses;
+      const load = () => useRemoteServersStore.getState().loadAgentSlashCommands("d1", "claude");
+      const first = load();
+      const second = load();
+      expect(agentSlashCommands).toHaveBeenCalledOnce();
+      catalog.resolve({ kind: "claude", commands });
+      await Promise.all([first, second]);
+      expect(useRemoteServersStore.getState().openThread).toBeNull();
+      expect(useRemoteServersStore.getState().runtime.d1?.agentStatuses?.windows[0]).toEqual({
+        ...status,
+        capabilities: { ...status.capabilities, slashCommands: commands },
+      });
+      expect(useAgentStatusesStore.getState().agentStatuses).toEqual(
+        surface === "browser"
+          ? [{ ...status, capabilities: { ...status.capabilities, slashCommands: commands } }]
+          : localStatuses,
+      );
+      const refreshedCommands = [{ id: "review", label: "review" }];
+      agentSlashCommands.mockResolvedValue({ kind: "claude", commands: refreshedCommands });
+      await useRemoteServersStore.getState().refreshServer("d1", { includeAgentStatuses: true });
+      expect(
+        useRemoteServersStore.getState().runtime.d1?.agentStatuses?.windows[0]?.capabilities
+          .slashCommands,
+      ).toEqual(refreshedCommands);
+      await load();
+      expect(agentSlashCommands).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("retries a failed command catalog on status refresh without toasting or opening a thread", async () => {
+    const status = agentStatusSchema.parse({
+      kind: "claude",
+      label: "Claude",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {},
+    });
+    const commands = [{ id: "goal", label: "goal" }];
+    const agentSlashCommands = vi
+      .fn<RemoteDesktopClient["agentSlashCommands"]>()
+      .mockRejectedValueOnce(new Error("Catalog unavailable"))
+      .mockResolvedValueOnce({ kind: "claude", commands });
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          agentStatuses: async () => ({ windows: [status], wsl: [], updatedAt: "now" }),
+          agentSlashCommands,
+        }),
+      ),
+    );
+    await useRemoteServersStore.getState().pairServer({
+      endpoint: "http://draft-catalog-retry.test/",
+      token: "a",
+    });
+    await expect(
+      useRemoteServersStore.getState().loadAgentSlashCommands("d1", "claude"),
+    ).rejects.toThrow("Catalog unavailable");
+    await useRemoteServersStore.getState().refreshServer("d1", { includeAgentStatuses: true });
+    expect(agentSlashCommands).toHaveBeenCalledTimes(2);
+    expect(
+      useRemoteServersStore.getState().runtime.d1?.agentStatuses?.windows[0]?.capabilities
+        .slashCommands,
+    ).toEqual(commands);
+    expect(toastDanger).not.toHaveBeenCalled();
+    expect(useRemoteServersStore.getState().openThread).toBeNull();
+  });
+
+  it("does not apply a late command catalog after the connection generation changes", async () => {
+    const catalog = deferred<{ kind: string; commands: [] }>();
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ agentSlashCommands: () => catalog.promise })));
+    await useRemoteServersStore.getState().pairServer({
+      endpoint: "http://draft-catalog-stale.test/",
+      token: "a",
+    });
+    const pending = useRemoteServersStore.getState().loadAgentSlashCommands("d1", "claude");
+    bumpRemoteServerGeneration("d1");
+    const runtime = useRemoteServersStore.getState().runtime.d1;
+    catalog.resolve({ kind: "claude", commands: [] });
+    await pending;
+    expect(useRemoteServersStore.getState().runtime.d1).toBe(runtime);
   });
 
   it("keeps one browser action client across refreshes of the same host", async () => {

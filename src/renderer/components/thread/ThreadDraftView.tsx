@@ -22,6 +22,7 @@ import type { ProviderModelSelectionIntent } from "@/renderer/components/common/
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { dispatchManagedRootProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import {
@@ -299,6 +300,7 @@ export function ThreadDraftView(props: {
     : preferredAgentKind;
   const selectedAgent =
     installedAgents.find((status) => status.kind === effectiveAgentKind) ?? installedAgents[0];
+  useAgentSlashCommandCatalog(project.remoteServerId, selectedAgent?.kind);
   // One complete draft config: own empty/false carriers, absence, and the
   // selection binding survive restore, edits, persistence, and launch. The
   // scalar reads below are display projections only.

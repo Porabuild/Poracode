@@ -40,7 +40,7 @@ import {
 import type { SharedSettingsInput } from "@/shared/settings";
 import { pickAndUploadBrowserFiles } from "@/renderer/utils/browserFilePicker";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { applyCachedSlashCommandCatalogs } from "@/renderer/state/remoteServers/slashCommandCatalogs";
+import { refreshSlashCommandCatalogs } from "@/renderer/state/remoteServers/slashCommandCatalogs";
 import { invokeBoundedRuntimeItemsPage } from "@/renderer/state/remoteServers/catalog/boundedHistoryRegistry";
 import { selectBrowserBridgeServer } from "@/renderer/state/remoteServers/browserBridge";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
@@ -305,14 +305,32 @@ const remoteBridgeOverrides = {
   // desktop-only and fall through to the rejecting proxy below.
   getUsageLoginState: () => Promise.resolve({ stored: {} }),
   refreshAgentStatuses: async (_wslDistros?: string[], _scope?: RefreshAgentScope) => {
-    const statuses = await withClient((client) =>
-      client
-        .agentStatuses({ omitSlashCommands: true })
-        .then((fetched) => applyCachedSlashCommandCatalogs(client.endpoint, fetched)),
-    );
-    const store = useAgentStatusesStore.getState();
-    store.setAgentStatuses(statuses.windows);
-    store.setWslAgentStatuses(statuses.wsl);
+    const { client, statuses } = await withClient(async (requestClient) => {
+      const fetched = await requestClient.agentStatuses({ omitSlashCommands: true });
+      const refreshedStatuses =
+        requestClient === activeClient
+          ? await refreshSlashCommandCatalogs(requestClient.endpoint, fetched, (kind) =>
+              requestClient.agentSlashCommands(kind).then((result) => result.commands),
+            )
+          : fetched;
+      return { client: requestClient, statuses: refreshedStatuses };
+    });
+    if (client === activeClient) {
+      const server = selectBrowserBridgeServer(useRemoteServersStore.getState());
+      if (server?.endpoint === client.endpoint) {
+        const connectionKey = remoteConnectionKey(server);
+        useRemoteServersStore.setState((state) => {
+          const current = state.runtime[connectionKey];
+          if (!current) return state;
+          return {
+            runtime: { ...state.runtime, [connectionKey]: { ...current, agentStatuses: statuses } },
+          };
+        });
+      }
+      const store = useAgentStatusesStore.getState();
+      store.setAgentStatuses(statuses.windows);
+      store.setWslAgentStatuses(statuses.wsl);
+    }
     return {
       windows: statuses.windows,
       wsl: statuses.wsl,
