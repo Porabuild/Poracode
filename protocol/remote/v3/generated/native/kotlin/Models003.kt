@@ -6,6 +6,187 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D2_bf04d82b24(
+    @SerialName("type") val type: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D2U2DType_53dc1dce3c,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("type", "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D2U2DType_53dc1dce3c", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+typealias ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da = Map<String, JsonElement>
+
+@Serializable
+enum class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DType_a3e9394f18 {
+    @SerialName("callTool") CALLTOOL,
+}
+
+@Serializable
+data class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3_865a18dcd9(
+    @SerialName("arguments") val arguments: RemoteField<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da> = RemoteField.Missing,
+    @SerialName("name") val name: String,
+    @SerialName("type") val type: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DType_a3e9394f18,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("arguments", "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("name", "String", true, false, null, null, 1, 256, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DType_a3e9394f18", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4U2DContentU2DItemU2DType_3ad514880d {
+    @SerialName("text") TEXT,
+}
+
+@Serializable
+data class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4U2DContentU2DItem_0bb586e07b(
+    @SerialName("text") val text: String,
+    @SerialName("type") val type: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4U2DContentU2DItemU2DType_3ad514880d,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("text", "String", true, false, null, null, null, 65536, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4U2DContentU2DItemU2DType_3ad514880d", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4U2DType_7611350a61 {
+    @SerialName("updateModelContext") UPDATEMODELCONTEXT,
+}
+
+@Serializable
+data class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4_48946bc0ed(
+    @SerialName("content") val content: RemoteField<List<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4U2DContentU2DItem_0bb586e07b>> = RemoteField.Missing,
+    @SerialName("structuredContent") val structuredContent: RemoteField<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da> = RemoteField.Missing,
+    @SerialName("type") val type: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4U2DType_7611350a61,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("content", "List<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4U2DContentU2DItem_0bb586e07b>", false, false, null, null, null, null, null, 32, null, null, listOf()),
+            RemoteFieldDescriptor("structuredContent", "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4U2DType_7611350a61", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D5U2DType_482c928271 {
+    @SerialName("cancel") CANCEL,
+}
+
+@Serializable
+data class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D5_59d16cc54d(
+    @SerialName("type") val type: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D5U2DType_482c928271,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("type", "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D5U2DType_482c928271", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable(with = ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5.Serializer::class)
+sealed interface ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5 {
+    data class Option1(val value: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D1_74839ee2e9) : ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5
+    data class Option2(val value: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D2_bf04d82b24) : ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5
+    data class Option3(val value: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3_865a18dcd9) : ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5
+    data class Option4(val value: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4_48946bc0ed) : ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5
+    data class Option5(val value: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D5_59d16cc54d) : ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5
+    object Serializer : KSerializer<ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5")
+        override fun deserialize(decoder: Decoder): ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5 supports JSON only")
+            val element = jsonDecoder.decodeJsonElement()
+            val matches = mutableListOf<RemoteUnionMatch<ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("readResource")))) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D1_74839ee2e9>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("listTools")))) { Option2(jsonDecoder.json.decodeFromJsonElement<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D2_bf04d82b24>(element)) }
+            RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("callTool")))) { Option3(jsonDecoder.json.decodeFromJsonElement<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3_865a18dcd9>(element)) }
+            RemoteUnionCodec.tryOption(matches, 4, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("updateModelContext")))) { Option4(jsonDecoder.json.decodeFromJsonElement<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4_48946bc0ed>(element)) }
+            RemoteUnionCodec.tryOption(matches, 5, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("cancel")))) { Option5(jsonDecoder.json.decodeFromJsonElement<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D5_59d16cc54d>(element)) }
+            return RemoteUnionCodec.single("ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5", matches)
+        }
+        override fun serialize(encoder: Encoder, value: ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5 supports JSON only")
+            val element = when (value) {
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D1_74839ee2e9>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D2_bf04d82b24>(value.value)
+                is Option3 -> jsonEncoder.json.encodeToJsonElement<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3_865a18dcd9>(value.value)
+                is Option4 -> jsonEncoder.json.encodeToJsonElement<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4_48946bc0ed>(value.value)
+                is Option5 -> jsonEncoder.json.encodeToJsonElement<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D5_59d16cc54d>(value.value)
+            }
+            jsonEncoder.encodeJsonElement(element)
+        }
+    }
+}
+
+@Serializable
+data class ProcedurecontrolMcpAppRequestU2DApp_b313ad72a5(
+    @SerialName("resourceUri") val resourceUri: String,
+    @SerialName("sessionId") val sessionId: String,
+    @SerialName("toolName") val toolName: String,
+    @SerialName("version") val version: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("resourceUri", "String", true, false, null, null, null, 4096, null, null, "^ui:\\/\\/.*", null, listOf()),
+            RemoteFieldDescriptor("sessionId", "String", true, false, null, null, null, null, null, null, "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", "uuid", listOf()),
+            RemoteFieldDescriptor("toolName", "String", true, false, null, null, 1, 256, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class ProcedurecontrolMcpAppRequest_339dd50c84(
+    @SerialName("action") val action: ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5,
+    @SerialName("app") val app: ProcedurecontrolMcpAppRequestU2DApp_b313ad72a5,
+    @SerialName("requestId") val requestId: String,
+    @SerialName("threadId") val threadId: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("action", "ProcedurecontrolMcpAppRequestU2DAction_8c2d417de5", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("app", "ProcedurecontrolMcpAppRequestU2DApp_b313ad72a5", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("requestId", "String", true, false, null, null, null, null, null, null, "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", "uuid", listOf()),
+            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class ProcedurecontrolMcpAppResult_054db97313(
+    @SerialName("result") val result: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("result", "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class ProcedurecreateFileCheckpointRequest_412fb1bbf4(
+    @SerialName("checkpointItemId") val checkpointItemId: String,
+    @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
+    @SerialName("threadId") val threadId: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("checkpointItemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class ProcedurecreateFileCheckpointResultU2DCheckpoint_938414fbfa(
     @SerialName("capturedAt") val capturedAt: String,
     @SerialName("checkpointItemId") val checkpointItemId: String,
@@ -264,170 +445,4 @@ data class ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2
             RemoteFieldDescriptor("url", "String", true, false, null, null, null, null, null, null, null, null, listOf("mcp.valid-url")),
         ), listOf("mcp.valid-url"))
     }
-}
-
-@Serializable
-data class ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D3_a66324f9a4(
-    @SerialName("headers") val headers: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DEnv_c3ac213986,
-    @SerialName("type") val type: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D3U2DType_3120d80990,
-    @SerialName("url") val url: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("headers", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DEnv_c3ac213986", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D3U2DType_3120d80990", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("url", "String", true, false, null, null, null, null, null, null, null, null, listOf("mcp.valid-url")),
-        ), listOf("mcp.valid-url"))
-    }
-}
-
-@Serializable(with = ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d.Serializer::class)
-sealed interface ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d {
-    data class Option1(val value: ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D1_4c967d4ed1) : ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d
-    data class Option2(val value: ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D2_e0da1e0a5e) : ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d
-    data class Option3(val value: ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D3_a66324f9a4) : ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d
-    object Serializer : KSerializer<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d")
-        override fun deserialize(decoder: Decoder): ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d supports JSON only")
-            val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("stdio")))) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D1_4c967d4ed1>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("http")))) { Option2(jsonDecoder.json.decodeFromJsonElement<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D2_e0da1e0a5e>(element)) }
-            RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesProperty(element, "type", listOf(JsonPrimitive("sse")))) { Option3(jsonDecoder.json.decodeFromJsonElement<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D3_a66324f9a4>(element)) }
-            return RemoteUnionCodec.single("ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d", matches)
-        }
-        override fun serialize(encoder: Encoder, value: ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d supports JSON only")
-            val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D1_4c967d4ed1>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D2_e0da1e0a5e>(value.value)
-                is Option3 -> jsonEncoder.json.encodeToJsonElement<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransportU2DOptionU2D3_a66324f9a4>(value.value)
-            }
-            jsonEncoder.encodeJsonElement(element)
-        }
-    }
-}
-
-@Serializable
-enum class ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DUnsupportedReason_2556bf4896 {
-    @SerialName("authentication") AUTHENTICATION,
-    @SerialName("tool-restrictions") TOOLU2DRESTRICTIONS,
-    @SerialName("sensitive-values") SENSITIVEU2DVALUES,
-}
-
-@Serializable
-data class ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItem_e9e7b28a3d(
-    @SerialName("enabled") val enabled: Boolean,
-    @SerialName("id") val id: String,
-    @SerialName("name") val name: String,
-    @SerialName("timeoutMs") val timeoutMs: Long,
-    @SerialName("transport") val transport: ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d,
-    @SerialName("unsupportedReason") val unsupportedReason: RemoteField<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DUnsupportedReason_2556bf4896> = RemoteField.Missing,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("enabled", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("name", "String", true, false, null, null, 1, null, null, null, "^[A-Za-z0-9][A-Za-z0-9_.-]*$", null, listOf()),
-            RemoteFieldDescriptor("timeoutMs", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("transport", "ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DTransport_5296d6b04d", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("unsupportedReason", "ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItemU2DUnsupportedReason_2556bf4896", false, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItem_b924479203(
-    @SerialName("providerId") val providerId: String,
-    @SerialName("providerLabel") val providerLabel: String,
-    @SerialName("servers") val servers: List<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItem_e9e7b28a3d>,
-    @SerialName("sourcePath") val sourcePath: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("providerId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("providerLabel", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("servers", "List<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItemU2DServersU2DItem_e9e7b28a3d>", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("sourcePath", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class ProcedurediscoverExternalMcpServersResult_f71a677b4d(
-    @SerialName("groups") val groups: List<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItem_b924479203>,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("groups", "List<ProcedurediscoverExternalMcpServersResultU2DGroupsU2DItem_b924479203>", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D1U2DKind_3ad514880d {
-    @SerialName("text") TEXT,
-}
-
-@Serializable
-data class ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D1_5ea9560782(
-    @SerialName("content") val content: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-    @SerialName("kind") val kind: ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D1U2DKind_3ad514880d,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("content", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("kind", "ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D1U2DKind_3ad514880d", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D2U2DKind_15838a9e80 {
-    @SerialName("file") FILE,
-}
-
-@Serializable
-data class ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D2_12ca2594dc(
-    @SerialName("kind") val kind: ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D2U2DKind_15838a9e80,
-    @SerialName("path") val path: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D2U2DKind_15838a9e80", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("path", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D3U2DKind_7db74ec55c {
-    @SerialName("attachment") ATTACHMENT,
-}
-
-@Serializable
-data class ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D3_43372628ac(
-    @SerialName("kind") val kind: ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D3U2DKind_7db74ec55c,
-    @SerialName("mimeType") val mimeType: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
-    @SerialName("path") val path: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D3U2DKind_7db74ec55c", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("mimeType", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("path", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D4U2DKind_d73ffe960c {
-    @SerialName("diff_comment") DIFFU5FCOMMENT,
-}
-
-@Serializable
-enum class ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D4U2DSide_f2d54b0f9e {
-    @SerialName("old") OLD,
-    @SerialName("new") NEW,
 }

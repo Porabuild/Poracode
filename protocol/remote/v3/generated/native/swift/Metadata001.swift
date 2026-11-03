@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:6cb68cbd68a6bf2c795038b0761b5cb693136c5fa5f4ebb9ed5509e32f4219a1"
-  public static let manifestHash = "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0"
+  public static let sourceHash = "sha256:cf134692fb8450d1d668d8f3225d49f6e607c615dc8c40595630406559053e36"
+  public static let manifestHash = "sha256:8610a924b95a7183c022541eb14e4503678021b20689389f6352938262bc6db8"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -141,6 +141,7 @@ public enum RemoteContractMetadata {
     .init(name: "clearMcpServerOauth", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "omitted", requestType: "ProcedureclearMcpServerOauthRequest_db8efd22aa", resultType: "RemoteUnit"),
     .init(name: "cloneRepo", scope: "projects:manage", owner: "parentLocation", resultKind: "json", requestType: "ProcedurecloneRepoRequest_482895ec91", resultType: "ProcedurecloneRepoResult_6a0c18e639"),
     .init(name: "connectThreadVoice", scope: "session:operate", owner: "thread", resultKind: "json", requestType: "ProcedureconnectThreadVoiceRequest_763e82793f", resultType: "ProcedureconnectThreadVoiceResult_871fe12f7d"),
+    .init(name: "controlMcpApp", scope: "session:operate", owner: "thread", resultKind: "json", requestType: "ProcedurecontrolMcpAppRequest_339dd50c84", resultType: "ProcedurecontrolMcpAppResult_054db97313"),
     .init(name: "createFileCheckpoint", scope: "session:operate", owner: "thread", resultKind: "json", requestType: "ProcedurecreateFileCheckpointRequest_412fb1bbf4", resultType: "ProcedurecreateFileCheckpointResult_012b6b31ad"),
     .init(name: "createProjectEntry", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedurecreateProjectEntryRequest_5027b509e8", resultType: "RemoteUnit"),
     .init(name: "createRevertAnchor", scope: "session:operate", owner: "thread", resultKind: "json", requestType: "ProcedurecreateRevertAnchorRequest_d762e3c1cd", resultType: "ProcedurecreateRevertAnchorResult_8d15f7f900"),
@@ -259,7 +260,7 @@ public enum RemoteContractMetadata {
     .init(name: "hexVoice", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedurehexVoiceRequest_2ae8d538fe", resultType: "ProcedurehexVoiceResult_46060d35e2"),
     .init(name: "importSkills", scope: "session:operate", owner: "skillLocations", resultKind: "json", requestType: "ProcedureimportSkillsRequest_8a62b43ffe", resultType: "ProcedureimportSkillsResult_82088d0ad1"),
     .init(name: "installMarketplaceSkill", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedureinstallMarketplaceSkillRequest_0093611cbb", resultType: "ProcedureinstallMarketplaceSkillResult_d6e0ba68c8"),
-    .init(name: "invokeThreadSessionAction", scope: "session:operate", owner: "thread", resultKind: "json", requestType: "ProcedureinvokeThreadSessionActionRequest_f614b14ae0", resultType: "ProcedureinvokeThreadSessionActionRequestU2DPayload_e6958017da"),
+    .init(name: "invokeThreadSessionAction", scope: "session:operate", owner: "thread", resultKind: "json", requestType: "ProcedureinvokeThreadSessionActionRequest_f614b14ae0", resultType: "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da"),
     .init(name: "listFileCheckpoints", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurelistFileCheckpointsRequest_0f602da97f", resultType: "ProcedurelistFileCheckpointsResult_df7fa3d1be"),
     .init(name: "listImportableSessions", scope: "projects:manage", owner: "desktop", resultKind: "json", requestType: "ProcedurelistImportableSessionsRequest_b5ff559bbe", resultType: "ProcedurelistImportableSessionsResult_078fcc8515"),
     .init(name: "listProjectTree", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProcedurelistProjectTreeRequest_26cfea8cde", resultType: "ProcedurelistProjectTreeResult_ccd3eb53d3"),

@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let procedureU2EReadProjectFileU2EResult: RemoteRootCodec<ProcedurereadProjectFileResult_891e9ab241> = .init(id: "procedure.readProjectFile.result", schema: RemoteSchemas.schema_891e9ab2413a4e77)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EReadTerminalScrollbackU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.readTerminalScrollback.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EReadTerminalScrollbackU2EResult: RemoteRootCodec<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .init(id: "procedure.readTerminalScrollback.result", schema: RemoteSchemas.schema_bf0b727f7b1c6d07)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EEnvironmentU2DGetU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec> = .init(id: "route.environment-get.response", schema: RemoteSchemas.schema_8428abfcec0a8b32)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_d205867a89> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_d205867a8963e342)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DListU2EResponse: RemoteRootCodec<RouteenvironmentU2DListResponse_700ee4302b> = .init(id: "route.environment-list.response", schema: RemoteSchemas.schema_700ee4302bb616f0)
 }

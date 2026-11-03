@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.procedureU2EGitAbortMergeU2EResult: RemoteRootCodec<ProceduregitAbortMergeResult_5bb2b4a4a0>
+    get() = RemoteRootCodec("procedure.gitAbortMerge.result", serializer<ProceduregitAbortMergeResult_5bb2b4a4a0>(), schema_5bb2b4a4a0c3c485)
+
+val RemoteRootCodecs.procedureU2EGitAddRemoteU2ERequest: RemoteRootCodec<ProceduregitAddRemoteRequest_024bd48f0f>
+    get() = RemoteRootCodec("procedure.gitAddRemote.request", serializer<ProceduregitAddRemoteRequest_024bd48f0f>(), schema_024bd48f0f66abbd)
+
 val RemoteRootCodecs.procedureU2EGitAddWorktreeU2ERequest: RemoteRootCodec<ProceduregitAddWorktreeRequest_6a8ee4e736>
     get() = RemoteRootCodec("procedure.gitAddWorktree.request", serializer<ProceduregitAddWorktreeRequest_6a8ee4e736>(), schema_6a8ee4e736a740c4)
 
@@ -161,8 +167,8 @@ val RemoteRootCodecs.procedureU2EInstallMarketplaceSkillU2EResult: RemoteRootCod
 val RemoteRootCodecs.procedureU2EInvokeThreadSessionActionU2ERequest: RemoteRootCodec<ProcedureinvokeThreadSessionActionRequest_f614b14ae0>
     get() = RemoteRootCodec("procedure.invokeThreadSessionAction.request", serializer<ProcedureinvokeThreadSessionActionRequest_f614b14ae0>(), schema_f614b14ae0e3bbca)
 
-val RemoteRootCodecs.procedureU2EInvokeThreadSessionActionU2EResult: RemoteRootCodec<ProcedureinvokeThreadSessionActionRequestU2DPayload_e6958017da>
-    get() = RemoteRootCodec("procedure.invokeThreadSessionAction.result", serializer<ProcedureinvokeThreadSessionActionRequestU2DPayload_e6958017da>(), schema_e6958017dac6cd3b)
+val RemoteRootCodecs.procedureU2EInvokeThreadSessionActionU2EResult: RemoteRootCodec<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da>
+    get() = RemoteRootCodec("procedure.invokeThreadSessionAction.result", serializer<ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da>(), schema_e6958017dac6cd3b)
 
 val RemoteRootCodecs.procedureU2EListFileCheckpointsU2ERequest: RemoteRootCodec<ProcedurelistFileCheckpointsRequest_0f602da97f>
     get() = RemoteRootCodec("procedure.listFileCheckpoints.request", serializer<ProcedurelistFileCheckpointsRequest_0f602da97f>(), schema_0f602da97fc0ccdf)
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2EDeviceU2DInspectU2EResponse: RemoteRootCodec<Routed
 
 val RemoteRootCodecs.routeU2EDeviceU2DInventoryU2EResponse: RemoteRootCodec<RoutedeviceU2DInventoryResponse_32a902996b>
     get() = RemoteRootCodec("route.device-inventory.response", serializer<RoutedeviceU2DInventoryResponse_32a902996b>(), schema_32a902996bba88be)
-
-val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DApiU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7>
-    get() = RemoteRootCodec("route.device-preview-android-api.path", serializer<RoutedeviceU2DActionPath_eef64882a7>(), schema_eef64882a7b017fb)
-
-val RemoteRootCodecs.routeU2EDeviceU2DPreviewU2DAndroidU2DApiU2EQuery: RemoteRootCodec<RoutedeviceU2DPreviewU2DAndroidU2DApiQuery_bb755d8d8c>
-    get() = RemoteRootCodec("route.device-preview-android-api.query", serializer<RoutedeviceU2DPreviewU2DAndroidU2DApiQuery_bb755d8d8c>(), schema_bb755d8d8c6227a7)

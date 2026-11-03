@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EScheduleU2DRunsU2DReadU2EResponse: RemoteRootCodec<RoutescheduleU2DRunU2DInboxResponse_d9b927ff80>
+    get() = RemoteRootCodec("route.schedule-runs-read.response", serializer<RoutescheduleU2DRunU2DInboxResponse_d9b927ff80>(), schema_d9b927ff80c17b5c)
+
+val RemoteRootCodecs.routeU2ESchedulesU2DCommandU2ERequest: RemoteRootCodec<RouteschedulesU2DCommandRequest_8be22931a5>
+    get() = RemoteRootCodec("route.schedules-command.request", serializer<RouteschedulesU2DCommandRequest_8be22931a5>(), schema_8be22931a515cd6d)
+
 val RemoteRootCodecs.routeU2ESchedulesU2DCommandU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_bc1920595e>
     get() = RemoteRootCodec("route.schedules-command.response", serializer<RouteschedulesU2DCommandResponse_bc1920595e>(), schema_bc1920595e8cfd89)
 

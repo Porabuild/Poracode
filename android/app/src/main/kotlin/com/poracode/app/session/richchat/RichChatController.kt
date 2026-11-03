@@ -36,6 +36,20 @@ class RichChatController(
     /** Seam for the queue-operation and history extension files (size-gate split). */
     internal val sessionGateway: RichChatSessionGateway
         get() = gateway
+
+    suspend fun controlMcpApp(payload: JsonObject): JsonObject {
+        if (!lifecycle.isForeground) throw IllegalStateException("App is backgrounded.")
+        val selected = selection.value ?: throw IllegalStateException("No selected thread.")
+        val (host, failure) = session.currentLease(RichChatCapability.Operate)
+        if (failure != null || host == null || host.key != selected.host.key) throw IllegalStateException("Host unavailable.")
+        val bound = kotlinx.serialization.json.buildJsonObject {
+            payload.forEach { (key, value) -> put(key, value) }
+            put("threadId", kotlinx.serialization.json.JsonPrimitive(selected.threadId))
+        }
+        val result = gateway.controlMcpApp(host, selected.threadId, bound)
+        if (selection.value != selected || session.value?.key != host.key) throw IllegalStateException("Host changed.")
+        return result
+    }
     private var threadGeneration = 0L
     internal val frameBuffer = RichChatLiveFrameBuffer()
 

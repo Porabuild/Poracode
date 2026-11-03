@@ -82,6 +82,7 @@ function createManager(
     kind: "powershell" as const,
     args: ["-NoLogo"],
   }),
+  extraOptions: Partial<ConstructorParameters<typeof ThreadSessionManager>[0]> = {},
 ): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-start-close-"));
   tempDirs.push(tempDir);
@@ -93,6 +94,7 @@ function createManager(
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[agentKind, adapter]]),
     resolveWindowsShell,
+    ...extraOptions,
   });
   managersToDispose.push(manager);
   return manager;
@@ -197,6 +199,49 @@ afterEach(async () => {
     rmSync(dir, { recursive: true, force: true });
   }
   vi.unstubAllEnvs();
+});
+
+describe("MCP App startup ownership", () => {
+  it.each(["factory-failure", "close-during-prepare"])(
+    "retires prepared routes after %s",
+    async (scenario) => {
+      const prepared = deferred<[]>();
+      const structured = createStructuredSession(Promise.resolve());
+      const adapter = createAdapter("codex", structured);
+      if (scenario === "factory-failure")
+        vi.mocked(adapter.createStructuredSession!).mockRejectedValueOnce(
+          new Error("factory failed"),
+        );
+      const mcpApps = {
+        prepare: vi.fn<
+          NonNullable<ConstructorParameters<typeof ThreadSessionManager>[0]["mcpApps"]>["prepare"]
+        >(() => prepared.promise),
+        releaseThread: vi.fn<(threadId: string) => Promise<void>>().mockResolvedValue(undefined),
+        modelContext: vi.fn<(threadId: string) => string | undefined>(),
+      };
+      const manager = createManager("codex", adapter, undefined, undefined, { mcpApps });
+      const starting = manager.startThread({
+        threadId: "app-start",
+        projectLocation: { kind: "posix", path: process.cwd() },
+        agentKind: "codex",
+        config: { model: "test" },
+        prompt: "",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      });
+      const settled = starting.catch((error: unknown) => error);
+      await vi.waitFor(() => expect(mcpApps.prepare).toHaveBeenCalledOnce());
+      mcpApps.releaseThread.mockClear();
+      const closing =
+        scenario === "close-during-prepare"
+          ? manager.closeThread({ threadId: "app-start" })
+          : Promise.resolve();
+      prepared.resolve([]);
+      await Promise.all([settled, closing]);
+      expect(manager.sessions.has("app-start")).toBe(false);
+      expect(mcpApps.releaseThread).toHaveBeenCalledWith("app-start");
+    },
+  );
 });
 
 describe("accepted structured turn interruption", () => {

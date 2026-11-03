@@ -10,6 +10,24 @@ import {
 } from "./turnClientContext";
 
 describe("formatTurnClientContext", () => {
+  it("reads the latest app context for each model turn without rewriting provider commands", () => {
+    let state = "BUILDING";
+    const target: TurnContextTarget = {
+      mcpAppContext: () => `App state: ${state}`,
+      slashCommands: [{ id: "clear", label: "clear", description: "Clear context" }],
+    };
+    expect(
+      structuredTurnTextOptions(target, { prompt: "Inspect deployment" }).inlineInstructions,
+    ).toContain("BUILDING");
+    state = "READY";
+    expect(
+      structuredTurnTextOptions(target, { prompt: "Inspect deployment" }).inlineInstructions,
+    ).toContain("READY");
+    expect(
+      structuredTurnTextOptions(target, { prompt: "/clear" }).inlineInstructions,
+    ).toBeUndefined();
+  });
+
   it("renders nothing without browser focus", () => {
     expect(formatTurnClientContext(undefined)).toBeUndefined();
     expect(formatTurnClientContext({})).toBeUndefined();

@@ -110,8 +110,8 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "Read Native visuals v2 in the app-controls core skill for the bounded schema and example, fixed app-theme layout/accent choices and shared numeric inputs. Native v1 chart/table/outputs documents remain supported; formulas in both versions are arithmetic trees, never strings or JavaScript. " +
   "Native visuals have no URLs, custom markup, tools, host actions or author code; native mobile clients keep fenced source. Use ordinary Markdown for unsupported content. " +
   "A poracode-html-v1 code fence with a plain title preserves HTML as a source preview in the conversation (maximum 256 KiB per block). " +
-  "Interactive HTML rendering and MCP Apps sessions are unavailable: author markup and scripts are not executed. " +
-  "Do not promise interactive HTML, MCP Apps sessions or host actions. Keep ordinary HTML examples in html fences." +
+  "Author HTML and scripts remain source-only. Configured MCP Apps servers can supply interactive cards in GUI chat through declared ui:// resources and the host-managed sandbox. " +
+  "Do not promise app tools or host actions from authored HTML or native visual fences. Keep ordinary HTML examples in html fences." +
   " For source-host PR/MR workflows, discover review_repository, then pass its public forgeAccount and full forgeRepository to review_* tools. " +
   "Honor the reported capabilities and host policies. A successful merge request can remain queued; read the observed state and retry refresh without repeating a successful mutation.";
 

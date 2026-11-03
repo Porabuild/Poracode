@@ -5119,6 +5119,7 @@ msgid "Copy selection"
 msgstr "選択範囲をコピー"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Copy source"
 msgstr "ソースをコピー"
@@ -10415,6 +10416,10 @@ msgstr "読み込み中"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Loading accounts…"
 msgstr "アカウントを読み込み中…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
+msgid "Loading app…"
+msgstr "アプリを読み込み中…"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/SingleFileDiff.tsx
 msgid "Loading diff..."
@@ -17898,6 +17903,7 @@ msgstr "サイドバーを表示"
 msgid "Show skills from {0}"
 msgstr "{0} のスキルを表示"
 
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show source"

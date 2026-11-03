@@ -198,7 +198,7 @@ struct RichChatTimelineView: View {
     for item in rawItems {
       if let parent = item.parentItemID, inheritedIDs.contains(parent) { inheritedIDs.insert(item.id) }
     }
-    return RichChatTimelineActions(
+    var actions = RichChatTimelineActions(
       lastVisibleItemID: projection?.visibleEntries.last?.lastItemID,
       rawItems: projection?.rawItems ?? [],
       completedTurns: controller.state.displayedCompletedTurns(in: projection),
@@ -217,6 +217,8 @@ struct RichChatTimelineView: View {
           truncateIntent = RichChatTruncateIntent(id: itemID)
         } : nil
     )
+    actions.bindMcpAppActions(conversation: conversation, config: config, canOperate: canOperate)
+    return actions
   }
 
   private var isBusy: Bool {

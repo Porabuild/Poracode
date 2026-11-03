@@ -336,7 +336,10 @@ private fun RichTimelineItem(
                     )
                 }
             }
-            if (item.type == RichItemTypes.QUESTION_ANSWER) {
+            val mcpApp = com.poracode.app.chat.McpAppPresentation.from(item)
+            if (mcpApp != null) {
+                RichMcpAppView(mcpApp, runtime, text)
+            } else if (item.type == RichItemTypes.QUESTION_ANSWER) {
                 RichQuestionAnswerContent(RichQuestionAnswerPresentation.entries(item))
             } else if (item.type == RichItemTypes.ASSISTANT_MESSAGE) {
                 // Assistant text is text-blocks only; typed file payloads

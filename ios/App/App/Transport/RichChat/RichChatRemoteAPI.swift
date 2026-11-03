@@ -1,6 +1,9 @@
 import Foundation
 
 extension RichChatRemoteAPI {
+  func richControlMcpApp(payload _: [String: RichJSON]) async throws -> RichJSON {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
   /// Default for test fakes and older transports: fail closed, never fabricate.
   func richDownloadFile(
     request _: RichChatFileAccess,
@@ -12,6 +15,7 @@ extension RichChatRemoteAPI {
 }
 
 protocol RichChatRemoteAPI: Sendable {
+  func richControlMcpApp(payload: [String: RichJSON]) async throws -> RichJSON
   func richHistory(threadID: String, targetEntryCount: Int?) async throws -> RemoteThreadSnapshot
   func richHistoryPage(
     threadID: String,
@@ -110,6 +114,12 @@ protocol RichChatRemoteAPI: Sendable {
 struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
   private let json: RemoteAPIClient
   private let raw: (any RichChatRawHTTPExecuting)?
+
+  func richControlMcpApp(payload: [String: RichJSON]) async throws -> RichJSON {
+    let body = try prepare { try GeneratedRemoteV3Contract.mcpAppRequest(payload) }
+    let data = try await mutationRequest(path: "/api/git/call", body: body)
+    return try GeneratedRemoteV3Contract.mcpAppResult(data)
+  }
 
   init(json: RemoteAPIClient, raw: (any RichChatRawHTTPExecuting)? = nil) {
     self.json = json

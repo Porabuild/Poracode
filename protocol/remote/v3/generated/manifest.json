@@ -1437,6 +1437,11 @@
       "scope": "session:read"
     },
     {
+      "name": "controlMcpApp",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
       "name": "scanSkills",
       "owner": "optionalProjectLocation",
       "scope": "session:read"

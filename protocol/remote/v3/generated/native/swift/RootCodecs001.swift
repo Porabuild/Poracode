@@ -41,6 +41,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EControlMcpAppU2ERequest: RemoteRootCodec<ProcedurecontrolMcpAppRequest_339dd50c84> = .init(id: "procedure.controlMcpApp.request", schema: RemoteSchemas.schema_339dd50c84bc91c2)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EControlMcpAppU2EResult: RemoteRootCodec<ProcedurecontrolMcpAppResult_054db97313> = .init(id: "procedure.controlMcpApp.result", schema: RemoteSchemas.schema_054db9731372b70d)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2ECreateFileCheckpointU2ERequest: RemoteRootCodec<ProcedurecreateFileCheckpointRequest_412fb1bbf4> = .init(id: "procedure.createFileCheckpoint.request", schema: RemoteSchemas.schema_412fb1bbf466cf98)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EGhGetPrChecksU2ERequest: RemoteRootCodec<ProcedureghGetPrChecksRequest_50e8e4265c> = .init(id: "procedure.ghGetPrChecks.request", schema: RemoteSchemas.schema_50e8e4265cb34b55)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EGhGetPrChecksU2EResult: RemoteRootCodec<ProcedureforgeGetPrChecksResult_437e2d5d20> = .init(id: "procedure.ghGetPrChecks.result", schema: RemoteSchemas.schema_437e2d5d20b6b495)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EGhGetPrDetailsU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a> = .init(id: "procedure.ghGetPrDetails.request", schema: RemoteSchemas.schema_868bf1042a1bbba1)
 }

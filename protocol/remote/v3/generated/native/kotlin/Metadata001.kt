@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:6cb68cbd68a6bf2c795038b0761b5cb693136c5fa5f4ebb9ed5509e32f4219a1"
-    const val manifestHash = "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0"
+    const val sourceHash = "sha256:cf134692fb8450d1d668d8f3225d49f6e607c615dc8c40595630406559053e36"
+    const val manifestHash = "sha256:8610a924b95a7183c022541eb14e4503678021b20689389f6352938262bc6db8"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -146,6 +146,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("clearMcpServerOauth", "session:operate", "optionalProjectLocation", "omitted", "ProcedureclearMcpServerOauthRequest_db8efd22aa", "RemoteUnit"),
         RemoteProcedureDescriptor("cloneRepo", "projects:manage", "parentLocation", "json", "ProcedurecloneRepoRequest_482895ec91", "ProcedurecloneRepoResult_6a0c18e639"),
         RemoteProcedureDescriptor("connectThreadVoice", "session:operate", "thread", "json", "ProcedureconnectThreadVoiceRequest_763e82793f", "ProcedureconnectThreadVoiceResult_871fe12f7d"),
+        RemoteProcedureDescriptor("controlMcpApp", "session:operate", "thread", "json", "ProcedurecontrolMcpAppRequest_339dd50c84", "ProcedurecontrolMcpAppResult_054db97313"),
         RemoteProcedureDescriptor("createFileCheckpoint", "session:operate", "thread", "json", "ProcedurecreateFileCheckpointRequest_412fb1bbf4", "ProcedurecreateFileCheckpointResult_012b6b31ad"),
         RemoteProcedureDescriptor("createProjectEntry", "session:operate", "projectLocation", "omitted", "ProcedurecreateProjectEntryRequest_5027b509e8", "RemoteUnit"),
         RemoteProcedureDescriptor("createRevertAnchor", "session:operate", "thread", "json", "ProcedurecreateRevertAnchorRequest_d762e3c1cd", "ProcedurecreateRevertAnchorResult_8d15f7f900"),
@@ -264,7 +265,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("hexVoice", "session:operate", "desktop", "json", "ProcedurehexVoiceRequest_2ae8d538fe", "ProcedurehexVoiceResult_46060d35e2"),
         RemoteProcedureDescriptor("importSkills", "session:operate", "skillLocations", "json", "ProcedureimportSkillsRequest_8a62b43ffe", "ProcedureimportSkillsResult_82088d0ad1"),
         RemoteProcedureDescriptor("installMarketplaceSkill", "session:operate", "optionalProjectLocation", "json", "ProcedureinstallMarketplaceSkillRequest_0093611cbb", "ProcedureinstallMarketplaceSkillResult_d6e0ba68c8"),
-        RemoteProcedureDescriptor("invokeThreadSessionAction", "session:operate", "thread", "json", "ProcedureinvokeThreadSessionActionRequest_f614b14ae0", "ProcedureinvokeThreadSessionActionRequestU2DPayload_e6958017da"),
+        RemoteProcedureDescriptor("invokeThreadSessionAction", "session:operate", "thread", "json", "ProcedureinvokeThreadSessionActionRequest_f614b14ae0", "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da"),
         RemoteProcedureDescriptor("listFileCheckpoints", "session:read", "thread", "json", "ProcedurelistFileCheckpointsRequest_0f602da97f", "ProcedurelistFileCheckpointsResult_df7fa3d1be"),
         RemoteProcedureDescriptor("listImportableSessions", "projects:manage", "desktop", "json", "ProcedurelistImportableSessionsRequest_b5ff559bbe", "ProcedurelistImportableSessionsResult_078fcc8515"),
         RemoteProcedureDescriptor("listProjectTree", "session:read", "projectLocation", "json", "ProcedurelistProjectTreeRequest_26cfea8cde", "ProcedurelistProjectTreeResult_ccd3eb53d3"),

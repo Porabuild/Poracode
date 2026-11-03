@@ -241,6 +241,14 @@ class GeneratedRichChatRemoteTransport(
     override suspend fun listThreadSessionActions(payload: JsonObject): JsonObject =
         sessionActionProcedure("listThreadSessionActions", payload, mutating = false)
 
+    override suspend fun controlMcpApp(payload: JsonObject): JsonObject {
+        val body = prepare { GeneratedMcpAppContract.request(payload) }
+        val raw = executeOperation("controlMcpApp", mutating = true) {
+            http.requestText(PROCEDURE_PATH, method = "POST", jsonBody = body)
+        }
+        return GeneratedMcpAppContract.response(raw)
+    }
+
     override suspend fun invokeThreadSessionAction(payload: JsonObject): JsonObject =
         sessionActionProcedure("invokeThreadSessionAction", payload, mutating = true)
 

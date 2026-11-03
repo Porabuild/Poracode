@@ -5120,6 +5120,7 @@ msgid "Copy selection"
 msgstr "Sao chép lựa chọn"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Copy source"
 msgstr "Sao chép mã nguồn"
@@ -10416,6 +10417,10 @@ msgstr "Đang tải"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Loading accounts…"
 msgstr "Đang tải tài khoản…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
+msgid "Loading app…"
+msgstr "Đang tải ứng dụng…"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/SingleFileDiff.tsx
 msgid "Loading diff..."
@@ -17900,6 +17905,7 @@ msgstr "Hiển thị thanh bên"
 msgid "Show skills from {0}"
 msgstr "Hiện skill từ {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show source"

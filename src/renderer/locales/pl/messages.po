@@ -5120,6 +5120,7 @@ msgid "Copy selection"
 msgstr "Kopiuj zaznaczenie"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Copy source"
 msgstr "Kopiuj kod źródłowy"
@@ -10416,6 +10417,10 @@ msgstr "Ładowanie"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Loading accounts…"
 msgstr "Ładuję konta…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
+msgid "Loading app…"
+msgstr "Ładowanie aplikacji…"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/SingleFileDiff.tsx
 msgid "Loading diff..."
@@ -17900,6 +17905,7 @@ msgstr "Pokaż pasek boczny"
 msgid "Show skills from {0}"
 msgstr "Pokaż umiejętności z {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show source"

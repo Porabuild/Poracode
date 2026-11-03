@@ -635,8 +635,18 @@ export class SpawnPipeline {
         { defer: adapter.supportsDeferredMcpAuthorization === true },
       );
     }
+    if (requestedPresentation === "gui" && this.ctx.options.mcpApps) {
+      mcpServers = await this.ctx.options.mcpApps.prepare(
+        payload.threadId,
+        mcpServers,
+        executionLocation,
+      );
+    }
     if (this.ctx.options.prepareMcpToolFilters) {
       mcpServers = await this.ctx.options.prepareMcpToolFilters(mcpServers, executionLocation, {
+        ...(requestedPresentation === "gui" && this.ctx.options.mcpApps
+          ? { remoteViaStdio: true }
+          : {}),
         ...(adapter.mcpRequiresStdioCwdProxy ? { proxyStdioCwd: true } : {}),
         ...(requestedPresentation === "gui" && adapter.mcpRequiresConnectionFailureIsolation
           ? { isolateConnectionFailures: true }
@@ -1669,6 +1679,9 @@ export class SpawnPipeline {
     const session: SessionRuntime = {
       instanceId: randomUUID(),
       threadId: input.threadId,
+      ...(ctx.options.mcpApps
+        ? { mcpAppContext: () => ctx.options.mcpApps!.modelContext(input.threadId) }
+        : {}),
       agentKind: input.agentKind,
       adapter: input.adapter,
       ...(pty ? { pty } : {}),

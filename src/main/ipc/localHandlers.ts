@@ -50,6 +50,7 @@ import { resolveLegacyElectronUserDataDir } from "@/shared/legacyProductPaths";
 import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintProbe";
 import { installManagedLoopbackCertificatePin } from "../remote/managedLoopbackCertificatePin";
 import { consumeManagedLoopbackBootstrap } from "../backend/managedLoopbackBootstrapPrewarm";
+import { setManagedMcpAppSandboxEndpoint } from "../window/windowHardening";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
@@ -257,7 +258,10 @@ export function createLocalIpcHandlers(
       // Main-native TLS authority: install the exact loopback origin/leaf pin
       // from the authenticated backend bootstrap before the renderer attaches.
       // A null answer (server not serving/disposed) clears any previous pin.
-      if (sender) installManagedLoopbackCertificatePin(sender.session, bootstrap);
+      if (sender) {
+        installManagedLoopbackCertificatePin(sender.session, bootstrap);
+        setManagedMcpAppSandboxEndpoint(sender, bootstrap?.endpoint ?? null);
+      }
       return bootstrap;
     },
     probeTlsCertificateFingerprint: (payload) => probeTlsCertificateFingerprint(payload.url),

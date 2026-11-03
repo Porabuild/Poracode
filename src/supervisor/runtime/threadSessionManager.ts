@@ -1150,12 +1150,21 @@ export class ThreadSessionManager {
     }
     this.recentlyRemovedThreadIds.delete(threadId);
 
-    const run = this.spawnPipeline.startThreadInner({
+    const start = this.spawnPipeline.startThreadInner({
       ...payload,
       threadId,
       resourceLease,
       ...(predecessorLease ? { predecessorLease } : {}),
     });
+    const run = this.options.mcpApps
+      ? (async () => {
+          try {
+            return await start;
+          } finally {
+            if (!this.sessions.has(threadId)) await this.options.mcpApps!.releaseThread(threadId);
+          }
+        })()
+      : start;
     const lock = run.then(
       () => undefined,
       () => undefined,
@@ -1990,6 +1999,7 @@ export class ThreadSessionManager {
         // calls it internally). Cancellation alone is never confirmation.
         return { confirmed: false };
       }
+      if (this.options.mcpApps) await this.options.mcpApps.releaseThread(payload.threadId);
       // Custody retained by an earlier failed retirement/abandonment: a close
       // retry joins and retries it instead of silently giving up. The sync
       // guards keep the common no-session close free of an await.
@@ -2032,6 +2042,7 @@ export class ThreadSessionManager {
     this.runtimeEventRouter.clearAllForThread(payload.threadId);
     this.options.crossagentMcp?.cancelAll(payload.threadId);
     this.options.crossagentMcp?.unregister(payload.threadId);
+    if (this.options.mcpApps) await this.options.mcpApps.releaseThread(payload.threadId);
     const outcome = await this.sessionRetirement.retireAgentSession(existing);
     if (outcome.confirmed) {
       this.retiringSessions.delete(payload.threadId);

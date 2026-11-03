@@ -21,6 +21,9 @@ struct RichChatTranscriptItemView: View {
 
   var body: some View {
     Group {
+      if let app = RichMcpAppPresentation(item: item) {
+        RichChatMcpAppView(app: app, actions: actions, fallback: bodyText).id(item.id)
+      } else {
       switch item.type {
       case RichItemType.userMessage:
         RichChatPromptMessage(
@@ -54,6 +57,7 @@ struct RichChatTranscriptItemView: View {
           duration: duration,
           isWorking: isWorking
         )
+      }
       }
     }
     .contextMenu { messageActions }

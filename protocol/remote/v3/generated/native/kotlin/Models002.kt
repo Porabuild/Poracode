@@ -422,16 +422,22 @@ data class ProcedureconnectThreadVoiceResult_871fe12f7d(
 }
 
 @Serializable
-data class ProcedurecreateFileCheckpointRequest_412fb1bbf4(
-    @SerialName("checkpointItemId") val checkpointItemId: String,
-    @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
-    @SerialName("threadId") val threadId: String,
+enum class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D1U2DType_b796dbfba5 {
+    @SerialName("readResource") READRESOURCE,
+}
+
+@Serializable
+data class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D1_74839ee2e9(
+    @SerialName("type") val type: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D1U2DType_b796dbfba5,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("checkpointItemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D1U2DType_b796dbfba5", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
+}
+
+@Serializable
+enum class ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D2U2DType_53dc1dce3c {
+    @SerialName("listTools") LISTTOOLS,
 }

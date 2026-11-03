@@ -150,11 +150,25 @@ export interface ThreadSessionManagerOptions {
     builtInMcpServerIds: BuiltInMcpServerId[];
     nativePlugins: AgentNativePlugin[];
   }>;
+  /** Keep provider and app requests on supervisor-owned MCP connections. */
+  mcpApps?: {
+    prepare(
+      threadId: string,
+      servers: McpServer[],
+      location: ProjectLocation,
+    ): Promise<McpServer[]>;
+    releaseThread(threadId: string): Promise<void>;
+    modelContext(threadId: string): string | undefined;
+  };
   /** Wrap disabled tools and unsupported stdio cwd in the same-environment MCP proxy. */
   prepareMcpToolFilters?(
     servers: McpServer[],
     projectLocation: ProjectLocation,
-    options?: { proxyStdioCwd?: boolean; isolateConnectionFailures?: boolean },
+    options?: {
+      proxyStdioCwd?: boolean;
+      isolateConnectionFailures?: boolean;
+      remoteViaStdio?: boolean;
+    },
   ): Promise<McpServer[]>;
   /** Synchronize Poracode-owned provider skill projections before a new agent process starts. */
   prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;

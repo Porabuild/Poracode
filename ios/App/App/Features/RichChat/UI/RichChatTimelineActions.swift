@@ -35,6 +35,9 @@ struct RichChatTimelineActions {
   var checkpoints = RichChatCheckpointCollection(checkpoints: [], turns: [])
   var isTurnActive = false
   var inheritedItemIDs: Set<String> = []
+  var mcpAppThreadID: String?
+  var controlMcpApp: (([String: RichJSON]) async throws -> RichJSON)?
+  var sendMcpAppMessage: ((String) async -> Bool)?
   var requestRevert: ((RichChatMessageRevertPlan) -> Void)?
   let requestTruncate: ((String) -> Void)?
 
@@ -43,6 +46,22 @@ struct RichChatTimelineActions {
     requestRevert: nil,
     requestTruncate: nil
   )
+
+  mutating func bindMcpAppActions(
+    conversation: RichChatConversationController, config: [String: RichJSON], canOperate: Bool
+  ) {
+    let target = conversation.state.target
+    mcpAppThreadID = target?.threadID
+    guard canOperate else { return }
+    controlMcpApp = { payload in
+      guard conversation.state.target == target else { throw RichChatGatewayError.unavailable }
+      return try await conversation.controlMcpApp(payload)
+    }
+    sendMcpAppMessage = { text in
+      guard conversation.state.target == target else { return false }
+      return await conversation.send(RichChatSendInput(prompt: text, config: config))
+    }
+  }
 
   func canCopy(item: RichRuntimeItem, text: String) -> Bool {
     RichChatMessageCopyEligibility.isEligible(

@@ -35,6 +35,12 @@ val RemoteRootCodecs.procedureU2EConnectThreadVoiceU2ERequest: RemoteRootCodec<P
 val RemoteRootCodecs.procedureU2EConnectThreadVoiceU2EResult: RemoteRootCodec<ProcedureconnectThreadVoiceResult_871fe12f7d>
     get() = RemoteRootCodec("procedure.connectThreadVoice.result", serializer<ProcedureconnectThreadVoiceResult_871fe12f7d>(), schema_871fe12f7dc5ccf6)
 
+val RemoteRootCodecs.procedureU2EControlMcpAppU2ERequest: RemoteRootCodec<ProcedurecontrolMcpAppRequest_339dd50c84>
+    get() = RemoteRootCodec("procedure.controlMcpApp.request", serializer<ProcedurecontrolMcpAppRequest_339dd50c84>(), schema_339dd50c84bc91c2)
+
+val RemoteRootCodecs.procedureU2EControlMcpAppU2EResult: RemoteRootCodec<ProcedurecontrolMcpAppResult_054db97313>
+    get() = RemoteRootCodec("procedure.controlMcpApp.result", serializer<ProcedurecontrolMcpAppResult_054db97313>(), schema_054db9731372b70d)
+
 val RemoteRootCodecs.procedureU2ECreateFileCheckpointU2ERequest: RemoteRootCodec<ProcedurecreateFileCheckpointRequest_412fb1bbf4>
     get() = RemoteRootCodec("procedure.createFileCheckpoint.request", serializer<ProcedurecreateFileCheckpointRequest_412fb1bbf4>(), schema_412fb1bbf466cf98)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.procedureU2EGhUpdatePrBranchU2ERequest: RemoteRootCodec<Pro
 
 val RemoteRootCodecs.procedureU2EGitAbortMergeU2ERequest: RemoteRootCodec<ProceduregitAbortMergeRequest_64dd00a3a5>
     get() = RemoteRootCodec("procedure.gitAbortMerge.request", serializer<ProceduregitAbortMergeRequest_64dd00a3a5>(), schema_64dd00a3a569fc23)
-
-val RemoteRootCodecs.procedureU2EGitAbortMergeU2EResult: RemoteRootCodec<ProceduregitAbortMergeResult_5bb2b4a4a0>
-    get() = RemoteRootCodec("procedure.gitAbortMerge.result", serializer<ProceduregitAbortMergeResult_5bb2b4a4a0>(), schema_5bb2b4a4a0c3c485)
-
-val RemoteRootCodecs.procedureU2EGitAddRemoteU2ERequest: RemoteRootCodec<ProceduregitAddRemoteRequest_024bd48f0f>
-    get() = RemoteRootCodec("procedure.gitAddRemote.request", serializer<ProceduregitAddRemoteRequest_024bd48f0f>(), schema_024bd48f0f66abbd)

@@ -1176,6 +1176,201 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "procedure.controlMcpApp.request": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "text": {
+              "maxLength": 65536,
+              "type": "string"
+            },
+            "type": {
+              "const": "text",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "action": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "type": {
+                  "const": "readResource",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "type": {
+                  "const": "listTools",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "arguments": {
+                  "additionalProperties": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "name": {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": {
+                  "const": "callTool",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "name"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "content": {
+                  "items": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "maxItems": 32,
+                  "type": "array"
+                },
+                "structuredContent": {
+                  "additionalProperties": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "const": "updateModelContext",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "type": {
+                  "const": "cancel",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        },
+        "app": {
+          "additionalProperties": true,
+          "properties": {
+            "resourceUri": {
+              "maxLength": 4096,
+              "pattern": "^ui:\\/\\/.*",
+              "type": "string"
+            },
+            "sessionId": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            },
+            "toolName": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "const": 1,
+              "type": "number"
+            }
+          },
+          "required": [
+            "version",
+            "sessionId",
+            "toolName",
+            "resourceUri"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "requestId": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string"
+        },
+        "threadId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "threadId",
+        "app",
+        "requestId",
+        "action"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.controlMcpApp.result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "result": {
+          "additionalProperties": {},
+          "propertyNames": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "procedure.createFileCheckpoint.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -75293,8 +75488,8 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 101,
-    "procedures": 165,
+    "jsonProcedureResults": 102,
+    "procedures": 166,
     "replayableEventTypes": 16,
     "routes": 119,
     "runtimeEventTypes": 16,
@@ -75302,7 +75497,7 @@
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0",
+  "manifestHash": "sha256:8610a924b95a7183c022541eb14e4503678021b20689389f6352938262bc6db8",
   "protocolVersion": 14,
-  "sourceHash": "sha256:6cb68cbd68a6bf2c795038b0761b5cb693136c5fa5f4ebb9ed5509e32f4219a1"
+  "sourceHash": "sha256:cf134692fb8450d1d668d8f3225d49f6e607c615dc8c40595630406559053e36"
 }

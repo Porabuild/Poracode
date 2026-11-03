@@ -5120,6 +5120,7 @@ msgid "Copy selection"
 msgstr "Seçimi kopyala"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Copy source"
 msgstr "Kaynağı kopyala"
@@ -10416,6 +10417,10 @@ msgstr "Yükleniyor"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Loading accounts…"
 msgstr "Hesaplar yükleniyor…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
+msgid "Loading app…"
+msgstr "Uygulama yükleniyor…"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitDiffContent/parts/SingleFileDiff.tsx
 msgid "Loading diff..."
@@ -17900,6 +17905,7 @@ msgstr "Kenar çubuğunu göster"
 msgid "Show skills from {0}"
 msgstr "{0} becerilerini göster"
 
+#: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 msgid "Show source"

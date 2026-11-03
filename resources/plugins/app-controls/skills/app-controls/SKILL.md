@@ -62,10 +62,11 @@ For app-native charts, comparison tables, calculators, checklists, tabs, text an
 relationship diagrams, use Native visuals v2 below. Existing v1 documents remain supported.
 An assistant-message fence opened with `poracode-html-v1` followed by a plain
 title preserves HTML as a source preview in desktop and web/PWA conversations
-(at most 256 KiB per block). Interactive HTML rendering and MCP Apps sessions
-are unavailable: author markup and scripts are not executed. Do not promise
-interactive HTML, MCP Apps sessions or host actions. Ordinary
-`html` code fences remain source examples.
+(at most 256 KiB per block). Author HTML and scripts remain source-only.
+Configured MCP Apps servers can supply interactive cards in GUI chat through
+declared `ui://` resources and the host-managed sandbox. Do not promise app tools
+or host actions from authored HTML or native visual fences. Ordinary `html`
+code fences remain source examples.
 
 ### Native visuals v1
 

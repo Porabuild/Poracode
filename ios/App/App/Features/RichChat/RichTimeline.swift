@@ -261,6 +261,7 @@ enum RichTimeline {
 
   private static func isGroupable(_ node: RichVisibleTimelineNode) -> Bool {
     node.children.isEmpty && RichItemType.groupable.contains(node.item.type)
+      && RichMcpAppPresentation(item: node.item) == nil
   }
 
   static func epochMilliseconds(_ text: String) -> Int64? {
