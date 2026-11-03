@@ -66,6 +66,26 @@ describe("Sentry event limiter", () => {
     expect(limit(repeated)).toBe(true);
   });
 
+  it.each([undefined, ["native-crash"]])(
+    "keeps native process and platform variants distinct with fingerprint %j",
+    (fingerprint) => {
+      const limit = createSentryEventLimiter({ maxEventsPerSignature: 1 });
+      const native = {
+        platform: "native",
+        level: "fatal",
+        tags: { "poracode.process": "main", "event.process": "browser" },
+        ...(fingerprint ? { fingerprint } : {}),
+      } satisfies SentryEventLike;
+
+      expect(limit(native)).toBe(true);
+      expect(limit(native)).toBe(false);
+      expect(limit({ ...native, tags: { ...native.tags, "event.process": "renderer" } })).toBe(
+        true,
+      );
+      expect(limit({ ...native, platform: "javascript" })).toBe(true);
+    },
+  );
+
   it("reserves process capacity from handled errors for crashes", () => {
     const limit = createSentryEventLimiter({
       maxEventsPerSignature: 10,

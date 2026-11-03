@@ -29,6 +29,8 @@ function hashSignature(value: string): string {
 function eventSignature(event: SentryEventLike): string {
   const fingerprint = event.fingerprint;
   const diagnosticTags = [
+    event.platform,
+    event.tags?.["event.process"],
     event.tags?.["poracode.process"],
     event.tags?.["poracode.provider"],
     event.tags?.["poracode.runtime_kind"],
