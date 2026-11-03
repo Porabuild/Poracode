@@ -563,6 +563,16 @@ export const sharedSettingsSchema = z.object({
    * and an in-app translucent fallback elsewhere. Default on.
    */
   sidebarTranslucency: z.boolean(),
+  /** Show the rotating news line below the full-page new-thread composer. */
+  newsLineEnabled: z.boolean(),
+  /** Include personal activity highlights (streaks, prompts, usage limits) in the news line. */
+  newsLineActivity: z.boolean(),
+  /**
+   * Community promotions the user opened or closed. Each id hides that
+   * promotion on every surface. Kept as plain strings so ids written by a
+   * newer app survive normalization instead of resetting the whole list.
+   */
+  dismissedPromotions: z.array(z.string().min(1).max(64)).max(32),
   /**
    * Per-appearance override for the translucent sidebar's frosting: the alpha
    * (0–100) of the `--sidebar-glass-tint` content-background mix. Higher is more
@@ -875,6 +885,9 @@ export const defaultSharedSettings: SharedSettings = {
   sidebarHiddenShortcuts: ["githubActions"],
   sidebarShortcutOrder: [...SIDEBAR_SHORTCUT_IDS],
   sidebarTranslucency: true,
+  newsLineEnabled: true,
+  newsLineActivity: true,
+  dismissedPromotions: [],
   sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
   worktreeStorageMode: "global",

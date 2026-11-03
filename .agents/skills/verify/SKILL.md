@@ -30,20 +30,17 @@ Use for in-progress work and focused fixes.
    bun run vitest run <test paths or dirs>
    ```
    Use `bun run vitest run`; Jest-only flags such as `--runInBand` do not exist here.
-3. `bun run typecheck`.
+3. `bun run typecheck --force`.
 
 ## Full gate
 
 Run all four when asked to fix all checks, before marking a PR ready for review, or when the change crosses shared runtime, IPC, or build config:
 
 ```sh
-bun run fmt:check
-bun run lint
-bun run typecheck
-bun run test
+bun run verify
 ```
 
-Under `finalize`, which merges only after CI passes on the exact pushed head, CI's sharded `bun run test` replaces the local run: run the other three locally plus the focused tests (focused gate step 2). Every other flow runs all four.
+`verify` runs fresh format, lint, and type checks, then the full unit suite. Under `finalize`, which merges only after CI passes on the exact pushed head, CI's sharded `bun run test` replaces the local run: run `bun run checks --force` locally plus the focused tests (focused gate step 2). Every other flow runs `verify`.
 
 ## Conditional gates
 

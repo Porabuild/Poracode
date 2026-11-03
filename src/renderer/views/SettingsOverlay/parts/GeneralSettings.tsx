@@ -31,6 +31,10 @@ export function GeneralSettings() {
   const setNewThreadMode = useSharedSettings((state) => state.setNewThreadMode);
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const setHomeScopeEnabled = useSharedSettings((state) => state.setHomeScopeEnabled);
+  const newsLineEnabled = useSharedSettings((state) => state.newsLineEnabled);
+  const setNewsLineEnabled = useSharedSettings((state) => state.setNewsLineEnabled);
+  const newsLineActivity = useSharedSettings((state) => state.newsLineActivity);
+  const setNewsLineActivity = useSharedSettings((state) => state.setNewsLineActivity);
   const editorLspEnabled = useSharedSettings((state) => state.editorLspEnabled);
   const setEditorLspEnabled = useSharedSettings((state) => state.setEditorLspEnabled);
   // System sleep and tray behavior belong to the desktop OS; a remote session
@@ -183,6 +187,44 @@ export function GeneralSettings() {
           />
         </SettingRow>
       )}
+
+      <SettingRow
+        anchorId="general.newsLine"
+        title={t`News line`}
+        description={
+          <Trans>Show updates, tips, and community links below the new-thread composer.</Trans>
+        }
+      >
+        <ToggleSwitch
+          aria-label={t`News line`}
+          isSelected={newsLineEnabled}
+          onChange={(selected) => {
+            startTransition(() => {
+              setNewsLineEnabled(selected);
+            });
+          }}
+        />
+      </SettingRow>
+
+      {newsLineEnabled ? (
+        <SettingRow
+          anchorId="general.newsLineActivity"
+          title={t`Activity highlights`}
+          description={
+            <Trans>Include your streaks, prompt counts, and usage limits in the news line.</Trans>
+          }
+        >
+          <ToggleSwitch
+            aria-label={t`Activity highlights`}
+            isSelected={newsLineActivity}
+            onChange={(selected) => {
+              startTransition(() => {
+                setNewsLineActivity(selected);
+              });
+            }}
+          />
+        </SettingRow>
+      ) : null}
 
       <SettingRow
         anchorId="general.sidebarShortcuts"

@@ -567,6 +567,14 @@ msgstr "{commentCount, plural, one {# yorum} other {# yorum}}"
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {# aracı bulundu} other {# aracı bulundu}}"
 
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
+msgstr "{current, plural, one {# gün} other {# gün}} üst üste · rekorunuz {longest}"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
+msgstr "{current, plural, one {# gün} other {# gün}} üst üste · şimdiye kadarki en iyi seriniz"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "{days} day"
@@ -638,6 +646,10 @@ msgstr "{imported, plural, one {# oturum içe aktarıldı.} other {# oturum içe
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
 #~ msgstr "{installedCount, plural, one {# aracı hazır} other {# aracı hazır}}"
+
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
+msgid "{issues, plural, one {# good first issue is} other {# good first issues are}} open. Want to contribute?"
+msgstr "{issues, plural, one {# yeni başlayan dostu sorun açık} other {# yeni başlayan dostu sorun açık}}. Katkıda bulunmak ister misiniz?"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{judgeLabel} is comparing the anonymized diffs…"
@@ -747,6 +759,10 @@ msgstr "{0} kontrolün {passed} tanesi başarılı"
 msgid "{percent}% full"
 msgstr "%{percent} dolu"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "{percent}% used"
+msgstr "%{percent} kullanıldı"
+
 #. placeholder {0}: bridge.appVersion
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "{productName} was updated to v{0}."
@@ -759,6 +775,14 @@ msgstr "{projectLocation} (devre dışı)"
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
 msgstr "{projectName} Ayarları"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
+msgstr "Bu hafta {prompts, plural, one {# istem} other {# istem}}"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
+msgstr "Bu hafta {prompts, plural, one {# istem} other {# istem}} · en yoğun gün: {weekday}"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -991,6 +1015,10 @@ msgstr "<0/> bir inceleme konusu başlattı"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "<0/>% Full"
 msgstr "%<0/> Dolu"
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "<0>{label}</0> handles {percent}% of your prompts"
+msgstr "İstemlerinizin %{percent} kadarını <0>{label}</0> karşılıyor"
 
 #. placeholder {0}: checks.length
 #: src/renderer/views/PrReviewOverlay/parts/PrChecksTab.tsx
@@ -1325,6 +1353,11 @@ msgstr "Etkin yönlendirmeler"
 msgid "Activity"
 msgstr "Etkinlik"
 
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Activity highlights"
+msgstr "Etkinlik öne çıkanları"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Activity insights"
 msgstr "Etkinlik içgörüleri"
@@ -1404,6 +1437,10 @@ msgstr "GitHub Actions'ı kullanmak için bir proje ekleyin."
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 msgid "Add a public Git repository or a local marketplace. Review supported components before installing."
 msgstr "Herkese açık bir Git deposu veya yerel katalog ekleyin. Yüklemeden önce desteklenen bileşenleri inceleyin."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Add a server"
+msgstr "Sunucu ekle"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Add a skill to .agents/skills or .poracode/skills, or import one from another provider."
@@ -1884,6 +1921,10 @@ msgstr "Tüm projeler"
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 msgid "All pull requests"
 msgstr "Tüm çekme istekleri"
+
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "All release notes"
+msgstr "Tüm sürüm notları"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -2709,6 +2750,10 @@ msgstr "Temel (CLI)"
 msgid "Behind base"
 msgstr "Temel dalın gerisinde"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Behind the scenes from the person building Poracode"
+msgstr "Poracode'u geliştiren kişiden perde arkası"
+
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Beta next-generation OpenCode runtime with native GUI sessions."
 msgstr "Yerel GUI oturumları sunan, yeni nesil OpenCode beta çalışma zamanı."
@@ -2870,6 +2915,10 @@ msgstr "Kayıtlı parolaları ve çerezleri yüklü bir tarayıcıdan aktarın."
 msgid "Bring Uncommitted Changes"
 msgstr "Kaydedilmemiş değişiklikleri getir"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Bring your existing CLI agent conversations into Poracode"
+msgstr "Mevcut CLI aracı konuşmalarınızı Poracode'a taşıyın"
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Browse"
 msgstr "Gözat"
@@ -2883,9 +2932,14 @@ msgstr "Ekosisteme göz at"
 msgid "Browse for parent folder"
 msgstr "Ana klasöre göz atın"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Browse plugins"
 msgstr "Eklentilere göz at"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Browse skills"
+msgstr "Becerilere göz atın"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Browse your GitHub repositories or paste a clone URL."
@@ -3247,6 +3301,10 @@ msgstr "Yakalama ve görünüm kontrolleri"
 msgid "Capture audio from this device."
 msgstr "Bu cihazdan ses yakalayın."
 
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "carousel"
+msgstr "döngü"
+
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -3443,6 +3501,10 @@ msgstr "Güncellemeleri kontrol edin"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "Son ilerlememi kontrol et ve sırada ne yapmam gerektiğine dair tek bir net öneri ver."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Check on your agents from your phone"
+msgstr "Aracılarınızı telefonunuzdan takip edin"
 
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrCheckoutMenu.tsx
@@ -3906,6 +3968,7 @@ msgstr "Klonlanıyor…"
 #: src/renderer/components/common/BottomSheet.tsx
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
@@ -4742,6 +4805,10 @@ msgstr "Bağlan"
 #~ msgid "Connect a server"
 #~ msgstr "Bir sunucuya bağlan"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Connect agents to your own tools with MCP servers"
+msgstr "Aracıları MCP sunucularıyla kendi araçlarınıza bağlayın"
+
 #: src/renderer/actions/prAutomationActions.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "Connect an agent before watching PRs."
@@ -5416,13 +5483,25 @@ msgstr "Oluştur"
 msgid "Create a pull request for candidate {0} ({label})"
 msgstr "Aday {0} ({label}) için pull request oluştur"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Create a schedule"
+msgstr "Zamanlama oluştur"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Create a second Cursor account with its own User API key. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
 msgstr "Kendi Kullanıcı API anahtarıyla ikinci bir Cursor hesabı oluşturun. Cursor CLI ve ACP makinede tek bir oturumu paylaşır, bu yüzden ana Cursor kartında kalırlar."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Create a theme"
+msgstr "Tema oluştur"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "Tek tıklamayla yararlı bir rutin oluşturun ve istediğiniz zaman ayarlayın."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Create a workspace"
+msgstr "Çalışma alanı oluştur"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 msgid "Create custom theme"
@@ -5530,6 +5609,10 @@ msgstr "PR oluşturuluyor…"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 msgid "Creating worktree…"
 msgstr "Çalışma ağacı oluşturuluyor…"
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Creator on X"
+msgstr "X'te geliştirici"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Credential missing"
@@ -6520,6 +6603,10 @@ msgstr "Devin revize edilmiş bir komut önerir; herhangi bir şey çalışmadan
 msgid "Devin's own login (default)"
 msgstr "Devin'in kendi girişi (varsayılan)"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Dictate prompts instead of typing them"
+msgstr "İstemleri yazmak yerine dikte edin"
+
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
@@ -7278,6 +7365,10 @@ msgstr "İngilizce konuşma tanıma."
 msgid "Enhanced (Hooks)"
 msgstr "Geliştirilmiş (Kancalar)"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Enjoying Poracode? A star helps others find it"
+msgstr "Poracode'u beğendiniz mi? Bir yıldız başkalarının onu bulmasına yardımcı olur"
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Enter"
 msgstr "Enter"
@@ -7770,6 +7861,10 @@ msgstr "MCP sunucularını dışa aktar"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
 msgstr "Temayı dışa aktar"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Extend Poracode with plugins"
+msgstr "Poracode'u eklentilerle genişletin"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
@@ -8285,6 +8380,10 @@ msgstr "Düzeltildi"
 msgid "Fixed delay"
 msgstr "Sabit gecikme"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Fixed in {version}"
+msgstr "{version} sürümünde düzeltildi"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Fixer"
 msgstr "Düzeltici"
@@ -8339,6 +8438,12 @@ msgstr "Tüm çalışma ağaçlarını barındıran klasör. İpucu: buradaki bi
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "Bu projenin çalışma ağaçlarını barındıran klasör. Genel ayarı kullanmak için sıfırlayın."
+
+#. placeholder {0}: "@poracode"
+#. placeholder {0}: "@serg_vecher"
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Follow {0}"
+msgstr "{0} hesabını takip edin"
 
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Follow up..."
@@ -8587,6 +8692,10 @@ msgstr "Öneri al"
 msgid "Get task"
 msgstr "Görev al"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Get the extension"
+msgstr "Uzantıyı edinin"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
@@ -8671,6 +8780,10 @@ msgstr "GitHub yıldızları"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Gitignored files to copy from the main project into each new worktree. Gitignore-style patterns, one per line (e.g., <0>.env.*</0>)."
 msgstr "Ana projeden her yeni çalışma ağacına kopyalanacak Git yok sayılan dosyalar. Gitignore tarzı desenler, her satıra bir tane (ör. <0>.env.*</0>)."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Give each thread its own worktree so agents never collide"
+msgstr "Aracılar çakışmasın diye her konuya kendi çalışma ağacını verin"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "GLM 5.2 (optional label)"
@@ -8798,6 +8911,10 @@ msgstr "Grup adı"
 msgid "Group open threads"
 msgstr "Açık konuları gruplandır"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Group projects into workspaces, like work and side projects"
+msgstr "Projeleri iş ve yan projeler gibi çalışma alanlarında gruplayın"
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Group projects so the sidebar, schedules, and pull requests only show one set at a time. Switch between them at the bottom of the sidebar."
 msgstr "Projeleri gruplayın; böylece kenar çubuğu, zamanlamalar ve çekme istekleri her seferinde yalnızca bir grubu gösterir. Kenar çubuğunun altından geçiş yapabilirsiniz."
@@ -8850,6 +8967,10 @@ msgstr "Sert Yeniden Yükleme"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DraftIndicator.tsx
 msgid "Has unsent draft"
 msgstr "Gönderilmemiş taslak var"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Have one agent hand work to another with Crossagents"
+msgstr "Crossagents ile bir aracının işi diğerine devretmesini sağlayın"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Headers"
@@ -9040,6 +9161,10 @@ msgstr "Görevleri gizle; çalışmaya devam ederler"
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Hide terminal"
 msgstr "Terminali gizle"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Hide this"
+msgstr "Gizle"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
@@ -9287,6 +9412,7 @@ msgstr "Ana modelin görevini baştan sona uygular, en dar derleme ve testlerle 
 #~ msgstr "Ana modelin görevini baştan sona yapar: dosyaları düzenler, derleme ve testleri çalıştırır, değişiklikleri bildirir."
 
 #. Settings section: import existing CLI sessions as threads
+#: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Import"
@@ -9436,6 +9562,10 @@ msgstr "İçe aktarılan oturumlar yalnızca kaydedilen kullanımı içerir. Sil
 msgid "Improved"
 msgstr "İyileştirildi"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Improved in {version}"
+msgstr "{version} sürümünde iyileştirildi"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "In progress"
 msgstr "Devam ediyor"
@@ -9465,6 +9595,11 @@ msgstr "Etkin değil"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServerProjectList.tsx
 msgid "Include in sync"
 msgstr "Senkronizasyona ekle"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include your streaks, prompt counts, and usage limits in the news line."
+msgstr "Serilerinizi, istem sayılarınızı ve kullanım sınırlarınızı haber satırında gösterin."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Includes the first attempt."
@@ -10003,6 +10138,10 @@ msgstr "JSON"
 msgid "Judging…"
 msgstr "Değerlendiriliyor…"
 
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Jump to any file in your project"
+msgstr "Projenizdeki herhangi bir dosyaya atlayın"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Jump to section"
 msgstr "Bölüme git"
@@ -10303,9 +10442,25 @@ msgstr "Eski bağlantı kimliği"
 msgid "Less"
 msgstr "Az"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let agents use desktop apps in the background with Computer Use"
+msgstr "Computer Use ile aracıların masaüstü uygulamalarını arka planda kullanmasına izin verin"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let agents work in your real Chrome with the Poracode extension"
+msgstr "Poracode uzantısıyla aracıların gerçek Chrome'unuzda çalışmasına izin verin"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let an agent write your commit message and pull request"
+msgstr "Commit mesajınızı ve çekme isteğinizi bir aracı yazsın"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Let an AI judge compare the candidate changes."
 msgstr "Adayların değişikliklerini bir yapay zeka hakeminin karşılaştırmasını sağlayın."
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Let several agents split one task with a crew"
+msgstr "Birden çok aracı bir görevi ekip olarak paylaşsın"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Lets agents call <0>eval</0> to run arbitrary JavaScript inside the embedded page. Off by default — turn on only when you trust the loaded sites and the agent."
@@ -10769,6 +10924,10 @@ msgstr "macOS"
 #: src/renderer/components/providers/devin/modelFamilyPresentation.tsx
 msgid "Main"
 msgstr "Ana model"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Make Poracode yours with a custom theme"
+msgstr "Özel bir temayla Poracode'u kendinize göre yapın"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
@@ -12012,6 +12171,11 @@ msgstr "Yeni Klasör"
 #~ msgid "New folder name"
 #~ msgstr "Yeni klasör adı"
 
+#: src/renderer/components/newsLine/useDiscoveryItems.tsx
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "New in {version}"
+msgstr "{version} sürümünde yeni"
+
 #: src/renderer/commands/shortcutCatalog.ts
 msgid "New line"
 msgstr "Yeni satır"
@@ -12121,6 +12285,16 @@ msgstr "Yeni çalışma ağacı"
 msgid "Newest first"
 msgstr "Önce en yeni"
 
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "News"
+msgstr "Haberler"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "News line"
+msgstr "Haber satırı"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Next"
 msgstr "İleri"
@@ -12144,6 +12318,10 @@ msgstr "Sonraki eşleşme"
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Next page"
 #~ msgstr "Sonraki sayfa"
+
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "Next point"
+msgstr "Sonraki madde"
 
 #: src/renderer/commands/registry.ts
 msgid "Next recently viewed chat"
@@ -13073,6 +13251,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "Bu çekme isteğinde yalnızca kendi yorumlarınızı düzenleyebilirsiniz."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
 #: src/renderer/utils/prStatus.ts
@@ -13100,6 +13279,10 @@ msgstr "{location} konumunu değişikliklerde aç"
 #: src/renderer/commands/registry.ts
 msgid "Open a new browser tab"
 msgstr "Yeni bir tarayıcı sekmesi aç"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Open a new thread side by side"
+msgstr "Yan yana yeni bir konu açın"
 
 #: src/renderer/components/mcp/McpProjectSettingsPicker.tsx
 msgid "Open a project's MCP settings"
@@ -13244,6 +13427,10 @@ msgstr "Klasörü Aç"
 msgid "Open fullscreen"
 msgstr "Tam ekranı aç"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Open Git"
+msgstr "Git'i aç"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
 msgid "Open Git panel"
 msgstr "Git panelini aç"
@@ -13380,6 +13567,7 @@ msgstr "Önizlemeyi aç"
 msgid "Open Project Settings"
 msgstr "Proje Ayarlarını Aç"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
 msgid "Open pull requests"
 msgstr "Açık çekme istekleri"
@@ -13452,6 +13640,14 @@ msgstr "Terminali aç"
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Open terminal in worktree"
 msgstr "Terminali worktree'de aç"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Open the browser"
+msgstr "Tarayıcıyı aç"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Open the built-in browser next to your chat"
+msgstr "Yerleşik tarayıcıyı sohbetinizin yanında açın"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Open the conversation to continue this run."
@@ -13714,6 +13910,10 @@ msgstr "Bir bağlantı eşleştir"
 msgid "Pair a desktop from Connections to forward its ports."
 msgstr "Portlarını yönlendirmek için Bağlantılar'dan bir masaüstü eşleştirin."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Pair a phone"
+msgstr "Telefon eşleştir"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Pair a phone, tablet, or browser with this desktop."
 msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
@@ -13963,6 +14163,10 @@ msgstr "İndirmeyi duraklat"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Pause goal"
 msgstr "Hedefi duraklat"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Pause news"
+msgstr "Haberleri duraklat"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
@@ -14262,6 +14466,10 @@ msgstr "Eklentiler"
 msgid "Plugins run code with your account's access. Install packages from authors you trust."
 msgstr "Eklentiler hesabınızın yetkileriyle kod çalıştırır. Güvendiğiniz yazarlardan paket yükleyin."
 
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "Point {position} of {total} in {version}"
+msgstr "{version} sürümünde {total} maddeden {position}."
+
 #: src/renderer/components/common/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Ayarlar → Uzaktan Erişim'deki QR koduna doğrultun"
@@ -14350,6 +14558,10 @@ msgstr "Poracode Helper geçersiz bir yanıt döndürdü."
 msgid "Poracode is connected to another browser."
 msgstr "Poracode başka bir tarayıcıya bağlı."
 
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
+msgid "Poracode just passed {count} stars on GitHub"
+msgstr "Poracode GitHub'da {count} yıldızı geçti"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode kayıtlı verileri veya bir arka plan hizmetini bekliyor olabilir. Beklemeye devam edebilir, yeniden başlatabilir ya da mevcut bir güncellemeyi yükleyebilirsiniz."
@@ -14357,6 +14569,10 @@ msgstr "Poracode kayıtlı verileri veya bir arka plan hizmetini bekliyor olabil
 #: src/renderer/components/providers/devin/liveSessionControls.tsx
 #~ msgid "Poracode never runs the suggestion — inserting only fills the composer for you to edit and send."
 #~ msgstr "Poracode öneriyi asla çalıştırmaz — eklemek yalnızca besteciyi doldurur; düzenleyip göndermek size kalır."
+
+#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+msgid "Poracode on X"
+msgstr "X'te Poracode"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -14579,6 +14795,10 @@ msgstr "Önizleme"
 #: src/renderer/components/composer/AttachmentBar.tsx
 msgid "Preview {0}"
 msgstr "Önizleme {0}"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Previous"
+msgstr "Önceki"
 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualChart.tsx
 msgid "Previous category"
@@ -15489,6 +15709,14 @@ msgstr "{env} {0} kimlik doğrulama durumu yenileniyor."
 msgid "Relationship diagram"
 msgstr "İlişki diyagramı"
 
+#: src/renderer/components/newsLine/NewsHighlightCard.tsx
+msgid "Release note"
+msgstr "Sürüm notu"
+
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Release notes and tips, first on X"
+msgstr "Sürüm notları ve ipuçları önce X'te"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/RendererCrashScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -16104,6 +16332,10 @@ msgstr "Varsayılana sıfırla"
 msgid "Reset zoom"
 msgstr "Yakınlaştırmayı sıfırla"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "resets in {countdown}"
+msgstr "{countdown} sonra sıfırlanır"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserHost.tsx
 msgid "Resize browser drawer"
 msgstr "Tarayıcı çekmecesini yeniden boyutlandır"
@@ -16245,6 +16477,10 @@ msgstr "İndirmeyi sürdür"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Hedefi sürdür"
+
+#: src/renderer/components/newsLine/NewsLine.tsx
+msgid "Resume news"
+msgstr "Haberleri sürdür"
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "Resume queued follow-ups"
@@ -16442,6 +16678,10 @@ msgstr "{0} incele"
 msgid "Review {0} from {1}"
 msgstr "{1} kaynağındaki {0} paketini incele"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Review and merge pull requests without leaving Poracode"
+msgstr "Poracode'dan çıkmadan çekme isteklerini inceleyin ve birleştirin"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
 msgstr "İnceleme ve Özetleyici, Devin CLI'sinin kabul ettiği tek kök temsilci türleridir. Özel yerel personalar, Devin'in kendi dosyalarında yapılandırılan alt temsilci tanımlarıdır — burada seçilemezler."
@@ -16545,6 +16785,10 @@ msgstr "İnceleme gönderildi"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Review update"
 msgstr "Güncellemeyi incele"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Review your changes in the Git panel"
+msgstr "Değişikliklerinizi Git panelinde inceleyin"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Review, manually test, fix, commit, push, create a PR, and merge after checks pass."
@@ -16708,6 +16952,14 @@ msgstr "Çalıştırma eylemleri"
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Run again"
 msgstr "Yeniden çalıştır"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Run agents on a schedule, like a nightly test fix"
+msgstr "Aracıları her gece test düzeltme gibi bir zamanlamayla çalıştırın"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Run any command from the command palette"
+msgstr "Komut paletinden herhangi bir komutu çalıştırın"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #~ msgid "Run as experiment"
@@ -17412,6 +17664,10 @@ msgstr "Güvenlik"
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Doğrulanmış beceri meta verileri sunan güvenlik odaklı dizin."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "See how"
+msgstr "Nasıl olduğunu görün"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "See more"
 msgstr "Daha fazlasını gör"
@@ -17684,6 +17940,10 @@ msgstr "Grup rengini ayarla"
 msgid "Set in Poracode."
 msgstr "Poracode'da ayarlandı."
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Set it up"
+msgstr "Kurun"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Set location"
 msgstr "Konumu ayarla"
@@ -17703,6 +17963,10 @@ msgstr "Kısayol belirle"
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Set up Hex…"
 msgstr "Hex'i kur…"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Set up voice"
+msgstr "Sesi ayarla"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Set when this session started — start a new thread to change MCP servers"
@@ -17943,6 +18207,10 @@ msgstr "Daha az göster"
 msgid "Show MCP servers from {providerLabel}"
 msgstr "{providerLabel} kaynağındaki MCP sunucularını göster"
 
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Show me"
+msgstr "Göster"
+
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -17973,6 +18241,10 @@ msgstr "Tarayıcı panelini göster veya gizle"
 #: src/renderer/commands/registry.ts
 msgid "Show or hide the sidebar"
 msgstr "Kenar çubuğunu göster veya gizle"
+
+#: src/renderer/components/newsLine/newsTips.ts
+msgid "Show or hide the terminal panel"
+msgstr "Terminal panelini gösterin veya gizleyin"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
@@ -18021,6 +18293,11 @@ msgstr "Composer'da mikrofon düğmesini gösterin."
 #: src/renderer/components/thread/ThreadToolRail.tsx
 msgid "Show thread tools"
 msgstr "Konu araçlarını göster"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Show updates, tips, and community links below the new-thread composer."
+msgstr "Yeni konu oluşturucusunun altında güncellemeleri, ipuçlarını ve topluluk bağlantılarını gösterin."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -18576,6 +18853,10 @@ msgstr "Hazırlanmış"
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 msgid "Staged ({0})"
 msgstr "Hazırlanmış ({0})"
+
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Star on GitHub"
+msgstr "GitHub'da yıldız verin"
 
 #: src/renderer/commands/registry.ts
 msgid "Star or unstar the current chat or model"
@@ -19274,6 +19555,10 @@ msgstr "Görev çıkışı"
 msgid "Task tags"
 msgstr "Görev etiketleri"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Teach your agents reusable procedures with skills"
+msgstr "Becerilerle aracılarınıza yeniden kullanılabilir yordamlar öğretin"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Teal"
 msgstr "Deniz mavisi"
@@ -19400,6 +19685,10 @@ msgstr "Test diktesi"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Test microphone"
 msgstr "Mikrofonu test edin"
+
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Test web apps with agents in the built-in browser"
+msgstr "Web uygulamalarını yerleşik tarayıcıda aracılarla test edin"
 
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Tester"
@@ -21024,6 +21313,10 @@ msgstr "Tetikleyiciler:"
 #~ msgid "Trust and connect"
 #~ msgstr "Güven ve bağlan"
 
+#: src/renderer/components/newsLine/featureCatalog.ts
+msgid "Try a crew"
+msgstr "Bir ekip deneyin"
+
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Try a different search or project filter."
 #~ msgstr "Farklı bir arama veya proje filtresi deneyin."
@@ -21031,6 +21324,10 @@ msgstr "Tetikleyiciler:"
 #: src/renderer/commands/EverythingSearchResults.tsx
 msgid "Try different keywords or choose a category."
 msgstr "Farklı anahtar kelimeler deneyin veya bir kategori seçin."
+
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
+msgid "Try it"
+msgstr "Deneyin"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Try now"
@@ -22021,6 +22318,7 @@ msgstr "URL veya derin bağlantı"
 
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/newsLine/useNewsLineItems.tsx
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
@@ -22379,6 +22677,10 @@ msgstr "Yalnızca görüntüleme"
 msgid "View options"
 msgstr "Görünüm seçenekleri"
 
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "View profile"
+msgstr "Profili görüntüle"
+
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "View raw"
 msgstr "Ham metni görüntüle"
@@ -22714,6 +23016,7 @@ msgid "What would you like to see?"
 msgstr "Ne görmek istersiniz?"
 
 #: src/renderer/commands/registry.ts
+#: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/WhatsNewButton.tsx
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "What's New"
@@ -23102,6 +23405,10 @@ msgstr "Kaynak ana makinede tamamlanmamış bir incelemeniz var. Bunu göndermed
 msgid "You’re all caught up."
 msgstr "Her şey tamam."
 
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "You're most active around {hourLabel}"
+msgstr "En çok {hourLabel} civarında etkinsiniz"
+
 #: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 msgid "You're on the latest version"
 msgstr "En son sürümü kullanıyorsunuz"
@@ -23133,6 +23440,10 @@ msgstr "Yerel değişiklikleriniz zulada (stash) ve bu birleştirmeyi işlediği
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "Yerel değişiklikleriniz zulaya (stash) alındı ve birleştirme çözüldüğünde yeniden uygulanacaktır."
+
+#: src/renderer/components/newsLine/useInsightItems.tsx
+msgid "Your longest task ran {duration}"
+msgstr "En uzun göreviniz {duration} sürdü"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."

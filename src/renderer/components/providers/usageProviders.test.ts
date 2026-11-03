@@ -12,6 +12,7 @@ import {
   supportsBrowserLogin,
   usageProvidersForAgentInstances,
   usageRingGroups,
+  usesSharedWindowReset,
 } from "./usageProviders";
 
 const agentInstances: AgentInstanceConfigMap = {
@@ -103,10 +104,26 @@ describe("usageProviders", () => {
     expect(providers.find((provider) => provider.id === "cursor:yieldmo")?.label).toBe(
       "Cursor Work",
     );
-    expect(providers.find((provider) => provider.id === "cursor:yieldmo")?.sharedWindowReset).toBe(
-      true,
-    );
+    expect(usesSharedWindowReset("cursor")).toBe(false);
+    expect(usesSharedWindowReset("cursor:yieldmo")).toBe(false);
   });
+
+  it.each(["cursor", "cursor:yieldmo"])(
+    "rings the shared weekly quota rather than paid spend for %s",
+    (id) => {
+      const weekly: UsageWindow = { id: "weekly", label: "Weekly", usedPercent: 9 };
+      const extra: UsageWindow = {
+        id: "extra-usage",
+        label: "Extra usage",
+        usedPercent: 90,
+        unit: "usd",
+      };
+      expect(pickUsageRings(id, [weekly, extra])).toEqual({ outer: weekly });
+      const auto: UsageWindow = { id: "cursor-auto", label: "Cursor Models", usedPercent: 20 };
+      const api: UsageWindow = { id: "cursor-api", label: "API", usedPercent: 30 };
+      expect(pickUsageRings(id, [auto, api])).toEqual({ outer: auto, inner: api });
+    },
+  );
 
   it("orders, disables, and rings Claude profiles like Claude", () => {
     const providers = resolveDisplayedProviders(

@@ -106,6 +106,10 @@ export function openRemoteAccessSettings(): void {
   usePanelStore.getState().openSettingsSection("remoteAccess");
 }
 
+export function openProfileSettings(): void {
+  usePanelStore.getState().openSettingsSection("profile");
+}
+
 export function openChangelogSettings(): void {
   usePanelStore.getState().openSettingsSection("changelog");
 }

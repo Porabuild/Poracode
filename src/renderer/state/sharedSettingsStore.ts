@@ -157,6 +157,10 @@ interface SharedSettingsState extends SharedSettings {
   setSidebarShortcutVisible: (id: SidebarShortcutId, visible: boolean) => void;
   setSidebarShortcutOrder: (order: SidebarShortcutId[]) => void;
   setSidebarTranslucency: (value: boolean) => void;
+  setNewsLineEnabled: (value: boolean) => void;
+  setNewsLineActivity: (value: boolean) => void;
+  /** Hide a community promotion on every surface (idempotent). */
+  dismissPromotion: (id: string) => void;
   setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
   setWorktreeStorageMode: (value: WorktreeStorageMode) => void;
@@ -831,6 +835,22 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ sidebarTranslucency });
     persistSettings(selectSharedSettings(get()));
   },
+  setNewsLineEnabled: (newsLineEnabled) => {
+    if (get().newsLineEnabled === newsLineEnabled) return;
+    set({ newsLineEnabled });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setNewsLineActivity: (newsLineActivity) => {
+    if (get().newsLineActivity === newsLineActivity) return;
+    set({ newsLineActivity });
+    persistSettings(selectSharedSettings(get()));
+  },
+  dismissPromotion: (id) => {
+    const current = get().dismissedPromotions;
+    if (current.includes(id)) return;
+    set({ dismissedPromotions: [...current, id] });
+    persistSettings(selectSharedSettings(get()));
+  },
   setSidebarGlassTint: (appearance, value) => {
     const current = get().sidebarGlassTint;
     if (current[appearance] === value) return;
@@ -1384,6 +1404,9 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     sidebarHiddenShortcuts: state.sidebarHiddenShortcuts,
     sidebarShortcutOrder: state.sidebarShortcutOrder,
     sidebarTranslucency: state.sidebarTranslucency,
+    newsLineEnabled: state.newsLineEnabled,
+    newsLineActivity: state.newsLineActivity,
+    dismissedPromotions: state.dismissedPromotions,
     sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,
     worktreeStorageMode: state.worktreeStorageMode,

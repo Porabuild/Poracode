@@ -87,6 +87,9 @@ jobs:
       - name: Electron development regression tests
         run: node --test scripts/dev-runtime-watch.test.mjs scripts/dev-launch.test.mjs scripts/vite-lingui-macro-worker.test.mjs
 
+      - name: Turbo cache regression tests
+        run: node --test scripts/turbo.test.mjs
+
       - name: Architecture boundary audit and analyzer tests
         run: bun run architecture:check
 

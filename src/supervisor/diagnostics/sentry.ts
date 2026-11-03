@@ -15,6 +15,7 @@ import {
   readBuildSentryEnvironment,
   shouldEnableSentryReporting,
 } from "@/shared/diagnostics/sentryBuildConfig";
+import { createSentryEventLimiter } from "@/shared/diagnostics/sentryEventLimiter";
 import {
   isHostResourceBusyError,
   isHostResourcePolicyUnavailableError,
@@ -24,6 +25,7 @@ import { isGitProcessAdmissionRefusal } from "@/shared/gitProcessAdmission";
 type SupervisorSentryModule = typeof import("@sentry/node");
 
 let supervisorSentry: SupervisorSentryModule | null | undefined;
+const shouldSendSupervisorSentryEvent = createSentryEventLimiter();
 
 type SupervisorIpcFailureRule = {
   operations: readonly string[] | null;
@@ -74,10 +76,28 @@ const SUPERVISOR_IPC_FAILURE_RULES: readonly SupervisorIpcFailureRule[] = [
     errorClass: "terminal-not-attached",
   },
   {
-    operations: ["ghListPrs"],
+    operations: ["ghGetPrForBranch", "ghListPrs"],
     signature: 'GitHub CLI is not authenticated. Run "gh auth login" in the terminal.',
     failureClass: "expected-operational",
     errorClass: "github-cli-unauthenticated",
+  },
+  {
+    operations: ["ghGetPrForBranch", "ghListPrs"],
+    signature: "Configure credentials scoped to this exact source host in the project's runtime.",
+    failureClass: "expected-operational",
+    errorClass: "source-host-credentials-unconfigured",
+  },
+  {
+    operations: ["readProjectFile"],
+    signature: "Only files can be opened in the editor.",
+    failureClass: "expected-operational",
+    errorClass: "editor-target-not-file",
+  },
+  {
+    operations: ["readProjectFile"],
+    signature: "Path traversal is not allowed.",
+    failureClass: "expected-operational",
+    errorClass: "project-path-traversal-rejected",
   },
   {
     operations: ["interruptThread"],
@@ -251,7 +271,10 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
       tags: buildBaseTags(options),
     },
     beforeSend(event) {
-      return prepareSentryEvent(event as unknown as SentryEventLike) as unknown as typeof event;
+      const prepared = prepareSentryEvent(event as unknown as SentryEventLike);
+      return prepared && shouldSendSupervisorSentryEvent(prepared)
+        ? (prepared as unknown as typeof event)
+        : null;
     },
   });
 
