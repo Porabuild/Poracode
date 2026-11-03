@@ -81,7 +81,9 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   },
   // Copilot uses GitHub's OAuth device flow through the in-app browser.
   copilot: { supportsBrowserLogin: true },
-  cursor: { sharedWindowReset: true, rings: { outer: ["cursor-auto"], inner: ["cursor-api"] } },
+  cursor: {
+    rings: { outer: ["weekly", "cursor-auto"], inner: ["cursor-api"] },
+  },
   // Droid signs in via the in-app app.factory.ai browser session. The standard
   // pool's 5h window is the fast outer ring; weekly/monthly the slower inner one.
   // On a legacy (per-cycle) account only `monthly` (Standard) is ring-eligible —
