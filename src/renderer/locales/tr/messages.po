@@ -19226,6 +19226,12 @@ msgstr "{projectName} için terminal"
 msgid "Terminal input"
 msgstr "Terminal girişi"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/MobileTerminalAccessory.tsx
+msgid "Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again."
+msgstr "Terminal girişi başarısız oldu. Girdinin bir kısmı kabuğa ulaşmamış olabilir. Yazmaya devam etmeden önce terminali yeniden açın."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "Terminal hazır değil — seçim Composer'a eklendi."
