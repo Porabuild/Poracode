@@ -1,31 +1,34 @@
-export type SettingsSection =
-  | "profile"
-  | "workspaces"
-  | "general"
-  | "audio"
-  | "appearance"
-  | "terminal"
-  | "threads"
-  | "git"
-  | "worktrees"
-  | "notifications"
-  | "ai"
-  | "acpRegistry"
-  | "agentsGeneral"
-  | "remoteAccess"
-  | "remoteServers"
-  | "search"
-  | "shortcuts"
-  | "agents"
-  | "skills"
-  | "mcpServers"
-  | "plugins"
-  | "crews"
-  | "browser"
-  | "usage"
-  | "import"
-  | "archived"
-  | "changelog"
-  | "about"
-  | "dev"
-  | `agents:${string}`;
+/** Every fixed Settings section id; provider pages add `agents:<kind>` at runtime. */
+export const SETTINGS_SECTIONS = [
+  "profile",
+  "workspaces",
+  "general",
+  "audio",
+  "appearance",
+  "terminal",
+  "threads",
+  "git",
+  "worktrees",
+  "notifications",
+  "ai",
+  "acpRegistry",
+  "agentsGeneral",
+  "remoteAccess",
+  "remoteServers",
+  "search",
+  "shortcuts",
+  "agents",
+  "skills",
+  "mcpServers",
+  "plugins",
+  "crews",
+  "browser",
+  "usage",
+  "import",
+  "archived",
+  "changelog",
+  "about",
+  "dev",
+] as const;
+
+export type SettingsSection = (typeof SETTINGS_SECTIONS)[number] | `agents:${string}`;

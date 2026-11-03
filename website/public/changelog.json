@@ -10,37 +10,44 @@
         {
           "kind": "improved",
           "label": "Chat",
-          "text": "Single-choice question forms show numbered answer rows with a clear selection state, and you can clear an optional answer by clicking it again."
+          "text": "Single-choice question forms show numbered answer rows with a clear selection state, and you can clear an optional answer by clicking it again.",
+          "headline": "Question forms show numbered answers you can clear"
         },
         {
           "kind": "improved",
           "label": "Models",
-          "text": "New threads, model changes, and schedules default to the highest supported reasoning effort when no valid choice is saved, while preserving your existing selections."
+          "text": "New threads, model changes, and schedules default to the highest supported reasoning effort when no valid choice is saved, while preserving your existing selections.",
+          "headline": "New threads default to the highest supported reasoning effort"
         },
         {
           "kind": "fixed",
           "label": "OpenCode 2",
-          "text": "Provider, model, plugin, and skill discovery works with current OpenCode 2 releases, and stale empty catalogs refresh after upgrading."
+          "text": "Provider, model, plugin, and skill discovery works with current OpenCode 2 releases, and stale empty catalogs refresh after upgrading.",
+          "headline": "Provider, model, plugin, and skill discovery works again"
         },
         {
           "kind": "fixed",
           "label": "OpenCode 2",
-          "text": "Poracode uses the accounts you signed into through the native CLI while keeping older Poracode sessions resumable in both Chat and terminal views."
+          "text": "Poracode uses the accounts you signed into through the native CLI while keeping older Poracode sessions resumable in both Chat and terminal views.",
+          "headline": "Uses your native CLI accounts and keeps old sessions resumable"
         },
         {
           "kind": "fixed",
           "label": "OpenCode 2",
-          "text": "Install and update now target OpenCode 2.0.26, with working slash commands, question replies, permission decisions, and session approval settings."
+          "text": "Install and update now target OpenCode 2.0.26, with working slash commands, question replies, permission decisions, and session approval settings.",
+          "headline": "Install and update target OpenCode 2.0.26"
         },
         {
           "kind": "fixed",
           "label": "OpenCode 2",
-          "text": "Subagent step counts update in the parent chat even when the child panel is closed, without double-counting replayed work or carrying counts into a new invocation."
+          "text": "Subagent step counts update in the parent chat even when the child panel is closed, without double-counting replayed work or carrying counts into a new invocation.",
+          "headline": "Subagent step counts stay accurate in the parent chat"
         },
         {
           "kind": "fixed",
           "label": "Power",
-          "text": "The Prevent sleep policy keeps both the system and display awake on macOS, Windows, and Linux, with clearer settings text explaining that it can delay automatic screen locking."
+          "text": "The Prevent sleep policy keeps both the system and display awake on macOS, Windows, and Linux, with clearer settings text explaining that it can delay automatic screen locking.",
+          "headline": "Prevent sleep keeps the display awake on every platform"
         }
       ]
     },
@@ -54,107 +61,130 @@
         {
           "kind": "added",
           "label": "Session import",
-          "text": "Find, search, and import existing Claude and Codex CLI conversations from Settings → Import, then continue them in Poracode with their original provider sessions."
+          "text": "Find, search, and import existing Claude and Codex CLI conversations from Settings → Import, then continue them in Poracode with their original provider sessions.",
+          "headline": "Import your Claude and Codex CLI conversations and keep going",
+          "feature": "session-import"
         },
         {
           "kind": "added",
           "label": "Themes",
-          "text": "Create and edit custom light and dark palettes with color pickers, live previews, and contrast guidance, then import or export themes to share them."
+          "text": "Create and edit custom light and dark palettes with color pickers, live previews, and contrast guidance, then import or export themes to share them.",
+          "headline": "Create your own light and dark palettes",
+          "feature": "custom-themes"
         },
         {
           "kind": "added",
           "label": "Composer",
-          "text": "Queue follow-up messages for the next response, edit or reorder them, or send one immediately with Steer, with a setting for your default action and Cmd+Enter or Ctrl+Enter to use the opposite action."
+          "text": "Queue follow-up messages for the next response, edit or reorder them, or send one immediately with Steer, with a setting for your default action and Cmd+Enter or Ctrl+Enter to use the opposite action.",
+          "headline": "Queue follow-ups, reorder them, or send one now with Steer"
         },
         {
           "kind": "added",
           "label": "Codex",
-          "text": "Separate Codex accounts into isolated profiles with their own sign-in, sessions, plugins, skills, and usage tracking."
+          "text": "Separate Codex accounts into isolated profiles with their own sign-in, sessions, plugins, skills, and usage tracking.",
+          "headline": "Keep separate Codex accounts in isolated profiles"
         },
         {
           "kind": "added",
           "label": "Codex",
-          "text": "Experimental live voice brings spoken conversations to desktop Codex chat, with microphone mute and end-call controls."
+          "text": "Experimental live voice brings spoken conversations to desktop Codex chat, with microphone mute and end-call controls.",
+          "headline": "Talk to Codex with experimental live voice"
         },
         {
           "kind": "added",
           "label": "OpenCode 2",
-          "text": "Run the beta OpenCode 2 agent in terminal or native Chat with model discovery, permissions, question forms, plugins, MCP servers, and session resume."
+          "text": "Run the beta OpenCode 2 agent in terminal or native Chat with model discovery, permissions, question forms, plugins, MCP servers, and session resume.",
+          "headline": "Run the beta OpenCode 2 agent in terminal or Chat"
         },
         {
           "kind": "added",
           "label": "Files",
-          "text": "Open image files directly in the desktop and mobile editors with dimensions, file size, and lightbox zoom, and switch SVG files between rendered and source views across local, WSL, and remote projects."
+          "text": "Open image files directly in the desktop and mobile editors with dimensions, file size, and lightbox zoom, and switch SVG files between rendered and source views across local, WSL, and remote projects.",
+          "headline": "Open images and switch SVGs between rendered and source views"
         },
         {
           "kind": "added",
           "label": "Chat",
-          "text": "LaTeX equations now render in chat responses and Markdown previews."
+          "text": "LaTeX equations now render in chat responses and Markdown previews.",
+          "headline": "LaTeX equations render in chat and Markdown previews"
         },
         {
           "kind": "improved",
           "label": "Composer",
-          "text": "Recall sent prompts with Up and Down while preserving their chips and attachments, and find slash commands by word or substring with the matching text highlighted."
+          "text": "Recall sent prompts with Up and Down while preserving their chips and attachments, and find slash commands by word or substring with the matching text highlighted.",
+          "headline": "Recall sent prompts with Up and Down"
         },
         {
           "kind": "improved",
           "label": "Chat",
-          "text": "A sticky prompt bar keeps the request for the response you are reading in view and lets you jump back to it."
+          "text": "A sticky prompt bar keeps the request for the response you are reading in view and lets you jump back to it.",
+          "headline": "A sticky prompt bar keeps your request in view"
         },
         {
           "kind": "improved",
           "label": "Sidebar",
-          "text": "Manual order now supports dragging local threads across projects in the flat list, while completed threads move into a collapsible Done section with a count, pinned at the bottom of the flat list, and pane controls expose their availability correctly to assistive technology."
+          "text": "Manual order now supports dragging local threads across projects in the flat list, while completed threads move into a collapsible Done section with a count, pinned at the bottom of the flat list, and pane controls expose their availability correctly to assistive technology.",
+          "headline": "Drag threads across projects; finished ones move to Done"
         },
         {
           "kind": "improved",
           "label": "Crossagents",
-          "text": "Saved routing preferences now retain fallback provider and model chains with retry behavior, and agents can manage workspaces, file projects and Home threads, and remove thread groups through Poracode tools."
+          "text": "Saved routing preferences now retain fallback provider and model chains with retry behavior, and agents can manage workspaces, file projects and Home threads, and remove thread groups through Poracode tools.",
+          "headline": "Routing preferences keep fallback provider and model chains"
         },
         {
           "kind": "improved",
           "label": "Handoff",
-          "text": "Switching providers carries a transcript sized for the destination model’s context window, retaining more conversation history for larger models while staying within delivery limits."
+          "text": "Switching providers carries a transcript sized for the destination model’s context window, retaining more conversation history for larger models while staying within delivery limits.",
+          "headline": "Handoffs carry more history to larger models"
         },
         {
           "kind": "improved",
           "label": "MCP",
-          "text": "Supported CLI agents receive MCP tools for each Poracode session, with an opt-in settings action to install or remove selected user MCP servers in their native configuration."
+          "text": "Supported CLI agents receive MCP tools for each Poracode session, with an opt-in settings action to install or remove selected user MCP servers in their native configuration.",
+          "headline": "CLI agents get Poracode MCP tools in every session"
         },
         {
           "kind": "fixed",
           "label": "Composer",
-          "text": "Undo and redo now include pasted and dropped text, mention and slash-command chips, dictation, and restored drafts with their attachments, and messages containing only attachments send correctly."
+          "text": "Undo and redo now include pasted and dropped text, mention and slash-command chips, dictation, and restored drafts with their attachments, and messages containing only attachments send correctly.",
+          "headline": "Undo and redo cover pastes, chips, dictation, and drafts"
         },
         {
           "kind": "fixed",
           "label": "Mobile",
-          "text": "The mobile web composer restores attachment controls, stays above the Android keyboard, accepts caret taps, and keeps asynchronous file picks attached to the thread that opened them."
+          "text": "The mobile web composer restores attachment controls, stays above the Android keyboard, accepts caret taps, and keeps asynchronous file picks attached to the thread that opened them.",
+          "headline": "Mobile composer keeps attachments and stays above the keyboard"
         },
         {
           "kind": "fixed",
           "label": "Terminal",
-          "text": "Terminal sessions keep their screen state across thread navigation, and exiting a shell closes its tab or split while preserving other right-panel tabs and the Notes project."
+          "text": "Terminal sessions keep their screen state across thread navigation, and exiting a shell closes its tab or split while preserving other right-panel tabs and the Notes project.",
+          "headline": "Terminals keep their screen when you switch threads"
         },
         {
           "kind": "fixed",
           "label": "Files",
-          "text": "Codex artifact citations and Home file references render as working file links, and PDFs load correctly in the in-app browser."
+          "text": "Codex artifact citations and Home file references render as working file links, and PDFs load correctly in the in-app browser.",
+          "headline": "Codex citations and Home file references open as links"
         },
         {
           "kind": "fixed",
           "label": "Projects",
-          "text": "Adding a project no longer creates duplicate locations, and repairing older duplicates preserves the original settings and project state."
+          "text": "Adding a project no longer creates duplicate locations, and repairing older duplicates preserves the original settings and project state.",
+          "headline": "Adding a project no longer creates duplicates"
         },
         {
           "kind": "fixed",
           "label": "Claude",
-          "text": "Messages sent while Claude is working no longer interrupt its active tools and subagents, and skills use the correct invocation for user-only, model-only, and inlined commands."
+          "text": "Messages sent while Claude is working no longer interrupt its active tools and subagents, and skills use the correct invocation for user-only, model-only, and inlined commands.",
+          "headline": "Messages sent while Claude works no longer interrupt it"
         },
         {
           "kind": "fixed",
           "label": "Threads",
-          "text": "A message sent while reopening a lost GUI session is delivered when the session resumes, and generated thread titles retain ticket and pull request references from long prompts."
+          "text": "A message sent while reopening a lost GUI session is delivered when the session resumes, and generated thread titles retain ticket and pull request references from long prompts.",
+          "headline": "Messages sent during a session reopen are delivered"
         }
       ]
     },
@@ -168,157 +198,188 @@
         {
           "kind": "added",
           "label": "Muse",
-          "text": "Muse Code now runs as a native Chat in Poracode, not just a terminal. Structured sessions over the Muse Session Protocol bring live goal tracking, native plans, subagent activity, image attachments, Muse skill slash commands, /compact, model and effort commands, question prompts, Stop and steer, and WSL project support, with Muse usage and sign-in in the usage panel."
+          "text": "Muse Code now runs as a native Chat in Poracode, not just a terminal. Structured sessions over the Muse Session Protocol bring live goal tracking, native plans, subagent activity, image attachments, Muse skill slash commands, /compact, model and effort commands, question prompts, Stop and steer, and WSL project support, with Muse usage and sign-in in the usage panel.",
+          "headline": "Muse Code runs as a native Chat"
         },
         {
           "kind": "added",
           "label": "Computer Use",
-          "text": "Computer Use 2.0 runs on a new native helper for Windows, macOS, and Linux that drives desktop apps in the background, so agents can click, type, scroll, and read accessibility trees without taking over your mouse and keyboard until a step explicitly needs the foreground."
+          "text": "Computer Use 2.0 runs on a new native helper for Windows, macOS, and Linux that drives desktop apps in the background, so agents can click, type, scroll, and read accessibility trees without taking over your mouse and keyboard until a step explicitly needs the foreground.",
+          "headline": "Computer Use 2.0 works in the background without taking over"
         },
         {
           "kind": "added",
           "label": "Computer Use",
-          "text": "Agents can now search and launch installed apps, find elements by role and name, invoke controls and set values semantically, and run short deterministic action sequences with a single final observation, with a badge overlay for background work — including an exit button on the badge itself — and a takeover border plus Escape to interrupt when the desktop is taken over."
+          "text": "Agents can now search and launch installed apps, find elements by role and name, invoke controls and set values semantically, and run short deterministic action sequences with a single final observation, with a badge overlay for background work — including an exit button on the badge itself — and a takeover border plus Escape to interrupt when the desktop is taken over.",
+          "headline": "Agents find, launch, and operate desktop apps semantically"
         },
         {
           "kind": "added",
           "label": "Browser",
-          "text": "Browser Use 2.0 lets agents batch known page actions into one perform call that stops on the first failure and returns a single compact snapshot, and the in-app Browser and connected Chrome now share the same page commands, so skills work identically on either surface."
+          "text": "Browser Use 2.0 lets agents batch known page actions into one perform call that stops on the first failure and returns a single compact snapshot, and the in-app Browser and connected Chrome now share the same page commands, so skills work identically on either surface.",
+          "headline": "Browser Use 2.0 batches page actions in one call"
         },
         {
           "kind": "added",
           "label": "Crossagents",
-          "text": "You can now steer a running Crossagents subagent with new guidance instead of cancelling it, including agents whose provider has no native steering, and up to 16 subagents can run concurrently."
+          "text": "You can now steer a running Crossagents subagent with new guidance instead of cancelling it, including agents whose provider has no native steering, and up to 16 subagents can run concurrently.",
+          "headline": "Steer a running subagent instead of cancelling it"
         },
         {
           "kind": "added",
           "label": "Thread docks",
-          "text": "Goals, plans, subagents, background tasks, and images can now live above the composer or together in the right panel, with compact bubbles, drag-to-reorder, per-thread dismissal, and synchronized remote and mobile state. New threads default to the compact composer with docks in the right panel."
+          "text": "Goals, plans, subagents, background tasks, and images can now live above the composer or together in the right panel, with compact bubbles, drag-to-reorder, per-thread dismissal, and synchronized remote and mobile state. New threads default to the compact composer with docks in the right panel.",
+          "headline": "Goals, plans, and subagents dock above the composer or aside"
         },
         {
           "kind": "added",
           "label": "Usage",
-          "text": "Every usage provider card now offers a Sign in button that runs the CLI login and refreshes status and quotas as soon as it succeeds."
+          "text": "Every usage provider card now offers a Sign in button that runs the CLI login and refreshes status and quotas as soon as it succeeds.",
+          "headline": "Sign in to any usage provider right from its card"
         },
         {
           "kind": "added",
           "label": "Images",
-          "text": "Each thread now has an image gallery dock and lightbox that collects generated images, attachments, and images embedded in assistant Markdown."
+          "text": "Each thread now has an image gallery dock and lightbox that collects generated images, attachments, and images embedded in assistant Markdown.",
+          "headline": "Each thread gets an image gallery and lightbox"
         },
         {
           "kind": "added",
           "label": "Composer",
-          "text": "The Add menu now includes an MCP Servers submenu for reviewing session bindings, toggling servers for new threads, and jumping directly to MCP settings."
+          "text": "The Add menu now includes an MCP Servers submenu for reviewing session bindings, toggling servers for new threads, and jumping directly to MCP settings.",
+          "headline": "Review and toggle MCP servers from the Add menu"
         },
         {
           "kind": "added",
           "label": "Images",
-          "text": "Enlarged image previews now offer Copy image and Save image, sitting beside the zoom controls so they are reachable without leaving the preview."
+          "text": "Enlarged image previews now offer Copy image and Save image, sitting beside the zoom controls so they are reachable without leaving the preview.",
+          "headline": "Copy or save any enlarged image preview"
         },
         {
           "kind": "improved",
           "label": "OpenCode",
-          "text": "Structured OpenCode threads now support current question and permission flows, native plans, subagent activity, produced images and files, audio and thread mentions, accurate usage, clearer tool states, visible retry and rate-limit fallback notices, and clean Stop, steer, model-switch, and resume behavior."
+          "text": "Structured OpenCode threads now support current question and permission flows, native plans, subagent activity, produced images and files, audio and thread mentions, accurate usage, clearer tool states, visible retry and rate-limit fallback notices, and clean Stop, steer, model-switch, and resume behavior.",
+          "headline": "OpenCode threads gain questions, plans, and subagents"
         },
         {
           "kind": "improved",
           "label": "Muse",
-          "text": "Muse now defaults to Muse Spark 1.3, discovers new models and reasoning levels from the installed CLI and live MSP catalog, shows Thinking and Double-checking terminal states, signs out from Settings, installs reliably through WSL, and paints a steered message as soon as you send it. New Muse threads start with approvals bypassed, so tool calls run without prompting until you pick a stricter policy."
+          "text": "Muse now defaults to Muse Spark 1.3, discovers new models and reasoning levels from the installed CLI and live MSP catalog, shows Thinking and Double-checking terminal states, signs out from Settings, installs reliably through WSL, and paints a steered message as soon as you send it. New Muse threads start with approvals bypassed, so tool calls run without prompting until you pick a stricter policy.",
+          "headline": "Muse defaults to Muse Spark 1.3 and discovers new models"
         },
         {
           "kind": "improved",
           "label": "Handoff",
-          "text": "Thread mentions can now transfer the real conversation transcript through read_thread when available, preserving the original request and newest useful activity within the context budget. Switching a thread to another provider keeps that provider's own settings and its currently selected model, and the dialog's primary action is now Switch, which continues in the same thread."
+          "text": "Thread mentions can now transfer the real conversation transcript through read_thread when available, preserving the original request and newest useful activity within the context budget. Switching a thread to another provider keeps that provider's own settings and its currently selected model, and the dialog's primary action is now Switch, which continues in the same thread.",
+          "headline": "Handoffs can transfer the real conversation transcript"
         },
         {
           "kind": "improved",
           "label": "Pull requests",
-          "text": "PR Watch tasks are now explicitly authorized to commit and push the non-force fixes a pull request needs, so watched PRs get repaired and pushed without extra confirmation prompts."
+          "text": "PR Watch tasks are now explicitly authorized to commit and push the non-force fixes a pull request needs, so watched PRs get repaired and pushed without extra confirmation prompts.",
+          "headline": "PR Watch can commit and push the fixes a PR needs"
         },
         {
           "kind": "improved",
           "label": "Usage",
-          "text": "Qoder usage now parses migrated quota-system payloads and shows used and limit counts, Muse reports 5-hour and weekly quota windows plus billed spend after a browser sign-in, estimated cost lines stay hidden unless you opt in, and ACP agents keep their provider-specific model labels in the picker."
+          "text": "Qoder usage now parses migrated quota-system payloads and shows used and limit counts, Muse reports 5-hour and weekly quota windows plus billed spend after a browser sign-in, estimated cost lines stay hidden unless you opt in, and ACP agents keep their provider-specific model labels in the picker.",
+          "headline": "Usage cards show more quota details"
         },
         {
           "kind": "improved",
           "label": "Settings",
-          "text": "Agent updates are easier to follow: the Update-all button shows the outdated count, each agent reports queued and per-agent progress, and multi-runtime update docks collapse to a single line. Agents installed through more than one runtime now show which runtime a model or sign-in method belongs to, and Claude's model picker drops unresolved aliases and coalesces duplicate Haiku entries."
+          "text": "Agent updates are easier to follow: the Update-all button shows the outdated count, each agent reports queued and per-agent progress, and multi-runtime update docks collapse to a single line. Agents installed through more than one runtime now show which runtime a model or sign-in method belongs to, and Claude's model picker drops unresolved aliases and coalesces duplicate Haiku entries.",
+          "headline": "Agent updates show clearer per-agent progress"
         },
         {
           "kind": "improved",
           "label": "Right panel",
-          "text": "Panel header actions now move into an overflow menu when space is tight, the close control and active dock controls remain easy to reach, and running subagents show a live loader instead of a static icon."
+          "text": "Panel header actions now move into an overflow menu when space is tight, the close control and active dock controls remain easy to reach, and running subagents show a live loader instead of a static icon.",
+          "headline": "Panel actions move into an overflow menu when space is tight"
         },
         {
           "kind": "improved",
           "label": "Chat",
-          "text": "Composer bubbles are now translucent glass with a clear active accent, image dock tiles are rounder and render sharply instead of aliasing high-resolution screenshots, and the scroll-to-bottom control moves out of the way whenever bubbles would overlap it."
+          "text": "Composer bubbles are now translucent glass with a clear active accent, image dock tiles are rounder and render sharply instead of aliasing high-resolution screenshots, and the scroll-to-bottom control moves out of the way whenever bubbles would overlap it.",
+          "headline": "Translucent composer bubbles and sharper image tiles"
         },
         {
           "kind": "improved",
           "label": "Performance",
-          "text": "Startup is faster with streamlined runtime loading and Windows executable resolution, idle WSL bridges shut down cleanly and inactive WSL projects skip Git polling, live agent runtimes are reused across status polls instead of being rebuilt, and the renderer is fully React Compiler-safe."
+          "text": "Startup is faster with streamlined runtime loading and Windows executable resolution, idle WSL bridges shut down cleanly and inactive WSL projects skip Git polling, live agent runtimes are reused across status polls instead of being rebuilt, and the renderer is fully React Compiler-safe.",
+          "headline": "Faster startup and lighter WSL background work"
         },
         {
           "kind": "improved",
           "label": "Changelog",
-          "text": "Each release now carries a short tagline that appears on the homepage and changelog page."
+          "text": "Each release now carries a short tagline that appears on the homepage and changelog page.",
+          "headline": "Each release now has a short tagline"
         },
         {
           "kind": "improved",
           "label": "Computer Use",
-          "text": "Desktop actions now report what the helper could actually observe — confirmed, unchanged, or unverified — instead of implying success, refusals name only background recovery routes, and Windows and Linux match macOS on focus reporting, Chromium synthetic-input caveats, and waiting for a page's accessibility tree before reporting it as thin. A new setting keeps the Mac awake for the length of a session, since a locked screen stops all desktop control."
+          "text": "Desktop actions now report what the helper could actually observe — confirmed, unchanged, or unverified — instead of implying success, refusals name only background recovery routes, and Windows and Linux match macOS on focus reporting, Chromium synthetic-input caveats, and waiting for a page's accessibility tree before reporting it as thin. A new setting keeps the Mac awake for the length of a session, since a locked screen stops all desktop control.",
+          "headline": "Desktop actions report what they could actually observe"
         },
         {
           "kind": "improved",
           "label": "ACP agents",
-          "text": "ACP agents now list their available sign-in methods with an Install ACP action per environment, images referenced by a tool call are resolved and rendered, and Antigravity surfaces its background task launches in the thread dock as they start, update, and complete."
+          "text": "ACP agents now list their available sign-in methods with an Install ACP action per environment, images referenced by a tool call are resolved and rendered, and Antigravity surfaces its background task launches in the thread dock as they start, update, and complete.",
+          "headline": "ACP agents list their sign-in methods with one-click install"
         },
         {
           "kind": "fixed",
           "label": "Windows",
-          "text": "npx-distributed ACP agents launch again with current Node and npm shims, PowerShell errors are decoded instead of shown as raw XML, and stale cached executable paths are re-resolved automatically."
+          "text": "npx-distributed ACP agents launch again with current Node and npm shims, PowerShell errors are decoded instead of shown as raw XML, and stale cached executable paths are re-resolved automatically.",
+          "headline": "npx-based ACP agents launch again on Windows"
         },
         {
           "kind": "fixed",
           "label": "ACP agents",
-          "text": "Antigravity file reads now complete reliably, its credentials are read from the macOS keychain and cached so you are not re-prompted mid-session, its auto-update is correctly disabled, quoted SYSTEM_MESSAGE text no longer leaks into the chat stream on later notifications in a turn, stale status caches are invalidated, and ACP agents installed in WSL automatically repair missing executable permissions from older install layouts."
+          "text": "Antigravity file reads now complete reliably, its credentials are read from the macOS keychain and cached so you are not re-prompted mid-session, its auto-update is correctly disabled, quoted SYSTEM_MESSAGE text no longer leaks into the chat stream on later notifications in a turn, stale status caches are invalidated, and ACP agents installed in WSL automatically repair missing executable permissions from older install layouts.",
+          "headline": "Antigravity file reads and sign-in are more reliable"
         },
         {
           "kind": "fixed",
           "label": "Chat",
-          "text": "Reverting a turn restores the original message in the composer, Muse question forms wait until every question is answered before submitting, and a failed thread restart closes the turn with a visible error instead of hanging."
+          "text": "Reverting a turn restores the original message in the composer, Muse question forms wait until every question is answered before submitting, and a failed thread restart closes the turn with a visible error instead of hanging.",
+          "headline": "Reverting a turn restores your original message"
         },
         {
           "kind": "fixed",
           "label": "Cursor",
-          "text": "Cross-agent tools no longer use schemas rejected by Cursor models, and globally installed Cursor SDK runtimes can be updated from Settings."
+          "text": "Cross-agent tools no longer use schemas rejected by Cursor models, and globally installed Cursor SDK runtimes can be updated from Settings.",
+          "headline": "Cross-agent tools work with Cursor models"
         },
         {
           "kind": "fixed",
           "label": "MCP",
-          "text": "Expired MCP OAuth tokens now correctly report as signed out, failed ACP prompts hint at re-authenticating on authorization errors, and MCP servers configured in provider settings correctly enable read_thread handoffs."
+          "text": "Expired MCP OAuth tokens now correctly report as signed out, failed ACP prompts hint at re-authenticating on authorization errors, and MCP servers configured in provider settings correctly enable read_thread handoffs.",
+          "headline": "Expired MCP sign-ins show as signed out"
         },
         {
           "kind": "fixed",
           "label": "Thread docks",
-          "text": "A failed goal in the right panel can be dismissed even when the provider offers no clear action, and empty shell pipelines or incomplete synthetic keyboard events no longer crash the renderer."
+          "text": "A failed goal in the right panel can be dismissed even when the provider offers no clear action, and empty shell pipelines or incomplete synthetic keyboard events no longer crash the renderer.",
+          "headline": "Failed goals in the right panel can be dismissed"
         },
         {
           "kind": "fixed",
           "label": "macOS",
-          "text": "Updater metadata is finalized after packaging so auto-updates resolve correctly, and macOS 12 no longer receives an update it cannot launch."
+          "text": "Updater metadata is finalized after packaging so auto-updates resolve correctly, and macOS 12 no longer receives an update it cannot launch.",
+          "headline": "macOS auto-updates resolve correctly"
         },
         {
           "kind": "fixed",
           "label": "Chat",
-          "text": "New messages now land at the bottom of the thread again instead of stopping short of it."
+          "text": "New messages now land at the bottom of the thread again instead of stopping short of it.",
+          "headline": "New messages land at the bottom of the thread again"
         },
         {
           "kind": "fixed",
           "label": "Claude",
-          "text": "A goal whose task drains without a verdict now completes instead of being reported as failed."
+          "text": "A goal whose task drains without a verdict now completes instead of being reported as failed.",
+          "headline": "Goals without a verdict complete instead of failing"
         }
       ]
     },

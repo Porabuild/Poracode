@@ -261,5 +261,7 @@ describe("document-level PWA boot recovery", () => {
     const fixture = boot(undefined, true);
     expect(fixture.screen.hidden).toBe(true);
     expect(fixture.serviceWorker.register).not.toHaveBeenCalled();
+    // The script exits before localizing; the hidden retry control keeps a name.
+    expect(fixture.retry.textContent).toBe("Reload");
   });
 });

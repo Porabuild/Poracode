@@ -1,0 +1,17 @@
+{
+  "paused": false,
+  "items": [
+    {
+      "id": "chrome-extension-store-launch",
+      "kind": "announcement",
+      "text": {
+        "en": "The Poracode Chrome extension is in the Chrome Web Store"
+      },
+      "action": { "type": "feature", "feature": "chrome-extension" },
+      "unlessUsed": ["chrome-extension"],
+      "platforms": ["darwin", "win32", "linux"],
+      "end": "2026-12-31",
+      "weight": 2
+    }
+  ]
+}

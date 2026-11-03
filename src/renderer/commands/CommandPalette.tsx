@@ -5,6 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
+import { recordFeatureSignal } from "@/renderer/state/featureUsageStore";
 import { Button, Input, Modal } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -256,6 +257,7 @@ function SearchPaletteContent() {
     if (result.kind === "command" || result.kind === "action") {
       const target = originTarget;
       close();
+      recordFeatureSignal(`command:${result.command.id}`);
       requestAnimationFrame(() => void result.command.run(undefined, { target }));
       return;
     }
