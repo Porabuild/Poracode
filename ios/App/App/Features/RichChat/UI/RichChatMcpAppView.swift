@@ -103,7 +103,7 @@ private struct McpAppContentView: UIViewRepresentable {
       guard !closed, let data = try? JSONEncoder().encode(value),
         let object = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
       else { return }
-      view?.callAsyncJavaScript(code, arguments: ["value": object], in: nil, contentWorld: .page) { _ in }
+      view?.callAsyncJavaScript(code, arguments: ["value": object], in: nil, in: .page, completionHandler: nil)
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
