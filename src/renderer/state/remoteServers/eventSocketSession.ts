@@ -7,6 +7,7 @@ import {
 } from "@/shared/remote/client";
 import {
   isUnauthorizedRemoteSocketClose,
+  REMOTE_ACCESS_SESSION_EXPIRED_REASON,
   REMOTE_SOCKET_POLICY,
   RemoteSocketHealthMonitor,
   RemoteSocketReconnectPolicy,
@@ -17,6 +18,7 @@ import { setRemoteTerminalSocketSender } from "@/renderer/state/remoteTerminalFe
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import { bindRemoteEngineLaneOverflow } from "./eventSocketEngine";
 import { type EventSocketConnectionContext } from "./eventSocketContext";
+import { declareEventSocketCapabilities } from "./eventSocketUpgrade";
 import { bindEventSocketMessages } from "./eventSocketMessages";
 import { setAgentVisionSocketSender } from "@/renderer/browser/agentVisionStream";
 import {
@@ -38,12 +40,9 @@ import { notePairedItemInterestCoverage, pairedItemInterests } from "./pairedIte
 import { useAppStore } from "@/renderer/state/appStore";
 import { hasHydratedThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
-import { withEventEpochDeclaration } from "@/shared/remote/protocol/eventEpoch";
-import { withRuntimeHistoryNoticesDeclaration } from "@/renderer/state/remote/historyNoticeCapability";
 import {
   declaresBoundedCatalogChangesForConnection,
   noteBoundedCatalogChangesCapability,
-  withBoundedCatalogChangesDeclaration,
 } from "@/renderer/state/remote/boundedCatalogChangesCapability";
 import { remoteConnectionKey } from "./types";
 import { refreshTokenForDesktop } from "./refreshTokens";
@@ -267,21 +266,12 @@ export async function startRemoteServerEventStream(
       const lastSeenEpoch = remoteServerSnapshotEpoch(connectionKey);
       const threadItemInterests = pairedItemInterests(connectionKey);
       const socket = await get().socketFactory(
-        // B1: declare notice capability at upgrade only because the renderer
-        // renders and can acknowledge the durable notice. boundedCatalogChanges
-        // rides the same upgrade only when this descriptor advertised it AND
-        // the bounded controller (which refreshes through bounded reads on the
-        // payload-less signal) is installed for this connection. The epoch
-        // declaration binds the resume cursor to the instance that issued it
-        // (older hosts ignore it and keep the seq-only resume).
-        withEventEpochDeclaration(
-          withBoundedCatalogChangesDeclaration(
-            withRuntimeHistoryNoticesDeclaration(
-              client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
-            ),
-            declaresBoundedCatalogChangesForConnection(connectionKey),
-          ),
-          lastSeenEpoch,
+        declareEventSocketCapabilities(
+          client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
+          {
+            boundedCatalogChanges: declaresBoundedCatalogChangesForConnection(connectionKey),
+            resume: { lastSeenEpoch },
+          },
         ),
       );
       if (!isCurrent()) {
@@ -367,7 +357,15 @@ export async function startRemoteServerEventStream(
           // the terminal "pairing expired" state belongs to a refused refresh
           // grant, which the next connect actually proves.
           setSocketStatus("connecting");
-          scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
+          // The routine deadline close reconnects at once, like any transport
+          // loss (the desktop host's leg does the same): the ticket mint renews
+          // the session, and a refused grant retires it there. Any other
+          // unauthorized close waits, so a dead credential is not hammered.
+          scheduleReconnect(
+            event?.reason === REMOTE_ACCESS_SESSION_EXPIRED_REASON
+              ? REMOTE_SOCKET_POLICY.reconnectBaseMs
+              : REMOTE_SOCKET_POLICY.unauthorizedReconnectMs,
+          );
           return;
         }
         disconnectSocket(socket);

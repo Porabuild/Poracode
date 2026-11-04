@@ -33,8 +33,8 @@ import {
   getManagedLoopbackEngine,
   type ClientEngineWorkerMode,
 } from "@/renderer/state/remote/engine";
-import { withRuntimeHistoryNoticesDeclaration } from "@/renderer/state/remote/historyNoticeCapability";
-import { withBoundedCatalogChangesDeclaration } from "@/renderer/state/remote/boundedCatalogChangesCapability";
+import { remoteWebSocketUrl } from "@/shared/remote/clientApiWorkspace";
+import { declareEventSocketCapabilities } from "./eventSocketUpgrade";
 
 export type { DesktopLoopbackSocket } from "./desktopLoopbackSocket";
 
@@ -603,33 +603,27 @@ export class DesktopLoopbackIntake {
     // Live-only join: no replay cursors. Recovery rebuilds subscribed threads
     // through the transport (the proven relay semantics) instead of replaying
     // into the desktop reducer.
-    const wsUrl = new URL("/ws", base.replace(/^http/, "ws"));
-    wsUrl.searchParams.set("ticket", ticket);
-    wsUrl.searchParams.set("desktopInternal", "1");
-    // B1: the managed root's transcript reads now ride the bounded HTTP
-    // history/items/turns routes and can carry/render the durable notice
-    // (B4 F6), so this leg declares `notices=v1` on the FIRST upgrade. The
-    // declaration is asserted at socket open, before any read: a capable
-    // connection is what keeps live post-gap content flowing instead of being
-    // emptied by the host's notice gate.
-    // boundedCatalogChanges follows its authenticated descriptor preflight:
-    // the declaration is asserted only for an endpoint whose descriptor was
-    // read on this leg before the ticket mint (the preflight above), so a host
-    // that predates the signal form never receives it and the FIRST upgrade of
-    // a capable host already carries it.
+    // The leg declares its capabilities on the FIRST upgrade, as every host's
+    // connection does. boundedCatalogChanges follows its authenticated
+    // descriptor preflight: it is asserted only for an endpoint whose
+    // descriptor was read on this leg before the ticket mint, so a host that
+    // predates the signal form never receives it. `desktopInternal=1` opts into
+    // the desktop-only event families; A1: an explicit (possibly empty)
+    // interest array on the initial upgrade (absence means "older client, send
+    // everything"; the bound is enforced before writing).
+    const initialItemInterests = this.snapshotItemInterests();
     const declaredUrl = new URL(
-      withBoundedCatalogChangesDeclaration(
-        withRuntimeHistoryNoticesDeclaration(wsUrl.toString()),
-        this.deps.declaresBoundedCatalogChanges?.(this.deps.endpoint) === true,
+      declareEventSocketCapabilities(
+        remoteWebSocketUrl(base, ticket, undefined, { threadItemInterests: initialItemInterests }),
+        {
+          boundedCatalogChanges:
+            this.deps.declaresBoundedCatalogChanges?.(this.deps.endpoint) === true,
+        },
       ),
     );
+    declaredUrl.searchParams.set("desktopInternal", "1");
     this.declaredBoundedCatalogChanges = declaredUrl.searchParams.has("catalogChanges");
     this.open = false;
-    // A1: an explicit (possibly empty) interest array on the initial upgrade.
-    // Absence means "older client, send everything"; a malformed array also
-    // parses as absent server-side, so the bound is enforced before writing.
-    const initialItemInterests = this.snapshotItemInterests();
-    declaredUrl.searchParams.set("threadItemInterests", JSON.stringify(initialItemInterests));
     const socket = this.socketFactory(declaredUrl.toString());
     this.socket = socket;
     this.sentItemInterests = initialItemInterests;

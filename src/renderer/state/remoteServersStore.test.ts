@@ -3517,7 +3517,7 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("local-workspace");
   });
 
-  it("retries an expired event stream session at the slower authorization interval", async () => {
+  it("reconnects an event stream that closed at its session deadline right away, like any transport loss", async () => {
     vi.useFakeTimers();
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
@@ -3532,9 +3532,31 @@ describe("useRemoteServersStore", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     sockets[0]?.onclose?.({ code: 1008, reason: "Remote access session expired" });
-    // The deadline close is routine: the reconnect refreshes the same session,
-    // so it reads as reconnecting rather than a terminal "pair again".
+    // The deadline close is routine: the reconnect's ticket mint renews the
+    // same session (a refused grant retires it there), so it reads as
+    // reconnecting rather than a terminal "pair again", and does not wait.
     expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "connecting" });
+    await vi.advanceTimersByTimeAsync(999);
+    expect(socketFactory).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(socketFactory).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries any other unauthorized close at the slower authorization interval", async () => {
+    vi.useFakeTimers();
+    const sockets: RemoteSocketLike[] = [];
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(0);
+
+    sockets[0]?.onclose?.({ code: 1008, reason: "Unauthorized" });
     await vi.advanceTimersByTimeAsync(59_999);
     expect(socketFactory).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
