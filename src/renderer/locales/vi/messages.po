@@ -5128,10 +5128,6 @@ msgstr "Sao chép {0} mã thiết bị {1}"
 msgid "Copy accessibility tree"
 msgstr "Sao chép cây trợ năng"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
-msgstr "Sao chép toàn bộ dữ liệu Lightcode vào Poracode. Poracode sẽ khởi động lại và giữ một bản sao lưu đầy đủ của dữ liệu hiện tại."
-
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "Sao chép mã"
@@ -5449,10 +5445,6 @@ msgstr "Không thể quét skill của tác tử."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "Không thể quét cấu hình máy chủ MCP."
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Couldn't schedule the Lightcode data import."
-msgstr "Không thể lên lịch nhập dữ liệu Lightcode."
 
 #: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -9418,14 +9410,6 @@ msgstr "Làm trọn tác vụ của mô hình chính và xác minh bằng bản 
 msgid "Import"
 msgstr "Nhập"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import again"
-msgstr "Nhập lại"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import and restart"
-msgstr "Nhập và khởi động lại"
-
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Import browser data"
 msgstr "Nhập dữ liệu trình duyệt"
@@ -9463,14 +9447,6 @@ msgstr "Nhập skill bên ngoài"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Import from your browser"
 msgstr "Nhập từ trình duyệt của bạn"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import Lightcode data"
-msgstr "Nhập dữ liệu Lightcode"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import Lightcode data again?"
-msgstr "Nhập lại dữ liệu Lightcode?"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
@@ -10491,10 +10467,6 @@ msgstr "Tokens trọn đời"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "Sáng"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Lightcode data import is unavailable with a custom data folder."
-msgstr "Không thể nhập dữ liệu Lightcode khi sử dụng thư mục dữ liệu tùy chỉnh."
 
 #. placeholder {0}: r.startLine
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
@@ -12624,10 +12596,6 @@ msgstr "Không có nhãn"
 msgid "No learned selections yet."
 msgstr "Chưa có lựa chọn đã học nào."
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "No Lightcode data was found."
-msgstr "Không tìm thấy dữ liệu Lightcode."
-
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "No limit"
 msgstr "Không giới hạn"
@@ -14591,10 +14559,6 @@ msgstr "Tệp kê khai thời gian chạy SSH của Poracode bị thiếu hoặc
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 #~ msgstr "Poracode sẽ cài đặt hoặc tái sử dụng máy chủ trên máy SSH và lưu thông tin xác thực trong bộ nhớ bảo mật của thiết bị này."
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
-msgstr "Poracode sẽ khởi động lại, sao lưu dữ liệu hiện tại và thay thế bằng bản sao đầy đủ của dữ liệu Lightcode."
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Poracode's built-in browser tools."

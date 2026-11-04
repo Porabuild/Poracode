@@ -1,12 +1,11 @@
 // Desktop startup admission: the deferred attach-vs-managed decision, the
-// managed owner admission, legacy-data migration, and the data-root
-// preparation. Split out of `desktopAppReady` along its first seam (V5 plan
+// managed owner admission, and the data-root preparation. Split out of
+// `desktopAppReady` along its first seam (V5 plan
 // 1.4 / H8). This module runs BEFORE any native service or backend process
 // starts, exactly like the inline block it replaces.
 
 import { app, safeStorage } from "electron";
 import { toError } from "@/shared/errorMessage";
-import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
 import { admitDesktopManagedOwner } from "./backend/desktopOwnerAdmission";
 import {
   buildStandaloneAttachInfoForRenderer,
@@ -24,12 +23,7 @@ import {
 } from "@/backend/ownership/promoteDesktopRoot";
 import { openDesktopPromotionProgress } from "./desktopPromotionProgress";
 import { resolvePromotionProgressStrings } from "./i18n/promotionProgressLocale";
-import {
-  channel,
-  desktopApp,
-  legacyBaseDirOverride,
-  legacyElectronUserDataDir,
-} from "./desktopAppState";
+import { desktopApp } from "./desktopAppState";
 
 export type DesktopStartupAdmission =
   /** Attach mode started; managed startup must not run. */
@@ -130,47 +124,20 @@ export async function admitDesktopStartup(): Promise<DesktopStartupAdmission> {
     if (outcome.kind === "no-probe") {
       throw new Error("Standalone attach probe did not run.");
     }
-    const electronUserDataDir = app.getPath("userData");
     try {
-      // Full managed admission: legacy-owner refusal, lease with bounded
-      // wait-and-reprobe, then the data-custody fence probe. A genuinely
+      // Full managed admission: lease with bounded wait-and-reprobe,
+      // then the data-custody fence probe. A genuinely
       // held root still fails loudly; a concurrently quitting owner wins.
-      desktopApp.desktopOwnerLease = await admitDesktopManagedOwner({
-        baseDir: outcome.baseDir,
-        channel,
-        electronUserDataDir,
-        ...(legacyElectronUserDataDir ? { legacyElectronUserDataDir } : {}),
-        ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
-        allowCustomDataRoot: app.isPackaged,
-      });
+      desktopApp.desktopOwnerLease = await admitDesktopManagedOwner(outcome.baseDir);
     } catch (error) {
       desktopApp.desktopOwnerAcquisitionError = toError(error);
       console.error("[poracode] failed to acquire the desktop host owner:", error);
-    }
-    if (!desktopApp.desktopOwnerAcquisitionError) {
-      try {
-        const result = migrateLegacyDataOutOfProcess({
-          baseDir: outcome.baseDir,
-          channel,
-          electronUserDataDir,
-          legacyElectronUserDataDir,
-          ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
-          allowCustomDataRoot: app.isPackaged,
-        });
-        if (result.status === "migrated") {
-          console.info(`[migrate] imported all available Lightcode data into ${outcome.baseDir}`);
-        }
-      } catch (error) {
-        console.warn(`[migrate] failed to import Lightcode data into ${outcome.baseDir}:`, error);
-      }
     }
   }
   if (!desktopApp.desktopOwnerAcquisitionError) {
     // Unified data root (V5 plan 1.3): promote the plain desktop root into
     // the owned `.host-v1` sibling (or resume an interrupted promotion)
-    // under the held lease, then publish the prepared paths. On the
-    // deferred route the promotion runs after the legacy import, so
-    // Lightcode data lands in the promoted root like any other data.
+    // under the held lease, then publish the prepared paths.
     const lease = desktopApp.desktopOwnerLease;
     if (lease === null) throw new Error("The desktop host owner lease was not acquired.");
     const osSealedKey = desktopOsSealedKeyCodec();

@@ -5128,10 +5128,6 @@ msgstr "{0} 장치 코드 {1} 복사"
 msgid "Copy accessibility tree"
 msgstr "접근성 트리 복사"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
-msgstr "모든 Lightcode 데이터를 Poracode로 복사합니다. Poracode가 다시 시작되며 현재 데이터의 전체 백업을 보관합니다."
-
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "코드 복사"
@@ -5449,10 +5445,6 @@ msgstr "에이전트 스킬을 검사하지 못했습니다."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "MCP 서버 구성을 스캔할 수 없습니다."
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Couldn't schedule the Lightcode data import."
-msgstr "Lightcode 데이터 가져오기를 예약할 수 없습니다."
 
 #: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -9418,14 +9410,6 @@ msgstr "주 모델의 작업을 끝까지 구현하고 최소한의 빌드와 �
 msgid "Import"
 msgstr "가져오기"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import again"
-msgstr "다시 가져오기"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import and restart"
-msgstr "가져오고 다시 시작"
-
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Import browser data"
 msgstr "브라우저 데이터 가져오기"
@@ -9463,14 +9447,6 @@ msgstr "외부 스킬 가져오기"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Import from your browser"
 msgstr "브라우저에서 가져오기"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import Lightcode data"
-msgstr "Lightcode 데이터 가져오기"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import Lightcode data again?"
-msgstr "Lightcode 데이터를 다시 가져오시겠습니까?"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
@@ -10491,10 +10467,6 @@ msgstr "누적 토큰"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "라이트"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Lightcode data import is unavailable with a custom data folder."
-msgstr "사용자 지정 데이터 폴더에서는 Lightcode 데이터를 가져올 수 없습니다."
 
 #. placeholder {0}: r.startLine
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
@@ -12624,10 +12596,6 @@ msgstr "라벨 없음"
 msgid "No learned selections yet."
 msgstr "아직 학습된 선택이 없습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "No Lightcode data was found."
-msgstr "Lightcode 데이터를 찾을 수 없습니다."
-
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "No limit"
 msgstr "제한 없음"
@@ -14591,10 +14559,6 @@ msgstr "Poracode SSH 런타임 매니페스트가 없거나 유효하지 않습�
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 #~ msgstr "Poracode는 SSH 호스트에 서버를 설치하거나 기존 서버를 재사용하며 자격 증명을 이 기기의 보안 저장소에 보관합니다."
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
-msgstr "Poracode가 다시 시작되어 현재 데이터를 백업한 다음 Lightcode 데이터의 전체 복사본으로 교체합니다."
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Poracode's built-in browser tools."

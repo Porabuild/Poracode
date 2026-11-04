@@ -4,21 +4,21 @@ import { IPC_PROCEDURE_MAP_VERSION, IpcProcedureMapVersionError } from "./proced
 import { createClientProcedureInvocation, parseClientProcedureInvocation } from "./invocation";
 
 /**
- * Hop-18 checked invocation envelope: the version is minted in the RENDERER
+ * Hop-19 checked invocation envelope: the version is minted in the RENDERER
  * bundle by `createClientProcedureInvocation` (its own compiled constant —
  * never a parameter, never manufactured by preload for a legacy positional
  * call), forwarded unchanged through preload, and asserted by main before any
- * parse/dispatch (see `clientHostHop.ts` version 18).
+ * parse/dispatch (see `clientHostHop.ts` version 19).
  */
 describe("client procedure invocation envelope", () => {
   it("stamps the bundle's own compiled hop constant, never a parameter", () => {
     const invocation = createClientProcedureInvocation("focusWindow", []);
     expect(IPC_PROCEDURE_MAP_VERSION).toBe(CLIENT_HOST_HOP_VERSION);
-    // The reviewed hop-18 lane: the factory's compiled constant is 18. A bump
+    // The reviewed hop-19 lane: the factory's compiled constant is 19. A bump
     // must revisit this lane's admission tests, not silently re-version them.
-    expect(IPC_PROCEDURE_MAP_VERSION).toBe(18);
+    expect(IPC_PROCEDURE_MAP_VERSION).toBe(19);
     expect(invocation).toEqual({
-      ipcProcedureMapVersion: 18,
+      ipcProcedureMapVersion: 19,
       name: "focusWindow",
       args: [],
     });
@@ -68,6 +68,21 @@ describe("client procedure invocation envelope", () => {
     expect((caught as IpcProcedureMapVersionError).peerVersion).toBe(
       PREVIOUS_CLIENT_HOST_HOP_VERSION,
     );
+  });
+
+  it("refuses a pre-upgrade Lightcode import request and keeps the retired name unavailable", () => {
+    const request = {
+      ipcProcedureMapVersion: PREVIOUS_CLIENT_HOST_HOP_VERSION,
+      name: "requestLegacyDataMigration",
+      args: [],
+    };
+    expect(catchParse(request)).toBeInstanceOf(IpcProcedureMapVersionError);
+    expect(() =>
+      parseClientProcedureInvocation({
+        ...request,
+        ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
+      }),
+    ).toThrow("Invalid client procedure request.");
   });
 
   it("rejects a future envelope typed", () => {
