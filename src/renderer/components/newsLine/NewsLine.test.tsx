@@ -9,7 +9,12 @@ import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { NEWS_LINE_STORAGE_KEYS, useNewsLineStore } from "@/renderer/state/newsLineStore";
 import { COMMUNITY_PROMOTION_URLS } from "@/shared/communityLinks";
-import { NEWS_ROTATE_MS, NEWS_TYPING_PAUSE_MS, NewsLine } from "./NewsLine";
+import {
+  NEWS_PROMOTION_ROTATE_MS,
+  NEWS_ROTATE_MS,
+  NEWS_TYPING_PAUSE_MS,
+  NewsLine,
+} from "./NewsLine";
 import { resetProfileStatsCache } from "./useProfileStats";
 import { useFeatureUsageStore } from "@/renderer/state/featureUsageStore";
 import { useNewsFeedStore } from "@/renderer/state/newsFeedStore";
@@ -207,6 +212,38 @@ describe("NewsLine", () => {
     });
     expect(document.querySelector("[data-news-item]")?.getAttribute("data-news-item")).not.toBe(
       before,
+    );
+  });
+
+  it("keeps promotions visible longer and restores the regular interval afterwards", () => {
+    vi.useFakeTimers();
+    render(<NewsLine />);
+    advanceTo("promotion");
+    const promotion = document.querySelector("[data-news-item]")?.getAttribute("data-news-item");
+
+    act(() => {
+      vi.advanceTimersByTime(NEWS_ROTATE_MS);
+    });
+    expect(document.querySelector("[data-news-item]")?.getAttribute("data-news-item")).toBe(
+      promotion,
+    );
+    act(() => {
+      vi.advanceTimersByTime(NEWS_PROMOTION_ROTATE_MS - NEWS_ROTATE_MS - 1);
+    });
+    expect(document.querySelector("[data-news-item]")?.getAttribute("data-news-item")).toBe(
+      promotion,
+    );
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(currentKind()).not.toBe("promotion");
+
+    const next = document.querySelector("[data-news-item]")?.getAttribute("data-news-item");
+    act(() => {
+      vi.advanceTimersByTime(NEWS_ROTATE_MS);
+    });
+    expect(document.querySelector("[data-news-item]")?.getAttribute("data-news-item")).not.toBe(
+      next,
     );
   });
 
