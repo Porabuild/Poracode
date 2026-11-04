@@ -71,9 +71,12 @@ describe("computer use instructions", () => {
     );
   });
 
-  it("separates system sleep prevention from display power and screen locking", () => {
+  it("ties screen locking to the Prevent screen lock setting and keeps the unlock rule", () => {
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
-      "does not keep displays on or prevent screen locking",
+      "Prevent screen lock setting only stops idle locking; never change it yourself",
+    );
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
+      "On a locked macOS desktop stop and ask the user to unlock",
     );
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).not.toContain("keepAwake:true");
   });

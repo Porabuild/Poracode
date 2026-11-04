@@ -22,6 +22,10 @@ vi.mock("./sleepInhibitor", () => ({
     setActive: vi.fn<() => void>(),
     dispose: vi.fn<() => void>(),
   })),
+  createScreenLockInhibitor: vi.fn<() => { setActive(): void; dispose(): void }>(() => ({
+    setActive: vi.fn<() => void>(),
+    dispose: vi.fn<() => void>(),
+  })),
 }));
 
 vi.mock("./backend/BackendHostClient", () => ({

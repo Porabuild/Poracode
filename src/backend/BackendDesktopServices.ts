@@ -38,7 +38,6 @@ import {
 } from "@/host/profile";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
-import { requestLegacyDataMigration } from "@/host/legacyDataMigration";
 import {
   type CreateExperimentWorktreesPayload,
   type RemoteThreadCommand,
@@ -729,8 +728,6 @@ export class BackendDesktopServices {
       case "updateStatusChanged":
         this.updateStatus = (payload as { status: RemoteHostUpdateStatus | null }).status;
         return undefined as BackendServiceResult<Name>;
-      case "requestLegacyDataMigration":
-        return requestLegacyDataMigration(payload as never) as BackendServiceResult<Name>;
     }
   }
 

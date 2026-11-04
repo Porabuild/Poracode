@@ -171,7 +171,7 @@ describe("importSessions", () => {
     const result = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
 
     expect(result).toMatchObject({ imported: 0, failed: 1 });
-    expect(toastDanger).toHaveBeenCalledWith("Update This computer to import its sessions.");
+    expect(toastDanger).toHaveBeenCalledWith("Update Local to import its sessions.");
     expect(host.projectCommand).not.toHaveBeenCalled();
     expect(host.sendThreadCommand).not.toHaveBeenCalled();
   });

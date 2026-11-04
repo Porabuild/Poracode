@@ -98,10 +98,6 @@ export interface StartTailscaleResult {
   readonly message?: string;
 }
 
-export interface LegacyDataMigrationRequestResult {
-  readonly status: "scheduled" | "no-legacy-data" | "unavailable";
-}
-
 export const appProcedures = {
   pickFolder: defineIpcProcedure<[string?], string | undefined, string | null, "main-local">(
     "pickFolder",
@@ -180,10 +176,6 @@ export const appProcedures = {
     boolean,
     "main-local"
   >("showNotification", "main-local", showNotificationPayloadSchema),
-  requestLegacyDataMigration: defineNoArgProcedure<LegacyDataMigrationRequestResult, "main-local">(
-    "requestLegacyDataMigration",
-    "main-local",
-  ),
   relaunchApp: defineNoArgProcedure<void, "main-local">("relaunchApp", "main-local"),
   getHomeScopeLocation: defineNoArgProcedure<ProjectLocation, "main-local">(
     "getHomeScopeLocation",

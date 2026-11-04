@@ -71,10 +71,6 @@ vi.mock("@/host/remote/identity", () => ({
   readOrCreateRemoteAccessIdentity: mocks.readOrCreateRemoteAccessIdentity,
 }));
 
-vi.mock("@/host/legacyDataMigration", () => ({
-  requestLegacyDataMigration: vi.fn<() => null>(() => null),
-}));
-
 vi.mock("./BackendDurableServices", () => ({
   BackendDurableServices: class {
     deviceWorkspace = { preparePreview: vi.fn<() => Promise<void>>(async () => {}) };

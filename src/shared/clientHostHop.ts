@@ -62,7 +62,10 @@
 // controlMcpApp is additive and invoked only for a versioned host-issued tool
 // result reference. Older hosts never issue references and reject the new name;
 // older clients ignore the metadata and retain the ordinary tool result.
-export const CLIENT_HOST_HOP_VERSION = 18 as const;
+// Version 19 removes the Lightcode import procedure. Hop-18 clients can still
+// invoke it, so every local exchange rejects that older bundle before effects.
+// Existing application data and retired import markers remain valid and untouched.
+export const CLIENT_HOST_HOP_VERSION = 19 as const;
 /** The previous artifact hop, kept as an old reader for pre-upgrade regressions. */
-export const PREVIOUS_CLIENT_HOST_HOP_VERSION = 17 as const;
+export const PREVIOUS_CLIENT_HOST_HOP_VERSION = 18 as const;
 export const PREVIOUS_IPC_PROCEDURE_MAP_VERSION = 1 as const;

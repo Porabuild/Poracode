@@ -41,7 +41,6 @@ await test("backend production files are production roots mapped to areas", () =
     "src/backend/BackendDurableServices.ts",
     "src/backend/electronIpcBackpressure.ts",
     "src/backend/index.ts",
-    "src/backend/legacyMigrationWorker.ts",
   ];
   for (const file of backendFiles) {
     assert.ok(isProductionFile(file), `${file} must count as a production file`);
