@@ -47,7 +47,7 @@ import {
 import { runtimeHistoryBoundary } from "../runtimeHistoryBoundary";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
-import { forgetThreadPromptIndex } from "../threadPromptIndexCache";
+import { forgetThreadPromptIndex, invalidateThreadPromptIndex } from "../threadPromptIndexCache";
 import { snapshotOlderThanAppliedSeq } from "./snapshotSeqArbitration";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCache";
@@ -262,7 +262,10 @@ export function applyThreadSnapshot(
     );
     const { items } = installation;
     const retainedIds = new Set(items.map((item) => item.id));
-    if (existingIds.some((id) => !retainedIds.has(id))) forgetThreadPromptIndex(threadId);
+    if (existingIds.some((id) => !retainedIds.has(id))) {
+      if (snapshot.runtimeNextCursor != null) invalidateThreadPromptIndex(threadId);
+      else forgetThreadPromptIndex(threadId);
+    }
     // Cursor and items share the actual installation proof. A stale snapshot
     // never reaches this point, and every replacement fences awaited pages.
     seedOlderThreadRuntimeItemsCursor(threadId, snapshot.runtimeNextCursor ?? null, {
@@ -434,7 +437,6 @@ function syncThreadMetadataFromSnapshot(
     let changed = false;
     const threads = current.threads.map((thread) => {
       if (thread.id !== snapshot.thread.id) return thread;
-      changed = true;
       // `finished` is the unread-completion badge, not the settled runtime
       // state of a thread the user is currently watching. openThread clears
       // it optimistically, but a slower authoritative history response can
@@ -448,7 +450,7 @@ function syncThreadMetadataFromSnapshot(
       // value is authoritative; a host with no entry serves the key absent,
       // and that absence retains the live inventory the event stream already
       // applied — same owner/session only.
-      return preservePendingThreadConfig(
+      const next = preservePendingThreadConfig(
         carryVolatileSessionConfigOptions(
           thread,
           carryActiveTurnTiming(
@@ -465,14 +467,18 @@ function syncThreadMetadataFromSnapshot(
         ),
         current.pendingThreadConfigByThreadId[thread.id],
       );
+      if (JSON.stringify(next) === JSON.stringify(thread)) return thread;
+      changed = true;
+      return next;
     });
-    return changed
+    const pendingThreadConfigByThreadId = retainPendingThreadConfigs(
+      current.pendingThreadConfigByThreadId,
+      threads,
+    );
+    return changed || pendingThreadConfigByThreadId !== current.pendingThreadConfigByThreadId
       ? {
-          threads,
-          pendingThreadConfigByThreadId: retainPendingThreadConfigs(
-            current.pendingThreadConfigByThreadId,
-            threads,
-          ),
+          ...(changed ? { threads } : {}),
+          pendingThreadConfigByThreadId,
         }
       : {};
   });

@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 
 const mocks = vi.hoisted(() => ({
+  servers: [] as { connectionId: string; desktopId: string; recentHistoryCacheId?: string }[],
+  runtime: {} as Record<string, { status: string }>,
   scheduleServerRefresh: vi.fn<(desktopId: string) => void>(),
   managedOwner: vi.fn<(entity: { id: string }) => { threadId: string } | undefined>(),
 }));
@@ -10,8 +12,8 @@ vi.mock("./remoteServersStore", () => ({
   useRemoteServersStore: {
     getState: () => ({
       scheduleServerRefresh: mocks.scheduleServerRefresh,
-      runtime: {},
-      servers: [],
+      runtime: mocks.runtime,
+      servers: mocks.servers,
     }),
     subscribe: () => () => {},
   },
@@ -27,6 +29,8 @@ vi.mock("./managedRootCatalog/rootCatalogCommands", () => ({
 import { useAppStore } from "./appStore";
 import { entityHost, hostHandle, isSameHost } from "./entityHost";
 import { remoteProjectId, remoteThreadId } from "./remoteProjection";
+import { bumpRemoteServerGeneration } from "./remoteServers/eventSocketRegistry";
+import { pairedRecentHistoryAuthority } from "@/renderer/browser/recentHistoryCache";
 
 const original = useAppStore.getState();
 
@@ -135,8 +139,49 @@ describe("entityHost", () => {
     expect(hostHandle(undefined)).toBeUndefined();
   });
 
-  it("caches no paired transcript on this device", () => {
-    expect(entityHost(pairedRow("t1"))!.recentHistoryKey).toBeUndefined();
+  describe("recent history authority", () => {
+    afterEach(() => {
+      mocks.servers.length = 0;
+      for (const key of Object.keys(mocks.runtime)) delete mocks.runtime[key];
+    });
+
+    it("is bound to a verified, connected, persisted connection", () => {
+      expect(entityHost(pairedRow("t1"))!.recentHistoryKey).toBeUndefined();
+
+      mocks.servers.push({ connectionId: "pc", desktopId: "host-desktop" });
+      mocks.runtime.pc = { status: "online" };
+      // A record not yet verified (no cache id) has no authority.
+      expect(entityHost(pairedRow("t1"))!.recentHistoryKey).toBeUndefined();
+
+      mocks.servers[0]!.recentHistoryCacheId = "pair-1";
+      mocks.runtime.pc = { status: "connecting" };
+      expect(entityHost(pairedRow("t1"))!.recentHistoryKey).toBeUndefined();
+
+      mocks.runtime.pc = { status: "online" };
+      const key = entityHost(pairedRow("t1"))!.recentHistoryKey;
+      expect(key).toBe(pairedRecentHistoryAuthority("pc", "pair-1", "host-desktop"));
+      // A fresh pairing's id selects a different authority.
+      mocks.servers[0]!.recentHistoryCacheId = "pair-2";
+      expect(entityHost(pairedRow("t1"))!.recentHistoryKey).not.toBe(key);
+      mocks.servers[0]!.recentHistoryCacheId = "pair-1";
+      expect(key?.startsWith("managed:")).toBe(false);
+      // The same authorization reconnecting resolves the same authority.
+      expect(entityHost(pairedRow("t2"))!.recentHistoryKey).toBe(key);
+    });
+
+    it("is withdrawn from a handle whose connection incarnation was replaced", () => {
+      mocks.servers.push({
+        connectionId: "pc",
+        desktopId: "host-desktop",
+        recentHistoryCacheId: "pair-1",
+      });
+      mocks.runtime.pc = { status: "online" };
+      const host = entityHost(pairedRow("t1"))!;
+      expect(host.recentHistoryKey).toBeDefined();
+      bumpRemoteServerGeneration("pc");
+      expect(host.recentHistoryKey).toBeUndefined();
+      expect(entityHost(pairedRow("t1"))!.recentHistoryKey).toBeDefined();
+    });
   });
 
   it("fences a handle to its connection incarnation", () => {

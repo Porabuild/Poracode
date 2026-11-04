@@ -9,6 +9,7 @@ import { retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { projectPendingCatalogEdit, forgetPendingCatalogEdit } from "../pendingCatalogEdits";
 import { closePanesForHostArchivedRows, mergeHostThreadRow } from "../hostThreadRowMerge";
 import { orderHostRows } from "../hostCatalogRowOrder";
+import { reuseRow } from "./rowReuse";
 import { projectRemoteProject, projectRemoteThread, remoteThreadId } from "../remoteProjection";
 import { refreshGitProject } from "../gitRefresh";
 import { useGitStore } from "../gitStore";
@@ -56,9 +57,7 @@ function projectThreadIdentityPreserving(desktopId: string, thread: Thread): Thr
  */
 function mergeMirrorRow(incoming: Thread, resident: Thread | undefined): Thread {
   const pending = useAppStore.getState().pendingThreadConfigByThreadId[incoming.id];
-  const merged = mergeHostThreadRow(resident, incoming, pending);
-  if (!resident || merged === incoming || merged === resident) return merged;
-  return JSON.stringify(merged) === JSON.stringify(resident) ? resident : merged;
+  return mergeHostThreadRow(resident, incoming, pending);
 }
 
 function dropProjectedThreadCache(desktopId: string): void {
@@ -269,12 +268,17 @@ export function syncRemoteAppRows(
           ) {
             clientWorkspaceFilings.push({ desktopId, remoteId: project.id, workspaceId });
           }
-          return projectPendingCatalogEdit("project", {
-            ...projectWithoutWorkspace,
-            name,
-            ...(workspaceId ? { workspaceId } : {}),
-            ...(current?.mcpServers ? { mcpServers: current.mcpServers } : {}),
-          });
+          // A page that restates the project unchanged keeps the resident
+          // mirror row, so partial pages do not re-render its subscribers.
+          return reuseRow(
+            current,
+            projectPendingCatalogEdit("project", {
+              ...projectWithoutWorkspace,
+              name,
+              ...(workspaceId ? { workspaceId } : {}),
+              ...(current?.mcpServers ? { mcpServers: current.mcpServers } : {}),
+            }),
+          );
         }),
       )
     : undefined;

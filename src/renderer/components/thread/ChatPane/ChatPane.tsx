@@ -35,7 +35,6 @@ import { ChatStatusBubble } from "./ChatStatusBubble";
 import { threadRuntimeStatusLabel } from "../ThreadHeaderStatus";
 import {
   ChatShimmerStatus,
-  ChatStatusFooter,
   ChatTailStatus,
   ChatTurnElapsedFooter,
   ChatTurnStatus,
@@ -540,9 +539,7 @@ export function ChatPane(props: ChatPaneProps) {
                       {tailForkAction}
                     </div>
                   )
-                ) : isHydrating && !showWorkingTimer ? (
-                  <ChatStatusFooter text={t`Loading messages…`} />
-                ) : showTailLoader && tailTurn ? (
+                ) : !isHydrating && showTailLoader && tailTurn ? (
                   <div className="group/checkpoint">
                     <ChatTurnElapsedFooter
                       turn={tailTurn}

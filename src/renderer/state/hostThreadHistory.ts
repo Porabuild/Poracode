@@ -44,6 +44,7 @@ import { entityHost, type EntityHost } from "./entityHost";
 import { beginHostHistoryPreview } from "./hostHistoryPreview";
 import { isRuntimeHistoryReadHeld } from "./runtimeHistoryReadBarrier";
 import { useAppStore } from "./appStore";
+import { getThreadMap } from "./useThread";
 
 // Paint the recent viewport first. Continuations keep their normal page size,
 // and the host still completes any tool group crossing this initial boundary.
@@ -297,7 +298,7 @@ export function resumeHostThreadHistory(
     readonly client?: RemoteDesktopClient;
   },
 ): Promise<HostThreadHistoryResume | null> | null {
-  const host = entityHost(entity);
+  const host = entityHost(getThreadMap(useAppStore.getState().threads).get(entity.id) ?? entity);
   const viewThreadId = entity.id;
   const authority = host?.historyResumeAuthority;
   const captured = authority ? readHistoryResume(viewThreadId, authority) : undefined;
@@ -394,7 +395,9 @@ setHostOlderRuntimePageReader((input) => {
 /** The live reducer's recovery resumes each thread on the host that owns it. */
 setHostHistoryResumer({
   resume: resumeHostThreadHistory,
-  resumeAuthority: (threadId) => entityHost({ id: threadId })?.historyResumeAuthority,
+  resumeAuthority: (threadId) =>
+    entityHost(getThreadMap(useAppStore.getState().threads).get(threadId) ?? { id: threadId })
+      ?.historyResumeAuthority,
 });
 
 /** A replayed destructive frame the thread's installed baseline already includes is dropped. */

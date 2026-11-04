@@ -4,7 +4,11 @@ import { getRemoteBridgeClient } from "../browser/remoteBridge";
 import { useAppStore } from "./appStore";
 import { entityHost, type EntityHost } from "./entityHost";
 import { getThreadMap } from "./useThread";
-import { cachedThreadPromptIndex, loadThreadPromptIndex } from "./threadPromptIndexCache";
+import {
+  cachedThreadPromptIndex,
+  loadThreadPromptIndex,
+  threadPromptIndexNeedsRefresh,
+} from "./threadPromptIndexCache";
 
 function promptIndexHost(threadId: string): EntityHost | undefined {
   return entityHost(getThreadMap(useAppStore.getState().threads).get(threadId) ?? { id: threadId });
@@ -17,6 +21,10 @@ export function threadPromptIndexOwner(threadId: string): unknown {
 
 export function readCachedThreadPromptIndex(threadId: string): PersistedPromptIndex | undefined {
   return cachedThreadPromptIndex(threadId, threadPromptIndexOwner(threadId));
+}
+
+export function shouldRefreshThreadPromptIndex(threadId: string): boolean {
+  return threadPromptIndexNeedsRefresh(threadId, threadPromptIndexOwner(threadId));
 }
 
 /**

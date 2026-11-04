@@ -82,6 +82,7 @@ export function installDevBridge(): void {
       return { loopback, rootCatalog, remoteServers };
     },
     loadRuntimeDiagnostics: async () => import("./state/remote"),
+    loadThreadNavigation: () => import("./actions/threadActions"),
     /** Raw Zustand stores — call `.getState()` / `.setState()` to inspect or drive any state. */
     stores: {
       update: useUpdateStore,

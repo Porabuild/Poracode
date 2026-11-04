@@ -7,6 +7,7 @@ import type { RemoteTokenLifecycle } from "@/shared/remote/clientTypes";
 import type { SshConnectionConfig } from "@/shared/ssh";
 import {
   __resetRemoteServersStoreForTest,
+  migrateRemoteServersPersistedState,
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
 import {
@@ -23,6 +24,14 @@ import {
   type RefreshSubject,
 } from "@/renderer/state/remoteServers/refreshTokens";
 import { forgetCertPin } from "@/renderer/state/remoteServers/pairing";
+import {
+  __closeRecentHistoryCacheForTest,
+  cacheRecentHistory,
+  pairedRecentHistoryAuthority,
+  readRecentHistory,
+} from "@/renderer/browser/recentHistoryCache";
+import { currentRemoteServerGeneration } from "@/renderer/state/remoteServers/eventSocketRegistry";
+import type { HistoryRuntimeItem } from "@/shared/remote/historyPresentation";
 import {
   __resetTokenVaultForTest,
   getDesktopToken,
@@ -405,4 +414,131 @@ describe("connection incarnation across store re-pair and removal", () => {
     },
     30_000,
   );
+});
+
+describe("recent history tails across removal and re-pair", () => {
+  const tail: HistoryRuntimeItem[] = [
+    {
+      id: "reply",
+      type: "assistant_message",
+      state: "completed",
+      streams: { assistant_text: "Cached tail" },
+    },
+  ];
+  const parentAuthority = pairedRecentHistoryAuthority(PARENT_KEY, "old-pair", PARENT_KEY);
+  const childAuthority = pairedRecentHistoryAuthority(CHILD_KEY, "old-pair", "child-desktop");
+  const otherAuthority = pairedRecentHistoryAuthority(
+    "other-connection",
+    "old-pair",
+    "other-desktop",
+  );
+  const managedAuthority = "managed:desktop";
+
+  async function seed(): Promise<void> {
+    for (const authority of [parentAuthority, childAuthority, otherAuthority, managedAuthority])
+      await cacheRecentHistory(authority, "thread", tail, () => true);
+  }
+
+  afterEach(async () => {
+    await __closeRecentHistoryCacheForTest();
+  });
+
+  it("drops the removed connection and its cascaded children, nothing else", async () => {
+    useRemoteServersStore.setState({
+      servers: [parentRecord({ recentHistoryCacheId: "old-pair" }), childRecord()],
+    });
+    await seed();
+    const generation = currentRemoteServerGeneration(PARENT_KEY);
+
+    useRemoteServersStore.getState().removeServer(PARENT_KEY, { cascadeEnvironments: true });
+
+    await vi.waitFor(async () => {
+      expect(await readRecentHistory(parentAuthority, "thread")).toBeNull();
+      expect(await readRecentHistory(childAuthority, "thread")).toBeNull();
+    });
+    expect(await readRecentHistory(otherAuthority, "thread")).toEqual(tail);
+    expect(await readRecentHistory(managedAuthority, "thread")).toEqual(tail);
+
+    // A write begun on the removed incarnation is fenced by its generation.
+    await cacheRecentHistory(
+      parentAuthority,
+      "late",
+      tail,
+      () => currentRemoteServerGeneration(PARENT_KEY) === generation,
+    );
+    expect(await readRecentHistory(parentAuthority, "late")).toBeNull();
+  });
+
+  const recordOf = () =>
+    useRemoteServersStore.getState().servers.find((server) => server.connectionId === PARENT_KEY)!;
+
+  it("a fresh pairing cannot admit the previous pairing's tail", async () => {
+    useRemoteServersStore.setState({
+      servers: [parentRecord({ recentHistoryCacheId: "old-pair" })],
+    });
+    await seed();
+
+    await rePairVia("direct");
+
+    await vi.waitFor(async () => {
+      expect(await readRecentHistory(parentAuthority, "thread")).toBeNull();
+    });
+    expect(recordOf().recentHistoryCacheId).toEqual(expect.any(String));
+    expect(recordOf().recentHistoryCacheId).not.toBe("old-pair");
+    expect(await readRecentHistory(otherAuthority, "thread")).toEqual(tail);
+    expect(await readRecentHistory(managedAuthority, "thread")).toEqual(tail);
+  });
+
+  it("a failed physical purge leaves the old tail unreachable from the new grant", async () => {
+    useRemoteServersStore.setState({
+      servers: [parentRecord({ recentHistoryCacheId: "old-pair" })],
+    });
+    await seed();
+    const failingDelete = vi.spyOn(IDBObjectStore.prototype, "delete").mockImplementation(() => {
+      throw new Error("simulated purge failure");
+    });
+    try {
+      await rePairVia("direct");
+      // The purge is best-effort and runs beside the pairing: wait for its failed attempt.
+      await vi.waitFor(() => expect(failingDelete).toHaveBeenCalled());
+    } finally {
+      failingDelete.mockRestore();
+    }
+
+    // The old rows survived the failed cleanup (physical garbage)...
+    expect(await readRecentHistory(parentAuthority, "thread")).toEqual(tail);
+    // ...but the new grant resolves a different authority and cannot see them.
+    const next = pairedRecentHistoryAuthority(
+      PARENT_KEY,
+      recordOf().recentHistoryCacheId!,
+      PARENT_KEY,
+    );
+    expect(next).not.toBe(parentAuthority);
+    expect(await readRecentHistory(next, "thread")).toBeNull();
+  });
+
+  it("keeps its cache id across reconnect, and a pre-id record gains one only after a verified read", async () => {
+    // An old v2 document: no recentHistoryCacheId. It is valid and unchanged by hydration.
+    const legacy = parentRecord();
+    expect(migrateRemoteServersPersistedState({ servers: [legacy] }, 2)).toEqual({
+      servers: [legacy],
+    });
+    useRemoteServersStore.setState({ servers: [legacy] });
+    expect(recordOf().recentHistoryCacheId).toBeUndefined();
+
+    await useRemoteServersStore.getState().reconnectServer(PARENT_KEY);
+    const minted = recordOf().recentHistoryCacheId;
+    expect(minted).toEqual(expect.any(String));
+
+    await useRemoteServersStore.getState().reconnectServer(PARENT_KEY);
+    expect(recordOf().recentHistoryCacheId).toBe(minted);
+  });
+
+  it("never mints a cache id for a host whose verified identity differs from the record", async () => {
+    useRemoteServersStore.setState({ servers: [parentRecord({ desktopId: "another-host" })] });
+
+    await useRemoteServersStore.getState().reconnectServer(PARENT_KEY);
+
+    expect(recordOf().recentHistoryCacheId).toBeUndefined();
+  });
 });

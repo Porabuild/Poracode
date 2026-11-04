@@ -4,6 +4,7 @@ import {
   readCachedThreadPromptIndex,
   readThreadPromptIndex,
   threadPromptIndexOwner,
+  shouldRefreshThreadPromptIndex,
 } from "@/renderer/state/threadPromptIndex";
 
 /** Waits before each retry of a failed read; a host without the route fails them all. */
@@ -25,16 +26,21 @@ function delay(ms: number, signal: AbortSignal): Promise<void> {
 
 /**
  * Undefined while loading, null when unavailable, otherwise the host's prompts.
- * The rail waits for its first read instead of flashing a partial outline. It is
- * read once per thread, and only while the rail is shown: the rail only takes
- * prompts older than the loaded transcript from it, and those do not change
- * while the thread is open. A failed read is retried a couple of times so one
+ * The rail waits for its first read instead of flashing a partial outline, and
+ * keeps a known outline visible during recovery refreshes. Navigation can
+ * prefetch it; this hook reads only while the rail has room. A failed read is
+ * retried a couple of times so one
  * transient error does not cost the thread its history for the whole visit.
  */
 export function useThreadPromptIndex(
   threadId: string,
   enabled: boolean,
 ): PersistedPromptIndex | null | undefined {
+  // The owner, cached outline and refresh flag come from an imperative, mutable
+  // cache that changes outside React (a late read completing, a hard reset
+  // forgetting it). They must be read on every render; React Compiler would
+  // otherwise memoize them on `threadId` alone and freeze the first answer.
+  "use no memo";
   const [loaded, setLoaded] = useState<{
     threadId: string;
     owner: unknown;
@@ -43,9 +49,10 @@ export function useThreadPromptIndex(
 
   const owner = threadPromptIndexOwner(threadId);
   const cached = readCachedThreadPromptIndex(threadId);
+  const needsRefresh = shouldRefreshThreadPromptIndex(threadId);
 
   useEffect(() => {
-    if (!enabled || cached) return;
+    if (!enabled || (cached && !needsRefresh)) return;
     const controller = new AbortController();
     const { signal } = controller;
     void (async () => {
@@ -56,16 +63,19 @@ export function useThreadPromptIndex(
         }
         const index = await readThreadPromptIndex(threadId, signal);
         if (signal.aborted) return;
-        setLoaded({ threadId, owner, index });
+        if (index || attempt === RETRY_DELAYS_MS.length) setLoaded({ threadId, owner, index });
         if (index) {
           return;
         }
       }
     })();
     return () => controller.abort();
-  }, [threadId, enabled, owner, cached]);
+  }, [threadId, enabled, owner, cached, needsRefresh]);
 
   return (
-    cached ?? (loaded?.threadId === threadId && loaded.owner === owner ? loaded.index : undefined)
+    cached ??
+    (loaded?.threadId === threadId && loaded.owner === owner && loaded.index === null
+      ? null
+      : undefined)
   );
 }

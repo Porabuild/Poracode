@@ -10681,8 +10681,8 @@ msgid "Loading media preview…"
 msgstr "Wczytywanie podglądu multimediów…"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
-msgid "Loading messages…"
-msgstr "Wczytywanie wiadomości…"
+#~ msgid "Loading messages…"
+#~ msgstr "Wczytywanie wiadomości…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Loading model…"

@@ -547,6 +547,47 @@ describe("boundedCatalogController", () => {
     expect(useNativeVisualUiStore.getState().entries.has(nativeKey)).toBe(true);
   });
 
+  it("does not resurrect a confirmed-deleted row from an older paint response", async () => {
+    const gone = threadRow("gone");
+    const keep = threadRow("keep");
+    const host = makeBoundedHost({
+      rows: [gone, keep],
+      pageSize: 1,
+      deferFirstListPage: true,
+      onListPage: ({ mode }) =>
+        mode === "inventory"
+          ? { threads: [keep], nextCursor: null }
+          : { threads: [keep], nextCursor: null },
+      existing: (ids) => ids.filter((id) => id !== gone.id),
+    });
+    installServer(host.client);
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await vi.waitFor(() => {
+      expect(host.listPages).toBe(1);
+      expect(host.membershipCalls.some((request) => request.threadIds?.includes(gone.id))).toBe(
+        true,
+      );
+      expect(
+        useAppStore.getState().threads.some((row) => row.id === remoteThreadId("d1", gone.id)),
+      ).toBe(false);
+    });
+    const resurrected: string[] = [];
+    const unsubscribe = useAppStore.subscribe((state) => {
+      if (state.threads.some((row) => row.id === remoteThreadId("d1", gone.id)))
+        resurrected.push(gone.id);
+    });
+    try {
+      host.resolveListPage?.({ threads: [gone], nextCursor: null });
+      await flushAsyncWork();
+      expect(resurrected).toEqual([]);
+      expect(
+        useAppStore.getState().threads.some((row) => row.id === remoteThreadId("d1", gone.id)),
+      ).toBe(false);
+    } finally {
+      unsubscribe();
+    }
+  });
+
   it("reconciles project membership events into thread and project passes", async () => {
     vi.useFakeTimers();
     const rows = [threadRow("t-1")];

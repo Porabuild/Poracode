@@ -23,14 +23,17 @@ import {
   __resetBoundedHistoryRegistryForTest,
   readBoundedHistoryTail,
 } from "./remoteServers/catalog/boundedHistoryRegistry";
-import { readHostThreadHistory } from "./hostThreadHistory";
+import { readHostThreadHistory, resumeHostThreadHistory } from "./hostThreadHistory";
 
 const VIEW = "view-thread";
 const HOST_ID = "host-thread";
 
-const mocks = vi.hoisted(() => ({ host: undefined as unknown }));
+const mocks = vi.hoisted(() => ({ host: undefined as unknown, requireOwner: false }));
 // The read is the same for every host: a test host stands in for both.
-vi.mock("./entityHost", () => ({ entityHost: () => mocks.host }));
+vi.mock("./entityHost", () => ({
+  entityHost: (entity: { remoteServerId?: string }) =>
+    mocks.requireOwner && !entity.remoteServerId ? undefined : mocks.host,
+}));
 // The cold-read preview's on-device cache needs IndexedDB.
 vi.mock("./hostHistoryPreview", () => ({
   beginHostHistoryPreview: () => ({
@@ -75,13 +78,18 @@ function page(snapshotSeq = 5): RemoteBoundedThreadHistoryPage {
 interface TestHost {
   readonly host: EntityHost;
   readonly read: ReturnType<typeof vi.fn<RemoteDesktopClient["boundedThreadHistory"]>>;
+  readonly resume: ReturnType<typeof vi.fn<RemoteDesktopClient["resumeThreadHistory"]>>;
   current: boolean;
   connected: boolean;
 }
 
 function testHost(): TestHost {
   const read = vi.fn<RemoteDesktopClient["boundedThreadHistory"]>();
-  const client = { boundedThreadHistory: read } as unknown as RemoteDesktopClient;
+  const resume = vi.fn<RemoteDesktopClient["resumeThreadHistory"]>();
+  const client = {
+    boundedThreadHistory: read,
+    resumeThreadHistory: resume,
+  } as unknown as RemoteDesktopClient;
   const state = { current: true, connected: true };
   const host = {
     kind: "paired",
@@ -95,7 +103,16 @@ function testHost(): TestHost {
     onReplaced: () => () => {},
     isConnected: () => state.connected,
     omitsHistoryScrollback: false,
-    projectSnapshot: (snapshot) => ({ ...snapshot, thread: { ...snapshot.thread, id: VIEW } }),
+    projectSnapshot: (snapshot) => ({
+      ...snapshot,
+      thread: { ...snapshot.thread, id: VIEW, remoteServerId: "test-host", remoteId: HOST_ID },
+    }),
+    projectThread: (thread) => ({
+      ...thread,
+      id: VIEW,
+      remoteServerId: "test-host",
+      remoteId: HOST_ID,
+    }),
     projectRuntimeItems: (items) => items,
     recentHistoryKey: undefined,
     runsOnThisMachine: false,
@@ -104,6 +121,7 @@ function testHost(): TestHost {
   const handle = {
     host,
     read,
+    resume,
     get current() {
       return state.current;
     },
@@ -139,9 +157,40 @@ afterEach(() => {
   __resetRuntimeHistoryNoticeCapabilityForTest();
   useAppStore.setState(original, true);
   mocks.host = undefined;
+  mocks.requireOwner = false;
 });
 
 describe("readHostThreadHistory", () => {
+  it("resumes an id-only paired reopen from its resident owner without another history read", async () => {
+    const { read, resume } = testHost();
+    const row = { ...hostThread, id: VIEW, remoteServerId: "test-host", remoteId: HOST_ID };
+    useAppStore.setState({ threads: [row] });
+    mocks.requireOwner = true;
+    read.mockResolvedValueOnce({ negotiation: "bounded", page: page() });
+    expect((await readHostThreadHistory(row)).kind).toBe("installed");
+    const items = useAppStore.getState().runtimeItemsByIdByThread[VIEW];
+    resume.mockResolvedValueOnce({
+      kind: "events",
+      snapshotSeq: 6,
+      thread: hostThread,
+      completedTurns: [],
+      contextUsage: null,
+      runtimeResumeCursor: "hr1.resumed",
+      batches: [],
+    });
+    const outcome = await resumeHostThreadHistory(
+      { id: VIEW },
+      {
+        arbitration: { hasUnsequenced: () => false, discardThroughSequence: () => {} },
+        isCurrent: () => true,
+      },
+    );
+    expect(outcome).toMatchObject({ kind: "applied", applied: true });
+    expect(resume).toHaveBeenCalledExactlyOnceWith(HOST_ID, "hr1.cursor", { afterSeq: 5 });
+    expect(read).toHaveBeenCalledOnce();
+    expect(useAppStore.getState().runtimeItemsByIdByThread[VIEW]).toBe(items);
+  });
+
   it("reads by the host's id and installs the tail under the store id, recording its continuation", async () => {
     const { host, read } = testHost();
     read.mockResolvedValueOnce({ negotiation: "bounded", page: page() });

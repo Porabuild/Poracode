@@ -596,6 +596,7 @@ async function readPaintPage(
   connectionKey: string,
   kind: CatalogKind,
   paint: CatalogPaintState | null,
+  isCurrent: () => boolean,
 ): Promise<PaintPageResult | null> {
   try {
     if (kind === "threads") {
@@ -622,6 +623,7 @@ async function readPaintPage(
               maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
             }),
       );
+      if (!isCurrent()) return null;
       if (result.negotiation !== "bounded") {
         active.reportProtocolError(
           connectionKey,
@@ -658,6 +660,7 @@ async function readPaintPage(
             maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
           }),
     );
+    if (!isCurrent()) return null;
     commitProjectRows(active, connectionKey, result.projects);
     return {
       ids: result.projects.map((row) => row.id),
@@ -706,11 +709,13 @@ async function runPaintSegment(
     const consumer = stateConsumer(state);
     if (!consumer) return;
     const active = consumer.deps;
+    const isReadCurrent = () =>
+      attemptIsCurrent(connectionKey, state, attempt) && !paintRefreshRequested(state, kind);
     for (;;) {
       if (!attemptIsCurrent(connectionKey, state, attempt)) return;
       if (paintRefreshRequested(state, kind)) {
         setPaintRefreshRequested(state, kind, false);
-        const page = await readPaintPage(active, connectionKey, kind, null);
+        const page = await readPaintPage(active, connectionKey, kind, null, isReadCurrent);
         if (page === null) return;
         if (!attemptIsCurrent(connectionKey, state, attempt)) return;
         writePaint(state, kind, {
@@ -732,7 +737,7 @@ async function runPaintSegment(
         if (!paintRefreshRequested(state, kind)) return;
         continue;
       }
-      const page = await readPaintPage(active, connectionKey, kind, paint);
+      const page = await readPaintPage(active, connectionKey, kind, paint, isReadCurrent);
       if (page === null) return;
       if (!attemptIsCurrent(connectionKey, state, attempt)) return;
       const next: CatalogPaintState = {
@@ -757,7 +762,8 @@ async function runPaintSegment(
     // unscheduled (the slot was taken); hand it over now.
     if (state && paintRunningAttempt(state, kind) === attempt) {
       setPaintRunningAttempt(state, kind, null);
-      if (state.attempt !== attempt) schedulePaintSegment(connectionKey, kind);
+      if (state.attempt !== attempt || paintRefreshRequested(state, kind))
+        schedulePaintSegment(connectionKey, kind);
     }
   }
 }
@@ -1044,6 +1050,12 @@ async function runDeletionGate(
     if (absent.length === 0) continue;
     if (kind === "threads") active.removeThreadRows(connectionKey, absent);
     else active.removeProjectRows(connectionKey, absent);
+    // A sealed paint cursor can still contain these rows. Retire its pending
+    // response before it can restore them, then start from the current catalog.
+    if (paintRunningAttempt(state, kind) !== null || readPaint(state, kind)?.cursor != null) {
+      setPaintRefreshRequested(state, kind, true);
+      schedulePaintSegment(connectionKey, kind);
+    }
   }
 }
 

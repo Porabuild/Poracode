@@ -14,7 +14,7 @@ import type { HistoryRuntimeItem } from "@/shared/remote/historyPresentation";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
-import { forgetThreadPromptIndex } from "../threadPromptIndexCache";
+import { forgetThreadPromptIndex, invalidateThreadPromptIndex } from "../threadPromptIndexCache";
 import {
   applyRuntimeEventsToState,
   applyRuntimeEventBatchesToState,
@@ -190,7 +190,7 @@ export interface RuntimeEventSlice {
   ): void;
   clearThreadRuntimeEvents(
     threadId: string,
-    options?: { keepOpenRequests?: boolean; keepTranscript?: boolean },
+    options?: { keepOpenRequests?: boolean; keepTranscript?: boolean; keepPromptIndex?: boolean },
   ): void;
   /**
    * Force-terminate any still-running sub-agent tool_call items in a thread.
@@ -346,7 +346,9 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 
   clearThreadRuntimeEvents: (threadId, options) =>
     set((state) => {
-      forgetThreadPromptIndex(threadId);
+      if (options?.keepTranscript || options?.keepPromptIndex)
+        invalidateThreadPromptIndex(threadId);
+      else forgetThreadPromptIndex(threadId);
       clearRuntimeStructuralChangeHint(threadId);
       forgetThreadGalleryCache(threadId);
       if (

@@ -97,13 +97,12 @@ it("retries failed order recovery when membership removes its anchor during the 
       () => expect(rootThreads().map((thread) => thread.id)).toEqual(authoritative),
       { timeout: 10_000 },
     );
-    // The refused walk requests one ordinary manual refresh, including all
-    // continuation pages, on top of the host command's own catch-up pass
-    // (`EntityHost.sendThreadCommand` refreshes even when the command fails).
+    // The deletion supersedes the host command's old catch-up paint. The
+    // refused recovery also requests a fresh walk after its held page settles.
     // It does not resend the rejected relative command.
     expect(
       pages.mock.calls.filter(([options]) => options?.mode === "page" && !options.cursor),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(commands).toHaveBeenCalledTimes(1);
     expect(new Set(rootThreads().map((thread) => thread.id)).size).toBe(250);
   } finally {

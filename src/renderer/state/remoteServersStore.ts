@@ -477,6 +477,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // as no user moves recorded, and older apps ignore the key.
       // Token rotation updates existing bearer slots through secure storage;
       // v1/v2 records and encrypted vault keys remain valid without a bump.
+      // `recentHistoryCacheId` is additive local cache metadata (no credential):
+      // records without it stay valid, gain one after their next verified
+      // connect, and older apps ignore it, so no version bump or migration.
       version: 2,
       /**
        * v1 → v2: `connectionId` becomes the per-connection key.

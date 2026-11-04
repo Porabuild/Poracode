@@ -25,6 +25,7 @@ import {
   noteCatalogMutationsCapability,
 } from "@/renderer/state/remote/catalogMutationsCapability";
 import { forgetHistoryBaselines } from "@/renderer/state/historyBaselines";
+import { purgeRecentHistoryForConnection } from "@/renderer/browser/recentHistoryCache";
 import { refreshSlashCommandCatalogs } from "./slashCommandCatalogs";
 import { syncRemoteGitSummaries } from "./gitSummaries";
 import { replaceCachedProjects } from "./projectCache";
@@ -247,6 +248,8 @@ export function createPairingActions(deps: PairingActionDeps) {
     let record: RemoteServerRecord = {
       connectionId,
       desktopId: environment.desktopId,
+      // Every fresh authorization gets its own cache identity.
+      recentHistoryCacheId: crypto.randomUUID(),
       label: environment.label,
       remoteLabel: environment.label,
       endpoint: normalized,
@@ -288,6 +291,10 @@ export function createPairingActions(deps: PairingActionDeps) {
     setRemoteHostUpdateReconnectSeq(connectionId, nextRemoteHostUpdateSequence());
     closeRemoteServerEventSocket(connectionId);
     bumpRemoteServerGeneration(connectionId);
+    // The new cache id already makes an earlier pairing's tail unreachable, so
+    // the purge only reclaims it: a failed cleanup is never a leak, and pairing
+    // must not wait on (or fail with) optional derived-cache I/O.
+    void purgeRecentHistoryForConnection(connectionId);
     set((state) => ({
       servers: [...state.servers.filter((s) => s.connectionId !== connectionId), record],
       lastKnownProjects: replaceCachedProjects(

@@ -89,7 +89,10 @@ export function createHostHistoryRecovery(deps: {
         beforeInstall: () => {
           if (rendererTransportGeneration !== generation) return false;
           // The DB contains transcript rows, not authoritative open requests.
-          useAppStore.getState().clearThreadRuntimeEvents(threadId, { keepOpenRequests: true });
+          useAppStore.getState().clearThreadRuntimeEvents(threadId, {
+            keepOpenRequests: true,
+            keepPromptIndex: true,
+          });
           clearRuntimeItemStoreSelectorCacheForThread(threadId);
           return true;
         },

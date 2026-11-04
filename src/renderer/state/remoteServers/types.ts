@@ -135,6 +135,15 @@ export interface RemoteServerRecord {
    */
   readonly connectionId?: string;
   readonly desktopId: string;
+  /**
+   * Non-secret identity of this pairing authorization's on-device recent-history
+   * cache. Minted fresh for every pairing (so a re-pair never reads an earlier
+   * grant's tail) and kept across reconnect, reload and credential rotation. A
+   * record persisted before it existed gains one only after its first
+   * authenticated host-identity read. Additive: older documents stay valid and
+   * older readers ignore it, so the persisted store version is unchanged.
+   */
+  readonly recentHistoryCacheId?: string;
   readonly label: string;
   /** Host-reported label retained when `label` is overridden locally. */
   readonly remoteLabel?: string;

@@ -3,6 +3,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   cacheRecentHistory,
   readRecentHistory,
+  pairedRecentHistoryAuthority,
+  purgeRecentHistoryForConnection,
   recentHistoryCacheKey,
   RECENT_HISTORY_MAX_BYTES,
   __closeRecentHistoryCacheForTest,
@@ -146,4 +148,55 @@ it("does not admit a retired owner's write", async () => {
   let checks = 0;
   await cacheRecentHistory("host", "thread", items, () => ++checks === 1);
   expect(await readRecentHistory("host", "thread")).toBeNull();
+});
+
+it("purges only the named paired connection, leaving other connections and managed tails", async () => {
+  const mine = pairedRecentHistoryAuthority("conn", "pair-1", "desktop");
+  const nextPairing = pairedRecentHistoryAuthority("conn", "pair-2", "desktop");
+  // A key that merely starts with the purged one must survive.
+  const longer = pairedRecentHistoryAuthority("conn:2", "pair-1", "desktop");
+  const other = pairedRecentHistoryAuthority("elsewhere", "pair-1", "desktop");
+  const authorities = [mine, nextPairing, longer, other, "managed:desktop"];
+  for (const authority of authorities)
+    await cacheRecentHistory(authority, "thread", items, () => true);
+
+  await purgeRecentHistoryForConnection("conn");
+
+  expect(await readRecentHistory(mine, "thread")).toBeNull();
+  expect(await readRecentHistory(nextPairing, "thread")).toBeNull();
+  for (const kept of [longer, other, "managed:desktop"])
+    expect(await readRecentHistory(kept, "thread")).toEqual(items);
+});
+
+it("separates paired authorities by connection, pairing and verified host, never from a managed one", () => {
+  const a = pairedRecentHistoryAuthority("conn", "pair-1", "desktop");
+  expect(a).not.toBe(pairedRecentHistoryAuthority("conn", "pair-2", "desktop"));
+  expect(a).not.toBe(pairedRecentHistoryAuthority("conn", "pair-1", "other"));
+  expect(a).not.toBe(pairedRecentHistoryAuthority("other", "pair-1", "desktop"));
+  expect(a.startsWith("managed:")).toBe(false);
+  expect(pairedRecentHistoryAuthority("a:b", "c", "d")).not.toBe(
+    pairedRecentHistoryAuthority("a", "b:c", "d"),
+  );
+});
+
+it("never reads a tail written under an earlier pairing's authority or the pre-id paired key", async () => {
+  // The earlier prototype keyed paired tails by connection and host only.
+  const preId = "paired:conn:desktop";
+  await cacheRecentHistory(preId, "thread", items, () => true);
+  await cacheRecentHistory(
+    pairedRecentHistoryAuthority("conn", "old", "desktop"),
+    "thread",
+    items,
+    () => true,
+  );
+
+  expect(
+    await readRecentHistory(pairedRecentHistoryAuthority("conn", "new", "desktop"), "thread"),
+  ).toBeNull();
+  // The record shape is the unchanged v1 one.
+  expect(await rawRecords()).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ version: 1, key: recentHistoryCacheKey(preId, "thread") }),
+    ]),
+  );
 });
