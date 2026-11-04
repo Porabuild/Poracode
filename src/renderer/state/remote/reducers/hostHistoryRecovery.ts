@@ -11,12 +11,12 @@ import type {
 } from "./supervisorEventReducer";
 
 /**
- * The Electron (desktop-managed) recovery strategy: authoritative state is the
- * LOCAL snapshot. The backend persists runtime events before broadcasting
- * them, so after a queue overflow or a `thread-reset` the renderer re-reads
- * the authoritative local history and the reducer resumes live deltas only
- * once that re-read has landed (V5 plan 2.3: injected recovery strategy —
- * local snapshot | HTTP snapshot).
+ * The recovery strategy for every host, desktop-managed or paired. The host
+ * persists runtime events before broadcasting them, so after a queue overflow,
+ * a `thread-reset` or a reconnect the renderer re-reads the thread's history
+ * from the host that owns it (resuming from the last seen event when the host
+ * serves a cursor), and the reducer resumes live deltas only once that read
+ * has landed.
  */
 export interface HostHistoryRecovery {
   readonly strategy: RuntimeEventRecoveryStrategy;
@@ -57,8 +57,8 @@ export function createHostHistoryRecovery(deps: {
   >();
 
   /**
-   * A local DB snapshot has no event cursor of its own. Repeat the read when
-   * the renderer observed new sequenced events during it; the next read then
+   * A host snapshot is only as new as the read. Repeat the read when the
+   * renderer observed new sequenced events during it; the next read then
    * includes those persisted rows. A sustained stream eventually becomes an
    * explicit failed/retryable state instead of an unbounded recovery loop.
    */
