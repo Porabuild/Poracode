@@ -491,7 +491,6 @@ export function createPrompt(ctx: RouterContext) {
       const switchContextStrategy = resolveProviderHandoffStrategy({
         sourcePresentationMode: "gui",
         targetPresentationMode: "gui",
-        isMirroredThread: false,
         readThreadToolEnabled: readThreadToolEnabled({
           disabledBuiltInMcpServers: record(switchSettings.disabledBuiltInMcpServers) as never,
           disabledBuiltInMcpTools: record(switchSettings.disabledBuiltInMcpTools) as never,
