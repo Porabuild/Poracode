@@ -458,6 +458,7 @@ export function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boole
  * / `prDiffs` caches are kept session-local since they're tied to overlay state.
  */
 // v2 recomputes GitHub-only availability and truncated repository namespaces.
+// v2 URLs remain valid; a host's next full refresh resolves SSH aliases in place.
 const PERSIST_KEY = "poracode-git-cache-v2";
 const PERSIST_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 

@@ -282,12 +282,16 @@ describe("ProjectSwitchMenu", () => {
     );
     const environment = screen.getByRole("button", { name: /^Machine:/ });
     expect(environment).toHaveTextContent("MacBook 16");
+    const projectTrigger = screen.getByRole("button", { name: "Switch project" });
+    expect(projectTrigger.querySelector(".lucide-folder-open")).toBeInTheDocument();
+    expect(within(projectTrigger).queryByTitle("Online")).not.toBeInTheDocument();
+    expect(within(environment).getAllByTitle("Online")).toHaveLength(1);
     const menu = await openMenu();
     expect(
       within(menu)
         .getAllByRole("menuitemradio")
         .map((item) => item.textContent),
-    ).toEqual(["AlphaLocalMacBook 16", "Gamma"]);
+    ).toEqual(["Alpha", "Gamma"]);
   });
 
   it("moves the draft to another environment of the same project", async () => {
@@ -330,6 +334,10 @@ describe("ProjectSwitchMenu", () => {
     render(<ProjectSwitchMenu currentProjectId="r" variant="compact" />);
     expect(screen.queryByRole("button", { name: /^Machine:/ })).not.toBeInTheDocument();
     expect(screen.getByText("MacBook 16")).toBeInTheDocument();
+    const projectTrigger = screen.getByRole("button", { name: "Switch project" });
+    expect(projectTrigger.querySelector(".lucide-folder-open")).toBeInTheDocument();
+    expect(within(projectTrigger).queryByTitle("Online")).not.toBeInTheDocument();
+    expect(screen.getAllByTitle("Online")).toHaveLength(1);
   });
 
   it("pins Home first, then local projects, then remote mirrors regardless of store order", async () => {

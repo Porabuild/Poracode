@@ -51,7 +51,7 @@ export function ProjectEnvironmentMenu(
     if (current.machine.ref.host === "local") return null;
     return (
       <span
-        className="inline-flex min-w-0 shrink items-center gap-1 text-sm leading-tight text-muted/60"
+        className="inline-flex min-w-0 shrink items-center gap-1 px-1 py-0.5 text-sm leading-tight text-muted/60"
         data-project-environment=""
       >
         <MachineIcon machine={current.machine} className="size-3.5" />
