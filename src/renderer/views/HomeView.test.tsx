@@ -9,6 +9,8 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { projectRemoteProject, remoteProjectId } from "@/renderer/state/remoteProjection";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
+import { useGitStore } from "@/renderer/state/gitStore";
+import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
 import { HomeView } from "./HomeView";
 
 describe("HomeView", () => {
@@ -32,6 +34,8 @@ describe("HomeView", () => {
       discoveredAgents: [],
     });
     useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: {} });
+    useGitStore.setState({ statuses: {} });
   });
 
   it("does not show archived threads in recent threads", () => {
@@ -191,6 +195,89 @@ describe("HomeView", () => {
     fireEvent.click(screen.getByRole("button", { name: "New thread in todo-app" }));
 
     expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "project-1" });
+  });
+
+  it("lists a project on two paired machines once and filters threads from both", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        { desktopId: "mac", label: "Poracode on MacBook" },
+        { desktopId: "mac2", label: "Poracode on Mac mini" },
+      ],
+      runtime: {
+        mac: { status: "online", projects: [], threads: [] },
+        mac2: { status: "online", projects: [], threads: [] },
+      },
+    } as never);
+    useAppStore.setState({
+      projects: [
+        makeProject({
+          id: "on-mac",
+          name: "demo",
+          remoteServerId: "mac",
+          remoteId: "p1",
+          location: { kind: "posix", path: "/repo", remoteServerId: "mac" },
+        }),
+        makeProject({
+          id: "on-mac2",
+          name: "demo",
+          remoteServerId: "mac2",
+          remoteId: "p2",
+          location: { kind: "posix", path: "/repo", remoteServerId: "mac2" },
+        }),
+      ],
+      threads: [
+        makeThread({ id: "t1", title: "On MacBook", projectId: "on-mac" }),
+        makeThread({ id: "t2", title: "On Mac mini", projectId: "on-mac2" }),
+      ],
+    });
+
+    render(<HomeView />);
+
+    const rows = screen
+      .getAllByRole("button", { pressed: false })
+      .filter((row) => row.textContent?.includes("demo"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.querySelector("[data-project-environments]")).not.toBeNull();
+
+    fireEvent.click(rows[0]!);
+    expect(screen.getByText("On MacBook")).toBeInTheDocument();
+    expect(screen.getByText("On Mac mini")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New thread in demo" }));
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "on-mac" });
+  });
+
+  it("starts a new thread on a reachable machine, preferring the last one used", () => {
+    const servers = [
+      { desktopId: "mac", label: "Poracode on MacBook" },
+      { desktopId: "mac2", label: "Poracode on Mac mini" },
+    ];
+    const online = { status: "online", projects: [], threads: [] };
+    const offline = { status: "offline", projects: [], threads: [] };
+    useRemoteServersStore.setState({ servers, runtime: { mac: offline, mac2: online } } as never);
+    useAppStore.setState({
+      projects: ["mac", "mac2"].map((server) =>
+        makeProject({
+          id: `on-${server}`,
+          name: "demo",
+          remoteServerId: server,
+          remoteId: `p-${server}`,
+          location: { kind: "posix", path: "/repo", remoteServerId: server },
+        }),
+      ),
+      threads: [],
+    });
+
+    const { unmount } = render(<HomeView />);
+    fireEvent.click(screen.getByRole("button", { name: "New thread in demo" }));
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "on-mac2" });
+    unmount();
+
+    useRemoteServersStore.setState({ servers, runtime: { mac: online, mac2: online } } as never);
+    useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: { "on-mac": 1, "on-mac2": 2 } });
+    render(<HomeView />);
+    fireEvent.click(screen.getByRole("button", { name: "New thread in demo" }));
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "on-mac2" });
   });
 
   it("marks WSL and remote workspaces and their thread tags", () => {

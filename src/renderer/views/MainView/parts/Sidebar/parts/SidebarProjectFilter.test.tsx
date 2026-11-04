@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
@@ -66,6 +66,11 @@ describe("SidebarProjectFilter", () => {
     responsiveMenuState.mobile = false;
   });
 
+  afterEach(() => {
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useAppStore.setState({ projects: [] });
+  });
+
   it("names the hosting machine on mirrored rows and on a lone selection", async () => {
     const mirrored = {
       ...project("r", "Alpha"),
@@ -88,6 +93,76 @@ describe("SidebarProjectFilter", () => {
     expect(rows.filter((row) => row?.includes("MacBook 16"))).toHaveLength(1);
 
     useRemoteServersStore.setState({ servers: [], runtime: {} });
+  });
+
+  it("lists a project on several environments as one row that toggles every environment", async () => {
+    const mirrored = {
+      ...project("r", "Alpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+      location: { kind: "posix", path: "/Users/me/alpha", remoteServerId: "desktop-1" },
+    } as Project;
+    const list = [projects[0]!, mirrored, projects[1]!];
+    useAppStore.setState({ projects: list });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    const onChange = renderFilter(null, vi.fn(), list);
+
+    const menu = await openMenu();
+    const rows = [...menu.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
+    // One Alpha row for both machines, naming each machine it lives on.
+    expect(rows).toHaveLength(3);
+    expect(within(rows[1]!).getByText("Alpha")).toBeInTheDocument();
+    const machines = rows[1]!.querySelector("[data-project-environments]");
+    expect(machines).toHaveTextContent("Local");
+    expect(machines).toHaveTextContent("MacBook 16");
+    expect(within(rows[2]!).getByText("Beta")).toBeInTheDocument();
+
+    // Unchecking Alpha in the all state filters out both environments.
+    fireEvent.click(rows[1]!);
+    expect(onChange).toHaveBeenLastCalledWith(["b"]);
+  });
+
+  it("shows a project selected when a saved filter holds one of its machines", async () => {
+    const mirrored = {
+      ...project("r", "Alpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+      location: { kind: "posix", path: "/Users/me/alpha", remoteServerId: "desktop-1" },
+    } as Project;
+    const list = [projects[0]!, mirrored, projects[1]!];
+    useAppStore.setState({ projects: list });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    const counts = new Map([
+      ["a", 2],
+      ["r", 3],
+      ["b", 1],
+    ]);
+    const onChange = vi.fn<(next: string[] | null) => void>();
+    render(
+      <SidebarProjectFilter
+        projects={list}
+        filterableProjectIds={new Set(list.map((candidate) => candidate.id))}
+        threadCounts={counts}
+        value={new Set(["r"])}
+        onChange={onChange}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Filter by project" })).toHaveTextContent("Alpha");
+
+    const menu = await openMenu();
+    const alpha = [...menu.querySelectorAll('[role="menuitemcheckbox"]')][1]!;
+    expect(alpha).toHaveAttribute("aria-checked", "true");
+    // The count covers both machines.
+    expect(alpha).toHaveTextContent("5");
+    // Toggling the half-selected row clears both of its machines.
+    fireEvent.click(alpha);
+    expect(onChange).toHaveBeenLastCalledWith(null);
   });
 
   it("labels the trigger with the current selection", () => {

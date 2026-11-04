@@ -100,7 +100,7 @@ msgstr "{0, plural, one {# 个已配对连接} other {# 个已配对连接}}"
 #~ msgstr "{0, plural, one {# 个已配对桌面} other {# 个已配对桌面}}"
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
-#. placeholder {0}: selectedProjects.size
+#. placeholder {0}: selectedRows.length
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
@@ -1902,7 +1902,7 @@ msgstr "所有文件"
 msgid "All folders"
 msgstr "所有文件夹"
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "所有设备"
 
@@ -2031,6 +2031,10 @@ msgstr "代理正在修复此 PR。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "预期的工作树所有者需要指定分支"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "An image from the project folder applies on {iconMachine} only."
+msgstr "项目文件夹中的图片只在 {iconMachine} 上生效。"
 
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
@@ -2616,6 +2620,10 @@ msgstr "可用的 ACP 代理"
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Available models will appear after the engine is installed."
 msgstr "安装发动机后会出现可用型号。"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Available when {names} is back online."
+msgstr "{names} 重新上线后可用。"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -4401,6 +4409,10 @@ msgstr "折叠待办事项面板"
 msgid "Collapse warning"
 msgstr "折叠警告"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Combine with {name} ({machines})"
+msgstr "与 {name} 合并 ({machines})"
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 #~ msgstr "以逗号分隔的所有者/名称条目，例如 acme/website, acme/api。列表将按输入原样发送给 Devin。"
@@ -4897,9 +4909,9 @@ msgid "Connecting..."
 msgstr "连接中..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "正在连接…"
@@ -6611,6 +6623,10 @@ msgstr "用语音输入提示，无需打字"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
 msgstr "差异选项"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Differs on {names}"
+msgstr "在 {names} 上不同"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
@@ -10511,6 +10527,10 @@ msgstr "行评论仅适用于整个审查，不适用于单个提交。"
 msgid "Lines {0}–{1}"
 msgstr "第 {0}–{1} 行"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Link as the same project"
+msgstr "关联为同一个项目"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
 msgstr "链接已复制"
@@ -10778,6 +10798,7 @@ msgstr "本地"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
+#: src/renderer/utils/machineLabels.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Local"
@@ -10920,6 +10941,14 @@ msgstr "对比度较低"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
 msgstr "设备"
+
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
+msgid "Machine: {currentLabel}"
+msgstr "机器：{currentLabel}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Machines"
+msgstr "机器"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "macOS"
@@ -13067,6 +13096,14 @@ msgstr "服务未提供"
 msgid "Not running"
 msgstr "未运行"
 
+#: src/renderer/actions/projectGroupActions.ts
+msgid "Not saved on {names} — it's offline. Apply again once it's back."
+msgstr "{names} 处于离线状态，未保存。重新连接后请再次应用。"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Not shared with {unlinkedNames} yet: only the project name matches."
+msgstr "尚未与 {unlinkedNames} 共享：只有项目名称相同。"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Not signed in"
@@ -13193,7 +13230,7 @@ msgid "On"
 msgstr "日期"
 
 #. placeholder {0}: props.machineLabel ?? t`this machine`
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "On {0}"
 msgstr "在 {0} 上"
 
@@ -17797,7 +17834,8 @@ msgstr "选择设备"
 msgid "Select lines in the plan to comment on them."
 msgstr "在计划中选择行即可评论。"
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
 msgid "Select machine"
 msgstr "选择设备"
 
@@ -18095,6 +18133,10 @@ msgstr "显示{label}"
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "在侧边栏中显示 {label} 圆环"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Show {machine} as its own project"
+msgstr "将 {machine} 显示为独立项目"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -20553,8 +20595,8 @@ msgid "This comment changed while you were editing it. Refresh before saving."
 msgstr "此评论在你编辑期间发生了更改。请在保存前刷新。"
 
 #: src/renderer/utils/machineLabels.ts
-msgid "This computer"
-msgstr "这台电脑"
+#~ msgid "This computer"
+#~ msgstr "这台电脑"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
@@ -20669,7 +20711,7 @@ msgstr "此差异较大，因此未加载。"
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "扫描达到上限，因此此列表不完整。"
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
 msgstr "此设备"
 
@@ -22528,6 +22570,14 @@ msgstr "使用此文件夹"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Use this link on devices connected to the same network."
 msgstr "在连接到同一网络的设备上使用此链接。"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere"
+msgstr "在所有环境中使用此值"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere for {setting}"
+msgstr "在所有环境中为 {setting} 使用此值"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

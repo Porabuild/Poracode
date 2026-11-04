@@ -100,7 +100,7 @@ msgstr "{0, plural, one {# sparowane połączenie} few {# sparowane połączenia
 #~ msgstr "{0, plural, one {# sparowany desktop} few {# sparowane desktopy} many {# sparowanych desktopów} other {# sparowanego desktopa}}"
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
-#. placeholder {0}: selectedProjects.size
+#. placeholder {0}: selectedRows.length
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
@@ -1902,7 +1902,7 @@ msgstr "Wszystkie pliki"
 msgid "All folders"
 msgstr "Wszystkie foldery"
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "Wszystkie komputery"
 
@@ -2031,6 +2031,10 @@ msgstr "Agent naprawia ten PR."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Oczekiwany właściciel drzewa roboczego wymaga gałęzi"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "An image from the project folder applies on {iconMachine} only."
+msgstr "Obraz z folderu projektu dotyczy tylko maszyny {iconMachine}."
 
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
@@ -2616,6 +2620,10 @@ msgstr "Dostępni agenci ACP"
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Available models will appear after the engine is installed."
 msgstr "Dostępne modele pojawią się po zainstalowaniu silnika."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Available when {names} is back online."
+msgstr "Dostępne, gdy {names} wróci do trybu online."
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -4401,6 +4409,10 @@ msgstr "Zwiń dok zadań do wykonania"
 msgid "Collapse warning"
 msgstr "Zwiń ostrzeżenie"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Combine with {name} ({machines})"
+msgstr "Połącz z {name} ({machines})"
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 #~ msgstr "Wpisy właściciel/nazwa rozdzielone przecinkami, na przykład acme/website, acme/api. Lista jest wysyłana do Devin dokładnie tak, jak została wpisana."
@@ -4897,9 +4909,9 @@ msgid "Connecting..."
 msgstr "Łączenie..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Łączenie…"
@@ -6611,6 +6623,10 @@ msgstr "Dyktuj prompty zamiast je pisać"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
 msgstr "Opcje diffa"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Differs on {names}"
+msgstr "Inna wartość na {names}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
@@ -10511,6 +10527,10 @@ msgstr "Komentarze do wierszy są dostępne tylko dla całej recenzji, a nie dla
 msgid "Lines {0}–{1}"
 msgstr "Wiersze {0}–{1}"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Link as the same project"
+msgstr "Połącz jako ten sam projekt"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
 msgstr "Skopiowano link"
@@ -10778,6 +10798,7 @@ msgstr "lokalny"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
+#: src/renderer/utils/machineLabels.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Local"
@@ -10920,6 +10941,14 @@ msgstr "Niski kontrast"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
 msgstr "Komputer"
+
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
+msgid "Machine: {currentLabel}"
+msgstr "Maszyna: {currentLabel}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Machines"
+msgstr "Maszyny"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "macOS"
@@ -13068,6 +13097,14 @@ msgstr "Usługa nie podała informacji"
 msgid "Not running"
 msgstr "Nie działa"
 
+#: src/renderer/actions/projectGroupActions.ts
+msgid "Not saved on {names} — it's offline. Apply again once it's back."
+msgstr "Nie zapisano na {names} — urządzenie jest offline. Zastosuj ponownie, gdy wróci."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Not shared with {unlinkedNames} yet: only the project name matches."
+msgstr "Jeszcze nie udostępniono dla {unlinkedNames}: zgadza się tylko nazwa projektu."
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Not signed in"
@@ -13194,7 +13231,7 @@ msgid "On"
 msgstr "W"
 
 #. placeholder {0}: props.machineLabel ?? t`this machine`
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "On {0}"
 msgstr "{0}"
 
@@ -17798,7 +17835,8 @@ msgstr "Wybierz urządzenie"
 msgid "Select lines in the plan to comment on them."
 msgstr "Zaznacz wiersze planu, aby je skomentować."
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
 msgid "Select machine"
 msgstr "Wybierz komputer"
 
@@ -18096,6 +18134,10 @@ msgstr "Pokaż {label}"
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "Pokaż krąg {label} na pasku bocznym"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Show {machine} as its own project"
+msgstr "Pokaż {machine} jako osobny projekt"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -20554,8 +20596,8 @@ msgid "This comment changed while you were editing it. Refresh before saving."
 msgstr "Ten komentarz zmienił się podczas edycji. Odśwież przed zapisaniem."
 
 #: src/renderer/utils/machineLabels.ts
-msgid "This computer"
-msgstr "Ten komputer"
+#~ msgid "This computer"
+#~ msgstr "Ten komputer"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
@@ -20670,7 +20712,7 @@ msgstr "To duży diff, więc nie został załadowany."
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "Ta lista jest niepełna, ponieważ skanowanie osiągnęło limit."
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
 msgstr "ten komputer"
 
@@ -22529,6 +22571,14 @@ msgstr "Użyj tego folderu"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Use this link on devices connected to the same network."
 msgstr "Użyj tego linku na urządzeniach podłączonych do tej samej sieci."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere"
+msgstr "Użyj tej wartości wszędzie"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere for {setting}"
+msgstr "Użyj tej wartości wszędzie dla {setting}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

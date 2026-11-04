@@ -1,20 +1,5 @@
-import type { GitRemoteInfo, Project } from "@/shared/contracts";
-import { parseForgeRemote } from "@/shared/forgeRemote";
+import type { Project } from "@/shared/contracts";
 import { pullRequestEntryKey, type PullRequestEntry } from "./prListModel";
-
-/**
- * Identity of the repository a project points at, derived from its cached origin
- * remote. The authority and full namespace matter: identical names on two
- * forges, enterprise hosts or Azure organizations are different repositories.
- *
- * Returns `null` when the origin remote isn't known yet — such a project must
- * never be collapsed into another one.
- */
-export function repoIdentityKey(remoteInfo: GitRemoteInfo | null | undefined): string | null {
-  if (!remoteInfo?.owner.trim() || !remoteInfo.repo.trim()) return null;
-  const remote = parseForgeRemote(remoteInfo.url, "origin");
-  return remote ? `${remote.host}/${remote.path}`.toLocaleLowerCase() : null;
-}
 
 /** Projects mirrored from a remote desktop lose to a local checkout of the same repo. */
 function isLocalProject(project: Project): boolean {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useProductViewTracking } from "@/renderer/analytics/useProductViewTracking";
@@ -14,6 +14,11 @@ import { McpSection } from "./parts/McpSection";
 import { PluginsSection } from "./parts/PluginsSection";
 import { SkillsSection } from "./parts/SkillsSection";
 import type { ProjectSettingsSection } from "./parts/types";
+import { useProjectEnvironmentMachines } from "@/renderer/components/common/ProjectEnvironment";
+import {
+  PROJECT_SETTINGS_SCOPE_BAR_SPACE,
+  ProjectEnvironmentScopeBar,
+} from "./parts/ProjectEnvironmentScope";
 
 export { resolveActionIcon } from "@/renderer/utils/actionIcons";
 
@@ -31,6 +36,7 @@ export function ProjectSettingsOverlay(props: {
   const projectName = useAppStore(
     (s) => s.projects.find((p) => p.id === projectId)?.name ?? t`Project`,
   );
+  const showsScopeBar = useProjectEnvironmentMachines(projectId).length > 1;
   const [activeSection, setActiveSection] = useState<ProjectSettingsSection>(
     props.initialSection ?? "general",
   );
@@ -70,7 +76,7 @@ export function ProjectSettingsOverlay(props: {
                 ? t`Plugins`
                 : t`Search`;
 
-  const sectionContent =
+  const sectionBody =
     activeSection === "general" ? (
       <GeneralSection projectId={projectId} />
     ) : activeSection === "worktrees" ? (
@@ -86,6 +92,37 @@ export function ProjectSettingsOverlay(props: {
     ) : activeSection === "search" ? (
       <SearchSection projectId={projectId} />
     ) : null;
+  // Like the Settings scope pill: floats over the section on desktop, and the
+  // section reserves room below its last row through a CSS variable. Compact
+  // layouts keep the picker in the page flow, clear of bottom page actions.
+  const sectionContent = compactLayout ? (
+    <div className="flex h-full min-h-0 flex-col">
+      <ProjectEnvironmentScopeBar
+        projectId={projectId}
+        section={activeSection}
+        placement="inline"
+      />
+      <div className="min-h-0 flex-1">{sectionBody}</div>
+    </div>
+  ) : (
+    <div
+      className="relative h-full min-h-0"
+      style={
+        showsScopeBar
+          ? ({
+              "--project-settings-bottom-space": PROJECT_SETTINGS_SCOPE_BAR_SPACE,
+            } as CSSProperties)
+          : undefined
+      }
+    >
+      {sectionBody}
+      <ProjectEnvironmentScopeBar
+        projectId={projectId}
+        section={activeSection}
+        placement="floating"
+      />
+    </div>
+  );
 
   return (
     <PageLayout

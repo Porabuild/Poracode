@@ -100,7 +100,7 @@ msgstr "{0, plural, one {# 件のペアリング済み接続} other {# 件のペ
 #~ msgstr "{0, plural, one {# 台のペアリング済みデスクトップ} other {# 台のペアリング済みデスクトップ}}"
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
-#. placeholder {0}: selectedProjects.size
+#. placeholder {0}: selectedRows.length
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
@@ -1901,7 +1901,7 @@ msgstr "すべてのファイル"
 msgid "All folders"
 msgstr "すべてのフォルダー"
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "すべてのマシン"
 
@@ -2030,6 +2030,10 @@ msgstr "エージェントがこのPRを修正しています。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "想定するワークツリー所有者にはブランチが必要です"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "An image from the project folder applies on {iconMachine} only."
+msgstr "プロジェクトフォルダーの画像は {iconMachine} にのみ適用されます。"
 
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
@@ -2615,6 +2619,10 @@ msgstr "利用可能なACPエージェント"
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Available models will appear after the engine is installed."
 msgstr "エンジン搭載後に利用可能なモデルが表示されます。"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Available when {names} is back online."
+msgstr "{names} がオンラインに戻ると利用できます。"
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -4400,6 +4408,10 @@ msgstr "todo ドックを折りたたむ"
 msgid "Collapse warning"
 msgstr "警告を折りたたむ"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Combine with {name} ({machines})"
+msgstr "{name} と統合 ({machines})"
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 #~ msgstr "owner/name エントリをカンマ区切りで指定します（例: acme/website, acme/api）。リストは入力したとおりにそのまま Devin に送られます。"
@@ -4896,9 +4908,9 @@ msgid "Connecting..."
 msgstr "接続中..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "接続中…"
@@ -6610,6 +6622,10 @@ msgstr "プロンプトは入力せずに音声入力できます"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
 msgstr "差分のオプション"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Differs on {names}"
+msgstr "{names} では異なる値です"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
@@ -10510,6 +10526,10 @@ msgstr "行コメントはレビュー全体に対してのみ使用でき、個
 msgid "Lines {0}–{1}"
 msgstr "{0}–{1} 行目"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Link as the same project"
+msgstr "同じプロジェクトとしてリンク"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
 msgstr "リンクをコピーしました"
@@ -10777,6 +10797,7 @@ msgstr "ローカル"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
+#: src/renderer/utils/machineLabels.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Local"
@@ -10918,6 +10939,14 @@ msgstr "低いコントラスト"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
+msgstr "マシン"
+
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
+msgid "Machine: {currentLabel}"
+msgstr "マシン: {currentLabel}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Machines"
 msgstr "マシン"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
@@ -13066,6 +13095,14 @@ msgstr "サービスからの報告なし"
 msgid "Not running"
 msgstr "実行されていません"
 
+#: src/renderer/actions/projectGroupActions.ts
+msgid "Not saved on {names} — it's offline. Apply again once it's back."
+msgstr "{names} はオフラインのため保存されていません。接続が戻ったら再度適用してください。"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Not shared with {unlinkedNames} yet: only the project name matches."
+msgstr "{unlinkedNames} とはまだ共有されていません。一致しているのはプロジェクト名だけです。"
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Not signed in"
@@ -13192,7 +13229,7 @@ msgid "On"
 msgstr "曜日"
 
 #. placeholder {0}: props.machineLabel ?? t`this machine`
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "On {0}"
 msgstr "{0} のみ"
 
@@ -17796,7 +17833,8 @@ msgstr "デバイスを選択"
 msgid "Select lines in the plan to comment on them."
 msgstr "プランの行を選択してコメントしてください。"
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
 msgid "Select machine"
 msgstr "マシンを選択"
 
@@ -18094,6 +18132,10 @@ msgstr "{label}を表示"
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "サイドバーで {label} のリングを表示する"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Show {machine} as its own project"
+msgstr "{machine} を別のプロジェクトとして表示"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -20552,8 +20594,8 @@ msgid "This comment changed while you were editing it. Refresh before saving."
 msgstr "編集中にこのコメントが変更されました。保存する前に更新してください。"
 
 #: src/renderer/utils/machineLabels.ts
-msgid "This computer"
-msgstr "このコンピューター"
+#~ msgid "This computer"
+#~ msgstr "このコンピューター"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
@@ -20668,7 +20710,7 @@ msgstr "差分が大きいため、読み込まれていません。"
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "スキャンが上限に達したため、この一覧は不完全です。"
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
 msgstr "このマシン"
 
@@ -22527,6 +22569,14 @@ msgstr "このフォルダーを使用"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Use this link on devices connected to the same network."
 msgstr "同じネットワークに接続されたデバイスでこのリンクを使用してください。"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere"
+msgstr "この値をすべてに適用"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere for {setting}"
+msgstr "{setting} にこの値をすべてで使用"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

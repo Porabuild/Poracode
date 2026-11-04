@@ -100,7 +100,7 @@ msgstr "{0, plural, one {# підключення} few {# підключення
 #~ msgstr "{0, plural, one {# підключений десктоп} few {# підключені десктопи} many {# підключених десктопів} other {# підключеного десктопа}}"
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
-#. placeholder {0}: selectedProjects.size
+#. placeholder {0}: selectedRows.length
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
@@ -1902,7 +1902,7 @@ msgstr "Усі файли"
 msgid "All folders"
 msgstr "Усі папки"
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "Усі комп’ютери"
 
@@ -2031,6 +2031,10 @@ msgstr "Агент виправляє цей PR."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Для очікуваного власника worktree потрібна гілка"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "An image from the project folder applies on {iconMachine} only."
+msgstr "Зображення з теки проєкту застосовується лише на {iconMachine}."
 
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
@@ -2616,6 +2620,10 @@ msgstr "Доступні агенти ACP"
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Available models will appear after the engine is installed."
 msgstr "Доступні моделі з’являться після встановлення рушія."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Available when {names} is back online."
+msgstr "Стане доступно, коли {names} знову буде в мережі."
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -4401,6 +4409,10 @@ msgstr "Згорнути панель завдань"
 msgid "Collapse warning"
 msgstr "Згорнути попередження"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Combine with {name} ({machines})"
+msgstr "Об’єднати з {name} ({machines})"
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 #~ msgstr "Записи виду «власник/ім'я» через кому, наприклад acme/website, acme/api. Список надсилається до Devin точно в тому вигляді, у якому введений."
@@ -4897,9 +4909,9 @@ msgid "Connecting..."
 msgstr "Підключення..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Підключення…"
@@ -6611,6 +6623,10 @@ msgstr "Диктуйте запити замість того, щоб друку
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
 msgstr "Параметри diff"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Differs on {names}"
+msgstr "Відрізняється на {names}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
@@ -10511,6 +10527,10 @@ msgstr "Коментарі до рядків доступні лише для в
 msgid "Lines {0}–{1}"
 msgstr "Рядки {0}–{1}"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Link as the same project"
+msgstr "Пов’язати як один проєкт"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
 msgstr "Посилання скопійовано"
@@ -10778,6 +10798,7 @@ msgstr "локальний"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
+#: src/renderer/utils/machineLabels.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Local"
@@ -10920,6 +10941,14 @@ msgstr "Низький контраст"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
 msgstr "Комп’ютер"
+
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
+msgid "Machine: {currentLabel}"
+msgstr "Машина: {currentLabel}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Machines"
+msgstr "Машини"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "macOS"
@@ -13068,6 +13097,14 @@ msgstr "Сервіс не повідомив"
 msgid "Not running"
 msgstr "Не запущено"
 
+#: src/renderer/actions/projectGroupActions.ts
+msgid "Not saved on {names} — it's offline. Apply again once it's back."
+msgstr "Не збережено на {names}: пристрій не в мережі. Застосуйте ще раз, коли він підключиться."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Not shared with {unlinkedNames} yet: only the project name matches."
+msgstr "Ще не спільні з {unlinkedNames}: збігається лише назва проєкту."
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Not signed in"
@@ -13194,7 +13231,7 @@ msgid "On"
 msgstr "У день"
 
 #. placeholder {0}: props.machineLabel ?? t`this machine`
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "On {0}"
 msgstr "{0}"
 
@@ -17798,7 +17835,8 @@ msgstr "Вибрати пристрій"
 msgid "Select lines in the plan to comment on them."
 msgstr "Виберіть рядки плану, щоб прокоментувати їх."
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
 msgid "Select machine"
 msgstr "Вибрати комп’ютер"
 
@@ -18096,6 +18134,10 @@ msgstr "Показати {label}"
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "Показати коло {label} на бічній панелі"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Show {machine} as its own project"
+msgstr "Показати {machine} як окремий проєкт"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -20554,8 +20596,8 @@ msgid "This comment changed while you were editing it. Refresh before saving."
 msgstr "Цей коментар змінився під час редагування. Оновіть його перед збереженням."
 
 #: src/renderer/utils/machineLabels.ts
-msgid "This computer"
-msgstr "Цей комп’ютер"
+#~ msgid "This computer"
+#~ msgstr "Цей комп’ютер"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
@@ -20670,7 +20712,7 @@ msgstr "Це великий diff, тому його не завантажено.
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "Цей список неповний: досягнуто межі сканування."
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
 msgstr "цей комп’ютер"
 
@@ -22529,6 +22571,14 @@ msgstr "Використати цю папку"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Use this link on devices connected to the same network."
 msgstr "Використовуйте це посилання на пристроях, підключених до тієї самої мережі."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere"
+msgstr "Використати це значення всюди"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere for {setting}"
+msgstr "Використати це значення всюди для {setting}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

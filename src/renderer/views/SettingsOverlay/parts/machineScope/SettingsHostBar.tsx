@@ -1,8 +1,8 @@
 import { chooseMachine, useMachines, type MachineDescriptor } from "@/renderer/state/machines";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 import { LOCAL_NATIVE_MACHINE_KEY, machineKey } from "@/shared/machines";
-import { FloatingScopeBar } from "./FloatingScopeBar";
-import { MachineSelect } from "./MachineSelect";
+import { FloatingScopeBar } from "@/renderer/components/machineScope/FloatingScopeBar";
+import { MachineSelect } from "@/renderer/components/machineScope/MachineSelect";
 
 /** One entry per host: WSL distros share their host's settings. */
 function useHosts(): MachineDescriptor[] {
