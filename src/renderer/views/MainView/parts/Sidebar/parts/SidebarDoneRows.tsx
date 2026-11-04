@@ -30,7 +30,7 @@ export function SidebarDoneRows(props: {
   const openThreadIds = useCurrentThreadIds();
   const [previousRows, setPreviousRows] = useState(rows);
   const [renderedRows, setRenderedRows] = useState<RenderedRow[]>(() =>
-    rows.map((row) => ({ row, visible: true, entering: false, revealing: false })),
+    rows.map((row) => ({ row, visible: true, entering: false, revealing: true })),
   );
 
   if (previousRows !== rows) {
@@ -42,7 +42,7 @@ export function SidebarDoneRows(props: {
       const previous = previousByKey.get(row.key);
       return previous
         ? { ...previous, row, visible: true }
-        : { row, visible: true, entering: hadVisibleRows, revealing: hadVisibleRows };
+        : { row, visible: true, entering: hadVisibleRows, revealing: true };
     });
     // Keep outgoing rows in their slots until the closing transition finishes.
     renderedRows.forEach((entry, index) => {
@@ -111,8 +111,12 @@ export function SidebarDoneRows(props: {
   return blocks.map(({ key, pinned, visible, rows: blockRows }) => {
     // Rows that just joined reveal through their own clip; the block must not
     // also animate, or the easing compounds. A pinned block (holding the open
-    // thread) never animates its own clip.
-    const blockStarts = !pinned && !blockRows.some((entry) => entry.revealing);
+    // thread) never animates its own clip. Only newly revealed rows may start
+    // a block reveal: selecting a thread can split/remount an existing block.
+    const blockStarts =
+      !pinned &&
+      blockRows.some((entry) => entry.revealing) &&
+      !blockRows.some((entry) => entry.entering && entry.revealing);
     return (
       <div
         key={key}

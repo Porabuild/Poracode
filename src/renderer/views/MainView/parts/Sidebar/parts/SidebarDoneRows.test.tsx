@@ -1,11 +1,12 @@
 import { act, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SidebarDoneRows } from "./SidebarDoneRows";
 import type { SidebarRow } from "./sidebarProjectRows";
 import type { Thread } from "@/shared/contracts";
 
+const selection = vi.hoisted(() => ({ openThreadIds: ["selected"] }));
 vi.mock("@/renderer/hooks/uiSelectors", () => ({
-  useCurrentThreadIds: () => ["selected"],
+  useCurrentThreadIds: () => selection.openThreadIds,
 }));
 
 const rows: SidebarRow[] = ["first", "second", "selected", "last"].map((id, index) => ({
@@ -23,6 +24,9 @@ const renderRow = (row: SidebarRow) => (
 );
 
 afterEach(() => vi.useRealTimers());
+beforeEach(() => {
+  selection.openThreadIds = ["selected"];
+});
 
 describe("SidebarDoneRows", () => {
   it("slides neighboring rows inside one clip while keeping selected rows separate", () => {
@@ -91,6 +95,23 @@ describe("SidebarDoneRows", () => {
     const selectedBlock = screen.getByRole("button", { name: "selected" }).closest(".grid")!;
     expect(selectedBlock.className).not.toContain("starting:grid-rows-[0fr]");
     expect(selectedBlock.className).toContain("grid-rows-[1fr]");
+  });
+
+  it("does not replay the section reveal when opening or switching Done threads", async () => {
+    vi.useFakeTimers();
+    selection.openThreadIds = [];
+    const { rerender } = render(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+    await act(() => vi.advanceTimersByTime(50));
+
+    for (const openThreadIds of [["second"], ["last"], ["second", "selected"], []]) {
+      selection.openThreadIds = openThreadIds;
+      rerender(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+
+      for (const button of screen.getAllByRole("button")) {
+        expect(button.closest(".grid")!.className).not.toContain("starting:grid-rows-[0fr]");
+        expect(button.closest(".grid")!.className).toContain("grid-rows-[1fr]");
+      }
+    }
   });
 
   it("keeps outgoing rows for the animation without exposing them to interaction", async () => {
