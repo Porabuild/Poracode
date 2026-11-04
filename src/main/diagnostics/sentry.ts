@@ -1,4 +1,6 @@
 import { app } from "electron";
+import { join } from "node:path";
+import { createPersistentSentryEventLimiter } from "@/host/diagnostics/sentryEventLedger";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeDiagnosticTags, SentryEventLike } from "@/shared/diagnostics/sentryPrivacy";
 import {
@@ -6,7 +8,6 @@ import {
   readBuildSentryEnvironment,
   shouldEnableSentryReporting,
 } from "@/shared/diagnostics/sentryBuildConfig";
-import { createSentryEventLimiter } from "@/shared/diagnostics/sentryEventLimiter";
 import { prepareMainSentryEvent } from "./mainEvent";
 import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
 
@@ -27,7 +28,6 @@ let mainSentry: MainSentryModule | null | undefined;
 // require-in-the-middle graph) costs ~100ms of synchronous main-thread work to
 // load, so capture paths must not pull it in just to learn it is disabled.
 let mainSentryInitialized = false;
-const shouldSendMainSentryEvent = createSentryEventLimiter();
 
 export type MainSentryOptions = {
   appVersion: string;
@@ -98,6 +98,9 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
     return false;
   }
 
+  const shouldSendMainSentryEvent = createPersistentSentryEventLimiter(
+    join(app.getPath("userData"), "sentry", "event-budget.json"),
+  );
   Sentry.init({
     dsn,
     release: `poracode@${options.appVersion}`,

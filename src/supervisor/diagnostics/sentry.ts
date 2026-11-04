@@ -1,3 +1,7 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { createPersistentSentryEventLimiter } from "@/host/diagnostics/sentryEventLedger";
+import { poracodeBaseDirFromEnv, resolvePoracodePaths } from "@/shared/poracodePaths";
 import {
   prepareSentryEvent,
   type PoracodeDiagnosticTags,
@@ -15,7 +19,6 @@ import {
   readBuildSentryEnvironment,
   shouldEnableSentryReporting,
 } from "@/shared/diagnostics/sentryBuildConfig";
-import { createSentryEventLimiter } from "@/shared/diagnostics/sentryEventLimiter";
 import {
   isHostResourceBusyError,
   isHostResourcePolicyUnavailableError,
@@ -30,7 +33,6 @@ import {
 type SupervisorSentryModule = typeof import("@sentry/node");
 
 let supervisorSentry: SupervisorSentryModule | null | undefined;
-const shouldSendSupervisorSentryEvent = createSentryEventLimiter();
 
 type SupervisorIpcFailureRule = {
   operations: readonly string[] | null;
@@ -261,6 +263,10 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
     return false;
   }
 
+  const paths = resolvePoracodePaths(poracodeBaseDirFromEnv() ?? join(homedir(), ".poracode"));
+  const shouldSendSupervisorSentryEvent = createPersistentSentryEventLimiter(
+    join(paths.cacheDir, "sentry", "event-budget.json"),
+  );
   Sentry.init({
     dsn,
     release: `poracode@${options.appVersion}`,

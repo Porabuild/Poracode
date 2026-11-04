@@ -6,7 +6,14 @@ const DEFAULT_MAX_EVENTS_PER_PROCESS = 20;
 const DEFAULT_MAX_HANDLED_EVENTS_PER_PROCESS = 15;
 const DEFAULT_MAX_TRACKED_SIGNATURES = 256;
 
+export type SentryEventLimiterState = {
+  processEvents: number[];
+  handledEvents: number[];
+  signatureEvents: Map<string, number[]>;
+};
+
 type SentryEventLimiterOptions = {
+  state?: SentryEventLimiterState;
   now?: () => number;
   windowMs?: number;
   maxEventsPerSignature?: number;
@@ -86,9 +93,12 @@ export function createSentryEventLimiter(options: SentryEventLimiterOptions = {}
   const maxHandledEventsPerProcess =
     options.maxHandledEventsPerProcess ?? DEFAULT_MAX_HANDLED_EVENTS_PER_PROCESS;
   const maxTrackedSignatures = options.maxTrackedSignatures ?? DEFAULT_MAX_TRACKED_SIGNATURES;
-  const processEvents: number[] = [];
-  const handledEvents: number[] = [];
-  const signatureEvents = new Map<string, number[]>();
+  const { processEvents, handledEvents, signatureEvents }: SentryEventLimiterState =
+    options.state ?? {
+      processEvents: [],
+      handledEvents: [],
+      signatureEvents: new Map<string, number[]>(),
+    };
 
   return (event: SentryEventLike): boolean => {
     const timestamp = now();

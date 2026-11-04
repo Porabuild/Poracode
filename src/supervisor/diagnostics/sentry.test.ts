@@ -1,4 +1,6 @@
 import Module from "node:module";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { SentryEventLike } from "@/shared/diagnostics/sentryPrivacy";
 import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
@@ -639,6 +641,10 @@ describe("supervisor Sentry event admission", () => {
     sentryMock.init.mockReset();
     sentryMock.setContext.mockReset();
     const originalDsn = process.env.SENTRY_DSN;
+    const originalDataDir = process.env.PORACODE_DATA_DIR;
+    mkdirSync("tmp", { recursive: true });
+    const directory = mkdtempSync(join(process.cwd(), "tmp", "sentry-supervisor-"));
+    process.env.PORACODE_DATA_DIR = directory;
     process.env.SENTRY_DSN = "https://public@example.test/1";
 
     const moduleLoader = Module as unknown as {
@@ -673,6 +679,13 @@ describe("supervisor Sentry event admission", () => {
       expect(beforeSend!(event as never)).not.toBeNull();
       expect(beforeSend!(event as never)).not.toBeNull();
       expect(beforeSend!(event as never)).toBeNull();
+      expect(initializeSupervisorSentry({ appVersion: "test-next", isDev: false })).toBe(true);
+      const restarted = sentryMock.init.mock.calls.at(-1)?.[0].beforeSend;
+      expect(restarted!(event as never)).toBeNull();
+      const ledger = JSON.parse(
+        readFileSync(join(directory, "cache", "sentry", "event-budget.json"), "utf8"),
+      );
+      expect(ledger.processEvents).toHaveLength(3);
     } finally {
       loadSpy.mockRestore();
       if (originalDsn === undefined) {
@@ -680,6 +693,12 @@ describe("supervisor Sentry event admission", () => {
       } else {
         process.env.SENTRY_DSN = originalDsn;
       }
+      if (originalDataDir === undefined) {
+        delete process.env.PORACODE_DATA_DIR;
+      } else {
+        process.env.PORACODE_DATA_DIR = originalDataDir;
+      }
+      rmSync(directory, { recursive: true, force: true });
       sentryMock.init.mockReset();
       sentryMock.setContext.mockReset();
     }
