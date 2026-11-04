@@ -27,10 +27,7 @@ import {
 } from "@/renderer/state/chatRuntimePersister";
 import { trackPendingRemoteThreadOpen } from "./pendingRemoteThreadOpens";
 import { readHostThreadHistory } from "@/renderer/state/hostThreadHistory";
-import {
-  pinnedThreadRowIds,
-  retainedUncertainLaunchThreadIds,
-} from "@/renderer/state/threadLaunchIntents";
+import { protectedThreadRowIds } from "@/renderer/state/protectedThreadRows";
 import {
   projectRemoteThread,
   remoteProjectId,
@@ -239,17 +236,11 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
 
   const protectedBoundedThreadIds = (connectionKey: string): ReadonlySet<string> => {
     const protectedIds = new Set<string>();
+    // The connection's open thread (a background attach keeps its terminal
+    // seed) and every row protected on any host, in this host's ids.
     const openThread = get().openThread;
     if (openThread?.desktopId === connectionKey) protectedIds.add(openThread.threadId);
-    // A row with an unconfirmed intent (an optimistic creation, a pending
-    // launch whose outcome is unknown) stays resident, as on every host.
-    for (const viewThreadId of [...pinnedThreadRowIds(), ...retainedUncertainLaunchThreadIds()]) {
-      const remoteId = unprojectRemoteThreadId(connectionKey, viewThreadId);
-      if (remoteId) protectedIds.add(remoteId);
-    }
-    const provisioning = useAppStore.getState().provisioningWorktreeThreadIds;
-    for (const [viewThreadId, value] of Object.entries(provisioning)) {
-      if (value !== true) continue;
+    for (const viewThreadId of protectedThreadRowIds()) {
       const remoteId = unprojectRemoteThreadId(connectionKey, viewThreadId);
       if (remoteId) protectedIds.add(remoteId);
     }

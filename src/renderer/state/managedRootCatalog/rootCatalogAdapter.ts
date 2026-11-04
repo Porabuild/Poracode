@@ -1,8 +1,4 @@
-import {
-  pinnedThreadRowIds,
-  retainedUncertainLaunchThreadIds,
-} from "@/renderer/state/threadLaunchIntents";
-import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import { protectedThreadRowIds } from "@/renderer/state/protectedThreadRows";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
@@ -42,7 +38,6 @@ import {
   getManagedParentAuthorityState,
   subscribeManagedParentAuthority,
 } from "@/renderer/state/remoteServers/managedLoopbackOwner";
-import { useAppStore } from "@/renderer/state/appStore";
 import { pendingProjectRemovalRows } from "../projectRemovalIntents";
 import {
   applyRootCatalogOrder,
@@ -110,33 +105,6 @@ function noteRootDispatchSequence(
   if (space !== undefined && space !== "loopback") return;
   if (typeof seq !== "number") return;
   rootSession.recordApplied(seq, hostEventThreadIds(event));
-}
-
-/**
- * Rows the deletion gate must never remove while their intent is in flight:
- * call-scoped pins, open managed-root panes, in-flight worktree provisioning,
- * queued launch episodes, and retained UNCERTAIN launch operations (whose
- * same-command-id replay body must survive until the host resolves the
- * operation or the row is removed — an absent durable row is evidence only).
- */
-function protectedRootThreadIds(): ReadonlySet<string> {
-  const protectedIds = new Set<string>(pinnedThreadRowIds());
-  const state = useAppStore.getState();
-  for (const id of auxiliaryThreadIds()) protectedIds.add(id);
-  if (state.view.kind === "thread") {
-    for (const paneId of state.view.panes) {
-      const row = state.threads.find((thread) => thread.id === paneId);
-      if (row && isManagedRootRow(row)) protectedIds.add(row.id);
-    }
-  }
-  for (const [threadId, value] of Object.entries(state.provisioningWorktreeThreadIds)) {
-    if (value === true) protectedIds.add(threadId);
-  }
-  for (const [threadId, pending] of Object.entries(state.pendingThreadLaunches)) {
-    if (pending !== undefined) protectedIds.add(threadId);
-  }
-  for (const threadId of retainedUncertainLaunchThreadIds()) protectedIds.add(threadId);
-  return protectedIds;
 }
 
 function rootRuntimeStatus(): string | undefined {
@@ -227,7 +195,7 @@ function configureController(): void {
       // seqs live in a different space and are deliberately not mixed in.
       bumpConnectionSeq: () => {},
       protectedThreadIds: (connectionKey) =>
-        connectionKey === MANAGED_ROOT_CATALOG_KEY ? protectedRootThreadIds() : new Set<string>(),
+        connectionKey === MANAGED_ROOT_CATALOG_KEY ? protectedThreadRowIds() : new Set<string>(),
       // Manual-order convergence: the controller applies each completed manual
       // paint pass's accumulated id order here, and refreshes the paint on
       // membership events. Each kind has its own generation, so a finished pass

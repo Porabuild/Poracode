@@ -3036,6 +3036,7 @@ describe("useRemoteServersStore", () => {
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
     await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledOnce());
+    seedRemoteThreadOwner();
     useRemoteServersStore.setState({
       openThread: { desktopId: "d1", threadId: "rt-1", thread: remoteThread },
     });
@@ -3169,7 +3170,7 @@ describe("useRemoteServersStore", () => {
     expect(sockets[0]?.close).toHaveBeenCalledOnce();
   });
 
-  it("replays interested live events after the resume history barrier", async () => {
+  it("hands interested live events to the reducer while the resume history is re-read", async () => {
     const sockets: RemoteSocketLike[] = [];
     const heldHistory = deferred<RemoteThreadHistorySnapshot>();
     const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(() => heldHistory.promise);
@@ -3184,6 +3185,7 @@ describe("useRemoteServersStore", () => {
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
     await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledOnce());
+    seedRemoteThreadOwner();
     useRemoteServersStore.setState({
       openThread: { desktopId: "d1", threadId: "rt-1", thread: remoteThread },
     });
@@ -3193,7 +3195,7 @@ describe("useRemoteServersStore", () => {
       .getState()
       .connectAll({ forceTransportReconnect: true });
     await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledWith("rt-1"));
-    const queuedRuntimeEvent = (seq: number) => ({
+    const runtimeEvent = (seq: number) => ({
       data: JSON.stringify({
         type: "event",
         seq,
@@ -3217,13 +3219,16 @@ describe("useRemoteServersStore", () => {
         },
       }),
     });
-    sockets[1]?.onmessage?.(queuedRuntimeEvent(2));
-    sockets[1]?.onmessage?.(queuedRuntimeEvent(3));
-    expect(sync.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
+    // The connection hands every frame to the one reducer, which holds a
+    // recovering thread's frames behind its baseline (covered by the
+    // reducer's own tests), exactly as for the desktop host.
+    sockets[1]?.onmessage?.(runtimeEvent(1));
+    sockets[1]?.onmessage?.(runtimeEvent(2));
+    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(2);
 
     heldHistory.resolve({ ...remoteThreadSnapshot("rt-1"), snapshotSeq: 2 });
     await reconnecting;
-    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledOnce();
+    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(2);
   });
 
   it("applies a queue event even when the thread filter has not learned the thread yet", async () => {
@@ -4779,6 +4784,7 @@ describe("useRemoteServersStore", () => {
     await pairIsolated(() => socket);
     const applyCallsBefore = sync.applyThreadSnapshot.mock.calls.length;
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    seedRemoteThreadOwner();
 
     socket.onmessage?.({
       data: JSON.stringify({
@@ -4788,15 +4794,12 @@ describe("useRemoteServersStore", () => {
       }),
     });
 
-    // Wait for the resynced snapshot to be applied (not just fetched): the
-    // fetch resolving and the apply completing are separate microtask hops.
+    // The thread re-baselines through the live reducer: its host's history is
+    // re-read and installed (not just fetched).
     await vi.waitFor(() =>
-      expect(useRemoteServersStore.getState().openThread?.thread.title).toBe(
-        "Remote rt-1 resynced",
-      ),
+      expect(sync.applyThreadSnapshot).toHaveBeenCalledTimes(applyCallsBefore + 2),
     );
-    expect(sync.applyThreadSnapshot).toHaveBeenCalledTimes(applyCallsBefore + 2);
-    expect(useRemoteServersStore.getState().openThread?.thread.title).toBe("Remote rt-1 resynced");
+    expect(threadHistory).toHaveBeenCalledTimes(2);
   });
 
   it("does not clear cached goal and plan rows before applying remote history", async () => {
@@ -5117,6 +5120,7 @@ describe("useRemoteServersStore", () => {
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
     await pairIsolated(() => socket);
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    seedRemoteThreadOwner();
     const applyBefore = sync.applyThreadSnapshot.mock.calls.length;
     socket.onmessage?.({
       data: JSON.stringify({ type: "resync-required", seq: 5, reason: "restart" }),

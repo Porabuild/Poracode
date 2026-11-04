@@ -33,6 +33,7 @@ import {
   type SharedCredentialCustody,
 } from "./sharedCredentials";
 import { noteDesktopTokenCommitted } from "./tokenVault";
+import { SessionRenewal } from "./sessionRenewal";
 import type { RemoteServerRecord, RemoteServersState } from "./types";
 import type { TerminalConnectionCapabilities } from "./terminalCapabilities";
 
@@ -191,7 +192,12 @@ export function createRemoteServerClientBindings(
     client.setTokenLifecycle({
       accessToken: currentAccessToken,
       refreshToken: () => (isCurrent() ? refreshTokenForDesktop(connectionKey) : undefined),
-      onTokensRefreshed: (tokens) => commitSharedRefresh(custody, tokens),
+      onTokensRefreshed: (tokens) => {
+        // A rotation reports the new bearer's deadline: renew a lead before it,
+        // as the desktop host's session does, instead of meeting the expiry.
+        if (isCurrent()) sessionRenewalFor(connectionKey).schedule(tokens.accessTokenExpiresAt);
+        return commitSharedRefresh(custody, tokens);
+      },
       runExclusive: (run) => runSharedRefresh(custody, run),
       // A 401 the refresh path could not repair: only a REFUSED grant (401/403
       // from the grant endpoint) is dead — transport-class refresh failures
@@ -230,6 +236,32 @@ export function createRemoteServerClientBindings(
     if (!server || server.transport?.kind === "environment") return undefined;
     const identity = `${server.endpoint}\0${server.accessToken}\0${certPinForDesktop(connectionKey) ?? ""}`;
     return directImageSessionFor(connectionKey, identity, () => clientForServer(server));
+  };
+
+  const sessionRenewals = new Map<string, SessionRenewal>();
+  /** The proactive renewal of one connection's session, through its current client. */
+  const sessionRenewalFor = (connectionKey: string): SessionRenewal => {
+    let renewal = sessionRenewals.get(connectionKey);
+    if (!renewal) {
+      const owned = new SessionRenewal(async () => {
+        if (!get().servers.some((entry) => remoteConnectionKey(entry) === connectionKey)) {
+          // The connection was removed: nothing left to renew.
+          owned.dispose();
+          sessionRenewals.delete(connectionKey);
+          return false;
+        }
+        try {
+          return (await withClient(connectionKey, (client) => client.refreshTokens())) !== null;
+        } catch (error) {
+          // A refused grant is dead (re-pair); anything else is retried.
+          if (isUnauthorizedRemoteError(error)) return false;
+          throw error;
+        }
+      }, "remote");
+      renewal = owned;
+      sessionRenewals.set(connectionKey, renewal);
+    }
+    return renewal;
   };
 
   const withClient = async <Result>(

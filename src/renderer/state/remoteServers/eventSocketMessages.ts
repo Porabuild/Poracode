@@ -5,10 +5,7 @@ import { handleBrowserServerMessage } from "@/renderer/browser/browserMirror";
 import { releaseRemoteTerminal, remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
 import { HostEventDrain } from "@/renderer/hostTransport/hostEventDrain";
 import { resetRemoteThreadProjection } from "@/renderer/state/remote/resetThreadProjection";
-import {
-  collectRuntimeEventsFromSupervisoryMessage,
-  dispatchRemoteSupervisorEvent,
-} from "@/renderer/state/remote";
+import { dispatchRemoteSupervisorEvent } from "@/renderer/state/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import { pruneLiveObservedCrossagentItems } from "@/renderer/state/slices/staleSubAgents";
 import { projectRemoteThreadEvent, remoteThreadId } from "@/renderer/state/remoteProjection";
@@ -49,11 +46,8 @@ import { syncRemoteGitSummaries } from "./gitSummaries";
 import { cachedThreadIds } from "./rowReuse";
 import { remoteConnectionKey } from "./types";
 
-const MAX_RECOVERY_QUEUED_EVENTS = 512;
-const MAX_RECOVERY_QUEUED_BYTES = 2 * 1024 * 1024;
-
 export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void {
-  const { server, entry, socket, client, get, isCurrent, noteClientDetectedLoss, recovery } = ctx;
+  const { server, entry, socket, client, get, isCurrent, noteClientDetectedLoss } = ctx;
   const connectionKey = remoteConnectionKey(server);
   let socketSequenceFloor = ctx.resumeCursor;
   /** Epoch this socket's `ready` reported; undefined from hosts without one. */
@@ -61,12 +55,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
   /** This socket's `ready` proved a restart under a bound cursor. */
   let socketEpochChanged = false;
 
-  ctx.dispatchForwardEvent = (
-    forward,
-    sequence,
-    recoveryReplay = false,
-    omittedRuntimeThreadIds,
-  ): void => {
+  ctx.dispatchForwardEvent = (forward, sequence, omittedRuntimeThreadIds): void => {
     for (const threadId of supervisorEventThreadIds(forward)) {
       recordRemoteThreadAppliedSeq(connectionKey, threadId, sequence);
     }
@@ -80,7 +69,6 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
       runtimeSequence: sequence,
       onGitSummaries: (summaries) => syncRemoteGitSummaries(connectionKey, summaries),
       onGitState: (patch) => syncRemoteGitStatePatch(connectionKey, patch),
-      ...(recoveryReplay ? { deliverRuntimeEventsImmediately: true } : {}),
     });
   };
 
@@ -145,10 +133,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
     else setRemoteServerSnapshotSeq(connectionKey, 0, epoch);
   };
 
-  const dispatchParsed = (
-    message: ReturnType<RemoteDesktopClient["parseSocketMessage"]>,
-    rawBytes: number,
-  ) => {
+  const dispatchParsed = (message: ReturnType<RemoteDesktopClient["parseSocketMessage"]>) => {
     try {
       if (message.type === "pong") {
         entry.health?.acceptPong(message.id);
@@ -176,12 +161,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
         // next expected seq means a frame was lost in transit or dropped
         // client-side. Never apply past a gap and never advance the
         // cursor into it — reconnect from the last applied seq instead.
-        // While a recovery holds frames in its queue the watermark lags
-        // by design, so gap checks are suppressed there.
-        if (
-          recovery.threadIds.size === 0 &&
-          message.seq > remoteServerSnapshotSeq(connectionKey) + 1
-        ) {
+        if (message.seq > remoteServerSnapshotSeq(connectionKey) + 1) {
           noteClientDetectedLoss();
           return;
         }
@@ -243,73 +223,8 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
           releaseRemoteTerminal(terminalId);
         }
         let forward = filterRemoteThreadEvents(message.event, remoteThreadIds);
-        // True when (part of) this frame was parked in the recovery
-        // queue: those seqs advance the cursor only when REPLAYED, so a
-        // failed recovery reconnects from before them instead of
-        // skipping parked frames.
-        let queuedForRecovery = false;
-        if (forward !== null && recovery.threadIds.size > 0) {
-          const batches = collectRuntimeEventsFromSupervisoryMessage(forward);
-          const recoveringBatches = batches.filter((batch) =>
-            recovery.threadIds.has(batch.threadId),
-          );
-          if (recoveringBatches.length > 0) {
-            const recoveryEvent = {
-              type: "thread-runtime-events-multi",
-              batches: recoveringBatches,
-            };
-            queuedForRecovery = true;
-            // A3: the size is measured from the raw wire frame that carried
-            // this event (UTF-16 upper bound), not re-serialized here. It is
-            // a conservative upper bound for a filtered sub-event.
-            const eventBytes = rawBytes;
-            if (
-              recovery.queuedEvents.length >= MAX_RECOVERY_QUEUED_EVENTS ||
-              recovery.queuedBytes + eventBytes > MAX_RECOVERY_QUEUED_BYTES
-            ) {
-              recovery.overflowed = true;
-            } else {
-              recovery.queuedEvents.push({
-                seq: message.seq,
-                event: recoveryEvent,
-                bytes: eventBytes,
-                ...(message.omittedRuntimeThreadIds
-                  ? { omittedRuntimeThreadIds: message.omittedRuntimeThreadIds }
-                  : {}),
-              });
-              recovery.queuedBytes += eventBytes;
-            }
-            const liveBatches = batches.filter((batch) => !recovery.threadIds.has(batch.threadId));
-            forward =
-              liveBatches.length > 0
-                ? { type: "thread-runtime-events-multi", batches: liveBatches }
-                : null;
-          } else if (
-            supervisorEventThreadIds(forward).some((threadId) => recovery.threadIds.has(threadId))
-          ) {
-            queuedForRecovery = true;
-            const eventBytes = rawBytes;
-            if (
-              recovery.queuedEvents.length >= MAX_RECOVERY_QUEUED_EVENTS ||
-              recovery.queuedBytes + eventBytes > MAX_RECOVERY_QUEUED_BYTES
-            ) {
-              recovery.overflowed = true;
-            } else {
-              recovery.queuedEvents.push({
-                seq: message.seq,
-                event: forward,
-                bytes: eventBytes,
-                ...(message.omittedRuntimeThreadIds
-                  ? { omittedRuntimeThreadIds: message.omittedRuntimeThreadIds }
-                  : {}),
-              });
-              recovery.queuedBytes += eventBytes;
-            }
-            forward = null;
-          }
-        }
         if (forward !== null) {
-          ctx.dispatchForwardEvent(forward, message.seq, false, message.omittedRuntimeThreadIds);
+          ctx.dispatchForwardEvent(forward, message.seq, message.omittedRuntimeThreadIds);
         } else if (
           message.event &&
           typeof message.event === "object" &&
@@ -337,14 +252,13 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
             includeAgentStatuses: shouldRefreshRemoteAgentStatusesAfterEvent(message.event),
           });
         }
-        if (!queuedForRecovery) {
-          // Applied-cursor rule (V5 2.1): the resume watermark advances
-          // only after a frame is consumed — dispatched, replayed, or
-          // filtered out — never on receipt. A dropped frame therefore
-          // reconnects from the last applied seq and the server replays
-          // exactly the missing range.
-          bumpRemoteServerSnapshotSeq(connectionKey, message.seq);
-        }
+        // Applied-cursor rule (V5 2.1): the resume watermark advances only
+        // after a frame is consumed — dispatched or filtered out — never on
+        // receipt. A dropped frame therefore reconnects from the last applied
+        // seq and the server replays exactly the missing range. A thread
+        // recovering its history holds its frames in the reducer's queue,
+        // behind the baseline, as every host's does.
+        bumpRemoteServerSnapshotSeq(connectionKey, message.seq);
         socketSequenceFloor = Math.max(socketSequenceFloor, message.seq);
       }
       if (message.type === "resync-required") {
@@ -370,8 +284,8 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
       renew: ctx.renewDecoder,
       dispose: ctx.renewDecoder,
     },
-    onFrame: (message, bytes) => {
-      if (isCurrent() && entry.socket === socket) dispatchParsed(message, bytes);
+    onFrame: (message) => {
+      if (isCurrent() && entry.socket === socket) dispatchParsed(message);
     },
     onUnavailable: () => {
       if (isCurrent() && entry.socket === socket) noteClientDetectedLoss();
@@ -389,7 +303,6 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
       try {
         dispatchParsed(
           client.parseSocketMessage(raw) as ReturnType<RemoteDesktopClient["parseSocketMessage"]>,
-          raw.length * 2,
         );
       } catch {
         // HTTP snapshots remain authoritative; ignore malformed frames.

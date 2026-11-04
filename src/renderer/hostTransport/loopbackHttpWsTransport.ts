@@ -686,7 +686,9 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
       // Truthful window-local capacity state (A1): the thread surface shows the
       // overload with recovery guidance instead of a console-only warning, and
       // the state clears as soon as the wire carries every retained thread.
-      useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(droppedCount);
+      useLiveStreamCapacityStore
+        .getState()
+        .setDroppedRuntimeThreadCount(droppedCount, eventInterests.MANAGED_EVENT_INTEREST_WIRE);
     },
     onItemInterestsApplied: (threadIds) => {
       if (!isCurrentIntake()) return;

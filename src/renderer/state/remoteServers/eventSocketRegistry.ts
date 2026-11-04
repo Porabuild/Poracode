@@ -37,10 +37,7 @@ export interface RemoteServerEventSocketEntry {
   disposeFrames?: () => void;
   dispose?: () => void;
   /** Re-baselines the current connection's interested threads, or only the given ones. */
-  recoverInterestedThreads?: (
-    beforeReplay?: () => void,
-    onlyThreadIds?: ReadonlySet<string>,
-  ) => Promise<boolean>;
+  recoverInterestedThreads?: (onlyThreadIds?: ReadonlySet<string>) => Promise<boolean>;
 }
 
 const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();

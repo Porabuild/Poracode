@@ -16,10 +16,7 @@ import { getRemoteSocketEngine } from "@/renderer/state/remote/engine";
 import { setRemoteTerminalSocketSender } from "@/renderer/state/remoteTerminalFeed";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import { bindRemoteEngineLaneOverflow } from "./eventSocketEngine";
-import {
-  createEventSocketRecoveryState,
-  type EventSocketConnectionContext,
-} from "./eventSocketContext";
+import { type EventSocketConnectionContext } from "./eventSocketContext";
 import { bindEventSocketMessages } from "./eventSocketMessages";
 import { setAgentVisionSocketSender } from "@/renderer/browser/agentVisionStream";
 import {
@@ -140,15 +137,6 @@ export async function startRemoteServerEventStream(
     dispose: () => decodeLane.dispose(),
   };
   setRemoteServerEventSocketEntry(connectionKey, entry);
-  /** Socket the in-flight resync promise belongs to. A recovery must never be
-   * reused across connections: a dead socket's recovery resolving `false`
-   * would force-reconnect a healthy replacement and report a false offline. */
-  const resyncSlots: EventSocketConnectionContext["resyncSlots"] = {
-    promise: null,
-    socket: null,
-    resumeFence: null,
-  };
-  const recovery = createEventSocketRecoveryState();
   /** Set when a frame was provably dropped client-side (engine overflow/reset
    * rejection, expected-seq gap). The next connection re-baselines interested
    * threads from authoritative snapshots after resuming from the last APPLIED
@@ -329,8 +317,6 @@ export async function startRemoteServerEventStream(
         decodeFrame: (raw) => decodeLane.decodeRemote(raw),
         renewDecoder: () => decodeLane.renew(),
         decodeInline: !engine.isWorkerSupported(),
-        recovery,
-        resyncSlots,
         dispatchForwardEvent: () => {},
         recoverInterestedThreads: async () => false,
       };
@@ -407,7 +393,7 @@ export async function startRemoteServerEventStream(
             );
           }),
         );
-        if (unloaded.size > 0) void ctx.recoverInterestedThreads(undefined, unloaded);
+        if (unloaded.size > 0) void ctx.recoverInterestedThreads(unloaded);
       }
     } catch (error) {
       if (!isCurrent()) return;
