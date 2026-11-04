@@ -15,8 +15,7 @@ import {
   useThreadFollowUpQueueStore,
   type ThreadFollowUpQueueSnapshotGuard,
 } from "@/renderer/state/threadFollowUpQueueStore";
-import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { applyAgentStatusSupervisorEvent } from "@/renderer/state/agentStatusesStore";
 import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { carryActiveTurnTiming } from "../activeTurnTiming";
 import { carryPendingThreadInput } from "../pendingThreadInput";
@@ -45,7 +44,7 @@ import {
   existingTailMonotonicallyCoversSnapshot,
   snapshotMonotonicallyCoversExistingTail,
 } from "../runtimeHistorySnapshot";
-import { invalidateRuntimeHistoryRead, runtimeHistoryBoundary } from "../runtimeHistoryBoundary";
+import { runtimeHistoryBoundary } from "../runtimeHistoryBoundary";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
 import { forgetThreadPromptIndex } from "../threadPromptIndexCache";
@@ -55,8 +54,17 @@ import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCach
 import { projectBrowserThreadWorkspace } from "../remoteServers/workspaceFilings";
 import {
   createSupervisorEventReducer,
+  type SupervisorEventReducer,
+  type SupervisorEventReducerConfig,
   type SupervisorEventSideEffects,
 } from "./reducers/supervisorEventReducer";
+import {
+  createHostHistoryRecovery,
+  type HostHistoryRecovery,
+} from "./reducers/hostHistoryRecovery";
+import { recordRuntimeUsage } from "../usageRecorder";
+import { hostRunsOnThisMachine } from "../hostLocality";
+import { isHistoryIncorporated } from "../historyBaselines";
 
 /**
  * Feeds remote snapshots and live WebSocket events into the same Zustand
@@ -106,8 +114,7 @@ function snapshotIsStaleForThread(
   snapshot: RemoteThreadSnapshot,
   lastSeenEventSeq: number | undefined,
 ): boolean {
-  const remoteServerId = snapshot.thread.remoteServerId;
-  if (remoteServerId === undefined || lastSeenEventSeq === undefined) return false;
+  if (lastSeenEventSeq === undefined) return false;
   return snapshotOlderThanAppliedSeq(snapshot.snapshotSeq, lastSeenEventSeq);
 }
 
@@ -150,6 +157,18 @@ export function applyThreadSnapshot(
     readonly committedPrefix?: CommittedHistoryPrefix;
     /** Guard captured immediately before this thread's history request. */
     readonly followUpQueueSnapshotGuard?: ThreadFollowUpQueueSnapshotGuard;
+    /**
+     * The snapshot comes from a host on this machine, which settles its own
+     * orphaned Crossagent rows: keep them whole instead of terminating them.
+     */
+    readonly preserveCrossagentRows?: boolean;
+    /** The pending pane hydration performing this install (it is not superseded by it). */
+    readonly installingSignal?: AbortSignal;
+    /**
+     * Requests open when this snapshot's read began. A request opened live
+     * after that is newer than the snapshot, which cannot settle it.
+     */
+    readonly openRequestIdsAtReadStart?: ReadonlySet<string>;
   } = {
     fromServer: true,
   },
@@ -168,7 +187,7 @@ export function applyThreadSnapshot(
   // A delta can already be in the JS event queue when the foreground recovery
   // snapshot resolves. Apply it before comparing/replacing the transcript so
   // the decision observes every event received up to this point.
-  if (!options.preserveRuntimeHistory) supervisorReducer.flushSync(threadId);
+  if (!options.preserveRuntimeHistory) liveReducer().flushSync(threadId);
   if (proof) {
     if (!proof.isCurrent()) return { installedAuthoritativeHistory: false };
     options = {
@@ -236,7 +255,10 @@ export function applyThreadSnapshot(
     if (existingIds.some((id) => !retainedIds.has(id))) forgetThreadPromptIndex(threadId);
     // Cursor and items share the actual installation proof. A stale snapshot
     // never reaches this point, and every replacement fences awaited pages.
-    seedOlderThreadRuntimeItemsCursor(threadId, snapshot.runtimeNextCursor ?? null, installation);
+    seedOlderThreadRuntimeItemsCursor(threadId, snapshot.runtimeNextCursor ?? null, {
+      ...installation,
+      ...(options.installingSignal ? { installingSignal: options.installingSignal } : {}),
+    });
     clearRuntimeStructuralChangeHint(threadId);
     forgetThreadGalleryCache(threadId);
     useAppStore.setState((current) => ({
@@ -265,7 +287,12 @@ export function applyThreadSnapshot(
     // change; until then only hydration from the local backend is exempt
     // (chatRuntimePersister's preserveCrossagent).
     if (!threadActive) {
-      state.reconcileStaleSubAgents(threadId);
+      state.reconcileStaleSubAgents(
+        threadId,
+        options.preserveCrossagentRows
+          ? { preserveObservedLive: true, preserveCrossagent: true }
+          : undefined,
+      );
     }
   } else if (options.fromServer && !options.preserveRuntimeHistory) {
     if (!snapshotStale) mergeTerminalDelegatedAgentItems(threadId, snapshotItems);
@@ -279,6 +306,7 @@ export function applyThreadSnapshot(
       seedOlderThreadRuntimeItemsCursor(threadId, snapshot.runtimeNextCursor ?? null, {
         preserveExistingCursor: true,
         sparseControlIds: boundary.sparseControlIds,
+        ...(options.installingSignal ? { installingSignal: options.installingSignal } : {}),
       });
       boundary.needsRebase = true;
     }
@@ -336,7 +364,11 @@ export function applyThreadSnapshot(
   }
 
   if (!options.preserveRuntimeHistory)
-    syncRuntimeRequestsFromSnapshot(snapshot, options.lastSeenEventSeq);
+    syncRuntimeRequestsFromSnapshot(
+      snapshot,
+      options.lastSeenEventSeq,
+      options.openRequestIdsAtReadStart,
+    );
   return {
     installedAuthoritativeHistory: shouldReplaceItems,
     ...(!shouldReplaceItems &&
@@ -469,6 +501,7 @@ function syncRuntimeTurnBoundaryFromSnapshot(
 function syncRuntimeRequestsFromSnapshot(
   snapshot: RemoteThreadSnapshot,
   lastSeenEventSeq: number | undefined,
+  openRequestIdsAtReadStart: ReadonlySet<string> | undefined,
 ): void {
   if (snapshotIsStaleForThread(snapshot, lastSeenEventSeq)) return;
   const threadId = snapshot.thread.id;
@@ -477,9 +510,12 @@ function syncRuntimeRequestsFromSnapshot(
   useAppStore.setState((current) => {
     const open = current.runtimeRequestsByThread[threadId] ?? [];
     if (!awaitingUser) {
-      if (open.length === 0) return {};
+      const newer = openRequestIdsAtReadStart
+        ? open.filter((request) => !openRequestIdsAtReadStart.has(request.requestId))
+        : [];
+      if (newer.length === open.length) return {};
       return {
-        runtimeRequestsByThread: { ...current.runtimeRequestsByThread, [threadId]: [] },
+        runtimeRequestsByThread: { ...current.runtimeRequestsByThread, [threadId]: newer },
       };
     }
     if (open.length > 0) return {};
@@ -515,15 +551,6 @@ function syncRuntimeRequestsFromSnapshot(
  */
 export interface RemoteDispatchHooks {
   readonly runtimeSequence?: number;
-  /**
-   * Called when the final-consumer runtime queue drops a thread's incomplete
-   * delta batch. The host should install an authoritative snapshot before the
-   * queue is resumed; until then subsequent live deltas stay blocked.
-   */
-  readonly onRuntimeQueueOverflow?: (
-    threadIds: readonly string[],
-    resume: () => void,
-  ) => void | Promise<boolean | void>;
   /** Recovery replay is already ordered behind an authoritative snapshot. */
   readonly deliverRuntimeEventsImmediately?: boolean;
   /**
@@ -561,76 +588,135 @@ export interface RemoteDispatchHooks {
 }
 
 /**
- * The dispatch-time hooks of the in-flight {@link dispatchRemoteSupervisorEvent}
- * call. The shared reducer invokes the injected recovery strategy
- * synchronously while dispatching, so the strategy reads the current caller's
- * hook from here instead of threading per-call state through the core.
+ * The client's ONE live-event reducer: every host's events, the desktop's own
+ * host and each paired host alike, reduce through it. Recovery is host
+ * generic: an overflowed or reset thread resumes from its recorded cursor on
+ * its own host, else re-reads that host's tail, while the transcript stays
+ * visible and the queue resumes only behind the new baseline.
  */
-let currentDispatchHooks: RemoteDispatchHooks | null = null;
+let hostHistoryRecoveryInstance: HostHistoryRecovery | null = null;
+// Created on first use: this module is part of the recovery's own import graph.
+const hostHistoryRecovery = (): HostHistoryRecovery =>
+  (hostHistoryRecoveryInstance ??= createHostHistoryRecovery({
+    getArbitration: () => liveReducer().arbitration,
+  }));
 
-type RemoteRuntimeHistoryRecovery = NonNullable<RemoteDispatchHooks["onRuntimeQueueOverflow"]>;
+/**
+ * Fan-outs only an intake that receives these events supplies: the desktop's
+ * own host is the only one that sends desktop-internal frames (terminal
+ * output, dev shells, provider usage) and the renderer perf diagnostics run
+ * in the desktop window. Absent hooks leave those events to the core.
+ */
+export type SupervisorIntakeHooks = Pick<
+  SupervisorEventReducerConfig,
+  | "routeShellEvent"
+  | "onThreadOutput"
+  | "onThreadOutputCleared"
+  | "onProviderUsage"
+  | "onProviderUsageAll"
+  | "wrapFlush"
+  | "wrapApply"
+>;
 
-/** Re-fetches snapshots for recoveries that start outside a hooked dispatch
- * (automatic retries and the pane's Retry). Without one, recovery declines. */
-let remoteRuntimeHistoryRecovery: RemoteRuntimeHistoryRecovery | null = null;
+let intakeHooks: SupervisorIntakeHooks = {};
 
-export function setRemoteRuntimeHistoryRecovery(recover: RemoteRuntimeHistoryRecovery): void {
-  remoteRuntimeHistoryRecovery = recover;
+/** Installs the desktop intake's fan-outs; returns the uninstall. */
+export function installSupervisorIntakeHooks(hooks: SupervisorIntakeHooks): () => void {
+  intakeHooks = hooks;
+  return () => {
+    if (intakeHooks === hooks) intakeHooks = {};
+  };
 }
 
-const supervisorReducer = createSupervisorEventReducer({
-  // INJECTED recovery strategy: HTTP snapshot. Overflow delegates to the
-  // caller's snapshot re-fetch (event socket resync / desktop-as-client
-  // history read); a `thread-reset` has no snapshot to await, so the queue
-  // resumes immediately and fresh deltas keep flowing.
-  recovery: {
-    recoverFromQueueOverflow: (threadIds, resume) =>
-      (currentDispatchHooks?.onRuntimeQueueOverflow ?? remoteRuntimeHistoryRecovery)?.(
-        threadIds,
-        resume,
-      ),
-    recoverFromThreadReset: (_threadId, resume) => {
-      // A reset is the authoritative generation boundary when this caller
-      // has no separate snapshot-recovery promise to await.
-      resume();
+let supervisorReducerInstance: SupervisorEventReducer | null = null;
+// Created on first use: this module is part of the reducer's own import graph.
+function liveReducer(): SupervisorEventReducer {
+  return (supervisorReducerInstance ??= createSupervisorEventReducer({
+    recovery: {
+      preservesOpenRequests: true,
+      preservesTranscript: true,
+      recoverFromQueueOverflow: (threadIds, resume) =>
+        hostHistoryRecovery().strategy.recoverFromQueueOverflow(threadIds, resume),
+      recoverFromThreadReset: (threadId, resume) =>
+        hostHistoryRecovery().strategy.recoverFromThreadReset(threadId, resume),
     },
-  },
-  normalizeThreadState: normalizeRuntimeSnapshotLaunchConfig,
-  onAgentStatusEvent: (event) => {
-    if (event.type === "agent-status-updated") {
-      useAgentStatusesStore.getState().mergeAgentStatus(event.status);
-    } else if (event.type === "windows-agent-statuses") {
-      useAgentStatusesStore.getState().setAgentStatuses(event.statuses);
-    } else if (event.type === "wsl-agent-statuses") {
-      useAgentStatusesStore.getState().setWslAgentStatuses(event.statuses);
-    }
-  },
-});
+    onSequencedEvent: (event, rendererSequence, space) =>
+      hostHistoryRecovery().noteSequencedSupervisorEvent(event, rendererSequence, space),
+    get routeShellEvent() {
+      return intakeHooks.routeShellEvent;
+    },
+    get onThreadOutput() {
+      return intakeHooks.onThreadOutput;
+    },
+    get onThreadOutputCleared() {
+      return intakeHooks.onThreadOutputCleared;
+    },
+    get onProviderUsage() {
+      return intakeHooks.onProviderUsage;
+    },
+    get onProviderUsageAll() {
+      return intakeHooks.onProviderUsageAll;
+    },
+    get wrapFlush() {
+      return intakeHooks.wrapFlush;
+    },
+    get wrapApply() {
+      return intakeHooks.wrapApply;
+    },
+    // A first-launch bulk discovery result is deferred so the UI paints first.
+    onAgentStatusEvent: (event) =>
+      applyAgentStatusSupervisorEvent(event, { deferFirstLaunchBulk: true }),
+    isHistoryIncorporated,
+    afterApply: (batches, { threadMetadata }) => {
+      for (const { threadId, events } of batches) {
+        // Usage is captured on the machine whose provider accounts run the
+        // thread; a host on another machine records its own.
+        if (hostRunsOnThisMachine(threadMetadata.find((thread) => thread.id === threadId)))
+          recordRuntimeUsage(threadId, events, threadMetadata);
+      }
+    },
+  }));
+}
+
+/** The client's one live-event reducer. */
+export function supervisorEventReducer(): SupervisorEventReducer {
+  return liveReducer();
+}
+
+/** A host's event stream restarted: reads begun on the previous one are not trusted. */
+export function noteSupervisorTransportGenerationChanged(): void {
+  hostHistoryRecovery().onTransportGenerationChanged();
+  liveReducer().invalidateInFlightRecoveries();
+}
+
+export function clearSupervisorSequenceTracking(): void {
+  hostHistoryRecovery().clearSequenceTracking();
+}
 
 /** Drop every queued runtime delta and cancel the pending flush, if any. Used
  * when switching or removing a remote host so stale batches cannot cross the
  * session boundary. */
 export function clearPendingRuntimeEvents(): void {
-  supervisorReducer.clear();
+  liveReducer().clear();
 }
 
-/** Re-reads a remote thread's history through the reducer that owns its queue. */
-export function recoverRemoteRuntimeHistory(threadId: string): void {
-  supervisorReducer.recoverRuntimeHistory(threadId);
+/** Re-reads a thread's history through the reducer that owns its queue. */
+export function recoverRuntimeHistory(threadId: string): void {
+  liveReducer().recoverRuntimeHistory(threadId);
 }
 
-export function noteRemoteRuntimeHistoryBaselines(threadIds: readonly string[]): void {
-  supervisorReducer.noteAuthoritativeBaselines(threadIds);
+export function noteRuntimeHistoryBaselines(threadIds: readonly string[]): void {
+  liveReducer().noteAuthoritativeBaselines(threadIds);
 }
 
 export function canResumeQueuedRuntimeHistory(threadId: string): boolean {
-  return !supervisorReducer.arbitration.hasUnsequenced(threadId);
+  return !liveReducer().arbitration.hasUnsequenced(threadId);
 }
 export function discardPendingRuntimeEventsThroughSequence(
   threadId: string,
   sequence: number,
 ): void {
-  supervisorReducer.arbitration.discardThroughSequence(threadId, sequence, "loopback");
+  liveReducer().arbitration.discardThroughSequence(threadId, sequence, "loopback");
 }
 
 function asSupervisorEvent(value: unknown): SupervisorEvent | null {
@@ -640,69 +726,58 @@ function asSupervisorEvent(value: unknown): SupervisorEvent | null {
 }
 
 export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDispatchHooks): void {
-  currentDispatchHooks = hooks ?? null;
-  try {
-    const omissions =
-      value && typeof value === "object" ? historyContentOmissions(value) : undefined;
-    for (const threadId of omissions ?? []) noteHistoryDeliveryGap(threadId);
-    const deliveryOptions = omissions ? { omittedRuntimeThreadIds: omissions } : {};
-    const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
-    if (runtimeBatches.length > 0) {
-      for (const batch of runtimeBatches) {
-        if (batch.events.some((event) => event.type === "runtime.truncated")) {
-          invalidateRuntimeHistoryRead(batch.threadId);
-        }
-      }
-      if (hooks?.deliverRuntimeEventsImmediately) {
-        supervisorReducer.enqueueRuntimeBatches(runtimeBatches, {
-          deliverRuntimeEventsImmediately: true,
-          ...deliveryOptions,
-          ...(hooks.runtimeSequence !== undefined
-            ? { rendererSequence: hooks.runtimeSequence, sequenceSpace: "loopback" }
-            : {}),
-        });
-        return;
-      }
-      supervisorReducer.enqueueRuntimeBatches(runtimeBatches, {
+  const omissions = value && typeof value === "object" ? historyContentOmissions(value) : undefined;
+  for (const threadId of omissions ?? []) noteHistoryDeliveryGap(threadId);
+  const deliveryOptions = omissions ? { omittedRuntimeThreadIds: omissions } : {};
+  const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
+  if (runtimeBatches.length > 0) {
+    if (hooks?.deliverRuntimeEventsImmediately) {
+      liveReducer().enqueueRuntimeBatches(runtimeBatches, {
+        deliverRuntimeEventsImmediately: true,
         ...deliveryOptions,
-        ...(hooks?.runtimeSequence !== undefined
-          ? { rendererSequence: hooks.runtimeSequence, sequenceSpace: "loopback" as const }
+        ...(hooks.runtimeSequence !== undefined
+          ? { rendererSequence: hooks.runtimeSequence, sequenceSpace: "loopback" }
           : {}),
       });
-      supervisorReducer.installScheduling();
       return;
     }
-
-    // Out-of-band desktop events ride the same stream as supervisor events.
-    const gitSummaries = remoteGitSummariesEventSchema.safeParse(value);
-    if (gitSummaries.success) {
-      // No core mutation — the per-thread git summaries live in a separate store
-      // the core does not own. Mobile attaches its hydration hook here; desktop
-      // never reaches this branch (its event filter drops desktop-global events).
-      hooks?.onGitSummaries?.(gitSummaries.data.summaries);
-      return;
-    }
-    const gitState = remoteGitStateEventSchema.safeParse(value);
-    if (gitState.success) {
-      hooks?.onGitState?.(gitState.data.patch);
-      return;
-    }
-    const userNotification = remoteUserNotificationEventSchema.safeParse(value);
-    if (userNotification.success) {
-      const { type: _type, ...notification } = userNotification.data;
-      showUserNotification(notification);
-      return;
-    }
-
-    const event = asSupervisorEvent(value);
-    if (!event) return;
-    const sideEffects: SupervisorEventSideEffects = {
-      ...(hooks?.onThreadState ? { onThreadState: hooks.onThreadState } : {}),
-      ...(hooks?.onThreadReset ? { onThreadReset: hooks.onThreadReset } : {}),
-      ...(hooks?.onThreadExited ? { onThreadExited: hooks.onThreadExited } : {}),
-    };
-    supervisorReducer.dispatch(event, undefined, { sideEffects });
-  } finally {
-    currentDispatchHooks = null;
+    liveReducer().enqueueRuntimeBatches(runtimeBatches, {
+      ...deliveryOptions,
+      ...(hooks?.runtimeSequence !== undefined
+        ? { rendererSequence: hooks.runtimeSequence, sequenceSpace: "loopback" as const }
+        : {}),
+    });
+    liveReducer().installScheduling();
+    return;
   }
+
+  // Out-of-band desktop events ride the same stream as supervisor events.
+  const gitSummaries = remoteGitSummariesEventSchema.safeParse(value);
+  if (gitSummaries.success) {
+    // No core mutation — the per-thread git summaries live in a separate store
+    // the core does not own. Mobile attaches its hydration hook here; desktop
+    // never reaches this branch (its event filter drops desktop-global events).
+    hooks?.onGitSummaries?.(gitSummaries.data.summaries);
+    return;
+  }
+  const gitState = remoteGitStateEventSchema.safeParse(value);
+  if (gitState.success) {
+    hooks?.onGitState?.(gitState.data.patch);
+    return;
+  }
+  const userNotification = remoteUserNotificationEventSchema.safeParse(value);
+  if (userNotification.success) {
+    const { type: _type, ...notification } = userNotification.data;
+    showUserNotification(notification);
+    return;
+  }
+
+  const event = asSupervisorEvent(value);
+  if (!event) return;
+  const sideEffects: SupervisorEventSideEffects = {
+    ...(hooks?.onThreadState ? { onThreadState: hooks.onThreadState } : {}),
+    ...(hooks?.onThreadReset ? { onThreadReset: hooks.onThreadReset } : {}),
+    ...(hooks?.onThreadExited ? { onThreadExited: hooks.onThreadExited } : {}),
+  };
+  liveReducer().dispatch(event, undefined, { sideEffects });
 }

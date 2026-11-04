@@ -1126,8 +1126,8 @@ msgstr "Для замороженого джерела worktree потрібен
 #~ msgstr "Заблокований екран повністю зупиняє керування робочим столом, тому під час сеансу керування комп'ютером дисплей залишається увімкненим. Ви й далі можете заблокувати екран вручну."
 
 #: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
-msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
-msgstr "Не вдалося підтвердити видалення повідомлень. Оновіть, щоб ресинхронізувати цю розмову."
+#~ msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+#~ msgstr "Не вдалося підтвердити видалення повідомлень. Оновіть, щоб ресинхронізувати цю розмову."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "A missed run was skipped."
@@ -3627,7 +3627,6 @@ msgid "Choose a photo"
 msgstr "Вибрати фото"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Виберіть проєкт для сесій, папка яких більше не існує."
 
@@ -4873,7 +4872,6 @@ msgid "Connecting"
 msgstr "Підключення"
 
 #: src/renderer/bootstrap.ts
-#: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connecting to host…"
 msgstr "Підключення до хоста…"
@@ -4989,7 +4987,6 @@ msgstr "Контекст вручну стиснуто з {before} токені�
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Контекст вручну стиснуто: {before} → {after} токенів"
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "Контекст передано до {targetLabel}"
@@ -12709,7 +12706,6 @@ msgid "No microphone found."
 msgstr "Мікрофон не знайдено."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "Для {agent} немає доступної моделі. Перевірте агента в налаштуваннях."
 
@@ -15627,7 +15623,6 @@ msgstr "Посилання на версію"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -15805,15 +15800,14 @@ msgstr "Назва віддаленого репозиторію"
 
 #: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Remote project not found."
-msgstr "Віддалений проєкт не знайдено."
+#~ msgid "Remote project not found."
+#~ msgstr "Віддалений проєкт не знайдено."
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Remote server"
 #~ msgstr "Віддалений сервер"
 
 #: src/renderer/components/media/fileMediaSource.ts
-#: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "Віддалений сервер не знайдено."
@@ -17903,7 +17897,7 @@ msgstr "Сервер {target} працює на цьому комп'ютері �
 msgid "Server base URL"
 msgstr "Базова URL-адреса сервера"
 
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Сервер офлайн — ця розмова може бути застарілою."
 
@@ -18990,7 +18984,6 @@ msgstr "Запустити без контексту"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "Запускайте робочі процеси та відстежуйте їх виконання."
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "Тред {targetLabel} запущено"
@@ -19890,11 +19883,9 @@ msgid "The desktop's own catalog read failed."
 msgstr "Не вдалося прочитати власний каталог робочого столу."
 
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
-#: src/renderer/state/managedRootCatalog/rootHistory.ts
 msgid "The desktop's own server is not connected yet."
 msgstr "Власний сервер робочого столу ще не підключено."
 
-#: src/renderer/state/remote/historyNoticeActions.ts
 #: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
@@ -19910,11 +19901,11 @@ msgid "The desktop's own server is not connected. Your change was not saved."
 msgstr "Власний сервер робочого столу не підключено. Вашу зміну не збережено."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "The desktop's own server reconnected before the history read completed."
-msgstr "Власний сервер робочого столу перепідключився до завершення читання історії."
+#~ msgid "The desktop's own server reconnected before the history read completed."
+#~ msgstr "Власний сервер робочого столу перепідключився до завершення читання історії."
 
+#: src/renderer/state/hostCatalogOrder.ts
 #: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
-#: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "Власний сервер робочого столу відхилив зміну."
 
@@ -20061,8 +20052,8 @@ msgstr "Останній запуск міг уже розпочатися. Пе
 #~ msgstr "Останній запуск міг уже розпочатися. Перш ніж питати знову, натисніть «Повторити» на панелі чату."
 
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
-msgid "The launch was cancelled."
-msgstr "Запуск скасовано."
+#~ msgid "The launch was cancelled."
+#~ msgstr "Запуск скасовано."
 
 #: src/renderer/components/crew/crewTemplates.ts
 #~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
@@ -20387,6 +20378,10 @@ msgstr "Сесія треду недоступна для повідомлень
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Тред працюватиме в окремому worktree на новій гілці."
+
+#: src/renderer/state/hostThreadHistory.ts
+msgid "The thread's host is not connected."
+msgstr "Хост треду не підключено."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
@@ -20770,7 +20765,6 @@ msgid "This project has no supported source-host remote."
 msgstr "Цей проєкт не має підтримуваного віддаленого репозиторію джерела."
 
 #: src/renderer/actions/providerSwitchActions.ts
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -20868,8 +20862,8 @@ msgid "This server does not support the bounded catalog read."
 msgstr "Цей сервер не підтримує обмежене читання каталогу."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "This server does not support the bounded history read."
-msgstr "Цей сервер не підтримує обмежене читання історії."
+#~ msgid "This server does not support the bounded history read."
+#~ msgstr "Цей сервер не підтримує обмежене читання історії."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -21722,8 +21716,8 @@ msgstr "Не вдалося запустити Tailscale."
 #~ msgstr "Не вдалося запустити термінал"
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Unable to start the remote thread."
-msgstr "Не вдалося запустити віддалений потік."
+#~ msgid "Unable to start the remote thread."
+#~ msgstr "Не вдалося запустити віддалений потік."
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
@@ -22090,7 +22084,7 @@ msgstr "Оновити {0} ({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "Оновити {0} до {updateLabel}"
 
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
+#: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "Оновіть {host}, щоб імпортувати його сесії."
 
@@ -22933,7 +22927,7 @@ msgstr "Підготовка середовища оболонки WSL…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

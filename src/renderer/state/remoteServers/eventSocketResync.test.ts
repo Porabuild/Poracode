@@ -5,19 +5,12 @@ import type { EventSocketConnectionContext } from "./eventSocketContext";
 import { createEventSocketRecoveryState } from "./eventSocketContext";
 import {
   __resetEventSocketRegistryForTest,
-  setRemoteServerEventSocketEntry,
   setRemoteServerSnapshotSeq,
   setRemoteServerThreadItemInterests,
-  type RemoteServerEventSocketEntry,
 } from "./eventSocketRegistry";
-import {
-  bindEventSocketResync,
-  recoverInterestedThreads,
-  resyncOpenThread,
-} from "./eventSocketResync";
+import { recoverInterestedThreads, resyncOpenThread } from "./eventSocketResync";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import { useAppStore } from "@/renderer/state/appStore";
-import { recoverRemoteRuntimeHistory } from "@/renderer/state/remote/sync";
 import type { RemoteServerRecord, RemoteServersState } from "./types";
 
 const PARENT_KEY = "conn-parent";
@@ -289,23 +282,5 @@ describe("eventSocketResync clears remote history load failures", () => {
     await expect(resyncOpenThread(ctx)).resolves.toBe(true);
 
     expect(useAppStore.getState().runtimeHydrationStatus[viewId]).toBeUndefined();
-  });
-
-  it("routes a remote thread's Retry to its current connection's resync", async () => {
-    setRemoteServerThreadItemInterests(ENV_KEY, ["thread-1"], true);
-    useAppStore.setState({
-      threads: [{ ...remoteThread, id: viewId, remoteServerId: ENV_KEY, remoteId: "thread-1" }],
-      runtimeHydrationStatus: { [viewId]: "failed" },
-    });
-    const { ctx, threadHistory } = harness();
-    setRemoteServerEventSocketEntry(ENV_KEY, ctx.entry as RemoteServerEventSocketEntry);
-    bindEventSocketResync(ctx);
-
-    recoverRemoteRuntimeHistory(viewId);
-
-    await vi.waitFor(() =>
-      expect(useAppStore.getState().runtimeHydrationStatus[viewId]).toBeUndefined(),
-    );
-    expect(threadHistory).toHaveBeenCalledWith("thread-1");
   });
 });

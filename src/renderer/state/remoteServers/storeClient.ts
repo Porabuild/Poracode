@@ -9,7 +9,6 @@ import {
 } from "@/shared/remote/client";
 import { remoteServerFailureMessage } from "./failureMessage";
 import { i18n } from "@/renderer/i18n/i18n";
-import { resetTruncateReloadBackoff } from "@/renderer/state/remote/truncateRecovery";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import { environmentSessionForServer } from "./environmentSessions";
 import { directImageSessionFor } from "./directImages";
@@ -71,7 +70,6 @@ export function createRemoteServerClientBindings(
     status: "offline" | "error",
     message: string,
   ) => {
-    const previous = get().runtime[desktopId]?.status;
     set((state) => {
       const current = state.runtime[desktopId];
       if (!current) return {};
@@ -83,7 +81,6 @@ export function createRemoteServerClientBindings(
     // Offline/error drops re-arm unknown-checkpoint reload budgets without
     // clearing installed authoritative baselines (transport flap, not a
     // server restart).
-    if (previous !== status) resetTruncateReloadBackoff(desktopId);
     syncDesktopBrowserBridgeClient(get());
   };
 
@@ -260,7 +257,6 @@ export function createRemoteServerClientBindings(
         });
         // Reactivation re-arms bounded reloads (offline cleared them, but
         // an explicit success proves reachability again).
-        resetTruncateReloadBackoff(desktopId);
         syncDesktopBrowserBridgeClient(get());
       }
       return result;

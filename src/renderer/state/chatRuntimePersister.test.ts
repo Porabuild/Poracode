@@ -1,14 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RemoteClientError } from "@/shared/remote/client";
 import type { Thread } from "@/shared/contracts";
-import {
-  __resetRuntimeHistoryNoticeCapabilityForTest,
-  noteRuntimeHistoryNoticesCapability,
-} from "@/renderer/state/remote/historyNoticeCapability";
-import {
-  __resetThreadHistoryNoticeStoreForTest,
-  readThreadHistoryNotice,
-} from "@/renderer/state/remote/historyNoticeStore";
 import { useAppStore } from "./appStore";
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
 import {
@@ -25,8 +17,10 @@ import {
   retainThreadRuntimeItems,
   seedOlderThreadRuntimeItemsCursor,
   setOlderThreadHistoryInvalidation,
+  setHostThreadHistoryReader,
+  type HostThreadHistoryReader,
+  type HostThreadHistoryReadOutcome,
 } from "./chatRuntimePersister";
-import { trackPendingRemoteThreadOpen } from "./remoteServers/pendingRemoteThreadOpens";
 
 const { bridge } = vi.hoisted(() => ({
   bridge: {
@@ -61,31 +55,6 @@ const { bridge } = vi.hoisted(() => ({
 }));
 
 vi.mock("../bridge", () => ({ readBridge: () => bridge }));
-
-/**
- * Controlled managed-root classification for the root failure-path tests
- * below. Both mocks pass everything else through to the real modules, so the
- * non-managed tests keep exercising the production classification (which
- * short-circuits to false without a managed desktop runtime).
- */
-const managedRoot = vi.hoisted(() => ({
-  active: false,
-  activation: null as null | {
-    seq: number;
-    authority: string;
-    client: { boundedThreadHistory: (threadId: string, options?: unknown) => Promise<never> };
-  },
-}));
-
-vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  readManagedLoopbackActivation: () => (managedRoot.active ? managedRoot.activation : null),
-}));
-
-vi.mock("./managedRootCatalog/rootCatalogCommands", async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  isManagedRootDesktopRuntime: () => managedRoot.active,
-}));
 
 function makeItem(
   input: Partial<RuntimeChatItem> & Pick<RuntimeChatItem, "id" | "type">,
@@ -395,43 +364,73 @@ describe("paged runtime hydration", () => {
     ]);
   });
 
-  it("waits for an in-flight remote open instead of issuing its own four reads", async () => {
-    let finishOpen!: (opened: boolean) => void;
-    const open = new Promise<boolean>((resolve) => {
-      finishOpen = resolve;
-    });
-    expect(trackPendingRemoteThreadOpen("remote-opening-thread", open)).toBe(open);
+  it("reads a host-owned thread through that host's history read, not the bridge", async () => {
+    let finishRead!: (outcome: HostThreadHistoryReadOutcome) => void;
+    const read = vi.fn<HostThreadHistoryReader>((threadId) =>
+      threadId === "remote-opening-thread"
+        ? new Promise((resolve) => {
+            finishRead = resolve;
+          })
+        : undefined,
+    );
+    setHostThreadHistoryReader(read);
+    try {
+      const hydration = hydrateThreadRuntimeItems("remote-opening-thread");
+      await Promise.resolve();
+      expect(useAppStore.getState().runtimeHydrationStatus["remote-opening-thread"]).toBe(
+        "pending",
+      );
+      // The host read installs the authoritative tail (which marks it hydrated).
+      seedOlderThreadRuntimeItemsCursor("remote-opening-thread", 12);
+      finishRead({ kind: "installed" });
+      await hydration;
 
-    const hydration = hydrateThreadRuntimeItems("remote-opening-thread");
-    await Promise.resolve();
-    expect(bridge.dbGetThreadRuntimeItemsPage).not.toHaveBeenCalled();
-
-    // The open installs the authoritative tail (which marks the thread hydrated).
-    seedOlderThreadRuntimeItemsCursor("remote-opening-thread", 12);
-    finishOpen(true);
-    await hydration;
-
-    expect(bridge.dbGetThreadRuntimeItemsPage).not.toHaveBeenCalled();
-    expect(bridge.dbGetThreadCompletedTurns).not.toHaveBeenCalled();
-    expect(bridge.dbGetThreadContextUsage).not.toHaveBeenCalled();
-    expect(bridge.dbGetLatestThreadGoalItem).not.toHaveBeenCalled();
-    expect(hasHydratedThreadRuntimeItems("remote-opening-thread")).toBe(true);
+      expect(read).toHaveBeenCalledOnce();
+      expect(bridge.dbGetThreadRuntimeItemsPage).not.toHaveBeenCalled();
+      expect(bridge.dbGetThreadCompletedTurns).not.toHaveBeenCalled();
+      expect(hasHydratedThreadRuntimeItems("remote-opening-thread")).toBe(true);
+      expect(
+        useAppStore.getState().runtimeHydrationStatus["remote-opening-thread"],
+      ).toBeUndefined();
+    } finally {
+      setHostThreadHistoryReader(null);
+    }
   });
 
-  it("reads history itself when the in-flight remote open fails", async () => {
-    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
-      items: [makeItem({ id: "fallback-tail", type: "assistant_message" })],
-      nextCursor: null,
-    });
-    const failedOpen = Promise.resolve(false);
-    expect(trackPendingRemoteThreadOpen("remote-failed-open", failedOpen)).toBe(failedOpen);
+  it("waits for an unreachable host instead of reporting a failed load", async () => {
+    setHostThreadHistoryReader(async () => ({ kind: "offline", error: new Error("offline") }));
+    try {
+      await hydrateThreadRuntimeItems("remote-offline-thread");
+      expect(
+        useAppStore.getState().runtimeHydrationStatus["remote-offline-thread"],
+      ).toBeUndefined();
+      expect(hasHydratedThreadRuntimeItems("remote-offline-thread")).toBe(false);
+    } finally {
+      setHostThreadHistoryReader(null);
+    }
+  });
 
-    await hydrateThreadRuntimeItems("remote-failed-open");
+  it("reports a host's refused read as a failed load", async () => {
+    setHostThreadHistoryReader(async () => ({ kind: "failed", error: new Error("refused") }));
+    try {
+      await hydrateThreadRuntimeItems("remote-failed-thread");
+      expect(useAppStore.getState().runtimeHydrationStatus["remote-failed-thread"]).toBe("failed");
+      expect(bridge.dbGetThreadRuntimeItemsPage).not.toHaveBeenCalled();
+    } finally {
+      setHostThreadHistoryReader(null);
+    }
+  });
 
-    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledTimes(1);
-    expect(useAppStore.getState().runtimeItemIdsByThread["remote-failed-open"]).toEqual([
-      "fallback-tail",
-    ]);
+  it("treats a host's 'no such thread' as an empty transcript, not a failed load", async () => {
+    setHostThreadHistoryReader(async () => ({ kind: "absent", error: new Error("gone") }));
+    try {
+      await hydrateThreadRuntimeItems("host-absent-thread");
+      expect(useAppStore.getState().runtimeHydrationStatus["host-absent-thread"]).toBeUndefined();
+      expect(hasHydratedThreadRuntimeItems("host-absent-thread")).toBe(true);
+      expect(bridge.dbGetThreadRuntimeItemsPage).not.toHaveBeenCalled();
+    } finally {
+      setHostThreadHistoryReader(null);
+    }
   });
 
   it("does not rewind an advanced remote cursor on a periodic tail refresh", async () => {
@@ -1188,74 +1187,5 @@ describe("bounded visible window (live threads)", () => {
     // was re-applied; the bound pass over it must be clean either way.
     expect(ids.at(-1)).toBe("live-9");
     expect(ids).not.toContain("live--1");
-  });
-});
-
-/**
- * A managed-root transcript read that fails with a typed history-gap refusal
- * on a notice-capable activation is the recovery-needed signal. Ordinary read
- * errors and transport failures never mint a notice —
- * the paired-path primitives are covered in `historyNotice.test.ts`; this
- * pins the classification through the persister's hydration failure path.
- */
-describe("managed-root history failure classification", () => {
-  function activateRootAuthority(error: unknown): void {
-    managedRoot.active = true;
-    managedRoot.activation = {
-      seq: 1,
-      authority: "managed-history-authority",
-      client: {
-        boundedThreadHistory: () => Promise.reject(error) as Promise<never>,
-      },
-    };
-  }
-
-  function seedRootThread(threadId: string): void {
-    useAppStore.setState((state) => ({
-      ...state,
-      threads: [...state.threads, { id: threadId, remoteServerId: undefined } as Thread],
-    }));
-  }
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    useAppStore.setState((state) => ({
-      ...state,
-      runtimeItemIdsByThread: {},
-      runtimeItemsByIdByThread: {},
-      runtimeStructuralVersionByThread: {},
-    }));
-  });
-
-  afterEach(() => {
-    managedRoot.active = false;
-    managedRoot.activation = null;
-    __resetThreadHistoryNoticeStoreForTest();
-    __resetRuntimeHistoryNoticeCapabilityForTest();
-  });
-
-  it("only surfaces recovery-needed for a typed history-gap refusal", async () => {
-    noteRuntimeHistoryNoticesCapability("managed-history-authority", true);
-
-    // A typed gap refusal fails the load and opens the explicit review path.
-    seedRootThread("root-notice-thread");
-    activateRootAuthority(new RemoteClientError("history gap", 503, "persistence_contaminated"));
-    await hydrateThreadRuntimeItems("root-notice-thread");
-    expect(useAppStore.getState().runtimeHydrationStatus["root-notice-thread"]).toBe("failed");
-    expect(readThreadHistoryNotice("root-notice-thread")).toMatchObject({ needsReview: true });
-
-    seedRootThread("root-read-error-thread");
-    activateRootAuthority(new Error("history reader exploded"));
-    await hydrateThreadRuntimeItems("root-read-error-thread");
-    expect(useAppStore.getState().runtimeHydrationStatus["root-read-error-thread"]).toBe("failed");
-    expect(readThreadHistoryNotice("root-read-error-thread")).toBeUndefined();
-
-    // A transport failure keeps the truthful failed status but must NOT mint a
-    // recovery-needed notice (the leg is down, not the transcript lost).
-    seedRootThread("root-transport-thread");
-    activateRootAuthority(new RemoteClientError("loopback unreachable", 0, "network"));
-    await hydrateThreadRuntimeItems("root-transport-thread");
-    expect(useAppStore.getState().runtimeHydrationStatus["root-transport-thread"]).toBe("failed");
-    expect(readThreadHistoryNotice("root-transport-thread")).toBeUndefined();
   });
 });

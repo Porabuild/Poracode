@@ -4,8 +4,7 @@ import { type PromptSegment, type ThreadPresentationMode } from "@/shared/contra
 import { i18n } from "@/renderer/i18n/i18n";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { entityHost } from "@/renderer/state/entityHost";
 import { REMOTE_CONVERSATION_SNAPSHOTS_VERSION } from "@/shared/remote/protocol";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSideChatPanelStore } from "./sideChatPanelStore";
@@ -69,17 +68,16 @@ async function performOpen(
   const open = readBridge().openSideChatPanel;
   if (!source || source.presentationMode !== "gui" || !open || !canOpenSideChat(sourceThreadId))
     return false;
-  const owner = remoteOwner(source);
-  if (owner) {
-    const supported = await useRemoteServersStore
-      .getState()
-      .withClient(
-        owner.desktopId,
-        async (client) =>
-          (await client.environment()).capabilities?.conversationSnapshots?.versions.includes(
-            REMOTE_CONVERSATION_SNAPSHOTS_VERSION,
-          ) === true,
-      );
+  // The owning host (managed or paired) must advertise hidden-context
+  // snapshots; the same environment descriptor answers for both.
+  const host = entityHost(source);
+  if (host) {
+    const supported = await host.withClient(
+      async (client) =>
+        (await client.environment()).capabilities?.conversationSnapshots?.versions.includes(
+          REMOTE_CONVERSATION_SNAPSHOTS_VERSION,
+        ) === true,
+    );
     if (!supported)
       throw new Error(i18n._(msg`Update the remote host to use side chat with hidden context.`));
   }

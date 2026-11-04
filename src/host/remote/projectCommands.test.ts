@@ -77,6 +77,9 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
       async () => {},
     ),
     hasRunningProjectThread: () => false,
+    relocateProjectRuntime: vi.fn<RemoteProjectCommandDeps["relocateProjectRuntime"]>(
+      async () => {},
+    ),
     listProjectThreadIds: () => [],
     upsertProject,
     updateProject,
@@ -592,6 +595,10 @@ describe("applyRemoteProjectCommand", () => {
     ).resolves.toMatchObject({
       response: { project: { location: { kind: "posix", path: "/srv/app" } } },
     });
+    expect(idle.deps.relocateProjectRuntime).toHaveBeenCalledWith("p1", {
+      kind: "posix",
+      path: "/srv/app",
+    });
 
     const running = makeDeps({ hasRunningProjectThread: () => true });
     running.projects.push(baseProject);
@@ -601,6 +608,26 @@ describe("applyRemoteProjectCommand", () => {
         running.deps,
       ),
     ).rejects.toMatchObject({ code: "project_has_running_threads", status: 409 });
+  });
+
+  it("keeps the stored folder when the host cannot re-point its runtime at the new one", async () => {
+    const baseProject: Project = {
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      createdAt: NOW,
+    };
+    const { deps, projects, updateProject } = makeDeps({
+      relocateProjectRuntime: async () => {
+        throw new Error("not a git repository");
+      },
+    });
+    projects.push(baseProject);
+    await expect(
+      applyRemoteProjectCommand({ kind: "relocate", projectId: "p1", path: "/srv/app" }, deps),
+    ).rejects.toThrow("not a git repository");
+    expect(updateProject).not.toHaveBeenCalled();
+    expect(projects).toEqual([baseProject]);
   });
 
   it("rejects removing an unknown project", async () => {

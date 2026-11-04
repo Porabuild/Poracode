@@ -342,7 +342,9 @@ it("rejects a pre-reset rebase page and uses the reconnect snapshot cursor", asy
     nextCursor: 9,
   });
   expect(await pending).toBe(false);
-  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["new-session"]);
+  // The reset keeps the loaded transcript visible while its host re-reads it;
+  // the page read before the reset never lands in it.
+  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).not.toContain("stale");
 
   bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
     items: [
@@ -354,10 +356,9 @@ it("rejects a pre-reset rebase page and uses the reconnect snapshot cursor", asy
   expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith(
     expect.objectContaining({ beforePosition: 17 }),
   );
-  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
-    "older-new-session",
-    "new-session",
-  ]);
+  const ids = useAppStore.getState().runtimeItemIdsByThread[threadId] ?? [];
+  expect(ids[0]).toBe("older-new-session");
+  expect(ids).not.toContain("stale");
 });
 
 it.each(["rejected", "non-advancing"])(

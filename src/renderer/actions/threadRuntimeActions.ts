@@ -264,7 +264,7 @@ async function performThreadInputSubmitPending(
 
 /**
  * Desktop entry point: resolves the thread and its project location from the
- * store, then submits over the local IPC bridge with checkpoint capture.
+ * store, then submits over the host-routed bridge with checkpoint capture.
  *
  * Extracted byte-for-byte from the former ThreadPane.onSubmitInput inline
  * handler — this is the app's most critical action.
@@ -307,18 +307,16 @@ export async function submitThreadInput(
         initialSize: DEFAULT_TERMINAL_SIZE,
       });
     },
-    ...(!owner
-      ? {
-          captureCheckpoint: async (checkpointItemId: string) => {
-            if (isHomeProjectId(thread.projectId)) return;
-            await captureFileCheckpoint({
-              threadId: thread.id,
-              checkpointItemId,
-              projectLocation,
-            });
-          },
-        }
-      : {}),
+    // `createFileCheckpoint` is routed to the thread's owning host like every
+    // other thread operation, so the snapshot is taken wherever the files live.
+    captureCheckpoint: async (checkpointItemId: string) => {
+      if (isHomeProjectId(thread.projectId)) return;
+      await captureFileCheckpoint({
+        threadId: thread.id,
+        checkpointItemId,
+        projectLocation,
+      });
+    },
   });
 }
 

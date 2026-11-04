@@ -14,8 +14,8 @@ export default {
   projectComposerCapabilities: (capabilities) => grokFastVariant.foldCapabilities(capabilities),
   label: msg`Grok Build`,
   order: 40,
-  resolveMarkdownImageRoots: ({ sessionId, projectLocation, homeDir, isRemote }) => {
-    if (isRemote || !sessionId || !homeDir) return undefined;
+  resolveMarkdownImageRoots: ({ sessionId, projectLocation, homeDir }) => {
+    if (!sessionId || !homeDir) return undefined;
     const sessionDir = resolveGrokSessionDir({ projectLocation, sessionId, homeDir });
     return sessionDir ? [sessionDir] : undefined;
   },

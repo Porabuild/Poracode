@@ -18,7 +18,7 @@ import { useGitReadModelStore } from "./state/gitReadModelStore";
 import { projectGitReadModelIntoLegacyStore } from "./state/gitReadModelLegacyProjection";
 import { openThread } from "./actions/threadActions";
 import { applyForwardedRemoteThreadCommand } from "./actions/remoteThreadCommandApplication";
-import { isProjectedRemoteEntityId } from "./state/remoteProjection";
+import { isManagedHostEventInterest } from "./state/rendererEventInterests";
 import { pruneLiveObservedCrossagentItems } from "./state/slices/staleSubAgents";
 import { closeExitedShell } from "./actions/terminalTabActions";
 import { onRemoteTerminalExited } from "./state/remoteTerminalFeed";
@@ -26,22 +26,20 @@ import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
-import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useThreadOutputStore } from "./state/threadOutputStore";
-import { installRuntimeHistoryRecovery } from "./state/runtimeInterestHydration";
-import { applyAgentStatusSupervisorEvent } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
 import {
   beginRendererPerfSpan,
   startRendererPerfDiagnostics,
 } from "./diagnostics/rendererPerfDiagnostics";
-import { createLocalSnapshotRecovery } from "./state/remote/reducers/localSnapshotRecovery";
 import {
-  createSupervisorEventReducer,
-  type SupervisorEventReducer,
-} from "./state/remote/reducers/supervisorEventReducer";
+  clearSupervisorSequenceTracking,
+  installSupervisorIntakeHooks,
+  noteSupervisorTransportGenerationChanged,
+  supervisorEventReducer,
+} from "./state/remote/sync";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { usePrWatchAgentSync } from "@/renderer/hooks/usePrWatchAgentSync";
@@ -130,21 +128,12 @@ if (isMainWindow)
 // ?poracodePerfDiag=1 (or the localStorage flag), so production is untouched.
 startRendererPerfDiagnostics();
 
-let supervisorReducerRef: SupervisorEventReducer | null = null;
-const localSnapshotRecovery = createLocalSnapshotRecovery({
-  getArbitration: () => {
-    const reducer = supervisorReducerRef;
-    if (!reducer) throw new Error("Supervisor event reducer is not installed.");
-    return reducer.arbitration;
-  },
-});
-
-const supervisorReducer = createSupervisorEventReducer({
-  // INJECTED recovery strategy: the local snapshot. The backend persists
-  // runtime events before broadcasting them, so overflow and reset re-read
-  // the authoritative local history before the queue resumes.
-  recovery: localSnapshotRecovery.strategy,
-  onSequencedEvent: localSnapshotRecovery.noteSequencedSupervisorEvent,
+// The client's one live-event reducer reduces this window's events from every
+// host. The desktop's own host is the only one that sends desktop-internal
+// frames (terminal output, dev shells, provider usage); their fan-outs and the
+// perf spans are this window's.
+const supervisorReducer = supervisorEventReducer();
+const uninstallSupervisorIntakeHooks = installSupervisorIntakeHooks({
   routeShellEvent: (event) => {
     if (!("threadId" in event)) return;
     if (event.type === "thread-output") {
@@ -155,8 +144,6 @@ const supervisorReducer = createSupervisorEventReducer({
   },
   onThreadOutput: (threadId, data) => useThreadOutputStore.getState().appendOutput(threadId, data),
   onThreadOutputCleared: (threadId) => useThreadOutputStore.getState().clearOutput(threadId),
-  onAgentStatusEvent: (event) =>
-    applyAgentStatusSupervisorEvent(event, { deferFirstLaunchBulk: true }),
   onProviderUsage: (event) => useProviderUsageStore.getState().mergeSnapshot(event.snapshot),
   onProviderUsageAll: (event) => useProviderUsageStore.getState().setSnapshots(event.snapshots),
   wrapFlush: (run, stats) => {
@@ -168,9 +155,6 @@ const supervisorReducer = createSupervisorEventReducer({
     }
   },
   wrapApply: (run, stats) => {
-    // One Zustand set for all concurrent streams — avoids N selector passes
-    // when several chats are working in the background / being switched
-    // between.
     const applySpan = beginRendererPerfSpan("apply-runtime-batches");
     try {
       run();
@@ -178,16 +162,7 @@ const supervisorReducer = createSupervisorEventReducer({
       applySpan.end({ threads: stats.drainedThreads, events: stats.drainedEvents });
     }
   },
-  afterApply: (batches, { threadMetadata }) => {
-    for (const { threadId, events } of batches) {
-      // Durable usage capture at the canonical layer (all providers
-      // normalized). Thread metadata is resolved lazily inside, so pure-delta
-      // frames are free.
-      recordRuntimeUsage(threadId, events, threadMetadata);
-    }
-  },
 });
-supervisorReducerRef = supervisorReducer;
 
 function installThreadOutputPruning(): () => void {
   const retainActiveOutputs = () => {
@@ -268,7 +243,6 @@ export function installUpdateStatusSync(
 const runtimeWindowCleanups: Array<() => void> =
   isMainWindow || windowKind === "sideChat"
     ? [
-        installRuntimeHistoryRecovery(supervisorReducer.recoverRuntimeHistory),
         readBridge().onSupervisorEvent((event, rendererSequence, sequenceSpace) =>
           supervisorReducer.dispatch(event, rendererSequence, {
             ...(sequenceSpace !== undefined ? { sequenceSpace } : {}),
@@ -285,17 +259,15 @@ const runtimeWindowCleanups: Array<() => void> =
         ...(readElectronHostBridge()
           ? [
               readElectronHostBridge()!.onBackendSupervisorReset(() => {
-                localSnapshotRecovery.onTransportGenerationChanged();
-                supervisorReducer.invalidateInFlightRecoveries();
-                // Remote-host threads are unaffected by a local backend reset —
-                // keep their observation records and rows so a local reset can't
-                // falsely fail their still-live runs.
-                const isLocalBackendThread = (threadId: string) =>
-                  !isProjectedRemoteEntityId(threadId, "thread");
-                pruneLiveObservedCrossagentItems(isLocalBackendThread);
+                noteSupervisorTransportGenerationChanged();
+                // Only the managed host's own threads died with the replaced
+                // backend child; a paired host's threads keep their observation
+                // records and rows so a local reset can't falsely fail their
+                // still-live runs.
+                pruneLiveObservedCrossagentItems(isManagedHostEventInterest);
                 useAppStore.getState().reconcileAllStaleSubAgents({
                   force: true,
-                  matchesThread: isLocalBackendThread,
+                  matchesThread: isManagedHostEventInterest,
                 });
               }),
             ]
@@ -366,7 +338,8 @@ if (import.meta.hot) {
     uninstallSideChatReconciliation?.();
     for (const cleanup of [...runtimeWindowCleanups, ...mainWindowCleanups]) cleanup();
     supervisorReducer.clear();
-    localSnapshotRecovery.clearSequenceTracking();
+    clearSupervisorSequenceTracking();
+    uninstallSupervisorIntakeHooks();
     uninstallProductAnalytics?.();
     uninstallProductAnalytics = null;
     productAnalyticsStarted = false;

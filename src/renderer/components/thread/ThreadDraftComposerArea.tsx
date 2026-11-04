@@ -21,9 +21,7 @@ import { hasSendablePromptContent, skillSegmentFromSlashCommand } from "@/shared
 import { friendlyError } from "@/shared/messages";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isQuickComposerWindow, isRemoteSession, readBridge } from "@/renderer/bridge";
-import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
-import { usesBridgeThreadImages } from "@/renderer/components/thread/threadImageReadiness";
-import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
+import { useAttachmentImageAuthority } from "@/renderer/components/thread/threadImageAuthority";
 import { hasAnyClientBridge } from "@/renderer/clientRuntime";
 import {
   AttachmentBar,
@@ -351,9 +349,15 @@ export function ThreadDraftComposerArea(props: {
   const [experimentCandidates, setExperimentCandidates] = useState<ExperimentDraftCandidate[]>([]);
   const [experimentBaseBranch, setExperimentBaseBranch] = useState<string | null>(null);
   const compactLayout = useCompactLayout();
-  const isRemoteSurface = isRemoteSession();
-  const autoFocus = props.autoFocus ?? ((props.paneCount ?? 1) === 1 && !isRemoteSurface);
-  const usesRemoteTransport = props.isRemote === true || isRemoteSurface;
+  // Two independent facts. A browser client is a different kind of client: no
+  // native file paths, no desktop-internal event frames, its own input
+  // conventions. A project on another host lives on a machine whose files,
+  // installs and settings this one does not share. Each use below names the one
+  // it depends on; `hostIsLocalToClient` is for what needs both absent.
+  const isBrowserClient = isRemoteSession();
+  const projectOnThisMachine = props.isRemote !== true;
+  const hostIsLocalToClient = projectOnThisMachine && !isBrowserClient;
+  const autoFocus = props.autoFocus ?? ((props.paneCount ?? 1) === 1 && !isBrowserClient);
   const isQuickComposer = hasAnyClientBridge() ? isQuickComposerWindow() : false;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
   const showVoiceInputButton = voiceInputEnabled;
@@ -368,34 +372,14 @@ export function ThreadDraftComposerArea(props: {
   const attachments = useAttachments({
     ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
-  const browserImageReadiness = useRemoteBridgeImageReadiness();
   // Remote-project attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = props.project.remoteServerId;
-  const remoteImageServer = useRemoteServersStore((state) =>
-    remoteDesktopId
-      ? state.servers.find(
-          (server) => (server.connectionId ?? server.desktopId) === remoteDesktopId,
-        )
-      : undefined,
-  );
   const hostUpdateRestarting = useRemoteServersStore((state) =>
     remoteDesktopId ? state.hostUpdateRestarts[remoteDesktopId] !== undefined : false,
   );
-  const attachmentImageUrlForPath = remoteDesktopId
-    ? (path: string) =>
-        usesBridgeThreadImages(remoteDesktopId)
-          ? remoteBridgeLocalImageUrl(path)
-          : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
-    : undefined;
-  // Host-owned environment attachments resolve through the keyed readiness
-  // subscription; direct/ssh keep their synchronous endpoint URL.
-  const remoteImageReadiness =
-    remoteDesktopId && remoteImageServer
-      ? useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
-      : isRemoteSurface
-        ? browserImageReadiness
-        : undefined;
+  const { imageUrlForPath: attachmentImageUrlForPath, readiness: remoteImageReadiness } =
+    useAttachmentImageAuthority(remoteDesktopId);
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
   const fallbackInboxKey = `draft:${props.project.id}`;
   const projectId = props.project.id;
@@ -521,11 +505,13 @@ export function ThreadDraftComposerArea(props: {
       !implicitMcpServers.includes(descriptor.id),
   );
   const providerOwnsMcp = providerOwnsMcpConfig(props.selectedAgent.capabilities);
-  // A desktop remote project launches on the paired host, whose provider
-  // settings are not present in this renderer. The mobile remote bridge does
-  // hydrate the shared store from that same host, so it can still render the
-  // provider-owned MCP set.
-  const providerOwnsMcpForComposer = providerOwnsMcp && (!props.isRemote || isRemoteSurface);
+  // A desktop project on a paired host launches there, and that host's
+  // provider settings are not present in this renderer. A browser client does
+  // hydrate the shared store from the host it is bound to, so there the
+  // settings read here are the project host's and the provider-owned MCP set
+  // can still be rendered.
+  const settingsAreProjectHosts = projectOnThisMachine || isBrowserClient;
+  const providerOwnsMcpForComposer = providerOwnsMcp && settingsAreProjectHosts;
   const mcpServers = availableComposerMcpServers.map((descriptor) => ({
     descriptor,
     enabled: providerOwnsMcpForComposer
@@ -1288,7 +1274,8 @@ export function ThreadDraftComposerArea(props: {
             {authRequired ? (
               <ThreadAuthRequiredDock agentStatus={props.selectedAgent} project={props.project} />
             ) : null}
-            {!usesRemoteTransport ? (
+            {/* Agent updates and hook plugins are installed on this machine. */}
+            {hostIsLocalToClient ? (
               <>
                 <ThreadAgentUpdateDock
                   agentStatus={props.selectedAgent}
@@ -1386,7 +1373,7 @@ export function ThreadDraftComposerArea(props: {
             // The PWA surfaces this draft as the home screen's compact composer
             // pill, where an invitation reads better than the generic prompt.
             placeholder={
-              props.placeholder ?? (isRemoteSurface ? t`Plan, ask, build…` : t`Send a message...`)
+              props.placeholder ?? (isBrowserClient ? t`Plan, ask, build…` : t`Send a message...`)
             }
             projectLocation={isHomeScope ? undefined : props.project.location}
             submitOnEnter={props.submitOnEnter ?? !compactLayout}
@@ -1468,7 +1455,10 @@ export function ThreadDraftComposerArea(props: {
         {...(!hasContent &&
         attachments.attachments.length === 0 &&
         !experimentMode &&
-        !usesRemoteTransport &&
+        // The host reports voice-session end and error frames only to the
+        // co-located desktop, so a session on another host (or in a browser)
+        // could never be torn down by them.
+        hostIsLocalToClient &&
         !isQuickComposer &&
         props.presentationMode === "gui" &&
         props.selectedAgent.capabilities.liveVoice
@@ -1500,7 +1490,9 @@ export function ThreadDraftComposerArea(props: {
           : {})}
         submitLabel={experimentMode ? t`Run experiment` : t`Launch thread`}
         onPromptChange={handleFallbackPromptChange}
-        {...(!usesRemoteTransport
+        // Dropped files are paths on this machine; only a host that runs here
+        // can read them.
+        {...(hostIsLocalToClient
           ? {
               onAttachFiles: (paths: string[]) => {
                 cancelDraftVoice();
@@ -1534,7 +1526,8 @@ export function ThreadDraftComposerArea(props: {
             isDisabled={authRequired || agentUpdating || isSubmitting}
             {...(!props.hideWorkspaceControls &&
             !isHomeScope &&
-            !usesRemoteTransport &&
+            // Experiment worktrees live in this window's own git catalog.
+            hostIsLocalToClient &&
             !isQuickComposer &&
             props.gitBranch
               ? {

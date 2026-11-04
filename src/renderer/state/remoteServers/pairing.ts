@@ -24,7 +24,7 @@ import {
   environmentAdvertisesCatalogMutations,
   noteCatalogMutationsCapability,
 } from "@/renderer/state/remote/catalogMutationsCapability";
-import { resetTruncateRecoveryEpoch } from "@/renderer/state/remote/truncateRecovery";
+import { forgetHistoryBaselines } from "@/renderer/state/historyBaselines";
 import { refreshSlashCommandCatalogs } from "./slashCommandCatalogs";
 import { syncRemoteGitSummaries } from "./gitSummaries";
 import { replaceCachedProjects } from "./projectCache";
@@ -35,6 +35,7 @@ import {
   bumpRemoteServerGeneration,
   clearRemoteThreadAppliedSeqs,
   setRemoteServerSnapshotSeq,
+  remoteServerHostSession,
 } from "./eventSocketRegistry";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import { nextRemoteHostUpdateSequence, setRemoteHostUpdateReconnectSeq } from "./connectionRefresh";
@@ -313,7 +314,7 @@ export function createPairingActions(deps: PairingActionDeps) {
     // Pairing overwrites the seq baseline; stale per-thread marks from a
     // previous pairing of the same host must not refuse this snapshot.
     clearRemoteThreadAppliedSeqs(connectionId);
-    resetTruncateRecoveryEpoch(connectionId);
+    forgetHistoryBaselines(remoteServerHostSession(connectionId));
     syncDesktopBrowserBridgeClient(get());
     await startRemoteServerEventStream(record, terminalCapabilitiesFromEnvironment(environment));
     checkHostUpdateInBackground(record);

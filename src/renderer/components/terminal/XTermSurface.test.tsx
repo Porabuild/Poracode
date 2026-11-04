@@ -15,6 +15,10 @@ import { resolveTerminalFontFamily } from "./terminalFonts";
 import type { RemoteTerminalWatchResultReady } from "@/shared/remote/protocol";
 import { sendTerminalInput } from "./terminalInputQueue";
 import * as terminalRouting from "@/renderer/remoteProcedureRouter";
+import {
+  resetRemoteTerminalFeed,
+  setRemoteTerminalSocketSender,
+} from "@/renderer/state/remoteTerminalFeed";
 import { MAX_TERMINAL_WRITE_BUFFER_UNITS } from "./terminalWriteQueue";
 // ── Hoisted state shared between mock factories and test code ────
 const { state } = vi.hoisted(() => ({
@@ -1326,6 +1330,16 @@ describe("XTermSurface", () => {
       vi.spyOn(terminalRouting, "remoteTerminalOwner").mockReturnValue(
         kind === "shell" ? "paired-host" : undefined,
       );
+      // A paired thread's terminal resolves through its thread row's owner.
+      vi.spyOn(terminalRouting, "readRegisteredRemoteProcedureHost").mockReturnValue({
+        resolveThreadOwner: (id) =>
+          id === "remote:paired-host:thread:t1"
+            ? { desktopId: "paired-host", remoteId: "t1" }
+            : undefined,
+        resolveProjectOwner: () => undefined,
+        resolveDesktopOwner: () => undefined,
+        withClient: () => Promise.reject(new Error("unused")),
+      });
       const managed = vi
         .spyOn(terminalRouting, "readManagedLoopbackProcedureHost")
         .mockReturnValue(null);
@@ -1354,6 +1368,22 @@ describe("XTermSurface", () => {
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     },
   );
+
+  it("watches through the named paired owner before the shell is registered", () => {
+    const sent: unknown[] = [];
+    setRemoteTerminalSocketSender("paired-host", (message) => {
+      sent.push(message);
+      return true;
+    });
+    try {
+      render(<XTermSurface terminalId="shell:unregistered" outputOwner="paired-host" />);
+      expect(sent).toEqual([
+        expect.objectContaining({ type: "terminal-watch", id: "shell:unregistered" }),
+      ]);
+    } finally {
+      resetRemoteTerminalFeed("paired-host");
+    }
+  });
 
   it("serializes xterm and accessory input and shows active failures without retrying", async () => {
     const first = Promise.withResolvers<void>();

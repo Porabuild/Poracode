@@ -46,16 +46,22 @@ export function useMcpServerOauth(
   const { t } = useLingui();
   const [authenticatedUrls, setAuthenticatedUrls] = useState<ReadonlySet<string>>(new Set());
   const [busyServerIds, setBusyServerIds] = useState<ReadonlySet<string>>(new Set());
-  const ownerPayload: McpOauthStatusPayload = projectLocation ? { projectLocation } : {};
+  // Tokens live with the host that launches the server. A project on a paired
+  // host names that host through its location; a local project shares this
+  // desktop's own store, so only the host-naming location is sent.
+  const ownerLocation = projectLocation?.remoteServerId ? projectLocation : undefined;
+  const ownerPayload: McpOauthStatusPayload = ownerLocation
+    ? { projectLocation: ownerLocation }
+    : {};
 
   useEffect(() => {
     if (enabled) {
       void refreshAuthenticatedUrls(
         setAuthenticatedUrls,
-        projectLocation ? { projectLocation } : {},
+        ownerLocation ? { projectLocation: ownerLocation } : {},
       );
     }
-  }, [enabled, projectLocation]);
+  }, [enabled, ownerLocation]);
 
   const setBusy = (serverId: string, busy: boolean) => {
     setBusyServerIds((current) => {

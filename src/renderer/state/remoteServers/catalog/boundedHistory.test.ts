@@ -15,10 +15,9 @@ import {
   recordBoundedHistoryTail,
 } from "./boundedHistory";
 import {
-  configureBoundedHistoryManagedRootClient,
-  invokeManagedRootRuntimeItemsPage,
+  invokeRecordedRuntimeItemsPage,
   readBoundedHistoryTail,
-  recordManagedRootBoundedHistoryTail,
+  recordHistoryTail,
 } from "./boundedHistoryRegistry";
 import { bumpRemoteServerGeneration, setRemoteServerSnapshotSeq } from "../eventSocketRegistry";
 
@@ -107,12 +106,11 @@ describe("boundedHistory", () => {
       let viewId = VIEW_THREAD_ID;
       if (connectionKind === "managed-root") {
         const client = {} as RemoteDesktopClient;
-        configureBoundedHistoryManagedRootClient(() => ({
-          client,
-          seq: 7,
+        recordHistoryTail("rt-1", "rt-1", page, {
           authority: "proof-test",
-        }));
-        recordManagedRootBoundedHistoryTail({ threadId: "rt-1", page });
+          isCurrent: () => true,
+          withClient: (invoke) => invoke(client),
+        });
         viewId = "rt-1";
       } else {
         recordBoundedHistoryTail({ desktopId: "d1", threadId: "rt-1", page });
@@ -324,12 +322,12 @@ describe("boundedHistory", () => {
       } as unknown as RemoteDesktopClient;
       let viewId = VIEW_THREAD_ID;
       if (kind === "managed-root") {
-        configureBoundedHistoryManagedRootClient(() => ({
-          client,
-          seq: generation,
+        const captured = generation;
+        recordHistoryTail("rt-1", "rt-1", historyPage("ct1.450"), {
           authority: "root-test",
-        }));
-        recordManagedRootBoundedHistoryTail({ threadId: "rt-1", page: historyPage("ct1.450") });
+          isCurrent: () => generation === captured,
+          withClient: (invoke) => invoke(client),
+        });
         viewId = "rt-1";
       } else {
         configureBoundedHistoryClient((_desktopId, invoke) => invoke(client));
@@ -342,7 +340,7 @@ describe("boundedHistory", () => {
       const payload = { threadId: "rt-1", limit: 50, beforePosition: 100 };
       const items =
         kind === "managed-root"
-          ? invokeManagedRootRuntimeItemsPage(payload)
+          ? invokeRecordedRuntimeItemsPage(payload)
           : invokeBoundedRuntimeItemsPage(client, "d1", payload);
       const turns = loadOlderBoundedCompletedTurns(viewId);
       generation += 1;

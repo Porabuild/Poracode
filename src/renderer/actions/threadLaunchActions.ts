@@ -1,3 +1,10 @@
+import {
+  dropPendingThreadLaunch,
+  notePendingThreadLaunch,
+  peekPendingThreadLaunch,
+  retainPendingThreadLaunch,
+  markPendingThreadCreated,
+} from "@/renderer/state/threadLaunchIntents";
 import { withThreadConfigSubmission } from "./threadConfigSubmission";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
@@ -27,33 +34,16 @@ import {
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { unprojectProjectLocation } from "@/renderer/remoteProcedureRouter";
-import {
-  downgradeProjectedThreadMentionSegments,
-  remoteOwner,
-  remoteThreadId,
-  unprojectRemoteThreadMentionSegments,
-} from "@/renderer/state/remoteProjection";
+import { downgradeProjectedThreadMentionSegments } from "@/renderer/state/remoteProjection";
+import { entityHost } from "@/renderer/state/entityHost";
+import { hostSupportsLaunchMetadata, startHostThread } from "@/renderer/state/hostThreadLaunch";
+import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import {
-  isManagedRootDesktopRuntime,
-  startManagedRootThread,
-} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import {
-  dropPendingManagedRootLaunch,
-  notePendingManagedRootLaunch,
-  peekPendingManagedRootLaunch,
-  retainPendingManagedRootLaunch,
-  markPendingManagedRootThreadCreated,
-} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
-import { managedRootSupportsThreadLaunchMetadata } from "@/renderer/state/managedRootCatalog/rootLaunchMetadataCapability";
-import { reconcileManagedRootThreadLaunch } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
-import {
-  dispatchManagedRootProjectDraftConfig,
+  dispatchProjectDraftConfig,
   dispatchManagedRootThreadWorkspace,
 } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { threadCrewBinding } from "@/shared/crew";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
@@ -61,7 +51,6 @@ import {
   isRemoteCommandOutcomeAuthoritativelyResolved,
   isRemoteCommandOutcomeUncertainError,
   notifyThreadCommandOutcomeUncertain,
-  reconcileRemoteThreadCommandOutcome,
   reconcileThreadCommandOutcome,
 } from "./threadCommandOutcomeActions";
 import { createWorktree, primeWorktreeGitState } from "./worktreeLaunchActions";
@@ -127,9 +116,13 @@ async function performInitialThreadLaunchPending(
 
   // An uncertain-retry replay reuses the operation's original optimistic item
   // id instead of painting a second local copy of the same user message.
+  // Every thread launches on its own host. Spawning elsewhere would apply that
+  // host's projectLocation on this machine (posix path → `spawn /bin/bash
+  // ENOENT` on Windows) and never reach the owning supervisor.
+  const host = entityHost(thread);
   const retainedReplay =
-    !providerSwitch && !resumableSessionRef && !remoteOwner(thread) && isManagedRootDesktopRuntime()
-      ? peekPendingManagedRootLaunch(thread.id)
+    host && !providerSwitch && !resumableSessionRef
+      ? peekPendingThreadLaunch(thread.id)
       : undefined;
   const optimisticUserMessageItemId =
     userMessageItemId ??
@@ -187,21 +180,17 @@ async function performInitialThreadLaunchPending(
     ...(clientContext ? { clientContext } : {}),
   };
 
-  // Mirrored remote threads must launch on their host. Spawning locally would
-  // apply the remote projectLocation on this machine (posix path →
-  // `spawn /bin/bash ENOENT` on Windows) and never reach the remote supervisor.
-  const owner = remoteOwner(thread);
-  // A root row's first launch retains its receipt and cancellation intent.
+  // A new row's first launch retains its receipt and cancellation intent.
   // Acknowledged draft metadata uses the existing-thread endpoint; other
   // creators use the host's create+launch command. Resumes and switches follow
   // the existing runtime path.
   const pendingRootLaunch =
-    !owner && !providerSwitch && !resumableSessionRef && isManagedRootDesktopRuntime()
-      ? peekPendingManagedRootLaunch(thread.id)
+    host && !providerSwitch && !resumableSessionRef
+      ? peekPendingThreadLaunch(thread.id)
       : undefined;
   try {
     if (pendingRootLaunch?.removal && (await pendingRootLaunch.removal)) return;
-    if (pendingRootLaunch) {
+    if (pendingRootLaunch && host) {
       // An uncertain retry reuses the retained body VERBATIM; a new episode
       // derives it once from the thread and the launch inputs. The metadata
       // fields are capability-gated: an unadvertised host would strip them and
@@ -209,17 +198,21 @@ async function performInitialThreadLaunchPending(
       let launchInput = pendingRootLaunch.replay;
       if (!launchInput) {
         const supportsLaunchMetadata =
-          pendingRootLaunch.metadataCreated === true ||
-          (await managedRootSupportsThreadLaunchMetadata());
+          pendingRootLaunch.metadataCreated === true || (await hostSupportsLaunchMetadata(host));
+        const parentThreadId = thread.parentThreadId
+          ? host.hostThreadId(thread.parentThreadId)
+          : undefined;
         launchInput = {
-          threadId: thread.id,
-          ...(pendingRootLaunch.metadataCreated ? { projectLocation } : {}),
-          projectId: thread.projectId,
+          threadId: host.hostId,
+          ...(pendingRootLaunch.metadataCreated
+            ? { projectLocation: unprojectProjectLocation(projectLocation) }
+            : {}),
+          projectId: host.hostProjectId(thread.projectId) ?? thread.projectId,
           agentKind: thread.agentKind,
           ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
           config: thread.config,
           prompt,
-          ...(segments ? { segments } : {}),
+          ...(segments ? { segments: host.toHostSegments(segments) } : {}),
           ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
@@ -235,9 +228,11 @@ async function performInitialThreadLaunchPending(
           ...(clientContext ? { clientContext } : {}),
           ...(supportsLaunchMetadata
             ? {
-                ...(thread.workspaceId ? { workspaceId: thread.workspaceId } : {}),
+                ...(thread.workspaceId && host.sharesClientWorkspaces
+                  ? { workspaceId: thread.workspaceId }
+                  : {}),
                 initialSize,
-                ...(thread.parentThreadId ? { parentThreadId: thread.parentThreadId } : {}),
+                ...(parentThreadId ? { parentThreadId } : {}),
                 ...(thread.prNumber ? { prNumber: thread.prNumber } : {}),
               }
             : {}),
@@ -247,7 +242,7 @@ async function performInitialThreadLaunchPending(
       // outcome (which may already have started the provider) keeps the same
       // id and body for an explicit retry; the host receipt then replays or
       // refuses that exact operation instead of running a second launch.
-      retainPendingManagedRootLaunch(thread.id, {
+      retainPendingThreadLaunch(thread.id, {
         isNewWorktree: pendingRootLaunch.isNewWorktree,
         commandId: pendingRootLaunch.commandId,
         ...(pendingRootLaunch.metadataCreated ? { metadataCreated: true } : {}),
@@ -258,7 +253,7 @@ async function performInitialThreadLaunchPending(
         await withThreadConfigSubmission(
           thread.id,
           captured.config,
-          () => startManagedRootThread(captured, { commandId: pendingRootLaunch.commandId }),
+          () => startHostThread(host, captured, { commandId: pendingRootLaunch.commandId }),
           (error) =>
             !isRemoteCommandOutcomeUncertainError(error) &&
             (pendingRootLaunch.replay === undefined ||
@@ -278,8 +273,8 @@ async function performInitialThreadLaunchPending(
           !isRemoteCommandOutcomeUncertainError(error) &&
           (!hadUncertainEpisode || isRemoteCommandOutcomeAuthoritativelyResolved(error))
         ) {
-          notePendingManagedRootLaunch(thread.id, pendingRootLaunch.isNewWorktree);
-          if (pendingRootLaunch.metadataCreated) markPendingManagedRootThreadCreated(thread.id);
+          notePendingThreadLaunch(thread.id, pendingRootLaunch.isNewWorktree);
+          if (pendingRootLaunch.metadataCreated) markPendingThreadCreated(thread.id);
         }
         throw error;
       }
@@ -289,46 +284,45 @@ async function performInitialThreadLaunchPending(
       // Deletion can begin while provider startup awaits acknowledgement.
       // Join that cancellation before retiring its marker so the creator can
       // remove the completed worktree after confirmed host deletion.
-      const removal = peekPendingManagedRootLaunch(thread.id)?.removal;
+      const removal = peekPendingThreadLaunch(thread.id)?.removal;
       if (removal && (await removal)) return;
-      dropPendingManagedRootLaunch(thread.id);
+      dropPendingThreadLaunch(thread.id);
       // Workspace assignment is a follow-up narrow command only when the start
       // body could not carry it (an unadvertised capability); Home threads keep
       // the workspace they were started in instead of becoming unfiled.
       if (
         !pendingRootLaunch.metadataCreated &&
+        host.sharesClientWorkspaces &&
         thread.workspaceId &&
         launchInput.workspaceId === undefined
       ) {
         dispatchManagedRootThreadWorkspace(thread.id, thread.workspaceId);
       }
-    } else if (owner) {
-      // No mcpLaunchSnapshot here: the host ignores client-supplied MCP servers
-      // and resolves the launch snapshot from its own settings.
+    } else if (host && !findExperimentByThreadId(thread.id)) {
+      // The thread's host starts it through its host contract, whichever host
+      // that is: the host resolves the MCP launch snapshot from its own
+      // settings, and an empty relaunch only asks it to keep the thread
+      // running (another client may already have brought it back). An
+      // experiment candidate is started only by the experiment's executing
+      // client, over the receipt-guarded procedure route below; the host
+      // contract's thread start refuses candidates by design.
+      const isEmptyRelaunch =
+        !prompt && !segments?.length && !providerSwitch && !optimisticUserMessageItemId;
       await withThreadConfigSubmission(thread.id, startInput.config, () =>
-        useRemoteServersStore.getState().withClient(owner.desktopId, (client) =>
+        host.withClient((client) =>
           client.startThread({
-            threadId: owner.remoteId,
+            threadId: host.hostId,
             projectLocation: unprojectProjectLocation(projectLocation),
             ...startInput,
-            ...(!prompt && !segments?.length && !providerSwitch && !optimisticUserMessageItemId
-              ? { ensureRunning: true as const }
-              : {}),
-            ...(startInput.segments
-              ? {
-                  segments: unprojectRemoteThreadMentionSegments(
-                    owner.desktopId,
-                    startInput.segments,
-                    useAppStore.getState().threads,
-                  ),
-                }
-              : {}),
+            ...(isEmptyRelaunch ? { ensureRunning: true as const } : {}),
+            ...(startInput.segments ? { segments: host.toHostSegments(startInput.segments) } : {}),
           }),
         ),
       );
     } else {
-      // An empty saved-thread reopen is desired state. The owning supervisor
-      // must preserve a session another client already brought back to life.
+      // An experiment candidate, or a row no host owns (a client runtime
+      // without a host connection): start it through the bridge's
+      // receipt-guarded procedure route.
       const isEmptyReconnect =
         !prompt &&
         !segments?.length &&
@@ -358,15 +352,11 @@ async function performInitialThreadLaunchPending(
     if (isRemoteCommandOutcomeUncertainError(error)) {
       releasePendingInput?.();
       notifyThreadCommandOutcomeUncertain();
-      if (pendingRootLaunch) {
-        // The same operation id and exact original body stay retained for an
-        // explicit retry. The bounded read is evidence/row convergence only:
-        // absence is never used to mint a fresh identity because the provider
-        // may already have received the prompt before the failure.
-        await reconcileManagedRootThreadLaunch(thread.id);
-      } else {
-        await reconcileThreadCommandOutcome(thread);
-      }
+      // A retained launch keeps its operation id and exact original body for
+      // an explicit retry. The bounded read is evidence/row convergence only:
+      // absence is never used to mint a fresh identity because the provider
+      // may already have received the prompt before the failure.
+      await reconcileThreadCommandOutcome(thread);
     }
     throw error;
   }
@@ -377,10 +367,6 @@ async function performInitialThreadLaunchPending(
   if (prompt.length > 0 || (segments?.length ?? 0) > 0) {
     captureThreadPromptSubmitted(thread, prompt, segments, "initial");
   }
-}
-
-interface ThreadLaunchHostTransport {
-  startThread(input: ThreadLaunchRequest): Promise<RemoteThreadLaunchResult>;
 }
 
 export async function startThreadFromDraft(
@@ -413,8 +399,14 @@ export async function startThreadFromDraft(
   }
 
   const isHomeScope = isHomeProject(project);
-  const owner = remoteOwner(project);
-  const host = threadLaunchHost(project);
+  // The new row's identity on the project's host (a paired host's rows carry
+  // projected ids). A project no host owns keeps the client-chosen id.
+  const projectHost = entityHost(project);
+  const rowIdentity = projectHost
+    ? projectHost.projectThreadRow(input.threadId ?? crypto.randomUUID())
+    : input.threadId
+      ? { threadId: input.threadId }
+      : {};
 
   const nextDraftConfig = buildProjectDraftConfig({
     agentKind,
@@ -422,22 +414,14 @@ export async function startThreadFromDraft(
     worktreeMode: !isHomeScope && worktreeIsNewBranch === true,
   });
   useAppStore.getState().updateProjectDraftConfig(project.id, nextDraftConfig);
-  dispatchManagedRootProjectDraftConfig(project.id, nextDraftConfig);
+  dispatchProjectDraftConfig(project.id, nextDraftConfig);
 
   let worktreePath = isHomeScope ? undefined : existingWorktreePath;
   let isNewWorktree = false;
   const createsWorktree = !isHomeScope && !worktreePath && !!worktreeBranch;
-  const remoteHostThreadId = createsWorktree && owner ? crypto.randomUUID() : undefined;
   const pendingThread = createsWorktree
     ? createDraftThread({
-        ...(input.threadId && !owner ? { threadId: input.threadId } : {}),
-        ...(owner && remoteHostThreadId
-          ? {
-              threadId: remoteThreadId(owner.desktopId, remoteHostThreadId),
-              remoteServerId: owner.desktopId,
-              remoteId: remoteHostThreadId,
-            }
-          : {}),
+        ...rowIdentity,
         project,
         agentKind,
         config,
@@ -505,7 +489,7 @@ export async function startThreadFromDraft(
 
   if (pendingThread && worktreePath) {
     const store = useAppStore.getState();
-    const preparationRemoval = peekPendingManagedRootLaunch(pendingThread.id)?.removal;
+    const preparationRemoval = peekPendingThreadLaunch(pendingThread.id)?.removal;
     if (preparationRemoval && (await preparationRemoval)) {
       await performWorktreeRemoval(project, worktreePath, worktreeBranch);
       return;
@@ -515,59 +499,7 @@ export async function startThreadFromDraft(
       await performWorktreeRemoval(project, worktreePath, worktreeBranch);
       return;
     }
-    if (currentThread.archived && owner) {
-      store.setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch);
-      store.updateThreadRuntime(pendingThread.id, {
-        status: "inactive",
-        attention: "none",
-        canResumeWithConfig: false,
-      });
-    } else if (owner && remoteHostThreadId) {
-      store.setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch, {
-        preserveProvisioning: true,
-      });
-      store.updateThreadRuntime(pendingThread.id, {
-        status: "working",
-        attention: "working",
-        canResumeWithConfig: false,
-      });
-      try {
-        const started = await host.startThread({
-          threadId: remoteHostThreadId,
-          project,
-          agentKind,
-          config,
-          prompt,
-          ...(segments ? { segments } : {}),
-          ...(presentationMode ? { presentationMode } : {}),
-          worktreePath,
-          ...(worktreeBranch ? { worktreeBranch } : {}),
-          ...(pendingUserMessageItemId ? { userMessageItemId: pendingUserMessageItemId } : {}),
-          ...(clientContext ? { clientContext } : {}),
-          isNewWorktree: true,
-          options,
-        });
-        if (started === "cancelled") {
-          await performWorktreeRemoval(project, worktreePath, worktreeBranch);
-          return;
-        }
-        if (started === "cancellation-failed") return;
-      } catch (error) {
-        // Uncertain: the launch may have committed. The launch action already
-        // reconciled once and explained it; never paint a definite failure or
-        // unwind the worktree the session may be running in.
-        if (isRemoteCommandOutcomeUncertainError(error)) throw error;
-        if (!useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)) {
-          await performWorktreeRemoval(project, worktreePath, worktreeBranch);
-          return;
-        }
-        markThreadLaunchFailed(pendingThread.id, error);
-        throw error;
-      }
-      if (useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)) {
-        useAppStore.getState().setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch);
-      }
-    } else {
+    {
       // Launch inline, never via the view-consumed launch queue: a queued
       // launch fires only when a mounted ThreadView consumes it, so switching
       // or closing the pane while the worktree provisions would leave the
@@ -576,7 +508,7 @@ export async function startThreadFromDraft(
         await setThreadWorktree(pendingThread.id, worktreePath, worktreeBranch, {
           preserveProvisioning: true,
         });
-        const removal = peekPendingManagedRootLaunch(pendingThread.id)?.removal;
+        const removal = peekPendingThreadLaunch(pendingThread.id)?.removal;
         if (removal && (await removal)) {
           await performWorktreeRemoval(project, worktreePath, worktreeBranch);
           return;
@@ -614,7 +546,7 @@ export async function startThreadFromDraft(
         // Uncertain: the launch may have committed — keep the optimistic row
         // and the worktree; the launch action already reconciled once.
         if (isRemoteCommandOutcomeUncertainError(error)) throw error;
-        const removal = peekPendingManagedRootLaunch(pendingThread.id)?.removal;
+        const removal = peekPendingThreadLaunch(pendingThread.id)?.removal;
         if (
           (removal && (await removal)) ||
           !useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)
@@ -627,8 +559,8 @@ export async function startThreadFromDraft(
       }
     }
   } else {
-    await host.startThread({
-      ...(input.threadId && !owner ? { threadId: input.threadId } : {}),
+    await launchDraftThread({
+      ...rowIdentity,
       project,
       agentKind,
       config,
@@ -650,96 +582,47 @@ export async function startThreadFromDraft(
   }
 }
 
-function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
-  const owner = remoteOwner(project);
-  if (owner) {
-    return {
-      startThread: async (launch) => {
-        // Allocate the host thread id here, not inside `launchRemoteThread`:
-        // an uncertain start still needs the id to read back authoritatively.
-        // Only a caller-supplied id (the provisioning-worktree launch) carries
-        // the abandonment check; a fresh draft launch keeps the existing
-        // no-compensation behavior.
-        const remoteId = launch.threadId ?? crypto.randomUUID();
-        const launchOptions = launch.threadId
-          ? {
-              isPendingLaunchOwned: () =>
-                useAppStore.getState().provisioningWorktreeThreadIds[
-                  remoteThreadId(owner.desktopId, remoteId)
-                ] === true,
-            }
-          : undefined;
-        try {
-          return await useRemoteServersStore.getState().launchRemoteThread(
-            {
-              threadId: remoteId,
-              desktopId: owner.desktopId,
-              projectId: owner.remoteId,
-              agentKind: launch.agentKind,
-              config: launch.config,
-              prompt: launch.prompt,
-              ...(launch.segments ? { segments: launch.segments } : {}),
-              presentationMode: launch.presentationMode ?? "terminal",
-              ...(launch.worktreePath ? { worktreePath: launch.worktreePath } : {}),
-              ...(launch.worktreeBranch ? { worktreeBranch: launch.worktreeBranch } : {}),
-              ...(launch.isNewWorktree ? { isNewWorktree: true } : {}),
-              ...(launch.userMessageItemId ? { userMessageItemId: launch.userMessageItemId } : {}),
-              ...(launch.clientContext ? { clientContext: launch.clientContext } : {}),
-            },
-            launchOptions,
-          );
-        } catch (error) {
-          // The host may have started the session without confirming it: keep
-          // the optimistic row, explain the uncertainty, and read the
-          // client-chosen thread id back once — never resend.
-          if (isRemoteCommandOutcomeUncertainError(error)) {
-            notifyThreadCommandOutcomeUncertain();
-            await reconcileRemoteThreadCommandOutcome(owner.desktopId, remoteId);
-          }
-          throw error;
-        }
-      },
-    };
+/**
+ * Creates a draft's thread row and launches it on the project's host, whichever
+ * host that is: the first prompt paints before host persistence, the row is
+ * created on the host, then its first runtime launches inline (never via the
+ * view-consumed launch queue, so the launch never depends on a mounted pane).
+ */
+async function launchDraftThread(launch: ThreadLaunchRequest): Promise<"started" | "cancelled"> {
+  const thread = createDraftThread(launch);
+  // Paint the first prompt before host persistence, exactly like the
+  // worktree-provisioning path: a slow create round trip must not leave
+  // the new pane empty while its first turn is already starting.
+  const userMessageItemId =
+    launch.userMessageItemId ??
+    appendOptimisticInitialUserMessage(thread, launch.prompt, launch.segments);
+  // Launch inline, never via the view-consumed launch queue — the launch
+  // must not depend on which pane is mounted (see the worktree path above).
+  try {
+    if (!(await prepareDraftThread(thread, launch.project, launch.prompt, launch.segments))) {
+      return "cancelled";
+    }
+    const currentThread = useAppStore.getState().threads.find((row) => row.id === thread.id);
+    if (!currentThread || currentThread.archived) return "cancelled";
+    await performInitialThreadLaunch({
+      thread: currentThread,
+      projectLocation: resolveProjectLocation(launch.project.location, launch.worktreePath),
+      prompt: launch.prompt,
+      ...(launch.segments ? { segments: launch.segments } : {}),
+      ...(userMessageItemId ? { userMessageItemId } : {}),
+      ...(launch.clientContext ? { clientContext: launch.clientContext } : {}),
+      initialSize: DEFAULT_TERMINAL_SIZE,
+    });
+  } catch (error) {
+    // Uncertain: the launch may have committed — the launch action already
+    // reconciled once; keep the optimistic row instead of an error status.
+    if (isRemoteCommandOutcomeUncertainError(error)) throw error;
+    if (useAppStore.getState().threads.some((row) => row.id === thread.id)) {
+      markThreadLaunchFailed(thread.id, error);
+    }
+    throw error;
   }
-
-  return {
-    startThread: async (launch) => {
-      const thread = createDraftThread(launch);
-      // Paint the first prompt before host persistence, exactly like the
-      // worktree-provisioning path: a slow create round trip must not leave
-      // the new pane empty while its first turn is already starting.
-      const userMessageItemId =
-        launch.userMessageItemId ??
-        appendOptimisticInitialUserMessage(thread, launch.prompt, launch.segments);
-      // Launch inline, never via the view-consumed launch queue — the launch
-      // must not depend on which pane is mounted (see the worktree path above).
-      try {
-        if (!(await prepareDraftThread(thread, launch.project, launch.prompt, launch.segments))) {
-          return "cancelled";
-        }
-        const currentThread = useAppStore.getState().threads.find((row) => row.id === thread.id);
-        if (!currentThread || currentThread.archived) return "cancelled";
-        await performInitialThreadLaunch({
-          thread: currentThread,
-          projectLocation: resolveProjectLocation(launch.project.location, launch.worktreePath),
-          prompt: launch.prompt,
-          ...(launch.segments ? { segments: launch.segments } : {}),
-          ...(userMessageItemId ? { userMessageItemId } : {}),
-          ...(launch.clientContext ? { clientContext: launch.clientContext } : {}),
-          initialSize: DEFAULT_TERMINAL_SIZE,
-        });
-      } catch (error) {
-        // Uncertain: the launch may have committed — the launch action already
-        // reconciled once; keep the optimistic row instead of an error status.
-        if (isRemoteCommandOutcomeUncertainError(error)) throw error;
-        if (useAppStore.getState().threads.some((row) => row.id === thread.id)) {
-          markThreadLaunchFailed(thread.id, error);
-        }
-        throw error;
-      }
-      return "started";
-    },
-  };
+  return "started";
 }
 
 /** Surface a failed launch on the thread row (error item + error status). */

@@ -4,9 +4,8 @@ import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import { setAuxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
-import { managedRootHistoryActivation } from "@/renderer/state/managedRootCatalog/rootHistory";
 import { subscribeManagedRootCatalogStatus } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { entityHost } from "@/renderer/state/entityHost";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { SideChatWindowsChanged } from "@/shared/ipc/sideChat";
 import type { Thread } from "@/shared/contracts";
@@ -42,19 +41,14 @@ function reconcileParents() {
       continue;
     if (checkingParents.has(sourceId)) continue;
     checkingParents.add(sourceId);
-    const owner = remoteOwner(entry.source);
-    const activation = owner ? null : managedRootHistoryActivation();
-    const read = owner
-      ? useRemoteServersStore
-          .getState()
-          .withClient(owner.desktopId, (client) =>
-            client.boundedCatalogMembership({ threadIds: [owner.remoteId], projectIds: [] }),
-          )
-      : activation?.client.boundedCatalogMembership({ threadIds: [sourceId], projectIds: [] });
+    const host = entityHost(entry.source);
+    const read = host?.withClient((client) =>
+      client.boundedCatalogMembership({ threadIds: [host.hostId], projectIds: [] }),
+    );
     void read
       ?.then(async (membership) => {
-        if (!owner && managedRootHistoryActivation() !== activation) return;
-        if (!membership.existingThreadIds.includes(owner?.remoteId ?? sourceId))
+        if (!host?.isCurrent()) return;
+        if (!membership.existingThreadIds.includes(host.hostId))
           await readBridge().closeSideChatPanel?.(sourceId);
       })
       .catch(() => {

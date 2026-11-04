@@ -6,10 +6,7 @@ import {
 } from "./chatRuntimePersister";
 import { retainRendererEventInterest } from "./rendererEventInterests";
 import { useAppStore } from "./appStore";
-import { isProjectedRemoteEntityId, remoteOwner } from "./remoteProjection";
-import { recoverRemoteRuntimeHistory } from "./remote/sync";
-import { useRemoteServersStore } from "./remoteServersStore";
-import { pendingRemoteThreadOpen } from "./remoteServers/pendingRemoteThreadOpens";
+import { recoverRuntimeHistory as recoverOnLiveReducer } from "./remote/sync";
 
 interface RuntimeThreadReader {
   readonly ready: Promise<boolean | void>;
@@ -26,7 +23,7 @@ export function prepareRuntimeThreadReader(
   threadId: string,
   onAdopted: () => void = () => {},
 ): RuntimeThreadReader {
-  const reader = retainRuntimeThreadReader(threadId, true);
+  const reader = retainRuntimeThreadReader(threadId);
   const prepared = { reader, onAdopted };
   preparedReaders.set(threadId, prepared);
   return {
@@ -50,51 +47,15 @@ export function adoptRuntimeThreadReader(threadId: string): RuntimeThreadReader 
   return retainRuntimeThreadReader(threadId);
 }
 
-/** One owner for a thread's bounded window and its host's live stream.
- * Only navigation starts a remote open; mounting joins its existing history owner. */
-export function retainRuntimeThreadReader(
-  threadId: string,
-  openRemote = false,
-): RuntimeThreadReader {
+/** One owner for a thread's bounded window and its host's live stream, whichever
+ * host owns the thread. */
+export function retainRuntimeThreadReader(threadId: string): RuntimeThreadReader {
   retainThreadRuntimeItems(threadId);
-  const owner = remoteOwner(
-    useAppStore.getState().threads.find((thread) => thread.id === threadId),
-  );
-  if (owner) {
-    let active = true;
-    const state = useAppStore.getState();
-    if (openRemote && !hasHydratedThreadRuntimeItems(threadId))
-      state.setRuntimeHydrationStatus(threadId, "pending");
-    const ready = (
-      pendingRemoteThreadOpen(threadId) ??
-      (openRemote
-        ? useRemoteServersStore.getState().openRemoteThread(owner.desktopId, owner.remoteId, {
-            focus: false,
-          })
-        : hydrateThreadRuntimeItems(threadId))
-    ).then((opened) => {
-      if (
-        active &&
-        opened === false &&
-        !pendingRemoteThreadOpen(threadId) &&
-        !hasHydratedThreadRuntimeItems(threadId)
-      )
-        useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
-      return opened;
-    });
-    return {
-      ready,
-      release: () => {
-        if (!active) return;
-        active = false;
-        releaseThreadRuntimeItems(threadId);
-      },
-    };
-  }
   const interest = retainRendererEventInterest("runtime", threadId);
   const continuous = interest.continuous;
   let active = true;
-  const ready = interest.ready.then(() => {
+  // Resolves false only when this reader's own history read failed.
+  const ready: Promise<boolean | void> = interest.ready.then(async () => {
     if (active)
       return hydrateThreadRuntimeItemsForInterest(threadId, continuous && interest.continuous);
   });
@@ -112,9 +73,9 @@ export function retainRuntimeThreadReader(
 type RuntimeHistoryRecovery = (threadId: string) => void;
 let recoverRuntimeHistory: RuntimeHistoryRecovery | null = null;
 
-/** Bind the window's existing reducer recovery, including its bounded queue
- * and sequence arbitration. A pane must not perform a parallel history reset
- * outside that reducer while newly subscribed deltas are arriving. */
+/** Replaces the live reducer's recovery (a test drives its own reducer). A pane
+ * must not perform a parallel history reset outside the reducer that owns the
+ * thread's queue while newly subscribed deltas are arriving. */
 export function installRuntimeHistoryRecovery(recover: RuntimeHistoryRecovery): () => void {
   recoverRuntimeHistory = recover;
   return () => {
@@ -122,13 +83,19 @@ export function installRuntimeHistoryRecovery(recover: RuntimeHistoryRecovery): 
   };
 }
 
+/**
+ * Re-reads a thread's history through the reducer that owns its live queue,
+ * whichever host the thread is on, so its bounded queue and sequence
+ * arbitration stay authoritative.
+ */
+function recoverThreadRuntimeHistory(threadId: string): boolean {
+  (recoverRuntimeHistory ?? recoverOnLiveReducer)(threadId);
+  return true;
+}
+
 /** A failed recovery still owns its blocked deltas; retry through that owner. */
-export function retryThreadRuntimeItems(threadId: string): Promise<void> | void {
-  // A remote thread's queue belongs to the remote reducer, whose snapshot
-  // re-read also covers a first read that failed.
-  if (isProjectedRemoteEntityId(threadId, "thread")) return recoverRemoteRuntimeHistory(threadId);
-  if (recoverRuntimeHistory) return recoverRuntimeHistory(threadId);
-  return hydrateThreadRuntimeItems(threadId);
+export function retryThreadRuntimeItems(threadId: string): Promise<boolean> | void {
+  if (!recoverThreadRuntimeHistory(threadId)) return hydrateThreadRuntimeItems(threadId);
 }
 
 /** Called only after the pane's live-interest lease is ready. A cached
@@ -137,14 +104,12 @@ export function retryThreadRuntimeItems(threadId: string): Promise<void> | void 
 export function hydrateThreadRuntimeItemsForInterest(
   threadId: string,
   continuous: boolean,
-): Promise<void> | void {
+): Promise<boolean> | void {
   if (
-    recoverRuntimeHistory &&
     (useAppStore.getState().runtimeHydrationStatus[threadId] === "failed" ||
-      (!continuous && hasHydratedThreadRuntimeItems(threadId)))
-  ) {
-    recoverRuntimeHistory(threadId);
+      (!continuous && hasHydratedThreadRuntimeItems(threadId))) &&
+    recoverThreadRuntimeHistory(threadId)
+  )
     return;
-  }
   return hydrateThreadRuntimeItems(threadId);
 }

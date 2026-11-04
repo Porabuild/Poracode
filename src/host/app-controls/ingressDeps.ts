@@ -133,6 +133,9 @@ export function buildSharedAppControlsIngressDeps(
           discardPersistedProjectExperiments(project, (payload) =>
             call("removeExperimentWorktrees", payload),
           ),
+        relocateProjectRuntime: async (projectId, newLocation) => {
+          await call("relocateProject", { projectId, newLocation });
+        },
         hasRunningProjectThread: (projectId) =>
           dbGetThreads().some(
             (thread) => thread.projectId === projectId && thread.status === "working",

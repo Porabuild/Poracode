@@ -46,6 +46,13 @@ export interface RemoteProjectCommandDeps {
   beginProjectRemoval(projectId: string): () => void;
   removeProjectExperiments(project: Project): Promise<void>;
   hasRunningProjectThread(projectId: string): boolean;
+  /**
+   * Re-points the host runtime at a moved project folder: repairs its linked
+   * worktrees (which also proves the folder is a git repository), drops
+   * path-keyed caches, and re-watches it. Rejects without side effects on the
+   * catalog row when the folder is not usable.
+   */
+  relocateProjectRuntime(projectId: string, location: ProjectLocation): Promise<void>;
   /** Thread ids belonging to a project, closed best-effort before removal. */
   listProjectThreadIds(projectId: string): readonly string[];
   upsertProject(project: Project, sortOrder: number): void;
@@ -421,6 +428,7 @@ export async function applyRemoteProjectCommand(
         const updated = relocate(project);
         assertUniqueLocation(project, updated.location);
         options.onEffectBoundary?.();
+        await deps.relocateProjectRuntime(project.id, updated.location);
         deps.updateProject(updated);
         return boundedResult({ ok: true, project: updated });
       }
@@ -433,6 +441,7 @@ export async function applyRemoteProjectCommand(
       const updated = relocate(project);
       assertUniqueLocation(project, updated.location);
       options.onEffectBoundary?.();
+      await deps.relocateProjectRuntime(project.id, updated.location);
       deps.updateProject(updated);
       return completeResult({
         projects: projects.map((candidate) => (candidate.id === updated.id ? updated : candidate)),

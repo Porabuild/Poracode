@@ -64,14 +64,12 @@ import {
 } from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
-import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
-import { usesBridgeThreadImages } from "@/renderer/components/thread/threadImageReadiness";
-import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
+import { useAttachmentImageAuthority } from "@/renderer/components/thread/threadImageAuthority";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import {
@@ -135,7 +133,8 @@ import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
 import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
-import { ThreadRemoteSyncDock, useThreadRemoteSyncWarning } from "./ThreadRemoteSyncDock";
+import { ThreadHostOfflineDock } from "./ThreadHostOfflineDock";
+import { useEntityHostOffline } from "@/renderer/hooks/useEntityHostReady";
 import { ThreadHistoryLoadFailureDock } from "./ThreadHistoryLoadFailureDock";
 import {
   usePluginMentionItems,
@@ -290,11 +289,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
   const compactLayout = useCompactLayout();
-  const isRemoteSurface = isRemoteSession();
-  const browserImageReadiness = useRemoteBridgeImageReadiness();
+  // Two independent facts. A browser client is a different kind of client: no
+  // native file paths, no desktop-internal event frames, its own input
+  // conventions. A thread on another host lives on a machine whose terminal,
+  // filesystem and settings this one does not share. Each use below names the
+  // one it depends on; `hostIsLocalToClient` is for what needs both absent.
+  const isBrowserClient = isRemoteSession();
+  const threadOnThisMachine = hostRunsOnThisMachine(thread);
+  const hostIsLocalToClient = threadOnThisMachine && !isBrowserClient;
   const docksPlacement = compactLayout ? requestedDocksPlacement : "right";
   const docksInComposer = docksPlacement === "composer";
-  const usesRemoteTransport = isRemoteSurface || thread.remoteServerId !== undefined;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
   const showVoiceInputButton = voiceInputEnabled;
   const mentionRef = useRef<MentionInputHandle>(null);
@@ -321,27 +325,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // Remote-thread attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = thread.remoteServerId;
-  const remoteImageServer = useRemoteServersStore((state) =>
-    remoteDesktopId
-      ? state.servers.find(
-          (server) => (server.connectionId ?? server.desktopId) === remoteDesktopId,
-        )
-      : undefined,
-  );
-  const attachmentImageUrlForPath = remoteDesktopId
-    ? (path: string) =>
-        usesBridgeThreadImages(remoteDesktopId)
-          ? remoteBridgeLocalImageUrl(path)
-          : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
-    : undefined;
-  // Host-owned environment attachments resolve through the keyed readiness
-  // subscription; direct/ssh keep their synchronous endpoint URL.
-  const remoteImageReadiness =
-    remoteDesktopId && remoteImageServer
-      ? useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
-      : isRemoteSurface
-        ? browserImageReadiness
-        : undefined;
+  const { imageUrlForPath: attachmentImageUrlForPath, readiness: remoteImageReadiness } =
+    useAttachmentImageAuthority(remoteDesktopId);
   // Unsent composer content survives leaving this thread. The primary GUI pane
   // keeps this section mounted across thread switches; restore before paint
   // without exposing another thread's editor state.
@@ -467,8 +452,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const launchCustomMcpNames = useAppStore(
     (s) => s.mcpLaunchCustomServerNamesByThreadId[thread.id],
   );
+  // The launch snapshot behind these names was resolved from this machine's
+  // settings, so it describes a provider-owned MCP set only when the thread's
+  // host is this machine.
   const customMcpServers = (
-    providerOwnsMcp && usesRemoteTransport ? [] : (launchCustomMcpNames ?? [])
+    providerOwnsMcp && !threadOnThisMachine ? [] : (launchCustomMcpNames ?? [])
   ).map((name) => ({
     id: name,
     name,
@@ -585,7 +573,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     authState: effectiveAgentStatus?.authState,
     errorDockStates,
   });
-  const canShowRuntimeChrome = !usesTerminalPresentation || usesRemoteTransport;
+  // A terminal thread this client reaches directly draws its runtime chrome in
+  // its TUI; one on another host or seen from a browser has the composer show it.
+  const canShowRuntimeChrome = !usesTerminalPresentation || !hostIsLocalToClient;
   const isServerControlled =
     effectiveAgentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
   const isTerminalInput = effectiveAgentStatus?.capabilities.liveInputMode === "terminal";
@@ -643,7 +633,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   });
   const showErrorInComposer =
     !hideInfoDocks &&
-    (!usesTerminalPresentation || usesRemoteTransport) &&
+    (!usesTerminalPresentation || !hostIsLocalToClient) &&
     errorDockStates.length > 0 &&
     !hasRuntimeAuthError;
   const hasActiveSubAgent =
@@ -658,10 +648,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     compactLayout || collapseTerminalComposerSetting,
   );
   const composerSectionRef = useRef<HTMLDivElement | null>(null);
-  const canCollapseComposer = compactLayout || (showTerminalComposer && !isRemoteSurface);
+  const canCollapseComposer = compactLayout || (showTerminalComposer && !isBrowserClient);
   const isComposerCollapsed = canCollapseComposer && composerCollapsed;
   const shouldAutoFocusComposer =
-    paneCount === 1 && !isComposerCollapsed && (props.autoFocusComposer ?? !isRemoteSurface);
+    paneCount === 1 && !isComposerCollapsed && (props.autoFocusComposer ?? !isBrowserClient);
   const setComposerUi = useComposerUiStore((s) => s.setComposerUi);
   const branchName = useGitStore(
     (s) =>
@@ -892,16 +882,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     historyNotice && !usesTerminalPresentation ? (
       <ThreadHistoryNoticeDock threadId={thread.id} entry={historyNotice} />
     ) : null;
-  // Remote sync warnings used to sit above the transcript; every chat warning
-  // now lives in the composer's notice stack.
-  const remoteSyncWarning = useThreadRemoteSyncWarning(thread);
-  const showRemoteSyncWarning = remoteSyncWarning !== null && !usesTerminalPresentation;
+  // Every chat warning lives in the composer's notice stack, including a lost
+  // connection to the thread's host, whichever host that is.
+  const hostOffline = useEntityHostOffline(thread);
+  const showHostOfflineWarning = hostOffline && !usesTerminalPresentation;
   const composerNotices =
-    historyNoticeDock || historyLoadFailed || showRemoteSyncWarning || resumeUnavailableNotice ? (
+    historyNoticeDock || historyLoadFailed || showHostOfflineWarning || resumeUnavailableNotice ? (
       <>
         {historyNoticeDock}
         {historyLoadFailed ? <ThreadHistoryLoadFailureDock threadId={thread.id} /> : null}
-        {showRemoteSyncWarning ? <ThreadRemoteSyncDock thread={thread} /> : null}
+        {showHostOfflineWarning ? <ThreadHostOfflineDock /> : null}
         {resumeUnavailableNotice}
       </>
     ) : null;
@@ -1596,7 +1586,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     {...(!threadVoiceActive &&
                     !hasContent &&
                     attachments.attachments.length === 0 &&
-                    !usesRemoteTransport &&
+                    // The host reports voice-session end and error frames only to
+                    // the co-located desktop, so a session on another host (or in a
+                    // browser) could never be torn down by them.
+                    hostIsLocalToClient &&
                     !usesTerminalPresentation &&
                     showServerComposer &&
                     effectiveAgentStatus?.capabilities.liveVoice
@@ -1665,7 +1658,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                                   projectLocation?.kind !== "wsl",
                                 onToggle: () => {},
                               }}
-                              showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
+                              showFileOption={hostIsLocalToClient || props.pickFiles !== undefined}
                               onPickFiles={() => {
                                 const originThreadId = thread.id;
                                 void (
@@ -1719,7 +1712,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           };
                     })()}
                     onPromptChange={setPrompt}
-                    {...(!usesRemoteTransport ? { onAttachFiles: attachments.addFiles } : {})}
+                    // Dropped files are paths on this machine; only a host that runs
+                    // here can read them.
+                    {...(hostIsLocalToClient ? { onAttachFiles: attachments.addFiles } : {})}
                     onSubmit={() => {
                       const segments = mentionRef.current?.serializeSegments();
                       submitPrompt(

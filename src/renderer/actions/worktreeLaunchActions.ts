@@ -8,7 +8,6 @@ import { removeTerminalTab } from "@/renderer/actions/terminalTabActions";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { getProjectActiveWorktreePaths } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   adoptExternalShell,
@@ -17,7 +16,6 @@ import {
   writeScriptToShellThenExitOnSuccess,
 } from "@/renderer/utils/shellUtils";
 import { cancelPendingWorktreeSetup, enqueueWorktreeSetup } from "./worktreeSetupQueue";
-import { worktreePlacementPayload } from "./worktreePlacement";
 
 export function createWorktree(
   project: Project,
@@ -35,7 +33,8 @@ export function createWorktree(
     branch: input.branch,
     ...(input.startPoint ? { startPoint: input.startPoint } : {}),
     createBranch: input.createBranch,
-    ...(!remoteOwner(project) ? worktreePlacementPayload(project) : {}),
+    // The project's host places the worktree from its own settings and the
+    // project's override, whichever host that is.
     ...(copyIgnoredPatterns?.length ? { copyIgnoredPatterns } : {}),
     transferUncommitted: input.transferUncommitted,
     keepChangesInSource: input.keepChangesInSource,

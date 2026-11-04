@@ -1,3 +1,4 @@
+import { type ThreadLaunchReplay } from "@/renderer/state/threadLaunchIntents";
 import { msg } from "@lingui/core/macro";
 import {
   DEFAULT_TERMINAL_SIZE,
@@ -5,7 +6,6 @@ import {
   type StartThreadResult,
 } from "@/shared/contracts";
 import type { RemoteProjectCommand, RemoteProjectCommandResponse } from "@/shared/remote";
-import type { ManagedRootLaunchReplay } from "./rootCatalogStore";
 import {
   sendClientProjectCommand,
   sendClientThreadCommand,
@@ -117,7 +117,7 @@ export async function sendManagedRootThreadCommand(
 
 /** Launch a root row's first runtime, creating metadata if it is still unsaved. */
 export async function startManagedRootThread(
-  input: ManagedRootLaunchReplay,
+  input: ThreadLaunchReplay,
   options: { readonly commandId?: string } = {},
 ): Promise<StartThreadResult> {
   const client = requireManagedRootClient();

@@ -5,7 +5,6 @@ import { PORACODE_CLIENT_RUNTIME_VERSION } from "@/shared/clientRuntime";
 import { IPC_PROCEDURE_MAP_VERSION } from "@/shared/ipc";
 import type { Project, Thread } from "@/shared/contracts";
 import type { RemoteBoundedShellSnapshotPage, RemoteDesktopClient } from "@/shared/remote/client";
-import { dispatchRemoteProjectReorder, dispatchRemoteThreadReorder } from "./remoteCatalogIntents";
 
 /**
  * Bounded-catalog consumer ownership regression (B4 paired-order correction).
@@ -393,19 +392,34 @@ describe("bounded catalog consumer ownership", () => {
       expect(appViewIds(graph, KEY_A, "threads")).toEqual(["a1", "a2"]);
     });
 
+    const { dispatchHostProjectReorder, dispatchHostThreadReorder } =
+      await import("@/renderer/state/hostCatalogReorder");
     const source = graph.projection.remoteThreadId(KEY_A, "a2");
     const target = graph.projection.remoteThreadId(KEY_A, "a1");
-    graph.appStore.useAppStore.getState().reorderThreads(source, target, "before");
     // No descriptor proof of `catalogMutations`: the historical local-only
     // paint is authoritative and no command is dispatched.
-    expect(dispatchRemoteThreadReorder(source, target, "before")).toBe(false);
+    const paintThreads = vi.fn<() => void>(() =>
+      graph.appStore.useAppStore.getState().reorderThreads(source, target, "before"),
+    );
     expect(
-      dispatchRemoteProjectReorder(
-        graph.projection.remoteProjectId(KEY_A, "p-a"),
-        graph.projection.remoteProjectId(KEY_A, "p-b"),
-        "before",
-      ),
+      dispatchHostThreadReorder({
+        threadId: source,
+        targetThreadId: target,
+        placement: "before",
+        paint: paintThreads,
+      }),
     ).toBe(false);
+    expect(paintThreads).toHaveBeenCalledTimes(1);
+    const paintProjects = vi.fn<() => void>();
+    expect(
+      dispatchHostProjectReorder({
+        projectId: graph.projection.remoteProjectId(KEY_A, "p-a"),
+        targetProjectId: graph.projection.remoteProjectId(KEY_A, "p-b"),
+        placement: "before",
+        paint: paintProjects,
+      }),
+    ).toBe(false);
+    expect(paintProjects).toHaveBeenCalledTimes(1);
     expect(appViewIds(graph, KEY_A, "threads")).toEqual(["a2", "a1"]);
     graph.resetPairing();
   });

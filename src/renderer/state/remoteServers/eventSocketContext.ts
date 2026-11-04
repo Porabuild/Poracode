@@ -93,5 +93,8 @@ export interface EventSocketConnectionContext {
     recoveryReplay?: boolean,
     omittedRuntimeThreadIds?: readonly string[],
   ) => void;
-  recoverInterestedThreads: (beforeReplay?: () => void) => Promise<boolean>;
+  recoverInterestedThreads: (
+    beforeReplay?: () => void,
+    onlyThreadIds?: ReadonlySet<string>,
+  ) => Promise<boolean>;
 }

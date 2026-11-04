@@ -26,13 +26,6 @@ const mocks = vi.hoisted(() => ({
           }) => Promise<unknown>,
         ) => Promise<unknown>
       >(),
-    launchRemoteThread:
-      vi.fn<
-        (
-          input: unknown,
-          options?: { isPendingLaunchOwned?: () => boolean },
-        ) => Promise<"started" | "cancelled" | "cancellation-failed">
-      >(),
   },
   startThread: vi.fn<(input: unknown) => Promise<unknown>>(),
   bridge: {
@@ -40,7 +33,6 @@ const mocks = vi.hoisted(() => ({
   },
   notify: vi.fn<() => void>(),
   reconcile: vi.fn<(thread: Thread) => Promise<boolean>>(),
-  reconcileRemote: vi.fn<(desktopId: string, remoteId: string) => Promise<boolean>>(),
   captureThreadStarted: vi.fn<(thread: Thread) => void>(),
 }));
 
@@ -72,6 +64,7 @@ vi.mock("@/renderer/analytics/posthog", () => ({
 }));
 vi.mock("@/renderer/state/experimentStore", () => ({
   findExperimentByGroupId: () => undefined,
+  findExperimentByThreadId: () => undefined,
 }));
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
   useAgentStatusesStore: {
@@ -103,11 +96,10 @@ vi.mock("./threadCommandOutcomeActions", async (importOriginal) => {
     ...actual,
     notifyThreadCommandOutcomeUncertain: mocks.notify,
     reconcileThreadCommandOutcome: mocks.reconcile,
-    reconcileRemoteThreadCommandOutcome: mocks.reconcileRemote,
   };
 });
 
-import { performInitialThreadLaunch, startThreadFromDraft } from "./threadLaunchActions";
+import { performInitialThreadLaunch } from "./threadLaunchActions";
 
 const projectLocation = { kind: "posix", path: "/repo" } as const;
 
@@ -160,16 +152,6 @@ function uncertainError(): RemoteClientError {
     "command_outcome_uncertain",
   );
 }
-
-const remoteProject: Project = {
-  id: "remote:desktop-1:project:project-1",
-  name: "Remote",
-  location: { kind: "posix", path: "/srv/repo", remoteServerId: "desktop-1" },
-  remoteServerId: "desktop-1",
-  remoteId: "project-1",
-  scripts: { actions: [] },
-  createdAt: "2026-01-01T00:00:00.000Z",
-};
 
 describe("performInitialThreadLaunch uncertain outcomes", () => {
   beforeEach(() => {
@@ -281,53 +263,5 @@ describe("performInitialThreadLaunch uncertain outcomes", () => {
     expect(mocks.notify).not.toHaveBeenCalled();
     expect(mocks.reconcile).not.toHaveBeenCalled();
     expect(mocks.captureThreadStarted).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("startThreadFromDraft remote uncertain outcomes", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.reconcile.mockResolvedValue(true);
-    mocks.reconcileRemote.mockResolvedValue(true);
-    mocks.appState.threads = [];
-    mocks.appState.projects = [remoteProject];
-    mocks.remoteState.runtime = { "desktop-1": { status: "online" } };
-    mocks.remoteState.launchRemoteThread.mockResolvedValue("started");
-  });
-
-  it("reads the client-chosen host thread id back once and never resends", async () => {
-    mocks.remoteState.launchRemoteThread.mockRejectedValue(uncertainError());
-
-    await expect(
-      startThreadFromDraft(remoteProject, {
-        agentKind: "codex",
-        config: { model: "codex/model" },
-        prompt: "hello",
-      }),
-    ).rejects.toMatchObject({ code: "command_outcome_uncertain" });
-
-    expect(mocks.remoteState.launchRemoteThread).toHaveBeenCalledTimes(1);
-    const [launchInput] = mocks.remoteState.launchRemoteThread.mock.calls[0]!;
-    const hostThreadId = (launchInput as { threadId?: string }).threadId;
-    expect(typeof hostThreadId).toBe("string");
-    expect(mocks.notify).toHaveBeenCalledTimes(1);
-    expect(mocks.reconcileRemote).toHaveBeenCalledExactlyOnceWith("desktop-1", hostThreadId);
-    expect(mocks.reconcile).not.toHaveBeenCalled();
-  });
-
-  it("keeps the definite remote draft failure on the ordinary path", async () => {
-    const error = new RemoteClientError("conflict", 409, "command_id_conflict");
-    mocks.remoteState.launchRemoteThread.mockRejectedValue(error);
-
-    await expect(
-      startThreadFromDraft(remoteProject, {
-        agentKind: "codex",
-        config: { model: "codex/model" },
-        prompt: "hello",
-      }),
-    ).rejects.toBe(error);
-
-    expect(mocks.notify).not.toHaveBeenCalled();
-    expect(mocks.reconcileRemote).not.toHaveBeenCalled();
   });
 });

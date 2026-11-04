@@ -5,7 +5,10 @@ import type { IpcProcedureName, SupervisorEvent } from "@/shared/ipc";
 import { createClientProcedureInvocation } from "@/shared/ipc/invocation";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 import { isRemoteRoutableProcedure } from "@/renderer/remoteProcedureRoutes";
-import { snapshotRendererEventInterests } from "@/renderer/state/rendererEventInterests";
+import {
+  isManagedHostEventInterest,
+  snapshotRendererEventInterests,
+} from "@/renderer/state/rendererEventInterests";
 import {
   HOST_TRANSPORT_VERSION,
   type HostEventListener,
@@ -102,8 +105,10 @@ export class PreloadIpcTransport implements HostTransport {
   }
 
   private dispatchRebuildForInterests(lostThreadIds?: ReadonlySet<string>): void {
+    // A managed leg rebuild covers only the managed host's own threads.
     const inScope = (threadId: string): boolean =>
-      lostThreadIds === undefined || lostThreadIds.has(threadId);
+      isManagedHostEventInterest(threadId) &&
+      (lostThreadIds === undefined || lostThreadIds.has(threadId));
     const interests = snapshotRendererEventInterests();
     for (const threadId of interests.terminalThreadIds) {
       if (inScope(threadId)) this.dispatch({ type: "thread-scrollback-resync", threadId });

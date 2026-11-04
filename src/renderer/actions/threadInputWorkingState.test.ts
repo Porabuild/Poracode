@@ -1,3 +1,7 @@
+import {
+  dropPendingThreadLaunch,
+  notePendingThreadLaunch,
+} from "@/renderer/state/threadLaunchIntents";
 import "fake-indexeddb/auto";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,11 +37,7 @@ vi.mock("./threadCommandOutcomeActions", async (importOriginal) => {
 import { useAppStore } from "@/renderer/state/appStore";
 import { resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { applyRootCatalogThreadRows } from "@/renderer/state/managedRootCatalog/rootCatalogRows";
-import {
-  __resetManagedRootCatalogStoreForTest,
-  dropPendingManagedRootLaunch,
-  notePendingManagedRootLaunch,
-} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
+import { __resetManagedRootCatalogStoreForTest } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { applyThreadSnapshot, dispatchRemoteSupervisorEvent } from "@/renderer/state/remote/sync";
 import { projectRemoteProject, projectRemoteThread } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -184,7 +184,7 @@ describe("working state during prompt admission", () => {
       };
       const inactive: Thread = { ...idle, status: "inactive", canResumeWithConfig: false };
       useAppStore.setState({ threads: [preparing] });
-      notePendingManagedRootLaunch(idle.id, false);
+      notePendingThreadLaunch(idle.id, false);
       useAppStore.getState().openThread("other-thread");
       if (source === "catalog") applyRootCatalogThreadRows([inactive], new Set());
       else if (source === "history") applyThreadSnapshot(snapshot(inactive));
@@ -196,7 +196,7 @@ describe("working state during prompt admission", () => {
           ]);
       expect(currentThread().status).toBe("launching");
       expect(currentThread().activeTurnStartedAt).toBe(startedAt);
-      dropPendingManagedRootLaunch(idle.id);
+      dropPendingThreadLaunch(idle.id);
       applyThreadSnapshot(snapshot(inactive));
       expect(currentThread().status).toBe("inactive");
     },
@@ -206,7 +206,7 @@ describe("working state during prompt admission", () => {
     const preparing: Thread = { ...idle, status: "launching", canResumeWithConfig: false };
     const inactive: Thread = { ...idle, status: "inactive", canResumeWithConfig: false };
     useAppStore.setState({ threads: [preparing] });
-    notePendingManagedRootLaunch(idle.id, false);
+    notePendingThreadLaunch(idle.id, false);
     applyThreadSnapshot({ ...snapshot(inactive), runtimeStateCurrent: true });
     expect(currentThread().status).toBe("inactive");
   });
@@ -217,7 +217,7 @@ describe("working state during prompt admission", () => {
       useAppStore.setState({
         threads: [{ ...idle, status: "launching", canResumeWithConfig: false }],
       });
-      notePendingManagedRootLaunch(idle.id, false);
+      notePendingThreadLaunch(idle.id, false);
       useAppStore.getState().reconcileRuntimeSnapshots([
         {
           ...idleRuntimeSnapshot(),
@@ -339,14 +339,14 @@ describe("working state during prompt admission", () => {
       prompt: "First prompt",
       initialSize: { cols: 80, rows: 24 },
     });
-    notePendingManagedRootLaunch(idle.id, false);
+    notePendingThreadLaunch(idle.id, false);
     useAppStore.getState().openThread("other-thread");
     applyRootCatalogThreadRows(
       [{ ...idle, status: "inactive", canResumeWithConfig: false }],
       new Set(),
     );
     expect(currentThread().status).toBe("working");
-    dropPendingManagedRootLaunch(idle.id);
+    dropPendingThreadLaunch(idle.id);
     launchResponse.resolve();
     await launch;
     applyThreadSnapshot(snapshot(idle));

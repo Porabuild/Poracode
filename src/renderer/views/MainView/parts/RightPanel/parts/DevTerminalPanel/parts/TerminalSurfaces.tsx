@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { TerminalTab } from "@/renderer/state/devTerminalStore";
 import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/terminal/XTermSurface";
+import { useAppStore } from "@/renderer/state/appStore";
+import { entityHost } from "@/renderer/state/entityHost";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import type { TerminalSize } from "@/shared/contracts";
-import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 
 const SPLIT_MIN_PERCENT = 15;
 const SPLIT_DEFAULT_PERCENT = 50;
@@ -40,7 +41,6 @@ export function TerminalSurfaces(props: {
   updateTabTitle: (tabId: string, title: string) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
   onTerminalExited?: (terminalId: string, exitCode: number | null) => void;
-  watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
   visible?: boolean;
   mobile?: boolean;
   allowSplit?: boolean;
@@ -55,10 +55,10 @@ export function TerminalSurfaces(props: {
     updateTabTitle,
     onTerminalResize,
     onTerminalExited,
-    watchTerminal,
     visible = true,
   } = props;
   const fontSize = useSharedSettings((state) => state.terminalPanelFontSize);
+  const projects = useAppStore((state) => state.projects);
   const [splitPercent, setSplitPercent] = useState(readSplitPercent);
   const terminalRefs = useRef(new Map<string, XTermSurfaceHandle>());
   const activeTabId = activeTab?.id;
@@ -172,8 +172,22 @@ export function TerminalSurfaces(props: {
     setSplitPercent(clamped);
   }
 
-  function surfaceProps(terminalId: string, runActionId?: string) {
-    const sharedProps = {
+  function surfaceProps(
+    tab: TerminalTab & { projectId?: string },
+    terminalId: string,
+    runActionId?: string,
+  ) {
+    // The shell is not owned until the panel starts it, after this surface has
+    // mounted; name the owning host up front so output routes from the first
+    // byte. Global terminals have no project and belong to the managed host.
+    const owner = entityHost(
+      projects.find((project) => project.id === tab.projectId),
+    )?.connectionKey;
+    return {
+      ...(owner ? { outputOwner: owner } : {}),
+      ...(runActionId
+        ? { initialScrollback: useThreadOutputStore.getState().readTail(terminalId, 100_000) }
+        : {}),
       ...(props.mobile
         ? {
             preferDomRenderer: true,
@@ -186,22 +200,6 @@ export function TerminalSurfaces(props: {
       ...(onTerminalExited
         ? { onExited: (exitCode: number | null) => onTerminalExited(terminalId, exitCode) }
         : {}),
-    };
-    if (watchTerminal) {
-      return {
-        outputSource: (listener: TerminalFeedListener) => watchTerminal(terminalId, listener),
-        initialScrollback: runActionId
-          ? useThreadOutputStore.getState().readTail(terminalId, 100_000)
-          : "",
-        preferDomRenderer: true,
-        ...sharedProps,
-      };
-    }
-    return {
-      ...(runActionId
-        ? { initialScrollback: useThreadOutputStore.getState().readTail(terminalId, 100_000) }
-        : {}),
-      ...sharedProps,
     };
   }
 
@@ -255,7 +253,7 @@ export function TerminalSurfaces(props: {
                 onActivity={() => markTabActive(tab.id)}
                 onBell={() => markTabActive(tab.id)}
                 onTitleChange={(title) => updateTabTitle(tab.id, title)}
-                {...surfaceProps(tab.id, tab.runActionId)}
+                {...surfaceProps(tab, tab.id, tab.runActionId)}
                 {...(onTerminalResize
                   ? { onTerminalResize: (size) => onTerminalResize(tab.id, size) }
                   : {})}
@@ -294,7 +292,7 @@ export function TerminalSurfaces(props: {
                   onActivity={() => markTabActive(tab.id)}
                   onBell={() => markTabActive(tab.id)}
                   onTitleChange={(title) => updateTabTitle(tab.splitId!, title)}
-                  {...surfaceProps(tab.splitId!)}
+                  {...surfaceProps(tab, tab.splitId!)}
                   {...(onTerminalResize
                     ? { onTerminalResize: (size) => onTerminalResize(tab.splitId!, size) }
                     : {})}
@@ -330,7 +328,7 @@ export function TerminalSurfaces(props: {
             onActivity={() => markTabActive(tab.id)}
             onBell={() => markTabActive(tab.id)}
             onTitleChange={(title) => updateTabTitle(tab.id, title)}
-            {...surfaceProps(tab.id, tab.runActionId)}
+            {...surfaceProps(tab, tab.id, tab.runActionId)}
             {...(onTerminalResize
               ? { onTerminalResize: (size) => onTerminalResize(tab.id, size) }
               : {})}

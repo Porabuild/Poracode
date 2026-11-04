@@ -1,16 +1,18 @@
 import { noteHistoryDeliveryGap } from "./historyResumeRegistry";
+import { isProjectedRemoteEntityId } from "./remoteProjection";
 
 export type RendererEventInterestKind = "terminal" | "runtime";
 
 /**
  * The renderer's retained live-event interests: the single source of truth for
- * "which threads does this window currently need live content for".
+ * "which threads does this window currently need live content for", whichever
+ * host owns each thread.
  *
- * The managed loopback intake consumes {@link snapshotRendererEventInterests}
- * for the socket's `threadItemInterests` (wire) and subscribes to changes with
- * {@link subscribeRendererEventInterests}. The legacy `setRendererEventInterests`
- * IPC publish was removed with the backend relay (A2): the loopback WS is the
- * only live-content consumer, and main no longer routes renderer content.
+ * Each host's socket is a wire consumer: it reads
+ * {@link snapshotRendererEventInterests}, selects the threads its host owns for
+ * its `threadItemInterests`, subscribes to changes with
+ * {@link subscribeRendererEventInterests}, and reports what it carries through
+ * {@link noteRendererEventInterestWireCoverage}.
  */
 export interface RendererEventInterestSnapshot {
   /** Terminal watches, sorted. Terminal delivery is `terminal-watch`-scoped,
@@ -57,11 +59,14 @@ const pendingReleases: Record<
 const subscribers = new Set<(snapshot: RendererEventInterestSnapshot) => void>();
 
 /**
- * The runtime ids the managed socket currently carries, as reported by the
- * wire consumer. `null` means coverage was never established or the leg is
- * down/being torn down — a retained runtime thread is then not covered.
+ * The runtime ids each host socket currently carries, as reported by its wire
+ * consumer and keyed by wire. A wire with no entry carries nothing (never
+ * established, down, or being torn down); a retained runtime thread no wire
+ * carries is not covered.
  */
-let wireCoveredRuntimeIds: ReadonlySet<string> | null = null;
+const wireCoveredRuntimeIds = new Map<string, ReadonlySet<string>>();
+/** The desktop's own managed host socket. */
+export const MANAGED_EVENT_INTEREST_WIRE = "managed";
 
 interface PublishWaiter {
   revision: number;
@@ -179,6 +184,11 @@ async function flushPublish(): Promise<void> {
   if (desiredRevision > revision) schedulePublish();
 }
 
+/** True for a thread the desktop's own managed host owns (an unprojected id). */
+export function isManagedHostEventInterest(threadId: string): boolean {
+  return !isProjectedRemoteEntityId(threadId, "thread");
+}
+
 /**
  * The current retained interests, readable without publishing. `runtimeThreadIds`
  * is priority-ordered (most recently retained first); the wire consumer applies
@@ -201,22 +211,27 @@ export function subscribeRendererEventInterests(
 }
 
 /**
- * The wire consumer (managed loopback intake) reports the bounded runtime ids
- * the socket currently carries. `null` means the leg carries nothing (down,
- * disposed, or never opened). This is the only input to the runtime half of
+ * A host socket reports the bounded runtime ids it currently carries. `null`
+ * means that wire carries nothing (down, disposed, or never opened). This is
+ * the only input to the runtime half of
  * {@link RendererEventInterestLease.continuous}; the registry itself stays
- * unaware of the wire's capacity.
+ * unaware of each wire's capacity.
  */
-export function noteRendererEventInterestWireCoverage(threadIds: readonly string[] | null): void {
+export function noteRendererEventInterestWireCoverage(
+  threadIds: readonly string[] | null,
+  wire: string = MANAGED_EVENT_INTEREST_WIRE,
+): void {
   const next = threadIds === null ? null : new Set(threadIds);
-  for (const threadId of wireCoveredRuntimeIds ?? []) {
+  for (const threadId of wireCoveredRuntimeIds.get(wire) ?? []) {
     if (!next?.has(threadId)) noteHistoryDeliveryGap(threadId);
   }
-  wireCoveredRuntimeIds = next;
+  if (next) wireCoveredRuntimeIds.set(wire, next);
+  else wireCoveredRuntimeIds.delete(wire);
 }
 
 export function isRendererRuntimeInterestWireCovered(threadId: string): boolean {
-  return wireCoveredRuntimeIds?.has(threadId) === true;
+  for (const covered of wireCoveredRuntimeIds.values()) if (covered.has(threadId)) return true;
+  return false;
 }
 
 function isContinuouslyCovered(kind: RendererEventInterestKind, threadId: string): boolean {
@@ -302,7 +317,7 @@ export function __resetRendererEventInterestsForTest(): void {
     counts[kind].clear();
   }
   subscribers.clear();
-  wireCoveredRuntimeIds = null;
+  wireCoveredRuntimeIds.clear();
   lastNotifiedSnapshot = null;
   publishWaiters.splice(0);
   desiredRevision = 0;

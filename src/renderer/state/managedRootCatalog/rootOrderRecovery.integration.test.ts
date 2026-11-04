@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getSqlite } from "@/host/db/connection";
 import { RemoteDesktopClient } from "@/shared/remote/client";
 import { useAppStore } from "@/renderer/state/appStore";
-import { dispatchManagedRootThreadReorder } from "./rootCatalogIntents";
+import { dispatchHostThreadReorder } from "../hostCatalogReorder";
 import {
   managedRootOrderGenerationFor,
   managedRootOrderIntentInFlightFor,
@@ -58,7 +58,14 @@ it("retries failed order recovery when membership removes its anchor during the 
     getSqlite().prepare("DELETE FROM threads WHERE id = 't-0030'").run();
     const authoritative = hostManualThreadOrder();
     holdRecovery = true;
-    expect(dispatchManagedRootThreadReorder("t-0000", "t-0030", "after")).toBe(true);
+    expect(
+      dispatchHostThreadReorder({
+        threadId: "t-0000",
+        targetThreadId: "t-0030",
+        placement: "after",
+        paint: () => {},
+      }),
+    ).toBe(true);
     await recoveryHeld.promise;
     expect(commands).toHaveBeenCalledTimes(1);
     await expect(commands.mock.results[0]!.value).rejects.toMatchObject({
@@ -91,10 +98,12 @@ it("retries failed order recovery when membership removes its anchor during the 
       { timeout: 10_000 },
     );
     // The refused walk requests one ordinary manual refresh, including all
-    // continuation pages. It does not resend the rejected relative command.
+    // continuation pages, on top of the host command's own catch-up pass
+    // (`EntityHost.sendThreadCommand` refreshes even when the command fails).
+    // It does not resend the rejected relative command.
     expect(
       pages.mock.calls.filter(([options]) => options?.mode === "page" && !options.cursor),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     expect(commands).toHaveBeenCalledTimes(1);
     expect(new Set(rootThreads().map((thread) => thread.id)).size).toBe(250);
   } finally {

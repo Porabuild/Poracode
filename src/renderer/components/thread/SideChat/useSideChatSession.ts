@@ -1,6 +1,5 @@
 import { captureSideChatTurnContext } from "./sideChatTurnContext";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { useLingui } from "@lingui/react/macro";
 import { DEFAULT_TERMINAL_SIZE, type PromptSegment } from "@/shared/contracts";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { friendlyError } from "@/shared/messages";
@@ -16,10 +15,7 @@ import {
 } from "@/renderer/actions/threadActions";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { useAppStore } from "@/renderer/state/appStore";
-import {
-  auxiliaryThreadIds,
-  retainAuxiliaryThreadId,
-} from "@/renderer/state/auxiliaryThreadWindows";
+import { retainAuxiliaryThreadId } from "@/renderer/state/auxiliaryThreadWindows";
 import { updateSideChatPanelDraft } from "./sideChatPanelStore";
 import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import {
@@ -29,17 +25,11 @@ import {
 } from "./sideChatLaunchState";
 import { readBridge } from "@/renderer/bridge";
 import type { SideChatBootstrap, SideChatSelection } from "@/shared/ipc/sideChat";
-import {
-  remoteOwner,
-  remoteThreadId,
-  unprojectRemoteThreadId,
-} from "@/renderer/state/remoteProjection";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { entityHost } from "@/renderer/state/entityHost";
 import { useProject, useThread } from "@/renderer/state/useThread";
 import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 
 export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | "window") {
-  const { t } = useLingui();
   // Submission belongs to the opening request, never to subsequently typed drafts.
   const openingRequest = useRef(entry);
   const [prompt, setPromptState] = useState(entry.prompt);
@@ -162,32 +152,24 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
       setStarting(false);
       return;
     }
-    const owner = remoteOwner(entry.source);
+    // The side chat lives on its source thread's host, whichever host that is.
+    const sourceHost = entityHost(entry.source);
     const hostThreadId =
-      owner && ownedThreadId.current
-        ? (unprojectRemoteThreadId(owner.desktopId, ownedThreadId.current) ?? crypto.randomUUID())
-        : crypto.randomUUID();
+      (ownedThreadId.current && sourceHost?.hostThreadId(ownedThreadId.current)) ||
+      ownedThreadId.current ||
+      crypto.randomUUID();
+    const identity = sourceHost?.projectThreadRow(hostThreadId) ?? { threadId: hostThreadId };
     const existing = ownedThreadId.current
       ? useAppStore.getState().threads.find((row) => row.id === ownedThreadId.current)
       : undefined;
     // Reserve ownership before publishing the row, so sidebar subscribers never see it.
-    const newThreadId = owner
-      ? remoteThreadId(owner.desktopId, hostThreadId)
-      : (ownedThreadId.current ?? hostThreadId);
+    const newThreadId = identity.threadId;
     releaseWindow.current?.();
     releaseWindow.current = retainAuxiliaryThreadId(newThreadId);
     const thread =
       existing ??
       useAppStore.getState().createThread({
-        ...(owner
-          ? {
-              threadId: remoteThreadId(owner.desktopId, hostThreadId),
-              remoteServerId: owner.desktopId,
-              remoteId: hostThreadId,
-            }
-          : ownedThreadId.current
-            ? { threadId: ownedThreadId.current }
-            : { threadId: newThreadId }),
+        ...identity,
         projectId: project.id,
         agentKind: selection.agentKind,
         ...(selection.agentInstanceId ? { agentInstanceId: selection.agentInstanceId } : {}),
@@ -235,41 +217,14 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
         useAppStore.getState().deleteThread(thread.id);
         return;
       }
-      if (owner) {
-        const projectOwner = remoteOwner(project);
-        if (!projectOwner || projectOwner.desktopId !== owner.desktopId)
-          throw new Error(t`Remote project not found.`);
-        await useRemoteServersStore.getState().launchRemoteThread(
-          {
-            desktopId: owner.desktopId,
-            threadId: remoteOwner(thread)?.remoteId ?? hostThreadId,
-            projectId: projectOwner.remoteId,
-            agentKind: thread.agentKind,
-            ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
-            config: thread.config,
-            prompt: launch.prompt,
-            ...(launch.clientContext ? { clientContext: launch.clientContext } : {}),
-            ...(launch.segments ? { segments: launch.segments } : {}),
-            presentationMode: "gui",
-            title: thread.title,
-            ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-            ...(thread.worktreeBranch ? { worktreeBranch: thread.worktreeBranch } : {}),
-          },
-          {
-            focus: false,
-            isPendingLaunchOwned: () => !closed.current || auxiliaryThreadIds().has(thread.id),
-          },
-        );
-      } else {
-        await performInitialThreadLaunch({
-          thread,
-          projectLocation: resolveProjectLocation(project.location, thread.worktreePath),
-          prompt: launch.prompt,
-          ...(launch.clientContext ? { clientContext: launch.clientContext } : {}),
-          ...(launch.segments ? { segments: launch.segments } : {}),
-          initialSize: DEFAULT_TERMINAL_SIZE,
-        });
-      }
+      await performInitialThreadLaunch({
+        thread,
+        projectLocation: resolveProjectLocation(project.location, thread.worktreePath),
+        prompt: launch.prompt,
+        ...(launch.clientContext ? { clientContext: launch.clientContext } : {}),
+        ...(launch.segments ? { segments: launch.segments } : {}),
+        initialSize: DEFAULT_TERMINAL_SIZE,
+      });
       if (closed.current) {
         if (!(await stillOwned())) await unloadStoredThread(thread.id);
       } else {

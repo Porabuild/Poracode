@@ -17,6 +17,7 @@ import type {
 import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
 import type { ResourceAdmissionPeek } from "@/shared/hostResourceAdmission";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
+import type { WorktreePlacement } from "@/shared/worktree";
 import type {
   RuntimeHistoryGapAcknowledgeResult,
   RuntimeHistoryGapDescriptor,
@@ -526,6 +527,12 @@ export interface RemoteAccessServerOptions {
    * trigger.
    */
   readonly experimentAuthority?: RemoteExperimentAuthority;
+  /**
+   * Where this host places a project's new worktrees (its own settings and the
+   * project's override). A client asking for a worktree without a placement
+   * gets this one, so every client lands worktrees where the host is set up.
+   */
+  resolveWorktreePlacement?(location: ProjectLocation): WorktreePlacement;
   /** Resolve authoritative MCP settings for a remotely launched persisted thread. */
   resolveMcpLaunchSnapshot?(
     projectId: string,

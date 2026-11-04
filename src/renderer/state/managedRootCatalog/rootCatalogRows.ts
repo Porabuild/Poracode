@@ -1,3 +1,4 @@
+import { dropPendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import type { Project, Thread } from "@/shared/contracts";
 import type { AppView } from "@/shared/contracts/appView";
 import { isHomeProjectId } from "@/shared/homeScope";
@@ -14,7 +15,6 @@ import { applyProjectStateSnapshot } from "@/renderer/state/projectStateSync";
 import { clearThreadHistoryNotice } from "@/renderer/state/remote/historyNoticeStore";
 import { reuseRemoteRows } from "@/renderer/state/remoteServers/rowReuse";
 import { removePaneFromView } from "@/renderer/state/slices/helpers";
-import { dropPendingManagedRootLaunch } from "./rootCatalogStore";
 import { carryPendingRootLaunchRuntime } from "./rootLaunchRuntime";
 import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
@@ -246,7 +246,7 @@ export function removeRootCatalogThreads(threadIds: readonly string[]): void {
     useAppStore.getState().deleteThread(threadId);
   }
   for (const threadId of removed) {
-    dropPendingManagedRootLaunch(threadId);
+    dropPendingThreadLaunch(threadId);
     clearThreadHistoryNotice(threadId);
   }
 }

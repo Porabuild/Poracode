@@ -1,3 +1,7 @@
+import {
+  pinnedThreadRowIds,
+  retainedUncertainLaunchThreadIds,
+} from "@/renderer/state/threadLaunchIntents";
 import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
@@ -6,10 +10,8 @@ import { HostSession, hostEventThreadIds } from "@/renderer/hostTransport/hostSe
 import {
   REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
   REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
-  RemoteClientError,
   isRemoteBoundedReadProtocolError,
   type RemoteBoundedReadsProof,
-  type RemoteBoundedThreadHistoryResult,
   type RemoteDesktopClient,
 } from "@/shared/remote/client";
 import { friendlyError } from "@/shared/messages";
@@ -36,7 +38,6 @@ import {
   BOUNDED_CATALOG_PAGE_LIMIT,
   type CatalogKind,
 } from "@/renderer/state/remoteServers/catalog/boundedCatalogAlgorithm";
-import { configureBoundedHistoryManagedRootClient } from "@/renderer/state/remoteServers/catalog/boundedHistory";
 import {
   getManagedParentAuthorityState,
   subscribeManagedParentAuthority,
@@ -54,13 +55,7 @@ import {
   removeRootCatalogProjects,
   removeRootCatalogThreads,
 } from "./rootCatalogRows";
-import {
-  getManagedRootCatalogStatus,
-  pinManagedRootThread,
-  pinnedManagedRootThreadIds,
-  retainedUncertainManagedRootThreadIds,
-  setManagedRootCatalogStatus,
-} from "./rootCatalogStore";
+import { getManagedRootCatalogStatus, setManagedRootCatalogStatus } from "./rootCatalogStore";
 import { configureRootCreateIntentRuntime } from "./rootCreateIntent";
 import { __resetManagedRootLaunchMetadataCapabilityForTest } from "./rootLaunchMetadataCapability";
 import {
@@ -100,6 +95,11 @@ export { MANAGED_ROOT_CATALOG_KEY } from "./managedRootOrderFence";
  */
 const rootSession = new HostSession();
 
+/** The managed host's live sequence session. */
+export function managedRootHostSession(): HostSession {
+  return rootSession;
+}
+
 function noteRootDispatchSequence(
   event: unknown,
   seq: number | undefined,
@@ -120,7 +120,7 @@ function noteRootDispatchSequence(
  * operation or the row is removed — an absent durable row is evidence only).
  */
 function protectedRootThreadIds(): ReadonlySet<string> {
-  const protectedIds = new Set<string>(pinnedManagedRootThreadIds());
+  const protectedIds = new Set<string>(pinnedThreadRowIds());
   const state = useAppStore.getState();
   for (const id of auxiliaryThreadIds()) protectedIds.add(id);
   if (state.view.kind === "thread") {
@@ -135,7 +135,7 @@ function protectedRootThreadIds(): ReadonlySet<string> {
   for (const [threadId, pending] of Object.entries(state.pendingThreadLaunches)) {
     if (pending !== undefined) protectedIds.add(threadId);
   }
-  for (const threadId of retainedUncertainManagedRootThreadIds()) protectedIds.add(threadId);
+  for (const threadId of retainedUncertainLaunchThreadIds()) protectedIds.add(threadId);
   return protectedIds;
 }
 
@@ -251,19 +251,6 @@ function configureController(): void {
       isForeground: () => typeof document === "undefined" || document.visibilityState === "visible",
     },
   );
-  // Bind the bounded-history engine to the ONE managed loopback client. The
-  // adapter is the module that owns the transport import, so the registry
-  // stays import-light; the provider is null while the leg is down.
-  configureBoundedHistoryManagedRootClient(() => {
-    const activation = readManagedLoopbackActivation();
-    return activation
-      ? {
-          client: activation.client,
-          seq: activation.seq,
-          authority: activation.authority,
-        }
-      : null;
-  });
 }
 
 async function loadRootCatalogPageOne(
@@ -304,77 +291,6 @@ async function loadRootCatalogPageOne(
       retrying: false,
     });
   }
-}
-
-/**
- * Resolve one exact root thread outside the progressive projection (pane,
- * provisioning, deeplink, pending intent) with the existing bounded history
- * route: the authoritative row plus a one-turn tail. Installed like a page;
- * never a local DB read and never a new route.
- */
-export async function resolveManagedRootThreadPin(threadId: string): Promise<boolean> {
-  return (await readManagedRootThreadExistence(threadId)) === "present";
-}
-
-/** Authoritative existence of one root thread (never a local DB read). */
-export type ManagedRootThreadExistence = "present" | "absent" | "unknown";
-
-export async function readManagedRootThreadExistence(
-  threadId: string,
-): Promise<ManagedRootThreadExistence> {
-  const activation = readManagedLoopbackActivation();
-  if (!activation) return "unknown";
-  const release = pinManagedRootThread(threadId);
-  try {
-    const result: RemoteBoundedThreadHistoryResult = await activation.client.boundedThreadHistory(
-      threadId,
-      {
-        completedTurnsLimit: 1,
-        compactDetails: true,
-        omitScrollback: true,
-        maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
-        maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
-      },
-    );
-    if (readManagedLoopbackActivation() !== activation) return "unknown";
-    applyRootCatalogThreadRows([result.page.thread], new Set());
-    return "present";
-  } catch (error) {
-    if (readManagedLoopbackActivation() !== activation) return "unknown";
-    // A definite 404 is the host's authoritative "no such row". It is NOT used
-    // as proof that a launch never effected anything (the host retains the row
-    // on a possibly-effective start failure); callers treat it as evidence
-    // only. Anything else (timeout, transport, protocol) leaves it unknown.
-    if (error instanceof RemoteClientError && error.status === 404) return "absent";
-    if (import.meta.env.DEV) {
-      const evidence = error as { body?: unknown; responseEvidence?: unknown; code?: unknown };
-      console.error(
-        "[root-catalog] pin read failed",
-        evidence.code,
-        evidence.body,
-        evidence.responseEvidence,
-        error instanceof Error ? error.message : error,
-      );
-    }
-    return "unknown";
-  } finally {
-    release();
-  }
-}
-
-/**
- * One bounded authoritative read after an uncertain root launch: the row is
- * read back exactly once — never a resend — and a follow-up pass converges
- * membership/order. The existence verdict is evidence for the caller; it is
- * never used to mint a fresh operation identity, because a missing row does
- * not prove the provider never started.
- */
-export async function reconcileManagedRootThreadLaunch(
-  threadId: string,
-): Promise<ManagedRootThreadExistence> {
-  const existence = await readManagedRootThreadExistence(threadId);
-  refreshManagedRootCatalogSoon();
-  return existence;
 }
 
 /** Ask the controller for a bounded follow-up pass (event or intent result). */
@@ -496,6 +412,9 @@ function arraysEqual(left: readonly string[], right: readonly string[]): boolean
 
 function applyActivation(activation: ManagedLoopbackActivationSnapshot | null): void {
   rootSession.clearApplied();
+  // A new activation may be a new backend child whose sequences restart:
+  // baselines recorded against the previous stream prove nothing for it.
+  rootSession.clearResume();
   // A replaced (or dropped) authority invalidates every in-flight order walk of
   // BOTH kinds: a delayed page from the retired activation must never paint its
   // order over the successor's state.
@@ -590,7 +509,6 @@ export function __resetManagedRootCatalogRuntimeForTest(): void {
   installed = false;
   configured = false;
   configureRootCreateIntentRuntime(null);
-  configureBoundedHistoryManagedRootClient(null);
   __resetManagedRootLaunchMetadataCapabilityForTest();
   __resetManagedRootOrderFenceForTest();
   rootSession.clearApplied();

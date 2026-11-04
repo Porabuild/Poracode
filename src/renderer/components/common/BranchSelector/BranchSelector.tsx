@@ -5,13 +5,11 @@ import { toast, Tooltip } from "@heroui/react";
 import type { GitBranchInfo } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
-import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { prefetchBranchPrData, refreshGitProject } from "@/renderer/state/gitRefresh";
 import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { openNewThreadInWorktree } from "@/renderer/actions/threadActions";
-import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
 import { toggleProjectPinnedBranch } from "@/renderer/actions/projectActions";
 import { Button } from "../Button";
@@ -275,7 +273,6 @@ export function BranchSelector(props: BranchSelectorProps) {
     setIsOpen(false);
     try {
       const newBranch = generateWorktreeBranch();
-      const project = useAppStore.getState().projects.find((p) => p.id === projectId);
       const result = await readBridge().gitAddWorktree({
         projectLocation,
         branch: newBranch,
@@ -284,7 +281,6 @@ export function BranchSelector(props: BranchSelectorProps) {
         transferUncommitted: true,
         // This action MOVES the changes — leave the current branch clean.
         keepChangesInSource: false,
-        ...(project ? worktreePlacementPayload(project) : {}),
         ...(moveBranchCopyIgnoredPatterns?.length
           ? { copyIgnoredPatterns: moveBranchCopyIgnoredPatterns }
           : {}),

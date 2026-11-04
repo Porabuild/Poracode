@@ -1126,8 +1126,8 @@ msgstr "Dondurulmuş bir çalışma ağacı kaynağı tam commit karması gerekt
 #~ msgstr "Kilitli ekran tüm masaüstü denetimini durdurur; bu nedenle Bilgisayar Kullanımı oturumu çalışırken ekran açık tutulur. Ekranı yine de kendiniz kilitleyebilirsiniz."
 
 #: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
-msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
-msgstr "İleti silme onaylanamadı. Bu konuşmayı yeniden eşitlemek için yenileyin."
+#~ msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+#~ msgstr "İleti silme onaylanamadı. Bu konuşmayı yeniden eşitlemek için yenileyin."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "A missed run was skipped."
@@ -3627,7 +3627,6 @@ msgid "Choose a photo"
 msgstr "Bir fotoğraf seç"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Klasörü artık bulunmayan oturumlar için bir proje seçin."
 
@@ -4873,7 +4872,6 @@ msgid "Connecting"
 msgstr "Bağlanıyor"
 
 #: src/renderer/bootstrap.ts
-#: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connecting to host…"
 msgstr "Ana makineye bağlanılıyor…"
@@ -4989,7 +4987,6 @@ msgstr "Bağlam {before} belirteçten manuel olarak sıkıştırıldı"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Bağlam manuel olarak sıkıştırıldı: {before} → {after} belirteç"
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "Bağlam {targetLabel} hedefine aktarıldı"
@@ -12709,7 +12706,6 @@ msgid "No microphone found."
 msgstr "Mikrofon bulunamadı."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} için kullanılabilir model yok. Ayarlar'da ajanı kontrol edin."
 
@@ -15627,7 +15623,6 @@ msgstr "Referans"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -15805,15 +15800,14 @@ msgstr "Uzak ad"
 
 #: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Remote project not found."
-msgstr "Uzak proje bulunamadı."
+#~ msgid "Remote project not found."
+#~ msgstr "Uzak proje bulunamadı."
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Remote server"
 #~ msgstr "Uzak sunucu"
 
 #: src/renderer/components/media/fileMediaSource.ts
-#: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "Uzak sunucu bulunamadı."
@@ -17903,7 +17897,7 @@ msgstr "{target} sunucusu bu bilgisayarda çalışır ve WSL projeleri için kul
 msgid "Server base URL"
 msgstr "Sunucu temel URL'si"
 
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Sunucu çevrimdışı — bu konuşma güncel olmayabilir."
 
@@ -18990,7 +18984,6 @@ msgstr "Bağlam Olmadan Başlayın"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "İş akışlarını başlatın ve çalıştırmalarını izleyin."
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} iş parçacığı başlatıldı"
@@ -19890,11 +19883,9 @@ msgid "The desktop's own catalog read failed."
 msgstr "Masaüstünün kendi kataloğu okunamadı."
 
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
-#: src/renderer/state/managedRootCatalog/rootHistory.ts
 msgid "The desktop's own server is not connected yet."
 msgstr "Masaüstünün kendi sunucusu henüz bağlı değil."
 
-#: src/renderer/state/remote/historyNoticeActions.ts
 #: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
@@ -19910,11 +19901,11 @@ msgid "The desktop's own server is not connected. Your change was not saved."
 msgstr "Masaüstünün kendi sunucusu bağlı değil. Değişikliğiniz kaydedilmedi."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "The desktop's own server reconnected before the history read completed."
-msgstr "Masaüstünün kendi sunucusu geçmiş okuması tamamlanmadan yeniden bağlandı."
+#~ msgid "The desktop's own server reconnected before the history read completed."
+#~ msgstr "Masaüstünün kendi sunucusu geçmiş okuması tamamlanmadan yeniden bağlandı."
 
+#: src/renderer/state/hostCatalogOrder.ts
 #: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
-#: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "Masaüstünün kendi sunucusu değişikliği reddetti."
 
@@ -20061,8 +20052,8 @@ msgstr "Son başlatma zaten başlamış olabilir. Tekrar sormadan önce yukarıd
 #~ msgstr "Son başlatma zaten başlamış olabilir. Tekrar sormadan önce sohbet panelinde Yeniden dene'yi kullanın."
 
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
-msgid "The launch was cancelled."
-msgstr "Başlatma iptal edildi."
+#~ msgid "The launch was cancelled."
+#~ msgstr "Başlatma iptal edildi."
 
 #: src/renderer/components/crew/crewTemplates.ts
 #~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
@@ -20387,6 +20378,10 @@ msgstr "Kuyruğa alınan takip mesajları için konu oturumu kullanılamıyor."
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Konu, yeni bir şubede ayrı bir çalışma ağacında çalışacak."
+
+#: src/renderer/state/hostThreadHistory.ts
+msgid "The thread's host is not connected."
+msgstr "Konunun ana bilgisayarı bağlı değil."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
@@ -20770,7 +20765,6 @@ msgid "This project has no supported source-host remote."
 msgstr "Bu projenin desteklenen bir kaynak uzak deposu yok."
 
 #: src/renderer/actions/providerSwitchActions.ts
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -20868,8 +20862,8 @@ msgid "This server does not support the bounded catalog read."
 msgstr "Bu sunucu sınırlı katalog okumayı desteklemiyor."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "This server does not support the bounded history read."
-msgstr "Bu sunucu sınırlı geçmiş okumayı desteklemiyor."
+#~ msgid "This server does not support the bounded history read."
+#~ msgstr "Bu sunucu sınırlı geçmiş okumayı desteklemiyor."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -21722,8 +21716,8 @@ msgstr "Tailscale başlatılamadı."
 #~ msgstr "Terminal başlatılamadı"
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Unable to start the remote thread."
-msgstr "Uzak iş parçacığı başlatılamadı."
+#~ msgid "Unable to start the remote thread."
+#~ msgstr "Uzak iş parçacığı başlatılamadı."
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
@@ -22090,7 +22084,7 @@ msgstr "{0} güncelle ({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "{0} öğesini {updateLabel} olarak güncelleyin"
 
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
+#: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "Oturumlarını içe aktarmak için {host} ana bilgisayarını güncelleyin."
 
@@ -22933,7 +22927,7 @@ msgstr "WSL kabuk ortamı ısınıyor…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

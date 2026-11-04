@@ -66,8 +66,7 @@ const remoteState = vi.hoisted(() => ({
     installedAuthoritativeHistory: true,
   })),
   dispatchRemoteSupervisorEvent: vi.fn<(...args: unknown[]) => void>(),
-  noteRemoteRuntimeHistoryBaselines: vi.fn<(threadIds: readonly string[]) => void>(),
-  setRemoteRuntimeHistoryRecovery: vi.fn<() => void>(),
+  noteRuntimeHistoryBaselines: vi.fn<(threadIds: readonly string[]) => void>(),
   collectRuntimeEventsFromSupervisoryMessage: (
     value: unknown,
   ): Array<{
@@ -107,20 +106,6 @@ vi.mock("@/renderer/state/remote", () => remoteState);
 vi.mock("@/renderer/state/remote/sync", () => remoteState);
 vi.mock("@/renderer/state/remote/resetThreadProjection", () => ({
   resetRemoteThreadProjection: remoteState.resetRemoteThreadProjection,
-}));
-
-vi.mock("@/renderer/state/remote/truncateRecovery", () => ({
-  finishTruncateReload: vi.fn<() => void>(),
-  getTruncateNeededSeq: vi.fn<() => undefined>(),
-  isTruncateCheckpointLoaded: vi.fn<() => boolean>(() => false),
-  isTruncateReloadLeaseCurrent: vi.fn<() => boolean>(() => false),
-  listPendingTruncateReloads: vi.fn<() => never[]>(() => []),
-  noteTruncateNeeded: vi.fn<() => void>(),
-  recordAuthoritativeHistoryInstall: vi.fn<() => void>(),
-  resetTruncateRecoveryEpoch: vi.fn<() => void>(),
-  resetTruncateReloadBackoff: vi.fn<() => void>(),
-  shouldSuppressTruncatedReplay: vi.fn<() => boolean>(() => false),
-  tryBeginTruncateReload: vi.fn<() => null>(() => null),
 }));
 
 vi.mock("@/renderer/state/appStore", () => ({
@@ -167,6 +152,42 @@ vi.mock("./browserBridge", () => ({
 vi.mock("./connectionRefresh", () => ({
   markRemoteServerRowResyncPending: vi.fn<() => void>(),
 }));
+
+// The shared host history steps have their own tests. Here they read through
+// the recovering connection's client, install through the stubbed installer
+// and advance the connection's resume watermark, as the real steps do.
+vi.mock("@/renderer/state/hostThreadHistory", async () => {
+  const registry = await import("./eventSocketRegistry");
+  return {
+    resumeHostThreadHistory: () => null,
+    readHostThreadHistory: async (
+      entity: { readonly remoteServerId: string; readonly remoteId: string },
+      options: { readonly client: RemoteDesktopClient; readonly isCurrent?: () => boolean },
+    ) => {
+      const fence = registry.remoteServerResumeFence(entity.remoteServerId);
+      let result: Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>;
+      try {
+        result = await options.client.boundedThreadHistory(entity.remoteId, {
+          compactDetails: true,
+        });
+      } catch (error) {
+        return { kind: "failed", error };
+      }
+      if (options.isCurrent?.() === false) return { kind: "stale" };
+      const applied = remoteState.applyThreadSnapshot() as {
+        readonly installedAuthoritativeHistory: boolean;
+        readonly declinedForNewerLiveTail?: boolean;
+      };
+      registry.bumpRemoteServerSnapshotSeq(entity.remoteServerId, result.page.snapshotSeq, fence);
+      return {
+        kind: "installed",
+        hostSnapshot: result.page,
+        authoritative: applied.installedAuthoritativeHistory,
+        declinedForNewerLiveTail: applied.declinedForNewerLiveTail === true,
+      };
+    },
+  };
+});
 
 vi.mock("./gitState", () => ({ syncRemoteGitStatePatch: vi.fn<() => void>() }));
 vi.mock("./gitSummaries", () => ({ syncRemoteGitSummaries: vi.fn<() => void>() }));
@@ -935,50 +956,6 @@ describe("remote event socket session (V5 2.1)", () => {
     expect(remoteState.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(2);
   });
 
-  it("drops the truncated thread's bounded turn tail when the replay is applied", async () => {
-    const { deps } = makeHarness();
-    const boundedPage = (completedTurnsNextCursor: string) => ({
-      snapshotSeq: 1,
-      thread: { id: "t1" } as Thread,
-      runtimeItems: [],
-      completedTurns: [],
-      completedTurnsNextCursor,
-      contextUsage: null,
-      reads: "bounded-v1" as const,
-      updatedAt: "now",
-    });
-    recordBoundedHistoryTail({
-      desktopId: DESKTOP_ID,
-      threadId: "t1",
-      page: boundedPage("ct1.10"),
-    });
-    recordBoundedHistoryTail({
-      desktopId: DESKTOP_ID,
-      threadId: "t2",
-      page: boundedPage("ct1.4"),
-    });
-    await startRemoteServerEventStream(deps);
-    const socket = FakeSocket.instances[0]!;
-
-    await deliver(
-      socket,
-      JSON.stringify({
-        type: "event",
-        seq: 1,
-        event: {
-          type: "thread-runtime-event",
-          threadId: "t1",
-          event: { type: "runtime.truncated", itemId: "cp-1", seq: 1 },
-        },
-      }),
-    );
-
-    // The truncation renumbers this thread's completed turns: its old `ct1.`
-    // proof is gone, while the untouched thread keeps its continuation.
-    expect(readBoundedHistoryTail(`${DESKTOP_ID}:t1`)).toBeUndefined();
-    expect(readBoundedHistoryTail(`${DESKTOP_ID}:t2`)).toBeDefined();
-  });
-
   it("drops every bounded turn tail for the server on resync-required", async () => {
     const { deps } = makeHarness();
     recordBoundedHistoryTail({
@@ -1005,55 +982,6 @@ describe("remote event socket session (V5 2.1)", () => {
     await flushAsync();
 
     // A restarted host has a fresh sequence space: no old tail can survive.
-    expect(readBoundedHistoryTail(`${DESKTOP_ID}:t1`)).toBeUndefined();
-  });
-
-  it("drops the bounded turn tail when a recovery installs an authoritative baseline", async () => {
-    const { deps } = makeHarness();
-    recordBoundedHistoryTail({
-      desktopId: DESKTOP_ID,
-      threadId: "t1",
-      page: {
-        snapshotSeq: 1,
-        thread: { id: "t1" } as Thread,
-        runtimeItems: [],
-        completedTurns: [],
-        completedTurnsNextCursor: "ct1.10",
-        contextUsage: null,
-        reads: "bounded-v1",
-        updatedAt: "now",
-      },
-    });
-    let releaseHistory!: (value: unknown) => void;
-    const client = deps.get().clientFactory;
-    const gatedFactory: RemoteClientFactory = (endpoint, token) => {
-      const real = client(endpoint, token);
-      const gated = Object.create(real) as RemoteDesktopClient;
-      gated.boundedThreadHistory = vi.fn<() => Promise<unknown>>(() =>
-        new Promise((resolve) => {
-          releaseHistory = resolve;
-        }).then((page) => ({ negotiation: "legacy", page })),
-      ) as unknown as RemoteDesktopClient["boundedThreadHistory"];
-      return gated;
-    };
-    deps.get().clientFactory = gatedFactory;
-
-    const started = startRemoteServerEventStream({
-      ...deps,
-      options: { resyncInterestedThreads: true },
-    });
-    await flushAsync();
-    releaseHistory({
-      snapshotSeq: 5,
-      projects: [],
-      threads: [],
-      runtimeSummariesByThread: {},
-    });
-    await started;
-    await flushAsync();
-
-    // The rebuilt transcript may have renumbered turns: the old proof cannot
-    // feed older pages into it.
     expect(readBoundedHistoryTail(`${DESKTOP_ID}:t1`)).toBeUndefined();
   });
 });

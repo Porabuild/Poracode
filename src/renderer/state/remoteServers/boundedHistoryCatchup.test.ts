@@ -22,11 +22,7 @@ import {
   thread,
   viewThread,
 } from "../remote/cappedHistory.testFixtures";
-import {
-  getAuthoritativeHistorySeq,
-  getTruncateNeededSeq,
-  resetTruncateRecoveryEpoch,
-} from "../remote/truncateRecovery";
+import { forgetHistoryBaselines, readHistoryBaseline } from "../historyBaselines";
 import { __resetBoundedCatalogForTest } from "./catalog/boundedCatalogController";
 import { __resetBoundedHistoryForTest } from "./catalog/boundedHistory";
 import {
@@ -40,6 +36,7 @@ import {
   remoteServerSnapshotSeq,
   setRemoteServerSnapshotSeq,
   setRemoteServerThreadItemInterests,
+  remoteServerHostSession,
 } from "./eventSocketRegistry";
 import { recoverInterestedThreads, resyncOpenThread } from "./eventSocketResync";
 import {
@@ -48,8 +45,12 @@ import {
 } from "./snapshotProjection";
 import type { RemoteServerRecord, RemoteServersState, RemoteSocketLike } from "./types";
 
+// The thread's host resolves through the harness state.
+const remoteStore = vi.hoisted(() => ({ state: null as unknown }));
 vi.mock("@/renderer/state/remoteServersStore", () => ({
-  useRemoteServersStore: { getState: () => ({ servers: [], runtime: {}, openThread: null }) },
+  useRemoteServersStore: {
+    getState: () => remoteStore.state ?? { servers: [], runtime: {}, openThread: null },
+  },
 }));
 
 const original = useAppStore.getState();
@@ -80,10 +81,14 @@ function harness() {
     runtime: { [connection]: { status: "online", threads: [thread], projects: [] } },
     openThread: { desktopId: connection, threadId: thread.id, thread },
     scheduleServerRefresh: () => {},
+    withClient: (_key: string, invoke: (client: RemoteDesktopClient) => Promise<unknown>) =>
+      invoke(client),
   } as unknown as RemoteServersState;
+  remoteStore.state = state;
   const get = () => state;
   const set: EventSocketConnectionContext["set"] = (partial) => {
     state = { ...state, ...(typeof partial === "function" ? partial(state) : partial) };
+    remoteStore.state = state;
   };
   let current = true;
   const socket: RemoteSocketLike = { close() {}, onopen: null, onmessage: null, onclose: null };
@@ -145,8 +150,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  remoteStore.state = null;
   clearPendingRuntimeEvents();
-  resetTruncateRecoveryEpoch(connection);
+  forgetHistoryBaselines(remoteServerHostSession(connection));
   forgetThreadRuntimeWindow(viewThread);
   setOlderThreadHistoryContinuation(null);
   setOlderThreadHistoryInvalidation(null);
@@ -162,12 +168,12 @@ describe.each(["ordinary", "unicode"] as const)("%s bounded history callers", (k
     seedCappedLiveItem(kind);
     const h = harness();
     const pending = h.actions.openRemoteThread(connection, thread.id, { focus: false });
-    expect(getAuthoritativeHistorySeq(connection, thread.id)).toBeUndefined();
+    expect(readHistoryBaseline(remoteServerHostSession(connection), viewThread)).toBeUndefined();
     h.release(historyResult(kind, "completed"));
     expect(await pending).toBe(true);
     expect(liveItem().streams.assistant_text === canonicalText(kind)).toBe(true);
     expect(liveItem().state).toBe("completed");
-    expect(getAuthoritativeHistorySeq(connection, thread.id)).toBe(110);
+    expect(readHistoryBaseline(remoteServerHostSession(connection), viewThread)).toBe(110);
     expect(h.legacyRead).not.toHaveBeenCalled();
   });
 
@@ -175,7 +181,7 @@ describe.each(["ordinary", "unicode"] as const)("%s bounded history callers", (k
     seedCappedLiveItem(kind);
     const h = harness();
     const beforeReplay = vi.fn<() => void>(() => {
-      expect(getAuthoritativeHistorySeq(connection, thread.id)).toBe(110);
+      expect(readHistoryBaseline(remoteServerHostSession(connection), viewThread)).toBe(110);
       expect(liveItem().streams.assistant_text === canonicalText(kind)).toBe(true);
     });
     const pending = resyncOpenThread(h.ctx, beforeReplay);
@@ -183,7 +189,7 @@ describe.each(["ordinary", "unicode"] as const)("%s bounded history callers", (k
     h.receive(110, " also covered");
     h.receive(111, " newer");
     expect(h.ctx.recovery.queuedEvents).toHaveLength(3);
-    expect(getAuthoritativeHistorySeq(connection, thread.id)).toBeUndefined();
+    expect(readHistoryBaseline(remoteServerHostSession(connection), viewThread)).toBeUndefined();
     expect(remoteServerSnapshotSeq(connection)).toBe(100);
     h.release(historyResult(kind));
     expect(await pending).toBe(true);
@@ -191,7 +197,10 @@ describe.each(["ordinary", "unicode"] as const)("%s bounded history callers", (k
     expect(liveItem().streams.assistant_text === `${canonicalText(kind)} newer`).toBe(true);
     expect(remoteServerSnapshotSeq(connection)).toBe(111);
     expect(h.legacyRead).not.toHaveBeenCalled();
-    expect(h.boundedRead).toHaveBeenCalledWith(thread.id, { compactDetails: true });
+    expect(h.boundedRead).toHaveBeenCalledWith(
+      thread.id,
+      expect.objectContaining({ compactDetails: true }),
+    );
   });
 });
 
@@ -210,7 +219,7 @@ it.each(["open", "recovery"] as const)(
     expect(result).toBe(path === "open");
     expect(h.ctx.forceReconnect).toHaveBeenCalledTimes(path === "recovery" ? 1 : 0);
     expect(liveItem()).toBe(before);
-    expect(getAuthoritativeHistorySeq(connection, thread.id)).toBeUndefined();
+    expect(readHistoryBaseline(remoteServerHostSession(connection), viewThread)).toBeUndefined();
     expect(String(h.fetch.mock.calls[0]![0])).toContain("reads=bounded-v1");
     expect(h.legacyRead).not.toHaveBeenCalled();
   },
@@ -232,7 +241,7 @@ it.each(["open", "recovery"] as const)(
     await pending;
     expect(liveItem().streams.assistant_text!.endsWith(" live-120")).toBe(true);
     expect(liveItem().state).toBe("updated");
-    expect(getAuthoritativeHistorySeq(connection, thread.id)).toBeUndefined();
+    expect(readHistoryBaseline(remoteServerHostSession(connection), viewThread)).toBeUndefined();
   },
 );
 
@@ -250,34 +259,6 @@ it.each(["open", "recovery"] as const)(
     h.release(historyResult("unicode", "completed"));
     expect(await pending).toBe(false);
     expect(liveItem()).toBe(before);
-    expect(getAuthoritativeHistorySeq(connection, thread.id)).toBeUndefined();
+    expect(readHistoryBaseline(remoteServerHostSession(connection), viewThread)).toBeUndefined();
   },
 );
-
-it("uses negotiated history for an unknown-checkpoint truncate reload and commits before clearing its need", async () => {
-  seedCappedLiveItem("ordinary");
-  const h = harness();
-  h.ctx.dispatchForwardEvent(
-    {
-      type: "thread-runtime-event",
-      threadId: thread.id,
-      event: {
-        type: "runtime.truncated",
-        threadId: thread.id,
-        itemId: "unloaded-checkpoint",
-        removedCompletedTurnAnchors: [],
-      },
-    },
-    105,
-    true,
-  );
-  expect(getTruncateNeededSeq(connection, thread.id)).toBe(105);
-  expect(getAuthoritativeHistorySeq(connection, thread.id)).toBeUndefined();
-  h.release(historyResult("ordinary", "completed"));
-  await vi.waitFor(() => expect(getAuthoritativeHistorySeq(connection, thread.id)).toBe(110));
-  expect(liveItem().streams.assistant_text === canonicalText("ordinary")).toBe(true);
-  expect(liveItem().state).toBe("completed");
-  expect(getTruncateNeededSeq(connection, thread.id)).toBeUndefined();
-  expect(h.boundedRead).toHaveBeenCalledOnce();
-  expect(h.legacyRead).not.toHaveBeenCalled();
-});

@@ -19,7 +19,7 @@ import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
-import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
+import type { TerminalPaneHandle } from "./TerminalPane";
 import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
 import type { SaveClipboardImage } from "../composer/useAttachments";
 import { ContinueInProviderDialog, type ContinueIntent } from "./ContinueInProviderDialog";
@@ -102,7 +102,6 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.onSubmitInput === next.onSubmitInput &&
     prev.onOpenProjectRelativePath === next.onOpenProjectRelativePath &&
     prev.checkpointActions === next.checkpointActions &&
-    prev.remoteTerminalTransport === next.remoteTerminalTransport &&
     prev.pickFiles === next.pickFiles &&
     prev.saveClipboardImage === next.saveClipboardImage
   );
@@ -163,7 +162,6 @@ export type ThreadViewProps = {
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   checkpointActions?: CheckpointRevertActions | undefined;
-  remoteTerminalTransport?: RemoteTerminalTransport | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
   saveClipboardImage?: SaveClipboardImage | undefined;
 };
@@ -200,7 +198,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     onSubmitInput,
     onOpenProjectRelativePath,
     checkpointActions,
-    remoteTerminalTransport,
     pickFiles,
     saveClipboardImage,
   } = props;
@@ -556,7 +553,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 onTerminalResize={setTerminalSize}
                 hidden={hidden}
                 {...(onSubmitInput ? { onSubmitInput } : {})}
-                {...(remoteTerminalTransport ? { remoteTerminalTransport } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
                 {...(saveClipboardImage ? { saveClipboardImage } : {})}
               />
@@ -573,7 +569,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 {...(onSubmitInput ? { onSubmitInput } : {})}
                 {...(onOpenProjectRelativePath ? { onOpenProjectRelativePath } : {})}
                 {...(checkpointActions ? { checkpointActions } : {})}
-                {...(thread.remoteServerId ? { checkpointProjectLocation: projectLocation } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
                 {...(saveClipboardImage ? { saveClipboardImage } : {})}
               />

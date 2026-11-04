@@ -37,7 +37,7 @@ import {
   hydrateThreadRuntimeItemsForInterest,
   installRuntimeHistoryRecovery,
 } from "@/renderer/state/runtimeInterestHydration";
-import { createLocalSnapshotRecovery } from "@/renderer/state/remote/reducers/localSnapshotRecovery";
+import { createHostHistoryRecovery } from "@/renderer/state/remote/reducers/hostHistoryRecovery";
 import {
   createSupervisorEventReducer,
   type SupervisorEventReducer,
@@ -53,7 +53,7 @@ it("recovers an active transcript using the snapshot prefix without waiting for 
   await activate();
   const client = readManagedLoopbackActivation()!.client;
   let reducer: SupervisorEventReducer;
-  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
   reducer = createSupervisorEventReducer({
     recovery: recovery.strategy,
     onSequencedEvent: recovery.noteSequencedSupervisorEvent,
@@ -112,7 +112,7 @@ it("clears a previous load failure after successful incremental history recovery
   const client = readManagedLoopbackActivation()!.client;
   const resume = vi.spyOn(client, "resumeThreadHistory");
   let reducer: SupervisorEventReducer;
-  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
   reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
   try {
     useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
@@ -152,7 +152,7 @@ it("loads saved history on the first read when the local connection becomes acti
   installElectronClientRuntime(host);
   __setDesktopLoopbackIntakeTestSeamsForTest({ socketFactory: wsSocketFactory });
   let reducer: SupervisorEventReducer;
-  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
   const recover = vi.spyOn(recovery.strategy, "recoverFromThreadReset");
   reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
   const unsubscribe = readBridge().onSupervisorEvent((event) => reducer.dispatch(event));
@@ -346,7 +346,7 @@ it("keeps the loaded reader visible while a discontinuous interest refresh is pe
     return result;
   });
   let reducer: SupervisorEventReducer;
-  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
   reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
   const uninstall = installRuntimeHistoryRecovery(reducer.recoverRuntimeHistory);
   try {
@@ -373,7 +373,7 @@ it("reopens background history without losing its pending approval", async () =>
   await vi.waitFor(() => expect(threadRow(threadId)).toBeDefined(), { timeout: 15_000 });
   await hydrateThreadRuntimeItems(threadId);
   let reducer: SupervisorEventReducer;
-  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
   reducer = createSupervisorEventReducer({
     recovery: recovery.strategy,
     onSequencedEvent: recovery.noteSequencedSupervisorEvent,
@@ -500,7 +500,7 @@ it("restores completed background output and turn history after live coverage wa
   });
 
   let reducer: SupervisorEventReducer;
-  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
   reducer = createSupervisorEventReducer({
     recovery: recovery.strategy,
     onSequencedEvent: recovery.noteSequencedSupervisorEvent,

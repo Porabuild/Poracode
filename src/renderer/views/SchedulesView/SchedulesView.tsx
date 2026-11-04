@@ -26,12 +26,14 @@ import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { agentConfigProductProperties } from "@/renderer/analytics/threadAnalyticsProperties";
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { isRemoteSession } from "@/renderer/bridge";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
+import { callHostProcedure } from "@/renderer/state/hostProcedures";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import {
   LightballTabs,
@@ -40,7 +42,6 @@ import {
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import { openThread } from "@/renderer/actions/threadActions";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
@@ -136,10 +137,8 @@ export function SchedulesView(
     ? selectedMachineId
     : "local";
   const isRemoteMachine = !compact && machineId !== "local";
-  const remoteRuntime = useRemoteServersStore((state) =>
-    machineId === "local" ? undefined : state.runtime[machineId],
-  );
-  const withClient = useRemoteServersStore((state) => state.withClient);
+  /** The paired host the selected machine lives on; undefined is the attached host. */
+  const hostKey = isRemoteMachine ? machineId : undefined;
   /** Mutation results may resolve after a machine switch; only the machine
    * the operation was issued on may install them. */
   const machineRef = useRef(machineId);
@@ -150,27 +149,16 @@ export function SchedulesView(
 
   const scheduleOps = {
     create: (input: ScheduledTaskInput): Promise<ScheduledTask> =>
-      isRemoteMachine
-        ? withClient(machineId, (client) => client.createSchedule(input))
-        : readBridge().createSchedule(input),
+      callHostProcedure(hostKey, "createSchedule", input),
     update: (id: string, task: ScheduledTaskInput): Promise<ScheduledTask> =>
-      isRemoteMachine
-        ? withClient(machineId, (client) => client.updateSchedule(id, task))
-        : readBridge().updateSchedule({ id, task }),
-    remove: (id: string): Promise<void> =>
-      isRemoteMachine
-        ? withClient(machineId, (client) => client.deleteSchedule(id))
-        : readBridge().deleteSchedule({ id }),
+      callHostProcedure(hostKey, "updateSchedule", { id, task }),
+    remove: (id: string): Promise<void> => callHostProcedure(hostKey, "deleteSchedule", { id }),
     runNow: (id: string): Promise<ScheduledTask> =>
-      isRemoteMachine
-        ? withClient(machineId, (client) => client.runScheduleNow(id))
-        : readBridge().runScheduleNow({ id }),
+      callHostProcedure(hostKey, "runScheduleNow", { id }),
   };
 
-  const localAgentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
-  const agentStatuses = isRemoteMachine
-    ? (remoteRuntime?.agentStatuses?.windows ?? [])
-    : localAgentStatuses;
+  // Schedules launch native agents only, so the host's native pool is the list.
+  const { windows: agentStatuses } = useHostAgentStatusPools(hostKey);
   const agents = agentStatuses
     .filter((agent) => {
       const presentationModes = agent.capabilities.presentationModes ?? [
@@ -185,19 +173,14 @@ export function SchedulesView(
     );
 
   const loadSnapshot = useCallback(
-    (inboxQuery: ScheduleRunInboxQuery): Promise<AutomationsSnapshot> => {
-      return !compact && machineId !== "local"
-        ? withClient(machineId, (client) => client.automationsSnapshot(inboxQuery))
-        : readBridge().getAutomationsSnapshot(inboxQuery);
-    },
-    [compact, machineId, withClient],
+    (inboxQuery: ScheduleRunInboxQuery): Promise<AutomationsSnapshot> =>
+      callHostProcedure(hostKey, "getAutomationsSnapshot", inboxQuery),
+    [hostKey],
   );
   const loadInbox = useCallback(
     (inboxQuery: ScheduleRunInboxQuery) =>
-      !compact && machineId !== "local"
-        ? withClient(machineId, (client) => client.scheduleRunInbox(inboxQuery))
-        : readBridge().getScheduleRunInbox(inboxQuery),
-    [compact, machineId, withClient],
+      callHostProcedure(hostKey, "getScheduleRunInbox", inboxQuery),
+    [hostKey],
   );
   const automation = useAutomationSnapshot(
     `${machineId}:${props.remoteDesktopId ?? ""}`,
@@ -208,13 +191,8 @@ export function SchedulesView(
   const { schedules: tasks, setTasks, loading, loadError, refresh, runs, unreadCount } = automation;
   const resultOps = {
     update: (payload: UpdateScheduleRunStatePayload) =>
-      isRemoteMachine
-        ? withClient(machineId, (client) => client.updateScheduleRunState(payload))
-        : readBridge().updateScheduleRunState(payload),
-    cancel: (id: string) =>
-      isRemoteMachine
-        ? withClient(machineId, (client) => client.cancelScheduleRun(id))
-        : readBridge().cancelScheduleRun({ id }),
+      callHostProcedure(hostKey, "updateScheduleRunState", payload),
+    cancel: (id: string) => callHostProcedure(hostKey, "cancelScheduleRun", { id }),
   };
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedResultQuery(resultQuery.trim()), 250);
@@ -222,13 +200,9 @@ export function SchedulesView(
   }, [resultQuery]);
 
   const fetchRuns = useCallback(
-    (id: string): Promise<ScheduledTaskRun[]> => {
-      if (!compact && machineId !== "local") {
-        return withClient(machineId, (client) => client.scheduleRuns(id));
-      }
-      return readBridge().getScheduleRuns({ id });
-    },
-    [compact, machineId, withClient],
+    (id: string): Promise<ScheduledTaskRun[]> =>
+      callHostProcedure(hostKey, "getScheduleRuns", { id }),
+    [hostKey],
   );
 
   const normalizedQuery = query.trim().toLocaleLowerCase();

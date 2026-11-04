@@ -43,6 +43,8 @@ import {
 } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { exchangePairingCredential } from "@/renderer/state/remoteServers/desktopLoopbackAuth";
 import { getManagedRootCatalogStatus } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
+// Registers the host history readers the persister hydrates managed threads through.
+import "@/renderer/state/hostThreadHistory";
 
 /**
  * Shared managed-root integration fixture (extracted verbatim from

@@ -3,10 +3,10 @@ import { useAppStore } from "./appStore";
 
 /**
  * Whether a thread's first history read failed only because its host has not
- * created the thread yet. A new-worktree launch on a paired host registers the
- * thread under its final remote id while the worktree is still provisioning,
- * so the pane's first read reaches the host before the start does and every
- * read answers `thread_not_found`. That is an empty history, not a load
+ * created the thread yet. A launch registers the thread under its final id
+ * while the host is still starting it (or provisioning its worktree), so the
+ * pane's first read can reach the host before the start does and answer
+ * `thread_not_found`. That is an empty history, not a load
  * failure. Any other refusal, or a thread that is no longer launching, is a
  * real failure.
  */
@@ -19,6 +19,6 @@ export function isHistoryReadBeforeHostCreation(
   if (!rejected.every((result) => isRemoteThreadNotFoundError(result.reason))) return false;
   const state = useAppStore.getState();
   const thread = state.threads.find((candidate) => candidate.id === threadId);
-  if (!thread?.remoteServerId) return false;
+  if (!thread) return false;
   return thread.status === "launching" || state.provisioningWorktreeThreadIds[threadId] === true;
 }

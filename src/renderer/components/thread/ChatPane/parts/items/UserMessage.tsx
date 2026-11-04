@@ -31,9 +31,7 @@ import { formatMessageTimestamp } from "@/renderer/utils/formatTime";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
-import { usesBridgeThreadImages } from "@/renderer/components/thread/threadImageReadiness";
+import { attachmentImageUrlFor } from "@/renderer/components/thread/threadImageAuthority";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
@@ -90,12 +88,7 @@ export const UserMessage = memo(function UserMessage({
   const remoteServerId = useAppStore(
     (state) => state.threads.find((thread) => thread.id === threadId)?.remoteServerId,
   );
-  const imageUrlForPath = remoteServerId
-    ? (path: string) =>
-        usesBridgeThreadImages(remoteServerId)
-          ? remoteBridgeLocalImageUrl(path)
-          : useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
-    : undefined;
+  const imageUrlForPath = attachmentImageUrlFor(remoteServerId);
   // Own-host files already have a native `poracode-local://` URL. Routing them
   // through the managed image cache paints an empty slot, then swaps in a blob
   // URL once the fetch lands — the thumb flickers when a new thread's first

@@ -1,4 +1,9 @@
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import {
+  markPendingThreadCreated,
+  markPendingThreadCreationUncertain,
+  pinThreadRow,
+  dropPendingThreadLaunch,
+} from "@/renderer/state/threadLaunchIntents";
 import { applyHomeScopePermissions } from "@/shared/agents/unrestrictedPermissions";
 import type {
   Project,
@@ -10,22 +15,16 @@ import type {
 } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { resolveThreadTitlePrompt, titlePromptFromSegments } from "@/shared/threadTitle";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { entityHost } from "@/renderer/state/entityHost";
+import { reconcileHostThreadLaunch } from "@/renderer/state/hostThreadLaunch";
 import {
-  managedRootOwner,
-  sendManagedRootThreadCommand,
-} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import {
-  markPendingManagedRootThreadCreated,
-  markPendingManagedRootThreadCreationUncertain,
-  pinManagedRootThread,
-  dropPendingManagedRootLaunch,
-} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
+  readHostAgentStatusPools,
+  selectLocationAgentStatuses,
+} from "@/renderer/hooks/useHostAgentStatuses";
 import { findExperimentByGroupId } from "@/renderer/state/experimentStore";
 import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
-import { reconcileManagedRootThreadLaunch } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { isRemoteCommandOutcomeUncertainError } from "./threadCommandOutcomeActions";
 
 export interface ThreadLaunchRequest {
@@ -53,11 +52,10 @@ function projectTitleInput(
   prompt: string,
   segments?: PromptSegment[],
 ) {
-  const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-  const projectAgentStatuses = getProjectAgentStatuses(
+  // The agents the project's own host has, for whichever host owns it.
+  const projectAgentStatuses = selectLocationAgentStatuses(
+    readHostAgentStatusPools(project.remoteServerId),
     project.location,
-    agentStatuses,
-    wslAgentStatuses,
   );
   const agentStatus = projectAgentStatuses.find((status) => status.kind === agentKind);
   return {
@@ -119,16 +117,19 @@ export function createDraftThread(launch: ThreadLaunchRequest): Thread {
   });
 }
 
-/** Save the row before title generation and worktree preparation can address it. */
+/**
+ * Save the row on its host before title generation and worktree preparation
+ * can address it, whichever host owns the project.
+ */
 export async function prepareDraftThread(
   thread: Thread,
   project: Project,
   prompt: string,
   segments?: PromptSegment[],
 ): Promise<boolean> {
-  const owner = managedRootOwner(thread);
-  if (owner) {
-    const release = pinManagedRootThread(thread.id);
+  const host = entityHost(thread);
+  if (host) {
+    const release = pinThreadRow(thread.id);
     // An authoritative read may install the host row again. Remember local
     // deletion throughout creation so reconciliation cannot undo cancellation.
     let deleted = false;
@@ -142,36 +143,41 @@ export async function prepareDraftThread(
     });
     try {
       try {
-        await sendManagedRootThreadCommand({
+        const parentThreadId = thread.parentThreadId
+          ? host.hostThreadId(thread.parentThreadId)
+          : undefined;
+        await host.sendThreadCommand({
           kind: "create",
-          threadId: thread.id,
-          projectId: thread.projectId,
+          threadId: host.hostId,
+          projectId: host.hostProjectId(thread.projectId) ?? thread.projectId,
           title: thread.title,
           agentKind: thread.agentKind,
           ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
           config: thread.config,
           ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
-          ...(thread.workspaceId ? { workspaceId: thread.workspaceId } : {}),
+          ...(thread.workspaceId && host.sharesClientWorkspaces
+            ? { workspaceId: thread.workspaceId }
+            : {}),
           ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
           ...(thread.worktreeBranch ? { worktreeBranch: thread.worktreeBranch } : {}),
           ...(thread.groupId ? { groupId: thread.groupId } : {}),
           ...(thread.groupName ? { groupName: thread.groupName } : {}),
-          ...(thread.parentThreadId ? { parentThreadId: thread.parentThreadId } : {}),
+          ...(parentThreadId ? { parentThreadId } : {}),
           ...(thread.prNumber ? { prNumber: thread.prNumber } : {}),
         });
-        markPendingManagedRootThreadCreated(thread.id);
+        markPendingThreadCreated(thread.id);
       } catch (error) {
         if (!isRemoteCommandOutcomeUncertainError(error)) throw error;
-        markPendingManagedRootThreadCreationUncertain(thread.id);
+        markPendingThreadCreationUncertain(thread.id);
         // Read once without resending creation. Even an unavailable read must
         // retain host-owned deletion: the row may already have committed.
-        const existence = await reconcileManagedRootThreadLaunch(thread.id);
-        if (existence === "present") markPendingManagedRootThreadCreated(thread.id);
+        const existence = await reconcileHostThreadLaunch(host, thread.id);
+        if (existence === "present") markPendingThreadCreated(thread.id);
         if (!deleted) throw error;
       }
       if (deleted) {
-        await sendManagedRootThreadCommand({ kind: "delete", threadId: thread.id });
-        dropPendingManagedRootLaunch(thread.id);
+        await host.sendThreadCommand({ kind: "delete", threadId: host.hostId });
+        dropPendingThreadLaunch(thread.id);
         useAppStore.getState().deleteThread(thread.id);
         return false;
       }
@@ -180,7 +186,6 @@ export async function prepareDraftThread(
       release();
     }
   }
-  if (thread.remoteServerId) return true;
   const { projectAgentStatuses, titlePrompt } = projectTitleInput(
     project,
     thread.agentKind,

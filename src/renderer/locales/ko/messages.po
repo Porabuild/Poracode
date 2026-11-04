@@ -1126,8 +1126,8 @@ msgstr "고정된 작업 트리 소스에는 전체 커밋 해시가 필요합�
 #~ msgstr "화면이 잠기면 데스크톱 제어가 모두 중단되므로 컴퓨터 사용 세션이 실행되는 동안 디스플레이를 켜 둡니다. 직접 화면을 잠그는 것은 여전히 가능합니다."
 
 #: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
-msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
-msgstr "메시지 삭제를 확인하지 못했습니다. 새로고침하여 이 대화를 다시 동기화하세요."
+#~ msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+#~ msgstr "메시지 삭제를 확인하지 못했습니다. 새로고침하여 이 대화를 다시 동기화하세요."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "A missed run was skipped."
@@ -3627,7 +3627,6 @@ msgid "Choose a photo"
 msgstr "사진 선택"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "폴더가 더 이상 존재하지 않는 세션을 가져올 프로젝트를 선택하세요."
 
@@ -4873,7 +4872,6 @@ msgid "Connecting"
 msgstr "연결 중"
 
 #: src/renderer/bootstrap.ts
-#: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connecting to host…"
 msgstr "호스트에 연결 중…"
@@ -4989,7 +4987,6 @@ msgstr "{before} 토큰에서 수동으로 압축된 컨텍스트"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "수동으로 압축된 컨텍스트:{before}→{after}토큰"
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "컨텍스트가 {targetLabel}(으)로 전송되었습니다."
@@ -12709,7 +12706,6 @@ msgid "No microphone found."
 msgstr "마이크를 찾을 수 없습니다."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent}에 사용할 수 있는 모델이 없습니다. 설정에서 에이전트를 확인하세요."
 
@@ -15627,7 +15623,6 @@ msgstr "참조"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -15805,15 +15800,14 @@ msgstr "원격 이름"
 
 #: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Remote project not found."
-msgstr "원격 프로젝트를 찾을 수 없습니다."
+#~ msgid "Remote project not found."
+#~ msgstr "원격 프로젝트를 찾을 수 없습니다."
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Remote server"
 #~ msgstr "원격 서버"
 
 #: src/renderer/components/media/fileMediaSource.ts
-#: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "원격 서버를 찾을 수 없습니다."
@@ -17903,7 +17897,7 @@ msgstr "서버 {target}은(는) 이 컴퓨터에서 실행되며 WSL 프로젝�
 msgid "Server base URL"
 msgstr "서버 기본 URL"
 
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "서버가 오프라인입니다. 이 대화는 최신 상태가 아닐 수 있습니다."
 
@@ -18990,7 +18984,6 @@ msgstr "맥락 없이 시작하기"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "워크플로를 시작하고 실행을 모니터링합니다."
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "{targetLabel} 스레드를 시작했습니다."
@@ -19890,11 +19883,9 @@ msgid "The desktop's own catalog read failed."
 msgstr "데스크톱 자체 카탈로그를 읽지 못했습니다."
 
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
-#: src/renderer/state/managedRootCatalog/rootHistory.ts
 msgid "The desktop's own server is not connected yet."
 msgstr "데스크톱 자체 서버가 아직 연결되지 않았습니다."
 
-#: src/renderer/state/remote/historyNoticeActions.ts
 #: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
@@ -19910,11 +19901,11 @@ msgid "The desktop's own server is not connected. Your change was not saved."
 msgstr "데스크톱 자체 서버가 연결되어 있지 않습니다. 변경 사항이 저장되지 않았습니다."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "The desktop's own server reconnected before the history read completed."
-msgstr "데스크톱 자체 서버가 기록 읽기가 완료되기 전에 다시 연결되었습니다."
+#~ msgid "The desktop's own server reconnected before the history read completed."
+#~ msgstr "데스크톱 자체 서버가 기록 읽기가 완료되기 전에 다시 연결되었습니다."
 
+#: src/renderer/state/hostCatalogOrder.ts
 #: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
-#: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "데스크톱 자체 서버가 변경을 거부했습니다."
 
@@ -20061,8 +20052,8 @@ msgstr "마지막 실행이 이미 시작되었을 수 있습니다. 다시 질�
 #~ msgstr "마지막 실행이 이미 시작되었을 수 있습니다. 다시 질문하기 전에 채팅 패널에서 다시 시도를 사용하세요."
 
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
-msgid "The launch was cancelled."
-msgstr "실행이 취소되었습니다."
+#~ msgid "The launch was cancelled."
+#~ msgstr "실행이 취소되었습니다."
 
 #: src/renderer/components/crew/crewTemplates.ts
 #~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
@@ -20387,6 +20378,10 @@ msgstr "대기 중인 후속 메시지에 스레드 세션을 사용할 수 없�
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "스레드가 새 브랜치의 별도 작업 트리에서 실행됩니다."
+
+#: src/renderer/state/hostThreadHistory.ts
+msgid "The thread's host is not connected."
+msgstr "스레드의 호스트가 연결되어 있지 않습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
@@ -20770,7 +20765,6 @@ msgid "This project has no supported source-host remote."
 msgstr "이 프로젝트에는 지원되는 소스 호스트 원격 저장소가 없습니다."
 
 #: src/renderer/actions/providerSwitchActions.ts
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -20868,8 +20862,8 @@ msgid "This server does not support the bounded catalog read."
 msgstr "이 서버는 제한된 카탈로그 읽기를 지원하지 않습니다."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "This server does not support the bounded history read."
-msgstr "이 서버는 제한된 기록 읽기를 지원하지 않습니다."
+#~ msgid "This server does not support the bounded history read."
+#~ msgstr "이 서버는 제한된 기록 읽기를 지원하지 않습니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -21722,8 +21716,8 @@ msgstr "Tailscale을 시작할 수 없습니다."
 #~ msgstr "터미널을 시작할 수 없습니다"
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Unable to start the remote thread."
-msgstr "원격 스레드를 시작할 수 없습니다."
+#~ msgid "Unable to start the remote thread."
+#~ msgstr "원격 스레드를 시작할 수 없습니다."
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
@@ -22090,7 +22084,7 @@ msgstr "{0} 업데이트({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "{0}을(를) {updateLabel}(으)로 업데이트"
 
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
+#: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "세션을 가져오려면 {host}을(를) 업데이트하세요."
 
@@ -22933,7 +22927,7 @@ msgstr "WSL 셸 환경 준비 중…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

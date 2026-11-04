@@ -1126,8 +1126,8 @@ msgstr "Nguồn cây làm việc đã đóng băng yêu cầu hàm băm đầy �
 #~ msgstr "Màn hình bị khóa sẽ chặn mọi thao tác điều khiển máy tính, vì vậy màn hình được giữ sáng trong khi phiên sử dụng máy tính đang chạy. Bạn vẫn có thể tự khóa màn hình."
 
 #: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
-msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
-msgstr "Không thể xác nhận việc xóa tin nhắn. Hãy làm mới để đồng bộ hóa lại cuộc trò chuyện này."
+#~ msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+#~ msgstr "Không thể xác nhận việc xóa tin nhắn. Hãy làm mới để đồng bộ hóa lại cuộc trò chuyện này."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "A missed run was skipped."
@@ -3627,7 +3627,6 @@ msgid "Choose a photo"
 msgstr "Chọn ảnh"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Chọn một dự án cho các phiên có thư mục không còn tồn tại."
 
@@ -4873,7 +4872,6 @@ msgid "Connecting"
 msgstr "Đang kết nối"
 
 #: src/renderer/bootstrap.ts
-#: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connecting to host…"
 msgstr "Đang kết nối với máy chủ…"
@@ -4989,7 +4987,6 @@ msgstr "Ngữ cảnh được nén thủ công từ {before} token"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Ngữ cảnh được nén thủ công: {before} → {after} token"
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "Ngữ cảnh được chuyển sang {targetLabel}"
@@ -12709,7 +12706,6 @@ msgid "No microphone found."
 msgstr "Không tìm thấy micrô."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "Không có mô hình nào khả dụng cho {agent}. Hãy kiểm tra tác tử trong Cài đặt."
 
@@ -15627,7 +15623,6 @@ msgstr "Tham chiếu"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -15805,15 +15800,14 @@ msgstr "Tên từ xa"
 
 #: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Remote project not found."
-msgstr "Không tìm thấy dự án từ xa."
+#~ msgid "Remote project not found."
+#~ msgstr "Không tìm thấy dự án từ xa."
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Remote server"
 #~ msgstr "Máy chủ từ xa"
 
 #: src/renderer/components/media/fileMediaSource.ts
-#: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "Không tìm thấy máy chủ từ xa."
@@ -17903,7 +17897,7 @@ msgstr "Máy chủ {target} chạy trên máy này và không khả dụng cho d
 msgid "Server base URL"
 msgstr "URL cơ sở của máy chủ"
 
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Máy chủ ngoại tuyến — cuộc trò chuyện này có thể đã cũ."
 
@@ -18990,7 +18984,6 @@ msgstr "Bắt đầu không có bối cảnh"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "Khởi chạy quy trình làm việc và theo dõi các lượt chạy."
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "Đã bắt đầu chủ đề {targetLabel}"
@@ -19890,11 +19883,9 @@ msgid "The desktop's own catalog read failed."
 msgstr "Không thể đọc danh mục riêng của máy tính."
 
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
-#: src/renderer/state/managedRootCatalog/rootHistory.ts
 msgid "The desktop's own server is not connected yet."
 msgstr "Máy chủ riêng của máy tính chưa được kết nối."
 
-#: src/renderer/state/remote/historyNoticeActions.ts
 #: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
@@ -19910,11 +19901,11 @@ msgid "The desktop's own server is not connected. Your change was not saved."
 msgstr "Máy chủ riêng của máy tính chưa được kết nối. Thay đổi của bạn chưa được lưu."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "The desktop's own server reconnected before the history read completed."
-msgstr "Máy chủ riêng của máy tính đã kết nối lại trước khi quá trình đọc lịch sử hoàn tất."
+#~ msgid "The desktop's own server reconnected before the history read completed."
+#~ msgstr "Máy chủ riêng của máy tính đã kết nối lại trước khi quá trình đọc lịch sử hoàn tất."
 
+#: src/renderer/state/hostCatalogOrder.ts
 #: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
-#: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "Máy chủ riêng của máy tính đã từ chối thay đổi."
 
@@ -20061,8 +20052,8 @@ msgstr "Lần khởi chạy gần nhất có thể đã bắt đầu. Hãy dùng
 #~ msgstr "Lần khởi chạy gần nhất có thể đã bắt đầu. Hãy dùng Thử lại trong bảng trò chuyện trước khi hỏi lại."
 
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
-msgid "The launch was cancelled."
-msgstr "Quá trình khởi chạy đã bị hủy."
+#~ msgid "The launch was cancelled."
+#~ msgstr "Quá trình khởi chạy đã bị hủy."
 
 #: src/renderer/components/crew/crewTemplates.ts
 #~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
@@ -20387,6 +20378,10 @@ msgstr "Không có phiên của cuộc trò chuyện để xử lý tin nhắn t
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Luồng sẽ chạy trong một cây làm việc riêng trên một nhánh mới."
+
+#: src/renderer/state/hostThreadHistory.ts
+msgid "The thread's host is not connected."
+msgstr "Máy chủ của luồng chưa được kết nối."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
@@ -20770,7 +20765,6 @@ msgid "This project has no supported source-host remote."
 msgstr "Dự án này không có kho từ xa trên máy chủ nguồn được hỗ trợ."
 
 #: src/renderer/actions/providerSwitchActions.ts
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -20868,8 +20862,8 @@ msgid "This server does not support the bounded catalog read."
 msgstr "Máy chủ này không hỗ trợ đọc danh mục giới hạn."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "This server does not support the bounded history read."
-msgstr "Máy chủ này không hỗ trợ đọc lịch sử giới hạn."
+#~ msgid "This server does not support the bounded history read."
+#~ msgstr "Máy chủ này không hỗ trợ đọc lịch sử giới hạn."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -21722,8 +21716,8 @@ msgstr "Không thể khởi động Tailscale."
 #~ msgstr "Không thể khởi động terminal"
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Unable to start the remote thread."
-msgstr "Không thể bắt đầu luồng từ xa."
+#~ msgid "Unable to start the remote thread."
+#~ msgstr "Không thể bắt đầu luồng từ xa."
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
@@ -22090,7 +22084,7 @@ msgstr "Cập nhật {0} ({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "Cập nhật {0} lên {updateLabel}"
 
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
+#: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "Cập nhật {host} để nhập các phiên của máy chủ đó."
 
@@ -22933,7 +22927,7 @@ msgstr "Đang khởi động môi trường shell WSL…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

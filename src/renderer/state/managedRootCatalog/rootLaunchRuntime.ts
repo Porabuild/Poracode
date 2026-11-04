@@ -1,5 +1,5 @@
+import { peekPendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import type { Thread } from "@/shared/contracts";
-import { peekPendingManagedRootLaunch } from "./rootCatalogStore";
 
 /**
  * A saved draft has no host runtime yet; its pending launch owns local progress
@@ -8,7 +8,7 @@ import { peekPendingManagedRootLaunch } from "./rootCatalogStore";
  */
 export function carryPendingRootLaunchRuntime(existing: Thread, incoming: Thread): Thread {
   if (
-    !peekPendingManagedRootLaunch(existing.id) ||
+    !peekPendingThreadLaunch(existing.id) ||
     incoming.status !== "inactive" ||
     incoming.archived ||
     incoming.sessionRef ||

@@ -5,7 +5,7 @@ import type {
   Thread,
   TerminalSize,
 } from "@/shared/contracts";
-import type { RemoteDesktopClient, StartRemoteNewThreadInput } from "@/shared/remote/client";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import type {
   RemoteAccessScope,
   RemoteAgentStatuses,
@@ -217,8 +217,6 @@ export interface RemoteSocketLike {
 /** Async factories may revalidate transport authority before opening a socket. */
 export type RemoteSocketFactory = (url: string) => RemoteSocketLike | Promise<RemoteSocketLike>;
 
-export type RemoteThreadLaunchResult = "started" | "cancelled" | "cancellation-failed";
-
 export interface RemoteServersState {
   servers: RemoteServerRecord[];
   runtime: Record<string, RemoteServerRuntime>;
@@ -241,11 +239,15 @@ export interface RemoteServersState {
   explicitProjectWorkspaceIds: Record<string, Readonly<Record<string, true>>>;
   /** Each connection's workspace names from its latest shell snapshot (session only). */
   hostWorkspaces: Record<string, readonly RemoteHostWorkspace[]>;
-  /** Local display-name overrides for mirrored projects, keyed by desktop and remote project id. */
+  /**
+   * Display-name aliases older clients kept for mirrored projects, keyed by
+   * desktop and remote project id. Renames now go to the host; an alias is
+   * read for compatibility and dropped when that project is renamed.
+   */
   projectNameOverrides: Record<string, Readonly<Record<string, string>>>;
   /** Last discovered host projects, retained so offline servers keep their sidebar rows. */
   lastKnownProjects: Record<string, Project[]>;
-  setProjectNameOverride(desktopId: string, remoteProjectId: string, name: string): void;
+  clearProjectNameOverride(desktopId: string, remoteProjectId: string): void;
   setRemoteProjectSynced(desktopId: string, remoteProjectId: string, synced: boolean): void;
   clientFactory: RemoteClientFactory;
   socketFactory: RemoteSocketFactory;
@@ -253,10 +255,6 @@ export interface RemoteServersState {
   setSocketFactory(factory: RemoteSocketFactory): void;
   openThread: OpenRemoteThread | null;
   loadAgentSlashCommands(desktopId: string, agentKind: string): Promise<void>;
-  launchRemoteThread(
-    input: StartRemoteNewThreadInput & { readonly desktopId: string },
-    options?: { readonly isPendingLaunchOwned?: () => boolean; readonly focus?: boolean },
-  ): Promise<RemoteThreadLaunchResult>;
   /**
    * Hydrate a remote thread's history and focus it. Never rejects. Resolves
    * `true` only when the snapshot was actually applied — `false` when the

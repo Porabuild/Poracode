@@ -674,7 +674,12 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     ...(managedLoopbackTestSeams.preflightTimeoutMs !== undefined
       ? { preflightTimeoutMs: managedLoopbackTestSeams.preflightTimeoutMs }
       : {}),
-    readItemInterests: () => eventInterests.snapshotRendererEventInterests().runtimeThreadIds,
+    // This socket carries only the managed host's own threads; each paired
+    // host's socket carries its own.
+    readItemInterests: () =>
+      eventInterests
+        .snapshotRendererEventInterests()
+        .runtimeThreadIds.filter(eventInterests.isManagedHostEventInterest),
     subscribeItemInterests: (listener) => eventInterests.subscribeRendererEventInterests(listener),
     onItemInterestsTruncated: (droppedCount) => {
       if (!isCurrentIntake()) return;

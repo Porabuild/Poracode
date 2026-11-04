@@ -1126,8 +1126,8 @@ msgstr "冻结的工作树源需要完整的提交哈希"
 #~ msgstr "屏幕锁定后将无法进行任何桌面操作，因此在计算机操作会话运行期间会保持显示器常亮。你仍然可以自行锁定屏幕。"
 
 #: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
-msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
-msgstr "无法确认一条消息删除。请刷新以重新同步此对话。"
+#~ msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+#~ msgstr "无法确认一条消息删除。请刷新以重新同步此对话。"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "A missed run was skipped."
@@ -3627,7 +3627,6 @@ msgid "Choose a photo"
 msgstr "选择照片"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "为文件夹已不存在的会话选择一个项目。"
 
@@ -4873,7 +4872,6 @@ msgid "Connecting"
 msgstr "连接中"
 
 #: src/renderer/bootstrap.ts
-#: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connecting to host…"
 msgstr "正在连接主机…"
@@ -4989,7 +4987,6 @@ msgstr "从{before}标记手动压缩上下文"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "手动压缩上下文：{before}→{after}标记"
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "上下文转移到{targetLabel}"
@@ -12708,7 +12705,6 @@ msgid "No microphone found."
 msgstr "找不到麦克风。"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "{agent} 没有可用的模型。请在设置中检查该代理。"
 
@@ -15626,7 +15622,6 @@ msgstr "引用"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -15804,15 +15799,14 @@ msgstr "远程名称"
 
 #: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Remote project not found."
-msgstr "未找到远程项目。"
+#~ msgid "Remote project not found."
+#~ msgstr "未找到远程项目。"
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Remote server"
 #~ msgstr "远程服务器"
 
 #: src/renderer/components/media/fileMediaSource.ts
-#: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "未找到远程服务器。"
@@ -17902,7 +17896,7 @@ msgstr "服务器 {target} 在本机运行，WSL 项目无法使用。"
 msgid "Server base URL"
 msgstr "服务器基础 URL"
 
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "服务器离线——此对话可能不是最新。"
 
@@ -18989,7 +18983,6 @@ msgstr "在没有上下文的情况下开始"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "启动工作流并监控其运行。"
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "开始{targetLabel}线程"
@@ -19889,11 +19882,9 @@ msgid "The desktop's own catalog read failed."
 msgstr "无法读取桌面自身的目录。"
 
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
-#: src/renderer/state/managedRootCatalog/rootHistory.ts
 msgid "The desktop's own server is not connected yet."
 msgstr "桌面自身的服务器尚未连接。"
 
-#: src/renderer/state/remote/historyNoticeActions.ts
 #: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
@@ -19909,11 +19900,11 @@ msgid "The desktop's own server is not connected. Your change was not saved."
 msgstr "桌面自身的服务器未连接。您的更改未保存。"
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "The desktop's own server reconnected before the history read completed."
-msgstr "桌面自身的服务器在历史记录读取完成前重新连接了。"
+#~ msgid "The desktop's own server reconnected before the history read completed."
+#~ msgstr "桌面自身的服务器在历史记录读取完成前重新连接了。"
 
+#: src/renderer/state/hostCatalogOrder.ts
 #: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
-#: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "桌面自身的服务器拒绝了该更改。"
 
@@ -20060,8 +20051,8 @@ msgstr "上一次启动可能已经开始。再次提问之前，请先使用上
 #~ msgstr "上一次启动可能已经开始。再次提问之前，请先使用聊天面板中的“重试”。"
 
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
-msgid "The launch was cancelled."
-msgstr "启动已取消。"
+#~ msgid "The launch was cancelled."
+#~ msgstr "启动已取消。"
 
 #: src/renderer/components/crew/crewTemplates.ts
 #~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
@@ -20386,6 +20377,10 @@ msgstr "聊天线程会话不可用于排队的后续消息。"
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "线程将在新分支上的独立工作树中运行。"
+
+#: src/renderer/state/hostThreadHistory.ts
+msgid "The thread's host is not connected."
+msgstr "该线程的主机未连接。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
@@ -20769,7 +20764,6 @@ msgid "This project has no supported source-host remote."
 msgstr "此项目没有受支持的源托管平台远程仓库。"
 
 #: src/renderer/actions/providerSwitchActions.ts
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -20867,8 +20861,8 @@ msgid "This server does not support the bounded catalog read."
 msgstr "此服务器不支持有界目录读取。"
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "This server does not support the bounded history read."
-msgstr "此服务器不支持有界历史记录读取。"
+#~ msgid "This server does not support the bounded history read."
+#~ msgstr "此服务器不支持有界历史记录读取。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -21721,8 +21715,8 @@ msgstr "无法启动 Tailscale。"
 #~ msgstr "无法启动终端"
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Unable to start the remote thread."
-msgstr "无法启动远程线程。"
+#~ msgid "Unable to start the remote thread."
+#~ msgstr "无法启动远程线程。"
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
@@ -22089,7 +22083,7 @@ msgstr "更新 {0}（{env}）"
 msgid "Update {0} to {updateLabel}"
 msgstr "将{0}更新为{updateLabel}"
 
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
+#: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "请更新 {host} 以导入其会话。"
 
@@ -22932,7 +22926,7 @@ msgstr "正在预热 WSL shell 环境..."
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

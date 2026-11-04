@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
-import { dbGetProject, dbGetProjects, dbGetThreads } from "@/host/db";
+import { dbFindProjectByLocation, dbGetProject, dbGetProjects, dbGetThreads } from "@/host/db";
+import { resolveWorktreePlacement } from "@/shared/worktree";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { toErrorMessage } from "@/shared/errorMessage";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
@@ -315,6 +316,12 @@ export async function performDesktopRemoteAccessStart(
         const settings = readSharedSettingsFile(options.paths.settingsPath);
         return resolveMcpLaunchSnapshot(settings, dbGetProject(projectId), overrides);
       },
+      resolveWorktreePlacement: (location) =>
+        resolveWorktreePlacement(
+          readSharedSettingsFile(options.paths.settingsPath),
+          dbFindProjectByLocation(location)?.worktreeLocation,
+          location,
+        ),
       ...(options.browser
         ? { browser: options.browser }
         : options.getBrowserPanelManager

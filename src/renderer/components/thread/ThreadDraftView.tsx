@@ -24,7 +24,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
-import { dispatchManagedRootProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
+import { dispatchProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import {
   capabilitiesForPresentation,
   filterHiddenModels,
@@ -447,7 +447,7 @@ export function ThreadDraftView(props: {
       const rememberedConfig: ProjectDraftConfig =
         nextDraftConfig.mode === "plan" ? { ...nextDraftConfig, mode: "agent" } : nextDraftConfig;
       updateProjectDraftConfigStore(projectId, rememberedConfig);
-      dispatchManagedRootProjectDraftConfig(projectId, rememberedConfig);
+      dispatchProjectDraftConfig(projectId, rememberedConfig);
     },
   );
   const updateProjectDraftConfig = updateProjectDraftConfigRef.current;

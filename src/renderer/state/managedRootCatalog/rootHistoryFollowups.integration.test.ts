@@ -9,7 +9,7 @@ import { cacheRecentHistory, readRecentHistory } from "@/renderer/browser/recent
 import { getManagedParentAuthorityState } from "../remoteServers/managedLoopbackOwner";
 import { hydrateThreadRuntimeItems, hasHydratedThreadRuntimeItems } from "../chatRuntimePersister";
 import { useAppStore } from "../appStore";
-import { readManagedRootHistoryPage } from "./rootHistory";
+import { readHostThreadHistory } from "../hostThreadHistory";
 import { beginHistorySnapshotRead, readHistoryResume } from "../historyResumeRegistry";
 import { installHistoryResume } from "../historyResumeInstall";
 import { dbDeleteThread } from "@/host/db/projectsThreads";
@@ -37,6 +37,13 @@ import {
 } from "./managedRootFixture";
 
 beforeEach(setupManagedRootFixture);
+
+/** The managed host's bounded tail for one thread, read through the shared host history read. */
+async function readBoundedPage(threadId: string) {
+  const read = await readHostThreadHistory({ id: threadId });
+  if (read.kind !== "installed" || !read.boundedPage) throw new Error(`history read: ${read.kind}`);
+  return read.boundedPage;
+}
 afterEach(teardownManagedRootFixture);
 
 it("fills the first window without decoding completed command bodies and retrieves their stored details", async () => {
@@ -61,7 +68,7 @@ it("fills the first window without decoding completed command bodies and retriev
   ]);
   await activate();
   const client = readManagedLoopbackActivation()!.client;
-  const page = await readManagedRootHistoryPage(id);
+  const page = await readBoundedPage(id);
   expect(page.historyProjection).toBe("details-v1");
   expect(page.runtimeItems.length).toBeGreaterThanOrEqual(20);
   expect(page.runtimeItems.at(-1)).toMatchObject({

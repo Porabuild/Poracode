@@ -53,7 +53,7 @@ export const REMOTE_PROCEDURE_ROUTES = {
  */
 export const NON_ROUTER_PROJECT_PROCEDURES = {
   importSessionTranscript:
-    "local-shell: replays into a thread this desktop just saved; remote clients use the import-session thread command",
+    "local-shell: legacy desktop replay; every client imports through the host's import-session thread command",
 
   // Native dialogs, clipboard, and local files
   pickFolder: "local-shell: native folder dialog on this machine",

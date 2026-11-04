@@ -31,9 +31,11 @@ export function targetGuaranteesReadThreadTool(
 export interface ProviderHandoffStrategyInput {
   sourcePresentationMode: ThreadPresentationMode;
   targetPresentationMode: ThreadPresentationMode;
-  /** True for a mirrored thread, whose transcript lives on its host. */
-  isMirroredThread: boolean;
-  /** Current settings leave the built-in `read_thread` tool callable. */
+  /**
+   * The settings that decide the next launch's MCP snapshot leave the built-in
+   * `read_thread` tool callable. Those belong to the host that launches the
+   * session; a caller that can only read another host's settings passes false.
+   */
   readThreadToolEnabled: boolean;
   /** The thread's last session actually resolved `read_thread` at launch. */
   threadResolvedReadThreadTool: boolean;
@@ -55,19 +57,17 @@ export interface ProviderHandoffStrategyInput {
  *   PTY has no persisted rows to read and cannot call the tool, so the
  *   context has to travel with the prompt.
  *
- * The transcript route additionally needs the thread to be local (a mirrored
- * thread's transcript lives on its host) and `read_thread` to be reachable —
- * per current settings, which decide the next launch's MCP snapshot, and per
- * the thread's last session, which is the only evidence that the built-in
- * server actually resolves for it. When either says no, the handoff falls back
- * to a context file rather than starting the new provider blind.
+ * The transcript route additionally needs `read_thread` to be reachable — per
+ * the launching host's settings, which decide the next launch's MCP snapshot,
+ * and per the thread's last session, which is the only evidence that the
+ * built-in server actually resolves for it. When either says no, the handoff
+ * falls back to a context file rather than starting the new provider blind.
  */
 export function resolveProviderHandoffStrategy(
   input: ProviderHandoffStrategyInput,
 ): ProviderHandoffContextStrategy {
   const chatToChat = continuesInPlace(input.sourcePresentationMode, input.targetPresentationMode);
   return chatToChat &&
-    !input.isMirroredThread &&
     input.readThreadToolEnabled &&
     input.threadResolvedReadThreadTool &&
     input.targetReadThreadToolGuaranteed

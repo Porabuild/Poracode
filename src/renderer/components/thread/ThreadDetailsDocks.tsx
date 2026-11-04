@@ -1,18 +1,13 @@
 import { useState } from "react";
 import { FolderGit2 } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { baseAgentKind } from "@/shared/contracts";
 import { getProjectFsPath } from "@/shared/wsl";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useProject, useThread } from "@/renderer/state/useThread";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { useProviderUsage } from "@/renderer/state/providerUsageStore";
-import { HostUsageStatus, useHostUsageView } from "@/renderer/components/providers/HostUsageView";
-import {
-  resolveDisplayedProviders,
-  usageProviderIdForAgent,
-} from "@/renderer/components/providers/usageProviders";
+import { HostUsageStatus } from "@/renderer/components/providers/HostUsageView";
+import { useHostProviderUsage } from "@/renderer/components/providers/useHostProviderUsage";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
 import { UsageCostLine } from "@/renderer/components/providers/UsageCostLine";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
@@ -102,29 +97,18 @@ export function useThreadAgentUsage(threadId: string) {
   const thread = useThread(threadId);
   const project = useProject(thread?.projectId);
   const remoteServerId = thread?.remoteServerId ?? project?.remoteServerId;
-  const agentInstances = useSharedSettings((state) => state.agentInstances);
-  const providerId = thread
-    ? usageProviderIdForAgent(
-        thread.agentKind,
-        thread.agentInstanceId,
-        remoteServerId ? undefined : agentInstances,
-      )
-    : "";
-  const localSnapshot = useProviderUsage(providerId);
-  const host = useHostUsageView(remoteServerId ?? "");
-  const snapshot = remoteServerId
-    ? host.canRead
-      ? host.usage.snapshots.find((entry) => entry.providerId === providerId)
-      : undefined
-    : localSnapshot;
+  const {
+    snapshot,
+    label,
+    view: host,
+  } = useHostProviderUsage(
+    remoteServerId,
+    thread ? { kind: thread.agentKind, instanceId: thread.agentInstanceId } : undefined,
+  );
   const reported = snapshot?.status === "ok" ? snapshot : undefined;
   const showEstimatedCost = useSharedSettings((state) => state.usage.showEstimatedCost);
   const showCost = Boolean(reported?.cost && (!reported.cost.estimated || showEstimatedCost));
   if (!thread || (!reported?.windows.length && !showCost && !reported?.tokens)) return null;
-  const label =
-    resolveDisplayedProviders([], [], remoteServerId ? undefined : agentInstances).find(
-      (provider) => provider.id === providerId,
-    )?.label ?? baseAgentKind(providerId);
   return { remoteServerId, reported, showCost, label, host };
 }
 

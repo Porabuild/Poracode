@@ -1126,8 +1126,8 @@ msgstr "Zamrożone źródło drzewa roboczego wymaga pełnego skrótu commita"
 #~ msgstr "Zablokowany ekran zatrzymuje całą kontrolę nad pulpitem, dlatego podczas sesji obsługi komputera ekran pozostaje włączony. Nadal możesz zablokować ekran samodzielnie."
 
 #: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
-msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
-msgstr "Nie udało się potwierdzić usunięcia wiadomości. Odśwież, aby ponownie zsynchronizować rozmowę."
+#~ msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+#~ msgstr "Nie udało się potwierdzić usunięcia wiadomości. Odśwież, aby ponownie zsynchronizować rozmowę."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "A missed run was skipped."
@@ -3627,7 +3627,6 @@ msgid "Choose a photo"
 msgstr "Wybierz zdjęcie"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Wybierz projekt dla sesji, których folder już nie istnieje."
 
@@ -4873,7 +4872,6 @@ msgid "Connecting"
 msgstr "Łączenie"
 
 #: src/renderer/bootstrap.ts
-#: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connecting to host…"
 msgstr "Łączenie z hostem…"
@@ -4989,7 +4987,6 @@ msgstr "Kontekst ręcznie skompaktowany z {before} tokenów"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Kontekst ręcznie skompaktowany: {before} → {after} tokenów"
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "Kontekst przeniesiony do {targetLabel}"
@@ -12709,7 +12706,6 @@ msgid "No microphone found."
 msgstr "Nie znaleziono mikrofonu."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "Brak dostępnego modelu dla {agent}. Sprawdź agenta w Ustawieniach."
 
@@ -15627,7 +15623,6 @@ msgstr "Referencja"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -15805,15 +15800,14 @@ msgstr "Zdalna nazwa"
 
 #: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Remote project not found."
-msgstr "Nie znaleziono projektu zdalnego."
+#~ msgid "Remote project not found."
+#~ msgstr "Nie znaleziono projektu zdalnego."
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Remote server"
 #~ msgstr "Serwer zdalny"
 
 #: src/renderer/components/media/fileMediaSource.ts
-#: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "Nie znaleziono serwera zdalnego."
@@ -17903,7 +17897,7 @@ msgstr "Serwer {target} działa na tym komputerze i jest niedostępny dla projek
 msgid "Server base URL"
 msgstr "Bazowy adres URL serwera"
 
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Serwer offline — ta rozmowa może być nieaktualna."
 
@@ -18990,7 +18984,6 @@ msgstr "Zacznij bez kontekstu"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "Uruchamiaj przepływy pracy i monitoruj ich wykonania."
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "Rozpoczęto wątek {targetLabel}"
@@ -19890,11 +19883,9 @@ msgid "The desktop's own catalog read failed."
 msgstr "Nie udało się odczytać własnego katalogu komputera."
 
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
-#: src/renderer/state/managedRootCatalog/rootHistory.ts
 msgid "The desktop's own server is not connected yet."
 msgstr "Własny serwer komputera nie jest jeszcze połączony."
 
-#: src/renderer/state/remote/historyNoticeActions.ts
 #: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
@@ -19910,11 +19901,11 @@ msgid "The desktop's own server is not connected. Your change was not saved."
 msgstr "Własny serwer komputera nie jest połączony. Zmiana nie została zapisana."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "The desktop's own server reconnected before the history read completed."
-msgstr "Własny serwer komputera połączył się ponownie przed zakończeniem odczytu historii."
+#~ msgid "The desktop's own server reconnected before the history read completed."
+#~ msgstr "Własny serwer komputera połączył się ponownie przed zakończeniem odczytu historii."
 
+#: src/renderer/state/hostCatalogOrder.ts
 #: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
-#: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "Własny serwer komputera odrzucił zmianę."
 
@@ -20061,8 +20052,8 @@ msgstr "Ostatnie uruchomienie mogło już się rozpocząć. Zanim zapytasz ponow
 #~ msgstr "Ostatnie uruchomienie mogło już się rozpocząć. Zanim zapytasz ponownie, użyj Ponów w panelu czatu."
 
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
-msgid "The launch was cancelled."
-msgstr "Uruchomienie zostało anulowane."
+#~ msgid "The launch was cancelled."
+#~ msgstr "Uruchomienie zostało anulowane."
 
 #: src/renderer/components/crew/crewTemplates.ts
 #~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
@@ -20387,6 +20378,10 @@ msgstr "Sesja wątku jest niedostępna dla wiadomości uzupełniających w kolej
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Wątek będzie działać w osobnym drzewie roboczym na nowej gałęzi."
+
+#: src/renderer/state/hostThreadHistory.ts
+msgid "The thread's host is not connected."
+msgstr "Host wątku nie jest połączony."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
@@ -20770,7 +20765,6 @@ msgid "This project has no supported source-host remote."
 msgstr "Ten projekt nie ma obsługiwanego zdalnego repozytorium źródłowego."
 
 #: src/renderer/actions/providerSwitchActions.ts
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -20868,8 +20862,8 @@ msgid "This server does not support the bounded catalog read."
 msgstr "Ten serwer nie obsługuje ograniczonego odczytu katalogu."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "This server does not support the bounded history read."
-msgstr "Ten serwer nie obsługuje ograniczonego odczytu historii."
+#~ msgid "This server does not support the bounded history read."
+#~ msgstr "Ten serwer nie obsługuje ograniczonego odczytu historii."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -21722,8 +21716,8 @@ msgstr "Nie można uruchomić Tailscale."
 #~ msgstr "Nie można uruchomić terminala"
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Unable to start the remote thread."
-msgstr "Nie można uruchomić wątku zdalnego."
+#~ msgid "Unable to start the remote thread."
+#~ msgstr "Nie można uruchomić wątku zdalnego."
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
@@ -22090,7 +22084,7 @@ msgstr "Zaktualizuj {0} ({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "Zaktualizuj {0} do {updateLabel}"
 
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
+#: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "Zaktualizuj {host}, aby zaimportować jego sesje."
 
@@ -22933,7 +22927,7 @@ msgstr "Rozgrzewanie środowiska powłoki WSL…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

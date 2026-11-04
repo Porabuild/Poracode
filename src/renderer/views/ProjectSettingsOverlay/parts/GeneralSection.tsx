@@ -3,13 +3,14 @@ import { FolderOpen } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useProject } from "@/renderer/state/useThread";
 import {
+  pickProjectFolder,
   relocateProject,
-  relocateRemoteProject,
   renameProject,
 } from "@/renderer/actions/projectActions";
 import { Button, Input, PathDisplay } from "@/renderer/components/common";
 import { RemoteHostFolderPicker } from "@/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker";
 import { ProjectIconPicker } from "./ProjectIconPicker";
+import { projectHostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 
 export function GeneralSection(props: { projectId: string }) {
   const { t } = useLingui();
@@ -84,11 +85,15 @@ export function GeneralSection(props: { projectId: string }) {
               variant="tertiary"
               className="w-[240px] shrink-0 justify-start gap-2 font-normal"
               onPress={() => {
-                if (project.remoteServerId) {
+                // Another machine's folders are browsed on that host; this
+                // machine's host uses the native folder dialog.
+                if (!projectHostRunsOnThisMachine(project)) {
                   setRemoteFolderPickerOpen(true);
                   return;
                 }
-                void relocateProject(project.id);
+                void pickProjectFolder(project).then((path) => {
+                  if (path) void relocateProject(project.id, path);
+                });
               }}
             >
               <FolderOpen className="size-4 shrink-0 text-muted" />
@@ -103,7 +108,7 @@ export function GeneralSection(props: { projectId: string }) {
           title={t`Choose a folder`}
           initialPath={projectPath}
           onClose={() => setRemoteFolderPickerOpen(false)}
-          onSelect={(path) => void relocateRemoteProject(project.id, path)}
+          onSelect={(path) => void relocateProject(project.id, path)}
         />
       ) : null}
     </div>

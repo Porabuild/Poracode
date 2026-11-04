@@ -33,10 +33,11 @@ vi.mock("@/renderer/bridge", () => ({
   }),
 }));
 vi.mock("@/renderer/state/remoteServersStore", () => ({
-  useRemoteServersStore: { getState: () => ({ launchRemoteThread: mocks.launch }) },
+  useRemoteServersStore: { getState: () => ({}) },
 }));
+// Side chats launch through the same action as every thread, on any host.
 vi.mock("@/renderer/actions/threadLaunchActions", () => ({
-  performInitialThreadLaunch: vi.fn<() => void>(),
+  performInitialThreadLaunch: mocks.launch,
   markThreadLaunchFailed: vi.fn<() => void>(),
 }));
 vi.mock("@/renderer/actions/threadActions", () => ({
@@ -119,7 +120,7 @@ it("keeps an explicitly selected Plan mode on the same side-chat draft", () => {
   hook.unmount();
 });
 
-it("keeps a hidden panel's pending remote launch owned and prevents remount from duplicating it", async () => {
+it("keeps a hidden panel's pending launch in flight and prevents remount from duplicating it", async () => {
   let finish!: () => void;
   mocks.launch.mockImplementation(
     () =>
@@ -134,10 +135,12 @@ it("keeps a hidden panel's pending remote launch owned and prevents remount from
     await Promise.resolve();
   });
   expect(mocks.launch).toHaveBeenCalledTimes(1);
-  const options = mocks.launch.mock.calls[0]?.[1] as { isPendingLaunchOwned: () => boolean };
+  // The launch carries the paired host's thread identity.
+  expect(mocks.launch).toHaveBeenCalledWith(
+    expect.objectContaining({ thread: expect.objectContaining({ id: "child" }) }),
+  );
   setAuxiliaryThreadIds(["child"]);
   first.unmount();
-  expect(options.isPendingLaunchOwned()).toBe(true);
   const restored = renderHook(
     () => useSideChatSession({ ...entry, existingThreadId: "child", prompt: "question" }, "panel"),
     { wrapper },
@@ -149,7 +152,6 @@ it("keeps a hidden panel's pending remote launch owned and prevents remount from
   expect(mocks.launch).toHaveBeenCalledTimes(1);
   expect(mocks.create).toHaveBeenCalledTimes(1);
   setAuxiliaryThreadIds([]);
-  expect(options.isPendingLaunchOwned()).toBe(false);
   await act(async () => {
     finish();
     await pending;

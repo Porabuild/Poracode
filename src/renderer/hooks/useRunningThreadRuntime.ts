@@ -15,8 +15,7 @@ function runningThreadIds(threads: readonly Thread[]): readonly string[] {
         (thread) =>
           thread.presentationMode === "gui" &&
           !thread.archived &&
-          isThreadTurnActive(thread.status) &&
-          thread.remoteServerId === undefined,
+          isThreadTurnActive(thread.status),
       )
       .map((thread) => thread.id);
     runningIdCache.set(threads, ids);
@@ -24,7 +23,8 @@ function runningThreadIds(threads: readonly Thread[]): readonly string[] {
   return ids;
 }
 
-/** Runtime ownership follows running threads, independently of mounted chat panes. */
+/** Runtime ownership follows running threads on every host, independently of
+ * mounted chat panes. */
 export function useRunningThreadRuntime(enabled: boolean): void {
   const runningIds = useAppStore(
     useShallow((state) =>

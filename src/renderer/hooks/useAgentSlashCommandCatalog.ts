@@ -1,6 +1,16 @@
 import { useEffect } from "react";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
+/**
+ * Lazily loads one agent's slash-command catalog for a paired host.
+ *
+ * Kept paired-only on purpose; this is a payload difference, not routing. A
+ * paired host's agent-statuses HTTP payload omits the (large) per-agent command
+ * catalogs, so the composer fetches them on demand into that connection's
+ * runtime state. The managed host's statuses are read in full through the local
+ * agent-statuses store and already carry `slashCommands`, so there is nothing to
+ * load: the hook is a no-op without a paired `remoteServerId`.
+ */
 export function useAgentSlashCommandCatalog(
   remoteServerId: string | undefined,
   agentKind: string | undefined,

@@ -52,42 +52,29 @@ describe("createWorktree", () => {
     bridge.gitAddWorktree.mockResolvedValue({ path: "C:\\shared-worktrees\\feature" });
   });
 
-  it("applies the shared creation payload for local projects", async () => {
-    await createWorktree(project, {
-      branch: "feature",
-      startPoint: "main",
-      createBranch: true,
-      transferUncommitted: true,
-      keepChangesInSource: false,
-    });
-
-    expect(bridge.gitAddWorktree).toHaveBeenCalledWith({
-      projectLocation: project.location,
-      branch: "feature",
-      startPoint: "main",
-      createBranch: true,
-      worktreeRoot: "C:\\shared-worktrees",
-      transferUncommitted: true,
-      keepChangesInSource: false,
-    });
-  });
-
-  it("does not send local placement settings to remote projects", async () => {
+  it.each([
+    ["the desktop's own", {}],
+    ["a paired", { remoteServerId: "desktop-1", remoteId: "project-1" }],
+  ])("lets %s project's host place the worktree", async (_label, owner) => {
     await createWorktree(
-      { ...project, remoteServerId: "desktop-1", remoteId: "project-1" },
+      { ...project, ...owner },
       {
         branch: "feature",
+        startPoint: "main",
         createBranch: true,
-        transferUncommitted: false,
+        transferUncommitted: true,
         keepChangesInSource: false,
       },
     );
 
+    // No client-side placement: the host applies its own settings and the
+    // project's override.
     expect(bridge.gitAddWorktree).toHaveBeenCalledWith({
       projectLocation: project.location,
       branch: "feature",
+      startPoint: "main",
       createBranch: true,
-      transferUncommitted: false,
+      transferUncommitted: true,
       keepChangesInSource: false,
     });
   });

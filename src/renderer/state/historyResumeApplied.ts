@@ -5,38 +5,23 @@ import {
   type RuntimeEventQueueBatch,
 } from "./runtimeEventQueue";
 import { noteHistoryRuntimeApplied, historyTranscriptPrefix } from "./historyResumeRegistry";
-import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
-import {
-  currentRemoteServerGeneration,
-  getRemoteServerThreadItemInterests,
-} from "./remoteServers/eventSocketRegistry";
 import type { Thread, RuntimeEvent } from "@/shared/contracts";
 import { isBulkRuntimeContentEvent } from "@/shared/liveEventInterests";
 import { isRendererRuntimeInterestWireCovered } from "./rendererEventInterests";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
+import { entityHost } from "./entityHost";
 import { getThreadMap } from "./useThread";
 
-export function remoteHistoryResumeAuthority(serverId: string): string {
-  return `remote:${serverId}:${currentRemoteServerGeneration(serverId)}`;
-}
-export function hasHistoryTranscriptCoverage(
-  threadId: string,
-  threads: readonly Thread[],
-): boolean {
-  const owner = getThreadMap(threads).get(threadId);
-  return owner?.remoteServerId
-    ? !!owner.remoteId &&
-        getRemoteServerThreadItemInterests(owner.remoteServerId)?.includes(owner.remoteId) === true
-    : isRendererRuntimeInterestWireCovered(threadId);
+/** The resume authority of the connection that delivers this thread's events. */
+function historyResumeAuthority(threadId: string, threads: readonly Thread[]): string | undefined {
+  return entityHost(getThreadMap(threads).get(threadId) ?? { id: threadId })
+    ?.historyResumeAuthority;
 }
 export function appliedHistoryTranscriptSequence(
   threadId: string,
   threads: readonly Thread[],
 ): number | undefined {
-  const owner = getThreadMap(threads).get(threadId);
-  const authority = owner?.remoteServerId
-    ? remoteHistoryResumeAuthority(owner.remoteServerId)
-    : readManagedLoopbackActivation()?.authority;
+  const authority = historyResumeAuthority(threadId, threads);
   return authority ? historyTranscriptPrefix(threadId, authority) : undefined;
 }
 function noteAppliedSequence(
@@ -46,13 +31,10 @@ function noteAppliedSequence(
   events: readonly RuntimeEvent[],
   transcriptComplete = true,
 ): void {
-  const owner = getThreadMap(threads).get(threadId);
-  const authority = owner?.remoteServerId
-    ? remoteHistoryResumeAuthority(owner.remoteServerId)
-    : readManagedLoopbackActivation()?.authority;
+  const authority = historyResumeAuthority(threadId, threads);
   if (authority)
     noteHistoryRuntimeApplied(threadId, authority, sequence, {
-      completeTranscript: transcriptComplete && hasHistoryTranscriptCoverage(threadId, threads),
+      completeTranscript: transcriptComplete && isRendererRuntimeInterestWireCovered(threadId),
       containsBulk: events.some(isBulkRuntimeContentEvent),
     });
 }

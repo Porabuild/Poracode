@@ -149,9 +149,10 @@ function generateExperimentTitleAsync(
 export async function launchExperiment(input: LaunchExperimentInput): Promise<string | null> {
   const project = useAppStore.getState().projects.find((item) => item.id === input.projectId);
   if (!project) return null;
-  // Experiments create git worktrees through the local bridge. A mirrored
-  // project's location only resolves on its host, so refusing up front keeps
-  // the failure honest instead of letting every candidate fail individually.
+  // Not a duplicated flow: the experiment store has one client authority, bound
+  // to the managed host's loopback session (`requireManagedExperimentAuthority`
+  // below), and no per-host projection of a paired host's experiments exists
+  // yet. Refuse up front instead of letting every candidate fail individually.
   if (project.remoteServerId) {
     toast.danger(
       i18n._(

@@ -8,24 +8,23 @@ const mocks = vi.hoisted(() => ({
     reconcileRuntimeSnapshots:
       vi.fn<(snapshots: unknown[], requested?: ReadonlySet<string>) => void>(),
   },
-  remoteState: {
-    openRemoteThread:
-      vi.fn<(desktopId: string, threadId: string, options?: unknown) => Promise<boolean>>(),
-  },
+  reconcileHostThreadLaunch:
+    vi.fn<(host: unknown, threadId: string) => Promise<"present" | "absent" | "unknown">>(),
   bridge: {
     getThreadSnapshots: vi.fn<() => Promise<unknown[]>>(),
   },
-  generation: 0,
 }));
 
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: { getState: () => mocks.appState },
 }));
-vi.mock("@/renderer/state/remoteServersStore", () => ({
-  useRemoteServersStore: { getState: () => mocks.remoteState },
+// A projected row has a host handle; a row no host owns does not.
+vi.mock("@/renderer/state/entityHost", () => ({
+  entityHost: (row: { remoteServerId?: string } | undefined) =>
+    row?.remoteServerId ? { kind: "paired", hostId: "remote-thread" } : undefined,
 }));
-vi.mock("@/renderer/state/remoteServers/eventSocketRegistry", () => ({
-  currentRemoteServerGeneration: () => mocks.generation,
+vi.mock("@/renderer/state/hostThreadLaunch", () => ({
+  reconcileHostThreadLaunch: mocks.reconcileHostThreadLaunch,
 }));
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => mocks.bridge,
@@ -36,7 +35,6 @@ vi.mock("@/renderer/i18n/i18n", () => ({
 
 import {
   isRemoteCommandOutcomeUncertainError,
-  reconcileRemoteThreadCommandOutcome,
   reconcileThreadCommandOutcome,
   REMOTE_COMMAND_RECONCILE_READ_TIMEOUT_MS,
 } from "./threadCommandOutcomeActions";
@@ -141,86 +139,47 @@ describe("reconcileThreadCommandOutcome", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.appState.threads = [{ id: "thread-1" }];
-    mocks.generation = 0;
-    mocks.remoteState.openRemoteThread.mockResolvedValue(true);
+    mocks.reconcileHostThreadLaunch.mockResolvedValue("present");
     mocks.bridge.getThreadSnapshots.mockResolvedValue([]);
   });
 
-  it("re-reads a remote thread through exactly one quiet history snapshot", async () => {
+  it("reads a host-owned thread back once from its host", async () => {
     const thread = createThread({ remoteServerId: "desktop-1", remoteId: "remote-thread" });
 
     await expect(reconcileThreadCommandOutcome(thread)).resolves.toBe(true);
 
-    expect(mocks.remoteState.openRemoteThread).toHaveBeenCalledExactlyOnceWith(
-      "desktop-1",
-      "remote-thread",
-      expect.objectContaining({ focus: false, quiet: true }),
+    expect(mocks.reconcileHostThreadLaunch).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ hostId: "remote-thread" }),
+      thread.id,
     );
     expect(mocks.bridge.getThreadSnapshots).not.toHaveBeenCalled();
   });
 
-  it("bounds the remote read with a real abort deadline", async () => {
+  it("bounds the host read with a deadline", async () => {
     vi.useFakeTimers();
     try {
       const thread = createThread({ remoteServerId: "desktop-1", remoteId: "remote-thread" });
-      mocks.remoteState.openRemoteThread.mockImplementation(
-        (_desktopId, _remoteId, options) =>
-          new Promise<boolean>((_resolve, reject) => {
-            (options as { signal?: AbortSignal }).signal?.addEventListener(
-              "abort",
-              () => reject(new Error("aborted")),
-              { once: true },
-            );
-          }),
-      );
+      mocks.reconcileHostThreadLaunch.mockReturnValue(new Promise(() => {}));
 
       const pending = reconcileThreadCommandOutcome(thread);
       await vi.advanceTimersByTimeAsync(REMOTE_COMMAND_RECONCILE_READ_TIMEOUT_MS);
 
       await expect(pending).resolves.toBe(false);
-      expect(mocks.remoteState.openRemoteThread).toHaveBeenCalledTimes(1);
-      const options = mocks.remoteState.openRemoteThread.mock.calls[0]![2] as {
-        signal?: AbortSignal;
-      };
-      expect(options.signal?.aborted).toBe(true);
+      expect(mocks.reconcileHostThreadLaunch).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("re-reads a client-chosen host thread id with no local row", async () => {
-    mocks.appState.threads = [];
-
-    await expect(reconcileRemoteThreadCommandOutcome("desktop-1", "new-thread")).resolves.toBe(
-      true,
-    );
-
-    expect(mocks.remoteState.openRemoteThread).toHaveBeenCalledExactlyOnceWith(
-      "desktop-1",
-      "new-thread",
-      expect.objectContaining({ focus: false, quiet: true }),
-    );
-  });
-
-  it("does not apply a remote read from a superseded server generation", async () => {
+  it("reports an absent or unreadable host row as not applied, without a second attempt", async () => {
     const thread = createThread({ remoteServerId: "desktop-1", remoteId: "remote-thread" });
-    mocks.remoteState.openRemoteThread.mockImplementation(async () => {
-      mocks.generation += 1;
-      return true;
-    });
-
+    for (const existence of ["absent", "unknown"] as const) {
+      mocks.reconcileHostThreadLaunch.mockResolvedValueOnce(existence);
+      await expect(reconcileThreadCommandOutcome(thread)).resolves.toBe(false);
+    }
+    mocks.reconcileHostThreadLaunch.mockRejectedValueOnce(new Error("offline"));
     await expect(reconcileThreadCommandOutcome(thread)).resolves.toBe(false);
-
-    expect(mocks.remoteState.openRemoteThread).toHaveBeenCalledTimes(1);
-  });
-
-  it("reports a failed remote read without throwing and without a second attempt", async () => {
-    const thread = createThread({ remoteServerId: "desktop-1", remoteId: "remote-thread" });
-    mocks.remoteState.openRemoteThread.mockRejectedValue(new Error("offline"));
-
-    await expect(reconcileThreadCommandOutcome(thread)).resolves.toBe(false);
-
-    expect(mocks.remoteState.openRemoteThread).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileHostThreadLaunch).toHaveBeenCalledTimes(3);
   });
 
   it("re-reads a local thread through the supervisor snapshots for that thread only", async () => {
@@ -236,7 +195,7 @@ describe("reconcileThreadCommandOutcome", () => {
       new Set(["thread-1"]),
       { preserveHostOwnedRootRows: false },
     );
-    expect(mocks.remoteState.openRemoteThread).not.toHaveBeenCalled();
+    expect(mocks.reconcileHostThreadLaunch).not.toHaveBeenCalled();
   });
 
   it("reports a failed local read without throwing", async () => {

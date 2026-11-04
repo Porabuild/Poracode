@@ -45,7 +45,9 @@ const { bridge } = vi.hoisted(() => ({
   },
 }));
 const { hydrateThreadRuntimeItems } = vi.hoisted(() => ({
-  hydrateThreadRuntimeItems: vi.fn<(threadId: string) => Promise<void>>().mockResolvedValue(),
+  hydrateThreadRuntimeItems: vi
+    .fn<(threadId: string) => Promise<boolean | void>>()
+    .mockResolvedValue(),
 }));
 const { deleteWorktreeGroup } = vi.hoisted(() => ({
   deleteWorktreeGroup:
@@ -58,8 +60,9 @@ const { deleteWorktreeGroup } = vi.hoisted(() => ({
       ) => void
     >(),
 }));
-const { refreshServer, sendThreadCommand, toast } = vi.hoisted(() => ({
+const { refreshServer, scheduleServerRefresh, sendThreadCommand, toast } = vi.hoisted(() => ({
   refreshServer: vi.fn<(desktopId: string) => Promise<void>>(),
+  scheduleServerRefresh: vi.fn<(desktopId: string) => void>(),
   sendThreadCommand: vi.fn<(desktopId: string, command: RemoteThreadCommand) => Promise<void>>(),
   toast: { danger: vi.fn<(message: string) => void>() },
 }));
@@ -93,9 +96,16 @@ describe("threadActions", () => {
     hydrateThreadRuntimeItems.mockResolvedValue(undefined);
     deleteWorktreeGroup.mockReset();
     refreshServer.mockReset().mockResolvedValue(undefined);
+    scheduleServerRefresh.mockReset();
     sendThreadCommand.mockReset().mockResolvedValue(undefined);
     toast.danger.mockReset();
-    useRemoteServersStore.setState({ refreshServer, sendThreadCommand, servers: [], runtime: {} });
+    useRemoteServersStore.setState({
+      refreshServer,
+      scheduleServerRefresh,
+      sendThreadCommand,
+      servers: [],
+      runtime: {},
+    });
     useAppStore.setState((state) => ({
       ...state,
       projects: [],
@@ -824,86 +834,43 @@ describe("threadActions", () => {
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
   });
 
-  it("reopens an inactive remote thread after history hydrates on open", async () => {
-    const previousOpenRemoteThread = useRemoteServersStore.getState().openRemoteThread;
-    const openRemoteThread = vi
-      .fn<(desktopId: string, threadId: string) => Promise<boolean>>()
-      .mockImplementation(async () => {
-        // Simulate history applying inactive status (same as openRemoteThread).
-        useAppStore.getState().updateThreadRuntime("thread-1", {
+  it.each([
+    { label: "the desktop's own", owner: {} },
+    { label: "a paired", owner: { remoteServerId: "desktop-1", remoteId: "rt-1" } },
+  ])(
+    "reopens an inactive thread on $label host only after its history loads",
+    async ({ owner }) => {
+      for (const loaded of [true, false]) {
+        const thread = makeThread({
+          id: `thread-${loaded}`,
+          presentationMode: "gui",
           status: "inactive",
-          attention: "none",
           canResumeWithConfig: true,
           sessionRef: {
             providerSessionId: "session-1",
             discoveredAt: "2026-03-22T00:00:00.000Z",
           },
+          ...owner,
         });
-        return true;
-      });
-    useRemoteServersStore.setState({ openRemoteThread });
-    try {
-      const thread = makeThread({
-        presentationMode: "gui",
-        status: "inactive",
-        remoteServerId: "desktop-1",
-        remoteId: "rt-1",
-        canResumeWithConfig: true,
-        sessionRef: {
-          providerSessionId: "session-1",
-          discoveredAt: "2026-03-22T00:00:00.000Z",
-        },
-      });
-      useAppStore.setState((state) => ({ ...state, threads: [thread] }));
+        useAppStore.setState((state) => ({
+          ...state,
+          threads: [thread],
+          pendingThreadLaunches: {},
+        }));
+        hydrateThreadRuntimeItems.mockResolvedValueOnce(loaded);
 
-      openThread(thread.id);
+        openThread(thread.id);
 
-      await waitFor(() => {
-        expect(openRemoteThread).toHaveBeenCalledWith("desktop-1", "rt-1", { focus: false });
-      });
-      await waitFor(() => {
-        expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
-      });
-      expect(useAppStore.getState().threads[0]?.status).toBe("idle");
-    } finally {
-      useRemoteServersStore.setState({ openRemoteThread: previousOpenRemoteThread });
-    }
-  });
-
-  it("does not reopen when the remote open was superseded or failed", async () => {
-    const previousOpenRemoteThread = useRemoteServersStore.getState().openRemoteThread;
-    // openRemoteThread resolves false when it never applied a snapshot.
-    const openRemoteThread = vi
-      .fn<(desktopId: string, threadId: string) => Promise<boolean>>()
-      .mockResolvedValue(false);
-    useRemoteServersStore.setState({ openRemoteThread });
-    try {
-      const thread = makeThread({
-        presentationMode: "gui",
-        status: "inactive",
-        remoteServerId: "desktop-1",
-        remoteId: "rt-1",
-        canResumeWithConfig: true,
-        sessionRef: {
-          providerSessionId: "session-1",
-          discoveredAt: "2026-03-22T00:00:00.000Z",
-        },
-      });
-      useAppStore.setState((state) => ({ ...state, threads: [thread] }));
-
-      openThread(thread.id);
-
-      await waitFor(() => {
-        expect(openRemoteThread).toHaveBeenCalledWith("desktop-1", "rt-1", { focus: false });
-      });
-      // Flush the .then gate (microtasks) before asserting nothing was queued.
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
-      expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
-    } finally {
-      useRemoteServersStore.setState({ openRemoteThread: previousOpenRemoteThread });
-    }
-  });
+        await waitFor(() => {
+          expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id);
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe(
+          loaded ? "" : undefined,
+        );
+      }
+    },
+  );
 
   it("closes a live CLI thread when marking done even before a session ref is known", async () => {
     const project = useAppStore.getState().addProject({
@@ -1059,7 +1026,7 @@ describe("threadActions", () => {
     expect(useAppStore.getState().threads[0]?.worktreeBranch).toBe("feature/x");
   });
 
-  it("unloads a remote thread through the central bridge before refreshing its host", async () => {
+  it("unloads a remote thread through the central bridge, then refreshes its host", async () => {
     const thread = makeThread({
       status: "working",
       remoteServerId: "remote-server",
@@ -1070,7 +1037,7 @@ describe("threadActions", () => {
     await unloadStoredThread(thread.id);
 
     expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: thread.id });
-    expect(refreshServer).toHaveBeenCalledWith("remote-server");
+    expect(scheduleServerRefresh).toHaveBeenCalledWith("remote-server");
     expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
   });
 

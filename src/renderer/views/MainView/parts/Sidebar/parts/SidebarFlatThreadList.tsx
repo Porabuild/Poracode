@@ -23,7 +23,6 @@ import { NewThreadButton } from "./NewThreadButton";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
 import {
   buildSidebarProjectRows,
-  canReorderInFlatList,
   FLAT_THREAD_LIST_ID,
   SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE,
   type SidebarRow,
@@ -126,7 +125,6 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     liveBackgroundThreadIds,
     openThreadIds: new Set(currentThreadIds),
     doneVisibleLimit,
-    canReorderThread: canReorderInFlatList,
     ...(experimentCandidateOrder.size > 0 ? { experimentCandidateOrder } : {}),
   });
   // The Done section is pinned below the scrolling rows: its header stays put
