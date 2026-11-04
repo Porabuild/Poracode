@@ -8,6 +8,8 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
+import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
+import { useGitStore } from "@/renderer/state/gitStore";
 import { SidebarFlatThreadList } from "./SidebarFlatThreadList";
 
 vi.mock("@/renderer/bridge", () => ({
@@ -25,6 +27,9 @@ vi.mock("@/renderer/dnd", () => ({
 const newThreadCalls = vi.hoisted(
   () => [] as Array<{ projectId: string; inline: boolean | undefined }>,
 );
+const newThreadOptions = vi.hoisted(() => ({
+  value: undefined as readonly { id: string; name: string; description?: string }[] | undefined,
+}));
 const layoutMock = vi.hoisted(() => ({ compact: false }));
 const quickComposeCalls = vi.hoisted(() => [] as string[]);
 
@@ -33,8 +38,13 @@ vi.mock("@/renderer/adaptiveLayout", () => ({
 }));
 
 vi.mock("./NewThreadButton", () => ({
-  NewThreadButton: (props: { projectId: string; inline?: boolean }) => {
+  NewThreadButton: (props: {
+    projectId: string;
+    inline?: boolean;
+    projectOptions?: readonly { id: string; name: string; description?: string }[];
+  }) => {
     newThreadCalls.push({ projectId: props.projectId, inline: props.inline });
+    newThreadOptions.value = props.projectOptions;
     return <button type="button">new-thread:{props.projectId}</button>;
   },
 }));
@@ -142,6 +152,8 @@ describe("SidebarFlatThreadList", () => {
     layoutMock.compact = false;
     quickComposeCalls.length = 0;
     useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: {} });
+    useGitStore.setState({ statuses: {} });
     useSharedSettings.setState({
       homeScopeEnabled: true,
       workspaces: [{ id: "w1", name: "Side Hustle" }],
@@ -153,6 +165,31 @@ describe("SidebarFlatThreadList", () => {
       threadListLimits: {},
     });
     newThreadCalls.length = 0;
+  });
+
+  it("offers one new-thread target per project and remembers its reachable environment", async () => {
+    const mac = { ...unreachableRemoteProject, name: localProject.name };
+    useAppStore.setState({ projects: [homeProject, localProject, mac], threads: [] });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "MacBook" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useProjectGroupStore.setState({ lastUsedAt: { [mac.id]: 1 } });
+    render(<SidebarFlatThreadList sortMode="updated" />);
+    expect(newThreadOptions.value).toEqual([
+      expect.objectContaining({ id: HOME_PROJECT_ID, name: HOME_PROJECT_NAME }),
+      expect.objectContaining({
+        id: mac.id,
+        name: localProject.name,
+        description: "Local, MacBook",
+      }),
+    ]);
+    await act(async () => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+      } as never);
+    });
+    expect(newThreadOptions.value?.map((p) => p.id)).toEqual([HOME_PROJECT_ID, localProject.id]);
   });
 
   it("uses the old PWA quick composer instead of the desktop new-thread row on mobile", () => {

@@ -10,6 +10,8 @@ import {
 } from "@/shared/contracts";
 import { getProjectFsPath, joinProjectPosixPath, toWslUncPath } from "@/shared/wsl";
 import type { WslBridgeClient } from "../wsl/bridge/client";
+import { ForgeRuntime } from "../forges/runtime";
+import { resolveGitRemoteInfo } from "./remoteIdentity";
 import { normalizeProjectRelativePath, resolveContainedProjectEntryPath } from "../projectPaths";
 import {
   execGit,
@@ -80,6 +82,7 @@ function countTextLines(buffer: Buffer): number {
 export class GitStatusService {
   private readonly untrackedStatsCache = new Map<string, UntrackedStatsCacheEntry>();
   private wslClient: WslBridgeClient | undefined;
+  private readonly remoteIdentityRuntime = new ForgeRuntime(() => this.wslClient);
 
   setWslClient(client: WslBridgeClient | undefined): void {
     this.wslClient = client;
@@ -148,7 +151,7 @@ export class GitStatusService {
       branch: parsed.branch,
       tracking: parsed.tracking,
       hasRemote,
-      remoteInfo,
+      remoteInfo: await resolveGitRemoteInfo(location, remoteInfo, this.remoteIdentityRuntime),
       ahead: parsed.ahead,
       behind: parsed.behind,
       staged: parsed.staged,
@@ -461,6 +464,7 @@ export class GitStatusService {
     const { totalInsertions, totalDeletions } = sumChangeTotals(parsed);
     return {
       ...base,
+      remoteInfo: await resolveGitRemoteInfo(location, base.remoteInfo, this.remoteIdentityRuntime),
       tracking: parsed.tracking,
       ahead: parsed.ahead,
       behind: parsed.behind,

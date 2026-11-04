@@ -55,4 +55,20 @@ describe("getProjectGroupIndex", () => {
     useProjectGroupStore.setState({ manualGroups: { m: "solo:m" }, lastUsedAt: {} });
     expect(members("a")).toEqual(["a"]);
   });
+
+  it("regroups a released alias status after the owning host refreshes its URL", () => {
+    useAppStore.setState({
+      projects: [project("a", "Pora.code"), project("m", "Pora.code", "mac")],
+    });
+    const cached = origin("git@github.com-SDSLeon:Porabuild/Poracode.git");
+    useGitStore.setState({
+      statuses: { a: origin("git@github.com:Porabuild/Poracode.git"), m: cached },
+    });
+    expect(members("a")).toEqual(["a"]);
+    useGitStore.getState().setStatus("m", {
+      ...cached,
+      remoteInfo: { ...cached.remoteInfo!, url: "ssh://git@github.com/Porabuild/Poracode.git" },
+    });
+    expect(members("a")).toEqual(["a", "m"]);
+  });
 });

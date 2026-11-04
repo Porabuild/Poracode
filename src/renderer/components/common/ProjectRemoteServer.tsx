@@ -162,15 +162,20 @@ export function ProjectSelectorIcon(props: {
   project: Project;
   remote: ProjectRemoteServerInfo;
   className?: string | undefined;
+  showEnvironment?: boolean;
 }) {
   const customIcon = useProjectIconNode(props.project, `${props.className ?? "size-4"} text-muted`);
   if (customIcon) {
+    if (props.showEnvironment === false) return customIcon;
     return (
       <ProjectIconWithRemoteStatus icon={customIcon} info={props.remote} dotClassName="size-1" />
     );
   }
   if (isHomeProject(props.project)) {
     return <House className={`${props.className ?? "size-4"} shrink-0 text-muted`} />;
+  }
+  if (props.showEnvironment === false) {
+    return <FolderOpen className={`${props.className ?? "size-4"} shrink-0 text-muted`} />;
   }
   if (props.remote.isRemote) {
     return (

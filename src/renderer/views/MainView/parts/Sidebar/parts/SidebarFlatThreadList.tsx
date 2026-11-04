@@ -1,5 +1,4 @@
 import type { Project } from "@/shared/contracts";
-import { isHomeProject } from "@/shared/homeScope";
 import { ProjectIcon } from "@/renderer/components/common/ProjectIcon";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import {
@@ -34,6 +33,10 @@ import { DONE_SECTION_MAX_HEIGHT_PERCENT, useDoneViewportReveal } from "./useDon
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { MobileQuickCompose } from "./MobileQuickCompose";
 import { useFlatListProjectFilterModel } from "./useFlatListProjectFilterModel";
+import { useProjectSwitchEntries } from "@/renderer/components/thread/projectSwitchGroups";
+import { pickGroupMember } from "@/renderer/state/projectGroups/useProjectGroups";
+import { useProjectEnvironmentMachineLookup } from "@/renderer/components/common/ProjectEnvironment";
+import { machineOptionLabel } from "@/renderer/components/common/MachineIcon";
 
 /** Scope key for the pinned Done section's own "See more" pager. */
 const FLAT_DONE_SCOPE = `${FLAT_THREAD_LIST_ID}:done`;
@@ -56,6 +59,8 @@ function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | 
  */
 export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const compactLayout = useCompactLayout();
+  const newThreadEntries = useProjectSwitchEntries();
+  const machineFor = useProjectEnvironmentMachineLookup();
   const {
     workspaceProjects,
     visibleProjects,
@@ -84,13 +89,6 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     maxFadePx: 10,
   });
 
-  // Offline machines remain browseable on mobile, but they are not valid
-  // composer targets until their connection comes back.
-  const newThreadProjects = [...actionableProjects].sort((a, b) => {
-    const rank = (project: Project) =>
-      isHomeProject(project) ? 0 : project.remoteServerId ? 2 : 1;
-    return rank(a) - rank(b);
-  });
   const threads =
     activeProjectFilter === null
       ? visibleThreads
@@ -147,13 +145,24 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         isActive={isDraftActive}
         isDraggingAnything={!!source}
         canOpenAsPanel={currentThreadCount > 0 && currentThreadCount < 3}
-        projectOptions={newThreadProjects.map((project) => {
+        projectOptions={newThreadEntries.map((entry) => {
+          const project = entry.members[0]!;
+          const target = pickGroupMember(entry.members, () => true)!;
           const remote = remoteServerFor(project);
+          const description =
+            entry.members.length > 1
+              ? entry.members
+                  .flatMap((member) => {
+                    const environment = machineFor(member);
+                    return environment ? [machineOptionLabel(environment.machine)] : [];
+                  })
+                  .join(", ")
+              : remote.serverName;
           return {
-            id: project.id,
+            id: target.id,
             name: project.name,
-            icon: <ProjectSelectorIcon project={project} remote={remote} />,
-            ...(remote.serverName ? { description: remote.serverName } : {}),
+            icon: <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />,
+            ...(description ? { description } : {}),
           };
         })}
         onPress={() => openNewThread(latestProjectId)}

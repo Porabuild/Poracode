@@ -53,7 +53,12 @@ export function ProjectSwitchMenu(props: {
   const triggerIcon = isHomeCurrent ? (
     <House className="size-3.5 shrink-0 text-muted" />
   ) : current ? (
-    <ProjectSelectorIcon project={current} remote={currentRemote} className="size-3.5" />
+    <ProjectSelectorIcon
+      project={current}
+      remote={currentRemote}
+      className="size-3.5"
+      showEnvironment={false}
+    />
   ) : null;
   const currentEntry = entries.find((entry) =>
     (entry.group?.members ?? entry.members).some((member) => member.id === currentProjectId),
@@ -106,7 +111,7 @@ export function ProjectSwitchMenu(props: {
             handleSelect(entry.id);
           }}
         >
-          <ProjectSelectorIcon project={project} remote={remote} />
+          <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />
           <span className="min-w-0 flex-1 truncate">{itemLabel}</span>
           <ProjectEnvironmentGlyphs members={entry.members} machineFor={machineFor} />
           {serverName ? (
@@ -127,7 +132,7 @@ export function ProjectSwitchMenu(props: {
       const serverName = soleServerName(entry);
       return (
         <Dropdown.Item key={entry.id} id={entry.id} textValue={itemLabel}>
-          <ProjectSelectorIcon project={project} remote={remote} />
+          <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />
           <Label>{itemLabel}</Label>
           {serverName ? <Description>{serverName}</Description> : null}
           <ProjectEnvironmentGlyphs

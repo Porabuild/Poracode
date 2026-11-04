@@ -174,6 +174,32 @@ describe("gitStore batch updates", () => {
     }
   });
 
+  it("refreshes a released v2 SSH alias URL without discarding the cached status", async () => {
+    resetGitStoreCache();
+    const cached = {
+      ...baseStatus,
+      remoteInfo: { ...baseStatus.remoteInfo!, url: "git@github.com-personal:owner/repo.git" },
+    };
+    localStorage.setItem(
+      "poracode-git-cache-v2",
+      JSON.stringify({ v: 2, ts: Date.now(), statuses: { p1: cached } }),
+    );
+    vi.resetModules();
+    const upgraded = await import("./gitStore");
+    try {
+      expect(upgraded.useGitStore.getState().statuses.p1).toEqual(cached);
+      const refreshed = {
+        ...cached,
+        remoteInfo: { ...cached.remoteInfo, url: "ssh://git@github.com/owner/repo.git" },
+      };
+      upgraded.useGitStore.getState().setProjectSnapshot("p1", { status: refreshed });
+      expect(upgraded.useGitStore.getState().statuses.p1).toEqual(refreshed);
+    } finally {
+      upgraded.resetGitStoreCache();
+      vi.resetModules();
+    }
+  });
+
   it("skips replacing project records when snapshot data is unchanged", () => {
     useGitStore.getState().setProjectSnapshot("p1", {
       status: baseStatus,

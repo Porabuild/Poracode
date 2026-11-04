@@ -29,6 +29,9 @@ export const FORGE_FETCH_SCRIPT = `
 })().catch(() => { process.stderr.write('Source host request failed'); process.exitCode = 1; });`;
 
 const ENV_KEYS = [
+  "GIT_SSH",
+  "GIT_SSH_COMMAND",
+  "GIT_SSH_VARIANT",
   "HOME",
   "APPDATA",
   "XDG_CONFIG_HOME",
