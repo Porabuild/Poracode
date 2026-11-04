@@ -606,7 +606,8 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     anchor: "plugins.marketplace",
     title: msg`Plugins`,
     description: msg`Install bundles of skills and MCP servers built for the Agent Plugins specification.`,
-    keywords: "plugins marketplace extensions apps mcp skills bundles install",
+    keywords:
+      "plugins marketplace extensions apps mcp skills bundles install computer use locked unlock dim brightness",
     desktopOnly: true,
   },
   {
@@ -648,23 +649,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Allow agents to read/write cookies and storage`,
     keywords: "cookies storage localstorage session tokens auth data access read write agent",
     desktopOnly: true,
-  },
-
-  // Computer Use
-  {
-    section: "computerUse",
-    anchor: "computerUse.lockedUse",
-    title: msg`Locked Computer Use`,
-    keywords:
-      "locked screen lock unlock mac macos computer use agent guard administrator login password",
-  },
-
-  {
-    section: "computerUse",
-    anchor: "computerUse.lockedUseDimDisplay",
-    title: msg`Dim displays during Locked Computer Use`,
-    description: msg`Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again.`,
-    keywords: "dim brightness display screen locked mac computer use restore",
   },
 
   // Usage

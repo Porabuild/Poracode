@@ -5,7 +5,7 @@ import type {
   LockedComputerUseActionResult,
   LockedComputerUseStatus,
 } from "@/shared/contracts/lockedComputerUse";
-import { ComputerUseSettings } from "./ComputerUseSettings";
+import { ComputerUsePluginSettings } from "./ComputerUsePluginSettings";
 
 const { bridgeMock, platformState, capabilityState, settingsState } = vi.hoisted(() => ({
   bridgeMock: {
@@ -56,7 +56,7 @@ function statusLine(): HTMLElement {
   return screen.getByTestId("locked-use-status");
 }
 
-describe("ComputerUseSettings", () => {
+describe("ComputerUsePluginSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     platformState.mac = true;
@@ -68,7 +68,7 @@ describe("ComputerUseSettings", () => {
 
   it("explains that the feature is macOS only on other platforms", () => {
     platformState.mac = false;
-    render(<ComputerUseSettings />);
+    render(<ComputerUsePluginSettings />);
     expect(screen.getByText("Locked Computer Use is available only on macOS.")).toBeTruthy();
     expect(screen.queryByRole("switch")).toBeNull();
     expect(bridgeMock.getLockedComputerUseStatus).not.toHaveBeenCalled();
@@ -76,7 +76,7 @@ describe("ComputerUseSettings", () => {
 
   it("is read-only for remote and attached clients", () => {
     capabilityState.localBackend = false;
-    render(<ComputerUseSettings />);
+    render(<ComputerUsePluginSettings />);
     expect(
       screen.getByText("Locked Computer Use is set up in Poracode on the Mac it runs on."),
     ).toBeTruthy();
@@ -85,7 +85,7 @@ describe("ComputerUseSettings", () => {
   });
 
   it("keeps dimming off and disabled until Locked Computer Use is enabled", () => {
-    render(<ComputerUseSettings />);
+    render(<ComputerUsePluginSettings />);
     const dim = screen.getByRole("switch", {
       name: "Dim displays during Locked Computer Use",
     }) as HTMLInputElement;
@@ -96,7 +96,7 @@ describe("ComputerUseSettings", () => {
   it("lets the user opt into dimming without an installer prompt", async () => {
     settingsState.computerUseLockedUse = true;
     bridgeMock.getLockedComputerUseStatus.mockResolvedValue(INSTALLED);
-    render(<ComputerUseSettings />);
+    render(<ComputerUsePluginSettings />);
     await waitFor(() => expect(statusLine().textContent).toBe("Installed"));
     fireEvent.click(
       screen.getByRole("switch", { name: "Dim displays during Locked Computer Use" }),
@@ -108,7 +108,7 @@ describe("ComputerUseSettings", () => {
   it("installs through the host, shows the pending prompt, then turns the setting on", async () => {
     const result = Promise.withResolvers<LockedComputerUseActionResult>();
     bridgeMock.installLockedComputerUse.mockReturnValue(result.promise);
-    render(<ComputerUseSettings />);
+    render(<ComputerUsePluginSettings />);
     await waitFor(() => expect(statusLine().textContent).toBe("Not installed"));
     fireEvent.click(lockedSwitch());
     await waitFor(() =>
@@ -138,7 +138,7 @@ describe("ComputerUseSettings", () => {
       error,
       status: NOT_INSTALLED,
     });
-    render(<ComputerUseSettings />);
+    render(<ComputerUsePluginSettings />);
     await waitFor(() => expect(lockedSwitch().disabled).toBe(false));
     fireEvent.click(lockedSwitch());
     expect((await screen.findByRole("alert")).textContent).toBe(message);
@@ -153,7 +153,7 @@ describe("ComputerUseSettings", () => {
       error: "cancelled",
       status: INSTALLED,
     });
-    render(<ComputerUseSettings />);
+    render(<ComputerUsePluginSettings />);
     await waitFor(() => expect(statusLine().textContent).toBe("Installed"));
     fireEvent.click(lockedSwitch());
     await waitFor(() => expect(bridgeMock.uninstallLockedComputerUse).toHaveBeenCalledOnce());
@@ -167,13 +167,13 @@ describe("ComputerUseSettings", () => {
     [{ ...NOT_INSTALLED, needsRepair: true }, "Needs repair"],
   ])("reports status %o", async (status, text) => {
     bridgeMock.getLockedComputerUseStatus.mockResolvedValue(status);
-    render(<ComputerUseSettings />);
+    render(<ComputerUsePluginSettings />);
     await waitFor(() => expect(statusLine().textContent).toBe(text));
   });
 
   it("keeps a development build switch off and disabled", async () => {
     bridgeMock.getLockedComputerUseStatus.mockResolvedValue({ ...NOT_INSTALLED, signed: false });
-    render(<ComputerUseSettings />);
+    render(<ComputerUsePluginSettings />);
     await waitFor(() => expect(statusLine().textContent).toBe("Unavailable in development builds"));
     expect(lockedSwitch().disabled).toBe(true);
   });

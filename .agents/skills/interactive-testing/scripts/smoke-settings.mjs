@@ -73,7 +73,6 @@ export async function runSettingsScenario({
       "mcpServers",
       "plugins",
       "browser",
-      "computerUse",
       "usage",
       "archived",
       "changelog",

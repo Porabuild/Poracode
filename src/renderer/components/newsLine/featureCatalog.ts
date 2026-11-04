@@ -264,8 +264,6 @@ export const NOT_PROMOTED: Readonly<Partial<Record<CoverageKey, string>>> = {
   "settings:changelog": "Changelog highlights cover release notes",
   "settings:about": "Not a feature",
   "settings:dev": "Development builds only",
-  "settings:computerUse":
-    "Unlocks the Mac with an administrator-approved plug-in; an opt-in to choose deliberately, not to promote",
   "sidebar:githubActions": "Niche and hidden by default",
   "mcp:app-controls": "Always on; agents use it without setup",
 };

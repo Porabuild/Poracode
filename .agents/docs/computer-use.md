@@ -332,7 +332,7 @@ unless Locked Computer Use (below) unlocks the Mac for the turn.
 
 ### Locked Computer Use (macOS)
 
-Opt-in (Settings → Computer Use). When the Mac is locked and an active Computer
+Opt-in (Settings → Plugins → Computer Use). When the Mac is locked and an active Computer
 Use turn needs the desktop, the host unlocks it under an opaque guard, runs,
 and relocks when the turn ends. Without it, the locked-screen contract above
 applies unchanged. A separate default-off “Dim displays during Locked Computer

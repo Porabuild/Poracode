@@ -23,7 +23,6 @@ export const SETTINGS_SECTIONS = [
   "plugins",
   "crews",
   "browser",
-  "computerUse",
   "usage",
   "import",
   "archived",

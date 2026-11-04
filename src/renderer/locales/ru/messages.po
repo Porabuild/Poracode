@@ -2060,7 +2060,7 @@ msgstr "Другой чат использует это же дерево. Во�
 msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
 msgstr "Другой клиент выполняет задачу в этом треде. Остановите её, прежде чем заменять тред или отправлять новые данные."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Another install or removal is already running."
 msgstr "Уже выполняется другая установка или удаление."
 
@@ -3573,9 +3573,9 @@ msgid "Checking Tailscale…"
 msgstr "Проверка Tailscale…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Checking…"
 msgstr "Проверка…"
@@ -4683,8 +4683,6 @@ msgstr "Управление компьютером"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Computer Use"
 msgstr "Управление компьютером"
@@ -6628,8 +6626,7 @@ msgstr "Параметры diff"
 msgid "Differs on {names}"
 msgstr "Отличается на {names}"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Dim displays during Locked Computer Use"
 msgstr "Уменьшать яркость при работе с заблокированным компьютером"
 
@@ -10008,10 +10005,11 @@ msgstr "Установка, обновление и вход пока недос
 msgid "Installation continues when you close this dialog."
 msgstr "Установка продолжится, даже если закрыть это диалоговое окно."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
 msgstr "Не удалось проверить установку, поэтому она отменена. Ничего не изменено."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -10020,7 +10018,6 @@ msgstr "Не удалось проверить установку, поэтом�
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
@@ -10035,7 +10032,7 @@ msgstr "Установлено: {0}."
 msgid "Installed-font selection is unavailable in this client."
 msgstr "Выбор установленных шрифтов недоступен в этом клиенте."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Installed, turned off"
 msgstr "Установлено, выключено"
 
@@ -10844,24 +10841,23 @@ msgstr "Символ расположения"
 msgid "Lock panel to the open thread"
 msgstr "Закрепить панель за открытым тредом"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Locked Computer Use"
 msgstr "Управление заблокированным компьютером"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Locked Computer Use couldn't be changed. Try again."
 msgstr "Не удалось изменить управление заблокированным компьютером. Попробуйте ещё раз."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Locked Computer Use is available only on macOS."
 msgstr "Управление заблокированным компьютером доступно только в macOS."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Locked Computer Use is set up in Poracode on the Mac it runs on."
 msgstr "Управление заблокированным компьютером настраивается в Poracode на том Mac, где он работает."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Locked Computer Use is unavailable in development builds."
 msgstr "Управление заблокированным компьютером недоступно в сборках для разработки."
 
@@ -10963,8 +10959,7 @@ msgstr "Низкий"
 msgid "Low contrast"
 msgstr "Низкий контраст"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Снижает яркость поддерживаемых дисплеев, пока виден защитный экран, и восстанавливает прежнюю яркость, когда Mac снова блокируется."
 
@@ -12125,7 +12120,7 @@ msgstr "Требует внимания: {0}"
 msgid "Needs my review"
 msgstr "Ждут моего ревью"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Needs repair"
 msgstr "Требуется восстановление"
@@ -13108,10 +13103,10 @@ msgstr "На этом компьютере ещё не обнаружено."
 msgid "not installed"
 msgstr "не установлено"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -14258,7 +14253,7 @@ msgstr "Приостановлено"
 #~ msgid "Paused providers are skipped by Crossagents until resumed."
 #~ msgstr "Приостановленные провайдеры пропускаются Crossagents до возобновления."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Paused until you unlock this Mac manually"
 msgstr "Приостановлено, пока вы не разблокируете этот Mac вручную"
 
@@ -14578,7 +14573,7 @@ msgstr "Poracode"
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode и ваши агенты работают на удалённом компьютере. SSH используется только для запуска удалённой среды и защиты её локального туннеля."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers every display while it works, and locks it again when the turn ends. Any key press or pointer movement on this Mac locks it immediately. Installing needs a one-time administrator approval. On a Mac managed by your organization, check with IT first."
 msgstr "Poracode ненадолго разблокирует этот Mac на время активного хода управления компьютером, закрывает все дисплеи во время работы и снова блокирует его, когда ход заканчивается. Любое нажатие клавиши или движение указателя на этом Mac сразу блокирует его. Для установки нужно один раз подтвердить действие от имени администратора. Если Mac управляется вашей организацией, сначала согласуйте это с ИТ-отделом."
 
@@ -16178,7 +16173,7 @@ msgstr "Удаление {profileName} стирает только его нас
 msgid "Removing a source keeps its installed plugins."
 msgstr "При удалении источника установленные из него плагины сохраняются."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Removing…"
 msgstr "Удаление…"
 
@@ -16288,7 +16283,7 @@ msgstr "Изменение порядка модели {name}. Позиция {p
 msgid "Reordering canceled."
 msgstr "Изменение порядка отменено."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Repair"
 msgstr "Восстановить"
 
@@ -18088,6 +18083,7 @@ msgstr "Зафиксировано при запуске этой сессии �
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
@@ -19871,7 +19867,7 @@ msgstr "Ветка {branch} на {remote} не является head этого 
 msgid "The acknowledgement failed."
 msgstr "Не удалось подтвердить."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "The administrator prompt was cancelled. Nothing was changed."
 msgstr "Запрос администратора отменён. Ничего не изменено."
 
@@ -20617,7 +20613,7 @@ msgstr "Эта ветка отстаёт от {0}."
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "Этот браузер не поддерживает здесь системные уведомления; вы всё равно будете видеть уведомления внутри приложения."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "This build doesn't include the Locked Computer Use installer."
 msgstr "Эта сборка не содержит установщик управления заблокированным компьютером."
 
@@ -20770,7 +20766,7 @@ msgstr "Это большой diff, поэтому он не загружен."
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "Этот список неполный: достигнут предел сканирования."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "This Mac's screen unlock rule has been customized, for example by device management, so Locked Computer Use can't be installed. Check with your IT team."
 msgstr "Правило разблокировки экрана на этом Mac изменено, например системой управления устройствами, поэтому управление заблокированным компьютером установить нельзя. Обратитесь в ИТ-отдел."
 
@@ -21951,7 +21947,7 @@ msgstr "Недоступен — используется шрифт по умо
 msgid "Unavailable conversation"
 msgstr "Недоступный диалог"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Unavailable in development builds"
 msgstr "Недоступно в сборках для разработки"
 
@@ -22990,7 +22986,7 @@ msgstr "Ожидание аутентификации {methodName}. Обнару
 msgid "Waiting for a preview"
 msgstr "Ожидание предпросмотра"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Waiting for administrator approval…"
 msgstr "Ожидание подтверждения администратора…"
 

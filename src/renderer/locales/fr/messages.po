@@ -2060,7 +2060,7 @@ msgstr "Un autre chat utilise ce même arbre. La restauration de fichiers pourra
 msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
 msgstr "Un autre client exécute ce fil de discussion. Arrêtez cette exécution avant de remplacer le fil ou d’envoyer de nouvelles instructions."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Another install or removal is already running."
 msgstr "Une autre installation ou suppression est déjà en cours."
 
@@ -3573,9 +3573,9 @@ msgid "Checking Tailscale…"
 msgstr "Vérification de Tailscale…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Checking…"
 msgstr "Vérification…"
@@ -4683,8 +4683,6 @@ msgstr "Utilisation de l’ordinateur"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Computer Use"
 msgstr "Utilisation de l'ordinateur"
@@ -6628,8 +6626,7 @@ msgstr "Options du diff"
 msgid "Differs on {names}"
 msgstr "Différent sur {names}"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Dim displays during Locked Computer Use"
 msgstr "Atténuer les écrans pendant l’utilisation de l’ordinateur verrouillé"
 
@@ -10008,10 +10005,11 @@ msgstr "L'installation, la mise à jour et la connexion ne sont pas encore dispo
 msgid "Installation continues when you close this dialog."
 msgstr "L’installation se poursuit lorsque vous fermez cette boîte de dialogue."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
 msgstr "L'installation n'a pas pu être vérifiée et a donc été annulée. Rien n'a été modifié."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -10020,7 +10018,6 @@ msgstr "L'installation n'a pas pu être vérifiée et a donc été annulée. Rie
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
@@ -10035,7 +10032,7 @@ msgstr "{0} a été installé."
 msgid "Installed-font selection is unavailable in this client."
 msgstr "La sélection des polices installées n’est pas disponible dans ce client."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Installed, turned off"
 msgstr "Installé, désactivé"
 
@@ -10844,24 +10841,23 @@ msgstr "Glyphe d'emplacement"
 msgid "Lock panel to the open thread"
 msgstr "Verrouiller le panneau sur le fil de discussion ouvert"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Locked Computer Use"
 msgstr "Utilisation de l'ordinateur verrouillé"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Locked Computer Use couldn't be changed. Try again."
 msgstr "Impossible de modifier Utilisation de l'ordinateur verrouillé. Réessayez."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Locked Computer Use is available only on macOS."
 msgstr "Utilisation de l'ordinateur verrouillé n'est disponible que sur macOS."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Locked Computer Use is set up in Poracode on the Mac it runs on."
 msgstr "Utilisation de l'ordinateur verrouillé se configure dans Poracode sur le Mac où il s'exécute."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Locked Computer Use is unavailable in development builds."
 msgstr "Utilisation de l'ordinateur verrouillé n'est pas disponible dans les builds de développement."
 
@@ -10963,8 +10959,7 @@ msgstr "Faible"
 msgid "Low contrast"
 msgstr "Contraste faible"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Réduit la luminosité des écrans compatibles pendant que l’écran de protection est visible, puis rétablit la luminosité précédente lorsque le Mac se verrouille à nouveau."
 
@@ -12124,7 +12119,7 @@ msgstr "Attention requise sur {0}"
 msgid "Needs my review"
 msgstr "Nécessite ma revue"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Needs repair"
 msgstr "Réparation nécessaire"
@@ -13107,10 +13102,10 @@ msgstr "Pas encore détecté sur cette machine."
 msgid "not installed"
 msgstr "non installé"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -14257,7 +14252,7 @@ msgstr "En pause"
 #~ msgid "Paused providers are skipped by Crossagents until resumed."
 #~ msgstr "Les fournisseurs en pause sont ignorés par Crossagents jusqu'à leur reprise."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Paused until you unlock this Mac manually"
 msgstr "En pause jusqu'à ce que vous déverrouilliez ce Mac manuellement"
 
@@ -14577,7 +14572,7 @@ msgstr "Poracode"
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode et vos agents s’exécutent sur la machine distante. SSH sert uniquement à démarrer l’environnement distant et à sécuriser son tunnel local."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers every display while it works, and locks it again when the turn ends. Any key press or pointer movement on this Mac locks it immediately. Installing needs a one-time administrator approval. On a Mac managed by your organization, check with IT first."
 msgstr "Poracode déverrouille brièvement ce Mac pendant un tour d'Utilisation de l'ordinateur actif, recouvre tous les écrans pendant qu'il travaille et le verrouille à nouveau à la fin du tour. Toute frappe au clavier ou tout mouvement du pointeur sur ce Mac le verrouille immédiatement. L'installation nécessite une approbation administrateur unique. Sur un Mac géré par votre organisation, consultez d'abord votre service informatique."
 
@@ -16177,7 +16172,7 @@ msgstr "Supprimer {profileName} n'efface que ses paramètres Poracode. Les ident
 msgid "Removing a source keeps its installed plugins."
 msgstr "La suppression d’une source conserve ses plugins installés."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Removing…"
 msgstr "Suppression…"
 
@@ -16287,7 +16282,7 @@ msgstr "Réorganisation de {name}. Position {position} sur {count}."
 msgid "Reordering canceled."
 msgstr "Réorganisation annulée."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Repair"
 msgstr "Réparer"
 
@@ -18087,6 +18082,7 @@ msgstr "Défini au démarrage de cette session — démarrez un nouveau fil pour
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
@@ -19870,7 +19866,7 @@ msgstr "La branche {branch} sur {remote} n'est pas la tête de cette pull reques
 msgid "The acknowledgement failed."
 msgstr "L'acquittement a échoué."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "The administrator prompt was cancelled. Nothing was changed."
 msgstr "La demande administrateur a été annulée. Rien n'a été modifié."
 
@@ -20616,7 +20612,7 @@ msgstr "Cette branche est en retard sur {0}."
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "Ce navigateur ne prend pas en charge les notifications système ici ; vous verrez toujours les notifications intégrées à l’application."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "This build doesn't include the Locked Computer Use installer."
 msgstr "Ce build n'inclut pas le programme d'installation d'Utilisation de l'ordinateur verrouillé."
 
@@ -20769,7 +20765,7 @@ msgstr "Ce diff est volumineux et n'a donc pas été chargé."
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "Cette liste est incomplète, car l’analyse a atteint sa limite."
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "This Mac's screen unlock rule has been customized, for example by device management, so Locked Computer Use can't be installed. Check with your IT team."
 msgstr "La règle de déverrouillage de l'écran de ce Mac a été personnalisée, par exemple par la gestion des appareils, Utilisation de l'ordinateur verrouillé ne peut donc pas être installé. Contactez votre service informatique."
 
@@ -21950,7 +21946,7 @@ msgstr "Indisponible — utilisation de la police par défaut"
 msgid "Unavailable conversation"
 msgstr "Conversation indisponible"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Unavailable in development builds"
 msgstr "Indisponible dans les builds de développement"
 
@@ -22989,7 +22985,7 @@ msgstr "En attente de l'authentification {methodName}. Les agents détectés ser
 msgid "Waiting for a preview"
 msgstr "En attente d’un aperçu"
 
-#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Waiting for administrator approval…"
 msgstr "En attente de l'approbation administrateur…"
 

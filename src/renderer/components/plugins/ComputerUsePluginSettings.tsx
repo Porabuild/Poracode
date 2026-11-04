@@ -12,23 +12,26 @@ import type {
   LockedComputerUseErrorCode,
   LockedComputerUseStatus,
 } from "@/shared/contracts/lockedComputerUse";
-import { SettingRow, SettingsPage } from "./SettingsForm";
+import { SettingRow } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 
 type PendingAction = "install" | "uninstall";
 
-export function ComputerUseSettings() {
+export function ComputerUsePluginSettings() {
   const { t } = useLingui();
   // Installing changes this Mac's login rules behind an administrator prompt,
   // so only the desktop that owns the host may do it; every other client
   // (paired browser, phone, a desktop attached to another host) reads only.
   const localDesktop = hasClientCapability("localBackend");
   return (
-    <SettingsPage title={t`Computer Use`}>
+    <section
+      className="space-y-4 border-b border-[var(--hairline)] py-4"
+      data-testid="computer-use-plugin-settings"
+    >
+      <h2 className="text-xs font-semibold text-foreground">{t`Settings`}</h2>
       {localDesktop && isMac() ? (
         <LockedComputerUseControl />
       ) : (
         <SettingRow
-          anchorId="computerUse.lockedUse"
           title={t`Locked Computer Use`}
           description={
             localDesktop
@@ -39,7 +42,7 @@ export function ComputerUseSettings() {
           {null}
         </SettingRow>
       )}
-    </SettingsPage>
+    </section>
   );
 }
 
@@ -110,7 +113,6 @@ function LockedComputerUseControl() {
   return (
     <>
       <SettingRow
-        anchorId="computerUse.lockedUse"
         title={t`Locked Computer Use`}
         description={t`Poracode briefly unlocks this Mac for an active Computer Use turn, covers every display while it works, and locks it again when the turn ends. Any key press or pointer movement on this Mac locks it immediately. Installing needs a one-time administrator approval. On a Mac managed by your organization, check with IT first.`}
       >
@@ -129,7 +131,6 @@ function LockedComputerUseControl() {
         {t(lockedUseStatusText(status, enabled, pending))}
       </p>
       <SettingRow
-        anchorId="computerUse.lockedUseDimDisplay"
         title={t`Dim displays during Locked Computer Use`}
         description={t`Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again.`}
       >

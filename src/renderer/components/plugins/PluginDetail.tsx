@@ -29,6 +29,7 @@ import { PluginIcon } from "./PluginIcon";
 import { PluginTag } from "./PluginTag";
 import { usePluginOauth } from "./usePluginOauth";
 import { PluginServiceAccounts } from "./PluginServiceAccounts";
+import { ComputerUsePluginSettings } from "./ComputerUsePluginSettings";
 import { useLocalizedPluginDiagnostic, type LocalizedPlugin } from "./pluginCopy";
 
 function canTryPluginNow(input: {
@@ -342,6 +343,10 @@ export function PluginDetail(props: {
             onChange={(enabled) => setPluginEnabled(plugin, enabled)}
           />
         </section>
+      ) : null}
+
+      {plugin.source === "bundled" && plugin.name === "computer-use" ? (
+        <ComputerUsePluginSettings />
       ) : null}
 
       {props.plugin.mcpServers.length > 0 ? (

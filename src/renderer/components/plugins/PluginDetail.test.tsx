@@ -19,6 +19,10 @@ const actionMocks = vi.hoisted(() => ({
   })),
 }));
 
+vi.mock("./ComputerUsePluginSettings", () => ({
+  ComputerUsePluginSettings: () => <div data-testid="computer-use-plugin-settings" />,
+}));
+
 vi.mock("@/renderer/bridge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/bridge")>()),
   readBridge: () => actionMocks,
@@ -117,6 +121,16 @@ describe("PluginDetail", () => {
     seedBuiltInPlugins();
     useSharedSettings.setState({ installedPlugins: {}, disabledBuiltInMcpServers: {} });
     usePanelStore.setState({ settingsOpen: false });
+  });
+
+  it("shows settings in the bundled Computer Use plugin details", () => {
+    render(<ComputerUsePluginDetail />);
+    expect(screen.getByTestId("computer-use-plugin-settings")).toBeTruthy();
+  });
+
+  it("keeps Computer Use settings out of other plugin details", () => {
+    render(<BrowserPluginDetail />);
+    expect(screen.queryByTestId("computer-use-plugin-settings")).toBeNull();
   });
 
   it("keeps Poracode and its skills available despite disables from the previous plugin version", () => {
