@@ -4666,6 +4666,7 @@ msgstr "电脑操作"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Computer Use"
 msgstr "计算机操作"
 
@@ -10190,6 +10191,11 @@ msgstr "开机启动时将 Poracode 保持在系统托盘中。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the display on while any selected condition applies, so the screen does not lock from inactivity. Manual locking, closing the lid, and enforced lock policies still apply."
+msgstr "在任一所选条件满足时保持显示器开启，使屏幕不会因闲置而锁定。手动锁定、合上盖子以及强制执行的锁定策略仍然有效。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "计算机操作期间保持 Mac 唤醒"
 
@@ -10198,17 +10204,22 @@ msgid "Keep the same microphone button. Choose the engine behind it."
 msgstr "保留相同的麦克风按钮。选择其背后的引擎。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
-msgstr "只要 Poracode 仍在运行（包括在后台运行），就保持系统唤醒。 显示器仍可关闭。屏幕锁定行为保持不变。"
+#~ msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "只要 Poracode 仍在运行（包括在后台运行），就保持系统唤醒。 显示器仍可关闭。屏幕锁定行为保持不变。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
-msgstr "在智能体工作期间或启用远程访问时保持系统唤醒。 显示器仍可关闭。屏幕锁定行为保持不变。"
+#~ msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "在智能体工作期间或启用远程访问时保持系统唤醒。 显示器仍可关闭。屏幕锁定行为保持不变。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
-msgstr "在任何智能体工作期间（包括 Computer Use）保持系统唤醒。 显示器仍可关闭。屏幕锁定行为保持不变。"
+#~ msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "在任何智能体工作期间（包括 Computer Use）保持系统唤醒。 显示器仍可关闭。屏幕锁定行为保持不变。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any selected condition applies. Working includes Computer Use threads. The display can still turn off."
+msgstr "在任一所选条件满足时保持系统唤醒。“工作中”包括计算机操作线程。显示器仍可关闭。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12080,6 +12091,11 @@ msgstr "需要回复"
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "中立"
+
+#. Keep-awake setting with no conditions selected
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Never"
+msgstr "从不"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
@@ -14777,6 +14793,11 @@ msgstr "按空格键开始重新排序。使用方向键移动，按空格键放
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent screen lock"
+msgstr "防止屏幕锁定"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep"
 #~ msgstr "阻止休眠"
 
@@ -15744,9 +15765,9 @@ msgstr "重新加载预览"
 msgid "Remote"
 msgstr "远程"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-#~ msgid "Remote access"
-#~ msgstr "远程访问"
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Remote access"
+msgstr "远程访问"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -23094,8 +23115,8 @@ msgid "Where the terminal panel appears."
 msgstr "终端面板出现的位置。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "While working"
-msgstr "工作时"
+#~ msgid "While working"
+#~ msgstr "工作时"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Whisper with broad multilingual support."
@@ -23219,12 +23240,13 @@ msgid "Workflows added under .github/workflows will appear here."
 msgstr "添加到 .github/workflows 的工作流将显示在此处。"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Working"
 msgstr "工作中"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Working + remote access"
-msgstr "工作时 + 远程访问"
+#~ msgid "Working + remote access"
+#~ msgstr "工作时 + 远程访问"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"

@@ -4665,6 +4665,7 @@ msgstr "コンピューター操作"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Computer Use"
 msgstr "コンピュータ操作"
 
@@ -10189,6 +10190,11 @@ msgstr "スタートアップ時は Poracode をシステムトレイに格納�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the display on while any selected condition applies, so the screen does not lock from inactivity. Manual locking, closing the lid, and enforced lock policies still apply."
+msgstr "選択した条件のいずれかに当てはまる間、ディスプレイをオンのままにし、操作がないことによる画面ロックを防ぎます。手動でのロック、蓋を閉じること、強制されたロックポリシーは引き続き適用されます。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "コンピュータ操作中は Mac をスリープさせない"
 
@@ -10197,17 +10203,22 @@ msgid "Keep the same microphone button. Choose the engine behind it."
 msgstr "同じマイク ボタンを維持します。その後ろのエンジンを選択してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
-msgstr "バックグラウンドを含め、Poracode の実行中はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
+#~ msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "バックグラウンドを含め、Poracode の実行中はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
-msgstr "エージェントの作業中、またはリモートアクセスが有効な間はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
+#~ msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "エージェントの作業中、またはリモートアクセスが有効な間はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
-msgstr "Computer Use を含む、いずれかのエージェントの作業中はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
+#~ msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Computer Use を含む、いずれかのエージェントの作業中はシステムをスリープさせません。 ディスプレイは引き続きオフにできます。画面ロックの動作は変わりません。"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any selected condition applies. Working includes Computer Use threads. The display can still turn off."
+msgstr "選択した条件のいずれかに当てはまる間、システムをスリープさせません。「実行中」にはコンピュータ操作のスレッドも含まれます。ディスプレイは引き続きオフにできます。"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12079,6 +12090,11 @@ msgstr "返信が必要です"
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "中立"
+
+#. Keep-awake setting with no conditions selected
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Never"
+msgstr "しない"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
@@ -14776,6 +14792,11 @@ msgstr "スペースキーで並べ替えを開始します。矢印キーで移
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent screen lock"
+msgstr "画面ロックを防ぐ"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep"
 #~ msgstr "スリープを防止"
 
@@ -15743,9 +15764,9 @@ msgstr "プレビューを再読み込み"
 msgid "Remote"
 msgstr "リモート"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-#~ msgid "Remote access"
-#~ msgstr "リモートアクセス"
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Remote access"
+msgstr "リモートアクセス"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -23093,8 +23114,8 @@ msgid "Where the terminal panel appears."
 msgstr "ターミナルパネルが表示される場所。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "While working"
-msgstr "作業中"
+#~ msgid "While working"
+#~ msgstr "作業中"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Whisper with broad multilingual support."
@@ -23218,12 +23239,13 @@ msgid "Workflows added under .github/workflows will appear here."
 msgstr ".github/workflows に追加されたワークフローはここに表示されます。"
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Working"
 msgstr "実行中"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Working + remote access"
-msgstr "作業中 + リモートアクセス"
+#~ msgid "Working + remote access"
+#~ msgstr "作業中 + リモートアクセス"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"

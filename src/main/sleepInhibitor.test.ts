@@ -10,7 +10,7 @@ vi.mock("electron", () => ({
   },
 }));
 
-import { createSleepInhibitor } from "./sleepInhibitor";
+import { createScreenLockInhibitor, createSleepInhibitor } from "./sleepInhibitor";
 
 interface FakeChildProcess extends EventEmitter {
   stdin: { end: ReturnType<typeof vi.fn<() => void>> } | null;
@@ -292,5 +292,88 @@ describe("createSleepInhibitor", () => {
 
     expect(spawnFn).toHaveBeenCalledTimes(2);
     expect(second.kill).toHaveBeenCalledOnce();
+  });
+});
+
+describe("createScreenLockInhibitor", () => {
+  it.each(["darwin", "win32"] as const)("keeps the display awake on %s", (platform) => {
+    const blocker = createBlocker();
+    const spawnFn = vi.fn<() => ChildProcess>();
+    const inhibitor = createScreenLockInhibitor({
+      platform,
+      electronBlocker: blocker,
+      spawnFn: spawnFn as never,
+      logger,
+    });
+
+    inhibitor.setActive(true);
+    inhibitor.setActive(true);
+    expect(blocker.start).toHaveBeenCalledExactlyOnceWith("prevent-display-sleep");
+
+    inhibitor.setActive(false);
+    expect(blocker.stop).toHaveBeenCalledExactlyOnceWith(1);
+    inhibitor.setActive(true);
+    inhibitor.dispose();
+    expect(blocker._started.size).toBe(0);
+    expect(spawnFn).not.toHaveBeenCalled();
+  });
+
+  it("holds a GNOME idle inhibitor on Linux without Electron", () => {
+    const blocker = createBlocker();
+    const child = createFakeChild();
+    const spawnFn = vi.fn<() => ChildProcess>(() => child as unknown as ChildProcess);
+    const inhibitor = createScreenLockInhibitor({
+      platform: "linux",
+      electronBlocker: blocker,
+      spawnFn: spawnFn as never,
+      logger,
+    });
+
+    inhibitor.setActive(true);
+    inhibitor.setActive(true);
+
+    expect(blocker.start).not.toHaveBeenCalled();
+    expect(spawnFn).toHaveBeenCalledExactlyOnceWith(
+      "gnome-session-inhibit",
+      ["--inhibit", "idle", "--reason", "Poracode is keeping the screen awake", "cat"],
+      { stdio: ["pipe", "ignore", "ignore"], detached: false },
+    );
+    inhibitor.setActive(false);
+    expect(child.stdin!.end).toHaveBeenCalledOnce();
+    expect(child.kill).toHaveBeenCalledExactlyOnceWith("SIGTERM");
+  });
+
+  it("falls back to a systemd idle inhibitor and then gives up", () => {
+    const fallback = createFakeChild();
+    const spawnFn = vi
+      .fn<() => ChildProcess>()
+      .mockImplementationOnce(() => {
+        throw new Error("ENOENT");
+      })
+      .mockReturnValueOnce(fallback as unknown as ChildProcess);
+    const inhibitor = createScreenLockInhibitor({
+      platform: "linux",
+      spawnFn: spawnFn as never,
+      logger,
+    });
+
+    inhibitor.setActive(true);
+    expect(spawnFn).toHaveBeenLastCalledWith(
+      "systemd-inhibit",
+      [
+        "--what=idle",
+        "--who=Poracode",
+        "--why=Poracode is keeping the screen awake",
+        "--mode=block",
+        "cat",
+      ],
+      { stdio: ["pipe", "ignore", "ignore"], detached: false },
+    );
+
+    fallback.emit("exit", 1, null);
+    inhibitor.setActive(false);
+    inhibitor.setActive(true);
+    expect(spawnFn).toHaveBeenCalledTimes(2);
+    expect(logs).toHaveLength(2);
   });
 });

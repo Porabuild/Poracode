@@ -331,13 +331,27 @@ The correct response is to stop and ask the user to unlock, not to retry.
 
 ### Keep awake
 
-Computer Use follows the shared `preventSleep` policy through native thread
-activity, like other agent work. macOS and Windows use `prevent-app-suspension`,
-allowing the display to turn off normally. Linux uses a systemd sleep inhibitor
-with a GNOME suspend-only fallback, avoiding Electron 44's Wayland display
-blocker. An enabled Computer Use session or visible badge does not hold a
-separate display blocker. Automatic and manual screen locking remain
-OS-controlled, so agents must stop when the desktop locks.
+Two desktop-only settings share one condition list (`working`, `computer-use`,
+`remote-access`, `always`; empty means never), evaluated in
+`src/main/sleepPolicy.ts`:
+
+- `preventSleepWhen` (default working + remote access) holds a system-sleep
+  blocker. macOS and Windows use `prevent-app-suspension`, so the display can
+  still turn off. Linux uses a systemd sleep inhibitor with a GNOME
+  suspend-only fallback, avoiding Electron 44's Wayland display blocker.
+- `preventScreenLockWhen` (default never) keeps the display awake, which stops
+  idle display sleep from starting the OS idle lock. macOS and Windows use
+  `prevent-display-sleep`; Linux uses a GNOME idle inhibitor with a systemd
+  `--what=idle` fallback. Manual locking, lid close, and enforced lock policies
+  still lock the screen.
+
+Computer Use threads count as `working`. The `computer-use` condition follows
+the desktop overlay's reduced activity (an enabled session or a visible badge
+or takeover), counting only threads that are still working. A backend reset or
+a turn that ends without `disable` therefore cannot hold a blocker. The
+standalone server holds no blockers.
+When the desktop locks anyway, agents must stop and ask the user to unlock.
+Changing this guidance bumps `resources/plugins/computer-use/plugin.json`.
 
 ## Adding or changing an action
 

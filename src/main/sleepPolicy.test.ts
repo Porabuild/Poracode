@@ -1,82 +1,74 @@
 import { describe, expect, it } from "vitest";
-import { shouldPreventSystemSleep } from "./sleepPolicy";
+import type { KeepAwakeCondition } from "@/shared/settings";
+import {
+  shouldPreventScreenLock,
+  shouldPreventSystemSleep,
+  type KeepAwakeActivity,
+} from "./sleepPolicy";
 
-describe("shouldPreventSystemSleep", () => {
-  it("always keeps the system awake regardless of remote access or thread activity", () => {
-    expect(
-      shouldPreventSystemSleep(
-        {
-          preventSleep: "always",
-          remoteAccessEnabled: false,
-        },
-        0,
-      ),
-    ).toBe(true);
-    expect(
-      shouldPreventSystemSleep(
-        {
-          preventSleep: "always",
-          remoteAccessEnabled: true,
-        },
-        2,
-      ),
-    ).toBe(true);
+const idle: KeepAwakeActivity = { workingThreadCount: 0, computerUseActive: false };
+const working: KeepAwakeActivity = { workingThreadCount: 2, computerUseActive: false };
+const computerUse: KeepAwakeActivity = { workingThreadCount: 0, computerUseActive: true };
+
+function policy(conditions: KeepAwakeCondition[], remoteAccessEnabled = false) {
+  return {
+    sleep: { preventSleepWhen: conditions, preventScreenLockWhen: [], remoteAccessEnabled },
+    lock: { preventSleepWhen: [], preventScreenLockWhen: conditions, remoteAccessEnabled },
+  };
+}
+
+describe.each([
+  ["shouldPreventSystemSleep", shouldPreventSystemSleep, "sleep"],
+  ["shouldPreventScreenLock", shouldPreventScreenLock, "lock"],
+] as const)("%s", (_name, evaluate, key) => {
+  it("never prevents anything with no conditions", () => {
+    const settings = policy([], true)[key];
+    expect(evaluate(settings, idle)).toBe(false);
+    expect(evaluate(settings, working)).toBe(false);
+    expect(evaluate(settings, computerUse)).toBe(false);
   });
 
-  it("while-remote-access keeps awake when remote access is enabled even with zero threads", () => {
-    expect(
-      shouldPreventSystemSleep(
-        {
-          preventSleep: "while-remote-access",
-          remoteAccessEnabled: true,
-        },
-        0,
-      ),
-    ).toBe(true);
+  it("always applies regardless of activity or remote access", () => {
+    expect(evaluate(policy(["always"])[key], idle)).toBe(true);
+    expect(evaluate(policy(["always"], true)[key], working)).toBe(true);
   });
 
-  it("while-remote-access keeps awake when threads are working even if remote access is off", () => {
-    expect(
-      shouldPreventSystemSleep(
-        {
-          preventSleep: "while-remote-access",
-          remoteAccessEnabled: false,
-        },
-        1,
-      ),
-    ).toBe(true);
+  it("applies the working condition only while a thread works", () => {
+    expect(evaluate(policy(["working"])[key], idle)).toBe(false);
+    expect(evaluate(policy(["working"])[key], working)).toBe(true);
+    // Remote access alone does not satisfy the working condition.
+    expect(evaluate(policy(["working"], true)[key], idle)).toBe(false);
   });
 
-  it("while-remote-access allows sleep when remote access is off and no threads are working", () => {
-    expect(
-      shouldPreventSystemSleep(
-        {
-          preventSleep: "while-remote-access",
-          remoteAccessEnabled: false,
-        },
-        0,
-      ),
-    ).toBe(false);
+  it("applies the computer-use condition only while a session is active", () => {
+    expect(evaluate(policy(["computer-use"])[key], idle)).toBe(false);
+    expect(evaluate(policy(["computer-use"])[key], working)).toBe(false);
+    expect(evaluate(policy(["computer-use"])[key], computerUse)).toBe(true);
   });
 
-  it("while-working only keeps awake when threads are working", () => {
-    expect(
-      shouldPreventSystemSleep(
-        {
-          preventSleep: "while-working",
-          remoteAccessEnabled: true,
-        },
-        0,
-      ),
-    ).toBe(false);
-    expect(
-      shouldPreventSystemSleep(
-        {
-          preventSleep: "while-working",
-          remoteAccessEnabled: false,
-        },
-        1,
-      ),
-    ).toBe(true);
+  it("applies the remote-access condition only while remote access is enabled", () => {
+    expect(evaluate(policy(["remote-access"])[key], working)).toBe(false);
+    expect(evaluate(policy(["remote-access"], true)[key], idle)).toBe(true);
+  });
+
+  it("matches when any selected condition holds", () => {
+    const settings = policy(["working", "remote-access"])[key];
+    expect(evaluate(settings, idle)).toBe(false);
+    expect(evaluate(settings, working)).toBe(true);
+    expect(evaluate(policy(["working", "remote-access"], true)[key], idle)).toBe(true);
+  });
+});
+
+describe("independent channels", () => {
+  it("evaluates system sleep and screen lock from their own settings", () => {
+    const settings = {
+      preventSleepWhen: ["working"] as KeepAwakeCondition[],
+      preventScreenLockWhen: ["computer-use"] as KeepAwakeCondition[],
+      remoteAccessEnabled: false,
+    };
+    expect(shouldPreventSystemSleep(settings, working)).toBe(true);
+    expect(shouldPreventScreenLock(settings, working)).toBe(false);
+    expect(shouldPreventSystemSleep(settings, computerUse)).toBe(false);
+    expect(shouldPreventScreenLock(settings, computerUse)).toBe(true);
   });
 });

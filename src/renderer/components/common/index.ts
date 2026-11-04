@@ -9,6 +9,7 @@ export * from "./EffortContextMenu";
 export * from "./FileIcon";
 export * from "./FlyingLightball";
 export * from "./LightballTabs";
+export * from "./MultiSelect";
 export * from "./FileStatusBadge";
 export * from "./Input";
 export * from "./OptionMenu";

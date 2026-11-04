@@ -21,7 +21,7 @@ import type { BrowserMcpIngress } from "@/host/browser/types";
 import type { BrowserPanelManager, ChromeBridgeServer, ChromeMcpIngress } from "./browser";
 import type { ComputerUseDesktopOverlay, ComputerUseMcpIngress } from "./computer-use";
 import type { QuickComposerShortcutManager } from "./quickComposerShortcut";
-import { createSleepInhibitor } from "./sleepInhibitor";
+import { createScreenLockInhibitor, createSleepInhibitor } from "./sleepInhibitor";
 import type { TrayHandle } from "./tray";
 import type { WindowsJobObjectOwner } from "./windowsJobObject";
 import type { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
@@ -107,7 +107,12 @@ export interface DesktopAppState {
   quickComposerShortcutManager: QuickComposerShortcutManager | null;
   isQuitting: boolean;
   workingThreads: Set<string>;
+  // Threads with an enabled or acting Computer Use session, as reduced by the
+  // desktop overlay's activity tracker. Only those still working count toward
+  // keep-awake, so a crash or a missing `disable` cannot hold a blocker.
+  computerUseThreads: Set<string>;
   sleepInhibitor: ReturnType<typeof createSleepInhibitor>;
+  screenLockInhibitor: ReturnType<typeof createScreenLockInhibitor>;
 }
 
 export const desktopApp: DesktopAppState = {
@@ -142,7 +147,9 @@ export const desktopApp: DesktopAppState = {
   quickComposerShortcutManager: null,
   isQuitting: false,
   workingThreads: new Set<string>(),
+  computerUseThreads: new Set<string>(),
   sleepInhibitor: createSleepInhibitor(),
+  screenLockInhibitor: createScreenLockInhibitor(),
 };
 
 export function requirePoracodePaths(): PoracodePaths {

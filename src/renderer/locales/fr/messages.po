@@ -4666,6 +4666,7 @@ msgstr "Utilisation de l’ordinateur"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Computer Use"
 msgstr "Utilisation de l'ordinateur"
 
@@ -10190,6 +10191,11 @@ msgstr "Garder Poracode dans la zone de notification lors de son lancement au d�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the display on while any selected condition applies, so the screen does not lock from inactivity. Manual locking, closing the lid, and enforced lock policies still apply."
+msgstr "Garder l’écran allumé tant qu’une condition sélectionnée s’applique, afin qu’il ne se verrouille pas par inactivité. Le verrouillage manuel, la fermeture du capot et les politiques de verrouillage imposées s’appliquent toujours."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "Garder le Mac éveillé pendant l'utilisation de l'ordinateur"
 
@@ -10198,17 +10204,22 @@ msgid "Keep the same microphone button. Choose the engine behind it."
 msgstr "Conservez le même bouton de microphone. Choisissez le moteur derrière."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
-msgstr "Garder le système éveillé tant que Poracode est en cours d’exécution, même en arrière-plan. L’écran peut toujours s’éteindre. Le verrouillage de l’écran reste inchangé."
+#~ msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Garder le système éveillé tant que Poracode est en cours d’exécution, même en arrière-plan. L’écran peut toujours s’éteindre. Le verrouillage de l’écran reste inchangé."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
-msgstr "Garder le système éveillé pendant que les agents travaillent ou que l’accès à distance est activé. L’écran peut toujours s’éteindre. Le verrouillage de l’écran reste inchangé."
+#~ msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Garder le système éveillé pendant que les agents travaillent ou que l’accès à distance est activé. L’écran peut toujours s’éteindre. Le verrouillage de l’écran reste inchangé."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
-msgstr "Garder le système éveillé pendant qu’un agent travaille, y compris avec Computer Use. L’écran peut toujours s’éteindre. Le verrouillage de l’écran reste inchangé."
+#~ msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Garder le système éveillé pendant qu’un agent travaille, y compris avec Computer Use. L’écran peut toujours s’éteindre. Le verrouillage de l’écran reste inchangé."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any selected condition applies. Working includes Computer Use threads. The display can still turn off."
+msgstr "Garder le système éveillé tant qu’une condition sélectionnée s’applique. « En cours » inclut les fils de discussion d’Utilisation de l'ordinateur. L’écran peut toujours s’éteindre."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12080,6 +12091,11 @@ msgstr "Besoin d'une réponse"
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Neutre"
+
+#. Keep-awake setting with no conditions selected
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Never"
+msgstr "Jamais"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
@@ -14777,6 +14793,11 @@ msgstr "Appuyez sur Espace pour commencer à réorganiser. Utilisez les flèches
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent screen lock"
+msgstr "Empêcher le verrouillage de l’écran"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep"
 #~ msgstr "Empêcher la mise en veille"
 
@@ -15744,9 +15765,9 @@ msgstr "Recharger l’aperçu"
 msgid "Remote"
 msgstr "À distance"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-#~ msgid "Remote access"
-#~ msgstr "Accès distant"
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Remote access"
+msgstr "Accès distant"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -23094,8 +23115,8 @@ msgid "Where the terminal panel appears."
 msgstr "Où le panneau du terminal apparaît."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "While working"
-msgstr "Pendant le travail"
+#~ msgid "While working"
+#~ msgstr "Pendant le travail"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Whisper with broad multilingual support."
@@ -23219,12 +23240,13 @@ msgid "Workflows added under .github/workflows will appear here."
 msgstr "Les workflows ajoutés sous .github/workflows apparaîtront ici."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Working"
 msgstr "En cours"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Working + remote access"
-msgstr "Travail + accès à distance"
+#~ msgid "Working + remote access"
+#~ msgstr "Travail + accès à distance"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
