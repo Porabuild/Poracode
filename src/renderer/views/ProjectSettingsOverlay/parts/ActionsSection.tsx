@@ -2,7 +2,10 @@ import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Plus, Trash2 } from "lucide-react";
 import type { ProjectAction } from "@/shared/contracts";
-import { updateProjectScripts } from "@/renderer/actions/projectActions";
+import {
+  changeProjectActionsEverywhere,
+  setProjectActionsEverywhere,
+} from "@/renderer/actions/projectGroupActions";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import {
   MobilePageBottomAction,
@@ -12,6 +15,11 @@ import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileC
 import { useProject } from "@/renderer/state/useThread";
 import { Button, Input, TextArea } from "@/renderer/components/common";
 import { ActionIconPicker } from "./ActionIconPicker";
+import {
+  PROJECT_SETTINGS_SCROLL_CLASS,
+  ProjectScopeHeading,
+  SharedValueDiff,
+} from "./ProjectEnvironmentScope";
 
 export function ActionsSection(props: { projectId: string }) {
   const { t } = useLingui();
@@ -27,8 +35,8 @@ export function ActionsSection(props: { projectId: string }) {
 
   if (!project) return null;
 
-  function saveActions(next: ProjectAction[]) {
-    updateProjectScripts(project!.id, { ...scripts, actions: next });
+  function updateAction(actionId: string, patch: Partial<Omit<ProjectAction, "id">>) {
+    changeProjectActionsEverywhere(project!.id, { kind: "update", actionId, patch });
   }
 
   function addAction() {
@@ -41,22 +49,18 @@ export function ActionsSection(props: { projectId: string }) {
       command: trimCommand,
       icon: newIcon,
     };
-    saveActions([...actions, action]);
+    changeProjectActionsEverywhere(project!.id, { kind: "add", action });
     setNewName("");
     setNewCommand("");
     setNewIcon("play");
   }
 
   function removeAction(actionId: string) {
-    saveActions(actions.filter((a) => a.id !== actionId));
+    changeProjectActionsEverywhere(project!.id, { kind: "remove", actionId });
   }
 
   return (
-    <div
-      className={
-        compactLayout ? "m-project-actions" : "h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4"
-      }
-    >
+    <div className={compactLayout ? "m-project-actions" : PROJECT_SETTINGS_SCROLL_CLASS}>
       <div className={compactLayout ? "m-project-actions__scroll" : "mx-auto max-w-[720px]"}>
         {!compactLayout && (
           <h1 className="mb-6 text-lg font-semibold text-foreground">
@@ -66,6 +70,13 @@ export function ActionsSection(props: { projectId: string }) {
         <p className={compactLayout ? "m-project-actions__description" : "mb-4 text-xs text-muted"}>
           <Trans>Custom commands available from the project context menu (right-click).</Trans>
         </p>
+        <ProjectScopeHeading projectId={project.id} scope="shared" />
+        <SharedValueDiff
+          projectId={project.id}
+          setting={t`Actions`}
+          read={(row) => row.scripts?.actions ?? []}
+          onApplyEverywhere={() => setProjectActionsEverywhere(project.id, actions)}
+        />
 
         <div className={compactLayout ? "m-project-actions__list" : "space-y-3"}>
           {actions.map((action) => (
@@ -86,23 +97,13 @@ export function ActionsSection(props: { projectId: string }) {
               >
                 <ActionIconPicker
                   value={action.icon ?? "play"}
-                  onChange={(name) => {
-                    const updated = actions.map((a) =>
-                      a.id === action.id ? { ...a, icon: name } : a,
-                    );
-                    saveActions(updated);
-                  }}
+                  onChange={(name) => updateAction(action.id, { icon: name })}
                 />
                 <Input
                   aria-label={t`Action name`}
                   className="min-w-0 flex-1 font-medium"
                   value={action.name}
-                  onChange={(e) => {
-                    const updated = actions.map((a) =>
-                      a.id === action.id ? { ...a, name: e.target.value } : a,
-                    );
-                    saveActions(updated);
-                  }}
+                  onChange={(e) => updateAction(action.id, { name: e.target.value })}
                 />
                 <Button
                   isIconOnly
@@ -123,12 +124,7 @@ export function ActionsSection(props: { projectId: string }) {
                 className="w-full font-mono text-xs"
                 rows={compactLayout ? 1 : 2}
                 value={action.command}
-                onChange={(e) => {
-                  const updated = actions.map((a) =>
-                    a.id === action.id ? { ...a, command: e.target.value } : a,
-                  );
-                  saveActions(updated);
-                }}
+                onChange={(e) => updateAction(action.id, { command: e.target.value })}
               />
             </div>
           ))}

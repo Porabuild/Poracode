@@ -511,6 +511,76 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.getByText("new-thread:local-1")).toBeInTheDocument();
   });
 
+  it("expands a saved filter to every machine of the selected project", () => {
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "mac", label: "Poracode on MacBook" }],
+      runtime: { mac: { status: "online", projects: [], threads: [] } },
+    } as never);
+    const mirror = {
+      ...localProject,
+      id: "remote:mac:project:p",
+      remoteServerId: "mac",
+      remoteId: "p",
+      location: { kind: "posix", path: "/repo", remoteServerId: "mac" },
+    } as Project;
+    // Saved when only the local copy existed; the Mac's copy joined later.
+    useSidebarUiStore.setState({ flatListProjectFilter: ["local-1"] });
+    useAppStore.setState({
+      projects: [homeProject, localProject, mirror, secondLocalProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("m1", mirror.id, "2026-08-02T10:00:00.000Z"),
+        makeThread("s1", "local-2", "2026-08-03T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByText(/thread:p1 in/)).toBeInTheDocument();
+    expect(screen.getByText(/thread:m1 in/)).toBeInTheDocument();
+    expect(screen.queryByText(/thread:s1/)).not.toBeInTheDocument();
+  });
+
+  it("ignores a saved selection that is not visible here, even when a sibling is", () => {
+    const wslSibling = {
+      ...localProject,
+      id: "wsl-1",
+      location: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/me/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\repo",
+      },
+    } as Project;
+    // Selected in another workspace; only its WSL sibling is filed here.
+    useSharedSettings.setState({
+      homeScopeEnabled: true,
+      workspaces: [
+        { id: "w1", name: "Side Hustle" },
+        { id: "w2", name: "Work" },
+      ],
+    } as never);
+    useSidebarUiStore.setState({ flatListProjectFilter: ["local-1"] });
+    useAppStore.setState({
+      projects: [
+        homeProject,
+        { ...localProject, workspaceId: "w2" },
+        wslSibling,
+        secondLocalProject,
+      ],
+      threads: [
+        makeThread("w1", "wsl-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("s1", "local-2", "2026-08-02T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByTestId("project-filter")).toHaveTextContent(/^all /);
+    expect(screen.getByText(/thread:w1 in/)).toBeInTheDocument();
+    expect(screen.getByText(/thread:s1 in/)).toBeInTheDocument();
+  });
+
   it("treats a persisted selection covering every visible project as no filter", () => {
     useSidebarUiStore.setState({ flatListProjectFilter: [HOME_PROJECT_ID, "local-1"] });
     useAppStore.setState({

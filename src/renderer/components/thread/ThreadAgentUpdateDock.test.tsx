@@ -194,7 +194,7 @@ describe("ThreadAgentUpdateDock", () => {
     render(<ThreadAgentUpdateDock agentStatus={sdkStatus} project={project} />);
 
     expect(
-      await screen.findByText(/Cursor SDK: This computer · v1\.0\.38 → v1\.0\.40/u),
+      await screen.findByText(/Cursor SDK: Local · v1\.0\.38 → v1\.0\.40/u),
     ).toBeInTheDocument();
     expect(screen.queryByText(/2026\.07\.09/u)).toBeNull();
     expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalledWith({
@@ -262,9 +262,7 @@ describe("ThreadAgentUpdateDock", () => {
     );
 
     expect(
-      await screen.findByText(
-        /Cursor: This computer · v2026\.07\.09-a3815c0 → v2026\.07\.23-e383d2b/u,
-      ),
+      await screen.findByText(/Cursor: Local · v2026\.07\.09-a3815c0 → v2026\.07\.23-e383d2b/u),
     ).toBeInTheDocument();
     expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalledWith({ agentKind: "cursor" });
 

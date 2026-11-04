@@ -63,7 +63,7 @@ import {
   type AgentEnvironmentRuntimes,
 } from "./parts/AgentEnvironmentRow";
 import { HookPluginSettings } from "./parts/HookPluginSettings";
-import { MachineScopeHeading } from "../machineScope/MachineScopeHeading";
+import { MachineScopeHeading } from "@/renderer/components/machineScope/MachineScopeHeading";
 import {
   MachineAttentionHint,
   NoMachineStatusRow,

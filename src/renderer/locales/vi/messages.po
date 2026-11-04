@@ -100,7 +100,7 @@ msgstr "{0, plural, one {# kết nối đã ghép đôi} other {# kết nối đ
 #~ msgstr "{0, plural, one {# desktop đã ghép đôi} other {# desktop đã ghép đôi}}"
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
-#. placeholder {0}: selectedProjects.size
+#. placeholder {0}: selectedRows.length
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
@@ -1902,7 +1902,7 @@ msgstr "Tất cả các tập tin"
 msgid "All folders"
 msgstr "Tất cả thư mục"
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "Tất cả các máy"
 
@@ -2031,6 +2031,10 @@ msgstr "Một tác nhân đang sửa PR này."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Chủ sở hữu cây làm việc dự kiến yêu cầu một nhánh"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "An image from the project folder applies on {iconMachine} only."
+msgstr "Hình ảnh từ thư mục dự án chỉ áp dụng trên {iconMachine}."
 
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
@@ -2616,6 +2620,10 @@ msgstr "Tác nhân ACP có sẵn"
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Available models will appear after the engine is installed."
 msgstr "Các mẫu có sẵn sẽ xuất hiện sau khi lắp đặt động cơ."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Available when {names} is back online."
+msgstr "Có thể dùng khi {names} trực tuyến trở lại."
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -4401,6 +4409,10 @@ msgstr "Thu gọn thanh việc cần làm"
 msgid "Collapse warning"
 msgstr "Thu gọn cảnh báo"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Combine with {name} ({machines})"
+msgstr "Gộp với {name} ({machines})"
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 #~ msgstr "Các mục chủ/số tên phân tách bằng dấu phẩy, ví dụ acme/website, acme/api. Danh sách được gửi tới Devin chính xác như đã nhập."
@@ -4898,9 +4910,9 @@ msgid "Connecting..."
 msgstr "Đang kết nối..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Đang kết nối…"
@@ -6604,6 +6616,10 @@ msgstr "Đọc prompt thay vì gõ"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
 msgstr "Tùy chọn diff"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Differs on {names}"
+msgstr "Khác trên {names}"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
@@ -10494,6 +10510,10 @@ msgstr "Bình luận theo dòng chỉ khả dụng trên toàn bộ đánh giá,
 msgid "Lines {0}–{1}"
 msgstr "Dòng {0}–{1}"
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Link as the same project"
+msgstr "Liên kết là cùng một dự án"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
 msgstr "Đã sao chép liên kết"
@@ -10761,6 +10781,7 @@ msgstr "cục bộ"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
+#: src/renderer/utils/machineLabels.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Local"
@@ -10902,6 +10923,14 @@ msgstr "Tương phản thấp"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
+msgstr "Máy"
+
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
+msgid "Machine: {currentLabel}"
+msgstr "Máy: {currentLabel}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Machines"
 msgstr "Máy"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
@@ -13052,6 +13081,14 @@ msgstr "Dịch vụ không cung cấp"
 msgid "Not running"
 msgstr "Chưa chạy"
 
+#: src/renderer/actions/projectGroupActions.ts
+msgid "Not saved on {names} — it's offline. Apply again once it's back."
+msgstr "Chưa lưu trên {names} vì thiết bị đang ngoại tuyến. Hãy áp dụng lại khi thiết bị kết nối lại."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Not shared with {unlinkedNames} yet: only the project name matches."
+msgstr "Chưa dùng chung với {unlinkedNames}: chỉ có tên dự án trùng khớp."
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Not signed in"
@@ -13178,7 +13215,7 @@ msgid "On"
 msgstr "Vào"
 
 #. placeholder {0}: props.machineLabel ?? t`this machine`
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "On {0}"
 msgstr "Trên {0}"
 
@@ -17783,7 +17820,8 @@ msgstr "Chọn thiết bị"
 msgid "Select lines in the plan to comment on them."
 msgstr "Chọn các dòng trong kế hoạch để bình luận."
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
 msgid "Select machine"
 msgstr "Chọn máy"
 
@@ -18081,6 +18119,10 @@ msgstr "Hiện {label}"
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "Hiển thị vòng tròn {label} ở thanh bên"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Show {machine} as its own project"
+msgstr "Hiển thị {machine} như một dự án riêng"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -20539,8 +20581,8 @@ msgid "This comment changed while you were editing it. Refresh before saving."
 msgstr "Bình luận này đã thay đổi trong lúc bạn chỉnh sửa. Hãy làm mới trước khi lưu."
 
 #: src/renderer/utils/machineLabels.ts
-msgid "This computer"
-msgstr "Máy tính này"
+#~ msgid "This computer"
+#~ msgstr "Máy tính này"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
@@ -20655,7 +20697,7 @@ msgstr "Đây là diff lớn nên chưa được tải."
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "Danh sách này chưa đầy đủ vì quá trình quét đã đạt giới hạn."
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
 msgstr "máy này"
 
@@ -22514,6 +22556,14 @@ msgstr "Sử dụng thư mục này"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Use this link on devices connected to the same network."
 msgstr "Dùng liên kết này trên các thiết bị kết nối cùng mạng."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere"
+msgstr "Dùng giá trị này ở mọi nơi"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere for {setting}"
+msgstr "Dùng giá trị này ở mọi nơi cho {setting}"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

@@ -18,6 +18,15 @@ import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { sidebarRowClass } from "@/renderer/components/common/SidebarButton";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
+import { useProjectGroupIndex } from "@/renderer/state/projectGroups/useProjectGroups";
+import {
+  groupProjectRows,
+  type ProjectGroupIndex,
+} from "@/renderer/state/projectGroups/projectGroups";
+import {
+  ProjectEnvironmentGlyphs,
+  useProjectEnvironmentMachineLookup,
+} from "@/renderer/components/common/ProjectEnvironment";
 import { useProjectMenu } from "./useProjectMenu";
 
 /**
@@ -199,6 +208,36 @@ function ProjectOverflowMenu(props: {
 }
 
 /**
+ * One filter row: a logical project with its rows on every environment. The
+ * persisted filter still holds per-host project ids, so a row toggles all of
+ * its members together and older filters keep working unchanged.
+ */
+interface FilterRow {
+  readonly id: string;
+  /** Row shown for the name, icon and overflow menu — local first. */
+  readonly project: Project;
+  /** Members this filter can select. */
+  readonly members: readonly Project[];
+  /** Every member offered, including ones that can't be filtered right now. */
+  readonly environments: readonly Project[];
+}
+
+export function buildFilterRows(
+  projects: readonly Project[],
+  isFilterable: (project: Project) => boolean,
+  index: ProjectGroupIndex,
+): { available: FilterRow[]; unavailable: FilterRow[] } {
+  const available: FilterRow[] = [];
+  const unavailable: FilterRow[] = [];
+  for (const { id, members: environments } of groupProjectRows(projects, index)) {
+    const members = environments.filter(isFilterable);
+    const row = { id, project: members[0] ?? environments[0]!, members, environments };
+    (members.length > 0 ? available : unavailable).push(row);
+  }
+  return { available, unavailable };
+}
+
+/**
  * Project filter for the flat thread list: a multi-select of which projects'
  * threads to show, defaulting to all of them. Selecting every project — or
  * deselecting the last selected one — collapses back to "All projects" (null),
@@ -268,28 +307,38 @@ export function SidebarProjectFilter(props: {
     event.stopPropagation();
   };
 
-  const filterableProjects = props.projects.filter((project) =>
-    props.filterableProjectIds.has(project.id),
+  const groupIndex = useProjectGroupIndex();
+  const machineFor = useProjectEnvironmentMachineLookup();
+  const { available: filterableRows, unavailable: unavailableRows } = buildFilterRows(
+    props.projects,
+    (project) => props.filterableProjectIds.has(project.id),
+    groupIndex,
   );
-  const unavailableProjects = props.projects.filter(
-    (project) => !props.filterableProjectIds.has(project.id),
-  );
-  const filterableIds = filterableProjects.map((project) => project.id);
+  const filterableIds = filterableRows.flatMap((row) => row.members.map((member) => member.id));
   const isAll = props.value === null;
   // In the all state every project reads as selected — unchecking one then
   // filters it out, matching checkbox expectations.
   const selectedProjects: ReadonlySet<string> = props.value ?? new Set(filterableIds);
+  // A filter persisted before projects were grouped can hold one environment of
+  // a row; it still reads as selected, and the next toggle normalizes the row.
+  const isRowSelected = (row: FilterRow) =>
+    row.members.some((member) => selectedProjects.has(member.id));
+  const selectedRows = filterableRows.filter(isRowSelected);
+  const rowCount = (row: FilterRow) =>
+    row.members.reduce((total, member) => total + (props.threadCounts.get(member.id) ?? 0), 0);
+  /** Machine name for a row that lives on one paired machine only. */
+  const soleServerName = (row: FilterRow) =>
+    row.environments.length === 1 ? remoteServerFor(row.project).serverName : undefined;
 
-  const soleSelected =
-    !isAll && selectedProjects.size === 1
-      ? filterableProjects.find((project) => selectedProjects.has(project.id))
-      : undefined;
-  const soleMachine = soleSelected ? remoteServerFor(soleSelected).serverName : undefined;
+  const soleSelected = !isAll && selectedRows.length === 1 ? selectedRows[0] : undefined;
+  const soleMachine = soleSelected ? soleServerName(soleSelected) : undefined;
   const baseLabel = isAll
     ? t`All projects`
-    : selectedProjects.size === 1
-      ? (soleSelected?.name ?? t`All projects`)
-      : t`${plural(selectedProjects.size, { one: `# project`, other: `# projects` })}`;
+    : soleSelected
+      ? soleSelected.project.name
+      : selectedRows.length === 0
+        ? t`All projects`
+        : t`${plural(selectedRows.length, { one: `# project`, other: `# projects` })}`;
   // A persisted filter outlives the session that set it, so a lone same-named
   // project still has to say which machine it came from — muted, since the
   // project stays the thing being named.
@@ -304,12 +353,17 @@ export function SidebarProjectFilter(props: {
 
   const selectAll = () => props.onChange(null);
 
-  const toggleProject = (projectId: string) => {
+  const toggleRow = (rowId: string) => {
+    const row = filterableRows.find((candidate) => candidate.id === rowId);
+    if (!row) return;
     const next = new Set(selectedProjects);
-    if (next.has(projectId)) next.delete(projectId);
-    else next.add(projectId);
+    const select = !isRowSelected(row);
+    for (const member of row.members) {
+      if (select) next.add(member.id);
+      else next.delete(member.id);
+    }
     // Empty and complete selections are both just "all projects".
-    props.onChange(next.size === 0 || next.size >= filterableIds.length ? null : [...next]);
+    props.onChange(next.size === 0 || filterableIds.every((id) => next.has(id)) ? null : [...next]);
   };
 
   const triggerContent = (
@@ -367,27 +421,28 @@ export function SidebarProjectFilter(props: {
               </span>
               {isAll ? <Check className="size-4 shrink-0 text-accent" /> : null}
             </button>
-            {filterableProjects.map((project) => {
-              const selected = selectedProjects.has(project.id);
+            {filterableRows.map((row) => {
+              const { project } = row;
+              const selected = isRowSelected(row);
               const remote = remoteServerFor(project);
+              const serverName = soleServerName(row);
               return (
-                <div key={project.id} className="m-sheet-action m-sheet-action--split">
+                <div key={row.id} className="m-sheet-action m-sheet-action--split">
                   <button
                     type="button"
                     className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-2.5 text-left"
                     aria-pressed={selected || undefined}
-                    onClick={() => toggleProject(project.id)}
+                    onClick={() => toggleRow(row.id)}
                   >
                     <ProjectSelectorIcon project={project} remote={remote} />
                     <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                    {remote.serverName ? (
+                    <ProjectEnvironmentGlyphs members={row.environments} machineFor={machineFor} />
+                    {serverName ? (
                       <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
-                        {remote.serverName}
+                        {serverName}
                       </span>
                     ) : null}
-                    <span className="shrink-0 text-xs text-muted">
-                      {props.threadCounts.get(project.id) ?? 0}
-                    </span>
+                    <span className="shrink-0 text-xs text-muted">{rowCount(row)}</span>
                     {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
                   </button>
                   {isHomeProject(project) ? null : (
@@ -400,20 +455,23 @@ export function SidebarProjectFilter(props: {
                 </div>
               );
             })}
-            {unavailableProjects.map((project) => {
+            {unavailableRows.map((row) => {
+              const { project } = row;
               const remote = remoteServerFor(project);
+              const serverName = soleServerName(row);
               return (
                 <div
-                  key={project.id}
+                  key={row.id}
                   className="m-sheet-action m-sheet-action--split opacity-50"
                   data-static="true"
                 >
                   <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-2.5">
                     <ProjectSelectorIcon project={project} remote={remote} />
                     <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                    {remote.serverName ? (
+                    <ProjectEnvironmentGlyphs members={row.environments} machineFor={machineFor} />
+                    {serverName ? (
                       <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
-                        {remote.serverName}
+                        {serverName}
                       </span>
                     ) : null}
                   </div>
@@ -446,7 +504,7 @@ export function SidebarProjectFilter(props: {
   // toggle/reset logic as the sheet. Selection changes never close the menu.
   const menuSelectedKeys = new Set<string>([
     ...(isAll ? [ALL_PROJECTS_KEY] : []),
-    ...selectedProjects,
+    ...selectedRows.map((row) => row.id),
   ]);
   const handleSelectionChange = (keys: Selection) => {
     // Interacting with the filter again dismisses a stacked overflow menu,
@@ -477,7 +535,7 @@ export function SidebarProjectFilter(props: {
       selectAll();
       return;
     }
-    toggleProject(pressed);
+    toggleRow(pressed);
   };
 
   return (
@@ -529,16 +587,26 @@ export function SidebarProjectFilter(props: {
             </Label>
             <Dropdown.ItemIndicator />
           </Dropdown.Item>
-          {filterableProjects.length > 0 || unavailableProjects.length > 0 ? <Separator /> : null}
-          {filterableProjects.map((project) => {
+          {filterableRows.length > 0 || unavailableRows.length > 0 ? <Separator /> : null}
+          {filterableRows.map((row) => {
+            const { project } = row;
             const remote = remoteServerFor(project);
+            const serverName = soleServerName(row);
+            const multiEnvironment = row.environments.length > 1;
             return (
-              <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
+              <Dropdown.Item key={row.id} id={row.id} textValue={project.name}>
                 <ProjectSelectorIcon project={project} remote={remote} />
                 <Label className="min-w-0 truncate">{project.name}</Label>
-                {remote.serverName ? <Description>{remote.serverName}</Description> : null}
-                <span className="ms-auto shrink-0 text-xs text-muted">
-                  {props.threadCounts.get(project.id) ?? 0}
+                {serverName ? <Description>{serverName}</Description> : null}
+                <ProjectEnvironmentGlyphs
+                  members={row.environments}
+                  machineFor={machineFor}
+                  className="ms-auto"
+                />
+                <span
+                  className={`${multiEnvironment ? "" : "ms-auto "}shrink-0 text-xs text-muted`}
+                >
+                  {rowCount(row)}
                 </span>
                 <Dropdown.ItemIndicator />
                 {isHomeProject(project) ? null : (
@@ -555,16 +623,23 @@ export function SidebarProjectFilter(props: {
               </Dropdown.Item>
             );
           })}
-          {filterableProjects.length > 0 && unavailableProjects.length > 0 ? <Separator /> : null}
-          {unavailableProjects.length > 0 ? (
+          {filterableRows.length > 0 && unavailableRows.length > 0 ? <Separator /> : null}
+          {unavailableRows.length > 0 ? (
             <Dropdown.Section selectionMode="none">
-              {unavailableProjects.map((project) => {
+              {unavailableRows.map((row) => {
+                const { project } = row;
                 const remote = remoteServerFor(project);
+                const serverName = soleServerName(row);
                 return (
-                  <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
+                  <Dropdown.Item key={row.id} id={row.id} textValue={project.name}>
                     <ProjectSelectorIcon project={project} remote={remote} />
                     <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
-                    {remote.serverName ? <Description>{remote.serverName}</Description> : null}
+                    {serverName ? <Description>{serverName}</Description> : null}
+                    <ProjectEnvironmentGlyphs
+                      members={row.environments}
+                      machineFor={machineFor}
+                      className="ms-auto opacity-50"
+                    />
                     {isHomeProject(project) ? null : (
                       <ProjectRowMenuButton
                         project={project}

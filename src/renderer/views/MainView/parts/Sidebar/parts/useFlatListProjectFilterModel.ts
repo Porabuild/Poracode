@@ -6,6 +6,7 @@ import { useProjectRemoteServerLookup } from "@/renderer/components/common/Proje
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { useProjectGroupIndex } from "@/renderer/state/projectGroups/useProjectGroups";
 import {
   useWorkspaceProjectIds,
   useWorkspaceThreadFilter,
@@ -28,6 +29,7 @@ export function useFlatListProjectFilterModel() {
   const remoteServerFor = useProjectRemoteServerLookup();
   const flatListProjectFilter = useSidebarUiStore((state) => state.flatListProjectFilter);
   const setFlatListProjectFilter = useSidebarUiStore((state) => state.setFlatListProjectFilter);
+  const groupIndex = useProjectGroupIndex();
 
   // Match the grouped sidebar's workspace/Home visibility. Compact clients
   // keep cached remote projects browseable while their machine is offline;
@@ -54,7 +56,22 @@ export function useFlatListProjectFilterModel() {
 
   // Stale persisted ids cannot filter the current workspace. Empty and
   // complete selections normalize to the canonical "all projects" state.
-  const filteredVisibleIds = flatListProjectFilter?.filter((id) => projectsById.has(id)) ?? [];
+  // A selected project covers every listed environment of it: the filter menu
+  // toggles them together, and a filter saved before a machine joined the
+  // project (or before grouping) must show that machine's threads too. Only a
+  // selection that is itself visible here expands; a stale id from another
+  // workspace still drops out instead of selecting its siblings.
+  const filteredVisibleIds = [
+    ...new Set(
+      (flatListProjectFilter ?? [])
+        .filter((id) => projectsById.has(id))
+        .flatMap((id) =>
+          (groupIndex.groupByProjectId.get(id)?.members.map((member) => member.id) ?? [id]).filter(
+            (memberId) => projectsById.has(memberId),
+          ),
+        ),
+    ),
+  ];
   const activeProjectFilter: ReadonlySet<string> | null =
     filteredVisibleIds.length === 0 || filteredVisibleIds.length >= visibleProjects.length
       ? null

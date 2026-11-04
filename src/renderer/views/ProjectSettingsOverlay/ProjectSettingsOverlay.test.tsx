@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 
 const layout = vi.hoisted(() => ({ compact: false }));
 
@@ -32,6 +34,8 @@ describe("ProjectSettingsOverlay", () => {
   beforeEach(() => {
     layout.compact = false;
     useAppStore.setState({ projects: [project] });
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: {} });
   });
 
   it("navigates project settings sections as compact pages", () => {
@@ -87,5 +91,64 @@ describe("ProjectSettingsOverlay", () => {
       "m-home-compose-action",
     );
     expect(within(main).queryByText("Add action")).not.toBeInTheDocument();
+  });
+  describe("on several machines", () => {
+    const onMac: Project = {
+      ...project,
+      id: "remote:mac:project:p",
+      remoteServerId: "mac",
+      remoteId: "p",
+      location: { kind: "posix", path: "/Users/me/poracode", remoteServerId: "mac" },
+    };
+
+    beforeEach(() => {
+      useAppStore.setState({ projects: [project, onMac] });
+      useRemoteServersStore.setState({
+        servers: [{ desktopId: "mac", label: "Poracode on MacBook" }],
+        runtime: { mac: { status: "online", projects: [], threads: [] } },
+      } as never);
+    });
+
+    it("floats the machine picker on desktop and reserves room below each section", () => {
+      render(
+        <ProjectSettingsOverlay
+          projectId={project.id}
+          initialSection="general"
+          onClose={vi.fn<() => void>()}
+        />,
+      );
+      const picker = screen.getByRole("button", { name: /Select machine/ });
+      expect(picker).toHaveTextContent("Local");
+      const wrapper = picker.closest<HTMLElement>("[style]");
+      expect(wrapper?.style.getPropertyValue("--project-settings-bottom-space")).toBe("5rem");
+      expect(screen.getByText("All machines")).toBeInTheDocument();
+      expect(screen.getByText("On Local")).toBeInTheDocument();
+    });
+
+    it("keeps the machine picker in the page flow on compact layouts", () => {
+      layout.compact = true;
+      render(
+        <ProjectSettingsOverlay
+          projectId={project.id}
+          initialSection="general"
+          onClose={vi.fn<() => void>()}
+        />,
+      );
+      expect(screen.getByRole("button", { name: /Select machine/ })).toBeInTheDocument();
+      expect(document.querySelector('[style*="--project-settings-bottom-space"]')).toBeNull();
+    });
+
+    it("shows no machine scope for a project on one machine", () => {
+      useAppStore.setState({ projects: [project] });
+      render(
+        <ProjectSettingsOverlay
+          projectId={project.id}
+          initialSection="general"
+          onClose={vi.fn<() => void>()}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /Select machine/ })).not.toBeInTheDocument();
+      expect(screen.queryByText("All machines")).not.toBeInTheDocument();
+    });
   });
 });

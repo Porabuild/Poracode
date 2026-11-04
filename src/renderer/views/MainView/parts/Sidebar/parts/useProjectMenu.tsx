@@ -32,6 +32,7 @@ import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { useRunningProjectActionIds } from "@/renderer/hooks/uiSelectors";
 import { isRemoteSession } from "@/renderer/bridge";
 import { dispatchManagedRootProjectWorkspace } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
+import { useProjectEnvironmentMenuItems } from "./useProjectEnvironmentMenuItems";
 
 /**
  * The project context menu: entries plus their action dispatcher, shared by
@@ -47,6 +48,7 @@ export function useProjectMenu(
   const { t } = useLingui();
   const { isUnreachable } = options;
   const workspaceMenuItem = useWorkspaceMenuItems(project.workspaceId);
+  const environmentMenu = useProjectEnvironmentMenuItems(project);
   const setRemoteProjectSynced = useRemoteServersStore((state) => state.setRemoteProjectSynced);
   const isDisabled = !!project.disabled;
   const isRemote = project.remoteServerId !== undefined && project.remoteId !== undefined;
@@ -131,6 +133,7 @@ export function useProjectMenu(
             : []),
         ]),
     ...(workspaceMenuItem ? [workspaceMenuItem] : []),
+    ...(environmentMenu.entry ? [environmentMenu.entry] : []),
     ...(!isRemoteClient || !isRemote
       ? [
           {
@@ -162,6 +165,7 @@ export function useProjectMenu(
   ];
 
   const onAction = (key: string) => {
+    if (environmentMenu.onAction(key)) return;
     if (key === "project-settings") openProjectSettings(project.id);
     if (key === "open-terminal") showTerminalPanel(project.id);
     if (key === "stop-syncing" && project.remoteServerId && project.remoteId) {
