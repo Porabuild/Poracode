@@ -79,7 +79,6 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   openExternalNative: "local-shell: opens a URL via this machine's OS shell",
   openMicrophoneSettings: "local-shell: opens this machine's OS settings app",
   showNotification: "local-shell: OS notification",
-  requestLegacyDataMigration: "local-shell: one-time migration of this machine's legacy data",
   getHomeScopeLocation: "local-shell: this machine's home directory as the default project parent",
   listWslDistros: "local-shell: enumerates this machine's WSL distros for location picking",
   getAvailableWindowsShells: "local-shell: this machine's terminal shell inventory",

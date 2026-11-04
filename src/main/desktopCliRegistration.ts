@@ -60,7 +60,6 @@ export function shouldRegisterPosixDesktopCli(input: {
   readonly isPackaged: boolean;
   readonly isDev: boolean;
   readonly baseDirOverride: string | undefined;
-  readonly legacyBaseDirOverride: string | undefined;
   readonly env: NodeJS.ProcessEnv;
 }): boolean {
   return (
@@ -68,7 +67,6 @@ export function shouldRegisterPosixDesktopCli(input: {
     input.isPackaged &&
     !input.isDev &&
     !input.baseDirOverride &&
-    !input.legacyBaseDirOverride &&
     !input.env.CI &&
     !input.env.PORACODE_CDP_PORT &&
     input.env.PORACODE_STARTUP_FAILURE_MODE?.trim().toLowerCase() !== "quiet"

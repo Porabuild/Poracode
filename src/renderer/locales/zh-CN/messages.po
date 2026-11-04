@@ -5129,10 +5129,6 @@ msgstr "复制{0}设备代码{1}"
 msgid "Copy accessibility tree"
 msgstr "复制无障碍树"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
-msgstr "将所有 Lightcode 数据复制到 Poracode。Poracode 将重新启动，并保留当前数据的完整备份。"
-
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "复制代码"
@@ -5450,10 +5446,6 @@ msgstr "无法扫描智能体技能。"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "无法扫描 MCP 服务器配置。"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Couldn't schedule the Lightcode data import."
-msgstr "无法安排 Lightcode 数据导入。"
 
 #: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -9419,14 +9411,6 @@ msgstr "端到端完成主模型的任务，并用范围最小的构建和测试
 msgid "Import"
 msgstr "导入"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import again"
-msgstr "再次导入"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import and restart"
-msgstr "导入并重新启动"
-
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Import browser data"
 msgstr "导入浏览器数据"
@@ -9464,14 +9448,6 @@ msgstr "导入外部技能"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Import from your browser"
 msgstr "从浏览器导入"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import Lightcode data"
-msgstr "导入 Lightcode 数据"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import Lightcode data again?"
-msgstr "再次导入 Lightcode 数据？"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
@@ -10502,10 +10478,6 @@ msgstr "累计token数"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "浅色"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Lightcode data import is unavailable with a custom data folder."
-msgstr "使用自定义数据文件夹时无法导入 Lightcode 数据。"
 
 #. placeholder {0}: r.startLine
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
@@ -12639,10 +12611,6 @@ msgstr "无标签"
 msgid "No learned selections yet."
 msgstr "尚无已学习的选择。"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "No Lightcode data was found."
-msgstr "未找到 Lightcode 数据。"
-
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "No limit"
 msgstr "无限制"
@@ -14606,10 +14574,6 @@ msgstr "Poracode SSH 运行时清单缺失或无效：{path}"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 #~ msgstr "Poracode 将在 SSH 主机上安装或复用其服务器，并将凭据保存在此设备的安全存储中。"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
-msgstr "Poracode 将重新启动，备份当前数据，并用 Lightcode 数据的完整副本替换当前数据。"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Poracode's built-in browser tools."

@@ -5129,10 +5129,6 @@ msgstr "{0} cihaz kodunu kopyala {1}"
 msgid "Copy accessibility tree"
 msgstr "Erişilebilirlik ağacını kopyala"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
-msgstr "Tüm Lightcode verilerini Poracode'a kopyalayın. Poracode yeniden başlatılır ve mevcut verilerinin tam bir yedeğini saklar."
-
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "Kodu kopyala"
@@ -5450,10 +5446,6 @@ msgstr "Aracı becerileri taranamadı."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "MCP sunucusu yapılandırmaları taranamadı."
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Couldn't schedule the Lightcode data import."
-msgstr "Lightcode veri içe aktarma işlemi planlanamadı."
 
 #: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -9419,14 +9411,6 @@ msgstr "Ana modelin görevini baştan sona uygular, en dar derleme ve testlerle 
 msgid "Import"
 msgstr "İçe aktar"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import again"
-msgstr "Tekrar içe aktar"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import and restart"
-msgstr "İçe aktar ve yeniden başlat"
-
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Import browser data"
 msgstr "Tarayıcı verilerini içe aktar"
@@ -9464,14 +9448,6 @@ msgstr "Harici becerileri içe aktar"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Import from your browser"
 msgstr "Tarayıcınızdan içe aktar"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import Lightcode data"
-msgstr "Lightcode verilerini içe aktar"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import Lightcode data again?"
-msgstr "Lightcode verileri tekrar içe aktarılsın mı?"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
@@ -10502,10 +10478,6 @@ msgstr "Toplam token"
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "Açık"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Lightcode data import is unavailable with a custom data folder."
-msgstr "Özel veri klasörü kullanılırken Lightcode verileri içe aktarılamaz."
 
 #. placeholder {0}: r.startLine
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
@@ -12640,10 +12612,6 @@ msgstr "Etiket yok"
 msgid "No learned selections yet."
 msgstr "Henüz öğrenilen seçim yok."
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "No Lightcode data was found."
-msgstr "Lightcode verisi bulunamadı."
-
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "No limit"
 msgstr "Sınır yok"
@@ -14607,10 +14575,6 @@ msgstr "Poracode SSH çalışma zamanı bildirimi eksik veya geçersiz: {path}"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 #~ msgstr "Poracode, sunucusunu SSH ana makinesine yükler veya mevcut sunucuyu yeniden kullanır ve kimlik bilgilerini bu cihazın güvenli depolama alanında saklar."
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
-msgstr "Poracode yeniden başlatılacak, mevcut verilerini yedekleyecek ve bunları Lightcode verilerinizin tam bir kopyasıyla değiştirecek."
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Poracode's built-in browser tools."

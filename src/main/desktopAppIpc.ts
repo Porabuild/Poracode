@@ -17,13 +17,7 @@ import type { BackendHostClient } from "./backend/BackendHostClient";
 import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 import type { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
 import { updatePowerSaveBlocker } from "./desktopAppShell";
-import {
-  desktopApp,
-  isDev,
-  legacyBaseDirOverride,
-  legacyElectronUserDataDir,
-  requirePoracodePaths,
-} from "./desktopAppState";
+import { desktopApp, isDev, requirePoracodePaths } from "./desktopAppState";
 import {
   extractBrowserToWindow,
   finishQuickComposerDismiss,
@@ -52,8 +46,6 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       getBrowserPanelManager: () => desktopApp.browserPanelManager,
       sshConnectionManager: deps.ssh,
       requirePoracodePaths,
-      legacyElectronUserDataDir,
-      ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
       updatePowerSaveBlocker,
       autoUpdater: deps.autoUpdater,
       onKeybindingsChanged: (file) => deps.quickComposerShortcutManager.apply(file),

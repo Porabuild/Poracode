@@ -1,6 +1,5 @@
 import { mkdir } from "node:fs/promises";
 import {
-  app,
   clipboard,
   ClipboardItem,
   dialog,
@@ -45,8 +44,6 @@ import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 import { homeScopeLocation } from "@/shared/homeScopeLocation";
-import { resolvePoracodeChannel } from "@/shared/channel";
-import { resolveLegacyElectronUserDataDir } from "@/shared/legacyProductPaths";
 import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintProbe";
 import { installManagedLoopbackCertificatePin } from "../remote/managedLoopbackCertificatePin";
 import { consumeManagedLoopbackBootstrap } from "../backend/managedLoopbackBootstrapPrewarm";
@@ -57,8 +54,6 @@ interface CreateLocalIpcHandlersOptions {
   getBrowserPanelManager(): BrowserPanelManager | null;
   sshConnectionManager: SshEnvironmentController;
   requirePoracodePaths(): PoracodePaths;
-  legacyElectronUserDataDir?: string;
-  legacyBaseDir?: string;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
   /** Called with the keybindings just written, so consumers don't re-read the file. */
@@ -215,21 +210,6 @@ export function createLocalIpcHandlers(
     showNotification: (payload) => {
       if (options.hostOffersOsNotifications?.() === false) return false;
       return showOsNotification(payload, options.getMainWindow);
-    },
-    requestLegacyDataMigration: () => {
-      const baseDir = options.requirePoracodePaths().baseDir;
-      const channel = resolvePoracodeChannel();
-      const electronUserDataDir = app.getPath("userData");
-      return callService("requestLegacyDataMigration", {
-        baseDir,
-        channel,
-        electronUserDataDir,
-        legacyElectronUserDataDir:
-          options.legacyElectronUserDataDir ??
-          resolveLegacyElectronUserDataDir(electronUserDataDir, channel),
-        ...(options.legacyBaseDir ? { legacyBaseDir: options.legacyBaseDir } : {}),
-        allowCustomDataRoot: app.isPackaged,
-      });
     },
     relaunchApp: () => {
       options.requestRelaunch();
