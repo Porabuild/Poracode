@@ -2,7 +2,7 @@
 //! `locked_use_begin` / `locked_use_end` / `locked_use_status` actions.
 //!
 //! Field names are the contract with the TypeScript host
-//! (`tmp/locked-computer-use-spec.md`, "Helper NDJSON protocol additions").
+//! (`src/shared/contracts/computerUse.ts`).
 //! Every platform answers these actions; only macOS can ever say `unlocked`.
 
 use std::time::Duration;

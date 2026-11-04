@@ -151,11 +151,12 @@ export class ComputerUseMcpIngress {
     this.lockedUse?.resetTurns();
   }
 
-  /** The helper's locked-use status; null when no helper can answer. */
+  /** Apply user intent immediately, including pending-unlock revocation. */
   async setLockedUseSetting(enabled: boolean): Promise<void> {
     await this.lockedUse?.settingChanged(enabled);
   }
 
+  /** The helper's locked-use status; null when no helper can answer. */
   async lockedUseStatus(): Promise<ComputerUseLockedUseStatus | null> {
     if (this.stopping || !this.driver.lockedUseStatus) return null;
     return await this.driver.lockedUseStatus();

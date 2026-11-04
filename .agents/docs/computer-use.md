@@ -429,7 +429,8 @@ the desktop overlay's reduced activity (an enabled session or a visible badge
 or takeover), counting only threads that are still working. A backend reset or
 a turn that ends without `disable` therefore cannot hold a blocker. The
 standalone server holds no blockers.
-When the desktop locks anyway, agents must stop and ask the user to unlock.
+When the desktop locks anyway, agents must stop and ask the user to unlock
+unless Locked Computer Use is enabled and successfully unlocks the Mac.
 Changing this guidance bumps `resources/plugins/computer-use/plugin.json`.
 
 ## Adding or changing an action

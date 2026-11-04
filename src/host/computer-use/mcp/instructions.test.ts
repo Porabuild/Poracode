@@ -80,6 +80,13 @@ describe("computer use instructions", () => {
     );
   });
 
+  it("does not contradict the enabled locked-desktop flow", () => {
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).not.toContain("Locked desktops,");
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
+      "Secure prompts, permission prompts, and password surfaces require the user.",
+    );
+  });
+
   it("ties idle locking to the user setting without changing it", () => {
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
       "Prevent screen lock setting only stops idle locking; never change it yourself",
