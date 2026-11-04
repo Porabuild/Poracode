@@ -7,7 +7,6 @@ import {
 } from "@/shared/remote/client";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import { recordThreadHistoryNoticeRead } from "@/renderer/state/remote/historyNoticeStore";
-import { currentRemoteServerGeneration, remoteServerResumeFence } from "../eventSocketRegistry";
 
 /**
  * B4 bounded-history tail registry (W1, renderer).
@@ -39,44 +38,6 @@ export interface BoundedHistoryTail {
 
 const tails = new Map<string, BoundedHistoryTail>();
 const MAX_TRACKED_TAILS = 256;
-
-let withBoundedClient:
-  | (<Result>(
-      desktopId: string,
-      invoke: (client: RemoteDesktopClient) => Promise<Result>,
-    ) => Promise<Result>)
-  | null = null;
-
-export function configureBoundedHistoryClient(
-  invoke: <Result>(
-    desktopId: string,
-    operation: (client: RemoteDesktopClient) => Promise<Result>,
-  ) => Promise<Result>,
-): void {
-  withBoundedClient = invoke;
-}
-
-export function boundedClientInvoker(): typeof withBoundedClient {
-  return withBoundedClient;
-}
-
-export function recordBoundedHistoryTail(input: {
-  readonly desktopId: string;
-  readonly threadId: string;
-  readonly page: RemoteBoundedThreadHistoryPage;
-}): void {
-  const desktopId = input.desktopId;
-  const viewThreadId = remoteThreadId(desktopId, input.threadId);
-  const generation = currentRemoteServerGeneration(desktopId);
-  const fence = remoteServerResumeFence(desktopId);
-  recordHistoryTail(viewThreadId, input.threadId, input.page, {
-    authority: desktopId,
-    isCurrent: () =>
-      currentRemoteServerGeneration(desktopId) === generation &&
-      remoteServerResumeFence(desktopId) === fence,
-    withClient: (invoke) => withBoundedClient?.(desktopId, invoke),
-  });
-}
 
 /** Records a thread's bounded tail under the session of the host that served it. */
 export function recordHistoryTail(

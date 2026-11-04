@@ -21,6 +21,7 @@ import { hasSendablePromptContent, skillSegmentFromSlashCommand } from "@/shared
 import { friendlyError } from "@/shared/messages";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isQuickComposerWindow, isRemoteSession, readBridge } from "@/renderer/bridge";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import { useAttachmentImageAuthority } from "@/renderer/components/thread/threadImageAuthority";
 import { hasAnyClientBridge } from "@/renderer/clientRuntime";
 import {
@@ -302,7 +303,6 @@ function DraftComposerAfterControls(props: {
 
 export function ThreadDraftComposerArea(props: {
   project: Project;
-  isRemote?: boolean;
   paneId?: string;
   selectedAgent: AgentStatus;
   controls: ComposerControl[];
@@ -355,7 +355,7 @@ export function ThreadDraftComposerArea(props: {
   // installs and settings this one does not share. Each use below names the one
   // it depends on; `hostIsLocalToClient` is for what needs both absent.
   const isBrowserClient = isRemoteSession();
-  const projectOnThisMachine = props.isRemote !== true;
+  const projectOnThisMachine = hostRunsOnThisMachine(props.project);
   const hostIsLocalToClient = projectOnThisMachine && !isBrowserClient;
   const autoFocus = props.autoFocus ?? ((props.paneCount ?? 1) === 1 && !isBrowserClient);
   const isQuickComposer = hasAnyClientBridge() ? isQuickComposerWindow() : false;

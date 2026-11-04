@@ -6,13 +6,11 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import {
   __resetBoundedHistoryForTest,
-  configureBoundedHistoryClient,
   forgetBoundedHistoryThread,
   forgetBoundedHistoryThreadByViewId,
   invokeBoundedRuntimeItemsPage,
   loadOlderBoundedCompletedTurns,
   mergeBoundedTailTurns,
-  recordBoundedHistoryTail,
 } from "./boundedHistory";
 import {
   invokeRecordedRuntimeItemsPage,
@@ -20,6 +18,10 @@ import {
   recordHistoryTail,
 } from "./boundedHistoryRegistry";
 import { bumpRemoteServerGeneration, setRemoteServerSnapshotSeq } from "../eventSocketRegistry";
+import {
+  configureBoundedHistoryClient,
+  recordBoundedHistoryTail,
+} from "./boundedHistoryTail.testSupport";
 
 const VIEW_THREAD_ID = remoteThreadId("d1", "rt-1");
 const BASE_TIME = Date.parse("2026-01-01T00:00:00.000Z");

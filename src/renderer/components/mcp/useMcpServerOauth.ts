@@ -3,6 +3,7 @@ import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { McpOauthStatusPayload, McpServer, ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 
 export interface McpServerOauthApi {
   /** Transport URLs with stored OAuth credentials. */
@@ -49,7 +50,7 @@ export function useMcpServerOauth(
   // Tokens live with the host that launches the server. A project on a paired
   // host names that host through its location; a local project shares this
   // desktop's own store, so only the host-naming location is sent.
-  const ownerLocation = projectLocation?.remoteServerId ? projectLocation : undefined;
+  const ownerLocation = hostRunsOnThisMachine(projectLocation) ? undefined : projectLocation;
   const ownerPayload: McpOauthStatusPayload = ownerLocation
     ? { projectLocation: ownerLocation }
     : {};

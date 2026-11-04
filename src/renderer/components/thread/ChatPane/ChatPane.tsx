@@ -6,6 +6,7 @@ import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { isRemoteSession } from "@/renderer/bridge";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import { resolveRemoteBridgeLocalImagePath } from "@/renderer/browser/remoteBridge";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import {
@@ -117,7 +118,7 @@ export function ChatPane(props: ChatPaneProps) {
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
   const imageAuthority = useThreadImageAuthority(thread);
   const isManagedThread = managedRootOwner(thread) !== undefined;
-  const isRemoteThread = thread.remoteServerId !== undefined;
+  const isRemoteThread = !hostRunsOnThisMachine(thread);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
   const registerScrollToIndex = (handler: ScrollToIndex | null) => {

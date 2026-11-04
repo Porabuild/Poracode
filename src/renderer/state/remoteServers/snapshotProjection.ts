@@ -67,7 +67,6 @@ import {
 } from "./catalog/catalogOrderFence";
 import { orderCatalogRowsById, type CatalogKind } from "./catalog/boundedCatalogAlgorithm";
 import {
-  configureBoundedHistoryClient,
   forgetBoundedHistoryThreadByViewId,
   loadOlderBoundedCompletedTurns,
 } from "./catalog/boundedHistory";
@@ -325,7 +324,6 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       isForeground: () => typeof document === "undefined" || document.visibilityState === "visible",
     },
   );
-  configureBoundedHistoryClient((desktopId, invoke) => withClient(desktopId, invoke));
   setOlderThreadHistoryContinuation((viewThreadId) => loadOlderBoundedCompletedTurns(viewThreadId));
   setOlderThreadHistoryInvalidation((viewThreadId) =>
     forgetBoundedHistoryThreadByViewId(viewThreadId),

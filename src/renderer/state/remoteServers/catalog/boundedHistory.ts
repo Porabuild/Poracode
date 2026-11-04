@@ -33,13 +33,11 @@ import {
 export const BOUNDED_HISTORY_TAIL_PAGE_LIMIT = 200;
 
 export {
-  configureBoundedHistoryClient,
   forgetBoundedHistoryForServer,
   forgetBoundedHistoryThread,
   forgetBoundedHistoryThreadByViewId,
   invokeBoundedRuntimeItemsPage,
   invokeRecordedRuntimeItemsPage,
-  recordBoundedHistoryTail,
   recordHistoryTail,
   type BoundedHistoryTail,
   type BoundedHistorySession,

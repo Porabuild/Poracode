@@ -144,8 +144,7 @@ function renderComposer(
 ) {
   return render(
     <ThreadDraftComposerArea
-      project={project}
-      {...(options.isRemote ? { isRemote: true } : {})}
+      project={options.isRemote ? { ...project, remoteServerId: "paired-host" } : project}
       {...(options.paneId ? { paneId: options.paneId } : {})}
       selectedAgent={agentStatus}
       controls={[]}

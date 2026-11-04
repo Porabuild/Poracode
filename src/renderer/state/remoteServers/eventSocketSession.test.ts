@@ -15,9 +15,9 @@ import {
 } from "@/renderer/state/remote/engine";
 import {
   readBoundedHistoryTail,
-  recordBoundedHistoryTail,
   __resetBoundedHistoryRegistryForTest,
 } from "./catalog/boundedHistoryRegistry";
+import { recordBoundedHistoryTail } from "./catalog/boundedHistoryTail.testSupport";
 import {
   __resetEventSocketRegistryForTest,
   bumpRemoteServerSnapshotSeq,

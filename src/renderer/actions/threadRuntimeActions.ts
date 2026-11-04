@@ -30,7 +30,7 @@ import {
   threadInterruptedTurnStatements,
 } from "@/renderer/state/pendingThreadInput";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import {
   isRemoteCommandOutcomeUncertainError,
   notifyThreadCommandOutcomeUncertain,
@@ -281,7 +281,6 @@ export async function submitThreadInput(
   const resolved = resolveThreadProjectLocation(threadId);
   if (!resolved) return;
   const { thread, projectLocation } = resolved;
-  const owner = remoteOwner(thread);
   await performThreadInputSubmit({
     thread,
     prompt,
@@ -295,7 +294,7 @@ export async function submitThreadInput(
       // Abort if the thread or project disappeared (or changed ownership)
       // between send and resume — relaunching a deleted row would recreate it.
       const latest = resolveThreadProjectLocation(threadId);
-      if (!latest || Boolean(remoteOwner(latest.thread)) !== Boolean(owner)) return;
+      if (!latest || hostRunsOnThisMachine(latest.thread) !== hostRunsOnThisMachine(thread)) return;
       await performInitialThreadLaunch({
         thread: latest.thread,
         projectLocation: latest.projectLocation,
