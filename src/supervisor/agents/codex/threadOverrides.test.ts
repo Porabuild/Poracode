@@ -4,6 +4,24 @@ import { codexMcpTokenEnvVar } from "../userMcp";
 import { buildCodexThreadOverrides } from "./threadOverrides";
 
 describe("buildCodexThreadOverrides", () => {
+  it.each([undefined, "", "auto_review"])(
+    "resets the reviewer for full-access threads with saved reviewer %j",
+    (approvalsReviewer) => {
+      const overrides = buildCodexThreadOverrides({
+        model: "gpt-5.6",
+        approvalPolicy: "never",
+        sandboxMode: "danger-full-access",
+        ...(approvalsReviewer !== undefined ? { approvalsReviewer } : {}),
+      });
+
+      expect(overrides).toMatchObject({
+        approvalPolicy: "never",
+        approvalsReviewer: "user",
+        sandbox: "danger-full-access",
+      });
+    },
+  );
+
   it("scopes cwd and MCP configuration to the app-server thread", () => {
     const browser: ResolvedMcpServer = {
       id: "browser",

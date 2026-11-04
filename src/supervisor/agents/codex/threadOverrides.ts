@@ -18,6 +18,7 @@ export function buildCodexThreadOverrides(
   },
 ): ThreadConfigOverrides {
   const mcpConfig = options?.mcpServers ? buildCodexMcp(options.mcpServers).config : {};
+  const approvalsReviewer = config.approvalPolicy === "never" ? "user" : config.approvalsReviewer;
   return {
     model: config.model,
     ...(options?.projectLocation ? { cwd: getProjectPosixPath(options.projectLocation) } : {}),
@@ -26,9 +27,9 @@ export function buildCodexThreadOverrides(
           approvalPolicy: config.approvalPolicy as NonNullable<ThreadForkParams["approvalPolicy"]>,
         }
       : {}),
-    ...(config.approvalsReviewer
+    ...(approvalsReviewer
       ? {
-          approvalsReviewer: config.approvalsReviewer as NonNullable<
+          approvalsReviewer: approvalsReviewer as NonNullable<
             ThreadForkParams["approvalsReviewer"]
           >,
         }
