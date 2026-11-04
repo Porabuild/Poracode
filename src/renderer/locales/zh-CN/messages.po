@@ -16908,6 +16908,10 @@ msgstr "旋转到…"
 msgid "Rotate viewport"
 msgstr "旋转视口"
 
+#: src/renderer/state/hostCatalogReorder.ts
+msgid "Rows on different machines can't be reordered together."
+msgstr "无法同时重新排序位于不同机器上的行。"
+
 #. placeholder {0}: rows.length
 #. placeholder {1}: block.rows.length
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
@@ -20658,6 +20662,10 @@ msgstr "此 Hex 版本需要 Linux 上的 glibc 2.39 或更高版本。"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
 msgstr "此主机"
+
+#: src/renderer/state/hostCatalogOrder.ts
+msgid "This host can't reorder threads across projects. Update it to enable that."
+msgstr "此主机无法跨项目重新排序线程。请更新它以启用该功能。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "This host does not support the device workspace."

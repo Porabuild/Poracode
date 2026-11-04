@@ -52,29 +52,42 @@ describe("createWorktree", () => {
     bridge.gitAddWorktree.mockResolvedValue({ path: "C:\\shared-worktrees\\feature" });
   });
 
-  it.each([
-    ["the desktop's own", {}],
-    ["a paired", { remoteServerId: "desktop-1", remoteId: "project-1" }],
-  ])("lets %s project's host place the worktree", async (_label, owner) => {
-    await createWorktree(
-      { ...project, ...owner },
-      {
-        branch: "feature",
-        startPoint: "main",
-        createBranch: true,
-        transferUncommitted: true,
-        keepChangesInSource: false,
-      },
-    );
+  it("places a project on this machine from this client's settings and the project's override", async () => {
+    await createWorktree(project, {
+      branch: "feature",
+      startPoint: "main",
+      createBranch: true,
+      transferUncommitted: true,
+      keepChangesInSource: false,
+    });
 
-    // No client-side placement: the host applies its own settings and the
-    // project's override.
     expect(bridge.gitAddWorktree).toHaveBeenCalledWith({
       projectLocation: project.location,
       branch: "feature",
       startPoint: "main",
       createBranch: true,
+      worktreeRoot: "C:\\shared-worktrees",
       transferUncommitted: true,
+      keepChangesInSource: false,
+    });
+  });
+
+  it("lets a paired host place the worktree from its own settings", async () => {
+    await createWorktree(
+      { ...project, remoteServerId: "desktop-1", remoteId: "project-1" },
+      {
+        branch: "feature",
+        createBranch: true,
+        transferUncommitted: false,
+        keepChangesInSource: false,
+      },
+    );
+
+    expect(bridge.gitAddWorktree).toHaveBeenCalledWith({
+      projectLocation: project.location,
+      branch: "feature",
+      createBranch: true,
+      transferUncommitted: false,
       keepChangesInSource: false,
     });
   });

@@ -44,11 +44,6 @@ export class SessionRenewal {
     this.arm();
   }
 
-  /** The bearer's renewal window, for diagnostics and tests. */
-  get renewalDueAtMs(): number | null {
-    return this.dueAtMs;
-  }
-
   dispose(): void {
     this.disposed = true;
     this.clearTimer();

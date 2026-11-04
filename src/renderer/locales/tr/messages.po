@@ -16909,6 +16909,10 @@ msgstr "Döndür…"
 msgid "Rotate viewport"
 msgstr "Görüntü alanını döndür"
 
+#: src/renderer/state/hostCatalogReorder.ts
+msgid "Rows on different machines can't be reordered together."
+msgstr "Farklı makinelerdeki satırlar birlikte yeniden sıralanamaz."
+
 #. placeholder {0}: rows.length
 #. placeholder {1}: block.rows.length
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
@@ -20659,6 +20663,10 @@ msgstr "Bu Hex sürümü, Linux'ta glibc 2.39 veya daha yenisini gerektirir."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
 msgstr "Bu ana makine"
+
+#: src/renderer/state/hostCatalogOrder.ts
+msgid "This host can't reorder threads across projects. Update it to enable that."
+msgstr "Bu ana makine iş parçacıklarını projeler arasında yeniden sıralayamaz. Etkinleştirmek için güncelleyin."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "This host does not support the device workspace."

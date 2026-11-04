@@ -16909,6 +16909,10 @@ msgstr "Obróć do…"
 msgid "Rotate viewport"
 msgstr "Obróć obszar wyświetlania"
 
+#: src/renderer/state/hostCatalogReorder.ts
+msgid "Rows on different machines can't be reordered together."
+msgstr "Wierszy z różnych maszyn nie można zmieniać kolejności razem."
+
 #. placeholder {0}: rows.length
 #. placeholder {1}: block.rows.length
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
@@ -20659,6 +20663,10 @@ msgstr "To wydanie Hex wymaga glibc 2.39 lub nowszego w systemie Linux."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
 msgstr "Ten host"
+
+#: src/renderer/state/hostCatalogOrder.ts
+msgid "This host can't reorder threads across projects. Update it to enable that."
+msgstr "Ten host nie może zmieniać kolejności wątków między projektami. Zaktualizuj go, aby to włączyć."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "This host does not support the device workspace."

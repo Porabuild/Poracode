@@ -427,8 +427,10 @@ export async function applyRemoteProjectCommand(
         assertRelocatable(project);
         const updated = relocate(project);
         assertUniqueLocation(project, updated.location);
-        options.onEffectBoundary?.();
+        // A runtime repair that refuses (a folder that is not a repository) is
+        // a definite failure: the effect boundary is the row write after it.
         await deps.relocateProjectRuntime(project.id, updated.location);
+        options.onEffectBoundary?.();
         deps.updateProject(updated);
         return boundedResult({ ok: true, project: updated });
       }
@@ -440,8 +442,8 @@ export async function applyRemoteProjectCommand(
       assertRelocatable(project);
       const updated = relocate(project);
       assertUniqueLocation(project, updated.location);
-      options.onEffectBoundary?.();
       await deps.relocateProjectRuntime(project.id, updated.location);
+      options.onEffectBoundary?.();
       deps.updateProject(updated);
       return completeResult({
         projects: projects.map((candidate) => (candidate.id === updated.id ? updated : candidate)),

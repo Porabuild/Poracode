@@ -67,6 +67,7 @@ const remoteState = vi.hoisted(() => ({
   dispatchRemoteSupervisorEvent: vi.fn<(...args: unknown[]) => void>(),
   noteRuntimeHistoryBaselines: vi.fn<(threadIds: readonly string[]) => void>(),
   recoverRuntimeHistory: vi.fn<(threadId: string) => void>(),
+  discardQueuedRuntimeEvents: vi.fn<(threadId: string) => void>(),
   collectRuntimeEventsFromSupervisoryMessage: (
     value: unknown,
   ): Array<{
@@ -627,6 +628,8 @@ describe("remote event socket session (V5 2.1)", () => {
     await flushAsync();
     expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(0);
     expect(remoteState.resetRemoteThreadProjection).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
+    // Frames queued from the previous host instance never replay on the new baseline.
+    expect(remoteState.discardQueuedRuntimeEvents).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
 
     // Fresh-stream events continue contiguously from the accepted cursor.
     await deliver(socket, runtimeEventFrame(1));

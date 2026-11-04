@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitHubAccountRef, McpServer, Project, ProjectScripts } from "@/shared/contracts";
+import type {
+  GitHubAccountRef,
+  McpServer,
+  Project,
+  ProjectScripts,
+  Thread,
+} from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -14,6 +20,7 @@ import * as bridgeRuntime from "@/renderer/bridge";
 import {
   saveProjectMcpServers,
   setProjectDisabled,
+  isFolderChangeBlockedByRunningThread,
   relocateProject,
   updateProjectGhAccount,
   updateProjectIcon,
@@ -198,6 +205,23 @@ describe("remote project actions", () => {
     await relocateProject(project.id, "/other/repo");
     expect(toast.danger).toHaveBeenCalledWith("This folder is already registered as a project.");
     expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a folder change while one of the project's threads is running, before and after choosing", async () => {
+    useAppStore.setState({
+      threads: [{ id: "running", projectId: project.id, status: "working" } as Thread],
+    });
+
+    expect(isFolderChangeBlockedByRunningThread(project.id)).toBe(true);
+    expect(toast.danger).toHaveBeenCalledWith(
+      "Stop the project's running threads before changing its folder.",
+    );
+
+    await relocateProject(project.id, "/moved/repo");
+    expect(runProjectCommand).not.toHaveBeenCalled();
+
+    useAppStore.setState({ threads: [] });
+    expect(isFolderChangeBlockedByRunningThread(project.id)).toBe(false);
   });
 
   it("keeps project settings unchanged when the remote host is offline", async () => {

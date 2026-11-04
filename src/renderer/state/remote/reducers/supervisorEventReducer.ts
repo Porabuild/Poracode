@@ -218,6 +218,12 @@ export interface SupervisorEventReducer {
   ): void;
   /** Drains one thread's queued deltas synchronously, preserving event order. */
   flushSync(threadId: string): void;
+  /**
+   * Drops one thread's queued, not yet applied deltas without applying them:
+   * its host restarted, so its sequence space restarted and every queued frame
+   * belongs to the previous instance.
+   */
+  discardQueued(threadId: string): void;
   /** Reacquired live content needs a baseline before queued deltas resume. */
   recoverRuntimeHistory(threadId: string): void;
   /**
@@ -817,6 +823,7 @@ export function createSupervisorEventReducer(
     dispatch,
     enqueueRuntimeBatches,
     flushSync,
+    discardQueued: (threadId) => queue.discard(threadId),
     recoverRuntimeHistory,
     noteAuthoritativeBaselines,
     installScheduling,

@@ -55,7 +55,6 @@ it("arms nothing for an expired bearer or after dispose", async () => {
   const renew = vi.fn<() => Promise<boolean>>(async () => true);
   const renewal = new SessionRenewal(renew, "test");
   renewal.schedule(at(-1));
-  expect(renewal.renewalDueAtMs).toBeNull();
   renewal.schedule(at(60 * 60_000));
   renewal.dispose();
   await vi.advanceTimersByTimeAsync(60 * 60_000);

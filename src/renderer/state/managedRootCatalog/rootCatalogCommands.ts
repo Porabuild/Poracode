@@ -1,10 +1,5 @@
-import { type ThreadLaunchReplay } from "@/renderer/state/threadLaunchIntents";
 import { msg } from "@lingui/core/macro";
-import {
-  DEFAULT_TERMINAL_SIZE,
-  type RemoteThreadCommand,
-  type StartThreadResult,
-} from "@/shared/contracts";
+import { type RemoteThreadCommand } from "@/shared/contracts";
 import type { RemoteProjectCommand, RemoteProjectCommandResponse } from "@/shared/remote";
 import {
   sendClientProjectCommand,
@@ -113,46 +108,6 @@ export async function sendManagedRootThreadCommand(
   options: { readonly commandId?: string } = {},
 ): Promise<void> {
   await sendClientThreadCommand(requireManagedRootClient(), command, options);
-}
-
-/** Launch a root row's first runtime, creating metadata if it is still unsaved. */
-export async function startManagedRootThread(
-  input: ThreadLaunchReplay,
-  options: { readonly commandId?: string } = {},
-): Promise<StartThreadResult> {
-  const client = requireManagedRootClient();
-  const threadId = input.threadId ?? crypto.randomUUID();
-  if (input.projectLocation) {
-    // Metadata was acknowledged before workspace preparation. Keep the exact
-    // launch body and receipt identity without recreating its title or row.
-    return client.startThread(
-      {
-        threadId,
-        projectLocation: input.projectLocation,
-        agentKind: input.agentKind,
-        ...(input.agentInstanceId ? { agentInstanceId: input.agentInstanceId } : {}),
-        config: input.config,
-        prompt: input.prompt,
-        ...(input.segments ? { segments: input.segments } : {}),
-        ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
-        ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
-        ...(input.clientContext ? { clientContext: input.clientContext } : {}),
-        initialSize: input.initialSize ?? DEFAULT_TERMINAL_SIZE,
-      },
-      options,
-    );
-  }
-  // ONE explicit per-episode command id over the existing SDK launch entry: the
-  // host binds the receipt to the principal, the route and the exact body, so
-  // an identical retry replays the recorded outcome instead of launching a
-  // second runtime, while a re-attempt after a proven pre-effect failure is a
-  // new operation with a fresh id. The SDK also carries the complete creation
-  // metadata (title/group/worktree/parent/PR/workspace/size) under the host's
-  // advertised capability; nothing is re-serialized here.
-  return client.startNewThread(
-    { ...input, threadId },
-    options.commandId !== undefined ? { commandId: options.commandId } : {},
-  );
 }
 
 /** Project commands (create/clone/remove/rename/relocate/update/…). */

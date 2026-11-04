@@ -171,6 +171,7 @@ export interface SessionReconnectActionDeps extends RemoteServersStoreApi {
   readonly setRemoteServerFailure: RemoteServerClientBindings["setRemoteServerFailure"];
   readonly clientForServer: RemoteServerClientBindings["clientForServer"];
   readonly withClient: RemoteServerClientBindings["withClient"];
+  readonly disposeSessionRenewal: RemoteServerClientBindings["disposeSessionRenewal"];
   readonly checkHostUpdateInBackground: RemoteServerClientBindings["checkHostUpdateInBackground"];
   readonly startRemoteServerEventStream: StartRemoteServerEventStream;
   readonly persistHasHydrated: () => boolean;
@@ -184,6 +185,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     setRemoteServerFailure,
     clientForServer,
     withClient,
+    disposeSessionRenewal,
     checkHostUpdateInBackground,
     startRemoteServerEventStream,
     persistHasHydrated,
@@ -571,6 +573,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         invalidateRemoteServerRefresh(key);
         closeRemoteServerEventSocket(key);
         forgetHistoryBaselines(remoteServerHostSession(key));
+        disposeSessionRenewal(key);
         bumpRemoteServerGeneration(key);
         // The connection is gone: its bounded walks, cursors and history
         // continuation proofs must not survive a future re-pair.

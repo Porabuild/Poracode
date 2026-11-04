@@ -2,6 +2,8 @@ import { msg } from "@lingui/core/macro";
 import type { Project } from "@/shared/contracts";
 import { worktreeScriptShellId } from "@/shared/worktreeScriptShell";
 import { buildWorktreeLocation, normalizeWorktreePathForComparison } from "@/shared/worktree";
+import { projectHostRunsOnThisMachine } from "@/renderer/state/hostLocality";
+import { worktreePlacementPayload } from "./worktreePlacement";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { removeTerminalTab } from "@/renderer/actions/terminalTabActions";
@@ -33,8 +35,10 @@ export function createWorktree(
     branch: input.branch,
     ...(input.startPoint ? { startPoint: input.startPoint } : {}),
     createBranch: input.createBranch,
-    // The project's host places the worktree from its own settings and the
-    // project's override, whichever host that is.
+    // A project on this machine reaches its host over IPC, which has no
+    // placement of its own, so this client's settings and the project's
+    // override place it. A paired host places the worktree from its own.
+    ...(projectHostRunsOnThisMachine(project) ? worktreePlacementPayload(project) : {}),
     ...(copyIgnoredPatterns?.length ? { copyIgnoredPatterns } : {}),
     transferUncommitted: input.transferUncommitted,
     keepChangesInSource: input.keepChangesInSource,

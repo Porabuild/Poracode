@@ -72,7 +72,7 @@ it("retries failed history through the reducer that owns queued deltas", () => {
   const recover = vi.fn<(threadId: string) => void>();
   const uninstall = installRuntimeHistoryRecovery(recover);
   try {
-    void retryThreadRuntimeItems("thread-1");
+    retryThreadRuntimeItems("thread-1");
     expect(recover).toHaveBeenCalledExactlyOnceWith("thread-1");
     expect(mocks.hydrate).not.toHaveBeenCalled();
   } finally {
@@ -84,7 +84,7 @@ it.each(["thread-1", "remote:host-1:thread:thread-1"])(
   "retries %s through the live reducer that owns its queue, whichever host owns it",
   (threadId) => {
     mocks.hydrated.mockReturnValue(true);
-    void retryThreadRuntimeItems(threadId);
+    retryThreadRuntimeItems(threadId);
     expect(mocks.recoverRemote).toHaveBeenCalledExactlyOnceWith(threadId);
     expect(mocks.hydrate).not.toHaveBeenCalled();
   },

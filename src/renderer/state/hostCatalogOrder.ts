@@ -27,8 +27,8 @@ export interface HostCatalogOrder {
   persistsOrder(): boolean;
   /** `flatThreadReorder` (v1): a thread move in the host's complete catalog. */
   supportsFlatThreadReorder(): Promise<boolean>;
-  /** The localized refusal shown when a flat move is refused; silent when absent. */
-  flatRefusal(): Error | undefined;
+  /** The localized refusal shown when a flat move is refused. */
+  flatRefusal(): Error;
   /** The command settled: let the host's authoritative order converge (beyond the command's own catch-up pass). */
   confirmOrder(kind: CatalogKind): void;
   /** The command failed: restore the host's authoritative order. */
@@ -74,8 +74,10 @@ export function pairedCatalogOrder(
       flatVerdicts.set(connectionKey, { generation, verdict });
       return verdict;
     },
-    // No paired-specific refusal string exists; the move simply does not apply.
-    flatRefusal: () => undefined,
+    flatRefusal: () =>
+      new Error(
+        i18n._(msg`This host can't reorder threads across projects. Update it to enable that.`),
+      ),
     confirmOrder: (kind) => requestManualPaintRefresh(connectionKey, kind),
     recoverOrder: (kind) => requestManualPaintRefresh(connectionKey, kind),
   };

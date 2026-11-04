@@ -142,7 +142,7 @@ it.each([
       getSqlite()
         .prepare("DELETE FROM thread_runtime_items WHERE thread_id = ? AND item_id = 'item-1'")
         .run(threadId);
-      if (action === "retry") void retryThreadRuntimeItems(threadId);
+      if (action === "retry") retryThreadRuntimeItems(threadId);
       else void hydrateThreadRuntimeItemsForInterest(threadId, true);
       await vi.waitFor(() => {
         expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();

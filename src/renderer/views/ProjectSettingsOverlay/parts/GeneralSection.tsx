@@ -2,7 +2,11 @@ import { useState } from "react";
 import { FolderOpen } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useProject } from "@/renderer/state/useThread";
-import { pickProjectFolder, relocateProject } from "@/renderer/actions/projectActions";
+import {
+  isFolderChangeBlockedByRunningThread,
+  pickProjectFolder,
+  relocateProject,
+} from "@/renderer/actions/projectActions";
 import { renameProjectEverywhere } from "@/renderer/actions/projectGroupActions";
 import { Button, Input, PathDisplay } from "@/renderer/components/common";
 import { RemoteHostFolderPicker } from "@/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker";
@@ -106,6 +110,7 @@ export function GeneralSection(props: { projectId: string }) {
               variant="tertiary"
               className="w-[240px] shrink-0 justify-start gap-2 font-normal"
               onPress={() => {
+                if (isFolderChangeBlockedByRunningThread(project.id)) return;
                 // Another machine's folders are browsed on that host; this
                 // machine's host uses the native folder dialog.
                 if (!projectHostRunsOnThisMachine(project)) {

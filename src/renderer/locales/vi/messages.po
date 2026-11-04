@@ -16909,6 +16909,10 @@ msgstr "Xoay sang…"
 msgid "Rotate viewport"
 msgstr "Xoay khung nhìn"
 
+#: src/renderer/state/hostCatalogReorder.ts
+msgid "Rows on different machines can't be reordered together."
+msgstr "Không thể sắp xếp lại cùng lúc các hàng trên các máy khác nhau."
+
 #. placeholder {0}: rows.length
 #. placeholder {1}: block.rows.length
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
@@ -20659,6 +20663,10 @@ msgstr "Bản phát hành Hex này yêu cầu glibc 2.39 hoặc mới hơn trên
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
 msgstr "Máy chủ này"
+
+#: src/renderer/state/hostCatalogOrder.ts
+msgid "This host can't reorder threads across projects. Update it to enable that."
+msgstr "Máy chủ này không thể sắp xếp lại luồng giữa các dự án. Hãy cập nhật để bật tính năng này."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "This host does not support the device workspace."

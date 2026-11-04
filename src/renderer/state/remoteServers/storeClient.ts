@@ -251,7 +251,9 @@ export function createRemoteServerClientBindings(
           return false;
         }
         try {
-          return (await withClient(connectionKey, (client) => client.refreshTokens())) !== null;
+          // Straight through the client, not `withClient`: a transport hiccup
+          // in a background renewal must not flip a healthy host to offline.
+          return (await requireClient(connectionKey).refreshTokens()) !== null;
         } catch (error) {
           // A refused grant is dead (re-pair); anything else is retried.
           if (isUnauthorizedRemoteError(error)) return false;
@@ -262,6 +264,12 @@ export function createRemoteServerClientBindings(
       sessionRenewals.set(connectionKey, renewal);
     }
     return renewal;
+  };
+
+  /** Stops a removed connection's renewal, so a re-paired one never inherits its timer. */
+  const disposeSessionRenewal = (connectionKey: string): void => {
+    sessionRenewals.get(connectionKey)?.dispose();
+    sessionRenewals.delete(connectionKey);
   };
 
   const withClient = async <Result>(
@@ -329,6 +337,7 @@ export function createRemoteServerClientBindings(
     requireClient,
     directImagesFor,
     withClient,
+    disposeSessionRenewal,
     checkHostUpdateInBackground,
   };
 }

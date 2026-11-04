@@ -42,6 +42,7 @@ import { setHostHistoryResumer } from "./remote/reducers/hostHistoryRecovery";
 import { pendingRemoteThreadOpen } from "./remoteServers/pendingRemoteThreadOpens";
 import { entityHost, type EntityHost } from "./entityHost";
 import { beginHostHistoryPreview } from "./hostHistoryPreview";
+import { isRuntimeHistoryReadHeld } from "./runtimeHistoryReadBarrier";
 import { useAppStore } from "./appStore";
 
 // Paint the recent viewport first. Continuations keep their normal page size,
@@ -222,6 +223,9 @@ export async function readHostThreadHistory(
         lastSeenEventSeq: host.session.threadSequence(host.hostId),
         followUpQueueSnapshotGuard,
         openRequestIdsAtReadStart,
+        ...(options.beforeInstall !== undefined || isRuntimeHistoryReadHeld(viewThreadId)
+          ? { runtimeFramesHeld: true }
+          : {}),
         ...(signal ? { installingSignal: signal } : {}),
         ...(host.runsOnThisMachine ? { preserveCrossagentRows: true } : {}),
         ...(boundedPage

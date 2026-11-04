@@ -239,6 +239,44 @@ describe("readHostThreadHistory", () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
+  it("installs the baseline of a recovering thread even when held live frames were received past its snapshot", async () => {
+    const { host, read } = testHost();
+    read.mockImplementationOnce(async () => {
+      // A frame newer than the snapshot arrives during the read. The reducer
+      // holds it behind the baseline: it was received, never applied.
+      host.session.recordApplied(9, [HOST_ID]);
+      return { negotiation: "bounded", page: page(5) };
+    });
+
+    const result = await readHostThreadHistory({ id: VIEW }, { beforeInstall: () => true });
+
+    expect(result.kind).toBe("installed");
+    expect(result.kind === "installed" && result.authoritative).toBe(true);
+    expect(useAppStore.getState().runtimeItemIdsByThread[VIEW]).toEqual(["row-1"]);
+    expect(historyBaselineCovers(host.session, VIEW, 5)).toBe(true);
+  });
+
+  it("still refuses a snapshot an applied newer frame already supersedes, outside a held read", async () => {
+    const { host, read } = testHost();
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [VIEW]: ["live"] },
+      runtimeItemsByIdByThread: {
+        [VIEW]: {
+          live: { id: "live", type: "assistant_message", state: "completed", streams: {} },
+        },
+      },
+    });
+    read.mockImplementationOnce(async () => {
+      host.session.recordApplied(9, [HOST_ID]);
+      return { negotiation: "bounded", page: page(5) };
+    });
+
+    const result = await readHostThreadHistory({ id: VIEW });
+
+    expect(result.kind === "installed" && result.authoritative).toBe(false);
+    expect(useAppStore.getState().runtimeItemIdsByThread[VIEW]).toEqual(["live"]);
+  });
+
   it("settles requests open before the read, but keeps one opened while it was in flight", async () => {
     const { read } = testHost();
     const request = (requestId: string) => ({

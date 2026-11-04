@@ -14,7 +14,6 @@ import {
   refreshManagedRootCatalogSoon,
 } from "./managedRootCatalog/rootCatalogAdapter";
 import { getManagedParentAuthorityState } from "./remoteServers/managedLoopbackOwner";
-import { remoteConnectionKey } from "./remoteServers/types";
 import {
   isApplyingHostOriginatedManagedRootMutation,
   managedRootOfflineError,
@@ -35,6 +34,7 @@ import {
   unprojectRemoteThreadId,
 } from "./remoteProjection";
 import { useAppStore } from "./appStore";
+import { mergeHostThreadRow } from "./hostThreadRowMerge";
 import { managedCatalogOrder, pairedCatalogOrder, type HostCatalogOrder } from "./hostCatalogOrder";
 import {
   currentRemoteServerGeneration,
@@ -198,10 +198,9 @@ function pairedHost(desktopId: string, hostId: string): EntityHost {
           events,
         }) as { readonly events: RuntimeEvent[] }
       ).events,
-    get recentHistoryKey() {
-      const server = store().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
-      return server ? `paired:${server.desktopId}` : undefined;
-    },
+    // A paired host's transcript is not cached on this device: unpairing has no
+    // purge, so a paired tail would outlive the pairing.
+    recentHistoryKey: undefined,
     isCurrent: () => currentRemoteServerGeneration(desktopId) === generation,
     onReplaced: (listener) =>
       useRemoteServersStore.subscribe(() => {
@@ -242,12 +241,23 @@ function pairedHost(desktopId: string, hostId: string): EntityHost {
       ),
     refreshCatalog: () => store().scheduleServerRefresh(desktopId),
     adoptThreadRow: (row) => {
+      const state = useAppStore.getState();
       const projected = projectRemoteThread(desktopId, row);
-      useAppStore.setState((state) => ({
-        threads: [...state.threads.filter((thread) => thread.id !== projected.id), projected],
+      const resident = state.threads.find((thread) => thread.id === projected.id);
+      // As the catalog mirror does: the resident row's newer client state
+      // survives the host's row, and the row keeps its place in the order.
+      const adopted = mergeHostThreadRow(
+        resident,
+        projected,
+        state.pendingThreadConfigByThreadId[projected.id],
+      );
+      useAppStore.setState((current) => ({
+        threads: resident
+          ? current.threads.map((thread) => (thread.id === adopted.id ? adopted : thread))
+          : [...current.threads, adopted],
       }));
       store().scheduleServerRefresh(desktopId);
-      return projected;
+      return adopted;
     },
   };
 }

@@ -6,6 +6,7 @@ import { releaseRemoteTerminal, remoteTerminalOwner } from "@/renderer/remotePro
 import { HostEventDrain } from "@/renderer/hostTransport/hostEventDrain";
 import { resetRemoteThreadProjection } from "@/renderer/state/remote/resetThreadProjection";
 import { dispatchRemoteSupervisorEvent } from "@/renderer/state/remote";
+import { discardQueuedRuntimeEvents } from "@/renderer/state/remote/sync";
 import { useAppStore } from "@/renderer/state/appStore";
 import { pruneLiveObservedCrossagentItems } from "@/renderer/state/slices/staleSubAgents";
 import { projectRemoteThreadEvent, remoteThreadId } from "@/renderer/state/remoteProjection";
@@ -87,7 +88,11 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
       const open = get().openThread;
       if (open?.desktopId === connectionKey) threadIds.add(open.threadId);
       for (const threadId of threadIds) {
-        resetRemoteThreadProjection(remoteThreadId(connectionKey, threadId));
+        const viewThreadId = remoteThreadId(connectionKey, threadId);
+        // The restarted host's sequences begin again: frames queued from the
+        // previous instance must not replay on top of the new baseline.
+        discardQueuedRuntimeEvents(viewThreadId);
+        resetRemoteThreadProjection(viewThreadId);
       }
     }
     socketEpochChanged = false;

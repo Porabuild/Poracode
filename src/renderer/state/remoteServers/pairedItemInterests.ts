@@ -32,7 +32,7 @@ export function pairedItemInterests(connectionKey: string): string[] {
 }
 
 /** Sends one connection its current interests (a no-op when unchanged). */
-export function syncPairedItemInterests(connectionKey: string): void {
+function syncPairedItemInterests(connectionKey: string): void {
   setRemoteServerThreadItemInterests(connectionKey, pairedItemInterests(connectionKey));
 }
 
@@ -69,8 +69,9 @@ function reconcilePairedSelection(connectionKey: string): void {
 export function notePairedItemInterestCoverage(connectionKey: string, live: boolean): void {
   if (live) reconcilePairedSelection(connectionKey);
   else {
-    // A re-open re-reads every retained thread anyway: infer no restoration across it.
-    trackers.get(connectionKey)?.reset();
+    // A re-open re-reads every retained thread anyway: infer no restoration
+    // across it. A removed connection leaves no tracker behind.
+    trackers.delete(connectionKey);
     useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(0, wireFor(connectionKey));
   }
   noteRendererEventInterestWireCoverage(

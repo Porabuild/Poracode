@@ -197,6 +197,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         requireClient,
         directImagesFor,
         withClient,
+        disposeSessionRenewal,
         checkHostUpdateInBackground,
       } = createRemoteServerClientBindings({ set, get }, certPinForDesktop, remoteServersStorage);
       configureEnvironmentSessions({
@@ -256,6 +257,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         setRemoteServerFailure,
         clientForServer,
         withClient,
+        disposeSessionRenewal,
         checkHostUpdateInBackground,
         startRemoteServerEventStream,
         persistHasHydrated: () => useRemoteServersStore.persist.hasHydrated(),

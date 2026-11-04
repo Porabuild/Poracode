@@ -358,18 +358,24 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
  * It refuses while the project has running threads, whose captured working
  * directory can't be updated live.
  */
+/**
+ * Whether a project's folder cannot change right now because one of its
+ * threads is running; says so. Checked before a folder is offered for choosing
+ * and again before the change is sent.
+ */
+export function isFolderChangeBlockedByRunningThread(projectId: string): boolean {
+  const running = useAppStore
+    .getState()
+    .threads.some((thread) => thread.projectId === projectId && thread.status === "working");
+  if (running)
+    toast.danger(i18n._(msg`Stop the project's running threads before changing its folder.`));
+  return running;
+}
+
 export async function relocateProject(projectId: string, path: string): Promise<void> {
   const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
   const host = entityHost(project);
-  if (!project || !host) return;
-  if (
-    useAppStore
-      .getState()
-      .threads.some((thread) => thread.projectId === projectId && thread.status === "working")
-  ) {
-    toast.danger(i18n._(msg`Stop the project's running threads before changing its folder.`));
-    return;
-  }
+  if (!project || !host || isFolderChangeBlockedByRunningThread(projectId)) return;
   try {
     await host.runProjectCommand({ kind: "relocate", projectId: host.hostId, path });
   } catch (error) {

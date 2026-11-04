@@ -1,4 +1,6 @@
+import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
+import { i18n } from "@/renderer/i18n/i18n";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { CatalogReorderPlacement } from "@/shared/catalogOrder";
 import { friendlyError } from "@/shared/messages";
@@ -23,7 +25,7 @@ import type { CatalogKind } from "./remoteServers/catalog/boundedCatalogAlgorith
  * `paint` runs exactly once whenever the move is meaningful locally: a row no
  * host owns and a host that cannot persist the move keep the historical
  * local-only move. A target on another host is a different order space, so the
- * move is dropped without painting.
+ * move is dropped without painting, and says so.
  *
  * Returns true when a host command was dispatched.
  */
@@ -49,6 +51,12 @@ function trackOrderIntent(
     .finally(() => release?.());
 }
 
+/** A row dragged next to a row of another machine: those are different order spaces. */
+function refuseCrossHostMove(): false {
+  toast.warning(i18n._(msg`Rows on different machines can't be reordered together.`));
+  return false;
+}
+
 /** Relative project move over the host's complete project order (never a reindex). */
 export function dispatchHostProjectReorder(request: {
   readonly projectId: string;
@@ -64,7 +72,7 @@ export function dispatchHostProjectReorder(request: {
     return false;
   }
   const hostTargetId = host.hostProjectId(targetProjectId);
-  if (hostTargetId === undefined) return false;
+  if (hostTargetId === undefined) return refuseCrossHostMove();
   if (!host.catalogOrder.persistsOrder()) {
     paint();
     return false;
@@ -103,7 +111,7 @@ export function dispatchHostThreadReorder(request: {
     return false;
   }
   const hostTargetId = host.hostThreadId(targetThreadId);
-  if (hostTargetId === undefined) return false;
+  if (hostTargetId === undefined) return refuseCrossHostMove();
   const target = threads.find((candidate) => candidate.id === targetThreadId);
   const hostProjectId = host.hostProjectId(thread.projectId);
   if (

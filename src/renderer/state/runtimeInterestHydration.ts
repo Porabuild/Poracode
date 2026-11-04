@@ -88,14 +88,13 @@ export function installRuntimeHistoryRecovery(recover: RuntimeHistoryRecovery): 
  * whichever host the thread is on, so its bounded queue and sequence
  * arbitration stay authoritative.
  */
-function recoverThreadRuntimeHistory(threadId: string): boolean {
+function recoverThreadRuntimeHistory(threadId: string): void {
   (recoverRuntimeHistory ?? recoverOnLiveReducer)(threadId);
-  return true;
 }
 
 /** A failed recovery still owns its blocked deltas; retry through that owner. */
-export function retryThreadRuntimeItems(threadId: string): Promise<boolean> | void {
-  if (!recoverThreadRuntimeHistory(threadId)) return hydrateThreadRuntimeItems(threadId);
+export function retryThreadRuntimeItems(threadId: string): void {
+  recoverThreadRuntimeHistory(threadId);
 }
 
 /** Called only after the pane's live-interest lease is ready. A cached
@@ -106,10 +105,11 @@ export function hydrateThreadRuntimeItemsForInterest(
   continuous: boolean,
 ): Promise<boolean> | void {
   if (
-    (useAppStore.getState().runtimeHydrationStatus[threadId] === "failed" ||
-      (!continuous && hasHydratedThreadRuntimeItems(threadId))) &&
-    recoverThreadRuntimeHistory(threadId)
-  )
+    useAppStore.getState().runtimeHydrationStatus[threadId] === "failed" ||
+    (!continuous && hasHydratedThreadRuntimeItems(threadId))
+  ) {
+    recoverThreadRuntimeHistory(threadId);
     return;
+  }
   return hydrateThreadRuntimeItems(threadId);
 }

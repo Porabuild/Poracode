@@ -6,9 +6,13 @@ import type { EntityHost } from "./entityHost";
 import { dispatchHostProjectReorder, dispatchHostThreadReorder } from "./hostCatalogReorder";
 
 const toastDanger = vi.hoisted(() => vi.fn<(message: string) => void>());
+const toastWarning = vi.hoisted(() => vi.fn<(message: string) => void>());
 vi.mock("@heroui/react", async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
-  return { ...actual, toast: { ...(actual.toast as object), danger: toastDanger } };
+  return {
+    ...actual,
+    toast: { ...(actual.toast as object), danger: toastDanger, warning: toastWarning },
+  };
 });
 
 const hostRef = vi.hoisted(() => ({ current: undefined as unknown }));
@@ -76,6 +80,7 @@ function makeHost() {
 
 beforeEach(() => {
   toastDanger.mockReset();
+  toastWarning.mockReset();
   hostRef.current = undefined;
   useAppStore.setState({
     projects: [makeProject("h:p1"), makeProject("h:p2")],
@@ -157,6 +162,9 @@ describe("dispatchHostProjectReorder", () => {
 
     expect(paint).not.toHaveBeenCalled();
     expect(host.runProjectCommand).not.toHaveBeenCalled();
+    expect(toastWarning).toHaveBeenCalledExactlyOnceWith(
+      "Rows on different machines can't be reordered together.",
+    );
   });
 });
 
@@ -222,6 +230,7 @@ describe("dispatchHostThreadReorder", () => {
     expect(dispatchHostThreadReorder(request(paint, "catalog", "other:t9"))).toBe(false);
     expect(paint).not.toHaveBeenCalled();
     expect(host.sendThreadCommand).not.toHaveBeenCalled();
+    expect(toastWarning).toHaveBeenCalledOnce();
   });
 
   it("keeps a move local when no host owns the row", () => {

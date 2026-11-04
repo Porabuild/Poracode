@@ -25,10 +25,7 @@ import { prepareRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydr
 import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import {
-  isApplyingHostOriginatedManagedRootMutation,
-  managedRootOwner,
-} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import { isApplyingHostOriginatedManagedRootMutation } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
 import { entityHost, intentHost } from "@/renderer/state/entityHost";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -797,7 +794,7 @@ function deleteThreadOnly(
 ): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((candidate) => candidate.id === threadId) ?? record;
-  const rootOwner = thread ? managedRootOwner(thread) : undefined;
+  const hasHost = thread !== undefined && entityHost(thread) !== undefined;
   const pendingLaunch = peekPendingThreadLaunch(threadId);
   const visualHostId = thread ? readNativeVisualHostId(thread) : undefined;
   const visualThreadId = thread?.remoteId ?? threadId;
@@ -805,7 +802,7 @@ function deleteThreadOnly(
     useNativeVisualUiStore.getState().forgetThread(visualHostId, visualThreadId);
   const persistedProvisioning =
     store.provisioningWorktreeThreadIds[threadId] === true &&
-    rootOwner !== undefined &&
+    hasHost &&
     (pendingLaunch?.metadataCreated === true || pendingLaunch?.metadataCreationUncertain === true);
   if (store.provisioningWorktreeThreadIds[threadId] === true && !persistedProvisioning) {
     store.deleteThread(threadId);
@@ -820,7 +817,7 @@ function deleteThreadOnly(
     // retained uncertain launch episode. Keep the marker until command
     // success so a refused or ambiguous delete can still replay the exact
     // original launch operation.
-    if (rootOwner) dropPendingThreadLaunch(rootOwner.threadId);
+    if (hasHost) dropPendingThreadLaunch(threadId);
     if (persistedProvisioning) useAppStore.getState().deleteThread(threadId);
     removal?.resolve(true);
     void readBridge()
@@ -845,7 +842,7 @@ function deleteThreadOnly(
   // A host-originated delete is already authoritative and deliberately
   // bypasses command echo. Retire any locally retained uncertain launch just
   // as the successful user-command path does.
-  if (rootOwner) dropPendingThreadLaunch(rootOwner.threadId);
+  if (hasHost) dropPendingThreadLaunch(threadId);
   if (isApplyingHostOriginatedManagedRootMutation()) forgetVisuals();
   removal?.resolve(true);
   store.deleteThread(threadId);

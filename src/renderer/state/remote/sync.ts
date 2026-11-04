@@ -165,6 +165,13 @@ export function applyThreadSnapshot(
     /** The pending pane hydration performing this install (it is not superseded by it). */
     readonly installingSignal?: AbortSignal;
     /**
+     * The thread's live runtime frames are held in the reducer queue behind
+     * this read (a recovery, or a cold read): their sequences were recorded on
+     * receipt but none reached the transcript, so they cannot make the
+     * snapshot's transcript stale. Thread metadata is still arbitrated by them.
+     */
+    readonly runtimeFramesHeld?: boolean;
+    /**
      * Requests open when this snapshot's read began. A request opened live
      * after that is newer than the snapshot, which cannot settle it.
      */
@@ -201,7 +208,10 @@ export function applyThreadSnapshot(
   // Arbitrate after the flush, before any snapshot write (including metadata
   // and offline caching). A flush can synchronously advance the applied seq.
   // Only the additive missing-older-history splice is safe for stale reads.
-  const snapshotStale = snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq);
+  const metadataStale = snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq);
+  // Held runtime frames are not applied to the transcript yet, so only an
+  // applied (not merely received) sequence can make the transcript stale.
+  const snapshotStale = options.runtimeFramesHeld ? false : metadataStale;
   if (isBrowserClientRuntime() && !snapshotStale && !options.preserveRuntimeHistory)
     void cacheBrowserThreadSnapshot(snapshot);
   const state = useAppStore.getState();
@@ -700,6 +710,11 @@ export function clearPendingRuntimeEvents(): void {
   liveReducer().clear();
 }
 
+/** Drops a thread's queued deltas from a host instance that restarted. */
+export function discardQueuedRuntimeEvents(threadId: string): void {
+  liveReducer().discardQueued(threadId);
+}
+
 /** Re-reads a thread's history through the reducer that owns its queue. */
 export function recoverRuntimeHistory(threadId: string): void {
   liveReducer().recoverRuntimeHistory(threadId);
@@ -707,16 +722,6 @@ export function recoverRuntimeHistory(threadId: string): void {
 
 export function noteRuntimeHistoryBaselines(threadIds: readonly string[]): void {
   liveReducer().noteAuthoritativeBaselines(threadIds);
-}
-
-export function canResumeQueuedRuntimeHistory(threadId: string): boolean {
-  return !liveReducer().arbitration.hasUnsequenced(threadId);
-}
-export function discardPendingRuntimeEventsThroughSequence(
-  threadId: string,
-  sequence: number,
-): void {
-  liveReducer().arbitration.discardThroughSequence(threadId, sequence, "loopback");
 }
 
 function asSupervisorEvent(value: unknown): SupervisorEvent | null {

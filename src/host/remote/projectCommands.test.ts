@@ -630,6 +630,42 @@ describe("applyRemoteProjectCommand", () => {
     expect(projects).toEqual([baseProject]);
   });
 
+  it("marks the effect boundary only once the runtime accepted the folder, right before the row write", async () => {
+    const baseProject: Project = {
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      createdAt: NOW,
+    };
+    const refusing = makeDeps({
+      relocateProjectRuntime: async () => {
+        throw new Error("not a git repository");
+      },
+    });
+    refusing.projects.push(baseProject);
+    const refused = vi.fn<() => void>();
+    await expect(
+      applyRemoteProjectCommand(
+        { kind: "relocate", projectId: "p1", path: "/srv/app" },
+        refusing.deps,
+        { onEffectBoundary: refused },
+      ),
+    ).rejects.toThrow("not a git repository");
+    // A definite refusal: no uncertain-effect receipt may be minted for it.
+    expect(refused).not.toHaveBeenCalled();
+
+    const accepting = makeDeps();
+    accepting.projects.push(baseProject);
+    const order: string[] = [];
+    accepting.updateProject.mockImplementation(() => order.push("write"));
+    await applyRemoteProjectCommand(
+      { kind: "relocate", projectId: "p1", path: "/srv/app" },
+      accepting.deps,
+      { onEffectBoundary: () => order.push("boundary") },
+    );
+    expect(order).toEqual(["boundary", "write"]);
+  });
+
   it("rejects removing an unknown project", async () => {
     const { deps } = makeDeps();
     await expect(

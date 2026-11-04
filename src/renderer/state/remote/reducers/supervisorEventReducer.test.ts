@@ -1008,3 +1008,21 @@ describe("host truncations", () => {
     reducer.clear();
   });
 });
+
+describe("discardQueued", () => {
+  beforeEach(resetStore);
+
+  it("drops a thread's held deltas from a restarted host without applying them", () => {
+    const reducer = createSupervisorEventReducer({ recovery: inlineRecovery });
+    // A recovery holds the thread's frames behind its baseline.
+    reducer.recoverRuntimeHistory("thread-1");
+    reducer.dispatch(runtimeEvent("thread-1", "old-instance"), 4990, { sequenceSpace: "loopback" });
+
+    reducer.discardQueued("thread-1");
+    reducer.noteAuthoritativeBaselines(["thread-1"]);
+    reducer.flushSync("thread-1");
+
+    expect(itemIds()).toBeUndefined();
+    reducer.clear();
+  });
+});

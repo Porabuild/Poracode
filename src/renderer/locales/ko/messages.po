@@ -16909,6 +16909,10 @@ msgstr "회전 방향…"
 msgid "Rotate viewport"
 msgstr "뷰포트 회전"
 
+#: src/renderer/state/hostCatalogReorder.ts
+msgid "Rows on different machines can't be reordered together."
+msgstr "서로 다른 머신의 행은 함께 순서를 바꿀 수 없습니다."
+
 #. placeholder {0}: rows.length
 #. placeholder {1}: block.rows.length
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
@@ -20659,6 +20663,10 @@ msgstr "이 Hex 릴리스에는 Linux에서 glibc 2.39 이상이 필요합니다
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
 msgstr "이 호스트"
+
+#: src/renderer/state/hostCatalogOrder.ts
+msgid "This host can't reorder threads across projects. Update it to enable that."
+msgstr "이 호스트는 프로젝트 간 스레드 순서를 바꿀 수 없습니다. 사용하려면 호스트를 업데이트하세요."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "This host does not support the device workspace."
