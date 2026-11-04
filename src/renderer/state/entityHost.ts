@@ -43,6 +43,8 @@ import {
   remoteServerHostSession,
 } from "./remoteServers/eventSocketRegistry";
 import { useRemoteServersStore } from "./remoteServersStore";
+import { remoteConnectionKey } from "./remoteServers/types";
+import { pairedRecentHistoryAuthority } from "@/renderer/browser/recentHistoryCache";
 
 /**
  * The host that owns one thread or project, whichever host that is.
@@ -198,9 +200,18 @@ function pairedHost(desktopId: string, hostId: string): EntityHost {
           events,
         }) as { readonly events: RuntimeEvent[] }
       ).events,
-    // A paired host's transcript is not cached on this device: unpairing has no
-    // purge, so a paired tail would outlive the pairing.
-    recentHistoryKey: undefined,
+    // Only a persisted, verified, connected record of the current incarnation
+    // has an authority. Removal and re-pairing purge it (see removeServer and
+    // pairAtEndpoint), so a tail never outlives its pairing.
+    get recentHistoryKey() {
+      const state = store();
+      const record = state.servers.find((server) => remoteConnectionKey(server) === desktopId);
+      return record?.recentHistoryCacheId &&
+        state.runtime[desktopId]?.status === "online" &&
+        currentRemoteServerGeneration(desktopId) === generation
+        ? pairedRecentHistoryAuthority(desktopId, record.recentHistoryCacheId, record.desktopId)
+        : undefined;
+    },
     isCurrent: () => currentRemoteServerGeneration(desktopId) === generation,
     onReplaced: (listener) =>
       useRemoteServersStore.subscribe(() => {

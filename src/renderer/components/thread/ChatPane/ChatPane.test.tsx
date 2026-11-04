@@ -332,7 +332,7 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Creating worktree…")).not.toBeInTheDocument();
   });
 
-  it("shows loading without a transcript error or false empty hint while hydrating", async () => {
+  it("keeps hydration silent without a transcript error or false empty hint", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({ threads: [thread] });
 
@@ -340,10 +340,10 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
     expect(screen.getByText("No messages yet")).toBeInTheDocument();
 
-    // First read in flight: the empty hint is suppressed, loading shows.
+    // First read in flight: suppress the empty hint without a loading row.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "pending" } });
     await waitFor(() => expect(screen.queryByText("No messages yet")).not.toBeInTheDocument());
-    expect(screen.getByText("Loading messages…")).toBeInTheDocument();
+    expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument();
 
     // Failed reads are reported by the composer, never inside the transcript.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "failed" } });
@@ -491,7 +491,7 @@ describe("ChatPane", () => {
     ["inactive", 75_000],
     ["inactive", 700],
   ] as const)(
-    "shows message loading while an %s thread's completed history is loading (%i ms turn)",
+    "keeps an %s thread's completed history loading silent (%i ms turn)",
     async (status, durationMs) => {
       const startedAt = "2026-05-01T12:00:00.000Z";
       const thread = {
@@ -507,7 +507,7 @@ describe("ChatPane", () => {
 
       renderChatPane(thread);
 
-      expect(await screen.findByText("Loading messages…")).toBeInTheDocument();
+      expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument();
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
     },
   );

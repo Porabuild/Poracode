@@ -14,6 +14,7 @@ import {
   noteRuntimeHistoryNoticesCapability,
 } from "@/renderer/state/remote/historyNoticeCapability";
 import { clearThreadHistoryNoticesForAuthority } from "@/renderer/state/remote/historyNoticeStore";
+import { purgeRecentHistoryForConnection } from "@/renderer/browser/recentHistoryCache";
 import {
   environmentAdvertisesBoundedCatalogChanges,
   forgetBoundedCatalogChangesCapability,
@@ -379,6 +380,12 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         ...negotiated,
         label: keepsLocalAlias ? current.label : environment.label,
         hostCapabilities,
+        // A record persisted before per-pairing cache ids gains one only after
+        // this authenticated read proved the host it was paired with.
+        ...(current.recentHistoryCacheId === undefined &&
+        environment.desktopId === current.desktopId
+          ? { recentHistoryCacheId: crypto.randomUUID() }
+          : {}),
       };
       server = updated;
       set((state) => ({
@@ -587,6 +594,9 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         forgetProjectCommandResultsCapability(key);
         forgetCatalogMutationsCapability(key);
         clearThreadHistoryNoticesForAuthority(key);
+        // Its on-device recent tails go with it; the generation bump above
+        // already fences any read or write still in flight.
+        void purgeRecentHistoryForConnection(key);
         // The host session is gone: its Crossagent runs died with it, so their
         // live-observation records must not outlive the connection and keep
         // those tiles preserved as "running" on a future attach.

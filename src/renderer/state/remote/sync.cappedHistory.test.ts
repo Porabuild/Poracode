@@ -16,6 +16,7 @@ import {
   cachedThreadPromptIndex,
   forgetThreadPromptIndex,
   loadThreadPromptIndex,
+  threadPromptIndexNeedsRefresh,
 } from "../threadPromptIndexCache";
 import {
   canonicalText,
@@ -53,9 +54,9 @@ afterEach(() => {
   useAppStore.setState(original, true);
 });
 
-it.each([true, false])(
-  "retires the prompt index only when a snapshot loses coverage (disjoint: %s)",
-  async (disjoint) => {
+it.each([null, 50])(
+  "retains the prompt index for a bounded refresh but discards it for a full reset (cursor: %s)",
+  async (cursor) => {
     const owner = {};
     const saved = {
       prompts: [{ itemId: "prompt-old", position: 0, text: "Old prompt" }],
@@ -78,9 +79,10 @@ it.each([true, false])(
       projectRemoteThreadSnapshot(connection, {
         ...page,
         thread: { ...thread, status: "idle" },
+        runtimeNextCursor: cursor,
         runtimeItems: [
           {
-            id: disjoint ? "prompt-new" : "prompt-old",
+            id: "prompt-new",
             type: "user_message",
             state: "completed",
             streams: {},
@@ -90,7 +92,8 @@ it.each([true, false])(
       { fromServer: true },
     );
     expect(result.installedAuthoritativeHistory).toBe(true);
-    expect(cachedThreadPromptIndex(viewThread, owner)).toEqual(disjoint ? undefined : saved);
+    expect(cachedThreadPromptIndex(viewThread, owner)).toEqual(cursor === null ? undefined : saved);
+    expect(threadPromptIndexNeedsRefresh(viewThread, owner)).toBe(cursor !== null);
   },
 );
 

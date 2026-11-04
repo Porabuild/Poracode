@@ -9,6 +9,9 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { nativeVisualUiKey, useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import * as runtimeInterestHydration from "@/renderer/state/runtimeInterestHydration";
 import * as chatRuntimePersister from "@/renderer/state/chatRuntimePersister";
+import { readThreadPromptIndex } from "@/renderer/state/threadPromptIndex";
+import { holdRuntimeHistoryRead } from "@/renderer/state/runtimeHistoryReadBarrier";
+import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   forgetPendingCatalogEdit,
   projectPendingCatalogEdit,
@@ -71,6 +74,10 @@ vi.mock("@heroui/react", () => ({ toast }));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
+}));
+
+vi.mock("@/renderer/state/threadPromptIndex", () => ({
+  readThreadPromptIndex: vi.fn<() => Promise<null>>(async () => null),
 }));
 
 vi.mock("@/renderer/actions/worktreeActions", () => ({
@@ -367,6 +374,28 @@ describe("threadActions", () => {
     expect(useAppStore.getState().connectingThreadIds[thread.id]).toEqual(expect.any(String));
   });
 
+  it("prepares the prompt outline in parallel without delaying a history-ready pane", async () => {
+    vi.useFakeTimers();
+    const outline = Promise.withResolvers<null>();
+    vi.mocked(readThreadPromptIndex).mockReturnValueOnce(outline.promise);
+    const thread = makeThread({ presentationMode: "gui", status: "idle" });
+    useAppStore.setState({ threads: [thread] });
+    try {
+      openThread(thread.id);
+      expect(readThreadPromptIndex).toHaveBeenCalledWith(thread.id);
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id);
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+      outline.resolve(null);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+    } finally {
+      outline.resolve(null);
+      useAppStore.getState().openHome();
+      vi.useRealTimers();
+    }
+  });
+
   it.each([false, true])(
     "opens cached GUI history on the next frame while the host refreshes for remote=%s",
     async (remote) => {
@@ -395,6 +424,7 @@ describe("threadActions", () => {
         expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
         history.resolve(true);
         await history.promise;
+        await vi.advanceTimersByTimeAsync(0);
         expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
         useAppStore.getState().openHome();
         expect(release).toHaveBeenCalledOnce();
@@ -489,36 +519,253 @@ describe("threadActions", () => {
     });
   });
 
-  it("shows a slow GUI pane before history finishes and reconnects after its reader is adopted", async () => {
-    vi.useFakeTimers();
-    const history = Promise.withResolvers<void>();
-    hydrateThreadRuntimeItems.mockReturnValueOnce(history.promise);
-    const thread = makeThread({
-      id: "slow-gui",
-      presentationMode: "gui",
-      status: "inactive",
-      canResumeWithConfig: true,
-    });
-    useAppStore.setState({ threads: [thread] });
-    let reader: ReturnType<typeof runtimeInterestHydration.adoptRuntimeThreadReader> | undefined;
-    try {
-      openThread(thread.id);
-      expect(useAppStore.getState().view).toEqual({ kind: "home" });
-      await vi.advanceTimersByTimeAsync(150);
-      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
-      expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
-      expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
-      reader = runtimeInterestHydration.adoptRuntimeThreadReader(thread.id);
-      history.resolve();
-      await reader.ready;
-      expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id);
-      expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
-      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
-    } finally {
-      history.resolve();
-      reader?.release();
-      vi.useRealTimers();
+  it.each([false, true])(
+    "keeps the previous pane until slow history is ready for remote=%s",
+    async (remote) => {
+      vi.useFakeTimers();
+      const history = Promise.withResolvers<void>();
+      hydrateThreadRuntimeItems.mockReturnValueOnce(history.promise);
+      const thread = makeThread({
+        id: "slow-gui",
+        presentationMode: "gui",
+        status: "inactive",
+        canResumeWithConfig: true,
+        ...(remote ? { remoteServerId: "host", remoteId: "slow-gui" } : {}),
+      });
+      useAppStore.setState({ threads: [thread] });
+      let reader: ReturnType<typeof runtimeInterestHydration.adoptRuntimeThreadReader> | undefined;
+      try {
+        openThread(thread.id);
+        expect(useAppStore.getState().view).toEqual({ kind: "home" });
+        await vi.advanceTimersByTimeAsync(150);
+        expect(useAppStore.getState().view).toEqual({ kind: "home" });
+        expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
+        expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+        history.resolve();
+        await vi.advanceTimersByTimeAsync(0);
+        reader = runtimeInterestHydration.adoptRuntimeThreadReader(thread.id);
+        await reader.ready;
+        expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id);
+        expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+        expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
+      } finally {
+        history.resolve();
+        reader?.release();
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  describe("cold open with an admitted cached preview", () => {
+    function installPreviewRows(threadId: string): void {
+      useAppStore.setState((state) => ({
+        ...state,
+        runtimeItemIdsByThread: { ...state.runtimeItemIdsByThread, [threadId]: ["preview-1"] },
+        runtimeItemsByIdByThread: {
+          ...state.runtimeItemsByIdByThread,
+          [threadId]: {
+            "preview-1": {
+              id: "preview-1",
+              type: "user_message",
+              state: "completed",
+              payload: { content: [{ kind: "text", text: "cached" }] },
+              streams: {},
+            } satisfies RuntimeChatItem,
+          },
+        },
+      }));
     }
+
+    function prepareColdReader() {
+      const ready = Promise.withResolvers<boolean>();
+      const release = vi.fn<() => void>();
+      const prepare = vi
+        .spyOn(runtimeInterestHydration, "prepareRuntimeThreadReader")
+        .mockReturnValue({ ready: ready.promise, release });
+      return { ready, release, prepare };
+    }
+
+    it.each([
+      { remote: false, succeeds: false },
+      { remote: false, succeeds: true },
+      { remote: true, succeeds: false },
+      { remote: true, succeeds: true },
+    ])(
+      "reveals before the baseline, and reconnects only on success for remote=$remote success=$succeeds",
+      async ({ remote, succeeds }) => {
+        vi.useFakeTimers();
+        const thread = makeThread({
+          id: `preview-${remote}`,
+          presentationMode: "gui",
+          status: "inactive",
+          canResumeWithConfig: true,
+          ...(remote ? { remoteServerId: "host", remoteId: "preview" } : {}),
+        });
+        useAppStore.setState({ threads: [thread] });
+        const { ready, release, prepare } = prepareColdReader();
+        const releaseBarrier = holdRuntimeHistoryRead(thread.id);
+        try {
+          openThread(thread.id);
+          await vi.advanceTimersByTimeAsync(1_000);
+          expect(useAppStore.getState().view).toEqual({ kind: "home" });
+          installPreviewRows(thread.id);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+          expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
+          await vi.advanceTimersByTimeAsync(100);
+          expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+          expect(release).not.toHaveBeenCalled();
+          ready.resolve(succeeds);
+          await vi.advanceTimersByTimeAsync(0);
+          expect(useAppStore.getState().pendingThreadLaunches[thread.id] !== undefined).toBe(
+            succeeds,
+          );
+          expect(release).not.toHaveBeenCalled();
+          expect(prepare).toHaveBeenCalledOnce();
+          useAppStore.getState().openHome();
+          expect(release).toHaveBeenCalledOnce();
+        } finally {
+          releaseBarrier();
+          ready.resolve(false);
+          prepare.mockRestore();
+          vi.useRealTimers();
+        }
+      },
+    );
+
+    it.each([false, true])(
+      "reveals preview rows already resident under a held read on the next frame for remote=%s",
+      async (remote) => {
+        vi.useFakeTimers();
+        const thread = makeThread({
+          id: `resident-${remote}`,
+          presentationMode: "gui",
+          status: "inactive",
+          canResumeWithConfig: true,
+          ...(remote ? { remoteServerId: "host", remoteId: "resident" } : {}),
+        });
+        useAppStore.setState({ threads: [thread] });
+        const releaseBarrier = holdRuntimeHistoryRead(thread.id);
+        installPreviewRows(thread.id);
+        const { ready, release, prepare } = prepareColdReader();
+        try {
+          openThread(thread.id);
+          expect(useAppStore.getState().view).toEqual({ kind: "home" });
+          await vi.advanceTimersByTimeAsync(50);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+          expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
+          expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+          expect(release).not.toHaveBeenCalled();
+          ready.resolve(true);
+          await vi.advanceTimersByTimeAsync(0);
+          expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
+          expect(prepare).toHaveBeenCalledOnce();
+          useAppStore.getState().openHome();
+          expect(release).toHaveBeenCalledOnce();
+        } finally {
+          releaseBarrier();
+          ready.resolve(false);
+          prepare.mockRestore();
+          vi.useRealTimers();
+        }
+      },
+    );
+
+    it.each([false, true])(
+      "does not reveal resident rows once the read barrier is gone for remote=%s",
+      async (remote) => {
+        vi.useFakeTimers();
+        const thread = makeThread({
+          id: `unheld-${remote}`,
+          presentationMode: "gui",
+          status: "idle",
+          ...(remote ? { remoteServerId: "host", remoteId: "unheld" } : {}),
+        });
+        useAppStore.setState({ threads: [thread] });
+        installPreviewRows(thread.id);
+        const { ready, prepare } = prepareColdReader();
+        try {
+          openThread(thread.id);
+          await vi.advanceTimersByTimeAsync(2_000);
+          expect(useAppStore.getState().view).toEqual({ kind: "home" });
+        } finally {
+          ready.resolve(false);
+          prepare.mockRestore();
+          useAppStore.getState().openHome();
+          vi.useRealTimers();
+        }
+      },
+    );
+
+    it.each([false, true])(
+      "keeps waiting without cached rows, and ignores rows outside a held read for remote=%s",
+      async (remote) => {
+        vi.useFakeTimers();
+        const thread = makeThread({
+          id: `no-preview-${remote}`,
+          presentationMode: "gui",
+          status: "idle",
+          ...(remote ? { remoteServerId: "host", remoteId: "no-preview" } : {}),
+        });
+        useAppStore.setState({ threads: [thread] });
+        const { ready, prepare } = prepareColdReader();
+        const releaseBarrier = holdRuntimeHistoryRead(thread.id);
+        try {
+          openThread(thread.id);
+          await vi.advanceTimersByTimeAsync(2_000);
+          expect(useAppStore.getState().view).toEqual({ kind: "home" });
+          // Live rows with no read barrier are an arbitrary partial tail, not a baseline.
+          releaseBarrier();
+          installPreviewRows(thread.id);
+          await vi.advanceTimersByTimeAsync(2_000);
+          expect(useAppStore.getState().view).toEqual({ kind: "home" });
+          expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
+        } finally {
+          releaseBarrier();
+          ready.resolve(false);
+          prepare.mockRestore();
+          useAppStore.getState().openHome();
+          vi.useRealTimers();
+        }
+      },
+    );
+
+    it.each([false, true])(
+      "a late baseline after another navigation cannot restart the departed thread for remote=%s",
+      async (remote) => {
+        vi.useFakeTimers();
+        const first = makeThread({
+          id: `late-${remote}`,
+          presentationMode: "gui",
+          status: "inactive",
+          canResumeWithConfig: true,
+          ...(remote ? { remoteServerId: "host", remoteId: "late" } : {}),
+        });
+        const second = makeThread({ id: `after-late-${remote}`, status: "idle" });
+        useAppStore.setState({ threads: [first, second] });
+        const { ready, release, prepare } = prepareColdReader();
+        const releaseBarrier = holdRuntimeHistoryRead(first.id);
+        try {
+          openThread(first.id);
+          installPreviewRows(first.id);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [first.id] });
+          openThread(second.id);
+          await vi.advanceTimersByTimeAsync(50);
+          expect(useAppStore.getState().view).toMatchObject({ kind: "thread", panes: [second.id] });
+          expect(release).toHaveBeenCalledOnce();
+          ready.resolve(true);
+          await vi.advanceTimersByTimeAsync(0);
+          expect(useAppStore.getState().view).toMatchObject({ kind: "thread", panes: [second.id] });
+          expect(useAppStore.getState().pendingThreadLaunches[first.id]).toBeUndefined();
+          expect(release).toHaveBeenCalledOnce();
+        } finally {
+          releaseBarrier();
+          ready.resolve(false);
+          prepare.mockRestore();
+          vi.useRealTimers();
+        }
+      },
+    );
   });
 
   it("cancels an older slow open when search claims navigation before resolving its row", async () => {
@@ -560,8 +807,10 @@ describe("threadActions", () => {
     try {
       openThread(thread.id, { reopenRuntime: false, focusComposer: false });
       await vi.advanceTimersByTimeAsync(150);
-      reader = runtimeInterestHydration.adoptRuntimeThreadReader(thread.id);
+      expect(useAppStore.getState().view).toEqual({ kind: "home" });
       history.resolve();
+      await vi.advanceTimersByTimeAsync(0);
+      reader = runtimeInterestHydration.adoptRuntimeThreadReader(thread.id);
       await reader.ready;
       expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
       expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
@@ -584,21 +833,18 @@ describe("threadActions", () => {
     });
     const second = makeThread({ id: "next-thread" });
     useAppStore.setState({ threads: [first, second] });
-    let reader: ReturnType<typeof runtimeInterestHydration.adoptRuntimeThreadReader> | undefined;
     try {
       openThread(first.id);
       await vi.advanceTimersByTimeAsync(150);
-      reader = runtimeInterestHydration.adoptRuntimeThreadReader(first.id);
       openThread(second.id);
       await vi.advanceTimersByTimeAsync(50);
       history.resolve();
-      await reader.ready;
+      await history.promise;
       expect(useAppStore.getState().view).toMatchObject({ kind: "thread", panes: [second.id] });
       expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(second.id);
       expect(useAppStore.getState().pendingThreadLaunches[first.id]).toBeUndefined();
     } finally {
       history.resolve();
-      reader?.release();
       vi.useRealTimers();
     }
   });

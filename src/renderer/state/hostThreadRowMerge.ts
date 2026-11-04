@@ -22,8 +22,7 @@ import { carryVolatileSessionConfigOptions } from "./volatileSessionConfigOption
  *   session only);
  * - a config change the user made that the host has not acknowledged.
  *
- * Returns `incoming` itself when nothing is carried, so an unchanged row keeps
- * its identity.
+ * Keeps the resident row's identity when its merged contents are unchanged.
  */
 export function mergeHostThreadRow(
   resident: Thread | undefined,
@@ -35,10 +34,13 @@ export function mergeHostThreadRow(
     resident.presentationMode === "gui"
       ? carryPendingThreadInput(resident, incoming)
       : carryPendingRootLaunchRuntime(resident, incoming);
-  return preservePendingThreadConfig(
+  const merged = preservePendingThreadConfig(
     carryVolatileSessionConfigOptions(resident, carryActiveTurnTiming(resident, withInput)),
     pendingConfig,
   );
+  return merged === resident || JSON.stringify(merged) === JSON.stringify(resident)
+    ? resident
+    : merged;
 }
 
 /**

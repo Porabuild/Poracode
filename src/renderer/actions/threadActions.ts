@@ -22,6 +22,8 @@ import { readNativeVisualHostId } from "@/renderer/state/nativeVisualOwner";
 import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import { hasHydratedThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { prepareRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
+import { isRuntimeHistoryReadHeld } from "@/renderer/state/runtimeHistoryReadBarrier";
+import { readThreadPromptIndex } from "@/renderer/state/threadPromptIndex";
 import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -59,7 +61,6 @@ let openThreadRequestId = 0;
 let threadRuntimeReopenEnabled = true;
 const suppressedAutomaticThreadReopens = new Map<string, () => void>();
 let cancelPendingThreadOpen: (() => void) | null = null;
-const THREAD_OPEN_HISTORY_WAIT_MS = 150;
 
 function allowAutomaticThreadReopen(threadId: string): void {
   suppressedAutomaticThreadReopens.get(threadId)?.();
@@ -340,12 +341,13 @@ export function openThread(
     return true;
   };
 
-  // Prepare the first chunk before replacing the current pane when it is fast.
-  // A slow host read must still reveal the pane's existing loading state.
+  // Prepare history before replacing the current pane, and warm its outline
+  // concurrently so the secondary read cannot delay opening the transcript.
   // Retain its live stream too, so the mounted reader adopts this baseline
   // across the interest grace period instead of starting a second recovery.
   if (thread?.presentationMode === "gui") {
     const hydrated = hasHydratedThreadRuntimeItems(threadId);
+    void readThreadPromptIndex(threadId);
     let unsubscribe = () => {};
     let active = true;
     let opened = false;
@@ -370,6 +372,12 @@ export function openThread(
       }
     };
     cancelPendingThreadOpen = cancel;
+    // Rows resident under a held initial-read barrier are a cached preview the
+    // pane can show while the authoritative baseline loads (never a baseline).
+    const heldRowsResident = () =>
+      !hydrated &&
+      (useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0) > 0 &&
+      isRuntimeHistoryReadHeld(threadId);
     unsubscribe = useAppStore.subscribe((state, previous) => {
       const departed = opened
         ? state.view.kind !== "thread" || !state.view.panes.includes(threadId)
@@ -378,8 +386,16 @@ export function openThread(
         departed ||
         (state.threads !== previous.threads &&
           !state.threads.some((candidate) => candidate.id === threadId))
-      )
+      ) {
         cancel();
+        return;
+      }
+      if (
+        !opened &&
+        state.runtimeItemIdsByThread !== previous.runtimeItemIdsByThread &&
+        heldRowsResident()
+      )
+        finishOpen(false);
     });
     const finishOpen = (reopenRuntime: boolean) => {
       if (!active || opened) return;
@@ -409,11 +425,9 @@ export function openThread(
         reopenStoredThread(threadId);
       }
     };
-    if (hydrated) {
+    if (hydrated || heldRowsResident()) {
       frameId = requestAnimationFrame(() => finishOpen(ready && succeeded));
       if (!opened) timeoutId = setTimeout(() => finishOpen(ready && succeeded), 50);
-    } else {
-      timeoutId = setTimeout(() => finishOpen(false), THREAD_OPEN_HISTORY_WAIT_MS);
     }
     void reader.ready.then(finishRead, () => finishRead(false));
     return;

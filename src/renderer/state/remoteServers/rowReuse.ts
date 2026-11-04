@@ -51,6 +51,20 @@ export function reuseRemoteRows<T extends { readonly id: string }>(
 }
 
 /**
+ * The one-row form of `reuseRemoteRows`' compare, for merge paths that build a
+ * row over its resident (workspace, overlay and private-settings carries):
+ * a page that restates the row unchanged keeps the resident object, so its
+ * subscribers do not re-render. The resident side serializes once per row
+ * object (the memo dies with it); the built side pays one stringify per
+ * compare, the same shape the row merges use.
+ */
+export function reuseRow<T extends object>(existing: T | undefined, incoming: T): T {
+  return existing !== undefined && fingerprintRow(existing) === JSON.stringify(incoming)
+    ? existing
+    : incoming;
+}
+
+/**
  * A debounced snapshot GET is built on the server before events the live
  * socket applies while it is in flight; when it resolves it must not move
  * those threads backwards. For every thread the live stream has already

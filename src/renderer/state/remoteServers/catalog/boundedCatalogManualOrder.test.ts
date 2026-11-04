@@ -362,12 +362,13 @@ describe("bounded catalog manual-order convergence", () => {
     harness.holdContinuations = false;
     harness.releaseHeld();
 
-    await vi.waitFor(() => expect(harness.applied.length).toBe(3), { timeout: 5_000 });
-    expect(harness.applied[2]?.kind).toBe("threads");
-    expect(harness.applied[2]?.ids).toEqual(["t-d", "t-c", "t-b", "t-a"]);
+    await vi.waitFor(() => expect(harness.applied.length).toBe(2), { timeout: 5_000 });
+    expect(harness.applied[1]?.kind).toBe("threads");
+    expect(harness.applied[1]?.ids).toEqual(["t-d", "t-c", "t-b", "t-a"]);
+    // The superseded response must never apply an intermediate obsolete order.
     // Coalesced, not looping: no further pass after the pending refresh ran.
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(harness.applied).toHaveLength(3);
+    expect(harness.applied).toHaveLength(2);
   });
 
   it("re-walks a pass whose captured generation was superseded instead of dropping its order", async () => {

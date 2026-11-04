@@ -9,7 +9,7 @@ import {
 } from "@/renderer/state/projectRemovalIntents";
 import { finalizeProjectRemoval } from "../projectRemovalPresentation";
 import { applyProjectStateSnapshot } from "@/renderer/state/projectStateSync";
-import { reuseRemoteRows } from "@/renderer/state/remoteServers/rowReuse";
+import { reuseRemoteRows, reuseRow } from "@/renderer/state/remoteServers/rowReuse";
 import { closePanesForHostArchivedRows, mergeHostThreadRow } from "../hostThreadRowMerge";
 import { removeConfirmedHostThread } from "../hostThreadRowRemoval";
 import { orderHostRows } from "../hostCatalogRowOrder";
@@ -131,12 +131,13 @@ export function applyRootCatalogThreadRows(
       // Host housekeeping archives rows without a forwarded user command: the
       // documented startup policy closes the archived thread's visible pane.
       if (!existing.archived && incoming.archived) archivedNow.add(existing.id);
-      changed = true;
-      return mergeHostThreadRow(
+      const merged = mergeHostThreadRow(
         existing,
         incoming,
         state.pendingThreadConfigByThreadId[existing.id],
       );
+      if (merged !== existing) changed = true;
+      return merged;
     });
     for (const row of rows) {
       const incoming = incomingById.get(row.id);
@@ -145,13 +146,15 @@ export function applyRootCatalogThreadRows(
       changed = true;
       next.push(incoming);
     }
-    if (!changed) return state;
+    const pendingThreadConfigByThreadId = retainPendingThreadConfigs(
+      state.pendingThreadConfigByThreadId,
+      next,
+    );
+    if (!changed && pendingThreadConfigByThreadId === state.pendingThreadConfigByThreadId)
+      return state;
     return {
-      threads: next,
-      pendingThreadConfigByThreadId: retainPendingThreadConfigs(
-        state.pendingThreadConfigByThreadId,
-        next,
-      ),
+      ...(changed ? { threads: next } : {}),
+      pendingThreadConfigByThreadId,
     };
   });
   syncRootRuntimeConfigs(rows, preserveThreadIds);
@@ -181,10 +184,16 @@ export function applyRootCatalogProjectRows(rows: readonly Project[]): void {
       // project-settings endpoint), so a catalog-only refresh must re-attach
       // the row's already-loaded projection — the mirrored-rows rule in
       // `syncRemoteAppRows`. Without the carry, every pass would erase it.
-      changed = true;
-      return existing.mcpServers === undefined
-        ? incoming
-        : { ...incoming, mcpServers: existing.mcpServers };
+      // A page that restates the row unchanged keeps the resident row (and
+      // with it the array) instead of re-rendering its subscribers.
+      const row = reuseRow(
+        existing,
+        existing.mcpServers === undefined
+          ? incoming
+          : { ...incoming, mcpServers: existing.mcpServers },
+      );
+      if (row !== existing) changed = true;
+      return row;
     });
     for (const row of rows) {
       const incoming = incomingById.get(row.id);

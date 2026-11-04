@@ -10680,8 +10680,8 @@ msgid "Loading media preview…"
 msgstr "メディアのプレビューを読み込み中…"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
-msgid "Loading messages…"
-msgstr "メッセージを読み込み中…"
+#~ msgid "Loading messages…"
+#~ msgstr "メッセージを読み込み中…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Loading model…"

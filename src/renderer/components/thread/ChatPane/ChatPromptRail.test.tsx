@@ -9,15 +9,21 @@ import type { ChatTimelineEntry } from "./chatPaneSelectors";
 import { ChatPromptRail } from "./ChatPromptRail";
 import { useRailPane } from "./useRailPane";
 
-const { readThreadPromptIndex } = vi.hoisted(() => ({
+const { readThreadPromptIndex, cache } = vi.hoisted(() => ({
+  cache: new Map<string, PersistedPromptIndex>(),
   readThreadPromptIndex: vi.fn<
     (threadId: string, signal?: AbortSignal) => Promise<PersistedPromptIndex | null>
   >(async () => null),
 }));
 vi.mock("@/renderer/state/threadPromptIndex", () => ({
   threadPromptIndexOwner: () => "host",
-  readCachedThreadPromptIndex: () => undefined,
-  readThreadPromptIndex,
+  shouldRefreshThreadPromptIndex: () => false,
+  readCachedThreadPromptIndex: (threadId: string) => cache.get(threadId),
+  readThreadPromptIndex: async (threadId: string, signal?: AbortSignal) => {
+    const index = await readThreadPromptIndex(threadId, signal);
+    if (index && !signal?.aborted) cache.set(threadId, index);
+    return index;
+  },
 }));
 
 /** A media query list that answers `matches` and ignores subscriptions. */
@@ -125,8 +131,8 @@ async function renderRail(
 ) {
   const onJumpToPrompt = vi.fn<(itemId: string) => void>();
   const result = render(railElement(scroller, { onJumpToPrompt, ...props }));
-  act(() => {
-    vi.runAllTimers();
+  await act(async () => {
+    await vi.runAllTimersAsync();
   });
   await flushIndex();
   return { ...result, onJumpToPrompt };
@@ -175,7 +181,8 @@ describe("ChatPromptRail", () => {
   beforeEach(() => {
     ImmediateResizeObserver.callbacks.clear();
     readThreadPromptIndex.mockReset();
-    readThreadPromptIndex.mockResolvedValue(null);
+    cache.clear();
+    readThreadPromptIndex.mockResolvedValue({ prompts: [], truncated: false });
     vi.stubGlobal("ResizeObserver", ImmediateResizeObserver);
     vi.stubGlobal("matchMedia", (query: string) => mediaQueryList(query, query.includes("fine")));
     vi.useFakeTimers({
