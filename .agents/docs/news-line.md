@@ -6,6 +6,7 @@ The news line is the single rotating line below the full-page new-thread compose
 
 - Rendered by `src/renderer/components/newsLine/NewsLine.tsx` inside the draft view's slack area (`ThreadDraftView.tsx`, `data-draft-slack`), so it can never move the anchored composer. Mounted only after shared settings hydrate (an opted-out user never fetches anything) and not at all in compact layouts, compact panes, the quick composer, or chat-only drafts, so hidden items never count as shown.
 - The message and its action use the full first row; rotation controls sit centered on a second row and appear on hover or focus without shifting the content.
+- Promotion and announcement URL actions open in the system default browser. Feature and What's New actions keep their in-app navigation.
 - Rotates every 7 seconds, with community promotions staying for 20 seconds. Pauses on hover or focus, for 15 seconds after typing in the draft, while a changelog card is open, while the window is hidden, and through the pause button (WCAG 2.2.2). Screen readers hear changes only after the user steps through items.
 - Settings → General: `newsLineEnabled` hides everything; `newsLineActivity` removes personal stats from display (discovery still reads them to know what was used).
 

@@ -23,7 +23,9 @@ import { NEWS_FEED_VERSION, parseNewsFeed } from "@/shared/newsFeed";
 
 const mocks = vi.hoisted(() => ({
   stats: null as unknown,
-  openExternalUrl: vi.fn<(url: string) => void>(),
+  browserClient: false,
+  openExternal: vi.fn<(url: string) => Promise<void>>(),
+  openExternalNative: vi.fn<(url: string) => Promise<void>>(),
   openProfileSettings: vi.fn<() => void>(),
   runPalette: vi.fn<() => void>(),
 }));
@@ -33,16 +35,21 @@ vi.mock("@/renderer/bridge", async (importOriginal) => ({
   readBridge: () => ({
     appVersion: "1.8.2",
     platform: "win32",
-    openExternal: vi.fn<() => Promise<void>>(),
+    openExternal: mocks.openExternal,
+    openExternalNative: mocks.openExternalNative,
     getSchedules: () => Promise.resolve([]),
     getProfileCoreStats: () =>
       mocks.stats ? Promise.resolve(mocks.stats) : Promise.reject(new Error("unavailable")),
   }),
 }));
 
+vi.mock("@/renderer/clientRuntime", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/clientRuntime")>()),
+  isBrowserClientRuntime: () => mocks.browserClient,
+}));
+
 vi.mock("@/renderer/actions/panelActions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/actions/panelActions")>()),
-  openExternalUrl: mocks.openExternalUrl,
   openProfileSettings: mocks.openProfileSettings,
 }));
 
@@ -116,6 +123,9 @@ describe("NewsLine", () => {
     localStorage.clear();
     resetProfileStatsCache();
     mocks.stats = null;
+    mocks.browserClient = false;
+    mocks.openExternal.mockReset().mockResolvedValue(undefined);
+    mocks.openExternalNative.mockReset().mockResolvedValue(undefined);
     vi.spyOn(Math, "random").mockReturnValue(0.25);
     useSharedSettings.setState({
       newsLineEnabled: true,
@@ -247,19 +257,24 @@ describe("NewsLine", () => {
     );
   });
 
-  it("opens a promotion's link and hides it everywhere", () => {
-    render(<NewsLine />);
-    advanceTo("promotion");
-    const action = screen.getByRole("button", { name: /Star on GitHub|Follow/ });
-    const label = action.textContent ?? "";
-    fireEvent.click(action);
-    expect(mocks.openExternalUrl).toHaveBeenCalledTimes(1);
-    expect(dismissPromotion).toHaveBeenCalledTimes(1);
-    expect(Object.values(COMMUNITY_PROMOTION_URLS)).toContain(
-      mocks.openExternalUrl.mock.calls[0]?.[0],
-    );
-    expect(screen.queryByRole("button", { name: label })).not.toBeInTheDocument();
-  });
+  it.each([false, true])(
+    "opens a promotion in the system browser and hides it everywhere (web=%s)",
+    (browserClient) => {
+      mocks.browserClient = browserClient;
+      render(<NewsLine />);
+      advanceTo("promotion");
+      const action = screen.getByRole("button", { name: /Star on GitHub|Follow/ });
+      const label = action.textContent ?? "";
+      fireEvent.click(action);
+      const open = browserClient ? mocks.openExternal : mocks.openExternalNative;
+      const unused = browserClient ? mocks.openExternalNative : mocks.openExternal;
+      expect(open).toHaveBeenCalledTimes(1);
+      expect(unused).not.toHaveBeenCalled();
+      expect(dismissPromotion).toHaveBeenCalledTimes(1);
+      expect(Object.values(COMMUNITY_PROMOTION_URLS)).toContain(open.mock.calls[0]?.[0]);
+      expect(screen.queryByRole("button", { name: label })).not.toBeInTheDocument();
+    },
+  );
 
   it("shows the short headline and expands the full point with a way to the next one", () => {
     render(<NewsLine />);
@@ -340,6 +355,36 @@ describe("NewsLine", () => {
     expect(useNewsLineStore.getState().hiddenIds).toContain("remote:chrome-extension-store-launch");
     expect(document.body).not.toHaveTextContent("Never shown");
   });
+
+  it.each([false, true])(
+    "opens announcement URLs in the system browser and hides them (web=%s)",
+    async (browserClient) => {
+      mocks.browserClient = browserClient;
+      const url = "https://poracode.com/blog";
+      useNewsFeedStore.setState({
+        feed: parseNewsFeed({
+          version: NEWS_FEED_VERSION,
+          items: [
+            {
+              id: "latest-news",
+              kind: "announcement",
+              text: { en: "Latest Poracode news" },
+              action: { type: "url", url, label: { en: "Read more" } },
+            },
+          ],
+        }),
+      });
+      render(<NewsLine />);
+      await act(async () => {});
+      advanceTo("announcement");
+      fireEvent.click(screen.getByRole("button", { name: "Read more" }));
+      const open = browserClient ? mocks.openExternal : mocks.openExternalNative;
+      const unused = browserClient ? mocks.openExternalNative : mocks.openExternal;
+      expect(open).toHaveBeenCalledExactlyOnceWith(url);
+      expect(unused).not.toHaveBeenCalled();
+      expect(useNewsLineStore.getState().hiddenIds).toContain("remote:latest-news");
+    },
+  );
 
   it("announces items to screen readers only while rotation is stopped", () => {
     render(<NewsLine />);
