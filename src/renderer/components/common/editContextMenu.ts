@@ -12,6 +12,7 @@ import {
 } from "@/renderer/components/thread/SideChat/sideChatActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
+import { openSystemBrowserUrl } from "@/renderer/utils/openSystemBrowserUrl";
 
 /**
  * What a right-click can do. The host turns these into rows on the shared
@@ -592,12 +593,9 @@ function openInAppBrowser(url: string): void {
 }
 
 function openInSystemBrowser(url: string): void {
-  const bridge = readBridge();
-  void (isBrowserClientRuntime() ? bridge.openExternal(url) : bridge.openExternalNative(url)).catch(
-    (error: unknown) => {
-      toast.danger(friendlyError(error));
-    },
-  );
+  void openSystemBrowserUrl(url).catch((error: unknown) => {
+    toast.danger(friendlyError(error));
+  });
 }
 
 function addSelectionToChat(quote: ThreadQuote): void {

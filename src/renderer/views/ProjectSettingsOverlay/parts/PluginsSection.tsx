@@ -5,7 +5,10 @@ import {
   isBuiltInToolPlugin,
   resolveInstalledPluginState,
 } from "@/shared/plugins/catalog";
-import { setProjectPluginOverride } from "@/renderer/actions/projectActions";
+import {
+  setProjectPluginOverrideEverywhere,
+  setProjectPluginOverridesEverywhere,
+} from "@/renderer/actions/projectGroupActions";
 import { Select } from "@/renderer/components/common";
 import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
 import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginCopy";
@@ -13,6 +16,11 @@ import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProject } from "@/renderer/state/useThread";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
+import {
+  PROJECT_SETTINGS_SCROLL_CLASS,
+  ProjectScopeHeading,
+  SharedValueDiff,
+} from "./ProjectEnvironmentScope";
 
 type PluginChoice = "inherit" | "on" | "off";
 
@@ -33,7 +41,7 @@ export function PluginsSection(props: { projectId: string }) {
   const description = t`Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch.`;
   if (remoteOwner(project)) {
     return (
-      <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
+      <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
         <SettingsPage title={t`Plugins`} description={description}>
           <p className="text-xs text-muted">
             <Trans>Manage this project's plugins from a Poracode client on its host.</Trans>
@@ -53,8 +61,17 @@ export function PluginsSection(props: { projectId: string }) {
   });
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
+    <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
       <SettingsPage title={t`Plugins`} description={description} bodyClassName="space-y-5">
+        <div>
+          <ProjectScopeHeading projectId={project.id} scope="shared" />
+          <SharedValueDiff
+            projectId={project.id}
+            setting={t`Plugins`}
+            read={(row) => row.pluginOverrides ?? {}}
+            onApplyEverywhere={() => setProjectPluginOverridesEverywhere(project.id, overrides)}
+          />
+        </div>
         {rows.length === 0 ? (
           <p className="text-xs text-muted">
             <Trans>
@@ -98,7 +115,7 @@ export function PluginsSection(props: { projectId: string }) {
                     ]}
                     value={choice}
                     onChange={(value) =>
-                      setProjectPluginOverride(
+                      setProjectPluginOverrideEverywhere(
                         project.id,
                         name,
                         value === "inherit" ? null : value === "on",

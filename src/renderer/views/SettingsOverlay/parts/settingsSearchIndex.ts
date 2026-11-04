@@ -101,9 +101,18 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "general",
     anchor: "general.preventSleep",
     title: msg`Prevent system sleep`,
-    description: msg`Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged.`,
+    description: msg`Keep the system awake while any selected condition applies. Working includes Computer Use threads. The display can still turn off.`,
     keywords:
-      "sleep awake wake idle power system display lock server connection remote always computer use automation",
+      "sleep awake wake idle power system server connection remote always computer use automation",
+    desktopOnly: true,
+  },
+  {
+    section: "general",
+    anchor: "general.preventScreenLock",
+    title: msg`Prevent screen lock`,
+    description: msg`Keep the display on while any selected condition applies, so the screen does not lock from inactivity. Manual locking, closing the lid, and enforced lock policies still apply.`,
+    keywords:
+      "screen lock locking unlock display monitor awake idle screensaver power computer use remote always",
     desktopOnly: true,
   },
   {

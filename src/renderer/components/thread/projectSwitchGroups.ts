@@ -2,6 +2,11 @@ import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  groupProjectRows,
+  type ProjectGroupRow,
+} from "@/renderer/state/projectGroups/projectGroups";
+import { useProjectGroupIndex } from "@/renderer/state/projectGroups/useProjectGroups";
 import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceProjectFilter } from "@/renderer/state/workspaceSelectors";
@@ -43,4 +48,14 @@ export function useProjectSwitchProjects(): readonly Project[] {
         .sort(compareSelectorOrder),
     ),
   );
+}
+
+/**
+ * The switcher's list at logical-project granularity: one row per project,
+ * whichever environments it lives on, holding the members the active
+ * workspace shows and this client can reach, in the same order as
+ * {@link useProjectSwitchProjects}.
+ */
+export function useProjectSwitchEntries(): readonly ProjectGroupRow[] {
+  return groupProjectRows(useProjectSwitchProjects(), useProjectGroupIndex());
 }

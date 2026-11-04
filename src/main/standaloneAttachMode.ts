@@ -194,6 +194,7 @@ export async function startStandaloneAttachMode(): Promise<void> {
     desktopApp.quickComposerWindow?.close();
     desktopApp.quickComposerWindow = null;
     desktopApp.sleepInhibitor.dispose();
+    desktopApp.screenLockInhibitor.dispose();
     desktopApp.tray?.destroy();
     desktopApp.tray = null;
     void shellState.close().then(

@@ -2,11 +2,12 @@ import { useEffect } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo } from "@/shared/contracts";
 import { dedupePickerBranches } from "@/renderer/components/common/BranchSelector/parts/useBranchList";
-import { updateProjectWorktreeBaseBranch } from "@/renderer/actions/projectActions";
+import { updateProjectWorktreeBaseBranchEverywhere } from "@/renderer/actions/projectGroupActions";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useProject } from "@/renderer/state/useThread";
 import { Select, type SelectOption } from "@/renderer/components/common";
+import { SharedValueDiff } from "./ProjectEnvironmentScope";
 
 const REPOSITORY_DEFAULT_ID = "\u0000repository-default";
 const EMPTY_BRANCHES: GitBranchInfo[] = [];
@@ -35,23 +36,33 @@ export function ProjectWorktreeBaseBranch(props: { projectId: string }) {
   ];
 
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground">{t`Default worktree base`}</p>
-        <p className="text-xs text-muted">
-          {t`Branch new worktrees fork from. You can also star one in the composer's branch picker.`}
-        </p>
+    <div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">{t`Default worktree base`}</p>
+          <p className="text-xs text-muted">
+            {t`Branch new worktrees fork from. You can also star one in the composer's branch picker.`}
+          </p>
+        </div>
+        <Select
+          aria-label={t`Default worktree base`}
+          className="w-[320px] shrink-0"
+          options={options}
+          value={pinned ?? REPOSITORY_DEFAULT_ID}
+          onChange={(value) =>
+            updateProjectWorktreeBaseBranchEverywhere(
+              project.id,
+              value === REPOSITORY_DEFAULT_ID ? undefined : value,
+            )
+          }
+        />
       </div>
-      <Select
-        aria-label={t`Default worktree base`}
-        className="w-[320px] shrink-0"
-        options={options}
-        value={pinned ?? REPOSITORY_DEFAULT_ID}
-        onChange={(value) =>
-          updateProjectWorktreeBaseBranch(
-            project.id,
-            value === REPOSITORY_DEFAULT_ID ? undefined : value,
-          )
+      <SharedValueDiff
+        projectId={project.id}
+        setting={t`Default worktree base`}
+        read={(row) => row.worktreeBaseBranch ?? null}
+        onApplyEverywhere={() =>
+          updateProjectWorktreeBaseBranchEverywhere(project.id, project.worktreeBaseBranch)
         }
       />
     </div>

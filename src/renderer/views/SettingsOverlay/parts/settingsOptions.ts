@@ -2,6 +2,7 @@ import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import type { SelectOption } from "@/renderer/components/common";
+import { KEEP_AWAKE_CONDITIONS, type KeepAwakeCondition } from "@/shared/settings";
 
 /**
  * Settings dropdown options. Labels are lazy `msg` descriptors (module-level
@@ -49,11 +50,29 @@ export const newThreadModeOptions = [
   { id: "panel", label: msg`Panel` },
 ] as const satisfies readonly LocalizedOption[];
 
-export const preventSleepOptions = [
-  { id: "while-working", label: msg`While working` },
-  { id: "while-remote-access", label: msg`Working + remote access` },
+/** Conditions shared by the Prevent system sleep and Prevent screen lock rows. */
+export const keepAwakeConditionOptions = [
+  { id: "working", label: msg`Working` },
+  { id: "computer-use", label: msg`Computer Use` },
+  { id: "remote-access", label: msg`Remote access` },
   { id: "always", label: msg`Always` },
-] as const satisfies readonly LocalizedOption[];
+] as const satisfies readonly (LocalizedOption & { id: KeepAwakeCondition })[];
+
+/**
+ * Applies a multiselect change: newly picking "Always" replaces the other
+ * conditions, and picking another condition clears "Always".
+ */
+export function resolveKeepAwakeSelection(
+  previous: readonly KeepAwakeCondition[],
+  next: readonly string[],
+): KeepAwakeCondition[] {
+  const conditions = KEEP_AWAKE_CONDITIONS.filter((condition) => next.includes(condition));
+  if (!conditions.includes("always")) return conditions;
+  if (!previous.includes("always")) return ["always"];
+  return conditions.length > 1
+    ? conditions.filter((condition) => condition !== "always")
+    : conditions;
+}
 
 export const gitReviewModeOptions = [
   { id: "panel", label: msg`Panel` },

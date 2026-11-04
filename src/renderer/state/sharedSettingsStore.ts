@@ -18,6 +18,7 @@ import { customThemeSchema, MAX_CUSTOM_THEMES, type CustomTheme } from "@/shared
 import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
+  normalizeKeepAwakeConditions,
   normalizeSharedSettings,
   normalizeThreadDocksOrder,
   WINDOWS_SHELL_ARGUMENTS_MAX,
@@ -25,7 +26,7 @@ import {
   type FollowUpBehavior,
   type ThreadDocksPlacement,
   type ThreadDockKind,
-  type PreventSleep,
+  type KeepAwakeCondition,
   type ProviderModelPreference,
   type SidebarShortcutId,
   type SharedSettings,
@@ -146,7 +147,8 @@ interface SharedSettingsState extends SharedSettings {
   setAgentTerminalFontSize: (value: number) => void;
   setGuiChatFontSize: (value: number) => void;
   setTerminalPanelFontSize: (value: number) => void;
-  setPreventSleep: (value: PreventSleep) => void;
+  setPreventSleepWhen: (value: KeepAwakeCondition[]) => void;
+  setPreventScreenLockWhen: (value: KeepAwakeCondition[]) => void;
   setLaunchAtStartup: (value: boolean) => void;
   setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
@@ -766,8 +768,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ terminalPanelFontSize });
     persistSettings(selectSharedSettings(get()));
   },
-  setPreventSleep: (preventSleep) => {
-    set({ preventSleep });
+  setPreventSleepWhen: (value) => {
+    set({ preventSleepWhen: normalizeKeepAwakeConditions(value) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPreventScreenLockWhen: (value) => {
+    set({ preventScreenLockWhen: normalizeKeepAwakeConditions(value) });
     persistSettings(selectSharedSettings(get()));
   },
   setLaunchAtStartup: (launchAtStartup) => {
@@ -1401,7 +1407,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     agentTerminalFontSize: state.agentTerminalFontSize,
     guiChatFontSize: state.guiChatFontSize,
     terminalPanelFontSize: state.terminalPanelFontSize,
-    preventSleep: state.preventSleep,
+    preventSleepWhen: state.preventSleepWhen,
+    preventScreenLockWhen: state.preventScreenLockWhen,
     launchAtStartup: state.launchAtStartup,
     startMinimized: state.startMinimized,
     closeToTray: state.closeToTray,

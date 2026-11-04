@@ -116,7 +116,8 @@ import { isRemoteProcedure } from "../remote/procedures";
 // read-only name with a closed `{ agentKind }` request. It is outside the remote
 // allowlist (the browser bridge answers empty), and an older supervisor rejects
 // the name before effects; Settings treats that as "no config.toml hints", so
-// hop 18 stays compatible.
+// hop 19 stays compatible.
+// Lightcode import retirement removes its main-local name; hop 19 rejects old callers.
 // Hex voice is another additive supervisor-owned name. Old peers reject the
 // unknown name before dispatch; existing payloads and the hop remain unchanged.
 // Background PR polling adds a read name; old remote-14 hosts reject it by name,
@@ -124,8 +125,9 @@ import { isRemoteProcedure } from "../remote/procedures";
 // Locked Computer Use adds three main-local names (status, install,
 // uninstall). Older peers reject unknown names before any effect, existing
 // names and payloads are unchanged, and none enters the remote allowlist, so
-// hop 18 stays compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:1189ef79de247508cc179b81a4ffade595d4668a57b837adb08d77523633635f`;
+// hop 19 stays compatible.
+// Lightcode import retirement removes its main-local name; hop 19 rejects old callers.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:f30e59bf8722dca282a1bad167efa3a68b54acb0bd031c9785b2dc30ccc8e804`;
 
 describe("IPC procedure map versioning", () => {
   it("routes Hex voice through the supervisor as an additive procedure", () => {

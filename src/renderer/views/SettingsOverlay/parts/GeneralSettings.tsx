@@ -6,11 +6,15 @@ import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { aiLanguageOptions, localeOptions } from "@/renderer/i18n/locales";
 import { Button } from "@heroui/react";
-import { Select, ToggleSwitch } from "@/renderer/components/common";
+import { MultiSelect, Select, ToggleSwitch } from "@/renderer/components/common";
 import { isIosInstallBrowser, promptInstall, useCanInstall } from "@/renderer/pwa/install";
-import type { PreventSleep } from "@/shared/settings";
 import { SettingRow, SettingsPage } from "./SettingsForm";
-import { newThreadModeOptions, preventSleepOptions, useLocalizedOptions } from "./settingsOptions";
+import {
+  keepAwakeConditionOptions,
+  newThreadModeOptions,
+  resolveKeepAwakeSelection,
+  useLocalizedOptions,
+} from "./settingsOptions";
 import { SidebarShortcutsSelector } from "./SidebarShortcutsSelector";
 
 export function GeneralSettings() {
@@ -19,8 +23,10 @@ export function GeneralSettings() {
   const setLocale = useSharedSettings((state) => state.setLocale);
   const gitTextLanguage = useSharedSettings((state) => state.gitTextLanguage);
   const setGitTextLanguage = useSharedSettings((state) => state.setGitTextLanguage);
-  const preventSleep = useSharedSettings((state) => state.preventSleep);
-  const setPreventSleep = useSharedSettings((state) => state.setPreventSleep);
+  const preventSleepWhen = useSharedSettings((state) => state.preventSleepWhen);
+  const setPreventSleepWhen = useSharedSettings((state) => state.setPreventSleepWhen);
+  const preventScreenLockWhen = useSharedSettings((state) => state.preventScreenLockWhen);
+  const setPreventScreenLockWhen = useSharedSettings((state) => state.setPreventScreenLockWhen);
   const closeToTray = useSharedSettings((state) => state.closeToTray);
   const setCloseToTray = useSharedSettings((state) => state.setCloseToTray);
   const launchAtStartup = useSharedSettings((state) => state.launchAtStartup);
@@ -45,7 +51,14 @@ export function GeneralSettings() {
   const showIosInstallHelp = remote && isIosInstallBrowser();
 
   const newThreadOptions = useLocalizedOptions(newThreadModeOptions);
-  const sleepOptions = useLocalizedOptions(preventSleepOptions);
+  const keepAwakeOptions = useLocalizedOptions(keepAwakeConditionOptions);
+  const keepAwakeSummary = (conditions: readonly string[]) =>
+    conditions.length === 0
+      ? t({ message: "Never", comment: "Keep-awake setting with no conditions selected" })
+      : keepAwakeOptions
+          .filter((option) => conditions.includes(option.id))
+          .map((option) => option.label)
+          .join(", ");
   const resolvedLocaleOptions = localeOptions.map((option) => ({
     id: option.id,
     label: typeof option.label === "string" ? option.label : t(option.label),
@@ -241,32 +254,48 @@ export function GeneralSettings() {
           anchorId="general.preventSleep"
           title={t`Prevent system sleep`}
           description={
-            preventSleep === "always" ? (
-              <Trans>
-                Keep the system awake whenever Poracode is running, even in the background. The
-                display can still turn off. Screen locking is unchanged.
-              </Trans>
-            ) : preventSleep === "while-remote-access" ? (
-              <Trans>
-                Keep the system awake while agents work or remote access is enabled. The display can
-                still turn off. Screen locking is unchanged.
-              </Trans>
-            ) : (
-              <Trans>
-                Keep the system awake while any agent is working, including Computer Use. The
-                display can still turn off. Screen locking is unchanged.
-              </Trans>
-            )
+            <Trans>
+              Keep the system awake while any selected condition applies. Working includes Computer
+              Use threads. The display can still turn off.
+            </Trans>
           }
         >
-          <Select
+          <MultiSelect
             aria-label={t`Prevent system sleep`}
             className="w-[220px] shrink-0"
-            options={sleepOptions}
-            value={preventSleep}
+            options={keepAwakeOptions}
+            value={preventSleepWhen}
+            summary={keepAwakeSummary(preventSleepWhen)}
             onChange={(value) => {
               startTransition(() => {
-                setPreventSleep(value as PreventSleep);
+                setPreventSleepWhen(resolveKeepAwakeSelection(preventSleepWhen, value));
+              });
+            }}
+          />
+        </SettingRow>
+      )}
+
+      {!remote && (
+        <SettingRow
+          anchorId="general.preventScreenLock"
+          title={t`Prevent screen lock`}
+          description={
+            <Trans>
+              Keep the display on while any selected condition applies, so the screen does not lock
+              from inactivity. Manual locking, closing the lid, and enforced lock policies still
+              apply.
+            </Trans>
+          }
+        >
+          <MultiSelect
+            aria-label={t`Prevent screen lock`}
+            className="w-[220px] shrink-0"
+            options={keepAwakeOptions}
+            value={preventScreenLockWhen}
+            summary={keepAwakeSummary(preventScreenLockWhen)}
+            onChange={(value) => {
+              startTransition(() => {
+                setPreventScreenLockWhen(resolveKeepAwakeSelection(preventScreenLockWhen, value));
               });
             }}
           />

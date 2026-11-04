@@ -19,7 +19,7 @@ import { installPickerProtocolHandler } from "./browser";
 import { startUsageLoginCookieMirror } from "./usageLogin/UsageLoginCookieMirror";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { shouldStartMinimized, syncWindowsStartupRegistration } from "./startupSettings";
-import { shouldPreventSystemSleep } from "./sleepPolicy";
+import { shouldPreventScreenLock, shouldPreventSystemSleep } from "./sleepPolicy";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 import { desktopApp, isDev, requirePoracodePaths } from "./desktopAppState";
 import type { NativeThreadActivityChange } from "@/shared/backendHostProtocol";
@@ -40,6 +40,7 @@ let committedSharedSettings: SharedSettings | null = null;
 // Last values applied to the native power surfaces. A working-thread or
 // settings-event storm that leaves the derived values unchanged is a no-op.
 let lastAppliedPreventSleep: boolean | null = null;
+let lastAppliedPreventScreenLock: boolean | null = null;
 
 function resolveCommittedSharedSettings(): SharedSettings {
   if (committedSharedSettings) return committedSharedSettings;
@@ -62,13 +63,34 @@ function syncStartupSettings(settings?: SharedSettings): void {
   }
 }
 
+/**
+ * Re-derives both native power channels (system sleep, screen lock) from the
+ * committed settings, the working-thread set, and Computer Use activity.
+ */
 export function updatePowerSaveBlocker(): void {
   const settings = resolveCommittedSharedSettings();
-  const preventSleep = shouldPreventSystemSleep(settings, desktopApp.workingThreads.size);
+  const activity = {
+    workingThreadCount: desktopApp.workingThreads.size,
+    computerUseActive: [...desktopApp.computerUseThreads].some((threadId) =>
+      desktopApp.workingThreads.has(threadId),
+    ),
+  };
+  const preventSleep = shouldPreventSystemSleep(settings, activity);
   if (preventSleep !== lastAppliedPreventSleep) {
     lastAppliedPreventSleep = preventSleep;
     desktopApp.sleepInhibitor.setActive(preventSleep);
   }
+  const preventScreenLock = shouldPreventScreenLock(settings, activity);
+  if (preventScreenLock !== lastAppliedPreventScreenLock) {
+    lastAppliedPreventScreenLock = preventScreenLock;
+    desktopApp.screenLockInhibitor.setActive(preventScreenLock);
+  }
+}
+
+/** Computer Use session threads from the desktop overlay's activity reduction. */
+export function setComputerUseThreads(threadIds: readonly string[]): void {
+  desktopApp.computerUseThreads = new Set(threadIds);
+  updatePowerSaveBlocker();
 }
 
 /**

@@ -172,7 +172,8 @@ describe("sharedSettingsFile", () => {
       agentTerminalFontSize: 12,
       guiChatFontSize: 13,
       terminalPanelFontSize: 12,
-      preventSleep: "while-remote-access",
+      preventSleepWhen: ["working", "remote-access"],
+      preventScreenLockWhen: [],
       launchAtStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -343,7 +344,8 @@ describe("sharedSettingsFile", () => {
       agentTerminalFontSize: 12,
       guiChatFontSize: 13,
       terminalPanelFontSize: 12,
-      preventSleep: "while-remote-access",
+      preventSleepWhen: ["working", "remote-access"],
+      preventScreenLockWhen: [],
       launchAtStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -460,9 +462,19 @@ describe("sharedSettingsFile", () => {
     );
 
     const settings = readSharedSettingsFile(settingsPath);
-    expect(settings.preventSleep).toBe("while-working");
+    expect(settings.preventSleepWhen).toEqual(["working"]);
     expect(settings).not.toHaveProperty("preventSleepWhileWorking");
     expect(settings).not.toHaveProperty("remoteAccessPreventSleep");
+  });
+
+  it("migrates the released preventSleep enum from a previous settings file", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeFileSync(settingsPath, JSON.stringify({ preventSleep: "always" }), "utf8");
+
+    const settings = readSharedSettingsFile(settingsPath);
+    expect(settings.preventSleepWhen).toEqual(["always"]);
+    expect(settings.preventScreenLockWhen).toEqual([]);
+    expect(settings).not.toHaveProperty("preventSleep");
   });
 
   it("defaults usage tracking to Claude and Codex only", () => {

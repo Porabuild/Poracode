@@ -295,6 +295,44 @@ export const THREAD_DOCK_KINDS = [
 ] as const;
 export type ThreadDockKind = (typeof THREAD_DOCK_KINDS)[number];
 
+/**
+ * Conditions under which the desktop host keeps the system or screen awake.
+ * Shared by `preventSleepWhen` and `preventScreenLockWhen`; an empty list means
+ * never. "working" covers any working thread (Computer Use threads included),
+ * "computer-use" an enabled or active Computer Use session on this host,
+ * "remote-access" enabled remote access, and "always" any time Poracode runs.
+ */
+export const KEEP_AWAKE_CONDITIONS = [
+  "working",
+  "computer-use",
+  "remote-access",
+  "always",
+] as const;
+export type KeepAwakeCondition = (typeof KEEP_AWAKE_CONDITIONS)[number];
+
+/** Removes duplicates and orders conditions canonically; "always" subsumes the rest. */
+export function normalizeKeepAwakeConditions(
+  conditions: readonly KeepAwakeCondition[],
+): KeepAwakeCondition[] {
+  if (conditions.includes("always")) return ["always"];
+  return KEEP_AWAKE_CONDITIONS.filter((condition) => conditions.includes(condition));
+}
+
+/**
+ * The pre-multiselect `preventSleep` enum. It is no longer a schema field, but
+ * files written by older releases still carry it, so it seeds
+ * `preventSleepWhen` once (its scopes were cumulative).
+ */
+const legacyPreventSleepSchema = z.enum(["while-working", "while-remote-access", "always"]);
+const LEGACY_PREVENT_SLEEP_CONDITIONS: Record<
+  z.infer<typeof legacyPreventSleepSchema>,
+  readonly KeepAwakeCondition[]
+> = {
+  "while-working": ["working"],
+  "while-remote-access": ["working", "remote-access"],
+  always: ["always"],
+};
+
 export function normalizeSidebarShortcutOrder(
   order: readonly SidebarShortcutId[],
 ): SidebarShortcutId[] {
@@ -504,12 +542,17 @@ export const sharedSettingsSchema = z.object({
   /** Base font size for the dev terminal panel. Auto-shrinks in narrow/short panes. */
   terminalPanelFontSize: z.number().int().min(8).max(20),
   /**
-   * When to prevent the OS from sleeping while Poracode is running.
-   * - "while-working": only while a thread is actively working
-   * - "while-remote-access": while remote access is enabled or a thread is working
-   * - "always": keep the machine awake whenever the app is running
+   * Conditions under which the desktop host prevents system sleep (the display
+   * may still turn off). Any matching condition applies; empty means never.
+   * Replaces the legacy `preventSleep` enum, which older releases still read.
    */
-  preventSleep: z.enum(["while-working", "while-remote-access", "always"]),
+  preventSleepWhen: z.array(z.enum(KEEP_AWAKE_CONDITIONS)),
+  /**
+   * Conditions under which the desktop host keeps the display awake, which
+   * also stops idle display sleep from triggering the OS idle screen lock.
+   * Manual lock, lid close, and enforced lock policies still apply.
+   */
+  preventScreenLockWhen: z.array(z.enum(KEEP_AWAKE_CONDITIONS)),
   /** Register Poracode to launch automatically when the user signs in to Windows. */
   launchAtStartup: z.boolean(),
   /** Keep the main window hidden when Poracode is launched automatically at sign-in. */
@@ -801,9 +844,6 @@ export const sharedSettingsSchema = z.object({
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
-/** When to prevent the OS from sleeping while Poracode is running. */
-export type PreventSleep = SharedSettings["preventSleep"];
-
 /** Browser element-picker delivery target for terminal-native (CLI) threads. */
 export type CliPickerTarget = SharedSettings["cliPickerTarget"];
 
@@ -881,7 +921,10 @@ export const defaultSharedSettings: SharedSettings = {
   agentTerminalFontSize: 12,
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
-  preventSleep: "while-remote-access",
+  // Matches the legacy "while-remote-access" default.
+  preventSleepWhen: ["working", "remote-access"],
+  // Never by default so the display can still turn off (see #922).
+  preventScreenLockWhen: [],
   launchAtStartup: true,
   startMinimized: true,
   closeToTray: true,
@@ -1790,6 +1833,35 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
   );
 }
 
+/**
+ * No SETTINGS_DOCUMENT_VERSION bump: `preventSleepWhen` and
+ * `preventScreenLockWhen` are additive, and older readers ignore and preserve
+ * them as unknown fields. A valid stored value
+ * always wins. Otherwise it is seeded from the legacy `preventSleep` enum,
+ * then from the older two sleep booleans. The legacy `preventSleep` key is
+ * neither rewritten nor removed: an older app that reads a newer file keeps
+ * the user's last pre-upgrade choice, which stays valid in its schema
+ * (an array in that field would make the older document reader refuse it).
+ */
+function migratePreventSleepWhen(
+  normalized: SharedSettings,
+  source: Record<string, unknown>,
+): KeepAwakeCondition[] {
+  // Stored lists round-trip as written (the settings CAS compares written and
+  // parsed list lengths); clients normalize before writing.
+  if (sharedSettingsSchema.shape.preventSleepWhen.safeParse(source.preventSleepWhen).success)
+    return normalized.preventSleepWhen;
+  const legacy = legacyPreventSleepSchema.safeParse(source.preventSleep);
+  if (legacy.success) return [...LEGACY_PREVENT_SLEEP_CONDITIONS[legacy.data]];
+  if ("preventSleepWhileWorking" in source || "remoteAccessPreventSleep" in source)
+    return [
+      ...LEGACY_PREVENT_SLEEP_CONDITIONS[
+        source.remoteAccessPreventSleep === true ? "while-remote-access" : "while-working"
+      ],
+    ];
+  return normalized.preventSleepWhen;
+}
+
 /** Applies existing migrations to validated values; object spreads retain private future fields. */
 export function migrateSharedSettingsValues(
   normalized: SharedSettings,
@@ -1800,19 +1872,7 @@ export function migrateSharedSettingsValues(
     source.prAutoMergeDefault === true ? "merge" : source.prWatchDefault === true ? "fix" : "off";
   // The removed computerUseKeepAwake field is ignored by schema normalization;
   // older files remain valid and computer use follows the shared sleep policy.
-  // Unversioned settings file: migrate the two legacy sleep booleans into
-  // the single `preventSleep` enum. An explicit valid value always wins.
-  const hasPreventSleep = sharedSettingsSchema.shape.preventSleep.safeParse(
-    source.preventSleep,
-  ).success;
-  const hasLegacyPreventSleepKeys =
-    "preventSleepWhileWorking" in source || "remoteAccessPreventSleep" in source;
-  const migratedPreventSleep =
-    !hasPreventSleep && hasLegacyPreventSleepKeys
-      ? source.remoteAccessPreventSleep === true
-        ? ("while-remote-access" as const)
-        : ("while-working" as const)
-      : normalized.preventSleep;
+  const preventSleepWhen = migratePreventSleepWhen(normalized, source);
   const usage = settingsUnknownRecordSchema.safeParse(source.usage);
   const disabledProviders = usage.success
     ? settingsStringListSchema.safeParse(usage.data.disabledProviders)
@@ -1835,7 +1895,7 @@ export function migrateSharedSettingsValues(
       prAutomationDefault: hasAutomationMode
         ? normalized.prAutomationDefault
         : legacyAutomationMode,
-      preventSleep: migratedPreventSleep,
+      preventSleepWhen,
       usage: {
         ...normalized.usage,
         disabledProviders: disabledProviders?.success ? disabledProviders.data : [],

@@ -100,7 +100,7 @@ msgstr "{0, plural, one {# sparowane połączenie} few {# sparowane połączenia
 #~ msgstr "{0, plural, one {# sparowany desktop} few {# sparowane desktopy} many {# sparowanych desktopów} other {# sparowanego desktopa}}"
 
 #. placeholder {0}: projectCounts.get(workspace.id) ?? 0
-#. placeholder {0}: selectedProjects.size
+#. placeholder {0}: selectedRows.length
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "{0, plural, one {# project} other {# projects}}"
@@ -1902,7 +1902,7 @@ msgstr "Wszystkie pliki"
 msgid "All folders"
 msgstr "Wszystkie foldery"
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "Wszystkie komputery"
 
@@ -2031,6 +2031,10 @@ msgstr "Agent naprawia ten PR."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
 msgstr "Oczekiwany właściciel drzewa roboczego wymaga gałęzi"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
+msgid "An image from the project folder applies on {iconMachine} only."
+msgstr "Obraz z folderu projektu dotyczy tylko maszyny {iconMachine}."
 
 #: src/renderer/components/crew/crewTemplates.ts
 msgid "An investigator finds the root cause, and a fixer lands the fix with a regression test."
@@ -2620,6 +2624,10 @@ msgstr "Dostępni agenci ACP"
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Available models will appear after the engine is installed."
 msgstr "Dostępne modele pojawią się po zainstalowaniu silnika."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Available when {names} is back online."
+msgstr "Dostępne, gdy {names} wróci do trybu online."
 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Avatar color"
@@ -4406,6 +4414,10 @@ msgstr "Zwiń dok zadań do wykonania"
 msgid "Collapse warning"
 msgstr "Zwiń ostrzeżenie"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Combine with {name} ({machines})"
+msgstr "Połącz z {name} ({machines})"
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
 #~ msgstr "Wpisy właściciel/nazwa rozdzielone przecinkami, na przykład acme/website, acme/api. Lista jest wysyłana do Devin dokładnie tak, jak została wpisana."
@@ -4673,6 +4685,7 @@ msgstr "Obsługa komputera"
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Computer Use"
 msgstr "Obsługa komputera"
 
@@ -4904,9 +4917,9 @@ msgid "Connecting..."
 msgstr "Łączenie..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Łączenie…"
@@ -5134,10 +5147,6 @@ msgstr "Skopiuj {0} kod urządzenia {1}"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Copy accessibility tree"
 msgstr "Kopiuj drzewo dostępności"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Copy all Lightcode data into Poracode. Poracode restarts and keeps a complete backup of its current data."
-msgstr "Skopiuj wszystkie dane Lightcode do Poracode. Poracode uruchomi się ponownie i zachowa pełną kopię zapasową bieżących danych."
 
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
@@ -5456,10 +5465,6 @@ msgstr "Nie udało się przeskanować umiejętności agentów."
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Couldn't scan MCP server configurations."
 msgstr "Nie udało się przeskanować konfiguracji serwerów MCP."
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Couldn't schedule the Lightcode data import."
-msgstr "Nie udało się zaplanować importu danych Lightcode."
 
 #: src/renderer/components/common/QrScanner.tsx
 msgid "Couldn't start the camera"
@@ -6618,6 +6623,10 @@ msgstr "Dyktuj prompty zamiast je pisać"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
 msgstr "Opcje diffa"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Differs on {names}"
+msgstr "Inna wartość na {names}"
 
 #: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -9430,14 +9439,6 @@ msgstr "Realizuje zadanie modelu głównego w całości i weryfikuje je najwęż
 msgid "Import"
 msgstr "Import"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import again"
-msgstr "Importuj ponownie"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import and restart"
-msgstr "Importuj i uruchom ponownie"
-
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Import browser data"
 msgstr "Importuj dane przeglądarki"
@@ -9475,14 +9476,6 @@ msgstr "Importuj zewnętrzne umiejętności"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserImportModal.tsx
 msgid "Import from your browser"
 msgstr "Importuj ze swojej przeglądarki"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import Lightcode data"
-msgstr "Importuj dane Lightcode"
-
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Import Lightcode data again?"
-msgstr "Zaimportować ponownie dane Lightcode?"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Import MCP servers"
@@ -10211,6 +10204,11 @@ msgstr "Po uruchomieniu przy starcie pozostaw Poracode w zasobniku systemowym."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the display on while any selected condition applies, so the screen does not lock from inactivity. Manual locking, closing the lid, and enforced lock policies still apply."
+msgstr "Utrzymuj włączony ekran, gdy spełniony jest dowolny wybrany warunek, aby nie zablokował się z powodu braku aktywności. Ręczne blokowanie, zamknięcie pokrywy i wymuszone zasady blokady nadal obowiązują."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "Nie usypiaj Maca podczas obsługi komputera"
 
@@ -10219,17 +10217,22 @@ msgid "Keep the same microphone button. Choose the engine behind it."
 msgstr "Zachowaj ten sam przycisk mikrofonu. Wybierz stojący za nim silnik."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
-msgstr "Utrzymuj system w stanie aktywnym, gdy Poracode działa, również w tle. Ekran nadal może się wyłączyć. Blokada ekranu pozostaje bez zmian."
+#~ msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Utrzymuj system w stanie aktywnym, gdy Poracode działa, również w tle. Ekran nadal może się wyłączyć. Blokada ekranu pozostaje bez zmian."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
-msgstr "Utrzymuj system w stanie aktywnym, gdy agenci pracują lub dostęp zdalny jest włączony. Ekran nadal może się wyłączyć. Blokada ekranu pozostaje bez zmian."
+#~ msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Utrzymuj system w stanie aktywnym, gdy agenci pracują lub dostęp zdalny jest włączony. Ekran nadal może się wyłączyć. Blokada ekranu pozostaje bez zmian."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
-msgstr "Utrzymuj system w stanie aktywnym, gdy dowolny agent pracuje, w tym podczas korzystania z Computer Use. Ekran nadal może się wyłączyć. Blokada ekranu pozostaje bez zmian."
+#~ msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Utrzymuj system w stanie aktywnym, gdy dowolny agent pracuje, w tym podczas korzystania z Computer Use. Ekran nadal może się wyłączyć. Blokada ekranu pozostaje bez zmian."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any selected condition applies. Working includes Computer Use threads. The display can still turn off."
+msgstr "Utrzymuj system w stanie aktywnym, gdy spełniony jest dowolny wybrany warunek. „Pracuje” obejmuje też wątki Obsługi komputera. Ekran nadal może się wyłączyć."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -10513,10 +10516,6 @@ msgstr "Tokeny ogółem"
 msgid "Light"
 msgstr "Jasny"
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Lightcode data import is unavailable with a custom data folder."
-msgstr "Import danych Lightcode jest niedostępny przy niestandardowym folderze danych."
-
 #. placeholder {0}: r.startLine
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Line {0}"
@@ -10531,6 +10530,10 @@ msgstr "Komentarze do wierszy są dostępne tylko dla całej recenzji, a nie dla
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Lines {0}–{1}"
 msgstr "Wiersze {0}–{1}"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Link as the same project"
+msgstr "Połącz jako ten sam projekt"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrLinkActions.ts
 msgid "Link copied"
@@ -10799,6 +10802,7 @@ msgstr "lokalny"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
+#: src/renderer/utils/machineLabels.ts
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Local"
@@ -10967,6 +10971,14 @@ msgstr "Zmniejsza jasność obsługiwanych ekranów, gdy widoczna jest osłona, 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
 msgstr "Komputer"
+
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
+msgid "Machine: {currentLabel}"
+msgstr "Maszyna: {currentLabel}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Machines"
+msgstr "Maszyny"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "macOS"
@@ -12130,6 +12142,11 @@ msgstr "Potrzebuje odpowiedzi"
 msgid "Neutral"
 msgstr "Neutralny"
 
+#. Keep-awake setting with no conditions selected
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Never"
+msgstr "Nigdy"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Nowość"
@@ -12672,10 +12689,6 @@ msgstr "Brak etykiet"
 msgid "No learned selections yet."
 msgstr "Brak wyuczonych wyborów."
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "No Lightcode data was found."
-msgstr "Nie znaleziono danych Lightcode."
-
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "No limit"
 msgstr "Bez limitu"
@@ -13117,6 +13130,14 @@ msgstr "Usługa nie podała informacji"
 msgid "Not running"
 msgstr "Nie działa"
 
+#: src/renderer/actions/projectGroupActions.ts
+msgid "Not saved on {names} — it's offline. Apply again once it's back."
+msgstr "Nie zapisano na {names} — urządzenie jest offline. Zastosuj ponownie, gdy wróci."
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Not shared with {unlinkedNames} yet: only the project name matches."
+msgstr "Jeszcze nie udostępniono dla {unlinkedNames}: zgadza się tylko nazwa projektu."
+
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Not signed in"
@@ -13243,7 +13264,7 @@ msgid "On"
 msgstr "W"
 
 #. placeholder {0}: props.machineLabel ?? t`this machine`
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "On {0}"
 msgstr "{0}"
 
@@ -14649,10 +14670,6 @@ msgstr "Brakuje manifestu środowiska uruchomieniowego SSH Poracode lub jest on 
 #~ msgid "Poracode will install or reuse its server on the SSH host and keep credentials in this device's secure storage."
 #~ msgstr "Poracode zainstaluje lub ponownie wykorzysta swój serwer na hoście SSH i zachowa dane uwierzytelniające w bezpiecznej pamięci tego urządzenia."
 
-#: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
-msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
-msgstr "Poracode uruchomi się ponownie, utworzy kopię zapasową bieżących danych i zastąpi je pełną kopią danych Lightcode."
-
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Wbudowane narzędzia przeglądarki Poracode."
@@ -14832,6 +14849,11 @@ msgstr "Naciśnij skrót…"
 #: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
 msgid "Press Space to start reordering. Use the arrow keys to move, Space to drop, or Escape to cancel."
 msgstr "Naciśnij Spację, aby rozpocząć zmianę kolejności. Użyj strzałek do przesuwania, Spacji do upuszczenia lub Escape do anulowania."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent screen lock"
+msgstr "Zapobiegaj blokadzie ekranu"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -15802,9 +15824,9 @@ msgstr "Odśwież podgląd"
 msgid "Remote"
 msgstr "Zdalny"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-#~ msgid "Remote access"
-#~ msgstr "Dostęp zdalny"
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Remote access"
+msgstr "Dostęp zdalny"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -17863,7 +17885,8 @@ msgstr "Wybierz urządzenie"
 msgid "Select lines in the plan to comment on them."
 msgstr "Zaznacz wiersze planu, aby je skomentować."
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
+#: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
 msgid "Select machine"
 msgstr "Wybierz komputer"
 
@@ -18161,6 +18184,10 @@ msgstr "Pokaż {label}"
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "Pokaż krąg {label} na pasku bocznym"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
+msgid "Show {machine} as its own project"
+msgstr "Pokaż {machine} jako osobny projekt"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
@@ -20627,8 +20654,8 @@ msgid "This comment changed while you were editing it. Refresh before saving."
 msgstr "Ten komentarz zmienił się podczas edycji. Odśwież przed zapisaniem."
 
 #: src/renderer/utils/machineLabels.ts
-msgid "This computer"
-msgstr "Ten komputer"
+#~ msgid "This computer"
+#~ msgstr "Ten komputer"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
@@ -20747,7 +20774,7 @@ msgstr "To duży diff, więc nie został załadowany."
 msgid "This Mac's screen unlock rule has been customized, for example by device management, so Locked Computer Use can't be installed. Check with your IT team."
 msgstr "Reguła odblokowywania ekranu tego Maca została dostosowana, na przykład przez zarządzanie urządzeniami, więc nie można zainstalować Obsługi zablokowanego komputera. Skontaktuj się z działem IT."
 
-#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
+#: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
 msgstr "ten komputer"
 
@@ -22611,6 +22638,14 @@ msgstr "Użyj tego folderu"
 msgid "Use this link on devices connected to the same network."
 msgstr "Użyj tego linku na urządzeniach podłączonych do tej samej sieci."
 
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere"
+msgstr "Użyj tej wartości wszędzie"
+
+#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
+msgid "Use this value everywhere for {setting}"
+msgstr "Użyj tej wartości wszędzie dla {setting}"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Use WebGPU acceleration"
@@ -23180,8 +23215,8 @@ msgid "Where the terminal panel appears."
 msgstr "Gdzie pojawia się panel terminali."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "While working"
-msgstr "Podczas pracy"
+#~ msgid "While working"
+#~ msgstr "Podczas pracy"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Whisper with broad multilingual support."
@@ -23305,12 +23340,13 @@ msgid "Workflows added under .github/workflows will appear here."
 msgstr "Workflow dodane w .github/workflows pojawią się tutaj."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Working"
 msgstr "Pracuje"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Working + remote access"
-msgstr "Praca + dostęp zdalny"
+#~ msgid "Working + remote access"
+#~ msgstr "Praca + dostęp zdalny"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"

@@ -756,7 +756,7 @@ describe("SettingsOverlay", () => {
     });
 
     expect(
-      screen.getByText(/Keep the system awake while any agent is working/),
+      screen.getByText(/Keep the system awake while any selected condition applies/),
     ).toBeInTheDocument();
   });
 

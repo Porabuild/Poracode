@@ -12,7 +12,7 @@ import {
 } from "@/shared/projectIcon";
 import { IMAGE_EXTENSIONS } from "@/shared/promptContent";
 import { getProjectFsPath } from "@/shared/wsl";
-import { updateProjectIcon } from "@/renderer/actions/projectActions";
+import { updateProjectIconEverywhere } from "@/renderer/actions/projectGroupActions";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common";
 import { useProjectIconNode } from "@/renderer/components/common/ProjectIcon";
@@ -93,7 +93,7 @@ export function ProjectIconPicker(props: { project: Project }) {
     };
   }, [open, canUseFileIcons, location]);
 
-  const apply = (value: string | undefined) => updateProjectIcon(project.id, value);
+  const apply = (value: string | undefined) => updateProjectIconEverywhere(project.id, value);
 
   const select = (value: string | undefined) => {
     apply(value);

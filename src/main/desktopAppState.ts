@@ -1,9 +1,7 @@
 // Mutable desktop-app process state shared by the Electron entry, window
 // helpers, attach-mode startup, and managed ready path.
-import { join } from "node:path";
 import { app, type BrowserWindow } from "electron";
 import { resolvePoracodeChannel } from "@/shared/channel";
-import { resolveLegacyElectronUserDataDir } from "@/shared/legacyProductPaths";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
@@ -21,7 +19,7 @@ import type { BrowserMcpIngress } from "@/host/browser/types";
 import type { BrowserPanelManager, ChromeBridgeServer, ChromeMcpIngress } from "./browser";
 import type { ComputerUseDesktopOverlay, ComputerUseMcpIngress } from "./computer-use";
 import type { QuickComposerShortcutManager } from "./quickComposerShortcut";
-import { createSleepInhibitor } from "./sleepInhibitor";
+import { createScreenLockInhibitor, createSleepInhibitor } from "./sleepInhibitor";
 import type { TrayHandle } from "./tray";
 import type { WindowsJobObjectOwner } from "./windowsJobObject";
 import type { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
@@ -29,7 +27,6 @@ import type { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
 export const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 export const channel = resolvePoracodeChannel();
 export const baseDirOverride = process.env.PORACODE_BASE_DIR;
-export const legacyBaseDirOverride = process.env.LIGHTCODE_BASE_DIR?.trim() || undefined;
 
 export const posthogEnabled = process.env.POSTHOG_ENABLED !== "0";
 export const posthogKey = posthogEnabled ? (process.env.POSTHOG_KEY ?? "").trim() : "";
@@ -37,9 +34,6 @@ export const posthogHost = (process.env.POSTHOG_HOST ?? "").trim();
 export const posthogEnableDev = process.env.POSTHOG_ENABLE_DEV === "1";
 
 export const defaultElectronUserDataDir = app.getPath("userData");
-export const legacyElectronUserDataDir = legacyBaseDirOverride
-  ? join(legacyBaseDirOverride, "userData")
-  : resolveLegacyElectronUserDataDir(defaultElectronUserDataDir, channel, isDev);
 export const preserveLegacySafeStorageIdentity = !isDev && process.platform !== "win32";
 
 export const WINDOW_CHROME_HEIGHT = 32;
@@ -54,7 +48,7 @@ export interface DesktopAppState {
   // Standalone attach (Gate 2 connected slice): when owner discovery is visible
   // at module load, the lease acquisition is deferred to `whenReady` so the
   // authenticated describe decision runs BEFORE lease/acquire, backend fork,
-  // legacy migration, and desktop secret-key init. Null means the synchronous
+  // desktop secret-key init. Null means the synchronous
   // managed path already ran.
   deferredStandaloneProbe: DeferredAttachProbe | null;
   // Authenticated attach payload for the renderer bootstrap (endpoint + fresh
@@ -107,7 +101,12 @@ export interface DesktopAppState {
   quickComposerShortcutManager: QuickComposerShortcutManager | null;
   isQuitting: boolean;
   workingThreads: Set<string>;
+  // Threads with an enabled or acting Computer Use session, as reduced by the
+  // desktop overlay's activity tracker. Only those still working count toward
+  // keep-awake, so a crash or a missing `disable` cannot hold a blocker.
+  computerUseThreads: Set<string>;
   sleepInhibitor: ReturnType<typeof createSleepInhibitor>;
+  screenLockInhibitor: ReturnType<typeof createScreenLockInhibitor>;
 }
 
 export const desktopApp: DesktopAppState = {
@@ -142,7 +141,9 @@ export const desktopApp: DesktopAppState = {
   quickComposerShortcutManager: null,
   isQuitting: false,
   workingThreads: new Set<string>(),
+  computerUseThreads: new Set<string>(),
   sleepInhibitor: createSleepInhibitor(),
+  screenLockInhibitor: createScreenLockInhibitor(),
 };
 
 export function requirePoracodePaths(): PoracodePaths {

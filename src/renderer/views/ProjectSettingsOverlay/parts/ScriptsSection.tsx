@@ -2,11 +2,17 @@ import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProjectScripts } from "@/shared/contracts";
 import { updateProjectScripts } from "@/renderer/actions/projectActions";
+import { setWorktreeCopyPatternsEverywhere } from "@/renderer/actions/projectGroupActions";
 import { useProject } from "@/renderer/state/useThread";
 import { TextArea } from "@/renderer/components/common";
 import { parseCopyPatterns } from "@/shared/worktree";
 import { ProjectWorktreeLocation } from "./ProjectWorktreeLocation";
 import { ProjectWorktreeBaseBranch } from "./ProjectWorktreeBaseBranch";
+import {
+  PROJECT_SETTINGS_SCROLL_CLASS,
+  ProjectScopeHeading,
+  SharedValueDiff,
+} from "./ProjectEnvironmentScope";
 
 export function ScriptsSection(props: { projectId: string }) {
   const { t } = useLingui();
@@ -24,86 +30,103 @@ export function ScriptsSection(props: { projectId: string }) {
   }
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
+    <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
       <div className="mx-auto max-w-[720px]">
         <h1 className="mb-6 text-lg font-semibold text-foreground">
           <Trans>Worktrees</Trans>
         </h1>
 
         <div className="space-y-6">
-          <ProjectWorktreeLocation projectId={props.projectId} />
+          <div className="space-y-6">
+            <ProjectScopeHeading projectId={project.id} scope="shared" />
+            <ProjectWorktreeBaseBranch projectId={props.projectId} />
 
-          <ProjectWorktreeBaseBranch projectId={props.projectId} />
-
-          <div className="space-y-2">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                <Trans>Setup script</Trans>
-              </p>
-              <p className="text-xs text-muted">
-                <Trans>
-                  Runs in a terminal after a new worktree is created (e.g.,{" "}
-                  <code>pnpm install</code>).
-                </Trans>
-              </p>
+            <div className="space-y-2">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  <Trans>Copy ignored files</Trans>
+                </p>
+                <p className="text-xs text-muted">
+                  <Trans>
+                    Gitignored files to copy from the main project into each new worktree.
+                    Gitignore-style patterns, one per line (e.g., <code>.env.*</code>).
+                  </Trans>
+                </p>
+              </div>
+              <TextArea
+                aria-label={t`Copy ignored files`}
+                className="w-full font-mono text-xs"
+                rows={3}
+                placeholder={".env\n.env.*"}
+                value={copyPatterns}
+                onChange={(e) => setCopyPatterns(e.target.value)}
+                onBlur={() => {
+                  const patterns = parseCopyPatterns(copyPatterns);
+                  setWorktreeCopyPatternsEverywhere(
+                    project.id,
+                    patterns.length > 0 ? patterns : undefined,
+                  );
+                }}
+              />
+              <SharedValueDiff
+                projectId={project.id}
+                setting={t`Copy ignored files`}
+                read={(row) => row.scripts?.worktreeCopyPatterns ?? []}
+                onApplyEverywhere={() =>
+                  setWorktreeCopyPatternsEverywhere(project.id, scripts.worktreeCopyPatterns)
+                }
+              />
             </div>
-            <TextArea
-              aria-label={t`Setup script`}
-              className="w-full font-mono text-xs"
-              rows={3}
-              placeholder={"pnpm install"}
-              value={setupScript}
-              onChange={(e) => setSetupScript(e.target.value)}
-              onBlur={() => save({ setupScript: setupScript.trim() || undefined })}
-            />
           </div>
 
-          <div className="space-y-2">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                <Trans>Cleanup script</Trans>
-              </p>
-              <p className="text-xs text-muted">
-                <Trans>
-                  Runs before a worktree is removed (e.g., <code>rm -rf node_modules</code>).
-                </Trans>
-              </p>
-            </div>
-            <TextArea
-              aria-label={t`Cleanup script`}
-              className="w-full font-mono text-xs"
-              rows={3}
-              placeholder={"rm -rf node_modules"}
-              value={cleanupScript}
-              onChange={(e) => setCleanupScript(e.target.value)}
-              onBlur={() => save({ cleanupScript: cleanupScript.trim() || undefined })}
-            />
-          </div>
+          <div className="space-y-6">
+            <ProjectScopeHeading projectId={project.id} scope="environment" />
+            <ProjectWorktreeLocation projectId={props.projectId} />
 
-          <div className="space-y-2">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                <Trans>Copy ignored files</Trans>
-              </p>
-              <p className="text-xs text-muted">
-                <Trans>
-                  Gitignored files to copy from the main project into each new worktree.
-                  Gitignore-style patterns, one per line (e.g., <code>.env.*</code>).
-                </Trans>
-              </p>
+            <div className="space-y-2">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  <Trans>Setup script</Trans>
+                </p>
+                <p className="text-xs text-muted">
+                  <Trans>
+                    Runs in a terminal after a new worktree is created (e.g.,{" "}
+                    <code>pnpm install</code>).
+                  </Trans>
+                </p>
+              </div>
+              <TextArea
+                aria-label={t`Setup script`}
+                className="w-full font-mono text-xs"
+                rows={3}
+                placeholder={"pnpm install"}
+                value={setupScript}
+                onChange={(e) => setSetupScript(e.target.value)}
+                onBlur={() => save({ setupScript: setupScript.trim() || undefined })}
+              />
             </div>
-            <TextArea
-              aria-label={t`Copy ignored files`}
-              className="w-full font-mono text-xs"
-              rows={3}
-              placeholder={".env\n.env.*"}
-              value={copyPatterns}
-              onChange={(e) => setCopyPatterns(e.target.value)}
-              onBlur={() => {
-                const patterns = parseCopyPatterns(copyPatterns);
-                save({ worktreeCopyPatterns: patterns.length > 0 ? patterns : undefined });
-              }}
-            />
+
+            <div className="space-y-2">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  <Trans>Cleanup script</Trans>
+                </p>
+                <p className="text-xs text-muted">
+                  <Trans>
+                    Runs before a worktree is removed (e.g., <code>rm -rf node_modules</code>).
+                  </Trans>
+                </p>
+              </div>
+              <TextArea
+                aria-label={t`Cleanup script`}
+                className="w-full font-mono text-xs"
+                rows={3}
+                placeholder={"rm -rf node_modules"}
+                value={cleanupScript}
+                onChange={(e) => setCleanupScript(e.target.value)}
+                onBlur={() => save({ cleanupScript: cleanupScript.trim() || undefined })}
+              />
+            </div>
           </div>
         </div>
       </div>

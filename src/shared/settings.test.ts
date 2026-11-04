@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   defaultSharedSettings,
+  normalizeKeepAwakeConditions,
   normalizeSharedSettings,
   normalizeSidebarShortcutOrder,
   normalizeThreadDocksOrder,
@@ -370,9 +371,13 @@ describe("shared settings defaults", () => {
     expect(defaultSharedSettings.notificationFilter).toBe("all");
   });
 
-  it("defaults preventSleep to while-remote-access", () => {
-    expect(defaultSharedSettings.preventSleep).toBe("while-remote-access");
-    expect(normalizeSharedSettings({}).preventSleep).toBe("while-remote-access");
+  it("defaults system sleep to working + remote access and screen lock to never", () => {
+    expect(defaultSharedSettings.preventSleepWhen).toEqual(["working", "remote-access"]);
+    expect(defaultSharedSettings.preventScreenLockWhen).toEqual([]);
+    expect(normalizeSharedSettings({})).toMatchObject({
+      preventSleepWhen: ["working", "remote-access"],
+      preventScreenLockWhen: [],
+    });
   });
 
   it.each([true, false])(
@@ -380,11 +385,12 @@ describe("shared settings defaults", () => {
     (computerUseKeepAwake) => {
       const normalized = normalizeSharedSettings({
         ...defaultSharedSettings,
-        preventSleep: "while-working",
+        preventSleepWhen: ["working"],
         computerUseKeepAwake,
       });
 
-      expect(normalized.preventSleep).toBe("while-working");
+      expect(normalized.preventSleepWhen).toEqual(["working"]);
+      expect(normalized.preventScreenLockWhen).toEqual([]);
       expect(normalized).not.toHaveProperty("computerUseKeepAwake");
     },
   );
@@ -440,55 +446,94 @@ describe("shared settings defaults", () => {
     });
   });
 
-  it("migrates legacy sleep booleans into preventSleep", () => {
+  // Pre-upgrade settings shape: the released `preventSleep` enum, cumulative scopes.
+  it.each([
+    ["while-working", ["working"]],
+    ["while-remote-access", ["working", "remote-access"]],
+    ["always", ["always"]],
+  ] as const)("migrates legacy preventSleep %s into preventSleepWhen", (preventSleep, expected) => {
+    const migrated = normalizeSharedSettings({ preventSleep });
+    expect(migrated.preventSleepWhen).toEqual(expected);
+    expect(migrated.preventScreenLockWhen).toEqual([]);
+    expect(migrated).not.toHaveProperty("preventSleep");
+  });
+
+  it("migrates legacy sleep booleans into preventSleepWhen", () => {
     expect(
       normalizeSharedSettings({
         preventSleepWhileWorking: true,
         remoteAccessPreventSleep: false,
-      }).preventSleep,
-    ).toBe("while-working");
+      }).preventSleepWhen,
+    ).toEqual(["working"]);
     expect(
       normalizeSharedSettings({
         preventSleepWhileWorking: false,
         remoteAccessPreventSleep: true,
-      }).preventSleep,
-    ).toBe("while-remote-access");
-    expect(normalizeSharedSettings({ remoteAccessPreventSleep: true }).preventSleep).toBe(
-      "while-remote-access",
-    );
+      }).preventSleepWhen,
+    ).toEqual(["working", "remote-access"]);
+    expect(normalizeSharedSettings({ remoteAccessPreventSleep: true }).preventSleepWhen).toEqual([
+      "working",
+      "remote-access",
+    ]);
     expect(
       normalizeSharedSettings({
         preventSleepWhileWorking: false,
         remoteAccessPreventSleep: false,
-      }).preventSleep,
-    ).toBe("while-working");
+      }).preventSleepWhen,
+    ).toEqual(["working"]);
   });
 
-  it("lets an explicit preventSleep value win over legacy booleans", () => {
+  it("lets a valid legacy preventSleep win over the older booleans", () => {
     const migrated = normalizeSharedSettings({
       preventSleep: "always",
       preventSleepWhileWorking: true,
       remoteAccessPreventSleep: true,
     });
-    expect(migrated.preventSleep).toBe("always");
+    expect(migrated.preventSleepWhen).toEqual(["always"]);
     expect(migrated).not.toHaveProperty("preventSleepWhileWorking");
     expect(migrated).not.toHaveProperty("remoteAccessPreventSleep");
   });
 
-  it("falls back via migration when preventSleep is invalid", () => {
+  it("falls back to the legacy booleans when legacy preventSleep is invalid", () => {
     expect(
       normalizeSharedSettings({
         preventSleep: "never",
         preventSleepWhileWorking: true,
         remoteAccessPreventSleep: false,
-      }).preventSleep,
-    ).toBe("while-working");
+      }).preventSleepWhen,
+    ).toEqual(["working"]);
     expect(
       normalizeSharedSettings({
         preventSleep: "never",
         remoteAccessPreventSleep: true,
-      }).preventSleep,
-    ).toBe("while-remote-access");
+      }).preventSleepWhen,
+    ).toEqual(["working", "remote-access"]);
+  });
+
+  it("lets an explicit preventSleepWhen win over every legacy sleep value", () => {
+    const migrated = normalizeSharedSettings({
+      preventSleepWhen: [],
+      preventSleep: "always",
+      remoteAccessPreventSleep: true,
+    });
+    expect(migrated.preventSleepWhen).toEqual([]);
+  });
+
+  it("keeps stored keep-awake lists as written and normalizes client selections", () => {
+    expect(
+      normalizeSharedSettings({
+        preventSleepWhen: ["remote-access", "working"],
+        preventScreenLockWhen: ["computer-use", "always"],
+      }),
+    ).toMatchObject({
+      preventSleepWhen: ["remote-access", "working"],
+      preventScreenLockWhen: ["computer-use", "always"],
+    });
+    expect(normalizeKeepAwakeConditions(["computer-use", "working", "working"])).toEqual([
+      "working",
+      "computer-use",
+    ]);
+    expect(normalizeKeepAwakeConditions(["computer-use", "always"])).toEqual(["always"]);
   });
 
   it("drops legacy sleep keys from the normalized output", () => {
@@ -496,7 +541,7 @@ describe("shared settings defaults", () => {
       preventSleepWhileWorking: true,
       remoteAccessPreventSleep: true,
     });
-    expect(migrated.preventSleep).toBe("while-remote-access");
+    expect(migrated.preventSleepWhen).toEqual(["working", "remote-access"]);
     expect(migrated).not.toHaveProperty("preventSleepWhileWorking");
     expect(migrated).not.toHaveProperty("remoteAccessPreventSleep");
   });

@@ -10,7 +10,8 @@ import { buildBranchNamePrKey } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
 import { useWorkspaceProjectFilter } from "@/renderer/state/workspaceSelectors";
-import { dedupePrProjects, dedupePullRequestEntries, repoIdentityKey } from "./prProjectDedupe";
+import { repoIdentityKey } from "@/shared/repoIdentity";
+import { dedupePrProjects, dedupePullRequestEntries } from "./prProjectDedupe";
 import { pullRequestAccountKey, type PrListState, type PullRequestEntry } from "./prListModel";
 
 export interface ProjectFailure {

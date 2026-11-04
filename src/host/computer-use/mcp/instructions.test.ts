@@ -80,9 +80,9 @@ describe("computer use instructions", () => {
     );
   });
 
-  it("separates system sleep prevention from display power and screen locking", () => {
+  it("ties idle locking to the user setting without changing it", () => {
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
-      "does not keep displays on or prevent screen locking",
+      "Prevent screen lock setting only stops idle locking; never change it yourself",
     );
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).not.toContain("keepAwake:true");
   });

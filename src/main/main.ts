@@ -15,7 +15,6 @@ import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
 import { legacyProductNameFor } from "@/shared/legacyProductPaths";
 import { shouldUseMockKeychain } from "./mockKeychain";
-import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
 import { installProcessStdioErrorHandlers } from "./processStdio";
 import { HostDataFence, HostDataFenceInUseError } from "@/backend/ownership/hostDataFence";
 import { HostOwnerLease, HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
@@ -29,15 +28,12 @@ import {
   resolveDesktopBaseDir,
   shouldDeferLeaseForAttachProbe,
 } from "./backend/standaloneAttachBootstrap";
-import { probeLegacyOwnerConflict } from "./backend/desktopOwnerAdmission";
 import {
   baseDirOverride,
   channel,
   defaultElectronUserDataDir,
   desktopApp,
   isDev,
-  legacyBaseDirOverride,
-  legacyElectronUserDataDir,
   preserveLegacySafeStorageIdentity,
 } from "./desktopAppState";
 import { ensureMainWindow } from "./desktopAppWindows";
@@ -98,7 +94,6 @@ if (baseDirOverride) {
 
 const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 if (hasSingleInstanceLock) {
-  const electronUserDataDir = app.getPath("userData");
   const baseDir = resolveDesktopBaseDir({
     ...(baseDirOverride ? { baseDirOverride } : {}),
     isDev,
@@ -111,17 +106,6 @@ if (hasSingleInstanceLock) {
     desktopApp.deferredStandaloneProbe = { baseDir };
   } else {
     try {
-      // Legacy-owner refusal: a live legacy server with a still-pending data
-      // import refuses BEFORE any acquire — never acquire-and-fight the
-      // importer on the desktop mapping.
-      probeLegacyOwnerConflict({
-        baseDir,
-        channel,
-        electronUserDataDir,
-        ...(legacyElectronUserDataDir ? { legacyElectronUserDataDir } : {}),
-        ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
-        allowCustomDataRoot: app.isPackaged,
-      });
       desktopApp.desktopOwnerLease = HostOwnerLease.acquire(
         resolveDesktopHostRootPaths(baseDir),
         "desktop",
@@ -152,27 +136,11 @@ if (hasSingleInstanceLock) {
       !desktopApp.deferredStandaloneProbe &&
       desktopApp.desktopOwnerLease !== null
     ) {
-      try {
-        const result = migrateLegacyDataOutOfProcess({
-          baseDir,
-          channel,
-          electronUserDataDir,
-          legacyElectronUserDataDir,
-          ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
-          allowCustomDataRoot: app.isPackaged,
-        });
-        if (result.status === "migrated") {
-          console.info(`[migrate] imported all available Lightcode data into ${baseDir}`);
-        }
-      } catch (error) {
-        console.warn(`[migrate] failed to import Lightcode data into ${baseDir}:`, error);
-      }
       // Unified data root (V5 plan 1.3): the desktop owns the `.host-v1`
       // sibling. The synchronous fast path finishes only the cases that need
-      // no promotion; a promotable or resumable plain root (including one the
-      // legacy import above just filled) is left to `admitDesktopStartup`,
-      // which promotes it under the held lease with OS-key cooperation after
-      // the ready event.
+      // no promotion; a promotable or resumable plain root is left to
+      // `admitDesktopStartup`, which promotes it under the held lease with
+      // OS-key cooperation after the ready event.
       // Deep-review guard: an unreadable operation journal (or any other
       // promotion-inspection throw) must reach the ready-time failure dialog,
       // not crash the module scope before that path exists.
@@ -282,7 +250,6 @@ if (!hasSingleInstanceLock) {
           isPackaged: app.isPackaged,
           isDev,
           baseDirOverride,
-          legacyBaseDirOverride,
           env: process.env,
         })
       ) {

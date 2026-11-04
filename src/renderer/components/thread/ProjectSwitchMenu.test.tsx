@@ -9,6 +9,8 @@ import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
+import { useGitStore } from "@/renderer/state/gitStore";
+import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 
 vi.mock("@/renderer/bridge", () => ({
@@ -43,6 +45,8 @@ describe("ProjectSwitchMenu", () => {
   beforeEach(() => {
     localStorage.clear();
     useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: {} });
+    useGitStore.setState({ statuses: {} });
     useSharedSettings.setState({
       workspaces: [
         { id: "w1", name: "Work", icon: "briefcase", createdAt: "2026-07-27T00:00:00.000Z" },
@@ -257,9 +261,63 @@ describe("ProjectSwitchMenu", () => {
     },
   );
 
-  it("names the hosting machine on a mirrored project, in the trigger and the menu", async () => {
+  it("lists one project per repository and picks the environment separately", async () => {
     const mirrored = {
       ...project("r", "Alpha", "w1"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+    } as Project;
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({ projects: [workProject, mirrored, unfiledProject] });
+
+    render(<ProjectSwitchMenu currentProjectId="r" variant="compact" />);
+
+    // The local and mirrored "Alpha" are one project; the machine moves to the
+    // environment switcher instead of a second project row.
+    expect(screen.getByRole("button", { name: "Switch project" })).not.toHaveTextContent(
+      "MacBook 16",
+    );
+    const environment = screen.getByRole("button", { name: /^Machine:/ });
+    expect(environment).toHaveTextContent("MacBook 16");
+    const menu = await openMenu();
+    expect(
+      within(menu)
+        .getAllByRole("menuitemradio")
+        .map((item) => item.textContent),
+    ).toEqual(["AlphaLocalMacBook 16", "Gamma"]);
+  });
+
+  it("moves the draft to another environment of the same project", async () => {
+    const mirrored = {
+      ...project("r", "Alpha", "w1"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+    } as Project;
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({
+      projects: [workProject, mirrored],
+      view: { kind: "draft", projectId: "a" },
+    });
+
+    render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+    fireEvent.click(screen.getByRole("button", { name: /^Machine:/ }));
+    const menu = await screen.findByRole("menu");
+    fireEvent.click(within(menu).getByRole("menuitemradio", { name: /MacBook 16/ }));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "r" });
+    });
+  });
+
+  it("names the machine of a project that only lives on a paired machine", () => {
+    const mirrored = {
+      ...project("r", "Remote only", "w1"),
       remoteServerId: "desktop-1",
       remoteId: "rp-1",
     } as Project;
@@ -270,12 +328,8 @@ describe("ProjectSwitchMenu", () => {
     useAppStore.setState({ projects: [workProject, mirrored] });
 
     render(<ProjectSwitchMenu currentProjectId="r" variant="compact" />);
-
-    // Two projects share the name "Alpha"; only the mirrored one is machine-tagged.
-    expect(screen.getByRole("button", { name: "Switch project" })).toHaveTextContent("MacBook 16");
-    const menu = await openMenu();
-    const items = within(menu).getAllByRole("menuitemradio");
-    expect(items.map((item) => item.textContent)).toEqual(["Alpha", "AlphaMacBook 16"]);
+    expect(screen.queryByRole("button", { name: /^Machine:/ })).not.toBeInTheDocument();
+    expect(screen.getByText("MacBook 16")).toBeInTheDocument();
   });
 
   it("pins Home first, then local projects, then remote mirrors regardless of store order", async () => {
@@ -349,5 +403,100 @@ describe("ProjectSwitchMenu", () => {
     expect(screen.getByRole("button", { name: "Switch project" })).not.toBeDisabled();
     const menu = await openMenu();
     expect(within(menu).getByRole("menuitemradio", { name: "Alpha" })).toBeInTheDocument();
+  });
+  describe("machines of one project", () => {
+    function mirrorOf(server: string, workspaceId = "w1"): Project {
+      return {
+        ...project(`remote:${server}:project:a`, "Alpha", workspaceId),
+        remoteServerId: server,
+        remoteId: "a",
+        location: { kind: "posix", path: "/alpha", remoteServerId: server },
+      } as Project;
+    }
+    const mac = mirrorOf("mac");
+    const mini = mirrorOf("mini");
+
+    function pair(statuses: Record<string, "online" | "offline">) {
+      useRemoteServersStore.setState({
+        servers: [
+          { desktopId: "mac", label: "Poracode on MacBook" },
+          { desktopId: "mini", label: "Poracode on Mac mini" },
+        ],
+        runtime: Object.fromEntries(
+          Object.entries(statuses).map(([id, status]) => [
+            id,
+            { status, projects: [], threads: [] },
+          ]),
+        ),
+      } as never);
+    }
+
+    it("lists an offline machine as unavailable and never switches to it", async () => {
+      pair({ mac: "online", mini: "offline" });
+      useAppStore.setState({ projects: [workProject, mac, mini] });
+      render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
+      const menu = await screen.findByRole("menu");
+      const offline = within(menu).getByRole("menuitemradio", { name: /Mac mini/ });
+      expect(offline).toHaveAttribute("aria-disabled", "true");
+      expect(offline).toHaveTextContent("Offline");
+      fireEvent.click(offline);
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "a" });
+    });
+
+    it("offers only machines whose copy is in the active workspace", async () => {
+      pair({ mac: "online", mini: "online" });
+      useAppStore.setState({ projects: [workProject, mac, mirrorOf("mini", "w2")] });
+      render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
+      const menu = await screen.findByRole("menu");
+      expect(
+        within(menu)
+          .getAllByRole("menuitemradio")
+          .map((item) => item.textContent),
+      ).toEqual(["Local", "MacBook"]);
+    });
+
+    it("opens the machine used most recently, or the next reachable one", async () => {
+      pair({ mac: "online", mini: "online" });
+      useAppStore.setState({ projects: [workProject, mac, unfiledProject] });
+      useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: { [mac.id]: 5 } });
+      const { unmount } = render(<ProjectSwitchMenu currentProjectId="c" variant="compact" />);
+      fireEvent.click(within(await openMenu()).getByRole("menuitemradio", { name: /Alpha/ }));
+      await waitFor(() => {
+        expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: mac.id });
+      });
+      unmount();
+
+      pair({ mac: "offline", mini: "online" });
+      useAppStore.setState({ view: { kind: "draft", projectId: "c" } });
+      render(<ProjectSwitchMenu currentProjectId="c" variant="compact" />);
+      fireEvent.click(within(await openMenu()).getByRole("menuitemradio", { name: /Alpha/ }));
+      await waitFor(() => {
+        expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "a" });
+      });
+    });
+
+    it("carries the typed draft to the other machine and remembers it", async () => {
+      pair({ mac: "online", mini: "online" });
+      const content = {
+        segments: [{ kind: "text" as const, content: "Ship it" }],
+        attachments: [],
+      };
+      useAppStore.setState({ projects: [workProject, mac], draftContents: { a: content } });
+      render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
+      fireEvent.click(
+        within(await screen.findByRole("menu")).getByRole("menuitemradio", { name: /MacBook/ }),
+      );
+      await waitFor(() => {
+        expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: mac.id });
+      });
+      expect(useAppStore.getState().draftContents).toEqual({ [mac.id]: content });
+      expect(useProjectGroupStore.getState().lastUsedAt[mac.id]).toBeTypeOf("number");
+    });
   });
 });

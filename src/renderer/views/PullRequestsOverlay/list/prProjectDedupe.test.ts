@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { GitRemoteInfo, Project } from "@/shared/contracts";
-import { dedupePrProjects, repoIdentityKey } from "./prProjectDedupe";
+import { repoIdentityKey } from "@/shared/repoIdentity";
+import { dedupePrProjects } from "./prProjectDedupe";
 
 function project(id: string, overrides: Partial<Project> = {}): Project {
   return {

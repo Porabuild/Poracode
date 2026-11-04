@@ -136,11 +136,6 @@ export default defineConfig(
       ...shared,
     },
     {
-      entry: { legacyMigrationWorker: "src/backend/legacyMigrationWorker.ts" },
-      clean: false,
-      ...shared,
-    },
-    {
       entry: { preload: "src/main/preload.ts" },
       clean: false,
       ...shared,
