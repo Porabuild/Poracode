@@ -7,8 +7,10 @@ import { NewsHighlightCard } from "./NewsHighlightCard";
 import { useNewsLineItems } from "./useNewsLineItems";
 import type { NewsItem } from "./newsTypes";
 
-/** Time each item stays before the next one slides in. */
+/** Time a regular item stays before the next one slides in. */
 export const NEWS_ROTATE_MS = 7_000;
+/** Give community promotions more time to be read and acted on. */
+export const NEWS_PROMOTION_ROTATE_MS = 20_000;
 /** Rotation stays paused this long after the last keystroke in the composer. */
 export const NEWS_TYPING_PAUSE_MS = 15_000;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
@@ -46,6 +48,7 @@ export function NewsLine(props: { className?: string }) {
     foundIndex >= 0 ? foundIndex : Math.min(cursor.index, Math.max(0, items.length - 1));
   const current: NewsItem | undefined = items[index];
   const currentId = current?.id ?? null;
+  const rotateMs = current?.kind === "promotion" ? NEWS_PROMOTION_ROTATE_MS : NEWS_ROTATE_MS;
   const paused = userPaused || interacting || typing || pageHidden || openHighlight !== null;
 
   const step = (delta: number) => {
@@ -68,7 +71,7 @@ export function NewsLine(props: { className?: string }) {
       // Some browsers skip focusout when the focused control is removed, so
       // check where focus really is and wait while it is on the line.
       if (rootRef.current?.contains(document.activeElement)) {
-        rotateTimerRef.current = window.setTimeout(tick, NEWS_ROTATE_MS);
+        rotateTimerRef.current = window.setTimeout(tick, rotateMs);
         return;
       }
       const list = itemsRef.current;
@@ -76,9 +79,9 @@ export function NewsLine(props: { className?: string }) {
       const nextIndex = (from + 1) % list.length;
       setCursor({ id: list[nextIndex]?.id ?? null, index: nextIndex });
     };
-    rotateTimerRef.current = window.setTimeout(tick, NEWS_ROTATE_MS);
+    rotateTimerRef.current = window.setTimeout(tick, rotateMs);
     return () => window.clearTimeout(rotateTimerRef.current);
-  }, [paused, itemCount, currentId]);
+  }, [paused, itemCount, currentId, rotateMs]);
 
   // Count a showing once per visit, and slide the new item in.
   useEffect(() => {
@@ -189,14 +192,14 @@ export function NewsLine(props: { className?: string }) {
         role="region"
         aria-roledescription={t`carousel`}
         aria-label={t`News`}
-        className="group flex h-8 items-center gap-1 rounded-full pr-1.5 pl-3 text-[12.5px] text-muted transition-colors hover:bg-[var(--row-hover)] focus-within:bg-[var(--row-hover)]"
+        className="group flex flex-col items-center gap-0.5 text-[12.5px] text-muted"
       >
         <div
           ref={contentRef}
           // Announce only while rotation is stopped (APG carousel): never every 7s.
           aria-live={paused ? "polite" : "off"}
           aria-atomic="true"
-          className="flex min-w-0 flex-1 items-center gap-2"
+          className="flex h-8 w-full min-w-0 items-center gap-2 rounded-full px-3 transition-colors group-hover:bg-[var(--row-hover)] group-focus-within:bg-[var(--row-hover)]"
           data-news-item={current.id}
           data-news-kind={current.kind}
         >
@@ -226,8 +229,11 @@ export function NewsLine(props: { className?: string }) {
             </button>
           ) : null}
         </div>
-        {/* Always takes its width so revealing it never shifts the action under the pointer. */}
-        <div className="flex shrink-0 items-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+        {/* Reserve the controls' row so revealing it never shifts the content. */}
+        <div
+          className="flex h-[22px] shrink-0 items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+          data-news-controls=""
+        >
           {items.length > 1 ? (
             <>
               <span aria-hidden="true" className="mx-1.5 flex gap-1">

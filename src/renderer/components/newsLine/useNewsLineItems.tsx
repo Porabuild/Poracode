@@ -9,7 +9,7 @@ import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useNewsLineStore } from "@/renderer/state/newsLineStore";
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { formatCommandShortcut, type PlatformName } from "@/renderer/commands/keybindingMatcher";
-import { openExternalUrl, openUsagePanelForProvider } from "@/renderer/actions/panelActions";
+import { openUsagePanelForProvider } from "@/renderer/actions/panelActions";
 import { USAGE_PROVIDERS } from "@/renderer/components/providers/usageProviders";
 import { usageWindowDisplayLabel } from "@/renderer/components/providers/usageFormat";
 import { KIND_ICON } from "@/renderer/components/changelog/ChangelogView";
@@ -29,7 +29,7 @@ import { pickUsageFact } from "./newsFacts";
 import { buildNewsPlaylist, seededRandom, shuffled } from "./newsPlaylist";
 import { NEWS_ICON_CLASS, type NewsItem } from "./newsTypes";
 import { NEWS_TIPS } from "./newsTips";
-import { runAppCommand } from "./newsActions";
+import { openNewsUrl, runAppCommand } from "./newsActions";
 import { useProfileStats } from "./useProfileStats";
 import { useFeatureContext } from "./useFeatureContext";
 import { useDiscoveryItems } from "./useDiscoveryItems";
@@ -257,7 +257,7 @@ export function useNewsLineItems(): NewsLineModel {
         external: id !== "github-star",
         ...(id === "github-star" ? { leadingIcon: <Star className="size-3" /> } : {}),
         onPress: () => {
-          openExternalUrl(COMMUNITY_PROMOTION_URLS[id]);
+          openNewsUrl(COMMUNITY_PROMOTION_URLS[id]);
           dismissPromotion(id);
         },
       },

@@ -4,7 +4,6 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { i18n } from "@/renderer/i18n/i18n";
-import { openExternalUrl } from "@/renderer/actions/panelActions";
 import { useChangelogStore } from "@/renderer/state/changelogStore";
 import { useNewsFeedStore } from "@/renderer/state/newsFeedStore";
 import { useNewsLineStore } from "@/renderer/state/newsLineStore";
@@ -16,6 +15,7 @@ import {
 } from "@/shared/newsFeed";
 import { findFeature, type FeatureContext } from "./featureCatalog";
 import { NEWS_ICON_CLASS, type NewsAction, type NewsItem } from "./newsTypes";
+import { openNewsUrl } from "./newsActions";
 
 /** Remote items featured per visit. */
 const ANNOUNCEMENTS_PER_VISIT = 3;
@@ -92,7 +92,7 @@ export function useAnnouncementItems(options: {
           label: item.actionLabel ?? t`Open`,
           external: true,
           onPress: () => {
-            openExternalUrl(action.url);
+            openNewsUrl(action.url);
             hide();
           },
         };
