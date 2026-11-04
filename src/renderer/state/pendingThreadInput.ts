@@ -1,7 +1,7 @@
 import type { RuntimeEvent, Thread } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import { reuseRemoteRows } from "./remoteServers/rowReuse";
-import { carryPendingRootLaunchRuntime } from "./managedRootCatalog/rootLaunchRuntime";
+import { carryPendingRootLaunchRuntime } from "./hostLaunchRuntime";
 
 // Admission is renderer-local and never persisted or sent over the wire. Old
 // host rows remain valid; they simply cannot settle a prompt still being sent.

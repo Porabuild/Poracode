@@ -11,11 +11,8 @@ import {
   type RemoteDesktopClient,
 } from "@/shared/remote/client";
 import { i18n } from "@/renderer/i18n/i18n";
-import { clearThreadHistoryNotice } from "@/renderer/state/remote/historyNoticeStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import { finalizeProjectRemoval } from "@/renderer/state/projectRemovalPresentation";
-import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
 import {
   applyCachedSlashCommandCatalogs,
   fetchSlashCommandCatalog,
@@ -26,6 +23,7 @@ import {
   setOlderThreadHistoryInvalidation,
 } from "@/renderer/state/chatRuntimePersister";
 import { trackPendingRemoteThreadOpen } from "./pendingRemoteThreadOpens";
+import { removeConfirmedHostThread } from "@/renderer/state/hostThreadRowRemoval";
 import { readHostThreadHistory } from "@/renderer/state/hostThreadHistory";
 import { protectedThreadRowIds } from "@/renderer/state/protectedThreadRows";
 import {
@@ -200,12 +198,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
     });
     for (const threadId of threadIds) {
       const viewThreadId = remoteThreadId(connectionKey, threadId);
-      useNativeVisualUiStore.getState().forgetThread(visualHostId, threadId);
-      // Authoritative host removal: the durable notice state goes with the
-      // thread instead of surviving to re-attach to a future row.
-      clearThreadHistoryNotice(viewThreadId);
-      forgetPendingCatalogEdit("thread", viewThreadId);
-      useAppStore.getState().deleteThread(viewThreadId);
+      removeConfirmedHostThread({ viewThreadId, hostThreadId: threadId, visualHostId });
     }
   };
 
