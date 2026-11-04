@@ -1,4 +1,11 @@
 import type {
+  ComputerUseLockedUseBeginInput,
+  ComputerUseLockedUseBeginResult,
+  ComputerUseLockedUseEndInput,
+  ComputerUseLockedUseEndResult,
+  ComputerUseLockedUseStatus,
+} from "@/shared/contracts/computerUse";
+import type {
   ComputerUseDriver,
   ComputerUseDriverStatus,
   ComputerUseFindElementsResult,
@@ -24,6 +31,21 @@ function refusal(
 ): ComputerUseInteractiveResult {
   return { ok: false, mode: "interactive", window, refused: { code, reason, hint } };
 }
+
+/**
+ * Host-side `locked_use_begin` stage for "no helper can serve this": the
+ * helper's own stages (`unsupported_platform`, `unsigned_build`, ...) need a
+ * running helper to report them.
+ */
+export const LOCKED_USE_HELPER_UNAVAILABLE_STAGE = "helper_unavailable";
+
+const UNAVAILABLE_LOCKED_USE_STATUS: ComputerUseLockedUseStatus = {
+  supported: false,
+  signed: false,
+  paused: false,
+  active: false,
+  screenLocked: false,
+};
 
 export interface CompositeComputerUseDriverOptions {
   fallback: ComputerUseDriver | null;
@@ -159,6 +181,55 @@ export class CompositeComputerUseDriver implements ComputerUseDriver {
     input: Parameters<ComputerUseDriver["setElementValue"]>[0],
   ): ReturnType<ComputerUseDriver["setElementValue"]> {
     return this.elementCall(input.window, (driver) => driver.setElementValue(input));
+  }
+
+  /**
+   * Locked Computer Use exists only in the native helper. Without it (missing
+   * binary, failed handshake, or a helper that predates the action) the
+   * session is `unavailable` and nothing falls back to the legacy driver.
+   */
+  lockedUseBegin(input: ComputerUseLockedUseBeginInput): Promise<ComputerUseLockedUseBeginResult> {
+    return this.actions.run(async (signal) => {
+      const primary = await this.tryPrimary(
+        (driver) =>
+          driver.lockedUseBegin
+            ? driver.lockedUseBegin(input)
+            : Promise.resolve<ComputerUseLockedUseBeginResult>({
+                outcome: "unavailable",
+                stage: LOCKED_USE_HELPER_UNAVAILABLE_STAGE,
+              }),
+        signal,
+      );
+      return primary.available
+        ? primary.value
+        : { outcome: "unavailable", stage: LOCKED_USE_HELPER_UNAVAILABLE_STAGE };
+    });
+  }
+
+  lockedUseEnd(input: ComputerUseLockedUseEndInput): Promise<ComputerUseLockedUseEndResult> {
+    return this.actions.run(async (signal) => {
+      const primary = await this.tryPrimary(
+        (driver) =>
+          driver.lockedUseEnd
+            ? driver.lockedUseEnd(input)
+            : Promise.resolve<ComputerUseLockedUseEndResult>({ outcome: "inactive" }),
+        signal,
+      );
+      return primary.available ? primary.value : { outcome: "inactive" };
+    });
+  }
+
+  lockedUseStatus(): Promise<ComputerUseLockedUseStatus> {
+    return this.actions.run(async (signal) => {
+      const primary = await this.tryPrimary(
+        (driver) =>
+          driver.lockedUseStatus
+            ? driver.lockedUseStatus()
+            : Promise.resolve(UNAVAILABLE_LOCKED_USE_STATUS),
+        signal,
+      );
+      return primary.available ? primary.value : UNAVAILABLE_LOCKED_USE_STATUS;
+    });
   }
 
   private passive<T>(call: (driver: ComputerUseDriver) => Promise<T>): Promise<T> {

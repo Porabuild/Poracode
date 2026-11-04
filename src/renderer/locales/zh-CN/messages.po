@@ -2056,6 +2056,10 @@ msgstr "另一个聊天使用同一棵树。文件恢复可能会覆盖该聊天
 msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
 msgstr "另一个客户端正在运行此线程。请先停止该次运行，再替换线程或发送更多输入。"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Another install or removal is already running."
+msgstr "已有另一个安装或移除操作正在进行。"
+
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "此实验的另一个操作仍在运行。"
@@ -3563,6 +3567,7 @@ msgstr "正在检查 Tailscale..."
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Checking…"
 msgstr "正在检查..."
@@ -4666,6 +4671,8 @@ msgstr "电脑操作"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Computer Use"
 msgstr "计算机操作"
 
@@ -6611,6 +6618,11 @@ msgstr "用语音输入提示，无需打字"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
 msgstr "差异选项"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dim displays during Locked Computer Use"
+msgstr "锁屏电脑操作期间调暗显示器"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
@@ -10003,6 +10015,10 @@ msgstr "远程设备暂不支持安装、更新和登录。"
 msgid "Installation continues when you close this dialog."
 msgstr "关闭此对话框后，安装仍会继续。"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
+msgstr "无法验证安装，因此已回滚。未做任何更改。"
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -10011,6 +10027,7 @@ msgstr "关闭此对话框后，安装仍会继续。"
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
@@ -10024,6 +10041,10 @@ msgstr "已安装 {0}。"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Installed-font selection is unavailable in this client."
 msgstr "此客户端不支持选择已安装的字体。"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Installed, turned off"
+msgstr "已安装，已关闭"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -10819,6 +10840,27 @@ msgstr "位置图标"
 msgid "Lock panel to the open thread"
 msgstr "将面板锁定到打开的线程"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Locked Computer Use"
+msgstr "锁屏时的计算机操作"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Locked Computer Use couldn't be changed. Try again."
+msgstr "无法更改锁屏时的计算机操作。请重试。"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Locked Computer Use is available only on macOS."
+msgstr "锁屏时的计算机操作仅适用于 macOS。"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Locked Computer Use is set up in Poracode on the Mac it runs on."
+msgstr "锁屏时的计算机操作需在其运行所在 Mac 上的 Poracode 中设置。"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Locked Computer Use is unavailable in development builds."
+msgstr "开发版本中无法使用锁屏时的计算机操作。"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Locking keeps this machine's order and applies it everywhere."
 msgstr "锁定后将保留此设备的顺序并应用到所有设备。"
@@ -10916,6 +10958,11 @@ msgstr "低"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 msgid "Low contrast"
 msgstr "对比度较低"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
+msgstr "在保护遮罩显示期间降低受支持显示器的亮度，并在 Mac 再次锁定时恢复原来的亮度。"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -12065,6 +12112,7 @@ msgstr "{0} 上需要处理"
 msgid "Needs my review"
 msgstr "需要我审查"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Needs repair"
 msgstr "需要修复"
@@ -13049,6 +13097,7 @@ msgstr "未安装"
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -14187,6 +14236,10 @@ msgstr "已暂停"
 #~ msgid "Paused providers are skipped by Crossagents until resumed."
 #~ msgstr "Crossagents 会跳过已暂停的提供商，直到其恢复。"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Paused until you unlock this Mac manually"
+msgstr "已暂停，直到你手动解锁这台 Mac"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "PDF 预览会在浏览器面板中打开。"
@@ -14502,6 +14555,10 @@ msgstr "Poracode"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode 和代理在远程计算机上运行。SSH 仅用于启动远程环境并保护其本地隧道。"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers every display while it works, and locks it again when the turn ends. Any key press or pointer movement on this Mac locks it immediately. Installing needs a one-time administrator approval. On a Mac managed by your organization, check with IT first."
+msgstr "Poracode 会在进行中的计算机操作轮次期间短暂解锁这台 Mac，工作时遮挡所有显示器，并在轮次结束时重新锁定。在这台 Mac 上按下任意键或移动指针都会立即将其锁定。安装需要一次性的管理员批准。如果这台 Mac 由你的组织管理，请先咨询 IT 部门。"
 
 #. placeholder {0}: setting.controlType
 #: src/renderer/components/providers/devin/sessionSettingsControls.tsx
@@ -16098,6 +16155,10 @@ msgstr "移除 {profileName} 仅删除其 Poracode 设置。Devin 自己的凭�
 msgid "Removing a source keeps its installed plugins."
 msgstr "移除来源会保留从该来源安装的插件。"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Removing…"
+msgstr "正在移除…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
@@ -16203,6 +16264,10 @@ msgstr "正在重新排列 {name}。位置为 {position}，共 {count} 项。"
 #: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
 msgid "Reordering canceled."
 msgstr "已取消重新排序。"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Repair"
+msgstr "修复"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -19778,6 +19843,10 @@ msgstr "{remote} 上的 {branch} 分支不是此拉取请求的头部（它可�
 msgid "The acknowledgement failed."
 msgstr "确认失败。"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "The administrator prompt was cancelled. Nothing was changed."
+msgstr "管理员提示已取消。未做任何更改。"
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "代理"
@@ -20520,6 +20589,10 @@ msgstr "此分支落后于 {0}。"
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "此浏览器不支持在此处显示系统通知；你仍会看到应用内提示。"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "This build doesn't include the Locked Computer Use installer."
+msgstr "此版本未包含锁屏时的计算机操作安装程序。"
+
 #: src/renderer/actions/experimentResponseReads.ts
 msgid "This candidate's response is too large to compare. Split the experiment or shorten the transcript."
 msgstr "该候选项的响应过大，无法进行比较。请拆分实验或缩短对话记录。"
@@ -20668,6 +20741,10 @@ msgstr "此差异较大，因此未加载。"
 #: src/renderer/components/providers/devin/personasPanel.tsx
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "扫描达到上限，因此此列表不完整。"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "This Mac's screen unlock rule has been customized, for example by device management, so Locked Computer Use can't be installed. Check with your IT team."
+msgstr "这台 Mac 的屏幕解锁规则已被自定义（例如由设备管理设置），因此无法安装锁屏时的计算机操作。请联系你的 IT 团队。"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
@@ -21846,6 +21923,10 @@ msgstr "不可用 — 使用默认字体"
 msgid "Unavailable conversation"
 msgstr "不可用的对话"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Unavailable in development builds"
+msgstr "开发版本中不可用"
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -22872,6 +22953,10 @@ msgstr "等待{methodName}身份验证。检测到的代理将在完成后刷新
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Waiting for a preview"
 msgstr "正在等待预览"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Waiting for administrator approval…"
+msgstr "正在等待管理员批准…"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

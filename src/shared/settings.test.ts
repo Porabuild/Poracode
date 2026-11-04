@@ -944,3 +944,17 @@ describe("canonical AI-utility selection settings", () => {
     ).toBe(false);
   });
 });
+
+describe.each(["computerUseLockedUse", "computerUseLockedUseDimDisplay"] as const)("%s", (key) => {
+  it("defaults off for settings files written before the field existed", () => {
+    const legacy = { ...defaultSharedSettings } as Record<string, unknown>;
+    delete legacy[key];
+    expect(normalizeSharedSettings(legacy)[key]).toBe(false);
+    expect(defaultSharedSettings[key]).toBe(false);
+  });
+
+  it("keeps an explicit choice and drops a malformed value", () => {
+    expect(normalizeSharedSettings({ ...defaultSharedSettings, [key]: true })[key]).toBe(true);
+    expect(normalizeSharedSettings({ ...defaultSharedSettings, [key]: "yes" })[key]).toBe(false);
+  });
+});

@@ -361,6 +361,14 @@ export async function composeHeadlessRemoteHost(
         ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
       },
       onEvent: (event) => {
+        if (event.type === "thread-state" || event.type === "thread-exited") {
+          // Same turn rule as the desktop's native thread-activity projection.
+          hostServicesRef?.observeThreadActivity(
+            event.threadId,
+            event.type === "thread-state" &&
+              (event.status === "working" || event.status === "launching"),
+          );
+        }
         if (
           event.type === "thread-exited" ||
           (event.type === "thread-state" &&
@@ -392,6 +400,7 @@ export async function composeHeadlessRemoteHost(
       onRuntimeGapAcknowledged: createRuntimeGapAcknowledgedHook(() => serverRef),
       onReset: () => {
         hostServicesRef?.agentVision.stopAll();
+        hostServicesRef?.resetThreadActivity();
         administration?.reset();
         durableServices?.handleSupervisorReset();
         // Match the desktop backend: a supervisor crash leaves durable rows
@@ -486,6 +495,7 @@ export async function composeHeadlessRemoteHost(
       readProject: dbGetProject,
       writeProject: dbUpdateProject,
       projectsChanged: publishHeadlessProjectsChanged,
+      settingsCommitted: (settings) => hostServices.applyBrowserAllowFlags(settings),
       ...(options.reportError ? { reportError: options.reportError } : {}),
     });
     const settings = settingsAuthority;

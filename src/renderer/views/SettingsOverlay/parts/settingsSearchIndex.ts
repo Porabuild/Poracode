@@ -641,6 +641,23 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     desktopOnly: true,
   },
 
+  // Computer Use
+  {
+    section: "computerUse",
+    anchor: "computerUse.lockedUse",
+    title: msg`Locked Computer Use`,
+    keywords:
+      "locked screen lock unlock mac macos computer use agent guard administrator login password",
+  },
+
+  {
+    section: "computerUse",
+    anchor: "computerUse.lockedUseDimDisplay",
+    title: msg`Dim displays during Locked Computer Use`,
+    description: msg`Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again.`,
+    keywords: "dim brightness display screen locked mac computer use restore",
+  },
+
   // Usage
   {
     section: "usage",

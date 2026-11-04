@@ -121,7 +121,11 @@ import { isRemoteProcedure } from "../remote/procedures";
 // unknown name before dispatch; existing payloads and the hop remain unchanged.
 // Background PR polling adds a read name; old remote-14 hosts reject it by name,
 // and the renderer falls back only on that typed refusal. Hop 18 remains compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:327391fb32e06f8ccd7c567b992e4201b272cf4a02d9c19bdbd0d2a229140fec`;
+// Locked Computer Use adds three main-local names (status, install,
+// uninstall). Older peers reject unknown names before any effect, existing
+// names and payloads are unchanged, and none enters the remote allowlist, so
+// hop 18 stays compatible.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:1189ef79de247508cc179b81a4ffade595d4668a57b837adb08d77523633635f`;
 
 describe("IPC procedure map versioning", () => {
   it("routes Hex voice through the supervisor as an additive procedure", () => {

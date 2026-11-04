@@ -35,5 +35,26 @@
     "unsupported_button",
     "capability_unavailable",
     "screen_locked"
-  ]
+  ],
+  "lockedUseOutcomes": [
+    "unlocked",
+    "not_locked",
+    "already_active",
+    "paused",
+    "unavailable",
+    "failed"
+  ],
+  "lockedUseStages": [
+    "unsupported_platform",
+    "unsigned_build",
+    "plugin_not_installed",
+    "guard_failed",
+    "no_password_field",
+    "password_field_not_empty",
+    "not_consumed",
+    "still_locked",
+    "budget_exhausted"
+  ],
+  "lockedUseEndReasons": ["turn_end", "disabled", "idle", "shutdown", "host_request"],
+  "lockedUseEndOutcomes": ["relocked", "inactive"]
 }

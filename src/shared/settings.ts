@@ -587,6 +587,17 @@ export const sharedSettingsSchema = z.object({
   /** Automatically show the terminal panel when running commands or creating worktrees. */
   autoShowTerminalPanel: z.boolean(),
   /**
+   * Locked Computer Use (macOS): the user's intent to let an active Computer
+   * Use turn unlock this Mac behind an opaque guard. Installation status is
+   * derived from the system, never stored here, and turning this on does not
+   * install anything by itself: the desktop's local install call does. Not in
+   * the remote-editable subset, and agents cannot write it through
+   * app-controls.
+   */
+  computerUseLockedUse: z.boolean(),
+  // Additive opt-in: older settings files normalize to false.
+  computerUseLockedUseDimDisplay: z.boolean(),
+  /**
    * Where git worktrees are created: under a global root (`global`) or nested in
    * each project at `<project>/.poracode/worktrees` (`project-relative`).
    */
@@ -890,6 +901,8 @@ export const defaultSharedSettings: SharedSettings = {
   dismissedPromotions: [],
   sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
+  computerUseLockedUse: false,
+  computerUseLockedUseDimDisplay: false,
   worktreeStorageMode: "global",
   worktreeBasePath: "",
   wslWorktreeBasePath: "",

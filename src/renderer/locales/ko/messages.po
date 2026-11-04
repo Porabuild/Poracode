@@ -2056,6 +2056,10 @@ msgstr "다른 채팅에서도 이 동일한 트리를 사용합니다. 파일 �
 msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
 msgstr "다른 클라이언트에서 이 스레드를 실행 중입니다. 스레드를 교체하거나 추가 입력을 보내기 전에 해당 실행을 중지하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Another install or removal is already running."
+msgstr "다른 설치 또는 제거가 이미 진행 중입니다."
+
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "이 실험에 대한 다른 작업이 아직 실행 중입니다."
@@ -3563,6 +3567,7 @@ msgstr "Tailscale 확인 중…"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Checking…"
 msgstr "확인 중…"
@@ -4666,6 +4671,8 @@ msgstr "컴퓨터 사용"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 msgid "Computer Use"
 msgstr "컴퓨터 사용"
 
@@ -6611,6 +6618,11 @@ msgstr "입력하는 대신 프롬프트를 받아쓰세요"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
 msgid "Diff options"
 msgstr "diff 옵션"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dim displays during Locked Computer Use"
+msgstr "잠긴 컴퓨터 사용 중 디스플레이 밝기 낮추기"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
@@ -10003,6 +10015,10 @@ msgstr "원격 기기에서는 설치, 업데이트, 로그인을 아직 사용�
 msgid "Installation continues when you close this dialog."
 msgstr "이 대화상자를 닫아도 설치는 계속됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
+msgstr "설치를 확인할 수 없어 되돌렸습니다. 변경된 내용은 없습니다."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -10011,6 +10027,7 @@ msgstr "이 대화상자를 닫아도 설치는 계속됩니다."
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
@@ -10024,6 +10041,10 @@ msgstr "{0}을(를) 설치했습니다."
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Installed-font selection is unavailable in this client."
 msgstr "이 클라이언트에서는 설치된 글꼴을 선택할 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Installed, turned off"
+msgstr "설치됨, 꺼짐"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -10819,6 +10840,27 @@ msgstr "위치 글리프"
 msgid "Lock panel to the open thread"
 msgstr "패널을 열린 스레드에 고정"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Locked Computer Use"
+msgstr "잠금 상태 컴퓨터 사용"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Locked Computer Use couldn't be changed. Try again."
+msgstr "잠금 상태 컴퓨터 사용을 변경할 수 없습니다. 다시 시도하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Locked Computer Use is available only on macOS."
+msgstr "잠금 상태 컴퓨터 사용은 macOS에서만 사용할 수 있습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Locked Computer Use is set up in Poracode on the Mac it runs on."
+msgstr "잠금 상태 컴퓨터 사용은 실행 중인 Mac의 Poracode에서 설정합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Locked Computer Use is unavailable in development builds."
+msgstr "잠금 상태 컴퓨터 사용은 개발 빌드에서 사용할 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Locking keeps this machine's order and applies it everywhere."
 msgstr "잠그면 이 기기의 순서가 유지되어 모든 기기에 적용됩니다."
@@ -10916,6 +10958,11 @@ msgstr "낮음"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 msgid "Low contrast"
 msgstr "낮은 대비"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
+msgstr "보호 화면이 표시되는 동안 지원되는 디스플레이의 밝기를 낮추고, Mac이 다시 잠기면 이전 밝기로 복원합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -12066,6 +12113,7 @@ msgstr "{0}에서 확인이 필요합니다"
 msgid "Needs my review"
 msgstr "내 리뷰 필요"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Needs repair"
 msgstr "복구 필요"
@@ -13050,6 +13098,7 @@ msgstr "설치되지 않음"
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -14188,6 +14237,10 @@ msgstr "일시중지됨"
 #~ msgid "Paused providers are skipped by Crossagents until resumed."
 #~ msgstr "일시 중지된 공급자는 재개할 때까지 Crossagents에서 건너뜁니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Paused until you unlock this Mac manually"
+msgstr "이 Mac을 직접 잠금 해제할 때까지 일시 중지됨"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "PDF 미리보기는 브라우저 패널에서 열립니다."
@@ -14503,6 +14556,10 @@ msgstr "Poracode"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode와 에이전트는 원격 머신에서 실행됩니다. SSH는 원격 환경을 시작하고 로컬 터널을 보호하는 데만 사용됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers every display while it works, and locks it again when the turn ends. Any key press or pointer movement on this Mac locks it immediately. Installing needs a one-time administrator approval. On a Mac managed by your organization, check with IT first."
+msgstr "Poracode는 진행 중인 컴퓨터 사용 턴 동안 이 Mac의 잠금을 잠시 해제하고, 작업하는 동안 모든 디스플레이를 가리며, 턴이 끝나면 다시 잠급니다. 이 Mac에서 키를 누르거나 포인터를 움직이면 즉시 잠깁니다. 설치하려면 한 번의 관리자 승인이 필요합니다. 조직에서 관리하는 Mac이라면 먼저 IT 팀에 확인하세요."
 
 #. placeholder {0}: setting.controlType
 #: src/renderer/components/providers/devin/sessionSettingsControls.tsx
@@ -16099,6 +16156,10 @@ msgstr "{profileName}을(를) 제거하면 Poracode 설정만 삭제됩니다. D
 msgid "Removing a source keeps its installed plugins."
 msgstr "소스를 제거해도 설치된 플러그인는 유지됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Removing…"
+msgstr "제거 중…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
@@ -16204,6 +16265,10 @@ msgstr "{name}의 순서를 변경하는 중입니다. 전체 {count}개 중 {po
 #: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
 msgid "Reordering canceled."
 msgstr "순서 변경을 취소했습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Repair"
+msgstr "복구"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -19779,6 +19844,10 @@ msgstr "{remote}의 {branch} 브랜치는 이 풀 리퀘스트의 헤드가 아�
 msgid "The acknowledgement failed."
 msgstr "확인에 실패했습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "The administrator prompt was cancelled. Nothing was changed."
+msgstr "관리자 확인이 취소되었습니다. 변경된 내용은 없습니다."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "에이전트"
@@ -20521,6 +20590,10 @@ msgstr "이 브랜치는 {0}보다 뒤처져 있습니다."
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "이 브라우저는 여기에서 시스템 알림을 지원하지 않습니다. 앱 내 토스트는 계속 표시됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "This build doesn't include the Locked Computer Use installer."
+msgstr "이 빌드에는 잠금 상태 컴퓨터 사용 설치 프로그램이 포함되어 있지 않습니다."
+
 #: src/renderer/actions/experimentResponseReads.ts
 msgid "This candidate's response is too large to compare. Split the experiment or shorten the transcript."
 msgstr "이 후보의 응답이 너무 길어 비교할 수 없습니다. 실험을 나누거나 대화를 줄여 주세요."
@@ -20669,6 +20742,10 @@ msgstr "diff가 커서 불러오지 않았습니다."
 #: src/renderer/components/providers/devin/personasPanel.tsx
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "스캔이 한도에 도달하여 이 목록이 불완전합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "This Mac's screen unlock rule has been customized, for example by device management, so Locked Computer Use can't be installed. Check with your IT team."
+msgstr "이 Mac의 화면 잠금 해제 규칙이 기기 관리 등으로 사용자 지정되어 있어 잠금 상태 컴퓨터 사용을 설치할 수 없습니다. IT 팀에 문의하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
@@ -21847,6 +21924,10 @@ msgstr "사용 불가 — 기본 글꼴 사용"
 msgid "Unavailable conversation"
 msgstr "사용할 수 없는 대화"
 
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Unavailable in development builds"
+msgstr "개발 빌드에서는 사용할 수 없음"
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -22873,6 +22954,10 @@ msgstr "{methodName} 인증을 기다리는 중입니다. 감지된 에이전트
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Waiting for a preview"
 msgstr "미리보기 대기 중"
+
+#: src/renderer/views/SettingsOverlay/parts/ComputerUseSettings.tsx
+msgid "Waiting for administrator approval…"
+msgstr "관리자 승인을 기다리는 중…"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

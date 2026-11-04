@@ -97,4 +97,24 @@ describe("HelperComputerUseDriver", () => {
     expect(error).toBeInstanceOf(HelperUnavailableError);
     expect(error).toMatchObject({ code: "handshake_failed" });
   });
+
+  it("speaks the locked-use actions and validates their results", async () => {
+    const driver = createDriver();
+    await expect(driver.describeStatus()).resolves.toMatchObject({
+      helper: { lockedUse: { supported: false, signed: false } },
+    });
+    await expect(driver.lockedUseBegin({ threadId: "thread-1" })).resolves.toEqual({
+      outcome: "unlocked",
+      approvalId: "0".repeat(64),
+    });
+    await expect(driver.lockedUseEnd({ reason: "turn_end" })).resolves.toEqual({
+      outcome: "relocked",
+    });
+    await expect(driver.lockedUseStatus()).resolves.toMatchObject({
+      supported: true,
+      screenLocked: true,
+      lastEnd: { reason: "turn_end", atMs: 1 },
+    });
+    await expect(driver.lockedUseBegin({ threadId: "malformed" })).rejects.toThrow(/outcome/);
+  });
 });

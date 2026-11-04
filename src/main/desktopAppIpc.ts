@@ -71,6 +71,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       hostOffersAutoUpdate: () => desktopApp.hostServices?.capabilities.autoUpdate === true,
       hostOffersOsNotifications: () =>
         desktopApp.hostServices?.capabilities.osNotifications === true,
+      lockedComputerUse: () => desktopApp.hostServices?.lockedComputerUse ?? null,
     }),
     callSupervisor: (name, payload) => deps.backendHost.call(name, payload),
   });

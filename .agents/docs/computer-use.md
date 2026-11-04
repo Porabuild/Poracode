@@ -314,7 +314,8 @@ accepted but unobservable, and macOS strips window content from the
 accessibility tree (only an app proxy with the menu bar remains), so
 `type_text`/`press_key` refuse with `background_unavailable` and cached element
 actions with `stale_snapshot`. Passive results carry a `screen_locked` note.
-The correct response is to stop and ask the user to unlock, not to retry.
+The correct response is to stop and ask the user to unlock, not to retry —
+unless Locked Computer Use (below) unlocks the Mac for the turn.
 
 - Window matching falls back to a unique title (or the app's single AX window
   when no title was requested) when exactly one layer-0 window exists for the
@@ -328,6 +329,84 @@ The correct response is to stop and ask the user to unlock, not to retry.
 - On an unlocked desktop, a non-timeout ScreenCaptureKit failure retries once
   through legacy CoreGraphics with a `screen_capture_kit_failed` note; only a
   callback timeout marks ScreenCaptureKit unhealthy for the process.
+
+### Locked Computer Use (macOS)
+
+Opt-in (Settings → Computer Use). When the Mac is locked and an active Computer
+Use turn needs the desktop, the host unlocks it under an opaque guard, runs,
+and relocks when the turn ends. Without it, the locked-screen contract above
+applies unchanged. A separate default-off “Dim displays during Locked Computer
+Use” option lowers supported displays to at most 5% while covered. The helper
+and guard keep the original per-display brightness in memory and restore it
+when the guard exits, including when either process fails. Unsupported displays
+keep their normal brightness and opaque cover. Source of truth for the contract:
+`native/locked-computer-use/README.md` and the helper's `locked_use` module.
+
+- **Rule.** The installer (`native/locked-computer-use/locked-computer-use-installer`,
+  run through one administrator prompt) adds the right
+  `com.poracode.locked-computer-use.unlock` (mechanism
+  `PoracodeLockedUse:allow,privileged`) and rewrites only
+  `system.login.screensaver` to `k-of-n` 1 of [our right, `use-login-window-ui`].
+  Keeping `use-login-window-ui` in the rule keeps loginwindow's modern unlock UI,
+  including Touch ID and Apple Watch; replacing it would fall back to the legacy
+  SecurityAgent dialog. It refuses any non-stock rule, never touches
+  `system.login.console` or other vendors' plug-ins, backs the original rule up
+  under `/Library/Application Support/Poracode/LockedComputerUse/backups/`, and
+  uninstall restores that backup exactly. A pre-flight evaluates our right alone
+  and requires a plug-in deny plus its audit line before the screensaver rule
+  changes.
+- **Plug-in.** A small C bundle that denies by default; every error or timeout
+  denies, which falls through to the normal unlock. It connects to the console
+  user's helper socket (250 ms budget), checks peer uid, the code requirement
+  (team ID + helper identifier) and hardened runtime, consumes one approval
+  (`CONSUME 1` / `ALLOW 1 …` / `DENY 1 …`), requires it to be under 30 s old,
+  and appends an audit line to `/Library/Logs/Poracode/locked-computer-use.log`.
+  An unlock that cannot be audited is denied. Builds without a team ID always
+  deny.
+- **Helper.** `locked_use_begin` only works when the helper and its parent are
+  signed by the same team (`hello.lockedUse.signed`); the standalone CLI server
+  under plain `node` is therefore unsigned and unavailable. It starts the guard,
+  mints a single-use 30 s approval held only in memory, wakes the display, and
+  submits loginwindow's `UserPasswordTextField`: the macOS 26+ lock screen only
+  builds that field after a click, ignores an empty submission, and does not
+  submit on `AXConfirm`, so the helper clicks the user's name (`FocusedUser`)
+  once if the field is missing, fills it with the constant placeholder `-`
+  (never the user's password), and posts one Return.
+  The click and Return carry a source tag the guard passes through. Our right
+  runs first in the rule, so the placeholder is only checked as a password
+  when the plug-in denies, which counts as one failed attempt. The helper
+  checks character-count metadata when available and aborts a reported nonempty
+  field. SwiftUI loginwindow omits that count; there the constant write replaces
+  any unfinished entry without reading it. `AXValue` is never read.
+  Cancellation or takeover revokes the approval even during the trigger. It
+  waits for the unlock, requires the approval to be consumed, and clears its
+  own leftover placeholder while the guard still owns input if the Mac stays locked. Two failed attempts per thread
+  pause auto-unlock to stay clear of failed-password lockout policies.
+- **Guard.** `--locked-use-guard` covers every display, sets kiosk presentation
+  options, holds a display-sleep assertion, and runs an active HID event tap: any
+  local key, pointer, or scroll input relocks immediately
+  (`SACLockScreenImmediate`) and pauses auto-unlock until the helper sees a
+  manual unlock. Display reconfiguration also interrupts the session. The guard
+  keeps its cover and input tap until the OS confirms the lock; a failed relock
+  leaves protection in place. Guard exit, helper shutdown, host shutdown, the session cap,
+  `computer_use.disable`, turn end, and idle all relock. Foreground input stays
+  refused during a session.
+- **Host.** The ingress begins a session only when the screen is locked, the
+  setting is on, the plug-in is installed, the thread's turn is running, and
+  Computer Use is enabled for that thread; one thread owns the session. Begin
+  and end are audited in `locked-use-audit.jsonl` in the computer-use state
+  directory. Install and uninstall are local-desktop only.
+- **Trust boundary.** Remote clients, other users, replayed or expired
+  approvals, and people at the keyboard cannot unlock. Code already running as
+  the user can drive Poracode itself (the app relies on `ELECTRON_RUN_AS_NODE`,
+  so its signature does not isolate it), so this is not a defense for an
+  already-compromised account.
+- **Known side effect.** loginwindow logs "did NOT unlock the user's keychain"
+  after a password-less unlock; a keychain locked at that point stays locked
+  until a manual unlock.
+- **Recovery.** See the README: over SSH restore the backup (or
+  `use-login-window-ui`) and remove our right and bundle; without SSH, restart
+  and log in normally, because `system.login.console` is never modified.
 
 ### Keep awake
 

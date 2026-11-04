@@ -3,7 +3,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { COMPUTER_USE_HELPER_PROTOCOL_VERSION } from "@/shared/contracts/computerUse";
+import {
+  COMPUTER_USE_HELPER_PROTOCOL_VERSION,
+  COMPUTER_USE_LOCKED_USE_BEGIN_OUTCOMES,
+  COMPUTER_USE_LOCKED_USE_END_REASONS,
+  computerUseLockedUseEndResultSchema,
+  computerUseHelperHelloSchema,
+  computerUseLockedUseBeginResultSchema,
+  computerUseLockedUseStatusSchema,
+} from "@/shared/contracts/computerUse";
 import {
   isComputerUseBackendAvailable,
   resolveComputerUseHelperBinaryPath,
@@ -35,6 +43,57 @@ describe("computer-use helper contract", () => {
     expect(Number(match?.[1])).toBe(COMPUTER_USE_HELPER_PROTOCOL_VERSION);
   });
 
+  it("accepts a protocol 3 hello without locked-use facts and a protocol 4 hello with them", () => {
+    const v3Hello = {
+      protocolVersion: 3,
+      minClientProtocolVersion: 1,
+      helperVersion: "0.9.0",
+      platform: "darwin",
+      arch: "arm64",
+      displayServer: null,
+      capabilities: {
+        backgroundPointer: true,
+        backgroundKeyboard: true,
+        backgroundChords: true,
+        accessibilityTree: true,
+        elementActions: true,
+        occludedCapture: true,
+        foregroundInput: true,
+        launchApp: true,
+        stableWindowIds: true,
+      },
+      permissions: { accessibility: "granted", screenRecording: "granted" },
+      screenLocked: false,
+      notes: [],
+    };
+    expect(computerUseHelperHelloSchema.parse(v3Hello).lockedUse).toBeUndefined();
+    expect(
+      computerUseHelperHelloSchema.parse({
+        ...v3Hello,
+        protocolVersion: 4,
+        lockedUse: { supported: true, signed: true, paused: false, active: false },
+      }).lockedUse,
+    ).toEqual({ supported: true, signed: true, paused: false, active: false });
+  });
+
+  it("parses locked-use results with stages a newer helper may add", () => {
+    expect(
+      computerUseLockedUseBeginResultSchema.parse({ outcome: "failed", stage: "future_stage" }),
+    ).toEqual({ outcome: "failed", stage: "future_stage" });
+    expect(() => computerUseLockedUseBeginResultSchema.parse({ outcome: "opened" })).toThrow(
+      /outcome/,
+    );
+    expect(
+      computerUseLockedUseStatusSchema.parse({
+        supported: true,
+        signed: false,
+        paused: true,
+        active: false,
+        screenLocked: true,
+      }),
+    ).toMatchObject({ paused: true });
+  });
+
   it("keeps TypeScript wire enums equal to the Rust fixture", () => {
     const fixture = JSON.parse(
       readFileSync(join(crateRoot, "fixtures", "protocol-v1.enums.json"), "utf8"),
@@ -42,6 +101,17 @@ describe("computer-use helper contract", () => {
     expect(COMPUTER_USE_ELEMENT_ACTIONS).toEqual(fixture.elementActions);
     expect(COMPUTER_USE_INVOKABLE_ELEMENT_ACTIONS).toEqual(fixture.invocableElementActions);
     expect(COMPUTER_USE_REFUSAL_CODES).toEqual(fixture.refusalCodes);
+    expect(COMPUTER_USE_LOCKED_USE_BEGIN_OUTCOMES).toEqual(fixture.lockedUseOutcomes);
+    expect(COMPUTER_USE_LOCKED_USE_END_REASONS).toEqual(fixture.lockedUseEndReasons);
+    expect(computerUseLockedUseEndResultSchema.shape.outcome.options).toEqual(
+      fixture.lockedUseEndOutcomes,
+    );
+    // Stages stay a free string on the TS side, but every helper stage must parse.
+    for (const stage of fixture.lockedUseStages as string[]) {
+      expect(computerUseLockedUseBeginResultSchema.parse({ outcome: "failed", stage }).stage).toBe(
+        stage,
+      );
+    }
   });
 
   it("keeps helper targets aligned with the packaged platform matrix", () => {

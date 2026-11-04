@@ -274,6 +274,13 @@ jobs:
         if: runner.os == 'Linux'
         run: cargo deny check
 
+      # The authorization plug-in and its installer are macOS-only; these tests
+      # use fakes and temp roots and never touch the authorization database.
+      - name: Locked computer use plug-in and installer tests
+        if: runner.os == 'macOS'
+        working-directory: .
+        run: node --test scripts/prepare-locked-computer-use.test.mjs scripts/locked-computer-use-installer.test.mjs
+
   test_shard:
     name: Test shard (${{ matrix.shard }}/8)
     needs: changes

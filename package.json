@@ -61,7 +61,7 @@
     "prepare:device-hub": "node scripts/prepare-device-hub.mjs",
     "prepare:package-assets": "node scripts/prepare-wsl-helpers.mjs && node scripts/prepare-agent-plugins.mjs && node scripts/prepare-pty-job-owner.mjs --if-supported",
     "prepare:web:ssh": "bun run build:electron && bun run prepare:package-assets && node scripts/build-web-ssh-runtime.mjs",
-    "prepare:desktop-package-assets": "node scripts/prepare-computer-use-helper.mjs --require && bun run prepare:package-assets",
+    "prepare:desktop-package-assets": "node scripts/prepare-computer-use-helper.mjs --require && node scripts/prepare-locked-computer-use.mjs && bun run prepare:package-assets",
     "sentry:sourcemaps": "node scripts/sentry-sourcemaps.mjs",
     "clean:sourcemaps": "node scripts/clean-sourcemaps.mjs",
     "codex-protocol:gen": "bun run --cwd packages/codex-protocol generate",

@@ -71,6 +71,15 @@ describe("computer use instructions", () => {
     );
   });
 
+  it("continues through a host unlock and stops when the Mac stays locked", () => {
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
+      "If locked, call enable once before inspection",
+    );
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
+      "If still screen_locked or a locked_use_ note, stop and ask the user to unlock.",
+    );
+  });
+
   it("separates system sleep prevention from display power and screen locking", () => {
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
       "does not keep displays on or prevent screen locking",

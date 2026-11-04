@@ -51,6 +51,11 @@ import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintPro
 import { installManagedLoopbackCertificatePin } from "../remote/managedLoopbackCertificatePin";
 import { consumeManagedLoopbackBootstrap } from "../backend/managedLoopbackBootstrapPrewarm";
 import { setManagedMcpAppSandboxEndpoint } from "../window/windowHardening";
+import type { LockedComputerUseService } from "@/host/computer-use/lockedUse/LockedComputerUseService";
+import {
+  UNSUPPORTED_LOCKED_COMPUTER_USE_STATUS,
+  type LockedComputerUseActionResult,
+} from "@/shared/contracts/lockedComputerUse";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
@@ -80,7 +85,15 @@ interface CreateLocalIpcHandlersOptions {
   hostOffersAutoUpdate?(): boolean;
   /** V6 C.3: host-declared OS notification surface. Omitted means offered. */
   hostOffersOsNotifications?(): boolean;
+  /** Composed Locked Computer Use service; null when this host has none. */
+  lockedComputerUse?(): LockedComputerUseService | null;
 }
+
+const LOCKED_COMPUTER_USE_UNAVAILABLE: LockedComputerUseActionResult = {
+  ok: false,
+  error: "unsupported_platform",
+  status: UNSUPPORTED_LOCKED_COMPUTER_USE_STATUS,
+};
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
   const mgr = getter();
@@ -276,6 +289,14 @@ export function createLocalIpcHandlers(
     setRemoteAccessTailscaleHttps: (payload) =>
       callService("setRemoteAccessTailscaleHttps", payload),
     startTailscale: () => callService("startTailscale", {}),
+    // Main-local only: the administrator prompt appears on this Mac, and only
+    // this desktop's own window can reach these handlers.
+    getLockedComputerUseStatus: async () =>
+      (await options.lockedComputerUse?.()?.status()) ?? UNSUPPORTED_LOCKED_COMPUTER_USE_STATUS,
+    installLockedComputerUse: async () =>
+      (await options.lockedComputerUse?.()?.install()) ?? LOCKED_COMPUTER_USE_UNAVAILABLE,
+    uninstallLockedComputerUse: async () =>
+      (await options.lockedComputerUse?.()?.uninstall()) ?? LOCKED_COMPUTER_USE_UNAVAILABLE,
     setRemoteAccessAdvertisedUrl: (payload) => callService("setRemoteAccessAdvertisedUrl", payload),
     revokeRemoteAccessSession: (payload) => callService("revokeRemoteAccessSession", payload),
     revealProjectEntry: async (payload) => {

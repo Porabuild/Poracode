@@ -783,3 +783,114 @@ it("initiates native cancellation before awaiting an admitted tool that needs it
     await Promise.allSettled([request, closing]);
   }
 });
+
+describe("ComputerUseMcpIngress locked use", () => {
+  function lockedDriver(
+    begin: Awaited<ReturnType<NonNullable<ComputerUseDriver["lockedUseBegin"]>>>,
+  ) {
+    let active = false;
+    return createDriver({
+      lockedUseStatus: vi.fn<NonNullable<ComputerUseDriver["lockedUseStatus"]>>(async () => ({
+        supported: true,
+        signed: true,
+        paused: false,
+        active,
+        screenLocked: !active,
+      })),
+      lockedUseBegin: vi.fn<NonNullable<ComputerUseDriver["lockedUseBegin"]>>(async () => {
+        if (begin.outcome === "unlocked") active = true;
+        return begin;
+      }),
+      lockedUseEnd: vi.fn<NonNullable<ComputerUseDriver["lockedUseEnd"]>>(async () => {
+        const wasActive = active;
+        active = false;
+        return { outcome: wasActive ? "relocked" : "inactive" };
+      }),
+    });
+  }
+
+  function lockedOptions(
+    audit: unknown[] = [],
+  ): NonNullable<ComputerUseMcpIngressOptions["lockedUse"]> {
+    return {
+      platform: "darwin",
+      isSettingEnabled: () => true,
+      isInstalled: async () => true,
+      audit: (entry) => audit.push(entry),
+    };
+  }
+
+  it("unlocks before the tool for a running, enabled thread and relocks on disable", async () => {
+    const driver = lockedDriver({ outcome: "unlocked" });
+    const audit: unknown[] = [];
+    ingress = new ComputerUseMcpIngress({
+      driver,
+      observationSettleMs: 0,
+      lockedUse: lockedOptions(audit),
+    });
+    const info = await ingress.start();
+    ingress.setThreadTurnActive("thread-1", true);
+    // Before enable: Computer Use is not enabled for the thread.
+    await callTool(info, "list_windows", {});
+    expect(driver.lockedUseBegin).not.toHaveBeenCalled();
+    await callTool(info, "enable", {});
+    await callTool(info, "list_windows", {});
+    expect(driver.lockedUseBegin).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: "thread-1" }),
+    );
+    const order = [
+      (driver.lockedUseBegin as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0],
+      (driver.listWindows as ReturnType<typeof vi.fn>).mock.invocationCallOrder.at(-1),
+    ];
+    expect(order[0]).toBeLessThan(order[1] ?? 0);
+    await callTool(info, "disable", {});
+    expect(driver.lockedUseEnd).toHaveBeenCalledWith({ reason: "disabled" });
+    expect(audit).toHaveLength(2);
+  });
+
+  it("relocks when the thread's turn ends", async () => {
+    const driver = lockedDriver({ outcome: "unlocked" });
+    ingress = new ComputerUseMcpIngress({
+      driver,
+      observationSettleMs: 0,
+      lockedUse: lockedOptions(),
+    });
+    const info = await ingress.start();
+    ingress.setThreadTurnActive("thread-1", true);
+    await callTool(info, "enable", {});
+    await callTool(info, "list_windows", {});
+    ingress.setThreadTurnActive("thread-1", false);
+    await vi.waitFor(() =>
+      expect(driver.lockedUseEnd).toHaveBeenCalledWith({ reason: "turn_end" }),
+    );
+  });
+
+  it("adds a locked_use note to a refused result when the Mac stays locked", async () => {
+    const driver = lockedDriver({ outcome: "failed", stage: "no_password_field" });
+    ingress = new ComputerUseMcpIngress({
+      driver,
+      observationSettleMs: 0,
+      lockedUse: lockedOptions(),
+    });
+    const info = await ingress.start();
+    ingress.setThreadTurnActive("thread-1", true);
+    await callTool(info, "enable", {});
+    const response = await callTool(info, "list_windows", {});
+    const body = (await response.json()) as { result: { content: { text?: string }[] } };
+    expect(body.result.content[0]?.text).toContain("locked_use_failed:no_password_field");
+    expect(driver.listWindows).toHaveBeenCalled();
+  });
+
+  it("does not unlock for a thread whose turn is not running", async () => {
+    const driver = lockedDriver({ outcome: "unlocked" });
+    ingress = new ComputerUseMcpIngress({
+      driver,
+      observationSettleMs: 0,
+      lockedUse: lockedOptions(),
+    });
+    const info = await ingress.start();
+    await callTool(info, "enable", {});
+    await callTool(info, "list_windows", {});
+    expect(driver.lockedUseBegin).not.toHaveBeenCalled();
+  });
+});

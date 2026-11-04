@@ -5,7 +5,11 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { parse } from "yaml";
 import { SUPPORTED_LOCALES } from "../src/shared/locale.ts";
-import { buildElectronBuilderConfig, buildStagePackageJson } from "./build-desktop-artifact.mjs";
+import {
+  buildElectronBuilderConfig,
+  buildStagePackageJson,
+  verifyLockedComputerUseResources,
+} from "./build-desktop-artifact.mjs";
 
 void test("pins runtime, required peers and packaging tools to installed versions", (t) => {
   const root = mkdtempSync(join(tmpdir(), "desktop-stage-test-"));
@@ -61,4 +65,41 @@ void test("preserves supported Electron locales on Windows/Linux and macOS", () 
   assert.ok(config.files.includes("!node_modules/effect/src/**/*"));
   assert.ok(config.files.includes("node_modules/**/*"));
   assert.ok(config.asarUnpack.includes("node_modules/better-sqlite3/**/*"));
+});
+
+void test("packages and signs the locked computer use plug-in on macOS only", () => {
+  const mac = parse(buildElectronBuilderConfig("branded", "mac"));
+  assert.ok(
+    mac.extraResources.some(
+      (entry) =>
+        entry.from === "resources/locked-computer-use" && entry.to === "locked-computer-use",
+    ),
+  );
+  assert.deepEqual(mac.mac.binaries, [
+    "Contents/Resources/locked-computer-use/PoracodeLockedUse.bundle",
+  ]);
+  for (const platform of ["win", "linux"]) {
+    const config = parse(buildElectronBuilderConfig("branded", platform));
+    assert.equal(
+      config.extraResources.some((entry) => entry.from === "resources/locked-computer-use"),
+      false,
+    );
+    assert.equal(config.mac.binaries, undefined);
+  }
+});
+
+void test("macOS packaging requires the staged locked computer use plug-in", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "poracode-lcu-resources-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  assert.throws(() => verifyLockedComputerUseResources(root), /prepare-locked-computer-use/u);
+  mkdirSync(join(root, "PoracodeLockedUse.bundle", "Contents", "MacOS"), { recursive: true });
+  for (const file of [
+    "PoracodeLockedUse.bundle/Contents/Info.plist",
+    "PoracodeLockedUse.bundle/Contents/MacOS/PoracodeLockedUse",
+    "locked-computer-use-installer",
+    "README.md",
+  ]) {
+    writeFileSync(join(root, file), "x");
+  }
+  verifyLockedComputerUseResources(root);
 });

@@ -10,6 +10,10 @@ import {
   keybindingsFileSchema,
 } from "../../keybindings";
 import { remoteGitSummariesSchema, type RemoteAccessPairingInfo } from "../../remote";
+import type {
+  LockedComputerUseActionResult,
+  LockedComputerUseStatus,
+} from "../../contracts/lockedComputerUse";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
   copyImageToClipboardPayloadSchema,
@@ -276,6 +280,21 @@ export const appProcedures = {
     RemoteAccessPairingInfo,
     "main-local"
   >("setRemoteAccessAdvertisedUrl", "main-local", setRemoteAccessAdvertisedUrlPayloadSchema),
+  // Locked Computer Use (macOS). main-local on purpose: installing changes the
+  // Mac's login rules behind an administrator prompt, so only this desktop's
+  // own window may ask, never a paired browser or phone.
+  getLockedComputerUseStatus: defineNoArgProcedure<LockedComputerUseStatus, "main-local">(
+    "getLockedComputerUseStatus",
+    "main-local",
+  ),
+  installLockedComputerUse: defineNoArgProcedure<LockedComputerUseActionResult, "main-local">(
+    "installLockedComputerUse",
+    "main-local",
+  ),
+  uninstallLockedComputerUse: defineNoArgProcedure<LockedComputerUseActionResult, "main-local">(
+    "uninstallLockedComputerUse",
+    "main-local",
+  ),
   // The renderer owns live git state; it mirrors compact per-thread summaries
   // to main so the remote access server can serve them to paired clients.
   publishRemoteGitSummaries: definePayloadProcedure<

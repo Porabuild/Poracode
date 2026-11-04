@@ -8,6 +8,7 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SettingsAuthority } from "@/backend/settings/SettingsAuthority";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 import { HOST_CONTROL_PROTOCOL_VERSION } from "@/shared/hostControlProtocol";
 import { ChromeBridgeServer, ChromeMcpIngress } from "@/host/browser";
@@ -184,6 +185,26 @@ describe("standalone host service composition (V5 1.1)", () => {
         httpBaseUrl: expect.stringContaining("http://127.0.0.1:"),
       });
     } finally {
+      await disposeQuietly(host);
+    }
+  });
+
+  it("forwards committed settings to locked-use revocation without a renderer", async () => {
+    const opened = vi.spyOn(SettingsAuthority, "open");
+    let host: Awaited<ReturnType<typeof makeHost>> | undefined;
+    try {
+      host = await makeHost({ computerUseHelperRoot: "/fixture/computer-use-helper" });
+      const ingress = host.hostServices.computerUseMcpIngress!;
+      const changed = vi.spyOn(ingress, "setLockedUseSetting");
+      const committed = opened.mock.calls.at(-1)?.[0].onCommitted;
+      expect(committed).toBeTypeOf("function");
+      committed?.(
+        { status: "committed", authorityId: "fixture", sequence: 1, changes: [], revisions: {} },
+        { ...defaultSharedSettings, computerUseLockedUse: false },
+      );
+      expect(changed).toHaveBeenCalledWith(false);
+    } finally {
+      opened.mockRestore();
       await disposeQuietly(host);
     }
   });
