@@ -1663,6 +1663,17 @@ describe("Poracode app control tools — settings", () => {
     expect(settingsWrite).not.toHaveBeenCalled();
   });
 
+  it.each(["computerUseLockedUse", "computerUseLockedUseDimDisplay"])(
+    "update_settings protects %s user opt-in",
+    async (key) => {
+      const { ctx, settingsWrite } = context({ settings: settingsWithSecret() });
+      await expect(
+        dispatchTool("update_settings", { patch: { [key]: true } }, ctx),
+      ).rejects.toThrow(key);
+      expect(settingsWrite).not.toHaveBeenCalled();
+    },
+  );
+
   it("update_settings refuses sensitive agent settings", async () => {
     const { ctx, settingsWrite } = context({ settings: settingsWithSecret() });
     await expect(

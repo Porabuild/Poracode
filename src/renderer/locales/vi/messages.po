@@ -2060,6 +2060,10 @@ msgstr "Một cuộc trò chuyện khác cũng sử dụng cây này. Khôi ph�
 msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
 msgstr "Một ứng dụng khách khác đang chạy luồng này. Hãy dừng lượt chạy đó trước khi thay thế luồng hoặc gửi thêm dữ liệu đầu vào."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Another install or removal is already running."
+msgstr "Một lượt cài đặt hoặc gỡ bỏ khác đang chạy."
+
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "Một thao tác khác của thử nghiệm này vẫn đang chạy."
@@ -3569,6 +3573,7 @@ msgid "Checking Tailscale…"
 msgstr "Đang kiểm tra Tailscale…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
@@ -6617,6 +6622,10 @@ msgstr "Tùy chọn diff"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
 msgid "Differs on {names}"
 msgstr "Khác trên {names}"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Dim displays during Locked Computer Use"
+msgstr "Giảm độ sáng màn hình khi sử dụng máy tính đang khóa"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
@@ -9993,6 +10002,11 @@ msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên má
 msgid "Installation continues when you close this dialog."
 msgstr "Quá trình cài đặt vẫn tiếp tục khi bạn đóng hộp thoại này."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
+msgstr "Không thể xác minh bản cài đặt nên đã hoàn tác. Không có gì thay đổi."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -10014,6 +10028,10 @@ msgstr "Đã cài đặt {0}."
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Installed-font selection is unavailable in this client."
 msgstr "Ứng dụng khách này không hỗ trợ chọn phông chữ đã cài đặt."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Installed, turned off"
+msgstr "Đã cài đặt, đang tắt"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -10820,6 +10838,26 @@ msgstr "Ký tự vị trí"
 msgid "Lock panel to the open thread"
 msgstr "Ghim bảng vào luồng đang mở"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use"
+msgstr "Sử dụng máy tính khi đã khóa"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use couldn't be changed. Try again."
+msgstr "Không thể thay đổi Sử dụng máy tính khi đã khóa. Hãy thử lại."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use is available only on macOS."
+msgstr "Sử dụng máy tính khi đã khóa chỉ có trên macOS."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use is set up in Poracode on the Mac it runs on."
+msgstr "Sử dụng máy tính khi đã khóa được thiết lập trong Poracode trên chính máy Mac đang chạy nó."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use is unavailable in development builds."
+msgstr "Sử dụng máy tính khi đã khóa không khả dụng trong bản dựng phát triển."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Locking keeps this machine's order and applies it everywhere."
 msgstr "Khóa sẽ giữ thứ tự của máy này và áp dụng cho mọi nơi."
@@ -10917,6 +10955,10 @@ msgstr "Thấp"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 msgid "Low contrast"
 msgstr "Tương phản thấp"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
+msgstr "Giảm độ sáng trên các màn hình được hỗ trợ khi màn che hiển thị, rồi khôi phục độ sáng trước đó khi máy Mac khóa lại."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -12075,6 +12117,7 @@ msgstr "Cần chú ý trên {0}"
 msgid "Needs my review"
 msgstr "Cần tôi đánh giá"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Needs repair"
 msgstr "Cần sửa chữa"
@@ -13056,6 +13099,7 @@ msgstr "Chưa được phát hiện trên máy này."
 msgid "not installed"
 msgstr "chưa được cài đặt"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
@@ -14205,6 +14249,10 @@ msgstr "Đã tạm dừng"
 #~ msgid "Paused providers are skipped by Crossagents until resumed."
 #~ msgstr "Các nhà cung cấp đã tạm dừng sẽ được Crossagents bỏ qua cho đến khi được tiếp tục."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Paused until you unlock this Mac manually"
+msgstr "Tạm dừng cho đến khi bạn tự mở khóa máy Mac này"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "Xem trước PDF mở trong bảng trình duyệt."
@@ -14520,6 +14568,10 @@ msgstr "Poracode"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode và các tác tử chạy trên máy từ xa. SSH chỉ được dùng để khởi động môi trường từ xa và bảo vệ đường hầm cục bộ của môi trường đó."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers every display while it works, and locks it again when the turn ends. Any key press or pointer movement on this Mac locks it immediately. Installing needs a one-time administrator approval. On a Mac managed by your organization, check with IT first."
+msgstr "Poracode mở khóa máy Mac này trong chốc lát cho một lượt Sử dụng máy tính đang chạy, che mọi màn hình trong lúc làm việc và khóa lại khi lượt kết thúc. Bất kỳ lần nhấn phím hay di chuyển con trỏ nào trên máy Mac này sẽ khóa máy ngay lập tức. Việc cài đặt cần quản trị viên phê duyệt một lần. Trên máy Mac do tổ chức của bạn quản lý, hãy hỏi bộ phận IT trước."
 
 #. placeholder {0}: setting.controlType
 #: src/renderer/components/providers/devin/sessionSettingsControls.tsx
@@ -16115,6 +16167,10 @@ msgstr "Xóa {profileName} chỉ loại bỏ cài đặt Poracode của nó. Th�
 msgid "Removing a source keeps its installed plugins."
 msgstr "Xóa một nguồn vẫn giữ lại các plugin đã cài từ nguồn đó."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Removing…"
+msgstr "Đang gỡ bỏ…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
@@ -16220,6 +16276,10 @@ msgstr "Đang sắp xếp lại {name}. Vị trí {position} trên {count}."
 #: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
 msgid "Reordering canceled."
 msgstr "Đã hủy sắp xếp lại."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Repair"
+msgstr "Sửa chữa"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -18021,6 +18081,7 @@ msgstr "Được cố định khi phiên này bắt đầu — hãy tạo luồn
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
@@ -19803,6 +19864,10 @@ msgstr "Nhánh {branch} trên {remote} không phải là head của pull request
 msgid "The acknowledgement failed."
 msgstr "Xác nhận không thành công."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "The administrator prompt was cancelled. Nothing was changed."
+msgstr "Lời nhắc quản trị viên đã bị hủy. Không có gì thay đổi."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "tác nhân"
@@ -20547,6 +20612,10 @@ msgstr "Nhánh này nằm sau {0}."
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "Trình duyệt này không hỗ trợ thông báo hệ thống ở đây; bạn vẫn sẽ thấy thông báo trong ứng dụng."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "This build doesn't include the Locked Computer Use installer."
+msgstr "Bản dựng này không bao gồm trình cài đặt Sử dụng máy tính khi đã khóa."
+
 #: src/renderer/actions/experimentResponseReads.ts
 msgid "This candidate's response is too large to compare. Split the experiment or shorten the transcript."
 msgstr "Phản hồi của ứng viên này quá lớn để so sánh. Hãy tách thử nghiệm hoặc rút ngắn bản ghi hội thoại."
@@ -20699,6 +20768,10 @@ msgstr "Đây là diff lớn nên chưa được tải."
 #: src/renderer/components/providers/devin/personasPanel.tsx
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "Danh sách này chưa đầy đủ vì quá trình quét đã đạt giới hạn."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "This Mac's screen unlock rule has been customized, for example by device management, so Locked Computer Use can't be installed. Check with your IT team."
+msgstr "Quy tắc mở khóa màn hình của máy Mac này đã bị tùy chỉnh, chẳng hạn bởi phần mềm quản lý thiết bị, nên không thể cài đặt Sử dụng máy tính khi đã khóa. Hãy liên hệ bộ phận IT."
 
 #: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
@@ -21876,6 +21949,10 @@ msgstr "Không khả dụng — dùng phông chữ mặc định"
 msgid "Unavailable conversation"
 msgstr "Cuộc trò chuyện không khả dụng"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Unavailable in development builds"
+msgstr "Không khả dụng trong bản dựng phát triển"
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -22910,6 +22987,10 @@ msgstr "Đang chờ xác thực {methodName}. Các tác nhân được phát hi�
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Waiting for a preview"
 msgstr "Đang chờ bản xem trước"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Waiting for administrator approval…"
+msgstr "Đang chờ quản trị viên phê duyệt…"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

@@ -71,12 +71,25 @@ describe("computer use instructions", () => {
     );
   });
 
-  it("ties screen locking to the Prevent screen lock setting and keeps the unlock rule", () => {
+  it("continues through a host unlock and stops when the Mac stays locked", () => {
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
-      "Prevent screen lock setting only stops idle locking; never change it yourself",
+      "If locked, call enable once before inspection",
     );
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
-      "On a locked macOS desktop stop and ask the user to unlock",
+      "If still screen_locked or a locked_use_ note, stop and ask the user to unlock.",
+    );
+  });
+
+  it("does not contradict the enabled locked-desktop flow", () => {
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).not.toContain("Locked desktops,");
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
+      "Secure prompts, permission prompts, and password surfaces require the user.",
+    );
+  });
+
+  it("ties idle locking to the user setting without changing it", () => {
+    expect(COMPUTER_USE_MCP_INSTRUCTIONS).toContain(
+      "Prevent screen lock setting only stops idle locking; never change it yourself",
     );
     expect(COMPUTER_USE_MCP_INSTRUCTIONS).not.toContain("keepAwake:true");
   });

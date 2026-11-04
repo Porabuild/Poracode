@@ -21,6 +21,8 @@ const hoisted = vi.hoisted(() => {
     hostServices: null as {
       applyBrowserAllowFlags(settings: SharedSettings): void;
       agentVision: { stop(threadId: string): void; stopAll(): void };
+      observeThreadActivity(threadId: string, active: boolean): void;
+      resetThreadActivity(): void;
     } | null,
   };
   return {
@@ -154,14 +156,21 @@ describe("desktopAppShell committed settings cache", () => {
     const shell = await loadShell();
     const stop = vi.fn<(threadId: string) => void>();
     const stopAll = vi.fn<() => void>();
+    const observeThreadActivity = vi.fn<(threadId: string, active: boolean) => void>();
+    const resetThreadActivity = vi.fn<() => void>();
     hoisted.state.hostServices = {
       applyBrowserAllowFlags: vi.fn<(settings: SharedSettings) => void>(),
       agentVision: { stop, stopAll },
+      observeThreadActivity,
+      resetThreadActivity,
     };
     shell.applyThreadActivity([activity("vision-thread", false)]);
     expect(stop).toHaveBeenCalledWith("vision-thread");
+    // Turn end also reaches the composed host services (Locked Computer Use).
+    expect(observeThreadActivity).toHaveBeenCalledWith("vision-thread", false);
     shell.resetThreadActivity();
     expect(stopAll).toHaveBeenCalledOnce();
+    expect(resetThreadActivity).toHaveBeenCalledOnce();
   });
 
   it("applies settings commits and makes unchanged thread-state events no-ops", async () => {

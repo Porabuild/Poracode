@@ -606,7 +606,8 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     anchor: "plugins.marketplace",
     title: msg`Plugins`,
     description: msg`Install bundles of skills and MCP servers built for the Agent Plugins specification.`,
-    keywords: "plugins marketplace extensions apps mcp skills bundles install",
+    keywords:
+      "plugins marketplace extensions apps mcp skills bundles install computer use locked unlock dim brightness",
     desktopOnly: true,
   },
   {

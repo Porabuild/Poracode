@@ -144,6 +144,15 @@ jobs:
         run: node scripts/prepare-computer-use-helper.mjs --platform "${{ matrix.platform }}" --require
         shell: bash
 
+      - name: Prepare locked computer use plug-in
+        if: matrix.platform == 'mac'
+        # The plug-in pins the helper's Developer ID team at build time; a
+        # release build without it would always deny, so require it here.
+        run: node scripts/prepare-locked-computer-use.mjs --require-team
+        shell: bash
+        env:
+          PORACODE_LCU_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
       - name: Build the immutable SSH runtime archive
         # C3/S3: release-time preassembled SSH runtime from the same frozen
         # closure helpers as the standalone server tarball (pinned installed
@@ -258,6 +267,13 @@ jobs:
             helper_signature="$(codesign -d --verbose=4 "$helper" 2>&1)"
             if ! grep -q 'flags=.*runtime' <<<"$helper_signature"; then
               echo "::error file=$helper::Computer-use helper is missing the hardened-runtime signature flag."
+              exit 1
+            fi
+
+            plugin="$app/Contents/Resources/locked-computer-use/PoracodeLockedUse.bundle"
+            codesign --verify --strict --verbose=4 "$plugin"
+            if ! grep -q "^TeamIdentifier=${APPLE_TEAM_ID}$" <<<"$(codesign -d --verbose=4 "$plugin" 2>&1)"; then
+              echo "::error file=$plugin::Locked computer use plug-in is not signed by the expected Apple team."
               exit 1
             fi
 

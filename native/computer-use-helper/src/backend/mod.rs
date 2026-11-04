@@ -15,6 +15,10 @@ use crate::protocol::actions::{
     PermissionState, Permissions, Refusal, RefusalCode, Verify, group_apps, merge_installed_apps,
 };
 use crate::protocol::keys::Chord;
+use crate::protocol::locked_use::{
+    LockedUseBeginRequest, LockedUseBeginResult, LockedUseEndOutcome, LockedUseEndReason,
+    LockedUseEndResult, LockedUseFlags, LockedUseStage, LockedUseStatus,
+};
 use crate::protocol::version::{HELPER_VERSION, MIN_CLIENT_PROTOCOL_VERSION, PROTOCOL_VERSION};
 use crate::protocol::window::{WindowInfo, WindowRef};
 use crate::protocol::{ErrorCode, HelperError, Result};
@@ -206,7 +210,11 @@ pub fn arch() -> &'static str {
     }
 }
 
-pub fn build_hello(info: HelloInfo) -> Hello {
+/// The `hello` handshake: the backend's static report plus the live
+/// Locked Computer Use flags.
+pub fn build_hello(backend: &dyn Backend) -> Hello {
+    let locked_use = backend.locked_use_flags();
+    let info = backend.hello();
     Hello {
         protocol_version: PROTOCOL_VERSION,
         min_client_protocol_version: MIN_CLIENT_PROTOCOL_VERSION,
@@ -217,6 +225,7 @@ pub fn build_hello(info: HelloInfo) -> Hello {
         capabilities: info.capabilities,
         permissions: info.permissions,
         screen_locked: info.screen_locked,
+        locked_use,
         notes: info.notes,
     }
 }
@@ -346,6 +355,39 @@ pub trait Backend: Send + Sync {
     fn session_notes(&self) -> Vec<String> {
         Vec::new()
     }
+
+    /// Locked Computer Use flags for `hello`. Only macOS supports it.
+    fn locked_use_flags(&self) -> LockedUseFlags {
+        LockedUseFlags::default()
+    }
+
+    /// Unlock a locked Mac under the guard for one thread's turn. Blocking:
+    /// returns once the session is active or the attempt has been undone.
+    fn locked_use_begin(
+        &self,
+        _request: &LockedUseBeginRequest,
+        _cancel: &CancelToken,
+    ) -> Result<LockedUseBeginResult> {
+        Ok(LockedUseBeginResult::unavailable(
+            LockedUseStage::UnsupportedPlatform,
+        ))
+    }
+
+    /// Relock and stop the guard if a locked-use session is active.
+    fn locked_use_end(&self, _reason: LockedUseEndReason) -> Result<LockedUseEndResult> {
+        Ok(LockedUseEndResult {
+            outcome: LockedUseEndOutcome::Inactive,
+        })
+    }
+
+    fn locked_use_status(&self) -> LockedUseStatus {
+        LockedUseStatus::default()
+    }
+
+    /// The host is exiting (stdin closed or `shutdown`). Release anything that
+    /// must not outlive the helper; on macOS that relocks an active
+    /// locked-use session.
+    fn shutdown(&self) {}
 }
 
 /// Backend for hosts we cannot drive at all (no display, unknown OS).
@@ -449,7 +491,7 @@ pub fn current(options: &BackendOptions) -> Arc<dyn Backend> {
     }
     #[cfg(target_os = "macos")]
     {
-        return Arc::new(macos::MacOsBackend::new());
+        return Arc::new(macos::MacOsBackend::with_options(options));
     }
     #[allow(unreachable_code)]
     Arc::new(UnsupportedBackend {

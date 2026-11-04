@@ -122,7 +122,11 @@ import { isRemoteProcedure } from "../remote/procedures";
 // Background PR polling adds a read name; old remote-14 hosts reject it by name,
 // and the renderer falls back only on that typed refusal. Hop 18 remains compatible.
 // Lightcode import retirement removes its main-local name; hop 19 rejects old callers.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:89e69f7231521d1d670901065ef256506f3685c55e178b74a384f9b149d9787b`;
+// Locked Computer Use adds three main-local names (status, install,
+// uninstall). Older peers reject unknown names before any effect, existing
+// names and payloads are unchanged, and none enters the remote allowlist, so
+// hop 19 stays compatible.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:f30e59bf8722dca282a1bad167efa3a68b54acb0bd031c9785b2dc30ccc8e804`;
 
 describe("IPC procedure map versioning", () => {
   it("routes Hex voice through the supervisor as an additive procedure", () => {

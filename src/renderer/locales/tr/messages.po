@@ -2060,6 +2060,10 @@ msgstr "Başka bir sohbet de aynı ağacı kullanıyor. Dosya geri yükleme, soh
 msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
 msgstr "Bu konuyu başka bir istemci çalıştırıyor. Konuyu değiştirmeden veya yeni girdi göndermeden önce bu çalıştırmayı durdurun."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Another install or removal is already running."
+msgstr "Başka bir yükleme veya kaldırma zaten sürüyor."
+
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "Bu deney için başka bir işlem hâlâ devam ediyor."
@@ -3569,6 +3573,7 @@ msgid "Checking Tailscale…"
 msgstr "Tailscale kontrol ediliyor…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
@@ -6617,6 +6622,10 @@ msgstr "Fark seçenekleri"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
 msgid "Differs on {names}"
 msgstr "{names} üzerinde farklı"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Dim displays during Locked Computer Use"
+msgstr "Kilitli Bilgisayar Kullanımı sırasında ekranları karart"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
@@ -9993,6 +10002,11 @@ msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılam
 msgid "Installation continues when you close this dialog."
 msgstr "Bu iletişim kutusunu kapatsanız bile yükleme devam eder."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
+msgstr "Yükleme doğrulanamadığı için geri alındı. Hiçbir şey değişmedi."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -10014,6 +10028,10 @@ msgstr "{0} yüklendi."
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Installed-font selection is unavailable in this client."
 msgstr "Bu istemcide yüklü yazı tipi seçimi kullanılamıyor."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Installed, turned off"
+msgstr "Yüklü, kapalı"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -10820,6 +10838,26 @@ msgstr "Konum glifi"
 msgid "Lock panel to the open thread"
 msgstr "Paneli açık konuya sabitle"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use"
+msgstr "Kilitli Bilgisayar Kullanımı"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use couldn't be changed. Try again."
+msgstr "Kilitli Bilgisayar Kullanımı değiştirilemedi. Tekrar deneyin."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use is available only on macOS."
+msgstr "Kilitli Bilgisayar Kullanımı yalnızca macOS'ta kullanılabilir."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use is set up in Poracode on the Mac it runs on."
+msgstr "Kilitli Bilgisayar Kullanımı, çalıştığı Mac'teki Poracode'da ayarlanır."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use is unavailable in development builds."
+msgstr "Kilitli Bilgisayar Kullanımı geliştirme derlemelerinde kullanılamaz."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Locking keeps this machine's order and applies it everywhere."
 msgstr "Kilitlemek bu makinenin sırasını korur ve her yere uygular."
@@ -10917,6 +10955,10 @@ msgstr "Düşük"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 msgid "Low contrast"
 msgstr "Düşük kontrast"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
+msgstr "Koruma ekranı görünürken desteklenen ekranların parlaklığını azaltır ve Mac yeniden kilitlendiğinde önceki parlaklığı geri yükler."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -12075,6 +12117,7 @@ msgstr "{0} üzerinde ilgi gerekiyor"
 msgid "Needs my review"
 msgstr "İncelememi bekleyenler"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Needs repair"
 msgstr "Onarım gerekiyor"
@@ -13056,6 +13099,7 @@ msgstr "Bu makinede henüz algılanmadı."
 msgid "not installed"
 msgstr "kurulu değil"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
@@ -14205,6 +14249,10 @@ msgstr "Duraklatıldı"
 #~ msgid "Paused providers are skipped by Crossagents until resumed."
 #~ msgstr "Duraklatılmış sağlayıcılar, sürdürülene kadar Crossagents tarafından atlanır."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Paused until you unlock this Mac manually"
+msgstr "Bu Mac'in kilidini elle açana kadar duraklatıldı"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "PDF önizlemesi tarayıcı panelinde açılır."
@@ -14520,6 +14568,10 @@ msgstr "Poracode"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode ve aracılarınız uzak makinede çalışır. SSH yalnızca uzak ortamı başlatmak ve yerel tünelini güvenceye almak için kullanılır."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers every display while it works, and locks it again when the turn ends. Any key press or pointer movement on this Mac locks it immediately. Installing needs a one-time administrator approval. On a Mac managed by your organization, check with IT first."
+msgstr "Poracode, etkin bir Bilgisayar Kullanımı turu için bu Mac'in kilidini kısa süreliğine açar, çalışırken tüm ekranları örter ve tur bittiğinde yeniden kilitler. Bu Mac'te herhangi bir tuşa basmak veya imleci hareket ettirmek onu hemen kilitler. Yükleme için bir kerelik yönetici onayı gerekir. Kuruluşunuz tarafından yönetilen bir Mac'te önce BT ekibinize danışın."
 
 #. placeholder {0}: setting.controlType
 #: src/renderer/components/providers/devin/sessionSettingsControls.tsx
@@ -16115,6 +16167,10 @@ msgstr "{profileName} kaldırıldığında yalnızca Poracode ayarları silinir.
 msgid "Removing a source keeps its installed plugins."
 msgstr "Bir kaynağı kaldırmak, yüklü eklentilerini korur."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Removing…"
+msgstr "Kaldırılıyor…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
@@ -16220,6 +16276,10 @@ msgstr "{name} yeniden sıralanıyor. {count} öğe içinde {position}. sırada.
 #: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
 msgid "Reordering canceled."
 msgstr "Yeniden sıralama iptal edildi."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Repair"
+msgstr "Onar"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -18021,6 +18081,7 @@ msgstr "Bu oturum başlatıldığında sabitlendi — eklentileri değiştirmek 
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
@@ -19803,6 +19864,10 @@ msgstr "{remote} üzerindeki {branch} dalı bu çekme isteğinin başı değil (
 msgid "The acknowledgement failed."
 msgstr "Onay başarısız oldu."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "The administrator prompt was cancelled. Nothing was changed."
+msgstr "Yönetici istemi iptal edildi. Hiçbir şey değişmedi."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "aracı"
@@ -20547,6 +20612,10 @@ msgstr "Bu dal {0} dalının gerisinde."
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "Bu tarayıcı burada sistem bildirimlerini desteklemiyor; uygulama içi bildirimleri yine de göreceksiniz."
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "This build doesn't include the Locked Computer Use installer."
+msgstr "Bu derleme Kilitli Bilgisayar Kullanımı yükleyicisini içermiyor."
+
 #: src/renderer/actions/experimentResponseReads.ts
 msgid "This candidate's response is too large to compare. Split the experiment or shorten the transcript."
 msgstr "Bu adayın yanıtı karşılaştırmak için çok büyük. Deneyi bölün veya konuşma dökümünü kısaltın."
@@ -20699,6 +20768,10 @@ msgstr "Bu fark büyük olduğu için yüklenmedi."
 #: src/renderer/components/providers/devin/personasPanel.tsx
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "Tarama sınırına ulaşıldığı için bu liste eksik."
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "This Mac's screen unlock rule has been customized, for example by device management, so Locked Computer Use can't be installed. Check with your IT team."
+msgstr "Bu Mac'in ekran kilidi açma kuralı, örneğin cihaz yönetimi tarafından özelleştirilmiş; bu yüzden Kilitli Bilgisayar Kullanımı yüklenemez. BT ekibinize danışın."
 
 #: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
@@ -21876,6 +21949,10 @@ msgstr "Kullanılamıyor — varsayılan kullanılıyor"
 msgid "Unavailable conversation"
 msgstr "Kullanılamayan konuşma"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Unavailable in development builds"
+msgstr "Geliştirme derlemelerinde kullanılamaz"
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -22910,6 +22987,10 @@ msgstr "{methodName} kimlik doğrulaması bekleniyor. Tamamlandığında algıla
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Waiting for a preview"
 msgstr "Önizleme bekleniyor"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Waiting for administrator approval…"
+msgstr "Yönetici onayı bekleniyor…"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

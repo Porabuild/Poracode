@@ -69,6 +69,7 @@ export async function composeHeadlessSettingsAuthority(
     readProject: Parameters<typeof createRemoteMcpSettingsGateway>[0]["readProject"];
     writeProject: Parameters<typeof createRemoteMcpSettingsGateway>[0]["writeProject"];
     projectsChanged(): void;
+    settingsCommitted?(settings: SharedSettings): void;
     reportError?: (error: unknown) => void;
   },
 ): Promise<HeadlessSettingsComposition> {
@@ -78,6 +79,7 @@ export async function composeHeadlessSettingsAuthority(
   runtime.lease.assertActive();
   const authority = await SettingsAuthority.open({
     lease: runtime.lease,
+    onCommitted: (_result, settings) => options.settingsCommitted?.(settings),
     assertPreparedDatabaseForWrite: options.assertPreparedDatabaseForWrite,
     assertPersistentCredentials: () => runtime.credentialCapabilities.assertCanPersistSecrets(),
     ...(options.reportError ? { reportError: options.reportError } : {}),

@@ -13,7 +13,7 @@ lines.on("line", (line) => {
         id: request.id,
         ok: true,
         result: {
-          protocolVersion: Number(process.env.FAKE_HELPER_PROTOCOL ?? 3),
+          protocolVersion: Number(process.env.FAKE_HELPER_PROTOCOL ?? 4),
           minClientProtocolVersion: 1,
           helperVersion: "fixture",
           platform: "win32",
@@ -31,7 +31,35 @@ lines.on("line", (line) => {
             stableWindowIds: false,
           },
           permissions: { accessibility: "not_required", screenRecording: "not_required" },
+          lockedUse: { supported: false, signed: false, paused: false, active: false },
           notes: ["fixture"],
+        },
+      });
+      break;
+    case "locked_use_begin":
+      respond({
+        id: request.id,
+        ok: true,
+        result:
+          request.input.threadId === "malformed"
+            ? { outcome: "opened" }
+            : { outcome: "unlocked", approvalId: "0".repeat(64) },
+      });
+      break;
+    case "locked_use_end":
+      respond({ id: request.id, ok: true, result: { outcome: "relocked" } });
+      break;
+    case "locked_use_status":
+      respond({
+        id: request.id,
+        ok: true,
+        result: {
+          supported: true,
+          signed: true,
+          paused: false,
+          active: false,
+          screenLocked: true,
+          lastEnd: { reason: "turn_end", atMs: 1 },
         },
       });
       break;

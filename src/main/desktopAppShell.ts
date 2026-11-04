@@ -103,6 +103,7 @@ export function setComputerUseThreads(threadIds: readonly string[]): void {
 export function applyThreadActivity(changes: readonly NativeThreadActivityChange[]): void {
   let changed = false;
   for (const change of changes) {
+    desktopApp.hostServices?.observeThreadActivity(change.threadId, change.active);
     if (!change.active) desktopApp.hostServices?.agentVision.stop(change.threadId);
     if (change.active) {
       if (desktopApp.workingThreads.has(change.threadId)) continue;
@@ -122,6 +123,7 @@ export function applyThreadActivity(changes: readonly NativeThreadActivityChange
  */
 export function resetThreadActivity(): void {
   desktopApp.hostServices?.agentVision.stopAll();
+  desktopApp.hostServices?.resetThreadActivity();
   desktopApp.workingThreads.clear();
   updatePowerSaveBlocker();
 }

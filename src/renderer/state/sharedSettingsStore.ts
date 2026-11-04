@@ -165,6 +165,8 @@ interface SharedSettingsState extends SharedSettings {
   dismissPromotion: (id: string) => void;
   setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
+  setComputerUseLockedUse: (value: boolean) => void;
+  setComputerUseLockedUseDimDisplay: (value: boolean) => void;
   setWorktreeStorageMode: (value: WorktreeStorageMode) => void;
   setWorktreeBasePath: (value: string) => void;
   setWslWorktreeBasePath: (value: string) => void;
@@ -867,6 +869,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ autoShowTerminalPanel });
     persistSettings(selectSharedSettings(get()));
   },
+  setComputerUseLockedUseDimDisplay: (computerUseLockedUseDimDisplay) => {
+    if (get().computerUseLockedUseDimDisplay === computerUseLockedUseDimDisplay) return;
+    set({ computerUseLockedUseDimDisplay });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setComputerUseLockedUse: (computerUseLockedUse) => {
+    if (get().computerUseLockedUse === computerUseLockedUse) return;
+    set({ computerUseLockedUse });
+    persistSettings(selectSharedSettings(get()));
+  },
   setWorktreeStorageMode: (worktreeStorageMode) => {
     if (get().worktreeStorageMode === worktreeStorageMode) return;
     set({ worktreeStorageMode });
@@ -1416,6 +1428,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     dismissedPromotions: state.dismissedPromotions,
     sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,
+    computerUseLockedUse: state.computerUseLockedUse,
+    computerUseLockedUseDimDisplay: state.computerUseLockedUseDimDisplay,
     worktreeStorageMode: state.worktreeStorageMode,
     worktreeBasePath: state.worktreeBasePath,
     wslWorktreeBasePath: state.wslWorktreeBasePath,

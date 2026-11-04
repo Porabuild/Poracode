@@ -156,6 +156,13 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
     "local-shell: launches this host's Tailscale GUI; trust-surface control stays with the physical host",
   setRemoteAccessAdvertisedUrl:
     "local-shell: overrides this host's advertised URL; trust-surface control stays with the physical host",
+  // Locked Computer Use changes this Mac's login rules behind an admin prompt
+  getLockedComputerUseStatus:
+    "local-shell: reads this Mac's Locked Computer Use plug-in and login rule",
+  installLockedComputerUse:
+    "local-shell: installs a login plug-in on this Mac behind an administrator prompt; a remote client must never trigger it",
+  uninstallLockedComputerUse:
+    "local-shell: removes this Mac's login plug-in behind an administrator prompt; a remote client must never trigger it",
   probeTlsCertificateFingerprint:
     "local-shell: probes a TLS host from this machine's network stack for pairing pinning",
 

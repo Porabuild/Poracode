@@ -2059,6 +2059,10 @@ msgstr "別のチャットはこれと同じツリーを使用します。ファ
 msgid "Another client is running this thread. Stop that run before replacing the thread or sending more input."
 msgstr "別のクライアントがこのスレッドを実行しています。スレッドを置き換えたり、追加の入力を送信したりする前に、その実行を停止してください。"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Another install or removal is already running."
+msgstr "別のインストールまたは削除がすでに実行中です。"
+
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "この実験の別の操作がまだ実行中です。"
@@ -3568,6 +3572,7 @@ msgid "Checking Tailscale…"
 msgstr "Tailscaleを確認中…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
@@ -6616,6 +6621,10 @@ msgstr "差分のオプション"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
 msgid "Differs on {names}"
 msgstr "{names} では異なる値です"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Dim displays during Locked Computer Use"
+msgstr "ロック中のコンピューター操作時にディスプレイを暗くする"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Dimensions:"
@@ -9992,6 +10001,11 @@ msgstr "リモートマシンでのインストール・更新・サインイン
 msgid "Installation continues when you close this dialog."
 msgstr "このダイアログを閉じてもインストールは続行されます。"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
+msgstr "インストールを検証できなかったため、元に戻しました。何も変更されていません。"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -10013,6 +10027,10 @@ msgstr "{0} をインストールしました。"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Installed-font selection is unavailable in this client."
 msgstr "このクライアントではインストール済みフォントを選択できません。"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Installed, turned off"
+msgstr "インストール済み、オフ"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -10819,6 +10837,26 @@ msgstr "場所グリフ"
 msgid "Lock panel to the open thread"
 msgstr "パネルを開いているスレッドに固定する"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use"
+msgstr "ロック中のコンピュータ操作"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use couldn't be changed. Try again."
+msgstr "ロック中のコンピュータ操作を変更できませんでした。もう一度お試しください。"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use is available only on macOS."
+msgstr "ロック中のコンピュータ操作は macOS でのみ利用できます。"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use is set up in Poracode on the Mac it runs on."
+msgstr "ロック中のコンピュータ操作は、実行している Mac 上の Poracode で設定します。"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Locked Computer Use is unavailable in development builds."
+msgstr "ロック中のコンピュータ操作は開発ビルドでは利用できません。"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Locking keeps this machine's order and applies it everywhere."
 msgstr "ロックすると、このマシンの順序がすべてのマシンに適用されます。"
@@ -10916,6 +10954,10 @@ msgstr "低"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 msgid "Low contrast"
 msgstr "低いコントラスト"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
+msgstr "保護画面の表示中は対応ディスプレイの輝度を下げ、Mac が再びロックされると元の輝度に戻します。"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -12073,6 +12115,7 @@ msgstr "{0} で対応が必要です"
 msgid "Needs my review"
 msgstr "自分のレビューが必要"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Needs repair"
 msgstr "修復が必要"
@@ -13054,6 +13097,7 @@ msgstr "このマシンではまだ検出されていません。"
 msgid "not installed"
 msgstr "未インストール"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
@@ -14203,6 +14247,10 @@ msgstr "一時停止中"
 #~ msgid "Paused providers are skipped by Crossagents until resumed."
 #~ msgstr "一時停止中のプロバイダーは、再開されるまでCrossagentsにスキップされます。"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Paused until you unlock this Mac manually"
+msgstr "この Mac を手動でロック解除するまで一時停止中"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "PDFプレビューはブラウザパネルで開きます。"
@@ -14518,6 +14566,10 @@ msgstr "Poracode"
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode とエージェントはリモートマシン上で実行されます。SSH はリモート環境の起動とローカルトンネルの保護にのみ使用されます。"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Poracode briefly unlocks this Mac for an active Computer Use turn, covers every display while it works, and locks it again when the turn ends. Any key press or pointer movement on this Mac locks it immediately. Installing needs a one-time administrator approval. On a Mac managed by your organization, check with IT first."
+msgstr "Poracode は、実行中のコンピュータ操作のターンのためにこの Mac のロックを一時的に解除し、作業中はすべてのディスプレイを覆い、ターンが終わると再びロックします。この Mac でキーを押したりポインタを動かしたりすると、すぐにロックされます。インストールには一度だけ管理者の承認が必要です。組織が管理している Mac では、事前に IT 部門に確認してください。"
 
 #. placeholder {0}: setting.controlType
 #: src/renderer/components/providers/devin/sessionSettingsControls.tsx
@@ -16113,6 +16165,10 @@ msgstr "{profileName} を削除しても Poracode の設定だけが消えます
 msgid "Removing a source keeps its installed plugins."
 msgstr "ソースを削除しても、インストール済みのプラグインは保持されます。"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Removing…"
+msgstr "削除中…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
@@ -16218,6 +16274,10 @@ msgstr "{name}を並べ替え中。{count}個中{position}番目。"
 #: src/renderer/components/common/ProviderModelMenu/parts/useFavoriteModelDragAccessibility.ts
 msgid "Reordering canceled."
 msgstr "並べ替えをキャンセルしました。"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Repair"
+msgstr "修復"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -18019,6 +18079,7 @@ msgstr "このセッションの開始時に確定されます — プラグイ�
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
@@ -19801,6 +19862,10 @@ msgstr "{remote} 上のブランチ {branch} はこのプルリクエストの�
 msgid "The acknowledgement failed."
 msgstr "確認に失敗しました。"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "The administrator prompt was cancelled. Nothing was changed."
+msgstr "管理者の確認がキャンセルされました。何も変更されていません。"
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "エージェント"
@@ -20545,6 +20610,10 @@ msgstr "このブランチは {0} より遅れています。"
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "このブラウザはここでシステム通知をサポートしていません。アプリ内トーストは引き続き表示されます。"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "This build doesn't include the Locked Computer Use installer."
+msgstr "このビルドにはロック中のコンピュータ操作のインストーラが含まれていません。"
+
 #: src/renderer/actions/experimentResponseReads.ts
 msgid "This candidate's response is too large to compare. Split the experiment or shorten the transcript."
 msgstr "この候補の応答が大きすぎて比較できません。実験を分割するか、会話ログを短くしてください。"
@@ -20697,6 +20766,10 @@ msgstr "差分が大きいため、読み込まれていません。"
 #: src/renderer/components/providers/devin/personasPanel.tsx
 #~ msgid "This list is incomplete because the scan reached its limit."
 #~ msgstr "スキャンが上限に達したため、この一覧は不完全です。"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "This Mac's screen unlock rule has been customized, for example by device management, so Locked Computer Use can't be installed. Check with your IT team."
+msgstr "この Mac の画面ロック解除ルールは、デバイス管理などによってカスタマイズされているため、ロック中のコンピュータ操作をインストールできません。IT チームに確認してください。"
 
 #: src/renderer/components/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
@@ -21874,6 +21947,10 @@ msgstr "利用不可 — デフォルトを使用"
 msgid "Unavailable conversation"
 msgstr "利用できない会話"
 
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Unavailable in development builds"
+msgstr "開発ビルドでは利用できません"
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
@@ -22908,6 +22985,10 @@ msgstr "{methodName}認証を待機しています。検出されたエージェ
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Waiting for a preview"
 msgstr "プレビューを待機中"
+
+#: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
+msgid "Waiting for administrator approval…"
+msgstr "管理者の承認を待っています…"
 
 #: src/renderer/components/thread/ThreadPendingSteerStrip.tsx
 msgid "waiting for agent to stop"

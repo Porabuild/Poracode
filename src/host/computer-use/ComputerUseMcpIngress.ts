@@ -2,7 +2,12 @@ import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { AgentVisionService } from "@/host/AgentVisionService";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
+import type { ComputerUseLockedUseStatus } from "@/shared/contracts/computerUse";
 import { createComputerUseDriver, type CreateComputerUseDriverOptions } from "./drivers";
+import {
+  LockedUseCoordinator,
+  type LockedUseCoordinatorOptions,
+} from "./lockedUse/LockedUseCoordinator";
 import type { ComputerUseDriver, ComputerUseWindow } from "./mcp/types";
 import {
   StreamableHttpMcpIngress,
@@ -51,6 +56,11 @@ export interface ComputerUseMcpIngressOptions {
    * tests set it, so they do not wait out a real app's reporting lag.
    */
   observationSettleMs?: number;
+  /**
+   * Locked Computer Use gates (macOS). Absent means the ingress never unlocks
+   * a locked Mac. The coordinator drives this ingress's own driver.
+   */
+  lockedUse?: Omit<LockedUseCoordinatorOptions, "driver">;
 }
 
 export class ComputerUseMcpIngress {
@@ -65,6 +75,9 @@ export class ComputerUseMcpIngress {
   /** Threads whose computer use the user has ended (Escape or badge exit). */
   private readonly exitedThreads = new Set<string>();
   private readonly driver: ComputerUseDriver;
+  private readonly lockedUse: LockedUseCoordinator | null;
+  /** Locked-use notes keyed by the tool result they belong to. */
+  private readonly resultNotes = new WeakMap<object, string>();
   private readonly ingress: StreamableHttpMcpIngress<ToolContext>;
   private readonly prewarm = new AsyncWorkTracker();
   private starting: Promise<ComputerUseMcpIngressInfo> | undefined;
@@ -82,6 +95,9 @@ export class ComputerUseMcpIngress {
           configuredWarn?.(message);
         },
       });
+    this.lockedUse = options.lockedUse
+      ? new LockedUseCoordinator({ ...options.lockedUse, driver: this.driver })
+      : null;
     this.ingress = new StreamableHttpMcpIngress<ToolContext>({
       // Computer-use drives the host's real mouse/keyboard/windows, so the ingress
       // must never be reachable off the machine — bind loopback only (unlike the
@@ -94,7 +110,7 @@ export class ComputerUseMcpIngress {
       buildContext: (identity) => this.buildContext(identity),
       dispatchTool: (name, args, ctx) => this.dispatch(name, args, ctx),
       formatToolResult: (name, result) =>
-        formatToolResult(name, result, { notes: this.backendNotes }),
+        formatToolResult(name, result, { notes: this.notesFor(result) }),
     });
   }
 
@@ -122,8 +138,33 @@ export class ComputerUseMcpIngress {
     return this.ingress.getInfo();
   }
 
+  /**
+   * Turn start/end for a thread, from supervisor thread state. A stopped or
+   * interrupted thread reports inactive too, which ends its locked session.
+   */
+  setThreadTurnActive(threadId: string, active: boolean): void {
+    this.lockedUse?.setTurnActive(threadId, active);
+  }
+
+  /** Supervisor restart: every turn is gone. */
+  resetThreadTurns(): void {
+    this.lockedUse?.resetTurns();
+  }
+
+  /** Apply user intent immediately, including pending-unlock revocation. */
+  async setLockedUseSetting(enabled: boolean): Promise<void> {
+    await this.lockedUse?.settingChanged(enabled);
+  }
+
+  /** The helper's locked-use status; null when no helper can answer. */
+  async lockedUseStatus(): Promise<ComputerUseLockedUseStatus | null> {
+    if (this.stopping || !this.driver.lockedUseStatus) return null;
+    return await this.driver.lockedUseStatus();
+  }
+
   interruptActiveActions(threadIds: readonly string[] = []): void {
     if (this.stopping) return;
+    this.lockedUse?.revokeThreads(threadIds);
     this.generation += 1;
     for (const threadId of threadIds) this.exitedThreads.add(threadId);
     for (const threadId of threadIds) this.options.vision?.stop(threadId);
@@ -141,7 +182,11 @@ export class ComputerUseMcpIngress {
     void joinRuntimeShutdown(
       [
         () => this.ingress.dispose(),
-        () => this.driver.close(),
+        // Relock before the helper goes away; its stdin EOF relocks too.
+        async () => {
+          await this.lockedUse?.shutdown();
+          await this.driver.close();
+        },
         () =>
           this.starting?.then(
             () => undefined,
@@ -175,6 +220,7 @@ export class ComputerUseMcpIngress {
             threadId,
             setSessionActive: (active: boolean) => {
               if (active) this.exitedThreads.delete(threadId);
+              this.lockedUse?.setSessionEnabled(threadId, active);
               this.options.onActivity?.({
                 kind: "session",
                 threadId,
@@ -186,7 +232,29 @@ export class ComputerUseMcpIngress {
     };
   }
 
+  private notesFor(result: unknown): string[] {
+    const note = result && typeof result === "object" ? this.resultNotes.get(result) : undefined;
+    return note ? [...this.backendNotes, note] : this.backendNotes;
+  }
+
   private async dispatch(
+    name: string,
+    args: Record<string, unknown>,
+    ctx: ToolContext,
+  ): Promise<unknown> {
+    const threadId = ctx.threadId;
+    if (!this.lockedUse || !threadId) return await this.dispatchObserved(name, args, ctx);
+    const toolName = normalizeToolName(name);
+    // A locked Mac is unlocked before the tool runs; when it stays locked the
+    // tool still runs and is refused normally, with a note saying why.
+    const note = await this.lockedUse.prepare(threadId, toolName);
+    const result = await this.dispatchObserved(name, args, ctx);
+    if (toolName === "disable") await this.lockedUse.end(threadId, "disabled");
+    if (note && result && typeof result === "object") this.resultNotes.set(result, note);
+    return result;
+  }
+
+  private async dispatchObserved(
     name: string,
     args: Record<string, unknown>,
     ctx: ToolContext,
