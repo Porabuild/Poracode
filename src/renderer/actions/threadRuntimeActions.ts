@@ -30,7 +30,7 @@ import {
   threadInterruptedTurnStatements,
 } from "@/renderer/state/pendingThreadInput";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import {
   isRemoteCommandOutcomeUncertainError,
   notifyThreadCommandOutcomeUncertain,
@@ -264,7 +264,7 @@ async function performThreadInputSubmitPending(
 
 /**
  * Desktop entry point: resolves the thread and its project location from the
- * store, then submits over the local IPC bridge with checkpoint capture.
+ * store, then submits over the host-routed bridge with checkpoint capture.
  *
  * Extracted byte-for-byte from the former ThreadPane.onSubmitInput inline
  * handler — this is the app's most critical action.
@@ -281,7 +281,6 @@ export async function submitThreadInput(
   const resolved = resolveThreadProjectLocation(threadId);
   if (!resolved) return;
   const { thread, projectLocation } = resolved;
-  const owner = remoteOwner(thread);
   await performThreadInputSubmit({
     thread,
     prompt,
@@ -295,7 +294,7 @@ export async function submitThreadInput(
       // Abort if the thread or project disappeared (or changed ownership)
       // between send and resume — relaunching a deleted row would recreate it.
       const latest = resolveThreadProjectLocation(threadId);
-      if (!latest || Boolean(remoteOwner(latest.thread)) !== Boolean(owner)) return;
+      if (!latest || hostRunsOnThisMachine(latest.thread) !== hostRunsOnThisMachine(thread)) return;
       await performInitialThreadLaunch({
         thread: latest.thread,
         projectLocation: latest.projectLocation,
@@ -307,18 +306,16 @@ export async function submitThreadInput(
         initialSize: DEFAULT_TERMINAL_SIZE,
       });
     },
-    ...(!owner
-      ? {
-          captureCheckpoint: async (checkpointItemId: string) => {
-            if (isHomeProjectId(thread.projectId)) return;
-            await captureFileCheckpoint({
-              threadId: thread.id,
-              checkpointItemId,
-              projectLocation,
-            });
-          },
-        }
-      : {}),
+    // `createFileCheckpoint` is routed to the thread's owning host like every
+    // other thread operation, so the snapshot is taken wherever the files live.
+    captureCheckpoint: async (checkpointItemId: string) => {
+      if (isHomeProjectId(thread.projectId)) return;
+      await captureFileCheckpoint({
+        threadId: thread.id,
+        checkpointItemId,
+        projectLocation,
+      });
+    },
   });
 }
 

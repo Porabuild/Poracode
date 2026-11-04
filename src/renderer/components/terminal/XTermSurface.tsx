@@ -10,10 +10,7 @@ import { resolveTerminalColor } from "./terminalColors";
 import { TerminalReplayGate } from "./terminalReplayGate";
 import { TerminalWriteQueue } from "./terminalWriteQueue";
 import { TerminalInputQueue, registerTerminalInputQueue } from "./terminalInputQueue";
-import {
-  remoteTerminalOwner,
-  readManagedLoopbackProcedureHost,
-} from "@/renderer/remoteProcedureRouter";
+import { readManagedLoopbackProcedureHost } from "@/renderer/remoteProcedureRouter";
 import { TerminalFeedStatus } from "./TerminalFeedStatus";
 import { applyTerminalFont, loadTerminalFonts, resolveTerminalFontFamily } from "./terminalFonts";
 import { Terminal } from "@xterm/xterm";
@@ -39,9 +36,8 @@ import type {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
-import { watchManagedTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { pairedTerminalOwner, watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { readClientRuntime } from "@/renderer/clientRuntime";
-import { isProjectedRemoteEntityId } from "@/renderer/state/remoteProjection";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
@@ -152,6 +148,12 @@ export const XTermSurface = forwardRef<
      * supervisor IPC event stream. Returns an unsubscribe.
      */
     outputSource?: (listener: TerminalFeedListener) => () => void;
+    /**
+     * Paired host that will own this terminal, when it is not registered yet (a shell
+     * the panel starts after this surface mounts). Routing then follows the host
+     * from the first byte instead of waiting for the shell to be owned.
+     */
+    outputOwner?: string;
     /** Override PTY input/resize for a terminal hosted on a remote Poracode server. */
     writeInput?: (data: string) => Promise<void>;
     resizeBackingTerminal?: (size: TerminalSize) => Promise<void>;
@@ -185,6 +187,7 @@ export const XTermSurface = forwardRef<
     suppressTouchKeyboard = false,
     themeBackgroundVar = "--content-background",
     outputSource,
+    outputOwner,
     initialScrollback,
     writeInput,
     resizeBackingTerminal,
@@ -329,7 +332,7 @@ export const XTermSurface = forwardRef<
     // this terminal's host; queued bytes must never follow a new target.
     let inputBridge = readBridge();
     let inputHost = readClientRuntime().procedures;
-    let inputOwner = remoteTerminalOwner(terminalId);
+    let inputOwner = pairedTerminalOwner(terminalId)?.desktopId;
     let inputManagedHost = readManagedLoopbackProcedureHost();
     let inputStarted = false;
     const inputQueue = new TerminalInputQueue(
@@ -340,17 +343,15 @@ export const XTermSurface = forwardRef<
         if (!inputStarted) {
           inputBridge = readBridge();
           inputHost = readClientRuntime().procedures;
-          inputOwner = remoteTerminalOwner(terminalId);
+          inputOwner = pairedTerminalOwner(terminalId)?.desktopId;
           inputManagedHost = readManagedLoopbackProcedureHost();
           inputStarted = true;
         }
         return (
           isActive &&
           readClientRuntime().procedures === inputHost &&
-          remoteTerminalOwner(terminalId) === inputOwner &&
-          (inputOwner !== undefined ||
-            isProjectedRemoteEntityId(terminalId, "thread") ||
-            readManagedLoopbackProcedureHost() === inputManagedHost)
+          pairedTerminalOwner(terminalId)?.desktopId === inputOwner &&
+          (inputOwner !== undefined || readManagedLoopbackProcedureHost() === inputManagedHost)
         );
       },
       () => setInputFailed(true),
@@ -539,7 +540,7 @@ export const XTermSurface = forwardRef<
       ptyEpoch += 1;
       inputBridge = readBridge();
       inputHost = readClientRuntime().procedures;
-      inputOwner = remoteTerminalOwner(terminalId);
+      inputOwner = pairedTerminalOwner(terminalId)?.desktopId;
       inputManagedHost = readManagedLoopbackProcedureHost();
       inputStarted = false;
       inputQueue.reset();
@@ -1129,15 +1130,19 @@ export const XTermSurface = forwardRef<
       // V5 plan 2.5 / V6 B.6: local terminals subscribe through the unified
       // managed seam — loopback terminal-watch frames; no IPC thread-output
       // fallback. Resync drives scrollback rehydration on every leg flip.
-      unsubscribe = watchManagedTerminal(terminalId, {
-        onOutput: handleOutput,
-        onReset: handleReset,
-        onExited: handleExited,
-        onSnapshot: handleSnapshot,
-        onWatchError: handleWatchError,
-        onDisconnected: () => inputQueue.stop(false),
-        onResync: () => hydrateScrollback(true),
-      });
+      unsubscribe = watchRoutedTerminal(
+        terminalId,
+        {
+          onOutput: handleOutput,
+          onReset: handleReset,
+          onExited: handleExited,
+          onSnapshot: handleSnapshot,
+          onWatchError: handleWatchError,
+          onDisconnected: () => inputQueue.stop(false),
+          onResync: () => hydrateScrollback(true),
+        },
+        outputOwner,
+      );
     }
 
     // Fit synchronously before hydrating: reading clientWidth forces layout, so

@@ -1,4 +1,3 @@
-import { msg } from "@lingui/core/macro";
 import { DEFAULT_TERMINAL_SIZE, type Project } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { resolveProjectLocation } from "@/shared/worktree";
@@ -7,10 +6,8 @@ import {
   markThreadLaunchFailed,
   performInitialThreadLaunch,
 } from "@/renderer/actions/threadLaunchActions";
-import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
-import { remoteOwner, remoteThreadId } from "@/renderer/state/remoteProjection";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { entityHost } from "@/renderer/state/entityHost";
 import { PrAskLaunchError } from "./prAskLaunchError";
 import type { PrAskAgentSelection } from "./resolvePrAskAgent";
 
@@ -45,26 +42,24 @@ function paintedInitialUserMessageId(threadId: string): string | undefined {
 export async function launchPrAskThread(input: PrAskLaunchInput): Promise<string> {
   const { project, selection, prompt } = input;
   const store = useAppStore.getState();
-  const owner = remoteOwner(project);
   const existing = input.existingThreadId
     ? store.threads.find((row) => row.id === input.existingThreadId)
     : undefined;
-  const hostThreadId = existing
-    ? (remoteOwner(existing)?.remoteId ?? existing.id)
-    : crypto.randomUUID();
-  const threadId = existing
-    ? existing.id
-    : owner
-      ? remoteThreadId(owner.desktopId, hostThreadId)
-      : hostThreadId;
+  // A new row carries its project host's identity, whichever host that is.
+  const identity = existing
+    ? undefined
+    : (entityHost(project)?.projectThreadRow(crypto.randomUUID()) ?? {
+        threadId: crypto.randomUUID(),
+      });
+  const threadId = existing?.id ?? identity!.threadId;
   const retainedMessageId = existing ? paintedInitialUserMessageId(existing.id) : undefined;
   // Reserve the id before the row exists, so sidebar subscribers never see it.
   input.reserve(threadId);
   const thread =
     existing ??
     store.createThread({
+      ...identity,
       threadId,
-      ...(owner ? { remoteServerId: owner.desktopId, remoteId: hostThreadId } : {}),
       projectId: project.id,
       agentKind: selection.agentKind,
       config: selection.config,
@@ -75,36 +70,14 @@ export async function launchPrAskThread(input: PrAskLaunchInput): Promise<string
       ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
     });
   try {
-    if (owner) {
-      const result = await useRemoteServersStore.getState().launchRemoteThread(
-        {
-          desktopId: owner.desktopId,
-          threadId: hostThreadId,
-          projectId: owner.remoteId,
-          agentKind: thread.agentKind,
-          config: thread.config,
-          prompt,
-          presentationMode: "gui",
-          title: thread.title,
-          ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
-        },
-        {
-          focus: false,
-          isPendingLaunchOwned: () =>
-            useAppStore.getState().threads.some((row) => row.id === thread.id),
-        },
-      );
-      if (result !== "started") throw new Error(i18n._(msg`The launch was cancelled.`));
-    } else {
-      await performInitialThreadLaunch({
-        thread,
-        projectLocation: resolveProjectLocation(project.location, thread.worktreePath),
-        prompt,
-        // A retried row already shows the first message: reuse it, never paint it twice.
-        ...(existing && retainedMessageId ? { userMessageItemId: retainedMessageId } : {}),
-        initialSize: DEFAULT_TERMINAL_SIZE,
-      });
-    }
+    await performInitialThreadLaunch({
+      thread,
+      projectLocation: resolveProjectLocation(project.location, thread.worktreePath),
+      prompt,
+      // A retried row already shows the first message: reuse it, never paint it twice.
+      ...(existing && retainedMessageId ? { userMessageItemId: retainedMessageId } : {}),
+      initialSize: DEFAULT_TERMINAL_SIZE,
+    });
     return thread.id;
   } catch (error) {
     const uncertain = isRemoteCommandOutcomeUncertainError(error);

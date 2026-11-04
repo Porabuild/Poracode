@@ -1,22 +1,18 @@
-import { notePendingManagedRootLaunch } from "./rootCatalogStore";
-
 /**
- * Central renderer-side root-row creation intent (B4 F3).
+ * Central renderer-side row creation intent (B4 F3), for every host.
  *
  * Every renderer-created thread row passes through the store's `createThread`.
- * An unprojected row exists only in the renderer until an explicit host
- * command persists it; the launch path must therefore know whether the row is
- * a fresh host create+launch (`start`) or an existing row to resume
- * (supervisor IPC). Recording that intent here — rather than at each producer
- * — is what makes fork/handoff/conflict-resolver producers unable to bypass it.
+ * A new row exists only in this client until an explicit host command
+ * persists it; the launch path must therefore know whether the row is a fresh
+ * host create+launch (`start`) or an existing row to resume. Recording that
+ * intent here — rather than at each producer — is what makes
+ * fork/handoff/conflict-resolver producers unable to bypass it.
  *
- * The intent is a renderer fact, not a runtime decision: it is recorded
- * wherever the row is created and consumed only by the managed-root launch
- * branch (which is itself gated on the managed desktop runtime). On any other
- * runtime it is inert.
+ * The intent is a client fact, not a runtime decision: it is recorded wherever
+ * the row is created and consumed by the launch branch for a row its host
+ * owns. A row no host owns never consumes it.
  *
  * Exemptions (all explicit):
- * - projected remote rows (they launch on their own host);
  * - host-origin application (a forwarded `start`/projection mirror: the host
  *   already owns the durable row, so a marker would re-create/relaunch it);
  * - rows whose producer declares `suppressHostCreateIntent` (experiment
@@ -34,7 +30,6 @@ export function configureRootCreateIntentRuntime(next: RootCreateIntentRuntime |
 
 export interface RendererCreatedThreadIntent {
   readonly id: string;
-  readonly remoteServerId?: string | undefined;
   readonly worktreeProvisioning?: boolean | undefined;
   readonly suppressHostCreateIntent?: boolean | undefined;
 }
@@ -42,10 +37,9 @@ export interface RendererCreatedThreadIntent {
 /** Called by the thread store after a renderer-created row is installed. */
 export function noteRendererCreatedThreadIntent(thread: RendererCreatedThreadIntent): void {
   if (thread.suppressHostCreateIntent === true) return;
-  if (thread.remoteServerId !== undefined) return;
   if (runtime?.isHostOriginatedApplication() === true) return;
-  // A row created before the managed adapter is installed (or on another
-  // runtime) still records the fact; only the managed launch branch ever
-  // consumes it.
-  notePendingManagedRootLaunch(thread.id, thread.worktreeProvisioning === true);
+  // A row created before its host connection is up still records the fact;
+  // only the launch branch for a host-owned row consumes it.
+  notePendingThreadLaunch(thread.id, thread.worktreeProvisioning === true);
 }
+import { notePendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";

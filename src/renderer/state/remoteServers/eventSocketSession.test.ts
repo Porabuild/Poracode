@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { RemoteClientError, type RemoteDesktopClient } from "@/shared/remote/client";
-import type { RemoteClientFactory, RemoteServersState } from "./types";
+import type { RemoteServersState } from "./types";
 import {
   CLIENT_ENGINE_LANE_MAX_PENDING,
   CLIENT_ENGINE_PROTOCOL_VERSION,
@@ -15,15 +15,14 @@ import {
 } from "@/renderer/state/remote/engine";
 import {
   readBoundedHistoryTail,
-  recordBoundedHistoryTail,
   __resetBoundedHistoryRegistryForTest,
 } from "./catalog/boundedHistoryRegistry";
+import { recordBoundedHistoryTail } from "./catalog/boundedHistoryTail.testSupport";
 import {
   __resetEventSocketRegistryForTest,
   bumpRemoteServerSnapshotSeq,
   deleteRemoteServerEventSocketEntry,
   getRemoteServerEventSocketEntry,
-  remoteServerResumeFence,
   remoteServerSnapshotEpoch,
   remoteServerSnapshotSeq,
   setRemoteServerSnapshotSeq,
@@ -66,8 +65,9 @@ const remoteState = vi.hoisted(() => ({
     installedAuthoritativeHistory: true,
   })),
   dispatchRemoteSupervisorEvent: vi.fn<(...args: unknown[]) => void>(),
-  noteRemoteRuntimeHistoryBaselines: vi.fn<(threadIds: readonly string[]) => void>(),
-  setRemoteRuntimeHistoryRecovery: vi.fn<() => void>(),
+  noteRuntimeHistoryBaselines: vi.fn<(threadIds: readonly string[]) => void>(),
+  recoverRuntimeHistory: vi.fn<(threadId: string) => void>(),
+  discardQueuedRuntimeEvents: vi.fn<(threadId: string) => void>(),
   collectRuntimeEventsFromSupervisoryMessage: (
     value: unknown,
   ): Array<{
@@ -107,20 +107,6 @@ vi.mock("@/renderer/state/remote", () => remoteState);
 vi.mock("@/renderer/state/remote/sync", () => remoteState);
 vi.mock("@/renderer/state/remote/resetThreadProjection", () => ({
   resetRemoteThreadProjection: remoteState.resetRemoteThreadProjection,
-}));
-
-vi.mock("@/renderer/state/remote/truncateRecovery", () => ({
-  finishTruncateReload: vi.fn<() => void>(),
-  getTruncateNeededSeq: vi.fn<() => undefined>(),
-  isTruncateCheckpointLoaded: vi.fn<() => boolean>(() => false),
-  isTruncateReloadLeaseCurrent: vi.fn<() => boolean>(() => false),
-  listPendingTruncateReloads: vi.fn<() => never[]>(() => []),
-  noteTruncateNeeded: vi.fn<() => void>(),
-  recordAuthoritativeHistoryInstall: vi.fn<() => void>(),
-  resetTruncateRecoveryEpoch: vi.fn<() => void>(),
-  resetTruncateReloadBackoff: vi.fn<() => void>(),
-  shouldSuppressTruncatedReplay: vi.fn<() => boolean>(() => false),
-  tryBeginTruncateReload: vi.fn<() => null>(() => null),
 }));
 
 vi.mock("@/renderer/state/appStore", () => ({
@@ -642,6 +628,8 @@ describe("remote event socket session (V5 2.1)", () => {
     await flushAsync();
     expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(0);
     expect(remoteState.resetRemoteThreadProjection).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
+    // Frames queued from the previous host instance never replay on the new baseline.
+    expect(remoteState.discardQueuedRuntimeEvents).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
 
     // Fresh-stream events continue contiguously from the accepted cursor.
     await deliver(socket, runtimeEventFrame(1));
@@ -704,106 +692,6 @@ describe("remote event socket session (V5 2.1)", () => {
       "completed",
     );
     expect(terminateStaleSubAgentItems("d2:cached", { run: item })).toBeUndefined();
-  });
-
-  it("holds recovery-queued frames out of the resume cursor until they are replayed", async () => {
-    const { deps, dispatch } = makeHarness();
-    let releaseHistory!: (value: unknown) => void;
-    const client = deps.get().clientFactory;
-    // Gate the authoritative snapshot so a recovery is in flight while frames
-    // arrive.
-    const gatedFactory: RemoteClientFactory = (endpoint, token) => {
-      const real = client(endpoint, token);
-      const gated = Object.create(real) as RemoteDesktopClient;
-      gated.boundedThreadHistory = vi.fn<() => Promise<unknown>>(() =>
-        new Promise((resolve) => {
-          releaseHistory = resolve;
-        }).then((page) => ({ negotiation: "legacy", page })),
-      ) as unknown as RemoteDesktopClient["boundedThreadHistory"];
-      return gated;
-    };
-    deps.get().clientFactory = gatedFactory;
-
-    const started = startRemoteServerEventStream({
-      ...deps,
-      options: { resyncInterestedThreads: true },
-    });
-    await flushAsync();
-    const socket = FakeSocket.instances[0]!;
-    expect(socket).toBeDefined();
-
-    // Frames for the recovering thread park in the bounded recovery queue.
-    await deliver(socket, runtimeEventFrame(1));
-    await deliver(socket, runtimeEventFrame(2));
-    expect(dispatch).not.toHaveBeenCalled();
-    // Queued ≠ applied: the resume cursor must not have moved past them.
-    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(0);
-
-    releaseHistory({
-      snapshotSeq: 5,
-      projects: [],
-      threads: [],
-      runtimeSummariesByThread: {},
-    });
-    await started;
-    await flushAsync();
-
-    // The snapshot is authoritative through seq 5 and supersedes the queue.
-    expect(remoteState.applyThreadSnapshot).toHaveBeenCalled();
-    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(5);
-    expect(dispatch).not.toHaveBeenCalled();
-  });
-
-  it("replays a queued recovery tail in order after the baseline (A3 budgeted replay)", async () => {
-    const { deps, dispatch } = makeHarness();
-    let releaseHistory!: (value: unknown) => void;
-    const client = deps.get().clientFactory;
-    const gatedFactory: RemoteClientFactory = (endpoint, token) => {
-      const real = client(endpoint, token);
-      const gated = Object.create(real) as RemoteDesktopClient;
-      gated.boundedThreadHistory = vi.fn<() => Promise<unknown>>(() =>
-        new Promise((resolve) => {
-          releaseHistory = resolve;
-        }).then((page) => ({ negotiation: "legacy", page })),
-      ) as unknown as RemoteDesktopClient["boundedThreadHistory"];
-      return gated;
-    };
-    deps.get().clientFactory = gatedFactory;
-
-    const started = startRemoteServerEventStream({
-      ...deps,
-      options: { resyncInterestedThreads: true },
-    });
-    await flushAsync();
-    const socket = FakeSocket.instances[0]!;
-
-    // Frames for the recovering thread park in the bounded recovery queue.
-    await deliver(socket, runtimeEventFrame(1));
-    await deliver(socket, runtimeEventFrame(2));
-    expect(dispatch).not.toHaveBeenCalled();
-    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(0);
-
-    // A baseline BELOW the queued seqs leaves them replayable: they apply in
-    // order and each replay is what advances the resume cursor.
-    releaseHistory({
-      snapshotSeq: 0,
-      projects: [],
-      threads: [],
-      runtimeSummariesByThread: {},
-    });
-    await started;
-    await flushAsync();
-
-    expect(dispatch).toHaveBeenCalledTimes(2);
-    expect(
-      dispatch.mock.calls.map((call) => {
-        const forward = call[0] as {
-          batches: Array<{ events: Array<{ seq: number }> }>;
-        };
-        return forward.batches[0]!.events[0]!.seq;
-      }),
-    ).toEqual([1, 2]);
-    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(2);
   });
 
   it("keeps the socket and applies in order when a UI-thread stall delays the decode replies", async () => {
@@ -935,50 +823,6 @@ describe("remote event socket session (V5 2.1)", () => {
     expect(remoteState.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(2);
   });
 
-  it("drops the truncated thread's bounded turn tail when the replay is applied", async () => {
-    const { deps } = makeHarness();
-    const boundedPage = (completedTurnsNextCursor: string) => ({
-      snapshotSeq: 1,
-      thread: { id: "t1" } as Thread,
-      runtimeItems: [],
-      completedTurns: [],
-      completedTurnsNextCursor,
-      contextUsage: null,
-      reads: "bounded-v1" as const,
-      updatedAt: "now",
-    });
-    recordBoundedHistoryTail({
-      desktopId: DESKTOP_ID,
-      threadId: "t1",
-      page: boundedPage("ct1.10"),
-    });
-    recordBoundedHistoryTail({
-      desktopId: DESKTOP_ID,
-      threadId: "t2",
-      page: boundedPage("ct1.4"),
-    });
-    await startRemoteServerEventStream(deps);
-    const socket = FakeSocket.instances[0]!;
-
-    await deliver(
-      socket,
-      JSON.stringify({
-        type: "event",
-        seq: 1,
-        event: {
-          type: "thread-runtime-event",
-          threadId: "t1",
-          event: { type: "runtime.truncated", itemId: "cp-1", seq: 1 },
-        },
-      }),
-    );
-
-    // The truncation renumbers this thread's completed turns: its old `ct1.`
-    // proof is gone, while the untouched thread keeps its continuation.
-    expect(readBoundedHistoryTail(`${DESKTOP_ID}:t1`)).toBeUndefined();
-    expect(readBoundedHistoryTail(`${DESKTOP_ID}:t2`)).toBeDefined();
-  });
-
   it("drops every bounded turn tail for the server on resync-required", async () => {
     const { deps } = makeHarness();
     recordBoundedHistoryTail({
@@ -1005,55 +849,6 @@ describe("remote event socket session (V5 2.1)", () => {
     await flushAsync();
 
     // A restarted host has a fresh sequence space: no old tail can survive.
-    expect(readBoundedHistoryTail(`${DESKTOP_ID}:t1`)).toBeUndefined();
-  });
-
-  it("drops the bounded turn tail when a recovery installs an authoritative baseline", async () => {
-    const { deps } = makeHarness();
-    recordBoundedHistoryTail({
-      desktopId: DESKTOP_ID,
-      threadId: "t1",
-      page: {
-        snapshotSeq: 1,
-        thread: { id: "t1" } as Thread,
-        runtimeItems: [],
-        completedTurns: [],
-        completedTurnsNextCursor: "ct1.10",
-        contextUsage: null,
-        reads: "bounded-v1",
-        updatedAt: "now",
-      },
-    });
-    let releaseHistory!: (value: unknown) => void;
-    const client = deps.get().clientFactory;
-    const gatedFactory: RemoteClientFactory = (endpoint, token) => {
-      const real = client(endpoint, token);
-      const gated = Object.create(real) as RemoteDesktopClient;
-      gated.boundedThreadHistory = vi.fn<() => Promise<unknown>>(() =>
-        new Promise((resolve) => {
-          releaseHistory = resolve;
-        }).then((page) => ({ negotiation: "legacy", page })),
-      ) as unknown as RemoteDesktopClient["boundedThreadHistory"];
-      return gated;
-    };
-    deps.get().clientFactory = gatedFactory;
-
-    const started = startRemoteServerEventStream({
-      ...deps,
-      options: { resyncInterestedThreads: true },
-    });
-    await flushAsync();
-    releaseHistory({
-      snapshotSeq: 5,
-      projects: [],
-      threads: [],
-      runtimeSummariesByThread: {},
-    });
-    await started;
-    await flushAsync();
-
-    // The rebuilt transcript may have renumbered turns: the old proof cannot
-    // feed older pages into it.
     expect(readBoundedHistoryTail(`${DESKTOP_ID}:t1`)).toBeUndefined();
   });
 });
@@ -1219,45 +1014,6 @@ describe("event-stream epoch (eventEpoch=v1)", () => {
     await deliver(socket2, resync(8));
     expect(remoteServerSnapshotEpoch(DESKTOP_ID)).toBe("e2");
     expect(remoteState.resetRemoteThreadProjection).toHaveBeenCalledWith(`${DESKTOP_ID}:t1`);
-  });
-
-  it("never lets an HTTP read that crossed the epoch change raise the new cursor", async () => {
-    setRemoteServerSnapshotSeq(DESKTOP_ID, 5, "e1");
-    const harness = makeHarness();
-    const client = (harness.store.clientFactory as () => RemoteDesktopClient)();
-    let releaseHistory!: (
-      value: Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>,
-    ) => void;
-    vi.mocked(client.boundedThreadHistory).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          releaseHistory = resolve;
-        }),
-    );
-    // The reconnect recovery's read starts before this socket's `ready`.
-    const started = startRemoteServerEventStream({
-      ...harness.deps,
-      options: { resyncInterestedThreads: true },
-    });
-    await vi.waitFor(() => expect(client.boundedThreadHistory).toHaveBeenCalledTimes(1));
-    const socket = FakeSocket.instances[0]!;
-    await deliver(socket, ready(3, "e2"));
-    await deliver(socket, resync(3));
-    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(3);
-
-    // The late reply may describe the previous instance (seq 500 there).
-    releaseHistory({
-      negotiation: "legacy",
-      page: { snapshotSeq: 500, projects: [], threads: [], runtimeSummariesByThread: {} },
-    } as unknown as Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>);
-    await started;
-    await flushAsync();
-    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(3);
-    expect(remoteServerSnapshotEpoch(DESKTOP_ID)).toBe("e2");
-
-    // A read issued under the current binding still advances it.
-    bumpRemoteServerSnapshotSeq(DESKTOP_ID, 10, remoteServerResumeFence(DESKTOP_ID));
-    expect(remoteServerSnapshotSeq(DESKTOP_ID)).toBe(10);
   });
 
   it("degrades to seq-only resume against a host that reports no epoch", async () => {

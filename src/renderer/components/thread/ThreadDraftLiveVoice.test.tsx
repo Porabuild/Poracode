@@ -136,11 +136,15 @@ function currentComposerProps(): ComposerProps {
 
 function renderComposer(
   onStart: (input: DraftStartInput) => void | Promise<void> = () => {},
-  options: { paneId?: string; pickFiles?: () => Promise<string[] | null> } = {},
+  options: {
+    paneId?: string;
+    pickFiles?: () => Promise<string[] | null>;
+    isRemote?: boolean;
+  } = {},
 ) {
   return render(
     <ThreadDraftComposerArea
-      project={project}
+      project={options.isRemote ? { ...project, remoteServerId: "paired-host" } : project}
       {...(options.paneId ? { paneId: options.paneId } : {})}
       selectedAgent={agentStatus}
       controls={[]}
@@ -445,6 +449,21 @@ describe("draft live voice ownership", () => {
     expect(onStart.mock.calls[0]?.[0]).toMatchObject({ prompt: "", threadId: expect.any(String) });
     expect(onStart.mock.calls[0]?.[0]).not.toHaveProperty("segments");
     await waitFor(() => expect(bridge.connectThreadVoice).toHaveBeenCalledOnce());
+  });
+
+  it("offers live voice and local file drops only for a project whose host runs here", async () => {
+    const local = renderComposer();
+    await waitFor(() => expect(currentComposerProps().submitControl).toBeDefined());
+    expect(currentComposerProps().onAttachFiles).toBeDefined();
+    local.unmount();
+    composerSpy.mockClear();
+
+    // The host's voice-session frames reach only the co-located desktop, and a
+    // dropped file is a path on this machine.
+    renderComposer(() => {}, { isRemote: true });
+    await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+    expect(currentComposerProps().submitControl).toBeUndefined();
+    expect(currentComposerProps().onAttachFiles).toBeUndefined();
   });
 
   it("releases an abandoned permission request when the draft unmounts", async () => {

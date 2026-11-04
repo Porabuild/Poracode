@@ -83,7 +83,7 @@ it("keeps both running threads covered across navigation and retires settled own
   unsubscribe();
 });
 
-it("waits for readiness and leaves terminal and remotely owned streams to their owners", async () => {
+it("waits for readiness, covers running threads on every host, and leaves terminals to their stream", async () => {
   useAppStore.setState({
     threads: [
       thread("gui"),
@@ -99,6 +99,8 @@ it("waits for readiness and leaves terminal and remotely owned streams to their 
   await act(async () => {
     await vi.advanceTimersByTimeAsync(0);
   });
-  expect(snapshotRendererEventInterests().runtimeThreadIds).toEqual(["gui"]);
+  expect(new Set(snapshotRendererEventInterests().runtimeThreadIds)).toEqual(
+    new Set(["gui", "remote"]),
+  );
   unmount();
 });

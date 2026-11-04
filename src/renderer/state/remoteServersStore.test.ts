@@ -1,4 +1,12 @@
 import {
+  forgetThreadRuntimeWindow,
+  hydrateThreadRuntimeItems,
+  invalidateThreadRuntimeHydration,
+  seedOlderThreadRuntimeItemsCursor,
+} from "@/renderer/state/chatRuntimePersister";
+import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
+import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
+import {
   captureThreadFollowUpQueueSnapshot,
   isThreadFollowUpQueueSnapshotCurrent,
   useThreadFollowUpQueueStore,
@@ -76,12 +84,6 @@ import {
   remoteServerSnapshotEpoch,
   remoteServerSnapshotSeq,
 } from "./remoteServers/eventSocketRegistry";
-import {
-  getAuthoritativeHistorySeq,
-  getTruncateNeededSeq,
-  listPendingTruncateReloads,
-  noteTruncateNeeded,
-} from "./remote/truncateRecovery";
 import { renameProject } from "../actions/projectActions";
 import { routeRemoteProcedure } from "../remoteProcedureRouter";
 import {
@@ -609,6 +611,9 @@ describe("useRemoteServersStore", () => {
   afterEach(() => {
     uninstallWorkspaceSync?.();
     uninstallWorkspaceSync = null;
+    // A loaded window must not carry into the next case.
+    for (const threadId of ["rt-1", "rt-2"])
+      invalidateThreadRuntimeHydration(remoteThreadId("d1", threadId));
     vi.useRealTimers();
     resetClientRuntimeForTest();
     window.poracode = undefined as unknown as typeof window.poracode;
@@ -2386,7 +2391,7 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("workspace-1");
   });
 
-  it("keeps mirrored project metadata local across reconnects", async () => {
+  it("keeps a mirrored project's workspace filing local across reconnects", async () => {
     const remoteWorkspaceProject = { ...proj, workspaceId: "remote-workspace" };
     const projectCommand = vi.fn<() => Promise<{ projects: unknown[] }>>(async () => ({
       projects: [remoteWorkspaceProject],
@@ -2406,15 +2411,12 @@ describe("useRemoteServersStore", () => {
     ).toBeUndefined();
 
     useAppStore.getState().setProjectWorkspace(projectedId, "local-workspace");
-    renameProject(projectedId, "Local Project");
     expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("local-workspace");
-    expect(useRemoteServersStore.getState().projectNameOverrides.d1?.p1).toBe("Local Project");
     expect(projectCommand).not.toHaveBeenCalled();
     await vi.waitFor(() => {
       expect(JSON.parse(localStorage.getItem("poracode-remote-servers")!).state).toEqual(
         expect.objectContaining({
           projectWorkspaceIds: { d1: { p1: "local-workspace" } },
-          projectNameOverrides: { d1: { p1: "Local Project" } },
         }),
       );
     });
@@ -2426,9 +2428,45 @@ describe("useRemoteServersStore", () => {
     expect(
       useAppStore.getState().projects.find((project) => project.id === projectedId)?.workspaceId,
     ).toBe("local-workspace");
-    expect(
-      useAppStore.getState().projects.find((project) => project.id === projectedId)?.name,
-    ).toBe("Local Project");
+  });
+
+  it("renames a mirrored project on its host and drops an older client's name alias", async () => {
+    const projectCommand = vi.fn<
+      (command: { kind: string; projectId?: string; patch?: unknown }) => Promise<{
+        projects: unknown[];
+      }>
+    >(async () => ({ projects: [{ ...proj, name: "Renamed" }] }));
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          snapshotProjects: [proj],
+          projectCommand: projectCommand as unknown as RemoteDesktopClient["projectCommand"],
+        }),
+      ),
+    );
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    const projectedId = remoteProjectId("d1", "p1");
+    const projectName = () =>
+      useAppStore.getState().projects.find((project) => project.id === projectedId)?.name;
+
+    // An alias persisted by an older client still names the project.
+    useRemoteServersStore.setState({ projectNameOverrides: { d1: { p1: "Old Alias" } } });
+    await useRemoteServersStore.getState().refreshServer("d1");
+    expect(projectName()).toBe("Old Alias");
+
+    renameProject(projectedId, "Renamed");
+    await vi.waitFor(() =>
+      expect(useRemoteServersStore.getState().projectNameOverrides.d1?.p1).toBeUndefined(),
+    );
+    expect(projectCommand.mock.calls[0]?.[0]).toMatchObject({
+      kind: "update",
+      projectId: "p1",
+      patch: { name: "Renamed" },
+    });
+    // This fixture host never echoes the new name; retire the optimistic edit.
+    forgetPendingCatalogEdit("project", projectedId);
   });
 
   it("files browser projects into the client workspace and ignores server workspace ids", async () => {
@@ -2998,6 +3036,7 @@ describe("useRemoteServersStore", () => {
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
     await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledOnce());
+    seedRemoteThreadOwner();
     useRemoteServersStore.setState({
       openThread: { desktopId: "d1", threadId: "rt-1", thread: remoteThread },
     });
@@ -3131,7 +3170,7 @@ describe("useRemoteServersStore", () => {
     expect(sockets[0]?.close).toHaveBeenCalledOnce();
   });
 
-  it("replays interested live events after the resume history barrier", async () => {
+  it("hands interested live events to the reducer while the resume history is re-read", async () => {
     const sockets: RemoteSocketLike[] = [];
     const heldHistory = deferred<RemoteThreadHistorySnapshot>();
     const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(() => heldHistory.promise);
@@ -3146,6 +3185,7 @@ describe("useRemoteServersStore", () => {
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
     await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledOnce());
+    seedRemoteThreadOwner();
     useRemoteServersStore.setState({
       openThread: { desktopId: "d1", threadId: "rt-1", thread: remoteThread },
     });
@@ -3155,7 +3195,7 @@ describe("useRemoteServersStore", () => {
       .getState()
       .connectAll({ forceTransportReconnect: true });
     await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledWith("rt-1"));
-    const queuedRuntimeEvent = (seq: number) => ({
+    const runtimeEvent = (seq: number) => ({
       data: JSON.stringify({
         type: "event",
         seq,
@@ -3179,13 +3219,16 @@ describe("useRemoteServersStore", () => {
         },
       }),
     });
-    sockets[1]?.onmessage?.(queuedRuntimeEvent(2));
-    sockets[1]?.onmessage?.(queuedRuntimeEvent(3));
-    expect(sync.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
+    // The connection hands every frame to the one reducer, which holds a
+    // recovering thread's frames behind its baseline (covered by the
+    // reducer's own tests), exactly as for the desktop host.
+    sockets[1]?.onmessage?.(runtimeEvent(1));
+    sockets[1]?.onmessage?.(runtimeEvent(2));
+    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(2);
 
     heldHistory.resolve({ ...remoteThreadSnapshot("rt-1"), snapshotSeq: 2 });
     await reconnecting;
-    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledOnce();
+    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(2);
   });
 
   it("applies a queue event even when the thread filter has not learned the thread yet", async () => {
@@ -3474,7 +3517,7 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("local-workspace");
   });
 
-  it("retries an expired event stream session at the slower authorization interval", async () => {
+  it("reconnects an event stream that closed at its session deadline right away, like any transport loss", async () => {
     vi.useFakeTimers();
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
@@ -3489,9 +3532,31 @@ describe("useRemoteServersStore", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     sockets[0]?.onclose?.({ code: 1008, reason: "Remote access session expired" });
-    // The deadline close is routine: the reconnect refreshes the same session,
-    // so it reads as reconnecting rather than a terminal "pair again".
+    // The deadline close is routine: the reconnect's ticket mint renews the
+    // same session (a refused grant retires it there), so it reads as
+    // reconnecting rather than a terminal "pair again", and does not wait.
     expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "connecting" });
+    await vi.advanceTimersByTimeAsync(999);
+    expect(socketFactory).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(socketFactory).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries any other unauthorized close at the slower authorization interval", async () => {
+    vi.useFakeTimers();
+    const sockets: RemoteSocketLike[] = [];
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.advanceTimersByTimeAsync(0);
+
+    sockets[0]?.onclose?.({ code: 1008, reason: "Unauthorized" });
     await vi.advanceTimersByTimeAsync(59_999);
     expect(socketFactory).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
@@ -3883,20 +3948,11 @@ describe("useRemoteServersStore", () => {
     ).toEqual({ kind: "local" });
   });
 
-  it("openRemoteThread with focus:false attaches live state without navigating the app view", async () => {
-    const urls: Array<readonly string[] | undefined> = [];
-    const websocketUrl = vi.fn<RemoteDesktopClient["websocketUrl"]>(
-      (_ticket, _lastSeenSeq, options) => {
-        urls.push(options?.threadItemInterests);
-        return "ws://192.168.1.9:38987/ws?ticket=ticket-1";
-      },
-    );
+  it("openRemoteThread with focus:false installs history without navigating the app view", async () => {
     const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async () =>
       remoteThreadSnapshot(remoteThread.id),
     );
-    useRemoteServersStore
-      .getState()
-      .setClientFactory(factoryFor(makeClient({ websocketUrl, threadHistory })));
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
     const sockets: RemoteSocketLike[] = [];
     await pairIsolated(() => {
       const socket = makeSocket();
@@ -3913,10 +3969,10 @@ describe("useRemoteServersStore", () => {
       useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false }),
     ).resolves.toBe(true);
 
-    // Live attach: history applied, open-thread slice + interests registered.
+    // History applied and the open-thread slice tracked. Live content follows
+    // the panes' interest leases, not this open.
     expect(sync.applyThreadSnapshot).toHaveBeenCalledTimes(1);
     expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-1");
-    expect(urls).toContainEqual(["rt-1"]);
     // …but the app view is left exactly where the user put it.
     expect(useAppStore.getState().view).toEqual({ kind: "home" });
   });
@@ -4071,6 +4127,9 @@ describe("useRemoteServersStore", () => {
     expect(sync.applyThreadSnapshot).toHaveBeenCalledTimes(1);
     expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-1");
     expect(sockets[0]?.close).not.toHaveBeenCalled();
+    // The pane showing the thread holds its live interest, as for any host.
+    const lease = retainRendererEventInterest("runtime", remoteThreadId("d1", "rt-1"));
+    await lease.ready;
     expect(send).toHaveBeenCalledWith(
       JSON.stringify({ type: "thread-item-interests", threadIds: ["rt-1"] }),
     );
@@ -4086,14 +4145,17 @@ describe("useRemoteServersStore", () => {
     });
 
     useRemoteServersStore.getState().closeRemoteThread();
-    expect(sockets[0]?.close).not.toHaveBeenCalled();
-    expect(send).toHaveBeenLastCalledWith(
-      JSON.stringify({ type: "thread-item-interests", threadIds: [] }),
+    lease.release();
+    await vi.waitFor(() =>
+      expect(send).toHaveBeenLastCalledWith(
+        JSON.stringify({ type: "thread-item-interests", threadIds: [] }),
+      ),
     );
+    expect(sockets[0]?.close).not.toHaveBeenCalled();
     expect(useRemoteServersStore.getState().openThread).toBeNull();
   });
 
-  it("keeps the visible remote thread subscribed while a replacement hydrates", async () => {
+  it("keeps each pane's live interest while another thread opens and fails", async () => {
     const send = vi.fn<(data: string) => void>();
     const socket = makeSocket({ send });
     const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (threadId) => {
@@ -4102,20 +4164,17 @@ describe("useRemoteServersStore", () => {
     });
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
     await pairIsolated(() => socket);
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    const visible = retainRendererEventInterest("runtime", remoteThreadId("d1", "rt-1"));
+    await visible.ready;
     send.mockClear();
 
-    await expect(useRemoteServersStore.getState().openRemoteThread("d1", "rt-2")).resolves.toBe(
-      false,
-    );
+    await expect(
+      useRemoteServersStore.getState().openRemoteThread("d1", "rt-2", { quiet: true }),
+    ).resolves.toBe(false);
 
-    expect(send).toHaveBeenCalledWith(
-      JSON.stringify({ type: "thread-item-interests", threadIds: ["rt-1", "rt-2"] }),
-    );
-    expect(send).toHaveBeenLastCalledWith(
-      JSON.stringify({ type: "thread-item-interests", threadIds: ["rt-1"] }),
-    );
-    expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-1");
+    // Opens never touch the panes' interests.
+    expect(send).not.toHaveBeenCalled();
+    visible.release();
   });
 
   it("does not restore a removed thread after a pending replacement fails", async () => {
@@ -4157,9 +4216,6 @@ describe("useRemoteServersStore", () => {
 
     await expect(replacement).resolves.toBe(false);
     expect(useRemoteServersStore.getState().openThread).toBeNull();
-    expect(send).toHaveBeenLastCalledWith(
-      JSON.stringify({ type: "thread-item-interests", threadIds: [] }),
-    );
   });
 
   it("streams a remote terminal through the open-thread connection", async () => {
@@ -4664,6 +4720,11 @@ describe("useRemoteServersStore", () => {
     websocketUrl.mockClear();
     ticketSeq = 0;
 
+    // A pane shows the thread: its interest lease rides every connection.
+    const lease = retainRendererEventInterest("runtime", remoteThreadId("d1", "rt-1"));
+    await lease.ready;
+    // The thread's history is loaded (the installer is mocked here).
+    seedOlderThreadRuntimeItemsCursor(remoteThreadId("d1", "rt-1"), null);
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
     expect(socketFactory).toHaveBeenCalledTimes(1);
     expect(websocketUrl).toHaveBeenNthCalledWith(1, "ticket-1", 1, {
@@ -4721,6 +4782,9 @@ describe("useRemoteServersStore", () => {
       3,
       "ws://192.168.1.9:38987/ws?ticket=ticket-3&last=2&notices=v1&eventEpoch=v1",
     );
+    lease.release();
+    await vi.advanceTimersByTimeAsync(300);
+    forgetThreadRuntimeWindow(remoteThreadId("d1", "rt-1"));
   });
 
   it("refreshes remote thread history when websocket replay requires resync", async () => {
@@ -4742,6 +4806,7 @@ describe("useRemoteServersStore", () => {
     await pairIsolated(() => socket);
     const applyCallsBefore = sync.applyThreadSnapshot.mock.calls.length;
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    seedRemoteThreadOwner();
 
     socket.onmessage?.({
       data: JSON.stringify({
@@ -4751,15 +4816,12 @@ describe("useRemoteServersStore", () => {
       }),
     });
 
-    // Wait for the resynced snapshot to be applied (not just fetched): the
-    // fetch resolving and the apply completing are separate microtask hops.
+    // The thread re-baselines through the live reducer: its host's history is
+    // re-read and installed (not just fetched).
     await vi.waitFor(() =>
-      expect(useRemoteServersStore.getState().openThread?.thread.title).toBe(
-        "Remote rt-1 resynced",
-      ),
+      expect(sync.applyThreadSnapshot).toHaveBeenCalledTimes(applyCallsBefore + 2),
     );
-    expect(sync.applyThreadSnapshot).toHaveBeenCalledTimes(applyCallsBefore + 2);
-    expect(useRemoteServersStore.getState().openThread?.thread.title).toBe("Remote rt-1 resynced");
+    expect(threadHistory).toHaveBeenCalledTimes(2);
   });
 
   it("does not clear cached goal and plan rows before applying remote history", async () => {
@@ -4903,58 +4965,7 @@ describe("useRemoteServersStore", () => {
     });
   });
 
-  it("starts a thread for a selected remote project and opens it", async () => {
-    const startedThread = {
-      ...remoteThread,
-      id: "rt-new",
-      title: "New remote thread",
-      presentationMode: "gui",
-    } as Thread;
-    const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
-      threadId: "rt-new",
-    }));
-    const client = makeClient({
-      startNewThread,
-      snapshot: async () => ({
-        snapshotSeq: 2,
-        projects: [proj],
-        threads: [startedThread],
-        runtimeSummariesByThread: {},
-        updatedAt: "now",
-      }),
-      threadHistory: async () => ({
-        ...remoteThreadSnapshot("rt-new"),
-        thread: startedThread,
-      }),
-    });
-    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
-    await pairIsolated(() => makeSocket());
-    await useRemoteServersStore.getState().launchRemoteThread({
-      threadId: "rt-new",
-      desktopId: "d1",
-      projectId: "p1",
-      agentKind: "claude",
-      config: { model: "claude-sonnet" },
-      prompt: "work remotely",
-      presentationMode: "gui",
-      userMessageItemId: "user-optimistic",
-      clientContext: { browserFocus: {} },
-    });
-
-    expect(startNewThread).toHaveBeenCalledWith({
-      threadId: "rt-new",
-      projectId: "p1",
-      agentKind: "claude",
-      config: { model: "claude-sonnet" },
-      prompt: "work remotely",
-      presentationMode: "gui",
-      userMessageItemId: "user-optimistic",
-      clientContext: { browserFocus: {} },
-    });
-    expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-new");
-  });
-
-  it("keeps the loader up while an open's read is in flight, then ends a superseded pending", async () => {
+  it("keeps a pane's loader up while it shares an open's read, then ends it once installed", async () => {
     let resolveHistory: (
       snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>,
     ) => void = () => undefined;
@@ -4966,456 +4977,24 @@ describe("useRemoteServersStore", () => {
     );
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
     await pairIsolated(() => makeSocket());
+    seedRemoteThreadOwner();
     const viewThreadId = remoteThreadId("d1", "rt-1");
-    // The pane's first read set "pending" and the open's projection reset
-    // superseded it: no live pane read owns the status any more.
-    useAppStore.getState().setRuntimeHydrationStatus(viewThreadId, "pending");
+    // An empty pane, so its first read shows the loader.
+    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
 
     const open = useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    // The pane's hydration joins the open's read instead of starting its own.
+    const hydration = hydrateThreadRuntimeItems(viewThreadId);
     await vi.waitFor(() => expect(threadHistory).toHaveBeenCalled());
     // Still reading: the loader stays (a cleared status here is a blank pane).
     expect(useAppStore.getState().runtimeHydrationStatus[viewThreadId]).toBe("pending");
 
     resolveHistory(remoteThreadSnapshot("rt-1"));
     await open;
-    // Installed: the leftover pending is gone, so history paging resumes.
+    await hydration;
+    // Installed: the loader ends, so history paging resumes.
     expect(useAppStore.getState().runtimeHydrationStatus[viewThreadId]).toBeUndefined();
-  });
-
-  it("keeps the launching client's optimistic message while opening the started thread", async () => {
-    const startedThread = {
-      ...remoteThread,
-      id: "rt-optimistic",
-      title: "New remote thread",
-      presentationMode: "gui",
-    } as Thread;
-    const client = makeClient({
-      startNewThread: vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
-        threadId: "rt-optimistic",
-      })),
-      snapshot: async () => ({
-        snapshotSeq: 2,
-        projects: [proj],
-        threads: [startedThread],
-        runtimeSummariesByThread: {},
-        updatedAt: "now",
-      }),
-      threadHistory: async () => ({
-        ...remoteThreadSnapshot("rt-optimistic"),
-        thread: startedThread,
-      }),
-    });
-    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
-    await pairIsolated(() => makeSocket());
-    const appThreadId = remoteThreadId("d1", "rt-optimistic");
-    useAppStore.setState({
-      runtimeItemIdsByThread: { [appThreadId]: ["user-optimistic"] },
-      runtimeItemsByIdByThread: {
-        [appThreadId]: {
-          "user-optimistic": { id: "user-optimistic", type: "user_message", text: "work remotely" },
-        },
-      },
-    } as never);
-    const counts: number[] = [];
-    const unsubscribe = useAppStore.subscribe((state) => {
-      counts.push(state.runtimeItemIdsByThread[appThreadId]?.length ?? 0);
-    });
-
-    try {
-      await useRemoteServersStore.getState().launchRemoteThread({
-        threadId: "rt-optimistic",
-        desktopId: "d1",
-        projectId: "p1",
-        agentKind: "claude",
-        config: { model: "claude-sonnet" },
-        prompt: "work remotely",
-        presentationMode: "gui",
-        userMessageItemId: "user-optimistic",
-      });
-    } finally {
-      unsubscribe();
-    }
-
-    // The open never wipes the on-screen launch (it used to blink to empty).
-    expect(counts).not.toContain(0);
-    expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-optimistic");
-  });
-
-  it("starts a GUI instance in the background without moving the main view", async () => {
-    const startedThread = {
-      ...remoteThread,
-      id: "rt-side",
-      agentKind: "neutral-gui",
-      agentInstanceId: "custom-instance",
-      presentationMode: "gui",
-    } as Thread;
-    const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
-      threadId: "rt-side",
-    }));
-    const client = makeClient({
-      startNewThread,
-      snapshot: async () => ({
-        snapshotSeq: 2,
-        projects: [proj],
-        threads: [startedThread],
-        runtimeSummariesByThread: {},
-        updatedAt: "now",
-      }),
-      threadHistory: async () => ({ ...remoteThreadSnapshot("rt-side"), thread: startedThread }),
-    });
-    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
-    await pairIsolated(() => makeSocket());
-    const viewBefore = useAppStore.getState().view;
-    await useRemoteServersStore.getState().launchRemoteThread(
-      {
-        threadId: "rt-side",
-        desktopId: "d1",
-        projectId: "p1",
-        agentKind: "neutral-gui",
-        agentInstanceId: "custom-instance",
-        config: { model: "default" },
-        prompt: "side question",
-        presentationMode: "gui",
-      },
-      { focus: false },
-    );
-    expect(startNewThread).toHaveBeenCalledWith(
-      expect.objectContaining({ agentKind: "neutral-gui", agentInstanceId: "custom-instance" }),
-    );
-    expect(useAppStore.getState().view).toEqual(viewBefore);
-  });
-
-  it("preserves an optimistic remote thread while its worktree is provisioning", async () => {
-    const socket = makeSocket();
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
-    useRemoteServersStore.getState().setSocketFactory(() => socket);
-    await useRemoteServersStore
-      .getState()
-      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
-    const pendingId = remoteThreadId("d1", "rt-pending");
-    useAppStore.getState().createThread({
-      threadId: pendingId,
-      projectId: remoteProjectId("d1", "p1"),
-      remoteServerId: "d1",
-      remoteId: "rt-pending",
-      agentKind: "claude",
-      config: { model: "claude-sonnet" },
-      prompt: "work remotely",
-      presentationMode: "gui",
-      worktreeBranch: "feature",
-      worktreeProvisioning: true,
-    });
-    useAppStore.getState().createThread({
-      threadId: remoteThreadId("d1", "rt-stale"),
-      projectId: remoteProjectId("d1", "p1"),
-      remoteServerId: "d1",
-      remoteId: "rt-stale",
-      agentKind: "claude",
-      config: { model: "claude-sonnet" },
-      prompt: "stale remote row",
-      presentationMode: "gui",
-    });
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-
-    socket.onmessage?.({
-      data: JSON.stringify({
-        type: "event",
-        seq: 1,
-        event: {
-          type: "thread-state",
-          threadId: "rt-stale",
-          status: "working",
-          attention: "working",
-          canResumeWithConfig: false,
-        },
-      }),
-    });
-    expect(sync.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
-
-    socket.onmessage?.({
-      data: JSON.stringify({
-        type: "event",
-        seq: 2,
-        event: {
-          type: "thread-state",
-          threadId: "rt-pending",
-          status: "working",
-          attention: "working",
-          canResumeWithConfig: false,
-        },
-      }),
-    });
-
-    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ threadId: pendingId }),
-    );
-
-    await useRemoteServersStore.getState().refreshServer("d1");
-
-    expect(useAppStore.getState().threads).toContainEqual(
-      expect.objectContaining({
-        id: pendingId,
-        remoteServerId: "d1",
-        remoteId: "rt-pending",
-      }),
-    );
-
-    useRemoteServersStore.getState().setClientFactory(
-      factoryFor(
-        makeClient({
-          snapshot: async () => ({
-            snapshotSeq: 3,
-            projects: [proj],
-            threads: [
-              {
-                ...remoteThread,
-                id: "rt-pending",
-                projectId: "p1",
-                worktreePath: "/srv/worktrees/feature",
-              },
-            ],
-            runtimeSummariesByThread: {},
-            updatedAt: "confirmed",
-          }),
-        }),
-      ),
-    );
-    await useRemoteServersStore.getState().refreshServer("d1");
-
-    expect(useAppStore.getState().provisioningWorktreeThreadIds[pendingId]).toBe(true);
-  });
-
-  it("compensates when an authoritative snapshot precedes deletion and the start response", async () => {
-    const start = deferred<{ threadId: string }>();
-    const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(() => start.promise);
-    const sendThreadCommand = vi.fn<() => Promise<void>>(
-      async () => {},
-    ) as unknown as RemoteDesktopClient["sendThreadCommand"];
-    let authoritative = false;
-    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => ({
-      snapshotSeq: authoritative ? 2 : 1,
-      projects: [proj],
-      threads: authoritative
-        ? [{ ...remoteThread, id: "rt-cancelled", worktreePath: "/srv/worktrees/feature" }]
-        : [],
-      runtimeSummariesByThread: {},
-      updatedAt: authoritative ? "authoritative" : "initial",
-    }));
-    useRemoteServersStore
-      .getState()
-      .setClientFactory(factoryFor(makeClient({ snapshot, startNewThread, sendThreadCommand })));
-    await pairIsolated(() => makeSocket());
-    const projectedId = remoteThreadId("d1", "rt-cancelled");
-    useAppStore.getState().createThread({
-      threadId: projectedId,
-      projectId: remoteProjectId("d1", "p1"),
-      remoteServerId: "d1",
-      remoteId: "rt-cancelled",
-      agentKind: "claude",
-      config: { model: "claude-sonnet" },
-      prompt: "work remotely",
-      presentationMode: "gui",
-      worktreeBranch: "feature",
-      worktreeProvisioning: true,
-    });
-
-    const launch = useRemoteServersStore.getState().launchRemoteThread(
-      {
-        threadId: "rt-cancelled",
-        desktopId: "d1",
-        projectId: "p1",
-        agentKind: "claude",
-        config: { model: "claude-sonnet" },
-        prompt: "work remotely",
-        presentationMode: "gui",
-        worktreePath: "/srv/worktrees/feature",
-      },
-      {
-        isPendingLaunchOwned: () =>
-          useAppStore.getState().provisioningWorktreeThreadIds[projectedId] === true,
-      },
-    );
-    await vi.waitFor(() => expect(startNewThread).toHaveBeenCalledOnce());
-    authoritative = true;
-    await useRemoteServersStore.getState().refreshServer("d1");
-    expect(useAppStore.getState().provisioningWorktreeThreadIds[projectedId]).toBe(true);
-    useAppStore.getState().deleteThread(projectedId);
-    start.resolve({ threadId: "rt-cancelled" });
-
-    await expect(launch).resolves.toBe("cancelled");
-    expect(sendThreadCommand).toHaveBeenCalledWith({
-      kind: "delete",
-      threadId: "rt-cancelled",
-    });
-    expect(useAppStore.getState().threads.map((thread) => thread.id)).not.toContain(projectedId);
-    expect(useRemoteServersStore.getState().openThread).toBeNull();
-  });
-
-  it("compensates when the provisional row is deleted while waiting for host appearance", async () => {
-    const appearance = deferred<Awaited<ReturnType<RemoteDesktopClient["snapshot"]>>>();
-    let snapshotCalls = 0;
-    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => {
-      snapshotCalls += 1;
-      if (snapshotCalls === 1) {
-        return {
-          snapshotSeq: 1,
-          projects: [proj],
-          threads: [],
-          runtimeSummariesByThread: {},
-          updatedAt: "initial",
-        };
-      }
-      return appearance.promise;
-    });
-    const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
-      threadId: "rt-waiting",
-    }));
-    const sendThreadCommand = vi.fn<() => Promise<void>>(
-      async () => {},
-    ) as unknown as RemoteDesktopClient["sendThreadCommand"];
-    useRemoteServersStore
-      .getState()
-      .setClientFactory(factoryFor(makeClient({ snapshot, startNewThread, sendThreadCommand })));
-    await pairIsolated(() => makeSocket());
-    const projectedId = remoteThreadId("d1", "rt-waiting");
-    useAppStore.getState().createThread({
-      threadId: projectedId,
-      projectId: remoteProjectId("d1", "p1"),
-      remoteServerId: "d1",
-      remoteId: "rt-waiting",
-      agentKind: "claude",
-      config: { model: "claude-sonnet" },
-      prompt: "work remotely",
-      presentationMode: "gui",
-      worktreeProvisioning: true,
-    });
-
-    const launch = useRemoteServersStore.getState().launchRemoteThread(
-      {
-        threadId: "rt-waiting",
-        desktopId: "d1",
-        projectId: "p1",
-        agentKind: "claude",
-        config: { model: "claude-sonnet" },
-        prompt: "work remotely",
-        presentationMode: "gui",
-      },
-      {
-        isPendingLaunchOwned: () =>
-          useAppStore.getState().provisioningWorktreeThreadIds[projectedId] === true,
-      },
-    );
-    await vi.waitFor(() => expect(snapshot).toHaveBeenCalledTimes(2));
-    useAppStore.getState().deleteThread(projectedId);
-    appearance.resolve({
-      snapshotSeq: 2,
-      projects: [proj],
-      threads: [{ ...remoteThread, id: "rt-waiting" }],
-      runtimeSummariesByThread: {},
-      updatedAt: "appeared",
-    });
-
-    await expect(launch).resolves.toBe("cancelled");
-    expect(sendThreadCommand).toHaveBeenCalledWith({
-      kind: "delete",
-      threadId: "rt-waiting",
-    });
-    expect(useRemoteServersStore.getState().openThread).toBeNull();
-  });
-
-  it("retains a cancelled remote launch when compensating deletion fails", async () => {
-    const sendThreadCommand = vi.fn<() => Promise<void>>(async () => {
-      throw new Error("remote delete failed");
-    }) as unknown as RemoteDesktopClient["sendThreadCommand"];
-    useRemoteServersStore
-      .getState()
-      .setClientFactory(factoryFor(makeClient({ sendThreadCommand })));
-    await pairIsolated(() => makeSocket());
-
-    await expect(
-      useRemoteServersStore.getState().launchRemoteThread(
-        {
-          threadId: "rt-orphaned",
-          desktopId: "d1",
-          projectId: "p1",
-          agentKind: "claude",
-          config: { model: "claude-sonnet" },
-          prompt: "work remotely",
-          presentationMode: "gui",
-          worktreePath: "/srv/worktrees/feature",
-        },
-        { isPendingLaunchOwned: () => false },
-      ),
-    ).resolves.toBe("cancellation-failed");
-    expect(toastDanger).toHaveBeenCalledWith("remote delete failed");
-    expect(useRemoteServersStore.getState().openThread).toBeNull();
-  });
-
-  it("closes a deleted launch opened during history hydration when compensation fails", async () => {
-    const history = deferred<RemoteThreadHistorySnapshot>();
-    let snapshotCalls = 0;
-    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => {
-      snapshotCalls += 1;
-      return {
-        snapshotSeq: snapshotCalls,
-        projects: [proj],
-        threads: snapshotCalls === 1 ? [] : [{ ...remoteThread, id: "rt-hydrating" }],
-        runtimeSummariesByThread: {},
-        updatedAt: `snapshot-${snapshotCalls}`,
-      };
-    });
-    const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
-      threadId: "rt-hydrating",
-    }));
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(() => history.promise);
-    const sendThreadCommand = vi.fn<() => Promise<void>>(async () => {
-      throw new Error("remote delete failed");
-    }) as unknown as RemoteDesktopClient["sendThreadCommand"];
-    useRemoteServersStore
-      .getState()
-      .setClientFactory(
-        factoryFor(makeClient({ snapshot, startNewThread, threadHistory, sendThreadCommand })),
-      );
-    await pairIsolated(() => makeSocket());
-    const projectedId = remoteThreadId("d1", "rt-hydrating");
-    useAppStore.getState().createThread({
-      threadId: projectedId,
-      projectId: remoteProjectId("d1", "p1"),
-      remoteServerId: "d1",
-      remoteId: "rt-hydrating",
-      agentKind: "claude",
-      config: { model: "claude-sonnet" },
-      prompt: "work remotely",
-      presentationMode: "gui",
-      worktreeProvisioning: true,
-    });
-
-    const launch = useRemoteServersStore.getState().launchRemoteThread(
-      {
-        threadId: "rt-hydrating",
-        desktopId: "d1",
-        projectId: "p1",
-        agentKind: "claude",
-        config: { model: "claude-sonnet" },
-        prompt: "work remotely",
-        presentationMode: "gui",
-      },
-      {
-        isPendingLaunchOwned: () =>
-          useAppStore.getState().provisioningWorktreeThreadIds[projectedId] === true,
-      },
-    );
-    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledWith("rt-hydrating"));
-    useAppStore.getState().deleteThread(projectedId);
-    history.resolve(remoteThreadSnapshot("rt-hydrating"));
-
-    await expect(launch).resolves.toBe("cancellation-failed");
-    expect(sendThreadCommand).toHaveBeenCalledWith({
-      kind: "delete",
-      threadId: "rt-hydrating",
-    });
-    expect(useRemoteServersStore.getState().openThread).toBeNull();
-    expect(useAppStore.getState().threads.map((thread) => thread.id)).not.toContain(projectedId);
+    expect(threadHistory).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the latest open remote thread when an earlier history request resolves last", async () => {
@@ -5454,7 +5033,7 @@ describe("useRemoteServersStore", () => {
     expect(socketFactory).toHaveBeenCalledTimes(1);
   });
 
-  it("hydrates two concurrent background panes with barriers: both histories, additive interests, no focus steal", async () => {
+  it("hydrates two concurrent background panes with barriers: both histories, both interests, no focus steal", async () => {
     const first = deferred<RemoteThreadHistorySnapshot>();
     const second = deferred<RemoteThreadHistorySnapshot>();
     const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>((threadId) =>
@@ -5474,8 +5053,8 @@ describe("useRemoteServersStore", () => {
     const applyCallsBefore = sync.applyThreadSnapshot.mock.calls.length;
     useAppStore.setState({ view: { kind: "home" } });
 
-    // Two visible background panes attach concurrently (startup restore with
-    // split panes): neither may invalidate the other's history fetch.
+    // Two background opens run concurrently (split panes): neither may
+    // invalidate the other's history fetch.
     const firstOpen = useRemoteServersStore
       .getState()
       .openRemoteThread("d1", "rt-1", { focus: false, quiet: true });
@@ -5497,126 +5076,22 @@ describe("useRemoteServersStore", () => {
           .map((call) => (call[0] as { thread: { id: string } }).thread.id),
       ),
     ).toEqual(new Set([remoteThreadId("d1", "rt-1"), remoteThreadId("d1", "rt-2")]));
-    const frames = send.mock.calls
+    // Both visible panes hold their interests on the one connection.
+    const firstPane = retainRendererEventInterest("runtime", remoteThreadId("d1", "rt-1"));
+    const secondPane = retainRendererEventInterest("runtime", remoteThreadId("d1", "rt-2"));
+    await Promise.all([firstPane.ready, secondPane.ready]);
+    const latestFrame = send.mock.calls
       .map((call) => JSON.parse(call[0] as string) as { type: string; threadIds: string[] })
       .filter((frame) => frame.type === "thread-item-interests")
-      .map((frame) => frame.threadIds);
-    const registrations = [...connectInterests, ...frames];
-    // At least one registration (connect URL and/or live frame) carries both
-    // panes additively — the second open never strips the first.
-    expect(registrations.some((ids) => new Set(ids ?? []).size === 2)).toBe(true);
-    const latest = [...frames].pop() ?? connectInterests[connectInterests.length - 1] ?? [];
-    expect(new Set(latest ?? [])).toEqual(new Set(["rt-1", "rt-2"]));
+      .pop()?.threadIds;
+    const latest = latestFrame ?? connectInterests.at(-1) ?? [];
+    expect(new Set(latest)).toEqual(new Set(["rt-1", "rt-2"]));
     // focus:false never steals focus and never depends on one global openThread
     // for hydration: the view stays where the user put it.
     expect(useAppStore.getState().view).toEqual({ kind: "home" });
-  });
-
-  it("suppresses a replayed runtime.truncated already incorporated by authoritative history", async () => {
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async () => ({
-      ...remoteThreadSnapshot("rt-1"),
-      snapshotSeq: 10,
-    }));
-    const send = vi.fn<(data: string) => void>();
-    const socket = makeSocket({ send });
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
-    await pairIsolated(() => socket);
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false });
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-    // Checkpoint known so no reload masks the suppression assertion.
-    useAppStore.setState({
-      runtimeItemIdsByThread: { [remoteThreadId("d1", "rt-1")]: ["cp", "tail"] },
-    });
-
-    const truncated = (seq: number) =>
-      JSON.stringify({
-        type: "event",
-        seq,
-        event: {
-          type: "thread-runtime-events-multi",
-          batches: [
-            {
-              threadId: "rt-1",
-              events: [
-                {
-                  type: "runtime.truncated",
-                  threadId: "rt-1",
-                  itemId: "cp",
-                  removedCompletedTurnAnchors: [],
-                },
-              ],
-            },
-          ],
-        },
-      });
-    // Installed seq is 10: replay at 7 (already incorporated) suppresses.
-    socket.onmessage?.({ data: truncated(7) });
-    expect(sync.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
-    // Newer truncation past the baseline still forwards.
-    socket.onmessage?.({ data: truncated(11) });
-    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(1);
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-  });
-
-  it("reloads authoritative history once for an unknown checkpoint, deduped and bounded, background-inclusive", async () => {
-    const historySeq = { current: 20 };
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (id: string) => ({
-      ...remoteThreadSnapshot(id),
-      snapshotSeq: historySeq.current,
-    }));
-    const send = vi.fn<(data: string) => void>();
-    const socket = makeSocket({ send });
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
-    await pairIsolated(() => socket);
-    // Background pane rt-2 attached (interest kept) while openThread holds rt-1.
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false });
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-2", { focus: false });
-    threadHistory.mockClear();
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-    historySeq.current = 30;
-
-    const truncatedUnknown = JSON.stringify({
-      type: "event",
-      seq: 30,
-      event: {
-        type: "thread-runtime-events-multi",
-        batches: [
-          {
-            threadId: "rt-2",
-            events: [
-              {
-                type: "runtime.truncated",
-                threadId: "rt-2",
-                itemId: "missing-cp",
-                removedCompletedTurnAnchors: ["a1"],
-              },
-            ],
-          },
-        ],
-      },
-    });
-    // Unknown checkpoint still forwards anchors (no speculative delete in the
-    // reducer) and triggers one authoritative reload.
-    deliverFillersThrough(socket, 30);
-    socket.onmessage?.({ data: truncatedUnknown });
-    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(1);
-    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledTimes(1));
-    expect(threadHistory.mock.calls[0]?.[0]).toBe("rt-2");
-
-    // Deduped: concurrent truncations while the reload is in flight (or right
-    // after success clears attempts, a second immediate replay is suppressed
-    // by the fresh baseline) never start a second fetch storm.
-    // Force a second unknown truncation for the same thread while attempts
-    // remain: first exhaust the bounded budget with failures.
-    threadHistory.mockClear();
-    threadHistory.mockRejectedValueOnce(new Error("offline"));
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-    historySeq.current = 31;
-    const truncatedNewer = truncatedUnknown.replace('"seq":30', '"seq":31');
-    socket.onmessage?.({ data: truncatedNewer });
-    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalled());
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
+    firstPane.release();
+    secondPane.release();
+    await new Promise((resolve) => setTimeout(resolve, 300));
   });
 
   it("does not install openRemoteThread history after the server is removed mid-fetch", async () => {
@@ -5667,6 +5142,7 @@ describe("useRemoteServersStore", () => {
     useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
     await pairIsolated(() => socket);
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
+    seedRemoteThreadOwner();
     const applyBefore = sync.applyThreadSnapshot.mock.calls.length;
     socket.onmessage?.({
       data: JSON.stringify({ type: "resync-required", seq: 5, reason: "restart" }),
@@ -5684,465 +5160,6 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().openThread).toBeNull();
   });
 
-  it("follows up a truncate reload when the snapshot does not authoritatively install", async () => {
-    const historySeq = { current: 20 };
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (id: string) => ({
-      ...remoteThreadSnapshot(id),
-      snapshotSeq: historySeq.current,
-    }));
-    const send = vi.fn<(data: string) => void>();
-    const socket = makeSocket({ send });
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
-    await pairIsolated(() => socket);
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false });
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-2", { focus: false });
-    threadHistory.mockClear();
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-    historySeq.current = 30;
-    sync.applyThreadSnapshot.mockReturnValueOnce({ installedAuthoritativeHistory: false });
-    deliverFillersThrough(socket, 30);
-    socket.onmessage?.({
-      data: JSON.stringify({
-        type: "event",
-        seq: 30,
-        event: {
-          type: "thread-runtime-events-multi",
-          batches: [
-            {
-              threadId: "rt-2",
-              events: [
-                {
-                  type: "runtime.truncated",
-                  threadId: "rt-2",
-                  itemId: "missing-cp",
-                  removedCompletedTurnAnchors: ["a1"],
-                },
-              ],
-            },
-          ],
-        },
-      }),
-    });
-    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledTimes(2));
-    expect(threadHistory.mock.calls[0]?.[0]).toBe("rt-2");
-    expect(threadHistory.mock.calls[1]?.[0]).toBe("rt-2");
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-  });
-
-  it("does not miss a newer truncate arriving while a reload is in flight", async () => {
-    const first = deferred<RemoteThreadHistorySnapshot>();
-    const historySeq = { current: 20 };
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (id: string) => ({
-      ...remoteThreadSnapshot(id),
-      snapshotSeq: historySeq.current,
-    }));
-    const send = vi.fn<(data: string) => void>();
-    const socket = makeSocket({ send });
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
-    await pairIsolated(() => socket);
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false });
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-2", { focus: false });
-    threadHistory.mockClear();
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-    let reloadCount = 0;
-    threadHistory.mockImplementation((id: string) => {
-      reloadCount += 1;
-      if (reloadCount === 1) return first.promise;
-      return Promise.resolve({ ...remoteThreadSnapshot(id), snapshotSeq: 35 });
-    });
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-    const truncated = (seq: number) =>
-      JSON.stringify({
-        type: "event",
-        seq,
-        event: {
-          type: "thread-runtime-events-multi",
-          batches: [
-            {
-              threadId: "rt-2",
-              events: [
-                {
-                  type: "runtime.truncated",
-                  threadId: "rt-2",
-                  itemId: "missing-cp",
-                  removedCompletedTurnAnchors: ["a1"],
-                },
-              ],
-            },
-          ],
-        },
-      });
-    deliverFillersThrough(socket, 30);
-    socket.onmessage?.({ data: truncated(30) });
-    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledTimes(1));
-    deliverFillersThrough(socket, 35);
-    socket.onmessage?.({ data: truncated(35) });
-    expect(threadHistory).toHaveBeenCalledTimes(1);
-    first.resolve({ ...remoteThreadSnapshot("rt-2"), snapshotSeq: 32 });
-    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledTimes(2));
-    expect(threadHistory.mock.calls[1]?.[0]).toBe("rt-2");
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-  });
-
-  it("parks a failing truncate reload after three attempts without a storm", async () => {
-    const historySeq = { current: 20 };
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (id: string) => ({
-      ...remoteThreadSnapshot(id),
-      snapshotSeq: historySeq.current,
-    }));
-    const send = vi.fn<(data: string) => void>();
-    const socket = makeSocket({ send });
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
-    await pairIsolated(() => socket);
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false });
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-2", { focus: false });
-    threadHistory.mockClear();
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-    historySeq.current = 30;
-    sync.applyThreadSnapshot.mockReturnValueOnce({ installedAuthoritativeHistory: false });
-    sync.applyThreadSnapshot.mockReturnValueOnce({ installedAuthoritativeHistory: false });
-    sync.applyThreadSnapshot.mockReturnValueOnce({ installedAuthoritativeHistory: false });
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-    const truncated = (seq: number) =>
-      JSON.stringify({
-        type: "event",
-        seq,
-        event: {
-          type: "thread-runtime-events-multi",
-          batches: [
-            {
-              threadId: "rt-2",
-              events: [
-                {
-                  type: "runtime.truncated",
-                  threadId: "rt-2",
-                  itemId: "missing-cp",
-                  removedCompletedTurnAnchors: ["a1"],
-                },
-              ],
-            },
-          ],
-        },
-      });
-    deliverFillersThrough(socket, 30);
-    for (let seq = 30; seq < 36; seq += 1) {
-      socket.onmessage?.({ data: truncated(seq) });
-    }
-    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledTimes(3));
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(threadHistory).toHaveBeenCalledTimes(3);
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-  });
-
-  it("drops a truncate reload that resolves after the server is removed", async () => {
-    const pending = deferred<RemoteThreadHistorySnapshot>();
-    const historySeq = { current: 20 };
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (id: string) => ({
-      ...remoteThreadSnapshot(id),
-      snapshotSeq: historySeq.current,
-    }));
-    const send = vi.fn<(data: string) => void>();
-    const socket = makeSocket({ send });
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
-    await pairIsolated(() => socket);
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false });
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-2", { focus: false });
-    threadHistory.mockClear();
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-    threadHistory.mockImplementation(() => pending.promise);
-    const applyBefore = sync.applyThreadSnapshot.mock.calls.length;
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-    deliverFillersThrough(socket, 30);
-    socket.onmessage?.({
-      data: JSON.stringify({
-        type: "event",
-        seq: 30,
-        event: {
-          type: "thread-runtime-events-multi",
-          batches: [
-            {
-              threadId: "rt-2",
-              events: [
-                {
-                  type: "runtime.truncated",
-                  threadId: "rt-2",
-                  itemId: "missing-cp",
-                  removedCompletedTurnAnchors: ["a1"],
-                },
-              ],
-            },
-          ],
-        },
-      }),
-    });
-    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledTimes(1));
-    useRemoteServersStore.getState().removeServer("d1");
-    pending.resolve({ ...remoteThreadSnapshot("rt-2"), snapshotSeq: 30 });
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(sync.applyThreadSnapshot.mock.calls.length).toBe(applyBefore);
-    expect(threadHistory).toHaveBeenCalledTimes(1);
-  });
-
-  it("restarts pending truncate recovery on a healthy reconnect without another truncate", async () => {
-    vi.useFakeTimers();
-    const sockets: RemoteSocketLike[] = [];
-    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
-      const socket = makeSocket();
-      sockets.push(socket);
-      return socket;
-    });
-    const historySeq = { current: 10 };
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (id: string) => ({
-      ...remoteThreadSnapshot(id),
-      snapshotSeq: historySeq.current,
-    }));
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
-    await pairIsolated(socketFactory);
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false });
-    threadHistory.mockClear();
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-    sync.applyThreadSnapshot.mockClear();
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-    historySeq.current = 30;
-    // Deferred network failure: the authoritative reload fails once, keeping
-    // its pending seq for a deduped follow-up instead of clearing it.
-    threadHistory.mockRejectedValueOnce(new Error("offline"));
-    const truncatedUnknown = JSON.stringify({
-      type: "event",
-      seq: 30,
-      event: {
-        type: "thread-runtime-events-multi",
-        batches: [
-          {
-            threadId: "rt-1",
-            events: [
-              {
-                type: "runtime.truncated",
-                threadId: "rt-1",
-                itemId: "missing-cp",
-                removedCompletedTurnAnchors: ["a1"],
-              },
-            ],
-          },
-        ],
-      },
-    });
-    deliverFillersThrough(sockets[0]!, 30);
-    sockets[0]?.onmessage?.({ data: truncatedUnknown });
-    await vi.advanceTimersByTimeAsync(0);
-    expect(threadHistory).toHaveBeenCalledTimes(1);
-    expect(threadHistory.mock.calls[0]?.[0]).toBe("rt-1");
-    expect(getTruncateNeededSeq("d1", "rt-1")).toBe(30);
-    expect(getAuthoritativeHistorySeq("d1", "rt-1")).toBe(10);
-    // Unsubscribed pending stays queued but must never trigger a fetch on its
-    // own: only still-subscribed threads of the current server restart.
-    noteTruncateNeeded("d1", "rt-ghost", 30);
-    expect(listPendingTruncateReloads("d1")).toHaveLength(2);
-    const openBefore = useRemoteServersStore.getState().openThread;
-    expect(openBefore?.threadId).toBe("rt-1");
-
-    // Socket close schedules a reconnect; the healthy reconnect goes online
-    // without any `resync-required`, so without the restart the stale
-    // transcript would stay forever (the truncation already advanced the
-    // resume cursor and will never repeat, and the restore hook skips its
-    // open while the global openThread already matches).
-    sockets[0]?.onclose?.();
-    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("connecting");
-    await vi.advanceTimersByTimeAsync(2_000);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(socketFactory.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
-    await vi.advanceTimersByTimeAsync(0);
-    // One covering fetch for the subscribed thread, none for the ghost, no
-    // new truncate event needed.
-    expect(threadHistory.mock.calls.filter((call) => call[0] === "rt-1")).toHaveLength(2);
-    expect(threadHistory.mock.calls.some((call) => call[0] === "rt-ghost")).toBe(false);
-    expect(getTruncateNeededSeq("d1", "rt-1")).toBeUndefined();
-    expect(getAuthoritativeHistorySeq("d1", "rt-1")).toBe(30);
-    expect(getTruncateNeededSeq("d1", "rt-ghost")).toBe(30);
-    // The recovery installs the baseline without touching the open slice.
-    expect(useRemoteServersStore.getState().openThread).toBe(openBefore);
-    expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-1");
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-  });
-
-  it("re-arms an exhausted truncate reload on reconnect without a fetch storm", async () => {
-    vi.useFakeTimers();
-    const sockets: RemoteSocketLike[] = [];
-    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
-      const socket = makeSocket();
-      sockets.push(socket);
-      return socket;
-    });
-    const historySeq = { current: 10 };
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (id: string) => ({
-      ...remoteThreadSnapshot(id),
-      snapshotSeq: historySeq.current,
-    }));
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
-    await pairIsolated(socketFactory);
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false });
-    threadHistory.mockClear();
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-    threadHistory.mockRejectedValue(new Error("offline"));
-    const truncated = (seq: number) =>
-      JSON.stringify({
-        type: "event",
-        seq,
-        event: {
-          type: "thread-runtime-events-multi",
-          batches: [
-            {
-              threadId: "rt-1",
-              events: [
-                {
-                  type: "runtime.truncated",
-                  threadId: "rt-1",
-                  itemId: "missing-cp",
-                  removedCompletedTurnAnchors: ["a1"],
-                },
-              ],
-            },
-          ],
-        },
-      });
-    deliverFillersThrough(sockets[0]!, 30);
-    for (let seq = 30; seq < 33; seq += 1) {
-      sockets[0]?.onmessage?.({ data: truncated(seq) });
-      await vi.advanceTimersByTimeAsync(0);
-    }
-    expect(threadHistory).toHaveBeenCalledTimes(3);
-    sockets[0]?.onmessage?.({ data: truncated(33) });
-    await vi.advanceTimersByTimeAsync(0);
-    expect(threadHistory).toHaveBeenCalledTimes(3);
-    expect(getTruncateNeededSeq("d1", "rt-1")).toBe(33);
-    // A real reconnect re-arms the budget. One failed recovery request must
-    // stay parked until another event or connectivity transition.
-    sockets[0]?.onclose?.();
-    await vi.advanceTimersByTimeAsync(2_000);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
-    expect(threadHistory).toHaveBeenCalledTimes(4);
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(threadHistory).toHaveBeenCalledTimes(4);
-    expect(getTruncateNeededSeq("d1", "rt-1")).toBe(33);
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-  });
-
-  it("preserves pending truncate recovery across an expired close without fetching while reconnecting", async () => {
-    vi.useFakeTimers();
-    const sockets: RemoteSocketLike[] = [];
-    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
-      const socket = makeSocket();
-      sockets.push(socket);
-      return socket;
-    });
-    const historySeq = { current: 10 };
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (id: string) => ({
-      ...remoteThreadSnapshot(id),
-      snapshotSeq: historySeq.current,
-    }));
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
-    await pairIsolated(socketFactory);
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false });
-    threadHistory.mockClear();
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-    threadHistory.mockRejectedValueOnce(new Error("offline"));
-    deliverFillersThrough(sockets[0]!, 30);
-    sockets[0]?.onmessage?.({
-      data: JSON.stringify({
-        type: "event",
-        seq: 30,
-        event: {
-          type: "thread-runtime-events-multi",
-          batches: [
-            {
-              threadId: "rt-1",
-              events: [
-                {
-                  type: "runtime.truncated",
-                  threadId: "rt-1",
-                  itemId: "missing-cp",
-                  removedCompletedTurnAnchors: ["a1"],
-                },
-              ],
-            },
-          ],
-        },
-      }),
-    });
-    await vi.advanceTimersByTimeAsync(0);
-    expect(threadHistory).toHaveBeenCalledTimes(1);
-    expect(getTruncateNeededSeq("d1", "rt-1")).toBe(30);
-    sockets[0]?.onclose?.({ code: 1008, reason: "Remote access session expired" });
-    expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({ status: "connecting" });
-    await vi.advanceTimersByTimeAsync(0);
-    // Expired (connecting, not online) never restarts the owned reload.
-    expect(threadHistory).toHaveBeenCalledTimes(1);
-    expect(getTruncateNeededSeq("d1", "rt-1")).toBe(30);
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-  });
-
-  it("does not use the global server resume cursor or shell snapshot as truncation proof", async () => {
-    // Shell snapshot seq advances via refreshServer but never installs a
-    // transcript baseline: a truncated replay must still forward until a real
-    // threadHistory install records it.
-    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async () => ({
-      ...remoteThreadSnapshot("rt-1"),
-      snapshotSeq: 5,
-    }));
-    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => ({
-      snapshotSeq: 50,
-      projects: [proj],
-      threads: [{ ...remoteThread, id: "rt-1" }],
-      runtimeSummariesByThread: {},
-      updatedAt: "now",
-    }));
-    const socket = makeSocket({ send: vi.fn<(data: string) => void>() });
-    useRemoteServersStore
-      .getState()
-      .setClientFactory(factoryFor(makeClient({ threadHistory, snapshot })));
-    await pairIsolated(() => socket);
-    await useRemoteServersStore.getState().refreshServer("d1");
-    // No threadHistory install yet for rt-1 in this test beyond the open below;
-    // refresh alone (shell snapshot seq 50) must not suppress seq 7.
-    await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1", { focus: false });
-    // Open installed seq 5, so seq 7 is newer and must forward (not suppressed
-    // by the shell's 50).
-    sync.dispatchRemoteSupervisorEvent.mockClear();
-    useAppStore.setState({
-      runtimeItemIdsByThread: { [remoteThreadId("d1", "rt-1")]: ["cp"] },
-    });
-    socket.onmessage?.({
-      data: JSON.stringify({
-        type: "event",
-        seq: 7,
-        event: {
-          type: "thread-runtime-events-multi",
-          batches: [
-            {
-              threadId: "rt-1",
-              events: [
-                {
-                  type: "runtime.truncated",
-                  threadId: "rt-1",
-                  itemId: "cp",
-                  removedCompletedTurnAnchors: [],
-                },
-              ],
-            },
-          ],
-        },
-      }),
-    });
-    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(1);
-    useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
-  });
-
-  // ── Finding #1: desktop-as-client event filtering ──────────────────
   describe("filterRemoteThreadEvent", () => {
     it("drops unrelated desktop-global events but keeps Git state events", () => {
       expect(

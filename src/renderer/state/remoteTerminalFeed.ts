@@ -6,7 +6,10 @@ import {
 } from "@/shared/remote/terminalFeed";
 import type { RemoteWebSocketServerMessage } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
-import { remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
+import {
+  readRegisteredRemoteProcedureHost,
+  remoteTerminalOwner,
+} from "@/renderer/remoteProcedureRouter";
 import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
 
 /**
@@ -64,11 +67,26 @@ export function watchRemoteTerminal(
  * desktop-IPC relay as the fallback. */
 export function watchRoutedTerminal(
   id: string,
-  listener: RemoteTerminalListener,
-  desktopId: string | undefined = remoteTerminalOwner(id),
+  listener: ManagedTerminalListener,
+  desktopId?: string,
 ): () => void {
-  if (desktopId) return watchRemoteTerminal(desktopId, id, listener);
+  const owner = desktopId ? { desktopId, hostId: id } : pairedTerminalOwner(id);
+  if (owner) return watchRemoteTerminal(owner.desktopId, owner.hostId, listener);
   return watchManagedTerminal(id, listener);
+}
+
+/**
+ * The paired host and host-side id that own a terminal: a shell this client
+ * started on a paired host, or a paired host's thread. Undefined for the
+ * managed host's own terminals.
+ */
+export function pairedTerminalOwner(
+  id: string,
+): { readonly desktopId: string; readonly hostId: string } | undefined {
+  const desktopId = remoteTerminalOwner(id);
+  if (desktopId) return { desktopId, hostId: id };
+  const thread = readRegisteredRemoteProcedureHost()?.resolveThreadOwner(id);
+  return thread ? { desktopId: thread.desktopId, hostId: thread.remoteId } : undefined;
 }
 
 export function handleRemoteTerminalServerMessage(
@@ -158,7 +176,7 @@ export type ManagedTerminalListener = TerminalFeedListener & {
 };
 
 /**
- * Subscription seam for LOCAL (managed) terminals — the unified successor of
+ * The managed host's own terminals — the unified successor of
  * the raw relay subscription. Chooses the active leg at subscribe time and
  * follows leg flips for the lifetime of the subscription:
  *
@@ -171,14 +189,7 @@ export type ManagedTerminalListener = TerminalFeedListener & {
  * backend's retention and the transport's rebuild scope intact, and mirrors
  * the previous relay-only subscription's retention behavior.
  */
-export function watchManagedTerminal(
-  id: string,
-  listener: ManagedTerminalListener,
-  desktopId: string | undefined = remoteTerminalOwner(id),
-): () => void {
-  // A remotely owned terminal routes as before (unchanged remote path).
-  if (desktopId) return watchRemoteTerminal(desktopId, id, listener);
-
+function watchManagedTerminal(id: string, listener: ManagedTerminalListener): () => void {
   const interest = retainRendererEventInterest("terminal", id);
   let feedUnsubscribe: (() => void) | null = null;
 

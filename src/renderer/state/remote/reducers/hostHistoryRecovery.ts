@@ -3,8 +3,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import { useAppStore } from "@/renderer/state/appStore";
 import { rehydrateThreadRuntimeItemsAfterReset } from "@/renderer/state/chatRuntimePersister";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
-import { resumeManagedRootHistory } from "@/renderer/state/managedRootCatalog/rootHistoryResume";
-import { managedRootHistoryActivation } from "@/renderer/state/managedRootCatalog/rootHistory";
+import type { resumeHostThreadHistory } from "@/renderer/state/hostThreadHistory";
 import { readHistoryResume } from "@/renderer/state/historyResumeRegistry";
 import type {
   RuntimeEventRecoveryStrategy,
@@ -19,7 +18,7 @@ import type {
  * once that re-read has landed (V5 plan 2.3: injected recovery strategy —
  * local snapshot | HTTP snapshot).
  */
-export interface LocalSnapshotRecovery {
+export interface HostHistoryRecovery {
   readonly strategy: RuntimeEventRecoveryStrategy;
   /** Records the transport sequence of every sequenced event, per thread. */
   readonly noteSequencedSupervisorEvent: (
@@ -32,9 +31,25 @@ export interface LocalSnapshotRecovery {
   readonly clearSequenceTracking: () => void;
 }
 
-export function createLocalSnapshotRecovery(deps: {
+/**
+ * The owning host's resume step and resume authority, registered by the host
+ * history module (kept out of this module's imports: the live reducer that
+ * creates this recovery must not import the host graph).
+ */
+export interface HostHistoryResumer {
+  readonly resume: typeof resumeHostThreadHistory;
+  readonly resumeAuthority: (threadId: string) => string | undefined;
+}
+
+let resumer: HostHistoryResumer | null = null;
+
+export function setHostHistoryResumer(next: HostHistoryResumer | null): void {
+  resumer = next;
+}
+
+export function createHostHistoryRecovery(deps: {
   readonly getArbitration: () => RuntimeQueueArbitration;
-}): LocalSnapshotRecovery {
+}): HostHistoryRecovery {
   let rendererTransportGeneration = 0;
   const latestRendererSequenceByThread = new Map<
     string,
@@ -49,13 +64,15 @@ export function createLocalSnapshotRecovery(deps: {
    */
   async function recoverRuntimeThread(threadId: string): Promise<boolean> {
     const generation = rendererTransportGeneration;
-    let resume: Awaited<ReturnType<typeof resumeManagedRootHistory>>;
+    let resume: Awaited<ReturnType<HostHistoryResumer["resume"]>>;
     try {
-      const pendingResume = resumeManagedRootHistory(
-        threadId,
-        deps.getArbitration(),
-        () => rendererTransportGeneration === generation,
-        () => latestRendererSequenceByThread.get(threadId)?.loopback,
+      const pendingResume = resumer?.resume(
+        { id: threadId },
+        {
+          arbitration: deps.getArbitration(),
+          isCurrent: () => rendererTransportGeneration === generation,
+          lastSeenEventSeq: () => latestRendererSequenceByThread.get(threadId)?.loopback,
+        },
       );
       resume = pendingResume ? await pendingResume : null;
     } catch {
@@ -68,7 +85,7 @@ export function createLocalSnapshotRecovery(deps: {
       // Keep the reader visible during I/O. Reset and install in the same
       // synchronous continuation, after the authoritative read succeeds.
       const recovered = await rehydrateThreadRuntimeItemsAfterReset(threadId, {
-        ...(attempt === 0 && resume?.kind === "snapshot" ? { historyPage: resume.snapshot } : {}),
+        ...(attempt === 0 && resume?.kind === "snapshot" ? { historyPage: resume.page } : {}),
         beforeInstall: () => {
           if (rendererTransportGeneration !== generation) return false;
           // The DB contains transcript rows, not authoritative open requests.
@@ -79,8 +96,8 @@ export function createLocalSnapshotRecovery(deps: {
       });
       if (!recovered) return false;
       if (rendererTransportGeneration !== generation) return false;
-      const activation = managedRootHistoryActivation();
-      const snapshot = activation && readHistoryResume(threadId, activation.authority);
+      const authority = resumer?.resumeAuthority(threadId);
+      const snapshot = authority && readHistoryResume(threadId, authority);
       if (snapshot) {
         const arbitration = deps.getArbitration();
         if (arbitration.hasUnsequenced(threadId)) return false;

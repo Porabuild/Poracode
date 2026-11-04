@@ -9,7 +9,6 @@ import {
 } from "@/shared/remote/client";
 import { remoteServerFailureMessage } from "./failureMessage";
 import { i18n } from "@/renderer/i18n/i18n";
-import { resetTruncateReloadBackoff } from "@/renderer/state/remote/truncateRecovery";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import { environmentSessionForServer } from "./environmentSessions";
 import { directImageSessionFor } from "./directImages";
@@ -34,6 +33,7 @@ import {
   type SharedCredentialCustody,
 } from "./sharedCredentials";
 import { noteDesktopTokenCommitted } from "./tokenVault";
+import { SessionRenewal } from "./sessionRenewal";
 import type { RemoteServerRecord, RemoteServersState } from "./types";
 import type { TerminalConnectionCapabilities } from "./terminalCapabilities";
 
@@ -71,7 +71,6 @@ export function createRemoteServerClientBindings(
     status: "offline" | "error",
     message: string,
   ) => {
-    const previous = get().runtime[desktopId]?.status;
     set((state) => {
       const current = state.runtime[desktopId];
       if (!current) return {};
@@ -83,7 +82,6 @@ export function createRemoteServerClientBindings(
     // Offline/error drops re-arm unknown-checkpoint reload budgets without
     // clearing installed authoritative baselines (transport flap, not a
     // server restart).
-    if (previous !== status) resetTruncateReloadBackoff(desktopId);
     syncDesktopBrowserBridgeClient(get());
   };
 
@@ -194,7 +192,12 @@ export function createRemoteServerClientBindings(
     client.setTokenLifecycle({
       accessToken: currentAccessToken,
       refreshToken: () => (isCurrent() ? refreshTokenForDesktop(connectionKey) : undefined),
-      onTokensRefreshed: (tokens) => commitSharedRefresh(custody, tokens),
+      onTokensRefreshed: (tokens) => {
+        // A rotation reports the new bearer's deadline: renew a lead before it,
+        // as the desktop host's session does, instead of meeting the expiry.
+        if (isCurrent()) sessionRenewalFor(connectionKey).schedule(tokens.accessTokenExpiresAt);
+        return commitSharedRefresh(custody, tokens);
+      },
       runExclusive: (run) => runSharedRefresh(custody, run),
       // A 401 the refresh path could not repair: only a REFUSED grant (401/403
       // from the grant endpoint) is dead — transport-class refresh failures
@@ -235,6 +238,40 @@ export function createRemoteServerClientBindings(
     return directImageSessionFor(connectionKey, identity, () => clientForServer(server));
   };
 
+  const sessionRenewals = new Map<string, SessionRenewal>();
+  /** The proactive renewal of one connection's session, through its current client. */
+  const sessionRenewalFor = (connectionKey: string): SessionRenewal => {
+    let renewal = sessionRenewals.get(connectionKey);
+    if (!renewal) {
+      const owned = new SessionRenewal(async () => {
+        if (!get().servers.some((entry) => remoteConnectionKey(entry) === connectionKey)) {
+          // The connection was removed: nothing left to renew.
+          owned.dispose();
+          sessionRenewals.delete(connectionKey);
+          return false;
+        }
+        try {
+          // Straight through the client, not `withClient`: a transport hiccup
+          // in a background renewal must not flip a healthy host to offline.
+          return (await requireClient(connectionKey).refreshTokens()) !== null;
+        } catch (error) {
+          // A refused grant is dead (re-pair); anything else is retried.
+          if (isUnauthorizedRemoteError(error)) return false;
+          throw error;
+        }
+      }, "remote");
+      renewal = owned;
+      sessionRenewals.set(connectionKey, renewal);
+    }
+    return renewal;
+  };
+
+  /** Stops a removed connection's renewal, so a re-paired one never inherits its timer. */
+  const disposeSessionRenewal = (connectionKey: string): void => {
+    sessionRenewals.get(connectionKey)?.dispose();
+    sessionRenewals.delete(connectionKey);
+  };
+
   const withClient = async <Result>(
     desktopId: string,
     invoke: (client: RemoteDesktopClient) => Promise<Result>,
@@ -260,7 +297,6 @@ export function createRemoteServerClientBindings(
         });
         // Reactivation re-arms bounded reloads (offline cleared them, but
         // an explicit success proves reachability again).
-        resetTruncateReloadBackoff(desktopId);
         syncDesktopBrowserBridgeClient(get());
       }
       return result;
@@ -301,6 +337,7 @@ export function createRemoteServerClientBindings(
     requireClient,
     directImagesFor,
     withClient,
+    disposeSessionRenewal,
     checkHostUpdateInBackground,
   };
 }

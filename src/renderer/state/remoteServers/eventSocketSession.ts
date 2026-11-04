@@ -7,20 +7,18 @@ import {
 } from "@/shared/remote/client";
 import {
   isUnauthorizedRemoteSocketClose,
+  REMOTE_ACCESS_SESSION_EXPIRED_REASON,
   REMOTE_SOCKET_POLICY,
   RemoteSocketHealthMonitor,
   RemoteSocketReconnectPolicy,
 } from "@/shared/remote/socketPolicy";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { getRemoteSocketEngine } from "@/renderer/state/remote/engine";
-import { resetTruncateReloadBackoff } from "@/renderer/state/remote/truncateRecovery";
 import { setRemoteTerminalSocketSender } from "@/renderer/state/remoteTerminalFeed";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import { bindRemoteEngineLaneOverflow } from "./eventSocketEngine";
-import {
-  createEventSocketRecoveryState,
-  type EventSocketConnectionContext,
-} from "./eventSocketContext";
+import { type EventSocketConnectionContext } from "./eventSocketContext";
+import { declareEventSocketCapabilities } from "./eventSocketUpgrade";
 import { bindEventSocketMessages } from "./eventSocketMessages";
 import { setAgentVisionSocketSender } from "@/renderer/browser/agentVisionStream";
 import {
@@ -29,7 +27,6 @@ import {
   deleteRemoteServerEventSocketEntry,
   forgetRemoteServerCursorSyncV2,
   getRemoteServerEventSocketEntry,
-  getRemoteServerThreadItemInterests,
   rememberRemoteServerThreadItemInterests,
   remoteServerSnapshotEpoch,
   remoteServerSnapshotSeq,
@@ -39,12 +36,13 @@ import {
   type RemoteServerEventSocketEntry,
 } from "./eventSocketRegistry";
 import { bindEventSocketResync } from "./eventSocketResync";
-import { withEventEpochDeclaration } from "@/shared/remote/protocol/eventEpoch";
-import { withRuntimeHistoryNoticesDeclaration } from "@/renderer/state/remote/historyNoticeCapability";
+import { notePairedItemInterestCoverage, pairedItemInterests } from "./pairedItemInterests";
+import { useAppStore } from "@/renderer/state/appStore";
+import { hasHydratedThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
+import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import {
   declaresBoundedCatalogChangesForConnection,
   noteBoundedCatalogChangesCapability,
-  withBoundedCatalogChangesDeclaration,
 } from "@/renderer/state/remote/boundedCatalogChangesCapability";
 import { remoteConnectionKey } from "./types";
 import { refreshTokenForDesktop } from "./refreshTokens";
@@ -138,15 +136,6 @@ export async function startRemoteServerEventStream(
     dispose: () => decodeLane.dispose(),
   };
   setRemoteServerEventSocketEntry(connectionKey, entry);
-  /** Socket the in-flight resync promise belongs to. A recovery must never be
-   * reused across connections: a dead socket's recovery resolving `false`
-   * would force-reconnect a healthy replacement and report a false offline. */
-  const resyncSlots: EventSocketConnectionContext["resyncSlots"] = {
-    promise: null,
-    socket: null,
-    resumeFence: null,
-  };
-  const recovery = createEventSocketRecoveryState();
   /** Set when a frame was provably dropped client-side (engine overflow/reset
    * rejection, expected-seq gap). The next connection re-baselines interested
    * threads from authoritative snapshots after resuming from the last APPLIED
@@ -197,6 +186,7 @@ export async function startRemoteServerEventStream(
     clearRemoteServerEventSocketConnectTimeout(entry);
     clearRemoteServerEventSocketHealth(entry);
     forgetRemoteServerCursorSyncV2(connectionKey);
+    notePairedItemInterestCoverage(connectionKey, false);
     setRemoteTerminalSocketSender(connectionKey, null);
     setAgentVisionSocketSender(connectionKey, null);
     syncDesktopBrowserBridgeClient(get());
@@ -274,26 +264,14 @@ export async function startRemoteServerEventStream(
       );
       const lastSeenSeq = remoteServerSnapshotSeq(connectionKey);
       const lastSeenEpoch = remoteServerSnapshotEpoch(connectionKey);
-      const openThread = get().openThread;
-      const threadItemInterests =
-        getRemoteServerThreadItemInterests(connectionKey) ??
-        (openThread?.desktopId === connectionKey ? [openThread.threadId] : []);
+      const threadItemInterests = pairedItemInterests(connectionKey);
       const socket = await get().socketFactory(
-        // B1: declare notice capability at upgrade only because the renderer
-        // renders and can acknowledge the durable notice. boundedCatalogChanges
-        // rides the same upgrade only when this descriptor advertised it AND
-        // the bounded controller (which refreshes through bounded reads on the
-        // payload-less signal) is installed for this connection. The epoch
-        // declaration binds the resume cursor to the instance that issued it
-        // (older hosts ignore it and keep the seq-only resume).
-        withEventEpochDeclaration(
-          withBoundedCatalogChangesDeclaration(
-            withRuntimeHistoryNoticesDeclaration(
-              client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
-            ),
-            declaresBoundedCatalogChangesForConnection(connectionKey),
-          ),
-          lastSeenEpoch,
+        declareEventSocketCapabilities(
+          client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
+          {
+            boundedCatalogChanges: declaresBoundedCatalogChangesForConnection(connectionKey),
+            resume: { lastSeenEpoch },
+          },
         ),
       );
       if (!isCurrent()) {
@@ -329,13 +307,11 @@ export async function startRemoteServerEventStream(
         decodeFrame: (raw) => decodeLane.decodeRemote(raw),
         renewDecoder: () => decodeLane.renew(),
         decodeInline: !engine.isWorkerSupported(),
-        recovery,
-        resyncSlots,
         dispatchForwardEvent: () => {},
         recoverInterestedThreads: async () => false,
       };
       bindEventSocketResync(ctx);
-      const resumePendingTruncateReloads = bindEventSocketMessages(ctx);
+      bindEventSocketMessages(ctx);
       const activateSocket = () => {
         if (!isCurrent() || entry.socket !== socket) return;
         clearRemoteServerEventSocketConnectTimeout(entry);
@@ -347,19 +323,15 @@ export async function startRemoteServerEventStream(
           return true;
         });
         syncDesktopBrowserBridgeClient(get());
-        const currentThreadItemInterests =
-          getRemoteServerThreadItemInterests(connectionKey) ?? threadItemInterests;
+        const currentThreadItemInterests = pairedItemInterests(connectionKey);
         if (sameRemoteServerThreadItemInterests(currentThreadItemInterests, threadItemInterests)) {
           rememberRemoteServerThreadItemInterests(connectionKey, currentThreadItemInterests);
         } else {
           setRemoteServerThreadItemInterests(connectionKey, currentThreadItemInterests, true);
         }
+        notePairedItemInterestCoverage(connectionKey, true);
         startHealthProbe(socket);
-        if (get().runtime[connectionKey]?.status !== "online") {
-          resetTruncateReloadBackoff(connectionKey);
-        }
         setSocketStatus("online");
-        resumePendingTruncateReloads();
       };
       socket.onopen = activateSocket;
       if (socket.readyState === undefined || socket.readyState === 1) {
@@ -377,6 +349,7 @@ export async function startRemoteServerEventStream(
           clearRemoteServerEventSocketConnectTimeout(entry);
           clearRemoteServerEventSocketHealth(entry);
           forgetRemoteServerCursorSyncV2(connectionKey);
+          notePairedItemInterestCoverage(connectionKey, false);
           setRemoteTerminalSocketSender(connectionKey, null);
           setAgentVisionSocketSender(connectionKey, null);
           // The deadline close is routine (the 24-hour bearer reached its
@@ -384,7 +357,15 @@ export async function startRemoteServerEventStream(
           // the terminal "pairing expired" state belongs to a refused refresh
           // grant, which the next connect actually proves.
           setSocketStatus("connecting");
-          scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
+          // The routine deadline close reconnects at once, like any transport
+          // loss (the desktop host's leg does the same): the ticket mint renews
+          // the session, and a refused grant retires it there. Any other
+          // unauthorized close waits, so a dead credential is not hammered.
+          scheduleReconnect(
+            event?.reason === REMOTE_ACCESS_SESSION_EXPIRED_REASON
+              ? REMOTE_SOCKET_POLICY.reconnectBaseMs
+              : REMOTE_SOCKET_POLICY.unauthorizedReconnectMs,
+          );
           return;
         }
         disconnectSocket(socket);
@@ -395,6 +376,22 @@ export async function startRemoteServerEventStream(
         // fresh connection, in case replay retention already expired.
         resyncRequired = false;
         await ctx.recoverInterestedThreads();
+      } else {
+        // A pane that mounted while this host was unreachable reads its
+        // history once the connection is live, as the managed host rebuilds
+        // its retained threads when its leg activates. Threads whose history
+        // already loaded keep streaming. One thread's failed read stays that
+        // thread's failure.
+        const unloaded = new Set(
+          pairedItemInterests(connectionKey).filter((threadId) => {
+            const viewThreadId = remoteThreadId(connectionKey, threadId);
+            return (
+              !hasHydratedThreadRuntimeItems(viewThreadId) ||
+              useAppStore.getState().runtimeHydrationStatus[viewThreadId] === "failed"
+            );
+          }),
+        );
+        if (unloaded.size > 0) void ctx.recoverInterestedThreads(unloaded);
       }
     } catch (error) {
       if (!isCurrent()) return;
@@ -408,6 +405,7 @@ export async function startRemoteServerEventStream(
         entry.dispose?.();
         setAgentVisionSocketSender(connectionKey, null);
         forgetRemoteServerCursorSyncV2(connectionKey);
+        notePairedItemInterestCoverage(connectionKey, false);
         setRemoteTerminalSocketSender(connectionKey, null);
       };
       if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {

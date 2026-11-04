@@ -674,14 +674,21 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     ...(managedLoopbackTestSeams.preflightTimeoutMs !== undefined
       ? { preflightTimeoutMs: managedLoopbackTestSeams.preflightTimeoutMs }
       : {}),
-    readItemInterests: () => eventInterests.snapshotRendererEventInterests().runtimeThreadIds,
+    // This socket carries only the managed host's own threads; each paired
+    // host's socket carries its own.
+    readItemInterests: () =>
+      eventInterests
+        .snapshotRendererEventInterests()
+        .runtimeThreadIds.filter(eventInterests.isManagedHostEventInterest),
     subscribeItemInterests: (listener) => eventInterests.subscribeRendererEventInterests(listener),
     onItemInterestsTruncated: (droppedCount) => {
       if (!isCurrentIntake()) return;
       // Truthful window-local capacity state (A1): the thread surface shows the
       // overload with recovery guidance instead of a console-only warning, and
       // the state clears as soon as the wire carries every retained thread.
-      useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(droppedCount);
+      useLiveStreamCapacityStore
+        .getState()
+        .setDroppedRuntimeThreadCount(droppedCount, eventInterests.MANAGED_EVENT_INTEREST_WIRE);
     },
     onItemInterestsApplied: (threadIds) => {
       if (!isCurrentIntake()) return;

@@ -1,6 +1,16 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "@heroui/react";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
@@ -60,7 +70,12 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
   finalizeFileCheckpoint,
 }));
 
-vi.mock("@/renderer/state/rendererEventInterests", () => ({ retainRendererEventInterest }));
+vi.mock("@/renderer/state/rendererEventInterests", () => ({
+  retainRendererEventInterest,
+  snapshotRendererEventInterests: () => ({ terminalThreadIds: [], runtimeThreadIds: [] }),
+  subscribeRendererEventInterests: () => () => {},
+  noteRendererEventInterestWireCoverage: () => {},
+}));
 
 vi.mock("@legendapp/list/react", async () => {
   const React = await import("react");
@@ -432,13 +447,17 @@ describe("ChatPane", () => {
         threads: [thread],
         runtimeHydrationStatus: { [thread.id]: "failed" },
       });
+      // A failed load retries through the reducer that owns the thread's queue.
+      const recover = vi.fn<(threadId: string) => void>();
+      const uninstall = installRuntimeHistoryRecovery(recover);
+      onTestFinished(uninstall);
 
       renderChatPane(thread);
 
       expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
       expect(screen.queryAllByText(/^Working for/)).toHaveLength(status === "working" ? 1 : 0);
-      await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledOnce());
+      await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id));
 
       act(() => {
         seedAssistantMessage(thread.id, "Recovered saved reply");
@@ -2967,7 +2986,7 @@ describe("ChatPane", () => {
         },
       },
     });
-    renderChatPane(thread, { checkpointProjectLocation: project.location });
+    renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));

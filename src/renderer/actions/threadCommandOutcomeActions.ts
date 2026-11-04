@@ -9,10 +9,9 @@ import {
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { entityHost } from "@/renderer/state/entityHost";
 import { isManagedRootDesktopRuntime } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { currentRemoteServerGeneration } from "@/renderer/state/remoteServers/eventSocketRegistry";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { reconcileHostThreadLaunch } from "@/renderer/state/hostThreadLaunch";
 
 export { REMOTE_COMMAND_OUTCOME_UNCERTAIN_CODE };
 
@@ -77,57 +76,31 @@ export function notifyThreadCommandOutcomeUncertain(): void {
 }
 
 /**
- * The single bounded authoritative read for a remote thread after an uncertain
- * command, addressed by host identity rather than a local row: a start whose
- * thread id the host never confirmed still has a client-chosen id to read
- * back. One `openRemoteThread` installs the authoritative transcript, thread
- * row, and live item interest. The read is bounded by a real deadline — the
- * client aborts the HTTP request when it elapses — and fenced against a
- * server-identity generation change while it was in flight, so a reconnect or
- * a replaced server can never apply a stale snapshot as authoritative.
- */
-export async function reconcileRemoteThreadCommandOutcome(
-  desktopId: string,
-  remoteId: string,
-): Promise<boolean> {
-  const generation = currentRemoteServerGeneration(desktopId);
-  const controller = new AbortController();
-  const deadline = setTimeout(() => controller.abort(), REMOTE_COMMAND_RECONCILE_READ_TIMEOUT_MS);
-  try {
-    const applied = await useRemoteServersStore.getState().openRemoteThread(desktopId, remoteId, {
-      focus: false,
-      quiet: true,
-      signal: controller.signal,
-    });
-    if (currentRemoteServerGeneration(desktopId) !== generation) return false;
-    return applied;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(deadline);
-  }
-}
-
-/**
  * The single bounded authoritative read after an uncertain command. Runs at
  * most one read and never resends the command.
  *
- * - A projected remote thread re-reads through its host's history snapshot
- *   (see {@link reconcileRemoteThreadCommandOutcome}).
- * - A local thread re-reads the supervisor's runtime snapshots, the local
- *   authority for status, attention, and session ref.
+ * The thread is read back from its host, whichever host that is, which
+ * installs the host's row (status, attention, session ref), and the host's
+ * catalog converges. A row no host owns re-reads the supervisor's runtime
+ * snapshots instead.
  *
- * Both reads are deadline-bounded; the local IPC read cannot be cancelled, so
- * only the action's wait is bounded. Returns whether an authoritative read
- * applied. A failed, superseded, or timed-out read returns false and
- * deliberately leaves the optimistic state in place: the outcome is still
- * unknown, not a confirmed failure.
+ * The read is deadline-bounded. Returns whether an authoritative read applied.
+ * A failed, superseded, or timed-out read returns false and deliberately
+ * leaves the optimistic state in place: the outcome is still unknown, not a
+ * confirmed failure.
  */
 export async function reconcileThreadCommandOutcome(thread: Thread): Promise<boolean> {
-  const owner = remoteOwner(thread);
-  if (owner) return reconcileRemoteThreadCommandOutcome(owner.desktopId, owner.remoteId);
+  const host = entityHost(thread);
+  if (host) {
+    try {
+      const existence = await withReadDeadline(reconcileHostThreadLaunch(host, thread.id));
+      return existence === "present";
+    } catch {
+      return false;
+    }
+  }
   try {
-    const snapshots = await withLocalReadDeadline(readBridge().getThreadSnapshots());
+    const snapshots = await withReadDeadline(readBridge().getThreadSnapshots());
     const store = useAppStore.getState();
     if (!store.threads.some((candidate) => candidate.id === thread.id)) return false;
     store.reconcileRuntimeSnapshots(
@@ -141,8 +114,8 @@ export async function reconcileThreadCommandOutcome(thread: Thread): Promise<boo
   }
 }
 
-/** Deadline bound for the non-cancellable local supervisor read. */
-function withLocalReadDeadline<T>(read: Promise<T>): Promise<T> {
+/** Deadline bound on the action's wait for its one authoritative read. */
+function withReadDeadline<T>(read: Promise<T>): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error("Remote command reconcile read timed out.")),

@@ -5,13 +5,9 @@ import { toast } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
-import {
-  remoteBridgeImageRefUrl,
-  remoteBridgeLocalImageUrl,
-  resolveRemoteBridgeLocalImagePath,
-} from "@/renderer/browser/remoteBridge";
-import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
+import { isRemoteSession } from "@/renderer/bridge";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
+import { resolveRemoteBridgeLocalImagePath } from "@/renderer/browser/remoteBridge";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import {
   useThreadHasBackgroundActivity,
@@ -27,10 +23,8 @@ import {
   hydrateFileCheckpoints,
 } from "@/renderer/state/fileCheckpointActions";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { useManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
 import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { threadImageReadinessFor, usesBridgeThreadImages } from "../threadImageReadiness";
+import { useThreadImageAuthority } from "../threadImageAuthority";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
@@ -64,7 +58,7 @@ import { ChatPromptRail } from "./ChatPromptRail";
 import { promptAnchorScrollTop } from "./promptAnchorScrollTop";
 import { StickyPrompt } from "./StickyPrompt";
 import { usePromptJump } from "./usePromptJump";
-import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
+import { resolveThreadMarkdownImageRoots, threadHostHomeDir } from "../threadMarkdownImageRoots";
 import { resolveThreadTranscriptMarkdownFormatter } from "../threadTranscriptMarkdown";
 
 interface ChatPaneProps {
@@ -81,14 +75,11 @@ interface ChatPaneProps {
   canShowProjectEntryInExplorer?: boolean | undefined;
   paneActionsOverride?: ChatPaneActions | undefined;
   checkpointActions?: CheckpointRevertActions | undefined;
-  checkpointProjectLocation?: ProjectLocation | undefined;
   initialScrollRevealDelayMs?: number | undefined;
   onInitialScrollSettled?: (() => void) | undefined;
   /** Space a floating composer covers at the bottom; the list scrolls past it. */
   bottomInset?: number | undefined;
 }
-
-const unavailableImageRefUrl = () => "";
 
 const EMPTY_COMPLETED_TURNS: NonNullable<
   ReturnType<typeof useAppStore.getState>["runtimeCompletedTurnsByThread"][string]
@@ -122,23 +113,12 @@ export function ChatPane(props: ChatPaneProps) {
     canShowProjectEntryInExplorer,
     paneActionsOverride,
     checkpointActions,
-    checkpointProjectLocation,
   } = props;
   const { t } = useLingui();
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
-  const browserImageReadiness = useRemoteBridgeImageReadiness();
-  const managedImageSession = useManagedLoopbackImageSession();
+  const imageAuthority = useThreadImageAuthority(thread);
   const isManagedThread = managedRootOwner(thread) !== undefined;
-  const remoteImageServer = useRemoteServersStore((state) =>
-    thread.remoteServerId
-      ? state.servers.find(
-          (server) => (server.connectionId ?? server.desktopId) === thread.remoteServerId,
-        )
-      : undefined,
-  );
-  const isRemoteThread = thread.remoteServerId !== undefined;
-  const hasValidRemoteServerId =
-    typeof thread.remoteServerId === "string" && thread.remoteServerId.length > 0;
+  const isRemoteThread = !hostRunsOnThisMachine(thread);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
   const registerScrollToIndex = (handler: ScrollToIndex | null) => {
@@ -207,6 +187,7 @@ export function ChatPane(props: ChatPaneProps) {
   // Session-media roots (e.g. Grok `image_gen` → session `images/N.jpg`) so
   // markdown can resolve those relative paths via poracode-local://.
   const providerSessionId = thread.sessionRef?.providerSessionId;
+  const homeDir = threadHostHomeDir(thread);
   const markdownImageRoots = useMemo(() => {
     const projectLocation = targetContext?.projectLocation;
     if (!projectLocation) return undefined;
@@ -214,10 +195,9 @@ export function ChatPane(props: ChatPaneProps) {
       agentKind: thread.agentKind,
       ...(providerSessionId ? { sessionId: providerSessionId } : {}),
       projectLocation,
-      ...(readBridge().homeDir ? { homeDir: readBridge().homeDir as string } : {}),
-      ...(isRemoteThread ? { isRemote: true as const } : {}),
+      ...(homeDir ? { homeDir } : {}),
     });
-  }, [isRemoteThread, thread.agentKind, providerSessionId, targetContext?.projectLocation]);
+  }, [homeDir, thread.agentKind, providerSessionId, targetContext?.projectLocation]);
   const formatTranscriptMarkdown = resolveThreadTranscriptMarkdownFormatter(thread.agentKind);
 
   // `onOpenThread` arrives as an inline arrow whose identity churns per parent
@@ -232,32 +212,14 @@ export function ChatPane(props: ChatPaneProps) {
   const paneActions: ChatPaneActions | null = useMemo(() => {
     const openThread = (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId);
     // Images follow the thread's own connection; only owner-less rows use the
-    // bound bridge host (see usesBridgeThreadImages).
-    const bridgeImages = usesBridgeThreadImages(thread.remoteServerId);
-    const contentImageReadiness = threadImageReadinessFor(
-      {
-        id: threadId,
-        ...(thread.remoteServerId !== undefined ? { remoteServerId: thread.remoteServerId } : {}),
-      },
-      managedImageSession,
-      browserImageReadiness,
-    );
+    // bound bridge host (see resolveThreadImageAuthority).
+    const contentImageReadiness = imageAuthority.readiness;
     const contentActions: ChatPaneActions = {
       threadId,
       ...(targetContext ? { mediaLocation: targetContext.projectLocation } : {}),
       // Image custody is independent of project/file actions, including Home.
       // An explicit empty owner resolver must never fall through globally.
-      remoteImageRefUrl: bridgeImages
-        ? !isRemoteThread || hasValidRemoteServerId
-          ? remoteBridgeImageRefUrl
-          : unavailableImageRefUrl
-        : isRemoteThread
-          ? remoteImageServer
-            ? (ref) => useRemoteServersStore.getState().imageRefUrl(thread.remoteServerId!, ref)
-            : unavailableImageRefUrl
-          : isManagedThread
-            ? (managedImageSession?.readiness.resolveRef ?? unavailableImageRefUrl)
-            : unavailableImageRefUrl,
+      remoteImageRefUrl: imageAuthority.refUrl,
       ...(contentImageReadiness ? { remoteImageReadiness: contentImageReadiness } : {}),
       ...createMarkdownLocalImageAuthority({
         projectLocation: targetContext?.projectLocation,
@@ -265,17 +227,12 @@ export function ChatPane(props: ChatPaneProps) {
         ...(isRemoteSession() || isRemoteThread
           ? {
               remote: {
-                available: bridgeImages
-                  ? !isRemoteThread || hasValidRemoteServerId
-                  : remoteImageServer !== undefined,
+                available: imageAuthority.available,
                 readiness: contentImageReadiness,
                 ...(!isRemoteThread && isRemoteSession()
                   ? { pathForUrl: resolveRemoteBridgeLocalImagePath }
                   : {}),
-                resolvePath: bridgeImages
-                  ? remoteBridgeLocalImageUrl
-                  : (path) =>
-                      useRemoteServersStore.getState().localImageUrl(thread.remoteServerId!, path),
+                resolvePath: imageAuthority.localImageUrl,
               },
             }
           : {}),
@@ -325,13 +282,9 @@ export function ChatPane(props: ChatPaneProps) {
     hasOpenThread,
     onRevealProjectFolderInTree,
     canShowProjectEntryInExplorer,
-    thread.remoteServerId,
-    browserImageReadiness,
+    imageAuthority,
     isManagedThread,
     isRemoteThread,
-    managedImageSession,
-    remoteImageServer,
-    hasValidRemoteServerId,
   ]);
 
   useEffect(() => {
@@ -642,10 +595,7 @@ export function ChatPane(props: ChatPaneProps) {
               canRevertCheckpoints={!isLive && !isHomeScope}
               checkpointGuard={checkpointGuard}
               checkpointActions={checkpointActions}
-              projectLocation={
-                checkpointProjectLocation ??
-                (isHomeScope ? undefined : targetContext?.projectLocation)
-              }
+              projectLocation={isHomeScope ? undefined : targetContext?.projectLocation}
             />
             <ChatScrollControls
               key={`scroll:${threadId}`}

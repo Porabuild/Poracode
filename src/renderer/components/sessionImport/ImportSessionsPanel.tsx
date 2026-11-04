@@ -18,8 +18,7 @@ import {
   reconcileFilters,
   type ImportFilters,
 } from "./importFilters";
-import { findImportedThreadId, importSessions } from "./importSessionsActions";
-import { hostThreads } from "./remoteSessionImport";
+import { findImportedThreadId, hostThreads, importSessions } from "./importSessionsActions";
 
 const SEARCH_DEBOUNCE_MS = 400;
 const EMPTY_FACETS: ImportSessionFacets = { agentKinds: [], folders: [] };
@@ -40,19 +39,17 @@ function folderName(path: string): string {
 /** Lists CLI conversations found on disk and turns the chosen ones into threads. */
 export function ImportSessionsPanel() {
   const { t } = useLingui();
-  // A remote client lists and imports the bound host's sessions, so only that
-  // host's projects and threads apply.
+  // Sessions are listed from, and imported into, the host this client is
+  // bound to: a browser client's bound host, else the desktop's managed host
+  // (no key). Only that host's projects and threads apply.
   const settingsHost = useSettingsHostServer();
   const hostKey = isRemoteSession() && settingsHost ? remoteConnectionKey(settingsHost) : undefined;
   const allProjects = useAppStore((state) => state.projects);
   const allThreads = useAppStore((state) => state.threads);
-  const projects =
-    hostKey === undefined
-      ? allProjects
-      : allProjects.filter(
-          (project) => project.remoteServerId === hostKey && !isHomeProject(project),
-        );
-  const threads = hostKey === undefined ? allThreads : hostThreads(allThreads, hostKey);
+  const projects = allProjects.filter(
+    (project) => project.remoteServerId === hostKey && !isHomeProject(project),
+  );
+  const threads = hostThreads(allThreads, hostKey);
   const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
   const [sessions, setSessions] = useState<ImportableSession[]>([]);
   const [facets, setFacets] = useState(EMPTY_FACETS);

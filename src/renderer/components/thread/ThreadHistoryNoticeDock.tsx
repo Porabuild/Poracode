@@ -3,8 +3,7 @@ import { toast } from "@heroui/react";
 import { AlertTriangle, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { entityHost } from "@/renderer/state/entityHost";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   readThreadHistoryNotice,
@@ -13,10 +12,9 @@ import {
 } from "@/renderer/state/remote/historyNoticeStore";
 import {
   acknowledgeThreadHistoryNotice,
-  hostSupportsRuntimeHistoryNotices,
+  hostSupportsRuntimeHistoryNoticesFor,
   requestThreadHistoryGap,
 } from "@/renderer/state/remote/historyNoticeActions";
-import { managedRootSupportsRuntimeHistoryNotices } from "@/renderer/state/managedRootCatalog/rootHistory";
 import {
   threadHistoryNoticeFingerprint,
   useThreadHistoryNoticeDockStore,
@@ -72,22 +70,13 @@ export function ThreadHistoryNoticeDock({
   const messageId = useId();
   const [collapsed, setCollapsed] = useState(true);
   const [busy, setBusy] = useState(false);
-  const servers = useRemoteServersStore((state) => state.servers);
   const thread = useAppStore((state) => state.threads.find((item) => item.id === threadId));
   const dismiss = useThreadHistoryNoticeDockStore((state) => state.dismiss);
 
-  const server = thread?.remoteServerId
-    ? servers.find((candidate) => remoteConnectionKey(candidate) === thread.remoteServerId)
-    : undefined;
-  // Root rows have no server record; their authority is the live managed
-  // activation. Only an authority that advertised the capability offers the
-  // explicit recovery read.
-  const capabilityAdvertised =
-    thread !== undefined && thread.remoteServerId === undefined
-      ? managedRootSupportsRuntimeHistoryNotices()
-      : server !== undefined
-        ? hostSupportsRuntimeHistoryNotices(server)
-        : false;
+  // Only a host that advertised the capability offers the explicit recovery
+  // read; the owning host (managed or paired) answers for its own connection.
+  const host = entityHost(thread);
+  const capabilityAdvertised = host !== undefined && hostSupportsRuntimeHistoryNoticesFor(host);
   const descriptor = entry.gap;
   const acknowledgedNotice = !descriptor && !entry.needsReview ? entry.notice : null;
 

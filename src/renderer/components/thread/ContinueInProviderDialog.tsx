@@ -99,6 +99,7 @@ import {
 } from "@/shared/modelFamilySelection";
 import { applyThreadConfigMutation, type SelectionMutationEvent } from "@/shared/selectionBinding";
 import { useAppStore } from "@/renderer/state/appStore";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   buildTranscriptContext,
@@ -627,10 +628,12 @@ export function ContinueInProviderDialog(props: {
   // servers that are off can be turned on from the mention list (it patches the
   // target config); custom servers come from settings and are informational.
   const providerOwnsMcp = targetCapabilities ? providerOwnsMcpConfig(targetCapabilities) : false;
-  // Mirrored desktop threads launch from their host's settings. This renderer
-  // does not own that MCP snapshot, so showing or mutating its local controls
-  // would promise servers the host may not launch.
-  const mcpControlsAvailable = targetCapabilities !== undefined && !thread.remoteServerId;
+  // The MCP settings and server lists read here are this machine's. A thread
+  // on another host launches from that host's own settings, which this
+  // renderer does not own, so showing or mutating the local controls would
+  // promise servers the host may not launch.
+  const settingsOwnedHere = hostRunsOnThisMachine(thread);
+  const mcpControlsAvailable = targetCapabilities !== undefined && settingsOwnedHere;
   const mergedCustomMcpServers = mergeMcpServers(
     userCustomMcpServers,
     projectCustomMcpServers ?? [],
@@ -809,8 +812,9 @@ export function ContinueInProviderDialog(props: {
     return resolveProviderHandoffStrategy({
       sourcePresentationMode,
       targetPresentationMode,
-      isMirroredThread: thread.remoteServerId !== undefined,
-      readThreadToolEnabled: readThreadToolsEnabled,
+      // Whether `read_thread` stays callable is decided by the launching
+      // host's settings; the ones read here are only this machine's.
+      readThreadToolEnabled: settingsOwnedHere && readThreadToolsEnabled,
       threadResolvedReadThreadTool: threadMentionToolsAvailable,
       targetReadThreadToolGuaranteed:
         targetCapabilities !== undefined &&
@@ -887,10 +891,9 @@ export function ContinueInProviderDialog(props: {
       return;
     }
 
-    if (!thread.sessionRef || thread.remoteServerId !== undefined) {
-      // Nothing stored and no session to extract from — or a mirrored thread,
-      // whose `extractContext` is a host-side procedure this renderer
-      // deliberately does not route. The new provider starts without context.
+    if (!thread.sessionRef) {
+      // Nothing stored and no session to extract from. The new provider starts
+      // without context.
       onContinue(
         selectedKind,
         targetConfigForHandoff,

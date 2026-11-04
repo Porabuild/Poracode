@@ -33,18 +33,14 @@ import {
 export const BOUNDED_HISTORY_TAIL_PAGE_LIMIT = 200;
 
 export {
-  configureBoundedHistoryClient,
-  configureBoundedHistoryManagedRootClient,
   forgetBoundedHistoryForServer,
   forgetBoundedHistoryThread,
   forgetBoundedHistoryThreadByViewId,
   invokeBoundedRuntimeItemsPage,
-  invokeManagedRootRuntimeItemsPage,
-  managedRootHistoryClient,
-  recordBoundedHistoryTail,
-  recordManagedRootBoundedHistoryTail,
+  invokeRecordedRuntimeItemsPage,
+  recordHistoryTail,
   type BoundedHistoryTail,
-  type ManagedRootHistoryClientSnapshot,
+  type BoundedHistorySession,
 } from "./boundedHistoryRegistry";
 
 export function __resetBoundedHistoryForTest(): void {

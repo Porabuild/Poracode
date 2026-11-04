@@ -1,39 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentStatus, ImportableSession, Project, Thread } from "@/shared/contracts";
-import { shouldRelaunchThreadOnOpen } from "@/shared/threadRelaunch";
+import type {
+  AgentStatus,
+  ImportableSession,
+  Project,
+  RemoteThreadCommand,
+  Thread,
+} from "@/shared/contracts";
+import type { RemoteProjectCommand, RemoteProjectCommandResponse } from "@/shared/remote";
+import { RemoteClientError } from "@/shared/remote/client";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import {
-  peekPendingManagedRootLaunch,
-  pinnedManagedRootThreadIds,
-} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
+import type { EntityHost } from "@/renderer/state/entityHost";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { importSessions, resolveImportModel } from "./importSessionsActions";
+import { hostThreads, importSessions, resolveImportModel } from "./importSessionsActions";
 
-const importSessionTranscript = vi.hoisted(() =>
-  vi.fn<(payload: unknown) => Promise<{ messageCount: number }>>(),
-);
 const toastDanger = vi.hoisted(() => vi.fn<(message: string) => void>());
-const persistence = vi.hoisted(() => ({
-  dbUpsertThread: vi.fn<(thread: unknown) => Promise<void>>(),
-  dbUpsertProject: vi.fn<(project: unknown) => Promise<void>>(),
-  dbDeleteThread: vi.fn<(id: string) => Promise<void>>(),
-  dbDeleteProject: vi.fn<(id: string) => Promise<void>>(),
+const hostHandle = vi.hoisted(() => ({
+  current: vi.fn<(connectionKey: string | undefined) => unknown>(),
 }));
-const registerProject = vi.hoisted(() =>
-  vi.fn<
-    typeof import("@/renderer/state/managedRootCatalog/rootCatalogCommands").sendManagedRootProjectCommand
-  >(),
-);
-vi.mock("@/renderer/state/managedRootCatalog/rootCatalogCommands", async (original) => ({
-  ...(await original<typeof import("@/renderer/state/managedRootCatalog/rootCatalogCommands")>()),
-  sendManagedRootProjectCommand: registerProject,
-}));
-
-vi.mock("@/renderer/bridge", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/renderer/bridge")>()),
-  isWindows: () => false,
-  readBridge: () => ({ importSessionTranscript, ...persistence }),
+vi.mock("@/renderer/state/entityHost", async (original) => ({
+  ...(await original<typeof import("@/renderer/state/entityHost")>()),
+  hostHandle: hostHandle.current,
 }));
 vi.mock("@heroui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@heroui/react")>()),
@@ -58,26 +46,65 @@ const session: ImportableSession = {
   model: "agent-model",
 };
 
-beforeEach(() => {
-  registerProject.mockImplementation(async (command) => {
+const pairedServer = {
+  desktopId: "pc",
+  label: "Poracode on PC",
+  endpoint: "https://pc.test/",
+  accessToken: "token",
+  scopes: [],
+};
+
+/** The commands a host's client receives; the host is the managed one unless a key is given. */
+function fakeHost(
+  options: { connectionKey?: string; capabilities?: Record<string, unknown> } = {},
+) {
+  const projectCommand = vi.fn<
+    (command: RemoteProjectCommand, options?: unknown) => Promise<RemoteProjectCommandResponse>
+  >(async (command) => {
     if (command.kind !== "add-existing") throw new Error("Unexpected project command");
-    const row: Project = {
-      id: "registered-project",
-      name: "new-project",
+    const row = {
+      id: "host-project",
+      name: "registered",
       location: { kind: "posix", path: command.path },
-      createdAt: new Date().toISOString(),
     };
-    await persistence.dbUpsertProject(row);
-    return { ok: true, project: row, created: true };
+    return { ok: true, project: row, created: true } as unknown as RemoteProjectCommandResponse;
   });
+  const sendThreadCommand = vi.fn<(command: RemoteThreadCommand) => Promise<void>>(
+    async () => undefined,
+  );
+  const environment = vi.fn<() => Promise<{ capabilities: Record<string, unknown> }>>(async () => ({
+    capabilities: options.capabilities ?? { sessionImport: { versions: [1] } },
+  }));
+  const client = { environment, projectCommand, sendThreadCommand };
+  const refreshCatalog = vi.fn<() => void>();
+  const key = options.connectionKey;
+  const host = {
+    kind: key === undefined ? "managed" : "paired",
+    connectionKey: key,
+    hostId: "",
+    withClient: (run: (client: unknown) => Promise<unknown>) => run(client),
+    hostProjectId: (viewProjectId: string) =>
+      key === undefined
+        ? viewProjectId
+        : useAppStore.getState().projects.find((row) => row.id === viewProjectId)?.remoteId,
+    projectThreadRow: (hostThreadId: string) => ({
+      threadId: key === undefined ? hostThreadId : `remote:${key}:thread:${hostThreadId}`,
+    }),
+    refreshCatalog,
+  } as unknown as EntityHost;
+  hostHandle.current.mockImplementation((requested) => (requested === key ? host : undefined));
+  return { projectCommand, sendThreadCommand, environment, refreshCatalog };
+}
+
+beforeEach(() => {
+  useAppStore.setState({ threads: [], projects: [] });
 });
 
 afterEach(() => {
   useAppStore.setState({ threads: [], projects: [], view: { kind: "home" } });
-  importSessionTranscript.mockReset();
   toastDanger.mockReset();
-  for (const mock of Object.values(persistence)) mock.mockReset();
-  registerProject.mockReset();
+  hostHandle.current.mockReset();
+  useRemoteServersStore.setState({ servers: [] });
 });
 
 function codexStatus(models: readonly { id: string; label: string }[]): AgentStatus {
@@ -129,232 +156,268 @@ describe("resolveImportModel", () => {
 });
 
 describe("importSessions", () => {
-  it("retains another client's durable thread when replay fails after project publication", async () => {
-    const durableProjects = new Map<string, Project>();
-    const durableThreads = new Map<string, Thread>();
-    persistence.dbUpsertProject.mockImplementation(async (value) => {
-      const row = value as Project;
-      durableProjects.set(row.id, row);
-    });
-    persistence.dbUpsertThread.mockImplementation(async (value) => {
-      const row = value as Thread;
-      durableThreads.set(row.id, row);
-    });
-    persistence.dbDeleteThread.mockImplementation(async (id) => {
-      durableThreads.delete(id);
-    });
-    persistence.dbDeleteProject.mockImplementation(async (id) => {
-      durableProjects.delete(id);
-      for (const [threadId, row] of durableThreads) {
-        if (row.projectId === id) durableThreads.delete(threadId);
-      }
-    });
-    let rejectReplay!: (error: Error) => void;
-    importSessionTranscript.mockImplementation(
-      () =>
-        new Promise((_resolve, reject) => {
-          rejectReplay = reject;
-        }),
-    );
+  it("fails every session when the managed host is not connected", async () => {
+    hostHandle.current.mockReturnValue(undefined);
 
-    const importing = importSessions({
-      sessions: [{ ...session, cwd: "/new-project", cwdExists: true }],
-    });
-    await vi.waitFor(() => expect(importSessionTranscript).toHaveBeenCalledOnce());
-    const importedThread = [...durableThreads.values()][0]!;
-    // A separate client writes to the host; this renderer has not seen its row.
-    const otherThread = {
-      ...importedThread,
-      id: "other-client-thread",
-      config: { model: "agent-model" },
-    };
-    durableThreads.set(otherThread.id, otherThread);
-    expect(durableThreads.size).toBe(2);
-    rejectReplay(new Error("replay failed"));
+    const result = await importSessions({ sessions: [session] });
 
-    await expect(importing).resolves.toMatchObject({ imported: 0, failed: 1 });
-    expect(durableThreads.get(otherThread.id)).toEqual(otherThread);
-    expect(durableProjects.has(importedThread.projectId)).toBe(true);
-    expect(durableThreads.has(importedThread.id)).toBe(false);
-    expect(persistence.dbDeleteThread).toHaveBeenCalledExactlyOnceWith(importedThread.id);
-    expect(persistence.dbDeleteProject).not.toHaveBeenCalled();
-    expect(useAppStore.getState().projects.some((row) => row.id === importedThread.projectId)).toBe(
-      true,
-    );
-    expect(useAppStore.getState().threads).toEqual([]);
-    expect(pinnedManagedRootThreadIds().size).toBe(0);
+    expect(result).toMatchObject({ imported: 0, failed: 1 });
+    expect(toastDanger).toHaveBeenCalledOnce();
   });
 
-  it("cleans up an unpublished project when no model is available", async () => {
+  it("asks a host that lacks the import capability for nothing", async () => {
+    const host = fakeHost({ capabilities: {} });
+
+    const result = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+
+    expect(result).toMatchObject({ imported: 0, failed: 1 });
+    expect(toastDanger).toHaveBeenCalledWith("Update Local to import its sessions.");
+    expect(host.projectCommand).not.toHaveBeenCalled();
+    expect(host.sendThreadCommand).not.toHaveBeenCalled();
+  });
+
+  it("registers the folder on the host and imports the session there, writing no local rows", async () => {
+    const host = fakeHost();
+
+    const result = await importSessions({
+      sessions: [{ ...session, cwd: "/new-project", cwdExists: true }],
+    });
+
+    expect(result).toMatchObject({ imported: 1, failed: 0 });
+    expect(host.projectCommand.mock.calls[0]?.[0]).toEqual({
+      kind: "add-existing",
+      path: "/new-project",
+    });
+    expect(host.sendThreadCommand).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        kind: "import-session",
+        projectId: "host-project",
+        agentKind: "agent",
+        model: "agent-model",
+        title: "fix the bug",
+        path: session.path,
+        providerSessionId: "ses-1",
+      }),
+    );
+    const sent = host.sendThreadCommand.mock.calls[0]![0];
+    expect(result.threadIds.get(session.id)).toBe(sent.threadId);
+    // The host's catalog brings the rows in; nothing is written here.
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(host.refreshCatalog).toHaveBeenCalledOnce();
+  });
+
+  it("declares the bounded project result only when the host advertised it", async () => {
+    const host = fakeHost({
+      capabilities: {
+        sessionImport: { versions: [1] },
+        projectCommandResults: { versions: [1] },
+      },
+    });
+
+    await importSessions({ sessions: [{ ...session, cwd: "/new-project", cwdExists: true }] });
+
+    expect(host.projectCommand.mock.calls[0]?.[1]).toMatchObject({ result: "bounded" });
+  });
+
+  it("imports into the chosen project when the session's folder no longer exists", async () => {
+    const host = fakeHost();
+    useAppStore.setState({ projects: [project] });
+
+    const result = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+
+    expect(result).toMatchObject({ imported: 1, failed: 0 });
+    expect(host.projectCommand).not.toHaveBeenCalled();
+    expect(host.sendThreadCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "import-session", projectId: "fallback" }),
+    );
+  });
+
+  it("reports a missing project without asking the host for anything", async () => {
+    const host = fakeHost();
+
+    const result = await importSessions({ sessions: [session] });
+
+    expect(result).toMatchObject({ imported: 0, failed: 1 });
+    expect(host.projectCommand).not.toHaveBeenCalled();
+    expect(host.sendThreadCommand).not.toHaveBeenCalled();
+    expect(toastDanger).toHaveBeenCalledWith(
+      "Choose a project for sessions whose folder no longer exists.",
+    );
+  });
+
+  it("registers no project when no model is available", async () => {
+    const host = fakeHost();
     const { model: _model, ...withoutModel } = session;
+
     const result = await importSessions({
       sessions: [{ ...withoutModel, cwd: "/new-project", cwdExists: true }],
     });
+
     expect(result).toMatchObject({ imported: 0, failed: 1 });
-    expect(useAppStore.getState().projects).toEqual([]);
-    expect(persistence.dbUpsertProject).not.toHaveBeenCalled();
-    expect(persistence.dbDeleteProject).not.toHaveBeenCalled();
-    expect(importSessionTranscript).not.toHaveBeenCalled();
+    expect(host.projectCommand).not.toHaveBeenCalled();
+    expect(host.sendThreadCommand).not.toHaveBeenCalled();
   });
 
-  it("reports a missing project without creating host rows", async () => {
-    const result = await importSessions({ sessions: [session] });
-    expect(result).toMatchObject({ imported: 0, failed: 1 });
-    expect(persistence.dbUpsertThread).not.toHaveBeenCalled();
-    expect(importSessionTranscript).not.toHaveBeenCalled();
+  it("does not import a session one of the host's own threads already holds", async () => {
+    const host = fakeHost();
+    useAppStore.setState({
+      projects: [project],
+      threads: [
+        { id: "held", sessionRef: { providerSessionId: "ses-1" }, agentKind: "agent", config: {} },
+      ] as unknown as Thread[],
+    });
+
+    const result = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+
+    expect(result.threadIds.get(session.id)).toBe("held");
+    expect(host.sendThreadCommand).not.toHaveBeenCalled();
   });
 
-  it.each(["dbUpsertProject", "dbUpsertThread"] as const)(
-    "does not delete a possibly published project when %s fails",
-    async (operation) => {
-      persistence[operation].mockRejectedValue(new Error("save failed"));
-      const result = await importSessions({
-        sessions: [{ ...session, cwd: "/new-project", cwdExists: true }],
-      });
-      expect(result).toMatchObject({ imported: 0, failed: 1 });
-      expect(persistence.dbDeleteProject).not.toHaveBeenCalled();
-      expect(persistence.dbDeleteThread).toHaveBeenCalledTimes(
-        operation === "dbUpsertThread" ? 1 : 0,
-      );
-      expect(importSessionTranscript).not.toHaveBeenCalled();
-      expect(useAppStore.getState().threads).toEqual([]);
-      expect(toastDanger).toHaveBeenCalledWith("save failed");
-      expect(pinnedManagedRootThreadIds().size).toBe(0);
-    },
-  );
+  it("does not take another host's thread for the managed host's session", async () => {
+    const host = fakeHost();
+    useAppStore.setState({
+      projects: [project],
+      threads: [
+        {
+          id: "remote:pc:thread:t1",
+          remoteServerId: "pc",
+          sessionRef: { providerSessionId: "ses-1" },
+          agentKind: "agent",
+          config: {},
+        },
+      ] as unknown as Thread[],
+    });
 
-  it("reports rollback failure, retains the durable row, and continues the batch", async () => {
+    const result = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+
+    expect(result).toMatchObject({ imported: 1 });
+    expect(host.sendThreadCommand).toHaveBeenCalledOnce();
+  });
+
+  it("keeps one thread when overlapping imports request the same session", async () => {
+    const host = fakeHost();
     useAppStore.setState({ projects: [project] });
-    importSessionTranscript
+    let finish!: () => void;
+    host.sendThreadCommand.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+
+    const first = importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+    await vi.waitFor(() => expect(host.sendThreadCommand).toHaveBeenCalledOnce());
+    const second = importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+    finish();
+    const results = await Promise.all([first, second]);
+
+    expect(host.sendThreadCommand).toHaveBeenCalledOnce();
+    expect(results.reduce((total, result) => total + result.imported, 0)).toBe(1);
+    expect(results[0]!.threadIds.get(session.id)).toBeDefined();
+  });
+
+  it("reports a failed import and continues with the rest of the batch", async () => {
+    const host = fakeHost();
+    useAppStore.setState({ projects: [project] });
+    host.sendThreadCommand
       .mockRejectedValueOnce(new Error("replay failed"))
-      .mockResolvedValue({ messageCount: 1 });
-    persistence.dbDeleteThread.mockRejectedValue(new Error("rollback failed"));
+      .mockResolvedValue(undefined);
+
     const result = await importSessions({
       sessions: [
         session,
         { ...session, id: "second", path: "/second.jsonl", providerSessionId: "second" },
       ],
-      fallbackProjectId: project.id,
+      fallbackProjectId: "fallback",
     });
+
     expect(result).toMatchObject({ imported: 1, failed: 1 });
     expect(result.threadIds.has(session.id)).toBe(false);
     expect(result.threadIds.has("second")).toBe(true);
     expect(toastDanger).toHaveBeenCalledWith("replay failed");
-    expect(toastDanger).toHaveBeenCalledWith("rollback failed");
-    expect(useAppStore.getState().threads).toHaveLength(2);
-    for (const thread of useAppStore.getState().threads)
-      expect(peekPendingManagedRootLaunch(thread.id)).toBeUndefined();
-    expect(pinnedManagedRootThreadIds().size).toBe(0);
-    expect(persistence.dbDeleteProject).not.toHaveBeenCalled();
   });
 
-  it("creates a thread that resumes through the normal reopen path", async () => {
-    useAppStore.setState({ projects: [project] });
-    importSessionTranscript.mockResolvedValue({ messageCount: 2 });
-
-    const result = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
-
-    const [thread] = useAppStore.getState().threads;
-    expect(result).toMatchObject({ imported: 1, failed: 0 });
-    expect(thread).toMatchObject({
-      projectId: "fallback",
-      agentKind: "agent",
-      presentationMode: "gui",
-      status: "inactive",
-      sessionRef: { providerSessionId: "ses-1" },
-      config: { model: "agent-model", importedFrom: { path: session.path } },
-    });
-    // Opening it relaunches with an empty prompt, like any restored thread —
-    // no resume-with-prompt special case in the spawn pipeline.
-    expect(shouldRelaunchThreadOnOpen(thread!)).toBe(true);
-    expect(importSessionTranscript).toHaveBeenCalledWith({
-      threadId: thread!.id,
-      agentKind: "agent",
-      path: session.path,
-      providerSessionId: "ses-1",
-    });
-    expect(persistence.dbUpsertThread).toHaveBeenCalledWith(thread);
-    expect(peekPendingManagedRootLaunch(thread!.id)).toBeUndefined();
-    expect(pinnedManagedRootThreadIds().has(thread!.id)).toBe(false);
-    expect(persistence.dbUpsertThread.mock.invocationCallOrder[0]).toBeLessThan(
-      importSessionTranscript.mock.invocationCallOrder[0]!,
-    );
-  });
-
-  it("waits for durable thread creation before replaying messages", async () => {
-    useAppStore.setState({ projects: [project] });
-    let finishSave!: () => void;
-    persistence.dbUpsertThread.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          finishSave = resolve;
-        }),
-    );
-    importSessionTranscript.mockResolvedValue({ messageCount: 2 });
-
-    const importing = importSessions({ sessions: [session], fallbackProjectId: "fallback" });
-    expect(importSessionTranscript).not.toHaveBeenCalled();
-    const pendingThread = useAppStore.getState().threads[0]!;
-    expect(peekPendingManagedRootLaunch(pendingThread.id)).toBeDefined();
-    expect(pinnedManagedRootThreadIds().has(pendingThread.id)).toBe(true);
-    finishSave();
-
-    await expect(importing).resolves.toMatchObject({ imported: 1, failed: 0 });
-    expect(importSessionTranscript).toHaveBeenCalledOnce();
-    expect(pinnedManagedRootThreadIds().has(pendingThread.id)).toBe(false);
-  });
-
-  it("persists a newly discovered project before saving its imported thread", async () => {
-    importSessionTranscript.mockResolvedValue({ messageCount: 2 });
+  it("retries a refused project registration for the next session in the same folder", async () => {
+    const host = fakeHost();
+    host.projectCommand.mockRejectedValueOnce(new Error("pre-commit refusal"));
+    const inFolder = { ...session, cwd: "/fresh", cwdExists: true };
 
     const result = await importSessions({
-      sessions: [{ ...session, cwd: "/new-project", cwdExists: true }],
+      sessions: [
+        inFolder,
+        { ...inFolder, id: "second", path: "/second.jsonl", providerSessionId: "second" },
+      ],
     });
 
-    const [createdProject] = useAppStore.getState().projects;
-    expect(result).toMatchObject({ imported: 1, failed: 0 });
-    expect(persistence.dbUpsertProject).toHaveBeenCalledWith(createdProject);
-    expect(persistence.dbUpsertProject.mock.invocationCallOrder[0]).toBeLessThan(
-      persistence.dbUpsertThread.mock.invocationCallOrder[0]!,
+    expect(result).toMatchObject({ imported: 1, failed: 1 });
+    expect(host.projectCommand).toHaveBeenCalledTimes(2);
+    expect(host.sendThreadCommand).toHaveBeenCalledOnce();
+  });
+
+  it("reuses the thread id after an unconfirmed outcome, so a retry cannot import twice", async () => {
+    const host = fakeHost();
+    useAppStore.setState({ projects: [project] });
+    host.sendThreadCommand.mockRejectedValueOnce(
+      new RemoteClientError("lost reply", 502, "bad_gateway"),
     );
+
+    const first = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+    expect(first).toMatchObject({ imported: 0, failed: 1 });
+    const attempted = host.sendThreadCommand.mock.calls[0]![0].threadId;
+
+    // The host already holds the row from the lost reply.
+    host.sendThreadCommand.mockRejectedValueOnce(
+      new RemoteClientError("exists", 409, "thread_already_exists"),
+    );
+    const retry = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+
+    expect(host.sendThreadCommand.mock.calls[1]![0].threadId).toBe(attempted);
+    expect(retry).toMatchObject({ imported: 1, failed: 0 });
+    expect(retry.threadIds.get(session.id)).toBe(attempted);
   });
 
-  it("does not import a session another thread already holds", async () => {
-    useAppStore.setState({ projects: [project] });
-    importSessionTranscript.mockResolvedValue({ messageCount: 1 });
-    await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+  it("imports into a paired host through the same commands, in that host's ids", async () => {
+    const host = fakeHost({ connectionKey: "pc" });
+    useRemoteServersStore.setState({ servers: [pairedServer] });
+    useAppStore.setState({
+      projects: [
+        {
+          ...project,
+          id: "remote:pc:project:host-fallback",
+          remoteServerId: "pc",
+          remoteId: "host-fallback",
+        },
+      ],
+    });
 
-    const again = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+    const result = await importSessions({
+      sessions: [session],
+      fallbackProjectId: "remote:pc:project:host-fallback",
+      hostKey: "pc",
+    });
 
-    expect(useAppStore.getState().threads).toHaveLength(1);
-    expect(importSessionTranscript).toHaveBeenCalledTimes(1);
-    expect(again.threadIds.get(session.id)).toBe(useAppStore.getState().threads[0]!.id);
+    expect(result).toMatchObject({ imported: 1, failed: 0 });
+    expect(host.sendThreadCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "import-session", projectId: "host-fallback" }),
+    );
+    const sent = host.sendThreadCommand.mock.calls[0]![0];
+    expect(result.threadIds.get(session.id)).toBe(`remote:pc:thread:${sent.threadId}`);
   });
 
-  it("rolls the thread back when the replay fails", async () => {
-    useAppStore.setState({ projects: [project] });
-    importSessionTranscript.mockRejectedValue(new Error("boom"));
+  it("names a paired host that needs an update", async () => {
+    fakeHost({ connectionKey: "pc", capabilities: {} });
+    useRemoteServersStore.setState({ servers: [pairedServer] });
 
-    const result = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
+    await importSessions({ sessions: [session], hostKey: "pc" });
 
-    expect(result).toMatchObject({ imported: 0, failed: 1 });
-    expect(useAppStore.getState().threads).toEqual([]);
-    expect(toastDanger).toHaveBeenCalledWith("boom");
-    expect(persistence.dbDeleteThread).toHaveBeenCalledOnce();
-    expect(pinnedManagedRootThreadIds().size).toBe(0);
+    expect(toastDanger).toHaveBeenCalledWith("Update PC to import its sessions.");
   });
+});
 
-  it("does not replay or report success when the host cannot persist the imported thread", async () => {
-    useAppStore.setState({ projects: [project] });
-    persistence.dbUpsertThread.mockRejectedValue(new Error("disk full"));
-
-    const result = await importSessions({ sessions: [session], fallbackProjectId: "fallback" });
-
-    expect(result).toMatchObject({ imported: 0, failed: 1 });
-    expect(importSessionTranscript).not.toHaveBeenCalled();
-    expect(persistence.dbDeleteThread).toHaveBeenCalledOnce();
-    expect(useAppStore.getState().threads).toEqual([]);
-    expect(toastDanger).toHaveBeenCalledWith("disk full");
-    expect(pinnedManagedRootThreadIds().size).toBe(0);
+describe("hostThreads", () => {
+  it("keeps only the rows one host owns", () => {
+    const rows = [{ id: "a" }, { id: "b", remoteServerId: "pc" }] as Thread[];
+    expect(hostThreads(rows, undefined).map((row) => row.id)).toEqual(["a"]);
+    expect(hostThreads(rows, "pc").map((row) => row.id)).toEqual(["b"]);
   });
 });

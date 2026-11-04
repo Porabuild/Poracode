@@ -238,6 +238,7 @@ describe.skipIf(!sqliteAvailable)("experiment authority lifecycle (real sqlite)"
       getProject: (projectId) =>
         dbGetProjects().find((project) => project.id === projectId) ?? null,
       findProjectByLocation: dbFindProjectByLocation,
+      relocateProjectRuntime: async () => {},
       beginProjectRemoval,
       removeProjectExperiments: async (project) => {
         await discardPersistedProjectExperiments(project, async (payload) => ({

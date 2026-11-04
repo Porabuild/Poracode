@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   context: vi.fn<(...args: unknown[]) => Promise<null>>(),
   environment: vi.fn<() => Promise<unknown>>(),
   reopen: vi.fn<(tab: string) => void>(),
+  hostLookups: [] as string[],
   entry: null as {
     id?: string;
     source: { id: string };
@@ -50,12 +51,13 @@ vi.mock("@/renderer/state/appStore", () => ({
     }),
   },
 }));
-vi.mock("@/renderer/state/remoteServersStore", () => ({
-  useRemoteServersStore: {
-    getState: () => ({
-      withClient: (_id: string, invoke: (client: unknown) => Promise<unknown>) =>
+vi.mock("@/renderer/state/entityHost", () => ({
+  entityHost: (row: { id: string }) => {
+    mocks.hostLookups.push(row.id);
+    return {
+      withClient: (invoke: (client: unknown) => Promise<unknown>) =>
         invoke({ environment: mocks.environment }),
-    }),
+    };
   },
 }));
 import {
@@ -72,6 +74,7 @@ beforeEach(() => {
   mocks.open.mockResolvedValue();
   mocks.entry = null;
   mocks.detachedIds.clear();
+  mocks.hostLookups.length = 0;
   mocks.environment.mockResolvedValue({
     capabilities: { conversationSnapshots: { versions: [1] } },
   });
@@ -181,6 +184,11 @@ describe("hidden context host compatibility", () => {
     await expect(openSideChat("parent", "Why?")).rejects.toThrow("Update the remote host");
     expect(mocks.context).not.toHaveBeenCalled();
     expect(mocks.open).not.toHaveBeenCalled();
+  });
+  it("checks the capability through the owning host resolver", async () => {
+    await expect(openSideChat("parent")).resolves.toBe(true);
+    expect(mocks.hostLookups).toEqual(["parent"]);
+    expect(mocks.environment).toHaveBeenCalledOnce();
   });
   it("supports an advertised host and preserves a bare-command empty prompt", async () => {
     mocks.environment.mockResolvedValue({

@@ -32,9 +32,15 @@ import {
 import type { RemoteServerRecord, RemoteServersState } from "./types";
 
 // This test supplies the store action's get/set bindings directly. Avoid
-// constructing a second global remote store through catalog import cycles.
+// constructing a second global remote store through catalog import cycles; the
+// thread's host resolves through the harness state.
+const remoteStore = vi.hoisted(() => ({
+  state: null as unknown,
+}));
 vi.mock("@/renderer/state/remoteServersStore", () => ({
-  useRemoteServersStore: { getState: () => ({ servers: [], runtime: {}, openThread: null }) },
+  useRemoteServersStore: {
+    getState: () => remoteStore.state ?? { servers: [], runtime: {}, openThread: null },
+  },
 }));
 
 const original = useAppStore.getState();
@@ -98,11 +104,20 @@ function page(
 function harness() {
   const boundedThreadHistory = vi.fn<RemoteDesktopClient["boundedThreadHistory"]>();
   const client = { boundedThreadHistory } as unknown as RemoteDesktopClient;
-  let state = { servers: [server], runtime: {}, openThread: null } as unknown as RemoteServersState;
+  let state = {
+    servers: [server],
+    runtime: {},
+    openThread: null,
+    withClient: (_key: string, invoke: (client: RemoteDesktopClient) => Promise<unknown>) =>
+      invoke(client),
+    scheduleServerRefresh: () => {},
+  } as unknown as RemoteServersState;
+  remoteStore.state = state;
   const actions = createSnapshotProjectionActions({
     get: () => state,
     set: (partial) => {
       state = { ...state, ...(typeof partial === "function" ? partial(state) : partial) };
+      remoteStore.state = state;
     },
     withClient: (_key, invoke) => invoke(client),
     clientForServer: () => client,
@@ -111,6 +126,7 @@ function harness() {
     activateRemoteTerminalFeed: () => {},
   });
   state = { ...state, ...actions };
+  remoteStore.state = state;
   return { actions, boundedThreadHistory };
 }
 
@@ -122,6 +138,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  remoteStore.state = null;
   forgetThreadRuntimeWindow(viewThread);
   setOlderThreadHistoryContinuation(null);
   setOlderThreadHistoryInvalidation(null);
@@ -276,4 +293,23 @@ it("keeps an unwatched reader's cached history when its refresh fails", async ()
   );
   expect(useAppStore.getState().runtimeItemIdsByThread[viewThread]).toContain("row-80");
   expect(runtimeHistoryBoundary(viewThread).cursor).toBe(80);
+});
+
+it("clears a failed first open's load warning once a retried open installs history", async () => {
+  const { actions, boundedThreadHistory } = harness();
+  boundedThreadHistory
+    .mockRejectedValueOnce(new RemoteClientError("Host busy", 503, "unavailable"))
+    .mockResolvedValueOnce(page(80, 90, 1));
+  expect(await actions.openRemoteThread(connection, "thread", { focus: false, quiet: true })).toBe(
+    false,
+  );
+  // The pane reader surfaces the failed first open.
+  useAppStore.getState().setRuntimeHydrationStatus(viewThread, "failed");
+
+  // The restored-pane lifecycle's quiet retry installs the authoritative tail.
+  expect(await actions.openRemoteThread(connection, "thread", { focus: false, quiet: true })).toBe(
+    true,
+  );
+  expect(useAppStore.getState().runtimeItemIdsByThread[viewThread]).toContain("row-80");
+  expect(useAppStore.getState().runtimeHydrationStatus[viewThread]).toBeUndefined();
 });

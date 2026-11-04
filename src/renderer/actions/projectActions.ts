@@ -10,10 +10,7 @@ import type {
   ProjectWorktreeLocation,
 } from "@/shared/contracts";
 import { areToolOverridesEqual, nonEmptyPluginOverrides } from "@/shared/contracts";
-import { deriveLocationFromPath } from "@/shared/createProject";
 import { friendlyError, msg as resolveMessage } from "@/shared/messages";
-import { findProjectLocationConflict } from "@/shared/projectIdentity";
-import { currentProjectIdentityOptions } from "@/renderer/state/projectReferences";
 import type { RemoteProjectCommand } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -23,16 +20,10 @@ import { presentProjectRemoval } from "@/renderer/state/projectRemovalPresentati
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
-import {
-  isApplyingHostOriginatedManagedRootMutation,
-  managedRootOwner,
-  sendManagedRootProjectCommand,
-} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
+import { entityHost, intentHost } from "@/renderer/state/entityHost";
+import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import {
   catalogEditPatch,
   applyCatalogPatchFields,
@@ -47,23 +38,21 @@ let homeScopeLocationPromise: Promise<ProjectLocation> | null = null;
 
 type RemoteProjectPatch = Extract<RemoteProjectCommand, { kind: "update" }>["patch"];
 
-const remoteGhAccountMutationQueues = new Map<string, Promise<boolean>>();
+const ghAccountMutationQueues = new Map<string, Promise<boolean>>();
 
 /**
- * Routes one project content intent to the owner: a projected remote project
- * through the paired client, a root project through the managed loopback
- * client as an explicit host command. A host-forwarded mirror command never
- * echoes (it belongs to the local path).
+ * Routes one project content intent to the host that owns the project, as an
+ * explicit host command. A host-forwarded mirror command never echoes (it
+ * belongs to the local path).
  */
-function dispatchRemoteProjectMutation(
+function dispatchHostProjectMutation(
   project: Project,
   patch: RemoteProjectPatch,
   apply: () => void,
   onConfirmed?: () => void,
 ): boolean {
-  const owner = remoteOwner(project);
-  const rootOwner = managedRootOwner(project);
-  if (!owner && (!rootOwner || isApplyingHostOriginatedManagedRootMutation())) return false;
+  const host = intentHost(project);
+  if (!host) return false;
   const previousView = useAppStore.getState().view;
   apply();
   const paintedView = useAppStore.getState().view;
@@ -75,14 +64,7 @@ function dispatchRemoteProjectMutation(
     patch: localPatch,
     ...(Object.keys(patch).length === 1 && "scripts" in patch ? { coalesceKey: "scripts" } : {}),
     apply: () => {},
-    write: () =>
-      owner
-        ? useRemoteServersStore.getState().runProjectCommand(owner.desktopId, {
-            kind: "update",
-            projectId: owner.remoteId,
-            patch,
-          })
-        : sendManagedRootProjectCommand({ kind: "update", projectId: rootOwner!.threadId, patch }),
+    write: () => host.runProjectCommand({ kind: "update", projectId: host.hostId, patch }),
     restore: (base) =>
       useAppStore.setState((state) => ({
         ...(state.view === paintedView ? { view: previousView } : {}),
@@ -91,10 +73,7 @@ function dispatchRemoteProjectMutation(
         ),
       })),
   })
-    .then(() => {
-      onConfirmed?.();
-      if (rootOwner) refreshManagedRootCatalogSoon();
-    })
+    .then(() => onConfirmed?.())
     .catch((error) => toast.danger(friendlyError(error)));
   return true;
 }
@@ -103,18 +82,16 @@ export function renameProject(projectId: string, name: string): void {
   const store = useAppStore.getState();
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
-  const rootOwner = managedRootOwner(project);
-  if (rootOwner && !isApplyingHostOriginatedManagedRootMutation()) {
-    dispatchRemoteProjectMutation(project, { name }, () =>
-      useAppStore.getState().renameProject(projectId, name),
-    );
-    return;
-  }
-  store.renameProject(projectId, name);
-  const owner = remoteOwner(project);
-  if (owner) {
-    useRemoteServersStore.getState().setProjectNameOverride(owner.desktopId, owner.remoteId, name);
-  }
+  const apply = () => useAppStore.getState().renameProject(projectId, name);
+  // The host owns the name, so every client sees the rename. A display alias
+  // an older client kept for this project would hide it; drop that alias.
+  const host = intentHost(project);
+  const clearAlias = () => {
+    if (host?.connectionKey)
+      useRemoteServersStore.getState().clearProjectNameOverride(host.connectionKey, host.hostId);
+  };
+  if (dispatchHostProjectMutation(project, { name }, apply, clearAlias)) return;
+  apply();
 }
 
 export function updateProjectIcon(projectId: string, icon: string | undefined): void {
@@ -122,7 +99,7 @@ export function updateProjectIcon(projectId: string, icon: string | undefined): 
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
   const apply = () => useAppStore.getState().updateProjectIcon(projectId, icon);
-  if (dispatchRemoteProjectMutation(project, { icon: icon ?? null }, apply)) return;
+  if (dispatchHostProjectMutation(project, { icon: icon ?? null }, apply)) return;
   apply();
 }
 
@@ -131,7 +108,7 @@ export function updateProjectScripts(projectId: string, scripts: ProjectScripts)
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
   const apply = () => useAppStore.getState().updateProjectScripts(projectId, scripts);
-  if (dispatchRemoteProjectMutation(project, { scripts }, apply)) return;
+  if (dispatchHostProjectMutation(project, { scripts }, apply)) return;
   apply();
 }
 
@@ -143,7 +120,7 @@ export function updateProjectSearchSettings(
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
   const apply = () => useAppStore.getState().updateProjectSearchSettings(projectId, searchSettings);
-  if (dispatchRemoteProjectMutation(project, { searchSettings: searchSettings ?? null }, apply))
+  if (dispatchHostProjectMutation(project, { searchSettings: searchSettings ?? null }, apply))
     return;
   apply();
 }
@@ -157,7 +134,7 @@ export function updateProjectWorktreeLocation(
   if (!project) return;
   const apply = () =>
     useAppStore.getState().updateProjectWorktreeLocation(projectId, worktreeLocation);
-  if (dispatchRemoteProjectMutation(project, { worktreeLocation: worktreeLocation ?? null }, apply))
+  if (dispatchHostProjectMutation(project, { worktreeLocation: worktreeLocation ?? null }, apply))
     return;
   apply();
 }
@@ -172,7 +149,7 @@ export function toggleProjectPinnedBranch(projectId: string, branch: string): vo
     : [...current, branch];
   const apply = () => useAppStore.getState().updateProjectPinnedBranches(projectId, pinnedBranches);
   if (
-    dispatchRemoteProjectMutation(
+    dispatchHostProjectMutation(
       project,
       { pinnedBranches: pinnedBranches.length > 0 ? pinnedBranches : null },
       apply,
@@ -199,7 +176,7 @@ export function setProjectPluginOverride(
   const apply = () =>
     useAppStore.getState().updateProjectPluginOverrides(projectId, pluginOverrides);
   if (
-    dispatchRemoteProjectMutation(
+    dispatchHostProjectMutation(
       project,
       { pluginOverrides: nonEmptyPluginOverrides(pluginOverrides) ?? null },
       apply,
@@ -217,7 +194,7 @@ export function updateProjectWorktreeBaseBranch(
   const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
   const apply = () => useAppStore.getState().updateProjectWorktreeBaseBranch(projectId, baseBranch);
-  if (dispatchRemoteProjectMutation(project, { worktreeBaseBranch: baseBranch ?? null }, apply))
+  if (dispatchHostProjectMutation(project, { worktreeBaseBranch: baseBranch ?? null }, apply))
     return;
   apply();
 }
@@ -232,7 +209,7 @@ export function updateProjectWorktreeBaseBranch(
  * the destination save is confirmed — can refuse to continue when the save did
  * not land. Owner resolution and the host-originated fence are read
  * synchronously before the first await, exactly like
- * `dispatchRemoteProjectMutation`.
+ * `dispatchHostProjectMutation`.
  */
 export async function saveProjectMcpServers(
   projectId: string,
@@ -242,24 +219,9 @@ export async function saveProjectMcpServers(
   if (!project) throw new Error(resolveMessage("remote.project.notFound"));
   const apply = () => useAppStore.getState().updateProjectMcpServers(projectId, mcpServers);
   const patch: RemoteProjectPatch = { mcpServers: mcpServers.length > 0 ? mcpServers : null };
-  const owner = remoteOwner(project);
-  if (owner) {
-    await useRemoteServersStore.getState().runProjectCommand(owner.desktopId, {
-      kind: "update",
-      projectId: owner.remoteId,
-      patch,
-    });
-    apply();
-    return;
-  }
-  const rootOwner = managedRootOwner(project);
-  if (!rootOwner || isApplyingHostOriginatedManagedRootMutation()) {
-    apply();
-    return;
-  }
-  await sendManagedRootProjectCommand({ kind: "update", projectId: rootOwner.threadId, patch });
+  const host = intentHost(project);
+  if (host) await host.runProjectCommand({ kind: "update", projectId: host.hostId, patch });
   apply();
-  refreshManagedRootCatalogSoon();
 }
 
 export function updateProjectMcpServers(projectId: string, mcpServers: McpServer[]): void {
@@ -276,18 +238,19 @@ export function updateProjectGhAccount(
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return Promise.resolve(false);
   const apply = () => useAppStore.getState().updateProjectGhAccount(projectId, ghAccount);
-  const owner = remoteOwner(project);
-  if (!owner) {
+  const host = intentHost(project);
+  if (!host) {
     apply();
     return Promise.resolve(true);
   }
 
-  const key = `${owner.desktopId}\0${owner.remoteId}`;
+  // Serialized per project, so a later choice never lands before an earlier one.
+  const key = projectId;
   const execute = async (): Promise<boolean> => {
     try {
-      await useRemoteServersStore.getState().runProjectCommand(owner.desktopId, {
+      await host.runProjectCommand({
         kind: "update",
-        projectId: owner.remoteId,
+        projectId: host.hostId,
         patch: { ghAccount: ghAccount ?? null },
       });
       apply();
@@ -297,12 +260,12 @@ export function updateProjectGhAccount(
       return false;
     }
   };
-  const previous = remoteGhAccountMutationQueues.get(key);
+  const previous = ghAccountMutationQueues.get(key);
   const current = previous ? previous.catch(() => false).then(execute) : execute();
-  remoteGhAccountMutationQueues.set(key, current);
+  ghAccountMutationQueues.set(key, current);
   void current.then(() => {
-    if (remoteGhAccountMutationQueues.get(key) === current) {
-      remoteGhAccountMutationQueues.delete(key);
+    if (ghAccountMutationQueues.get(key) === current) {
+      ghAccountMutationQueues.delete(key);
     }
   });
   return current;
@@ -337,6 +300,8 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
     if (useAppStore.getState().projects.find((row) => row.id === projectId)?.disabled !== disabled)
       return;
     if (disabled) {
+      // A distro belongs to the host the project lives on, so only that host's
+      // other projects keep it in use.
       const wslDistro = project.location.kind === "wsl" ? project.location.distro : undefined;
       const releaseWslDistro =
         wslDistro &&
@@ -345,12 +310,15 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
           .projects.some(
             (candidate) =>
               !candidate.disabled &&
+              candidate.remoteServerId === project.remoteServerId &&
               candidate.location.kind === "wsl" &&
               candidate.location.distro === wslDistro,
           )
           ? wslDistro
           : undefined;
-      if (!project.remoteServerId) {
+      // The owning host drops its watch; an unreachable host cannot be asked and
+      // replaces the watch when it returns.
+      if (!isRemoteProjectUnreachable(project)) {
         void readBridge()
           .gitUnwatchProject({
             projectId,
@@ -378,80 +346,53 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
     }
   };
 
-  if (dispatchRemoteProjectMutation(project, { disabled }, apply, cleanup)) return;
+  if (dispatchHostProjectMutation(project, { disabled }, apply, cleanup)) return;
   apply();
   cleanup();
 }
 
 /**
- * Re-point a project at a new on-disk folder after the user moved it. The repo
- * itself isn't copied — git worktrees are repaired and watchers/caches rebuilt
- * supervisor-side, then the project's stored location is updated. Blocks while
- * the project has running threads, whose captured working directory can't be
- * updated live. Native (non-WSL) projects only.
+ * Re-point a project at a new folder after the user moved it, on whichever
+ * host owns the project. The repo itself isn't copied: the host repairs its
+ * git worktrees, rebuilds watchers and caches, then stores the new location.
+ * It refuses while the project has running threads, whose captured working
+ * directory can't be updated live.
  */
-export async function relocateProject(projectId: string): Promise<void> {
-  const store = useAppStore.getState();
-  const project = store.projects.find((p) => p.id === projectId);
-  if (!project) return;
-
-  const hasRunningThread = store.threads.some(
-    (thread) => thread.projectId === projectId && thread.status === "working",
-  );
-  if (hasRunningThread) {
+/**
+ * Whether a project's folder cannot change right now because one of its
+ * threads is running; says so. Checked before a folder is offered for choosing
+ * and again before the change is sent.
+ */
+export function isFolderChangeBlockedByRunningThread(projectId: string): boolean {
+  const running = useAppStore
+    .getState()
+    .threads.some((thread) => thread.projectId === projectId && thread.status === "working");
+  if (running)
     toast.danger(i18n._(msg`Stop the project's running threads before changing its folder.`));
-    return;
-  }
+  return running;
+}
 
-  // WSL folders are browsed via their `\\wsl.localhost` UNC path (the native
-  // dialog can open them); deriveLocationFromPath turns the pick back into the
-  // right location kind — WSL when a UNC path is chosen, native otherwise.
-  const location = project.location;
-  const currentPath = location.kind === "wsl" ? location.uncPath : location.path;
-  const picked = await readBridge().pickFolder(currentPath || undefined);
-  if (!picked || picked === currentPath) return;
-
-  const newLocation = deriveLocationFromPath(picked, readBridge().platform);
-  if (
-    findProjectLocationConflict(
-      useAppStore.getState().projects,
-      project,
-      newLocation,
-      currentProjectIdentityOptions(),
-    )
-  ) {
-    toast.danger(resolveMessage("project.locationConflict"));
-    return;
-  }
-
+export async function relocateProject(projectId: string, path: string): Promise<void> {
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  const host = entityHost(project);
+  if (!project || !host || isFolderChangeBlockedByRunningThread(projectId)) return;
   try {
-    await readBridge().relocateProject({ projectId, newLocation });
-    store.updateProjectLocation(projectId, newLocation);
+    await host.runProjectCommand({ kind: "relocate", projectId: host.hostId, path });
   } catch (error) {
     toast.danger(friendlyError(error));
     return;
   }
-
-  void readBridge()
-    .gitWatchProject({ projectId, projectLocation: newLocation })
-    .catch(() => undefined);
-  void refreshGitProject({ id: projectId, location: newLocation }, "manual", "full");
   toast.success(i18n._(msg`Project folder updated. Reopen any terminals in this project.`));
 }
 
-export async function relocateRemoteProject(projectId: string, path: string): Promise<void> {
-  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
-  const owner = remoteOwner(project);
-  if (!owner) return;
-  try {
-    await useRemoteServersStore.getState().runProjectCommand(owner.desktopId, {
-      kind: "relocate",
-      projectId: owner.remoteId,
-      path,
-    });
-  } catch (error) {
-    toast.danger(friendlyError(error));
-  }
+/** Choose a project's new folder with this machine's folder dialog. */
+export async function pickProjectFolder(project: Project): Promise<string | null> {
+  // WSL folders are browsed via their `\\wsl.localhost` UNC path (the native
+  // dialog can open them); the host derives the location kind from the pick.
+  const location = project.location;
+  const currentPath = location.kind === "wsl" ? location.uncPath : location.path;
+  const picked = await readBridge().pickFolder(currentPath || undefined);
+  return picked && picked !== currentPath ? picked : null;
 }
 
 export function deleteProject(projectId: string): void {
@@ -459,87 +400,54 @@ export function deleteProject(projectId: string): void {
 }
 
 async function deleteProjectAsync(projectId: string): Promise<void> {
-  const remoteProject = useAppStore.getState().projects.find((project) => project.id === projectId);
-  const owner = remoteOwner(remoteProject);
-  if (owner) {
-    await presentProjectRemoval(remoteProject!, () =>
-      useRemoteServersStore.getState().runProjectCommand(owner.desktopId, {
-        kind: "remove",
-        projectId: owner.remoteId,
-      }),
-    ).catch((error) => toast.danger(friendlyError(error)));
-    return;
-  }
-  const rootOwner = managedRootOwner(remoteProject ?? { id: projectId });
-  if (rootOwner && !isApplyingHostOriginatedManagedRootMutation()) {
-    // The host cascades its threads and broadcasts membership; the catalog
-    // deletion gate removes the rows. Local renderer surfaces close after the
-    // host confirmed the delete.
-    const cleanup = () => {
-      const store = useAppStore.getState();
-      for (const threadId of store.threads
-        .filter((thread) => thread.projectId === projectId)
-        .map((thread) => thread.id)) {
-        void readBridge()
-          .closeThread({ threadId })
-          .catch(() => undefined);
-      }
-      const termStore = useDevTerminalStore.getState();
-      for (const tabId of termStore.removeTabsForProject(projectId)) {
-        void readBridge()
-          .closeThread({ threadId: tabId })
-          .catch(() => undefined);
-      }
-      if (
-        termStore.isOpen &&
-        termStore.source === "project" &&
-        termStore.activeProjectId === projectId
-      ) {
-        termStore.closePanel();
-      }
-      useGitStore.getState().clearStatus(projectId);
-      refreshManagedRootCatalogSoon();
-    };
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  const host = intentHost(project);
+  if (project && host) {
+    // The host cascades its threads and broadcasts membership; its catalog
+    // removes the rows. This client's own surfaces close once the host
+    // confirmed the removal.
+    const threadIds = projectThreadIds(projectId);
     try {
-      if (!remoteProject) return;
-      await presentProjectRemoval(remoteProject, async () => {
-        await sendManagedRootProjectCommand({ kind: "remove", projectId: rootOwner.threadId });
-        cleanup();
+      await presentProjectRemoval(project, async () => {
+        await host.runProjectCommand({ kind: "remove", projectId: host.hostId });
+        closeProjectSurfaces(projectId, threadIds);
       });
     } catch (error) {
       toast.danger(friendlyError(error));
     }
     return;
   }
-  const store = useAppStore.getState();
-  const projectThreadIds = store.threads.filter((t) => t.projectId === projectId).map((t) => t.id);
-
-  store.deleteProject(projectId);
-  // Local project removal (no experiment authority on this runtime): reconcile
-  // the in-memory projection only. The host-owned path above already cascades
-  // experiment records host-side.
+  // A removal the host already applied, mirrored into this client.
+  const threadIds = projectThreadIds(projectId);
+  useAppStore.getState().deleteProject(projectId);
   useExperimentStore.getState().removeProjectExperiments(projectId);
+  closeProjectSurfaces(projectId, threadIds);
+}
 
-  for (const threadId of projectThreadIds) {
+function projectThreadIds(projectId: string): string[] {
+  return useAppStore
+    .getState()
+    .threads.filter((thread) => thread.projectId === projectId)
+    .map((thread) => thread.id);
+}
+
+/** Closes this client's sessions, panels and caches for a removed project. */
+function closeProjectSurfaces(projectId: string, threadIds: readonly string[]): void {
+  for (const threadId of threadIds) {
     void readBridge()
       .closeThread({ threadId })
       .catch(() => undefined);
   }
-
   const termStore = useDevTerminalStore.getState();
-  const removedTabIds = termStore.removeTabsForProject(projectId);
-  for (const tabId of removedTabIds) {
+  for (const tabId of termStore.removeTabsForProject(projectId)) {
     void readBridge()
       .closeThread({ threadId: tabId })
       .catch(() => undefined);
   }
-
   if (termStore.source === "project" && termStore.activeProjectId === projectId) {
     termStore.closePanel();
   }
-
   useGitStore.getState().clearStatus(projectId);
-
   const panelStore = usePanelStore.getState();
   if (panelStore.gitReviewContext?.projectId === projectId) {
     panelStore.setGitOverlayOpen(false);

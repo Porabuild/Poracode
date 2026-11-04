@@ -2,7 +2,6 @@ import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project } from "@/shared/contracts";
-import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -10,21 +9,12 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { clearEagerShellStart } from "@/renderer/utils/shellUtils";
 import { DevTerminalPanel } from "./DevTerminalPanel";
 
-const { bridge, remote, layouts, toast } = vi.hoisted(() => ({
+const { bridge, layouts, toast } = vi.hoisted(() => ({
   bridge: {
     closeThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     startShell: vi.fn<(payload: unknown) => Promise<void>>().mockResolvedValue(undefined),
   },
-  remote: {
-    watchTerminal:
-      vi.fn<
-        (desktopId: string, terminalId: string, listener: TerminalFeedListener) => () => void
-      >(),
-  },
   layouts: {
-    bottomWatchTerminal: undefined as
-      | ((terminalId: string, listener: TerminalFeedListener) => () => void)
-      | undefined,
     bottomOnTerminalResize: undefined as
       | ((terminalId: string, size: { cols: number; rows: number }) => void)
       | undefined,
@@ -39,11 +29,6 @@ vi.mock("@heroui/react", () => ({ toast }));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
-}));
-
-vi.mock("@/renderer/state/remoteTerminalFeed", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/renderer/state/remoteTerminalFeed")>()),
-  watchRemoteTerminal: remote.watchTerminal,
 }));
 
 vi.mock("./parts/RightTerminalLayout", () => ({
@@ -67,10 +52,8 @@ vi.mock("./parts/BottomTerminalLayout", () => ({
     activeScopeLabel: string | undefined;
     handleCloseTab: (tab: DevTerminalTab) => void;
     handleCloseSplit: (tab: DevTerminalTab) => void;
-    watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
     onTerminalResize: (terminalId: string, size: { cols: number; rows: number }) => void;
   }) => {
-    layouts.bottomWatchTerminal = props.watchTerminal;
     layouts.bottomOnTerminalResize = props.onTerminalResize;
     return (
       <>
@@ -144,8 +127,6 @@ describe("DevTerminalPanel", () => {
   beforeEach(() => {
     bridge.closeThread.mockClear();
     bridge.startShell.mockReset().mockResolvedValue(undefined);
-    remote.watchTerminal.mockReset();
-    layouts.bottomWatchTerminal = undefined;
     layouts.bottomOnTerminalResize = undefined;
     layouts.mobileProjectTabs = [];
     toast.danger.mockReset();
@@ -203,24 +184,6 @@ describe("DevTerminalPanel", () => {
     expect(useDevTerminalStore.getState().tabs).toEqual([]);
     expect(useDevTerminalStore.getState().isOpen).toBe(false);
     expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "shell:split" });
-  });
-
-  it("connects a remote bottom terminal to its project's server feed", () => {
-    const unsubscribe = vi.fn<() => void>();
-    remote.watchTerminal.mockReturnValue(unsubscribe);
-    useAppStore.setState({
-      projects: [{ ...project, remoteServerId: "desktop-1", remoteId: "remote-project" }],
-    });
-    useSharedSettings.setState({ terminalPosition: "bottom" });
-    render(<DevTerminalPanel hideHeader />);
-
-    const listener: TerminalFeedListener = {
-      onOutput: vi.fn<(data: string) => void>(),
-      onReset: vi.fn<() => void>(),
-      onExited: vi.fn<(exitCode: number | null) => void>(),
-    };
-    expect(layouts.bottomWatchTerminal?.(tab.id, listener)).toBe(unsubscribe);
-    expect(remote.watchTerminal).toHaveBeenCalledWith("desktop-1", tab.id, listener);
   });
 
   it("preserves the started shell when the panel remounts on the same tab", async () => {

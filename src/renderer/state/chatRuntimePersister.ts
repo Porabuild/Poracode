@@ -15,18 +15,7 @@ import {
 } from "./remote/historyNoticeStore";
 import { useAppStore } from "./appStore";
 import { isHistoryReadBeforeHostCreation } from "./remoteLaunchHistory";
-import { beginManagedRootHistoryPreview } from "./managedRootCatalog/rootHistoryPreview";
-import { beginHistorySnapshotRead, forgetHistoryResume } from "./historyResumeRegistry";
-import {
-  managedRootHistoryActivation,
-  isManagedRootHistoryThread,
-  isManagedRootThreadAbsentError,
-  loadManagedRootRuntimeItemsPage,
-  noteManagedRootHistoryFailure,
-  readManagedRootHistoryPage,
-} from "./managedRootCatalog/rootHistory";
-import { toCompletedTurnRecords } from "./remoteServers/catalog/boundedHistory";
-import { pendingRemoteThreadOpen } from "./remoteServers/pendingRemoteThreadOpens";
+import { forgetHistoryResume } from "./historyResumeRegistry";
 import { toRuntimeChatItem, type CompletedTurnRecord } from "./slices/runtimeEventSlice";
 
 import {
@@ -134,10 +123,13 @@ export function seedOlderThreadRuntimeItemsCursor(
     readonly sparseControlIds?: ReadonlySet<string>;
     readonly obsoleteGoalId?: string | null;
     readonly unlocatedControl?: RuntimeHistoryBoundary["unlocatedControl"];
+    /** The pending hydration performing this install; it is not superseded by it. */
+    readonly installingSignal?: AbortSignal;
   } = {},
 ): void {
   cancelPendingOlderRuntimePage(threadId);
-  cancelPendingThreadRuntimeHydration(threadId);
+  if (pendingThreadRuntimeHydrations.get(threadId)?.controller.signal !== options.installingSignal)
+    cancelPendingThreadRuntimeHydration(threadId);
   const boundary = runtimeHistoryBoundary(threadId);
   const currentCursor = boundary.cursor;
   // A fresh installation always fences pending reads, even when the older
@@ -186,6 +178,64 @@ export function setOlderThreadHistoryContinuation(
  * cannot survive and append stale older history.
  */
 export type OlderThreadHistoryInvalidation = (threadId: string) => void;
+
+/** How one host history read ended. */
+export type HostThreadHistoryReadOutcome =
+  | { readonly kind: "installed" }
+  /** The host has no such thread: nothing persisted to lose. */
+  | { readonly kind: "absent"; readonly error: unknown }
+  | { readonly kind: "failed"; readonly error: unknown }
+  /** The host connection changed during the read; the new one re-reads. */
+  | { readonly kind: "stale" }
+  /** The host is not connected; its connection re-reads retained threads. */
+  | { readonly kind: "offline"; readonly error: unknown };
+
+/**
+ * Reads and installs a host-owned thread's authoritative history tail
+ * (registered by the host history module). Returns undefined for a thread no
+ * host owns.
+ */
+export type HostThreadHistoryReader = (
+  threadId: string,
+  signal: AbortSignal,
+  request: {
+    readonly page?: RemoteBoundedThreadHistoryPage;
+    readonly beforeInstall?: () => boolean;
+  },
+) => Promise<HostThreadHistoryReadOutcome> | undefined;
+
+let hostThreadHistoryReader: HostThreadHistoryReader | null = null;
+
+export function setHostThreadHistoryReader(reader: HostThreadHistoryReader | null): void {
+  hostThreadHistoryReader = reader;
+}
+
+/** One older runtime-items page of a thread, before `beforePosition`. */
+export interface RuntimeItemsPageInput {
+  readonly threadId: string;
+  readonly beforePosition: number;
+  readonly limit: number;
+  readonly targetTimelineEntryCount: number;
+  readonly signal?: AbortSignal;
+}
+
+/**
+ * Reads an older page of a host-owned thread through its host (registered by
+ * the host history module). Returns undefined for a thread no host owns.
+ */
+export type HostOlderRuntimePageReader = (
+  input: RuntimeItemsPageInput,
+) =>
+  | Promise<
+      { readonly items: PersistedRuntimeItem[]; readonly nextCursor: number | null } | undefined
+    >
+  | undefined;
+
+let hostOlderRuntimePageReader: HostOlderRuntimePageReader | null = null;
+
+export function setHostOlderRuntimePageReader(reader: HostOlderRuntimePageReader | null): void {
+  hostOlderRuntimePageReader = reader;
+}
 
 let olderThreadHistoryInvalidation: OlderThreadHistoryInvalidation | null = null;
 
@@ -344,8 +394,8 @@ async function readOlderRuntimePage(
     limit: RUNTIME_PAGE_SCAN_SIZE,
     targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
   };
-  if (isManagedRootHistoryThread(threadId))
-    return loadManagedRootRuntimeItemsPage({ ...input, ...(signal ? { signal } : {}) });
+  const hostPage = hostOlderRuntimePageReader?.({ ...input, ...(signal ? { signal } : {}) });
+  if (hostPage) return hostPage;
   const page = await readBridge().dbGetThreadRuntimeItemsPage(input);
   signal?.throwIfAborted();
   return page;
@@ -396,11 +446,11 @@ function releaseRuntimeWindowPagingIfIdle(threadId: string): void {
  * `ChatPane` mount so reopening a thread shows past messages even after an
  * app restart.
  */
-export async function hydrateThreadRuntimeItems(
+export function hydrateThreadRuntimeItems(
   threadId: string,
   options?: RuntimeHydrationOptions,
-): Promise<void> {
-  await ensureThreadRuntimeItemsHydrated(threadId, options);
+): Promise<boolean> {
+  return ensureThreadRuntimeItemsHydrated(threadId, options);
 }
 
 async function ensureThreadRuntimeItemsHydrated(
@@ -434,17 +484,26 @@ async function ensureThreadRuntimeItemsHydrated(
   try {
     const outcome = await hydration;
     // A reset superseded this read mid-flight: it owns neither the hydration
-    // marker nor the visible status — the replacement read owns both. A remote
-    // open that superseded it clears the status once its own history installs
-    // (see `hasPendingThreadRuntimeHydration`), so the loader stays up until then.
-    if (request.controller.signal.aborted) return false;
+    // marker nor the visible status — the replacement read owns both. An
+    // authoritative install (a host history read) supersedes it by seeding the
+    // window instead: that history is in, so the loading state ends here
+    // unless a newer live read owns it.
+    if (request.controller.signal.aborted) {
+      if (
+        hydratedThreadRuntimeIds.has(threadId) &&
+        !hasPendingThreadRuntimeHydration(threadId) &&
+        useAppStore.getState().runtimeHydrationStatus[threadId] === "pending"
+      )
+        useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
+      return false;
+    }
     if (outcome === true) {
       hydratedThreadRuntimeIds.add(threadId);
       useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
-    } else if (outcome === AWAITING_HOST_CREATION) {
-      // Nothing exists to load until the host starts the thread: the live
-      // stream fills the pane, and the thread stays unhydrated so a later open
-      // reads its real history.
+    } else if (outcome === AWAITING_HOST) {
+      // Nothing can load until the host starts the thread or its connection
+      // is live: the live stream or the connection's rebuild fills the pane,
+      // and the thread stays unhydrated so a later read loads its history.
       useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
     } else {
       useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
@@ -460,23 +519,16 @@ async function ensureThreadRuntimeItemsHydrated(
   }
 }
 
-/** The first read reached the host before it created this remote thread (see
- * {@link isHistoryReadBeforeHostCreation}). */
-const AWAITING_HOST_CREATION = "awaiting-host-creation";
+/** The read reached the host before it created this thread (see
+ * {@link isHistoryReadBeforeHostCreation}), or the host is not connected. */
+const AWAITING_HOST = "awaiting-host";
 
 async function hydrateThreadRuntimeItemsFromDb(
   threadId: string,
   request: RuntimeHydrationRequest,
-): Promise<boolean | typeof AWAITING_HOST_CREATION> {
-  // The managed desktop's own threads read their transcript through the SAME
-  // bounded HTTP contract remote threads use (items + completed turns +
-  // `ct1.` cursor + durable notice) over the ONE loopback client. The ordinary
-  // root path must never invoke the unbounded local completed-turns read.
-  if (isManagedRootHistoryThread(threadId)) {
-    return hydrateManagedRootThreadRuntimeItems(threadId, request);
-  }
+): Promise<boolean | typeof AWAITING_HOST> {
   // Browser startup can restore the same complete cached snapshot already
-  // written by the remote installer. Routing four derived reads to the host
+  // written by the host read installer. Routing four derived reads to the host
   // would both duplicate its tail response and fail this initial read offline.
   const initialState = useAppStore.getState();
   const initialVersion = initialState.runtimeStructuralVersionByThread[threadId] ?? 0;
@@ -505,35 +557,90 @@ async function hydrateThreadRuntimeItemsFromDb(
       cachedSnapshot.runtimeNotice,
     );
   }
-  // A remote open (sidebar click, search hit, restore) is already reading this
-  // thread's authoritative tail. Its single bounded read carries the items,
-  // turns, usage and goal these four derived reads would each fetch again, so
-  // wait for it; read only when it failed or was superseded.
-  const inFlightOpen = cachedSnapshot ? undefined : pendingRemoteThreadOpen(threadId);
-  if (inFlightOpen) {
-    await inFlightOpen.catch(() => false);
+  // A host-owned thread, whichever host owns it, reads its authoritative tail
+  // through that host's one bounded history read (items + completed turns +
+  // `ct1.` cursor + durable notice). It never falls back to an unbounded local
+  // read. A browser's cached tail paints first, provisionally, and stands
+  // while the host is unreachable.
+  const hostRead = hostThreadHistoryReader?.(threadId, request.controller.signal, {
+    ...(request.historyPage ? { page: request.historyPage } : {}),
+    ...(request.beforeInstall ? { beforeInstall: request.beforeInstall } : {}),
+  });
+  if (hostRead) {
+    const cached =
+      cachedSnapshot === null
+        ? false
+        : installHydrationResults(threadId, browserRuntimeHydrationResults(cachedSnapshot), {
+            provisional: true,
+          }) === true;
+    const outcome = await hostRead;
     if (request.controller.signal.aborted) return false;
-    if (hydratedThreadRuntimeIds.has(threadId)) return true;
+    if (outcome.kind === "installed") return true;
+    if (outcome.kind === "absent") {
+      // A read that reached the host before it created this thread waits for
+      // it; the live stream fills the pane and a later read loads its history.
+      if (
+        isHistoryReadBeforeHostCreation(threadId, [{ status: "rejected", reason: outcome.error }])
+      )
+        return AWAITING_HOST;
+      // An unpersisted or authoritatively removed row has no transcript to
+      // lose. A later pass/pin fills the empty transcript when it is created.
+      if (request.beforeInstall && !request.beforeInstall()) return false;
+      runtimeHistoryBoundary(threadId).cursor = null;
+      return true;
+    }
+    if (outcome.kind === "stale") return cached;
+    // Nothing failed yet: the pane waits for its host, whose connection reads
+    // the threads panes retain once it is live.
+    if (outcome.kind === "offline") return cached || AWAITING_HOST;
+    // Before the warning: a read that reached the host before it created
+    // this thread is expected, not reportable.
+    if (isHistoryReadBeforeHostCreation(threadId, [{ status: "rejected", reason: outcome.error }]))
+      return AWAITING_HOST;
+    if (cached) return true;
+    console.warn("[chat] failed to hydrate runtime history for thread %s", threadId, outcome.error);
+    captureRendererException(outcome.error, { featureArea: "runtime-persistence" });
+    return false;
   }
-  const bridge = readBridge();
-  const [itemsResult, turnsResult, contextResult, latestGoalResult] = cachedSnapshot
+  const results = cachedSnapshot
     ? browserRuntimeHydrationResults(cachedSnapshot)
-    : await Promise.allSettled([
-        Promise.resolve().then(() =>
-          bridge.dbGetThreadRuntimeItemsPage({
-            threadId,
-            limit: RUNTIME_PAGE_SCAN_SIZE,
-            targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
-          }),
-        ),
-        Promise.resolve().then(() => bridge.dbGetThreadCompletedTurns(threadId)),
-        Promise.resolve().then(() => bridge.dbGetThreadContextUsage(threadId)),
-        Promise.resolve().then(() => bridge.dbGetLatestThreadGoalItem({ threadId })),
-      ]);
+    : await readBridgeHydrationResults(threadId);
   // A reset superseded this read while it was in flight: install nothing and
   // claim no cursor — the replacement read owns both.
   if (request.controller.signal.aborted) return false;
+  return installHydrationResults(threadId, results, {
+    provisional: cachedSnapshot !== null,
+    ...(request.beforeInstall ? { beforeInstall: request.beforeInstall } : {}),
+  });
+}
 
+function readBridgeHydrationResults(threadId: string) {
+  const bridge = readBridge();
+  return Promise.allSettled([
+    Promise.resolve().then(() =>
+      bridge.dbGetThreadRuntimeItemsPage({
+        threadId,
+        limit: RUNTIME_PAGE_SCAN_SIZE,
+        targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
+      }),
+    ),
+    Promise.resolve().then(() => bridge.dbGetThreadCompletedTurns(threadId)),
+    Promise.resolve().then(() => bridge.dbGetThreadContextUsage(threadId)),
+    Promise.resolve().then(() => bridge.dbGetLatestThreadGoalItem({ threadId })),
+  ]);
+}
+
+type HydrationReadResults =
+  | ReturnType<typeof browserRuntimeHydrationResults>
+  | Awaited<ReturnType<typeof readBridgeHydrationResults>>;
+
+/** Installs one set of transcript reads (bridge reads or a cached browser tail). */
+function installHydrationResults(
+  threadId: string,
+  [itemsResult, turnsResult, contextResult, latestGoalResult]: HydrationReadResults,
+  options: { readonly provisional: boolean; readonly beforeInstall?: () => boolean },
+): boolean | typeof AWAITING_HOST {
+  const request = options;
   if (request.beforeInstall) {
     if (
       itemsResult.status === "rejected" ||
@@ -554,7 +661,7 @@ async function hydrateThreadRuntimeItemsFromDb(
       latestGoalResult,
     ])
   ) {
-    return AWAITING_HOST_CREATION;
+    return AWAITING_HOST;
   }
 
   if (itemsResult.status === "fulfilled") {
@@ -562,7 +669,7 @@ async function hydrateThreadRuntimeItemsFromDb(
   }
   if (itemsResult.status === "fulfilled" && itemsResult.value.items.length > 0) {
     installHydratedRuntimeItems(threadId, itemsResult.value.items, itemsResult.value.nextCursor, {
-      provisional: cachedSnapshot !== null,
+      provisional: options.provisional,
     });
   } else if (itemsResult.status === "rejected") {
     console.warn(
@@ -671,90 +778,6 @@ function installHydratedRuntimeItems(
   // The host refresh reconciles them after reconnect.
   if (!options.provisional) {
     useAppStore.getState().reconcileStaleSubAgents(threadId, hydrationReconcileOptions());
-  }
-}
-
-/**
- * Managed-root hydration from ONE bounded history read. The page carries the
- * transcript tail, the newest completed turns with a `ct1.` continuation
- * cursor, context usage and the durable notice; recording the tail is what
- * makes older-item pages and the `ct1.` walk continue over the same bounded
- * routes.
- */
-async function hydrateManagedRootThreadRuntimeItems(
-  threadId: string,
-  request: RuntimeHydrationRequest,
-): Promise<boolean> {
-  // Start HTTP before the optional cache read. Neither IndexedDB nor agent
-  // connection readiness can delay the authoritative history request.
-  const historyRead = readManagedRootHistoryPage(threadId, {
-    signal: request.controller.signal,
-    ...(request.historyPage ? { page: request.historyPage } : {}),
-  });
-  const resumeRead = beginHistorySnapshotRead(threadId, managedRootHistoryActivation()!.authority);
-  const preview = beginManagedRootHistoryPreview(threadId, request.controller.signal);
-  let page: Awaited<ReturnType<typeof readManagedRootHistoryPage>>;
-  try {
-    // The bounded history response already carries the latest goal, including
-    // goals before the tail window. A separate DB read would duplicate work
-    // and dispatch a host-owned operation to the supervisor.
-    page = await historyRead;
-  } catch (error) {
-    resumeRead.cancel();
-    preview.cancel();
-    // A reset superseded this read mid-flight: install nothing, seed no
-    // cursor, and surface no failure of its own (the replacement read owns
-    // the outcome).
-    if (request.controller.signal.aborted) return false;
-    if (isManagedRootThreadAbsentError(error)) {
-      if (request.beforeInstall && !request.beforeInstall()) return false;
-      // An unpersisted or authoritatively removed row has no transcript to
-      // lose. A later pass/pin fills the empty transcript when it is created.
-      runtimeHistoryBoundary(threadId).cursor = null;
-      return true;
-    }
-    console.warn(
-      "[chat] failed to hydrate the managed root transcript for thread %s",
-      threadId,
-      error,
-    );
-    captureRendererException(error, { featureArea: "runtime-persistence" });
-    noteManagedRootHistoryFailure(threadId, error);
-    return false;
-  }
-
-  try {
-    preview.retire();
-    if (request.controller.signal.aborted || (request.beforeInstall && !request.beforeInstall())) {
-      preview.cancel();
-      resumeRead.cancel();
-      return false;
-    }
-    if (page.runtimeItems.length > 0) {
-      installHydratedRuntimeItems(threadId, page.runtimeItems, page.runtimeNextCursor ?? null);
-    }
-    runtimeHistoryBoundary(threadId).cursor = page.runtimeNextCursor ?? null;
-    const records = toCompletedTurnRecords(page.completedTurns).slice(
-      -MAX_CACHED_COMPLETED_TURN_RECORDS,
-    );
-    if (page.completedTurnsNextCursor === null) {
-      // A complete tail replaces the level, so reverted turns can be dropped.
-      useAppStore.getState().replaceThreadCompletedTurns(threadId, records);
-    } else {
-      // A tail with older history merges losslessly with already-loaded pages.
-      useAppStore.getState().hydrateThreadCompletedTurns(threadId, records);
-    }
-    if (page.contextUsage) {
-      useAppStore.getState().hydrateThreadContextUsage(threadId, page.contextUsage);
-    }
-    preview.cacheAccepted(page.runtimeItems);
-    resumeRead.finish(page.runtimeResumeCursor, page.snapshotSeq);
-    preview.complete(page.snapshotSeq);
-    return true;
-  } finally {
-    // Failed admission must not strand queued live frames behind a cold read.
-    preview.cancel();
-    resumeRead.cancel();
   }
 }
 

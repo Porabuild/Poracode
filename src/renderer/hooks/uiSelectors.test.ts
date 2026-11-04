@@ -5,13 +5,15 @@ import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { EMPTY_BOTTOM_PANEL_DOCKS, usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import type { AgentStatus, BackgroundTask, Thread } from "@/shared/contracts";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { AgentStatus, BackgroundTask, Project, Thread } from "@/shared/contracts";
 import {
   selectThreadIsWaitingForBackground,
   useIsProjectGitPanelActive,
   useIsProjectTerminalActive,
   useIsWorktreeFilesPanelActive,
   useIsWorktreeGitPanelActive,
+  useDraftEnvironment,
   useIsWorktreeTerminalActive,
   useThreadAgentStatuses,
 } from "./uiSelectors";
@@ -199,6 +201,83 @@ describe("thread agent statuses", () => {
     );
 
     expect(result.current.map((status) => status.kind)).toEqual(["ubuntu-agent"]);
+  });
+});
+
+describe("host-keyed agent statuses", () => {
+  const originalRuntime = useRemoteServersStore.getState().runtime;
+  const wslLocation = {
+    kind: "wsl",
+    distro: "Ubuntu",
+    linuxPath: "/repo",
+    uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+  } as const;
+
+  function seedPairedHost(status: "online" | "connecting" = "online") {
+    useRemoteServersStore.setState({
+      runtime: {
+        studio: {
+          status,
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [
+              agent("host-native", "windows"),
+              { ...agent("host-missing", "windows"), installed: false },
+            ],
+            wsl: [agent("host-ubuntu", "wsl", "Ubuntu"), agent("host-debian", "wsl", "Debian")],
+            updatedAt: "2026-11-04T00:00:00.000Z",
+          },
+        },
+      },
+    });
+  }
+
+  beforeEach(() => {
+    useRemoteServersStore.setState({ runtime: originalRuntime });
+    useAgentStatusesStore.setState({
+      agentStatuses: [agent("local-native", "windows")],
+      wslAgentStatuses: [],
+      windowsLoaded: true,
+      wslLoaded: true,
+    });
+  });
+
+  it("offers a paired host's installed agents for its WSL distro to a remote thread", () => {
+    seedPairedHost();
+    const { result } = renderHook(() =>
+      useThreadAgentStatuses({ remoteServerId: "studio", projectLocation: wslLocation }),
+    );
+    expect(result.current.map((status) => status.kind)).toEqual(["host-ubuntu"]);
+  });
+
+  it("lists the managed host's agents, uninstalled included, in a local draft", () => {
+    const project = {
+      id: "p1",
+      name: "Local",
+      location: { kind: "windows", path: "C:/repo" },
+      createdAt: "2026-11-04",
+    } satisfies Project;
+    const { result } = renderHook(() => useDraftEnvironment(project));
+    expect(result.current.agentStatuses.map((status) => status.kind)).toEqual(["local-native"]);
+    expect(result.current.isDetectingAgents).toBe(false);
+    expect(result.current.pickFiles).toBeUndefined();
+  });
+
+  it("lists a paired host's installed agents and its connection state in a mirrored draft", () => {
+    seedPairedHost("connecting");
+    const project = {
+      id: "remote:studio:project:p1",
+      name: "Hosted",
+      location: { kind: "windows", path: "C:/hosted" },
+      remoteServerId: "studio",
+      remoteId: "p1",
+      createdAt: "2026-11-04",
+    } satisfies Project;
+    const { result } = renderHook(() => useDraftEnvironment(project));
+    expect(result.current.agentStatuses.map((status) => status.kind)).toEqual(["host-native"]);
+    expect(result.current.isDetectingAgents).toBe(true);
+    expect(result.current.pickFiles).toBeTypeOf("function");
   });
 });
 

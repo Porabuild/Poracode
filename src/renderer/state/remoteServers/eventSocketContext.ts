@@ -9,38 +9,10 @@ import type {
   RemoteSocketLike,
 } from "./types";
 
-export interface EventSocketRecoveryState {
-  threadIds: Set<string>;
-  /** Queued recovery frames carry the measured size of the RAW wire frame
-   * (UTF-16 upper bound), so recovery accounting never re-serializes an event
-   * just to size it. */
-  queuedEvents: Array<{
-    readonly seq: number;
-    readonly event: unknown;
-    readonly bytes: number;
-    readonly omittedRuntimeThreadIds?: readonly string[];
-  }>;
-  queuedBytes: number;
-  overflowed: boolean;
-  baselineSeqByThread: Map<string, number>;
-}
-
-export function createEventSocketRecoveryState(): EventSocketRecoveryState {
-  return {
-    threadIds: new Set<string>(),
-    queuedEvents: [],
-    queuedBytes: 0,
-    overflowed: false,
-    baselineSeqByThread: new Map<string, number>(),
-  };
-}
-
 /**
- * Shared bag for the current socket of one event-stream session. Recovery
- * buffers and the in-flight resync promise are session-scoped (same object
- * across reconnects) so a dead socket's recovery cannot be reused on its
- * replacement. Mutable method slots are filled by the resync and message
- * binders so neither module imports the other.
+ * Shared bag for the current socket of one event-stream session. Mutable
+ * method slots are filled by the resync and message binders so neither module
+ * imports the other.
  */
 export interface EventSocketConnectionContext {
   readonly server: RemoteServerRecord;
@@ -81,17 +53,10 @@ export interface EventSocketConnectionContext {
    * are consumed inline at receive time, exactly as the pre-A3 client did.
    * This is a capability, never a failure fallback. */
   readonly decodeInline: boolean;
-  readonly recovery: EventSocketRecoveryState;
-  readonly resyncSlots: {
-    promise: Promise<boolean> | null;
-    socket: RemoteSocketLike | null;
-    resumeFence: number | null;
-  };
   dispatchForwardEvent: (
     forward: unknown,
     sequence: number,
-    recoveryReplay?: boolean,
     omittedRuntimeThreadIds?: readonly string[],
   ) => void;
-  recoverInterestedThreads: (beforeReplay?: () => void) => Promise<boolean>;
+  recoverInterestedThreads: (onlyThreadIds?: ReadonlySet<string>) => Promise<boolean>;
 }

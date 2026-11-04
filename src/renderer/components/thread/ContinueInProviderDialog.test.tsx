@@ -483,6 +483,58 @@ describe("ContinueInProviderDialog handoff flow", () => {
       { strategy: "context-file", extracted: null },
     );
   });
+  it("extracts a paired host's thread through the same routed procedure as a local one", async () => {
+    const onContinue = renderDialog({
+      thread: {
+        remoteServerId: "handoff-host",
+        remoteId: "host-thread",
+        sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+      },
+    });
+
+    await pressSwitch();
+
+    // The bridge routes the thread-owned procedure to the owning host.
+    expect(bridge.extractContext).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: thread.id, agentKind: "claude" }),
+    );
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.anything(),
+      "terminal",
+      expect.anything(),
+      undefined, // empty composer: no segments
+      "switch",
+      { strategy: "context-file", extracted: expect.objectContaining({ summary: "extracted" }) },
+    );
+  });
+
+  it("keeps a paired host's chat thread on the context file: its read_thread settings are not this machine's", async () => {
+    useAppStore.setState({
+      threadMentionToolsAvailableByThreadId: { [thread.id]: true },
+    } as never);
+    const onContinue = renderDialog({
+      thread: {
+        remoteServerId: "handoff-host",
+        remoteId: "host-thread",
+        sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+      },
+      installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+    });
+
+    await pressSwitch();
+
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.anything(),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      { strategy: "context-file", extracted: expect.anything() },
+    );
+    expect(bridge.extractContext).toHaveBeenCalledOnce();
+  });
 });
 
 describe("ContinueInProviderDialog target config", () => {

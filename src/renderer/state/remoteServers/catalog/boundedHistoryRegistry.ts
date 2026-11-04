@@ -7,7 +7,6 @@ import {
 } from "@/shared/remote/client";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import { recordThreadHistoryNoticeRead } from "@/renderer/state/remote/historyNoticeStore";
-import { currentRemoteServerGeneration, remoteServerResumeFence } from "../eventSocketRegistry";
 
 /**
  * B4 bounded-history tail registry (W1, renderer).
@@ -19,7 +18,7 @@ import { currentRemoteServerGeneration, remoteServerResumeFence } from "../event
  * app-store-facing merge helpers live in `boundedHistory.ts`.
  */
 
-interface BoundedHistorySession {
+export interface BoundedHistorySession {
   readonly authority: string;
   isCurrent(): boolean;
   withClient<Result>(
@@ -40,89 +39,8 @@ export interface BoundedHistoryTail {
 const tails = new Map<string, BoundedHistoryTail>();
 const MAX_TRACKED_TAILS = 256;
 
-let withBoundedClient:
-  | (<Result>(
-      desktopId: string,
-      invoke: (client: RemoteDesktopClient) => Promise<Result>,
-    ) => Promise<Result>)
-  | null = null;
-
-export function configureBoundedHistoryClient(
-  invoke: <Result>(
-    desktopId: string,
-    operation: (client: RemoteDesktopClient) => Promise<Result>,
-  ) => Promise<Result>,
-): void {
-  withBoundedClient = invoke;
-}
-
-export function boundedClientInvoker(): typeof withBoundedClient {
-  return withBoundedClient;
-}
-
-/**
- * The managed loopback client provider (B4 root history). Bound by the root
- * adapter from the live activation accessor so this registry stays free of
- * transport imports; `null` while the leg is down.
- */
-export interface ManagedRootHistoryClientSnapshot {
-  readonly client: RemoteDesktopClient;
-  readonly seq: number;
-  /** Opaque per-activation notice authority (C1 identity custody). */
-  readonly authority: string;
-}
-
-let managedRootClientProvider: (() => ManagedRootHistoryClientSnapshot | null) | null = null;
-
-export function configureBoundedHistoryManagedRootClient(
-  provider: (() => ManagedRootHistoryClientSnapshot | null) | null,
-): void {
-  managedRootClientProvider = provider;
-}
-
-export function managedRootHistoryClient(): ManagedRootHistoryClientSnapshot | null {
-  return managedRootClientProvider?.() ?? null;
-}
-
-export function recordBoundedHistoryTail(input: {
-  readonly desktopId: string;
-  readonly threadId: string;
-  readonly page: RemoteBoundedThreadHistoryPage;
-}): void {
-  const desktopId = input.desktopId;
-  const viewThreadId = remoteThreadId(desktopId, input.threadId);
-  const generation = currentRemoteServerGeneration(desktopId);
-  const fence = remoteServerResumeFence(desktopId);
-  recordHistoryTail(viewThreadId, input.threadId, input.page, {
-    authority: desktopId,
-    isCurrent: () =>
-      currentRemoteServerGeneration(desktopId) === generation &&
-      remoteServerResumeFence(desktopId) === fence,
-    withClient: (invoke) => withBoundedClient?.(desktopId, invoke),
-  });
-}
-
-/**
- * Record a managed-root bounded tail. Root rows are not projected, so the view
- * thread id IS the host thread id; the activation seq is the generation fence.
- */
-export function recordManagedRootBoundedHistoryTail(input: {
-  readonly threadId: string;
-  readonly page: RemoteBoundedThreadHistoryPage;
-}): void {
-  const managed = managedRootHistoryClient();
-  if (!managed) return;
-  recordHistoryTail(input.threadId, input.threadId, input.page, {
-    authority: managed.authority,
-    isCurrent: () => {
-      const current = managedRootHistoryClient();
-      return current?.seq === managed.seq && current.client === managed.client;
-    },
-    withClient: (invoke) => invoke(managed.client),
-  });
-}
-
-function recordHistoryTail(
+/** Records a thread's bounded tail under the session of the host that served it. */
+export function recordHistoryTail(
   viewThreadId: string,
   threadId: string,
   page: RemoteBoundedThreadHistoryPage,
@@ -220,13 +138,20 @@ type RuntimeItemsPageRequest = {
   readonly signal?: AbortSignal;
 };
 
-/** Root ids are unprojected; both entry points use the same page reader. */
-export async function invokeManagedRootRuntimeItemsPage(
+/**
+ * Older runtime-items continuation of a thread's recorded tail, through the
+ * session of the host that served it, whichever host that is. `threadId` is
+ * the store (view) id; the host's own id comes from the tail. Undefined when
+ * the thread has no recorded tail.
+ */
+export async function invokeRecordedRuntimeItemsPage(
   payload: RuntimeItemsPageRequest,
 ): Promise<{ readonly items: unknown; readonly nextCursor: number | null } | undefined> {
   const tail = readBoundedHistoryTail(payload.threadId);
   if (!tail) return undefined;
-  return tail.session.withClient((client) => readRuntimeItemsPage(client, tail, payload));
+  return tail.session.withClient((client) =>
+    readRuntimeItemsPage(client, tail, { ...payload, threadId: tail.threadId }),
+  );
 }
 
 async function readRuntimeItemsPage(

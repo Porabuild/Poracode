@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   boundManagedItemInterests,
-  createManagedItemInterestTracker,
+  createItemInterestTracker,
   MANAGED_ITEM_INTERESTS_MAX,
   normalizeManagedItemInterests,
   sameItemInterests,
@@ -38,7 +38,7 @@ describe("managed item-interest wire contract", () => {
 
 describe("managed item-interest tracker (A1 coverage restoration)", () => {
   it("reports a previously cap-excluded retained thread when it re-enters the selection", () => {
-    const tracker = createManagedItemInterestTracker();
+    const tracker = createItemInterestTracker();
     const first = tracker.select(overflowingPriorityList());
     expect(first.threadIds).toHaveLength(CAP);
     expect(first.droppedCount).toBe(1);
@@ -56,7 +56,7 @@ describe("managed item-interest tracker (A1 coverage restoration)", () => {
   });
 
   it("reports a dropped thread re-admitted because another pane released capacity", () => {
-    const tracker = createManagedItemInterestTracker();
+    const tracker = createItemInterestTracker();
     tracker.select(overflowingPriorityList());
 
     // t-200 leaves the retained set; t-0 is admitted without being re-retained.
@@ -69,7 +69,7 @@ describe("managed item-interest tracker (A1 coverage restoration)", () => {
   });
 
   it("never treats a freshly retained thread or a released thread as restored", () => {
-    const tracker = createManagedItemInterestTracker();
+    const tracker = createItemInterestTracker();
     tracker.select(overflowingPriorityList());
 
     // A brand-new id that pushes t-0 out again: t-200 was released (not
@@ -90,7 +90,7 @@ describe("managed item-interest tracker (A1 coverage restoration)", () => {
   });
 
   it("forgets prior coverage on reset so a re-open rebuilds instead of inferring restoration", () => {
-    const tracker = createManagedItemInterestTracker();
+    const tracker = createItemInterestTracker();
     tracker.select(overflowingPriorityList());
     tracker.reset();
     const reopened = tracker.select(overflowingPriorityList());

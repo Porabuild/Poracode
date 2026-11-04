@@ -9,11 +9,9 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { continuesInPlace } from "@/shared/continueProviderRanking";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { buildPaneLayoutFromLegacy, findPaneAlign, findPaneSlotId } from "@/shared/paneLayout";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
@@ -30,9 +28,12 @@ import {
   type ProviderHandoffContext,
 } from "@/renderer/actions/providerHandoff";
 import { switchThreadProviderInPlace } from "@/renderer/actions/providerSwitchActions";
-import { continueRemoteThreadInNewThread } from "@/renderer/actions/providerSwitchRemoteActions";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { entityHost } from "@/renderer/state/entityHost";
+import { dispatchThreadGroupIntents } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
+import {
+  readHostAgentStatusPools,
+  selectLocationAgentStatuses,
+} from "@/renderer/hooks/useHostAgentStatuses";
 import type { ContinueIntent } from "@/renderer/components/thread/ContinueInProviderDialog";
 import {
   resolvePaneDomKey,
@@ -113,23 +114,14 @@ export function AppContent() {
     const project = storeProjects.find((p) => p.id === sourceThread.projectId);
     if (!project) return;
 
-    const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-    const agents = getProjectAgentStatuses(project.location, agentStatuses, wslAgentStatuses);
-    // A mirrored thread's agents live on the host — its statuses carry the
-    // labels and capabilities, and the local list may not know either agent.
-    const owner = remoteOwner(sourceThread);
-    const runtime = owner ? useRemoteServersStore.getState().runtime[owner.desktopId] : undefined;
-    const hostStatuses = owner
-      ? ((project.location.kind === "wsl"
-          ? runtime?.agentStatuses?.wsl
-          : runtime?.agentStatuses?.windows) ?? [])
-      : [];
-    const statusSource = owner
-      ? hostStatuses.find((a) => a.kind === sourceThread.agentKind)
-      : agents.find((a) => a.kind === sourceThread.agentKind);
-    const targetLabel = owner
-      ? (hostStatuses.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind)
-      : (agents.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind);
+    // The agents live on the project's own host: its statuses carry the
+    // labels and capabilities, whichever host that is.
+    const agents = selectLocationAgentStatuses(
+      readHostAgentStatusPools(project.remoteServerId),
+      project.location,
+    );
+    const statusSource = agents.find((a) => a.kind === sourceThread.agentKind);
+    const targetLabel = agents.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind;
 
     // Switching in place keeps the whole thread — id, title, and transcript —
     // and only changes which agent answers next; see `continuesInPlace`.
@@ -173,24 +165,6 @@ export function AppContent() {
         ? t`${sourceThread.title} (fork)`
         : sourceThread.title;
 
-    // A mirrored source builds its replacement on the host — a locally created
-    // thread would launch against the host's paths on this machine.
-    if (remoteOwner(sourceThread)) {
-      await continueRemoteThreadInNewThread({
-        thread: sourceThread,
-        targetAgentKind,
-        targetConfig,
-        targetPresentationMode,
-        prompt,
-        segments,
-        extractedContext,
-        title,
-        targetLabel,
-        fork: isFork,
-      });
-      return;
-    }
-
     let groupId: string | undefined;
     let groupName: string | undefined;
     if (isFork) {
@@ -202,10 +176,15 @@ export function AppContent() {
             thread.id === sourceThread.id ? { ...thread, groupId, groupName } : thread,
           ),
         }));
+        // The source's host owns its group, so the assignment persists there.
+        dispatchThreadGroupIntents([{ threadId: sourceThread.id, groupId, groupName }]);
       }
     }
 
+    // The replacement is created and launched on the source project's host,
+    // like any new thread there (its rows carry that host's identity).
     const thread = useAppStore.getState().createThread({
+      ...(entityHost(project)?.projectThreadRow(crypto.randomUUID()) ?? {}),
       projectId: project.id,
       agentKind: targetAgentKind,
       config: targetConfig,

@@ -8,58 +8,37 @@ import {
   isRemoteBoundedReadProtocolError,
   isRemoteTransportFailure,
   type RemoteBoundedShellSnapshotPage,
-  type RemoteBoundedThreadHistoryPage,
   type RemoteDesktopClient,
-  type StartRemoteNewThreadInput,
 } from "@/shared/remote/client";
-import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
 import { i18n } from "@/renderer/i18n/i18n";
-import { applyThreadSnapshot, type ApplyThreadSnapshotResult } from "@/renderer/state/remote";
-import {
-  clearThreadHistoryNotice,
-  isThreadHistoryRecoveryError,
-  noteThreadHistoryRecoveryNeeded,
-  recordThreadHistoryNoticeRead,
-} from "@/renderer/state/remote/historyNoticeStore";
-import { hostSupportsRuntimeHistoryNotices } from "@/renderer/state/remote/historyNoticeCapability";
-import { recordAuthoritativeHistoryInstall } from "@/renderer/state/remote/truncateRecovery";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
-import { beginHistorySnapshotRead } from "@/renderer/state/historyResumeRegistry";
-import { remoteHistoryResumeAuthority } from "@/renderer/state/historyResumeApplied";
 import { finalizeProjectRemoval } from "@/renderer/state/projectRemovalPresentation";
-import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
 import {
   applyCachedSlashCommandCatalogs,
   fetchSlashCommandCatalog,
   refreshSlashCommandCatalogs,
 } from "./slashCommandCatalogs";
-import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollowUpQueueStore";
 import {
-  hasPendingThreadRuntimeHydration,
   setOlderThreadHistoryContinuation,
   setOlderThreadHistoryInvalidation,
 } from "@/renderer/state/chatRuntimePersister";
 import { trackPendingRemoteThreadOpen } from "./pendingRemoteThreadOpens";
+import { removeConfirmedHostThread } from "@/renderer/state/hostThreadRowRemoval";
+import { readHostThreadHistory } from "@/renderer/state/hostThreadHistory";
+import { protectedThreadRowIds } from "@/renderer/state/protectedThreadRows";
 import {
   projectRemoteThread,
-  projectRemoteThreadSnapshot,
   remoteProjectId,
   remoteThreadId,
   unprojectRemoteThreadId,
-  unprojectRemoteThreadMentionSegments,
 } from "@/renderer/state/remoteProjection";
 import {
-  addRemoteServerThreadItemInterest,
   bumpRemoteServerSnapshotSeq,
   currentRemoteServerGeneration,
   getRemoteServerEventSocketEntry,
-  hasRemoteServerCursorSyncV2,
   remoteServerResumeFence,
   remoteServerSnapshotSeq,
   remoteThreadAppliedSeq,
-  removeRemoteServerThreadItemInterest,
-  setHydratingRemoteServerThreadItemInterest,
 } from "./eventSocketRegistry";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import {
@@ -88,11 +67,8 @@ import {
 } from "./catalog/catalogOrderFence";
 import { orderCatalogRowsById, type CatalogKind } from "./catalog/boundedCatalogAlgorithm";
 import {
-  configureBoundedHistoryClient,
   forgetBoundedHistoryThreadByViewId,
-  mergeBoundedTailTurns,
   loadOlderBoundedCompletedTurns,
-  recordBoundedHistoryTail,
 } from "./catalog/boundedHistory";
 import { REMOTE_SHELL_THREAD_PAGE_LIMIT } from "./pairing";
 import { remoteConnectionKey } from "./types";
@@ -102,7 +78,6 @@ import type {
   RemoteServerRecord,
   RemoteServerRuntime,
   RemoteSocketLike,
-  RemoteThreadLaunchResult,
 } from "./types";
 import type {
   RemoteServerClientBindings,
@@ -222,12 +197,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
     });
     for (const threadId of threadIds) {
       const viewThreadId = remoteThreadId(connectionKey, threadId);
-      useNativeVisualUiStore.getState().forgetThread(visualHostId, threadId);
-      // Authoritative host removal: the durable notice state goes with the
-      // thread instead of surviving to re-attach to a future row.
-      clearThreadHistoryNotice(viewThreadId);
-      forgetPendingCatalogEdit("thread", viewThreadId);
-      useAppStore.getState().deleteThread(viewThreadId);
+      removeConfirmedHostThread({ viewThreadId, hostThreadId: threadId, visualHostId });
     }
   };
 
@@ -258,11 +228,11 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
 
   const protectedBoundedThreadIds = (connectionKey: string): ReadonlySet<string> => {
     const protectedIds = new Set<string>();
+    // The connection's open thread (a background attach keeps its terminal
+    // seed) and every row protected on any host, in this host's ids.
     const openThread = get().openThread;
     if (openThread?.desktopId === connectionKey) protectedIds.add(openThread.threadId);
-    const provisioning = useAppStore.getState().provisioningWorktreeThreadIds;
-    for (const [viewThreadId, value] of Object.entries(provisioning)) {
-      if (value !== true) continue;
+    for (const viewThreadId of protectedThreadRowIds()) {
       const remoteId = unprojectRemoteThreadId(connectionKey, viewThreadId);
       if (remoteId) protectedIds.add(remoteId);
     }
@@ -354,7 +324,6 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       isForeground: () => typeof document === "undefined" || document.visibilityState === "visible",
     },
   );
-  configureBoundedHistoryClient((desktopId, invoke) => withClient(desktopId, invoke));
   setOlderThreadHistoryContinuation((viewThreadId) => loadOlderBoundedCompletedTurns(viewThreadId));
   setOlderThreadHistoryInvalidation((viewThreadId) =>
     forgetBoundedHistoryThreadByViewId(viewThreadId),
@@ -429,83 +398,6 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
 
   return {
     loadAgentSlashCommands,
-    launchRemoteThread: async (
-      input: StartRemoteNewThreadInput & { readonly desktopId: string },
-      options?: { readonly isPendingLaunchOwned?: () => boolean; readonly focus?: boolean },
-    ): Promise<RemoteThreadLaunchResult> => {
-      const runtime = get().runtime[input.desktopId];
-      const project = runtime?.projects.find((entry) => entry.id === input.projectId);
-      if (!project) throw new Error(i18n._(msg`Remote project not found.`));
-      const result = await withClient(input.desktopId, (client) =>
-        client.startNewThread({
-          ...(input.threadId ? { threadId: input.threadId } : {}),
-          projectId: input.projectId,
-          agentKind: input.agentKind,
-          ...(input.agentInstanceId ? { agentInstanceId: input.agentInstanceId } : {}),
-          config: input.config,
-          prompt: input.prompt,
-          ...(input.segments
-            ? {
-                segments: unprojectRemoteThreadMentionSegments(
-                  input.desktopId,
-                  input.segments,
-                  useAppStore.getState().threads,
-                ),
-              }
-            : {}),
-          presentationMode: input.presentationMode,
-          ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
-          ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
-          ...(input.worktreeBranch ? { worktreeBranch: input.worktreeBranch } : {}),
-          ...(input.isNewWorktree ? { isNewWorktree: true } : {}),
-          ...(input.title ? { title: input.title } : {}),
-          ...(input.groupId ? { groupId: input.groupId } : {}),
-          ...(input.groupName ? { groupName: input.groupName } : {}),
-          ...(input.clientContext ? { clientContext: input.clientContext } : {}),
-        }),
-      );
-      const compensateIfAbandoned = async (): Promise<
-        Exclude<RemoteThreadLaunchResult, "started"> | undefined
-      > => {
-        if (options?.isPendingLaunchOwned?.() !== false) return undefined;
-        const clearProjectedLaunch = () => {
-          const open = get().openThread;
-          if (open?.desktopId === input.desktopId && open.threadId === result.threadId) {
-            get().closeRemoteThread();
-          }
-          useAppStore.getState().deleteThread(remoteThreadId(input.desktopId, result.threadId));
-        };
-        try {
-          await withClient(input.desktopId, (client) =>
-            client.sendThreadCommand({ kind: "delete", threadId: result.threadId }),
-          );
-        } catch (error) {
-          toast.danger(friendlyError(error));
-          clearProjectedLaunch();
-          return "cancellation-failed";
-        }
-        clearProjectedLaunch();
-        return "cancelled";
-      };
-      let cancellation = await compensateIfAbandoned();
-      if (cancellation) return cancellation;
-      const appeared = await waitForRemoteThreadAppearance({
-        refresh: () => get().refreshServer(input.desktopId),
-        hasThread: () =>
-          get().runtime[input.desktopId]?.threads.some((thread) => thread.id === result.threadId) ??
-          false,
-      });
-      if (!appeared) throw new Error(i18n._(msg`Unable to start the remote thread.`));
-      cancellation = await compensateIfAbandoned();
-      if (cancellation) return cancellation;
-      await get().openRemoteThread(input.desktopId, result.threadId, {
-        focus: options?.focus ?? true,
-      });
-      cancellation = await compensateIfAbandoned();
-      if (cancellation) return cancellation;
-      return "started";
-    },
-
     openRemoteThread: (
       desktopId: string,
       threadId: string,
@@ -515,173 +407,33 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         readonly signal?: AbortSignal;
       },
     ): Promise<boolean> =>
-      // Registered so the restored-pane lifecycle and the pane's first
-      // hydration wait for this read instead of starting their own.
+      // Registered so a pane's hydration joins this read instead of starting
+      // its own.
       trackPendingRemoteThreadOpen(
         remoteThreadId(desktopId, threadId),
         (async (): Promise<boolean> => {
           const focus = options?.focus ?? true;
           const requestSeq = openRemoteThreadRequestSeq + 1;
           openRemoteThreadRequestSeq = requestSeq;
-          const previousOpenThread = get().openThread;
-          const server = get().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
-          if (!server) {
-            reportRemoteServerError(
-              desktopId,
-              new Error(i18n._(msg`Remote server not found.`)),
-              i18n._(msg`Remote server not found.`),
-            );
-            return false;
-          }
-          const serverIdentityAtStart = server.endpoint;
-          const serverGenerationAtStart = currentRemoteServerGeneration(desktopId);
-          // The history may come from a server instance the event stream has
-          // since replaced: it must not raise that new epoch's resume cursor.
-          const resumeFenceAtStart = remoteServerResumeFence(desktopId);
-          const isHistoryConnectionCurrent = (): boolean => {
-            const currentServer = get().servers.find(
-              (entry) => remoteConnectionKey(entry) === desktopId,
-            );
-            return (
-              currentServer !== undefined &&
-              currentServer.endpoint === serverIdentityAtStart &&
-              currentRemoteServerGeneration(desktopId) === serverGenerationAtStart
-            );
-          };
-          const viewThreadId = remoteThreadId(desktopId, threadId);
-          setHydratingRemoteServerThreadItemInterest(desktopId, threadId, previousOpenThread);
-          // Hydrate the thread's history into the shared, threadId-keyed runtime
-          // store so the desktop ChatPane renders it (coexists with local threads).
-          // A failed history fetch (server asleep/unreachable) must not reject.
-          let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
-          const resumeRead = beginHistorySnapshotRead(
-            viewThreadId,
-            remoteHistoryResumeAuthority(desktopId),
+          const read = await readHostThreadHistory(
+            {
+              id: remoteThreadId(desktopId, threadId),
+              remoteServerId: desktopId,
+              remoteId: threadId,
+            },
+            options?.signal ? { signal: options.signal } : {},
           );
-          let boundedHistoryPage: RemoteBoundedThreadHistoryPage | undefined;
-          const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(
-            remoteThreadId(desktopId, threadId),
-          );
-          try {
-            // WS3 #2: cursor-sync v2 connections get the authoritative tail
-            // from the chunked watch baseline — never send it twice.
-            const omitScrollback = hasRemoteServerCursorSyncV2(desktopId);
-            // B1: declare only when this host advertises the durable notice and the
-            // renderer can display it (the ChatPane banner + explicit ack are
-            // installed). An incapable reader would be refused 409 on a notice
-            // thread, so the gate is the capability, not optimism.
-            const noticesCapable = hostSupportsRuntimeHistoryNotices(server);
-            const historyOptions = {
-              compactDetails: true,
-              ...(omitScrollback ? { omitScrollback: true as const } : {}),
-              ...(options?.signal ? { signal: options.signal } : {}),
-              ...(noticesCapable ? { noticesCapable: true as const } : {}),
-              maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
-              maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
-            };
-            const result = await withClient(desktopId, (client) =>
-              client.boundedThreadHistory(threadId, historyOptions),
-            );
-            snapshot = result.page;
-            if (result.negotiation === "bounded") boundedHistoryPage = result.page;
-          } catch (error) {
-            resumeRead.cancel();
-            // Drop this thread's hydration interest even when superseded: a
-            // refresh that cleared the open slice invalidates the request seq,
-            // and leaving the hydrating thread registered would leak a dead
-            // interest (e.g. a replacement for a deleted thread). Every other
-            // interest stays untouched, so a failed open never strips a live
-            // pane; a same-thread retry re-registers on success.
-            removeRemoteServerThreadItemInterest(desktopId, threadId);
+          const server = findServer(desktopId);
+          if (read.kind !== "installed" || !server) {
             if (requestSeq !== openRemoteThreadRequestSeq) return false;
-            // Only a typed gap refusal establishes a history recovery signal.
-            if (hostSupportsRuntimeHistoryNotices(server) && isThreadHistoryRecoveryError(error)) {
-              noteThreadHistoryRecoveryNeeded(
-                remoteThreadId(desktopId, threadId),
-                remoteConnectionKey(server),
-              );
-            }
-            // Re-assert the previous open thread only while it is still the
-            // open slice: a superseding open owns its own registration, and a
-            // thread the server deleted (refreshServer cleared the slice) must
-            // not be resurrected as an interest.
-            const currentOpen = get().openThread;
-            if (
-              previousOpenThread &&
-              currentOpen?.desktopId === previousOpenThread.desktopId &&
-              currentOpen.threadId === previousOpenThread.threadId
-            ) {
-              addRemoteServerThreadItemInterest(
-                previousOpenThread.desktopId,
-                previousOpenThread.threadId,
-              );
-            }
-            // Background reattaches (focus:false) retry quietly; the sidebar's
-            // server status already shows an unreachable host, and one toast
-            // per retry attempt would be spam.
-            if (!options?.quiet) {
-              toast.danger(friendlyError(error) || i18n._(msg`Failed to open remote thread.`));
+            // Background attaches pass quiet: the sidebar's server status
+            // already shows an unreachable host.
+            if ((read.kind === "failed" || read.kind === "offline") && !options?.quiet) {
+              toast.danger(friendlyError(read.error) || i18n._(msg`Failed to open remote thread.`));
             }
             return false;
           }
-          const currentServer = get().servers.find(
-            (entry) => remoteConnectionKey(entry) === desktopId,
-          );
-          if (!currentServer || !isHistoryConnectionCurrent()) {
-            resumeRead.cancel();
-            return false;
-          }
-          if (remoteServerResumeFence(desktopId) !== resumeFenceAtStart) {
-            resumeRead.cancel();
-            if (requestSeq !== openRemoteThreadRequestSeq || options?.signal?.aborted) return false;
-            return get().openRemoteThread(desktopId, threadId, options);
-          }
-          // Only a snapshot from the current connection and epoch can update its notice.
-          recordThreadHistoryNoticeRead(
-            viewThreadId,
-            remoteConnectionKey(server),
-            snapshot.runtimeNotice,
-          );
-          const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
-          // Retain the bounded tail cursor + page proof so older completed-turn
-          // pages and older runtime-item pages can continue on this connection.
-          if (boundedHistoryPage) {
-            recordBoundedHistoryTail({ desktopId, threadId, page: boundedHistoryPage });
-          }
-          const installSnapshot = mergeBoundedTailTurns(projectedSnapshot, viewThreadId);
-          // The shared installer seeds the item cursor from the prefix it actually
-          // preserved, after freshness arbitration; a pinned goal is not overlap.
-          const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(installSnapshot, {
-            fromServer: true,
-            lastSeenEventSeq: remoteThreadAppliedSeq(desktopId, threadId),
-            followUpQueueSnapshotGuard,
-            ...(boundedHistoryPage
-              ? {
-                  committedPrefix: {
-                    threadId: viewThreadId,
-                    snapshotSeq: boundedHistoryPage.snapshotSeq,
-                    isCurrent: () =>
-                      isHistoryConnectionCurrent() &&
-                      remoteServerResumeFence(desktopId) === resumeFenceAtStart,
-                    lastSeenEventSeq: () => remoteThreadAppliedSeq(desktopId, threadId),
-                  },
-                }
-              : {}),
-          });
-          if (applied.installedAuthoritativeHistory) {
-            resumeRead.finish(snapshot.runtimeResumeCursor, snapshot.snapshotSeq);
-            recordAuthoritativeHistoryInstall(desktopId, threadId, snapshot.snapshotSeq);
-          } else resumeRead.cancel();
-          // End the shared reader's loading state after the authoritative tail
-          // installs, unless an independent hydration still owns it.
-          if (
-            useAppStore.getState().runtimeHydrationStatus[viewThreadId] === "pending" &&
-            !hasPendingThreadRuntimeHydration(viewThreadId)
-          ) {
-            useAppStore.getState().setRuntimeHydrationStatus(viewThreadId, null);
-          }
-          addRemoteServerThreadItemInterest(desktopId, threadId);
-          bumpRemoteServerSnapshotSeq(desktopId, snapshot.snapshotSeq, resumeFenceAtStart);
+          const snapshot = read.hostSnapshot;
           // WS3-A: the agent-statuses fetch omitted slash-command catalogs, so
           // the opened thread's agent catalog is fetched once, on first use.
           const openedThread = snapshot.thread;
@@ -691,15 +443,12 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
               // menu must not crash or toast for a lazy enhancement.
             });
           }
-          await startRemoteServerEventStream(currentServer);
+          await startRemoteServerEventStream(server);
           const eventSocket = getRemoteServerEventSocketEntry(desktopId)?.socket;
           if (eventSocket) activateRemoteTerminalFeed(desktopId, eventSocket);
           if (!focus) {
-            // Background reattach never steals focus and never depends on the
-            // single global open slice: history + interests are the attach.
-            // Still track the slice when latest so single-pane restores keep
-            // the existing `openThread` expectation, but always report success
-            // once history installed.
+            // Background attach never steals focus. Still track the slice when
+            // latest so a single-pane restore keeps its terminal seed.
             if (requestSeq === openRemoteThreadRequestSeq) {
               set({ openThread: buildOpenThread(desktopId, snapshot) });
             }
@@ -708,21 +457,17 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           if (requestSeq !== openRemoteThreadRequestSeq) return false;
           const openThread = buildOpenThread(desktopId, snapshot);
           set({ openThread });
-          // Focus is caller-owned: the startup restore reattaches the live
-          // subscription for an already-visible thread and must not yank the
-          // view back if the user navigated away while the history fetch was
-          // in flight.
+          // Focus is caller-owned: a restore must not yank the view back if the
+          // user navigated away while the history read was in flight.
           useAppStore.getState().openThread(openThread.thread.id);
           return true;
         })(),
       ),
 
     closeRemoteThread: () => {
+      // Live content follows the panes' interest leases; closing the slice
+      // only ends this open.
       openRemoteThreadRequestSeq += 1;
-      // Only the closing thread's own interest goes away: other interests
-      // (other visible remote panes) are independent live subscriptions.
-      const open = get().openThread;
-      if (open) removeRemoteServerThreadItemInterest(open.desktopId, open.threadId);
       if (get().openThread) set({ openThread: null });
     },
 
@@ -907,10 +652,9 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           openThread?.desktopId === desktopId &&
           !threads.some((thread) => thread.id === openThread.threadId)
         ) {
+          // The open thread no longer exists server-side. Its pane closes with
+          // the row, releasing that pane's interest lease.
           openRemoteThreadRequestSeq += 1;
-          // The open thread no longer exists server-side: drop its interest
-          // without touching this server's other live subscriptions.
-          removeRemoteServerThreadItemInterest(desktopId, openThread.threadId);
           set({ openThread: null });
         }
         syncDesktopBrowserBridgeClient(get());

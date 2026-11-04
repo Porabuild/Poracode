@@ -2,7 +2,15 @@ import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
-import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "@/host/db";
+import {
+  dbFindProjectByLocation,
+  dbGetProject,
+  dbGetProjects,
+  dbGetThread,
+  dbGetThreads,
+  dbUpdateProject,
+} from "@/host/db";
+import { resolveWorktreePlacement } from "@/shared/worktree";
 import { callDatabaseRpc } from "@/host/db/databaseRpc";
 import { persistedThreadPageSchema } from "@/shared/ipc/schemas";
 import {
@@ -659,6 +667,12 @@ export async function composeHeadlessRemoteHost(
       },
       resolveMcpLaunchSnapshot: (projectId, overrides) =>
         resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId), overrides),
+      resolveWorktreePlacement: (location) =>
+        resolveWorktreePlacement(
+          getSharedSettings(),
+          dbFindProjectByLocation(location)?.worktreeLocation,
+          location,
+        ),
       settings: settings.remoteSettingsGateway(settings.mcpSettings),
       attachments: {
         save: (input) => saveUploadedAttachmentFile(paths, input),

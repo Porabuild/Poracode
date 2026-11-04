@@ -36,32 +36,22 @@ export function TerminalThreadContent({
   return (
     <>
       <div className="relative min-h-0 flex-1 overflow-visible">
-        {thread.remoteServerId && !props.remoteTerminalTransport ? null : (
-          <TerminalPane
-            ref={terminalPaneRef}
-            key={thread.id}
-            onTerminalResize={props.onTerminalResize}
-            status={thread.status}
-            threadId={thread.id}
-            {...(props.hidden ? { hidden: true } : {})}
-            {...(props.remoteTerminalTransport
-              ? { remoteTransport: props.remoteTerminalTransport }
-              : {})}
-          />
-        )}
-        {thread.status === "launching" ||
-        (thread.remoteServerId && !props.remoteTerminalTransport) ? (
+        <TerminalPane
+          ref={terminalPaneRef}
+          key={thread.id}
+          onTerminalResize={props.onTerminalResize}
+          status={thread.status}
+          threadId={thread.id}
+          {...(props.hidden ? { hidden: true } : {})}
+        />
+        {thread.status === "launching" ? (
           <div
             className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-foreground-muted"
             aria-live="polite"
           >
             <PixelLoader size="md" />
             <span>
-              {awaitingWorktree
-                ? t`Creating worktree…`
-                : thread.remoteServerId && !props.remoteTerminalTransport
-                  ? t`Connecting to host…`
-                  : threadRuntimeStatusLabel(thread, t)}
+              {awaitingWorktree ? t`Creating worktree…` : threadRuntimeStatusLabel(thread, t)}
             </span>
           </div>
         ) : null}

@@ -5,31 +5,11 @@ import { handleBrowserServerMessage } from "@/renderer/browser/browserMirror";
 import { releaseRemoteTerminal, remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
 import { HostEventDrain } from "@/renderer/hostTransport/hostEventDrain";
 import { resetRemoteThreadProjection } from "@/renderer/state/remote/resetThreadProjection";
-import {
-  applyThreadSnapshot,
-  collectRuntimeEventsFromSupervisoryMessage,
-  dispatchRemoteSupervisorEvent,
-  type ApplyThreadSnapshotResult,
-} from "@/renderer/state/remote";
-import {
-  finishTruncateReload,
-  getTruncateNeededSeq,
-  isTruncateCheckpointLoaded,
-  isTruncateReloadLeaseCurrent,
-  listPendingTruncateReloads,
-  noteTruncateNeeded,
-  recordAuthoritativeHistoryInstall,
-  resetTruncateRecoveryEpoch,
-  shouldSuppressTruncatedReplay,
-  tryBeginTruncateReload,
-} from "@/renderer/state/remote/truncateRecovery";
+import { dispatchRemoteSupervisorEvent } from "@/renderer/state/remote";
+import { discardQueuedRuntimeEvents } from "@/renderer/state/remote/sync";
 import { useAppStore } from "@/renderer/state/appStore";
 import { pruneLiveObservedCrossagentItems } from "@/renderer/state/slices/staleSubAgents";
-import {
-  projectRemoteThreadEvent,
-  projectRemoteThreadSnapshot,
-  remoteThreadId,
-} from "@/renderer/state/remoteProjection";
+import { projectRemoteThreadEvent, remoteThreadId } from "@/renderer/state/remoteProjection";
 import {
   emitRemoteTerminalExited,
   emitRemoteTerminalReset,
@@ -42,23 +22,20 @@ import {
   noteBoundedCatalogMembershipEvent,
   resetBoundedCatalogForResync,
 } from "./catalog/boundedCatalogController";
-import {
-  forgetBoundedHistoryForServer,
-  forgetBoundedHistoryThread,
-} from "./catalog/boundedHistoryRegistry";
+import { forgetBoundedHistoryForServer } from "./catalog/boundedHistoryRegistry";
 import type { EventSocketConnectionContext } from "./eventSocketContext";
 import {
   bumpRemoteServerSnapshotSeq,
   clearRemoteThreadAppliedSeqs,
   currentRemoteServerThreadItemInterests,
   recordRemoteThreadAppliedSeq,
-  remoteServerResumeFence,
   remoteServerSnapshotEpoch,
   remoteServerSnapshotSeq,
-  remoteThreadAppliedSeq,
   setRemoteServerSnapshotSeq,
   supervisorEventThreadIds,
+  remoteServerHostSession,
 } from "./eventSocketRegistry";
+import { forgetHistoryBaselines } from "@/renderer/state/historyBaselines";
 import {
   filterRemoteThreadEvents,
   shouldRefreshRemoteAgentStatusesAfterEvent,
@@ -70,11 +47,8 @@ import { syncRemoteGitSummaries } from "./gitSummaries";
 import { cachedThreadIds } from "./rowReuse";
 import { remoteConnectionKey } from "./types";
 
-const MAX_RECOVERY_QUEUED_EVENTS = 512;
-const MAX_RECOVERY_QUEUED_BYTES = 2 * 1024 * 1024;
-
-export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () => void {
-  const { server, entry, socket, client, get, isCurrent, noteClientDetectedLoss, recovery } = ctx;
+export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void {
+  const { server, entry, socket, client, get, isCurrent, noteClientDetectedLoss } = ctx;
   const connectionKey = remoteConnectionKey(server);
   let socketSequenceFloor = ctx.resumeCursor;
   /** Epoch this socket's `ready` reported; undefined from hosts without one. */
@@ -82,100 +56,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
   /** This socket's `ready` proved a restart under a bound cursor. */
   let socketEpochChanged = false;
 
-  const requestTruncateAuthoritativeReload = (
-    targetRemoteThreadId: string,
-    eventSeq: number,
-  ): void => {
-    if (get().runtime[connectionKey]?.status !== "online") return;
-    if (!get().servers.some((candidate) => remoteConnectionKey(candidate) === connectionKey)) {
-      return;
-    }
-    noteTruncateNeeded(connectionKey, targetRemoteThreadId, eventSeq);
-    const lease = tryBeginTruncateReload(connectionKey, targetRemoteThreadId);
-    if (!lease) return;
-    // The authoritative replacement renumbers completed turns: the recorded
-    // `ct1.` continuation proof is stale whether the fetch succeeds or not.
-    forgetBoundedHistoryThread(connectionKey, targetRemoteThreadId);
-    const resumeFence = remoteServerResumeFence(connectionKey);
-    void (async () => {
-      let history: Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>;
-      try {
-        history = await client.boundedThreadHistory(targetRemoteThreadId, { compactDetails: true });
-      } catch {
-        finishTruncateReload(lease, null);
-        return;
-      }
-      if (!isCurrent() || entry.socket !== socket) {
-        finishTruncateReload(lease, null);
-        return;
-      }
-      if (!isTruncateReloadLeaseCurrent(lease)) return;
-      const snapshot = history.page;
-      const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(
-        projectRemoteThreadSnapshot(connectionKey, snapshot),
-        {
-          fromServer: true,
-          lastSeenEventSeq: remoteThreadAppliedSeq(connectionKey, targetRemoteThreadId),
-          ...(history.negotiation === "bounded"
-            ? {
-                committedPrefix: {
-                  threadId: remoteThreadId(connectionKey, targetRemoteThreadId),
-                  snapshotSeq: snapshot.snapshotSeq,
-                  isCurrent: () =>
-                    isCurrent() && entry.socket === socket && isTruncateReloadLeaseCurrent(lease),
-                  lastSeenEventSeq: () =>
-                    remoteThreadAppliedSeq(connectionKey, targetRemoteThreadId),
-                },
-              }
-            : {}),
-        },
-      );
-      if (applied.installedAuthoritativeHistory) {
-        recordAuthoritativeHistoryInstall(
-          connectionKey,
-          targetRemoteThreadId,
-          snapshot.snapshotSeq,
-        );
-      }
-      bumpRemoteServerSnapshotSeq(connectionKey, snapshot.snapshotSeq, resumeFence);
-      const outcome = finishTruncateReload(lease, {
-        installed: applied.installedAuthoritativeHistory,
-        snapshotSeq: snapshot.snapshotSeq,
-      });
-      if (!outcome.stale && !outcome.covered) {
-        const needed = getTruncateNeededSeq(connectionKey, targetRemoteThreadId);
-        if (needed !== undefined) {
-          requestTruncateAuthoritativeReload(targetRemoteThreadId, needed);
-        }
-      }
-    })();
-  };
-
-  const resumePendingTruncateReloads = (): void => {
-    // A consumed truncate will not replay after reconnect. Retry its
-    // outstanding baseline through the same bounded gate, but only
-    // for threads that still have a live subscription.
-    if (!isCurrent() || entry.socket !== socket) return;
-    if (get().runtime[connectionKey]?.status !== "online") return;
-    if (!get().servers.some((candidate) => remoteConnectionKey(candidate) === connectionKey)) {
-      return;
-    }
-    const open = get().openThread;
-    const interests = currentRemoteServerThreadItemInterests(connectionKey);
-    const subscribed = new Set<string>(interests);
-    if (open?.desktopId === connectionKey) subscribed.add(open.threadId);
-    for (const pending of listPendingTruncateReloads(connectionKey)) {
-      if (!subscribed.has(pending.remoteThreadId)) continue;
-      requestTruncateAuthoritativeReload(pending.remoteThreadId, pending.neededSeq);
-    }
-  };
-
-  ctx.dispatchForwardEvent = (
-    forward,
-    sequence,
-    recoveryReplay = false,
-    omittedRuntimeThreadIds,
-  ): void => {
+  ctx.dispatchForwardEvent = (forward, sequence, omittedRuntimeThreadIds): void => {
     for (const threadId of supervisorEventThreadIds(forward)) {
       recordRemoteThreadAppliedSeq(connectionKey, threadId, sequence);
     }
@@ -189,21 +70,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
       runtimeSequence: sequence,
       onGitSummaries: (summaries) => syncRemoteGitSummaries(connectionKey, summaries),
       onGitState: (patch) => syncRemoteGitStatePatch(connectionKey, patch),
-      onRuntimeQueueOverflow: (_threadIds, resume) => ctx.recoverInterestedThreads(resume),
-      ...(recoveryReplay ? { deliverRuntimeEventsImmediately: true } : {}),
     });
-    for (const batch of collectRuntimeEventsFromSupervisoryMessage(forward)) {
-      for (const evt of batch.events) {
-        if (evt.type !== "runtime.truncated") continue;
-        // An applied (live or replay) truncation deletes the thread's tail:
-        // any recorded bounded `ct1.` cursor points into the pre-truncation
-        // sequence and must not append rows to the rebuilt transcript.
-        forgetBoundedHistoryThread(connectionKey, batch.threadId);
-        const projectedId = remoteThreadId(connectionKey, batch.threadId);
-        if (isTruncateCheckpointLoaded(projectedId, evt.itemId)) continue;
-        requestTruncateAuthoritativeReload(batch.threadId, sequence);
-      }
-    }
   };
 
   /**
@@ -221,7 +88,11 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
       const open = get().openThread;
       if (open?.desktopId === connectionKey) threadIds.add(open.threadId);
       for (const threadId of threadIds) {
-        resetRemoteThreadProjection(remoteThreadId(connectionKey, threadId));
+        const viewThreadId = remoteThreadId(connectionKey, threadId);
+        // The restarted host's sequences begin again: frames queued from the
+        // previous instance must not replay on top of the new baseline.
+        discardQueuedRuntimeEvents(viewThreadId);
+        resetRemoteThreadProjection(viewThreadId);
       }
     }
     socketEpochChanged = false;
@@ -230,9 +101,8 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
     // Pre-restart per-thread marks would refuse every fresh
     // (lower-seq) snapshot forever; re-baseline them too.
     clearRemoteThreadAppliedSeqs(connectionKey);
-    // Old-epoch authoritative baselines and bounded reload
-    // budgets are meaningless after a restart.
-    resetTruncateRecoveryEpoch(connectionKey);
+    // Old-epoch authoritative baselines are meaningless after a restart.
+    forgetHistoryBaselines(remoteServerHostSession(connectionKey));
     markRemoteServerRowResyncPending(connectionKey);
     // A new event epoch invalidates every in-memory walk cursor.
     resetBoundedCatalogForResync(connectionKey);
@@ -268,10 +138,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
     else setRemoteServerSnapshotSeq(connectionKey, 0, epoch);
   };
 
-  const dispatchParsed = (
-    message: ReturnType<RemoteDesktopClient["parseSocketMessage"]>,
-    rawBytes: number,
-  ) => {
+  const dispatchParsed = (message: ReturnType<RemoteDesktopClient["parseSocketMessage"]>) => {
     try {
       if (message.type === "pong") {
         entry.health?.acceptPong(message.id);
@@ -299,12 +166,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
         // next expected seq means a frame was lost in transit or dropped
         // client-side. Never apply past a gap and never advance the
         // cursor into it — reconnect from the last applied seq instead.
-        // While a recovery holds frames in its queue the watermark lags
-        // by design, so gap checks are suppressed there.
-        if (
-          recovery.threadIds.size === 0 &&
-          message.seq > remoteServerSnapshotSeq(connectionKey) + 1
-        ) {
+        if (message.seq > remoteServerSnapshotSeq(connectionKey) + 1) {
           noteClientDetectedLoss();
           return;
         }
@@ -366,116 +228,8 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
           releaseRemoteTerminal(terminalId);
         }
         let forward = filterRemoteThreadEvents(message.event, remoteThreadIds);
-        // True when (part of) this frame was parked in the recovery
-        // queue: those seqs advance the cursor only when REPLAYED, so a
-        // failed recovery reconnects from before them instead of
-        // skipping parked frames.
-        let queuedForRecovery = false;
         if (forward !== null) {
-          // Destructive-replay guard: an authoritative history that
-          // already incorporated this truncation suppresses its
-          // replay. Uses the installed per-thread history seq, never
-          // the per-server resume watermark and never a shell
-          // snapshot (which proves nothing about the transcript).
-          const batches = collectRuntimeEventsFromSupervisoryMessage(forward);
-          const hasTruncated = batches.some((batch) =>
-            batch.events.some((evt) => evt.type === "runtime.truncated"),
-          );
-          if (hasTruncated && typeof message.seq === "number") {
-            const keptBatches: typeof batches = [];
-            for (const batch of batches) {
-              const keptEvents = batch.events.filter((evt) => {
-                if (evt.type !== "runtime.truncated") return true;
-                return !shouldSuppressTruncatedReplay(
-                  connectionKey,
-                  batch.threadId,
-                  message.seq as number,
-                );
-              });
-              if (keptEvents.length > 0) {
-                keptBatches.push({ threadId: batch.threadId, events: keptEvents });
-              }
-            }
-            if (keptBatches.length === 0) {
-              forward = null;
-            } else if (
-              keptBatches.length !== batches.length ||
-              keptBatches.some(
-                (batch, index) => batch.events.length !== batches[index]?.events.length,
-              )
-            ) {
-              forward = {
-                type: "thread-runtime-events-multi",
-                batches: keptBatches.map((batch) => ({
-                  threadId: batch.threadId,
-                  events: [...batch.events],
-                })),
-              };
-            }
-          }
-        }
-        if (forward !== null && recovery.threadIds.size > 0) {
-          const batches = collectRuntimeEventsFromSupervisoryMessage(forward);
-          const recoveringBatches = batches.filter((batch) =>
-            recovery.threadIds.has(batch.threadId),
-          );
-          if (recoveringBatches.length > 0) {
-            const recoveryEvent = {
-              type: "thread-runtime-events-multi",
-              batches: recoveringBatches,
-            };
-            queuedForRecovery = true;
-            // A3: the size is measured from the raw wire frame that carried
-            // this event (UTF-16 upper bound), not re-serialized here. It is
-            // a conservative upper bound for a filtered sub-event.
-            const eventBytes = rawBytes;
-            if (
-              recovery.queuedEvents.length >= MAX_RECOVERY_QUEUED_EVENTS ||
-              recovery.queuedBytes + eventBytes > MAX_RECOVERY_QUEUED_BYTES
-            ) {
-              recovery.overflowed = true;
-            } else {
-              recovery.queuedEvents.push({
-                seq: message.seq,
-                event: recoveryEvent,
-                bytes: eventBytes,
-                ...(message.omittedRuntimeThreadIds
-                  ? { omittedRuntimeThreadIds: message.omittedRuntimeThreadIds }
-                  : {}),
-              });
-              recovery.queuedBytes += eventBytes;
-            }
-            const liveBatches = batches.filter((batch) => !recovery.threadIds.has(batch.threadId));
-            forward =
-              liveBatches.length > 0
-                ? { type: "thread-runtime-events-multi", batches: liveBatches }
-                : null;
-          } else if (
-            supervisorEventThreadIds(forward).some((threadId) => recovery.threadIds.has(threadId))
-          ) {
-            queuedForRecovery = true;
-            const eventBytes = rawBytes;
-            if (
-              recovery.queuedEvents.length >= MAX_RECOVERY_QUEUED_EVENTS ||
-              recovery.queuedBytes + eventBytes > MAX_RECOVERY_QUEUED_BYTES
-            ) {
-              recovery.overflowed = true;
-            } else {
-              recovery.queuedEvents.push({
-                seq: message.seq,
-                event: forward,
-                bytes: eventBytes,
-                ...(message.omittedRuntimeThreadIds
-                  ? { omittedRuntimeThreadIds: message.omittedRuntimeThreadIds }
-                  : {}),
-              });
-              recovery.queuedBytes += eventBytes;
-            }
-            forward = null;
-          }
-        }
-        if (forward !== null) {
-          ctx.dispatchForwardEvent(forward, message.seq, false, message.omittedRuntimeThreadIds);
+          ctx.dispatchForwardEvent(forward, message.seq, message.omittedRuntimeThreadIds);
         } else if (
           message.event &&
           typeof message.event === "object" &&
@@ -503,14 +257,13 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
             includeAgentStatuses: shouldRefreshRemoteAgentStatusesAfterEvent(message.event),
           });
         }
-        if (!queuedForRecovery) {
-          // Applied-cursor rule (V5 2.1): the resume watermark advances
-          // only after a frame is consumed — dispatched, replayed, or
-          // filtered out — never on receipt. A dropped frame therefore
-          // reconnects from the last applied seq and the server replays
-          // exactly the missing range.
-          bumpRemoteServerSnapshotSeq(connectionKey, message.seq);
-        }
+        // Applied-cursor rule (V5 2.1): the resume watermark advances only
+        // after a frame is consumed — dispatched or filtered out — never on
+        // receipt. A dropped frame therefore reconnects from the last applied
+        // seq and the server replays exactly the missing range. A thread
+        // recovering its history holds its frames in the reducer's queue,
+        // behind the baseline, as every host's does.
+        bumpRemoteServerSnapshotSeq(connectionKey, message.seq);
         socketSequenceFloor = Math.max(socketSequenceFloor, message.seq);
       }
       if (message.type === "resync-required") {
@@ -536,8 +289,8 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
       renew: ctx.renewDecoder,
       dispose: ctx.renewDecoder,
     },
-    onFrame: (message, bytes) => {
-      if (isCurrent() && entry.socket === socket) dispatchParsed(message, bytes);
+    onFrame: (message) => {
+      if (isCurrent() && entry.socket === socket) dispatchParsed(message);
     },
     onUnavailable: () => {
       if (isCurrent() && entry.socket === socket) noteClientDetectedLoss();
@@ -555,7 +308,6 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
       try {
         dispatchParsed(
           client.parseSocketMessage(raw) as ReturnType<RemoteDesktopClient["parseSocketMessage"]>,
-          raw.length * 2,
         );
       } catch {
         // HTTP snapshots remain authoritative; ignore malformed frames.
@@ -564,6 +316,4 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
     }
     drain.push(raw);
   };
-
-  return resumePendingTruncateReloads;
 }

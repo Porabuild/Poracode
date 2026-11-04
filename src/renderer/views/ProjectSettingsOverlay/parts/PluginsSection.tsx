@@ -12,7 +12,7 @@ import {
 import { Select } from "@/renderer/components/common";
 import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
 import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginCopy";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { projectHostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProject } from "@/renderer/state/useThread";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
@@ -33,13 +33,16 @@ export function PluginsSection(props: { projectId: string }) {
   const project = useProject(props.projectId);
   const installedPlugins = useSharedSettings((state) => state.installedPlugins);
   const catalog = useLocalizedPluginCatalog(
-    project && !remoteOwner(project) && !isHomeProject(project) ? project.location : undefined,
+    // The installed plugins are this machine's: only its own host's projects use them.
+    projectHostRunsOnThisMachine(project) && project && !isHomeProject(project)
+      ? project.location
+      : undefined,
   );
 
   if (!project || isHomeProject(project)) return null;
 
   const description = t`Turn installed plugins on or off for threads in this project. A thread's own plugin choices still win; running threads apply changes on their next launch.`;
-  if (remoteOwner(project)) {
+  if (!projectHostRunsOnThisMachine(project)) {
     return (
       <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
         <SettingsPage title={t`Plugins`} description={description}>

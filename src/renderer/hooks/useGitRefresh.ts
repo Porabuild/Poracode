@@ -15,9 +15,8 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { runRendererAction } from "@/renderer/state/rendererActionStore";
-import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
+import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { shouldPollProject } from "@/renderer/state/wslBackgroundActivity";
 import {
   cleanupGitRefreshProjects,
@@ -67,23 +66,10 @@ export function useGitRefresh(storeHydrated: boolean) {
     const allActiveProjects = projectsSnapshot.filter((project) => !project.disabled);
     if (!storeHydrated) return;
     cleanupGitRefreshProjects(new Set(allActiveProjects.map((project) => project.id)));
-    const reachableProjects = () => {
-      const state = useRemoteServersStore.getState();
-      const reachableServerIds = new Set(
-        state.servers
-          .filter(
-            (server) =>
-              !isRemoteProjectStatusUnreachable(
-                { remoteServerId: remoteConnectionKey(server) },
-                state.runtime[remoteConnectionKey(server)]?.status,
-              ),
-          )
-          .map(remoteConnectionKey),
-      );
-      return allActiveProjects.filter(
-        (project) => !project.remoteServerId || reachableServerIds.has(project.remoteServerId),
-      );
-    };
+    // Reachability is a property of the project's host: the managed host is
+    // always reachable, a paired host only while its connection is up.
+    const reachableProjects = () =>
+      allActiveProjects.filter((project) => !isRemoteProjectUnreachable(project));
     let activeProjects = reachableProjects();
     const projectRuns = new Map(activeProjects.map((project) => [project.id, Symbol()]));
     // Projects whose watch settled in this run. A project watch replaces every
@@ -196,15 +182,7 @@ export function useGitRefresh(storeHydrated: boolean) {
     // wait out its deadline once per project on the shared desktop bridge. Its
     // watch is replaced when the host returns.
     function releaseProjectWatch(project: Project) {
-      if (
-        project.remoteServerId &&
-        isRemoteProjectStatusUnreachable(
-          project,
-          useRemoteServersStore.getState().runtime[project.remoteServerId]?.status,
-        )
-      ) {
-        return;
-      }
+      if (isRemoteProjectUnreachable(project)) return;
       readBridge()
         .gitUnwatchProject({ projectId: project.id })
         .catch(() => undefined);
@@ -218,15 +196,7 @@ export function useGitRefresh(storeHydrated: boolean) {
       // plain thread switches must not spawn Git work while the panel is hidden.
       for (const project of activeProjects) {
         if (onlyProjectIds && !onlyProjectIds.has(project.id)) continue;
-        if (
-          project.remoteServerId &&
-          isRemoteProjectStatusUnreachable(
-            project,
-            useRemoteServersStore.getState().runtime[project.remoteServerId]?.status,
-          )
-        ) {
-          continue;
-        }
+        if (isRemoteProjectUnreachable(project)) continue;
         if (!shouldPollProject(project)) continue;
         void prefetchBranchPrData(project);
       }

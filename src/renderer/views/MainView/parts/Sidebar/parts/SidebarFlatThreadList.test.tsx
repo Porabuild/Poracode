@@ -221,7 +221,7 @@ describe("SidebarFlatThreadList", () => {
     expect(scroller?.contains(screen.getByText(/^done-label in/))).toBe(false);
   });
 
-  it("locks remote mirror rows in manual order and keeps them in the stored order", () => {
+  it("leaves remote mirror rows draggable in manual order and keeps them in the stored order", () => {
     useRemoteServersStore.setState({
       runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
     } as never);
@@ -243,7 +243,7 @@ describe("SidebarFlatThreadList", () => {
       rows.map((row) => [row.textContent?.split(" in ")[0], row.dataset.sortDisabled]),
     ).toEqual([
       ["thread:p1", "false"],
-      ["thread:r1", "true"],
+      ["thread:r1", "false"],
       ["thread:p2", "false"],
     ]);
   });

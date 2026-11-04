@@ -1126,8 +1126,8 @@ msgstr "Для замороженного источника worktree требу
 #~ msgstr "Заблокированный экран полностью останавливает управление рабочим столом, поэтому во время сеанса управления компьютером дисплей остаётся включённым. Вы по-прежнему можете заблокировать экран вручную."
 
 #: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
-msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
-msgstr "Не удалось подтвердить удаление сообщений. Обновите, чтобы пересинхронизировать переписку."
+#~ msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+#~ msgstr "Не удалось подтвердить удаление сообщений. Обновите, чтобы пересинхронизировать переписку."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "A missed run was skipped."
@@ -3635,7 +3635,6 @@ msgid "Choose a photo"
 msgstr "Выбрать фото"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "Choose a project for sessions whose folder no longer exists."
 msgstr "Выберите проект для сессий, папка которых больше не существует."
 
@@ -4886,7 +4885,6 @@ msgid "Connecting"
 msgstr "Подключение"
 
 #: src/renderer/bootstrap.ts
-#: src/renderer/components/thread/TerminalThreadContent.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Connecting to host…"
 msgstr "Подключение к хосту…"
@@ -5002,7 +5000,6 @@ msgstr "Контекст вручную сжат с {before} токенов"
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Контекст вручную сжат: {before} → {after} токенов"
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Context transferred to {targetLabel}"
 msgstr "Контекст передан в {targetLabel}"
@@ -12722,7 +12719,6 @@ msgid "No microphone found."
 msgstr "Микрофон не найден."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
 msgid "No model is available for {agent}. Check the agent in Settings."
 msgstr "Для {agent} нет доступной модели. Проверьте агента в настройках."
 
@@ -15649,7 +15645,6 @@ msgstr "Ссылка на версию"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -15827,15 +15822,14 @@ msgstr "Имя удалённого репозитория"
 
 #: src/renderer/components/thread/SideChat/useSideChatSession.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Remote project not found."
-msgstr "Удалённый проект не найден."
+#~ msgid "Remote project not found."
+#~ msgstr "Удалённый проект не найден."
 
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Remote server"
 #~ msgstr "Удалённый сервер"
 
 #: src/renderer/components/media/fileMediaSource.ts
-#: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "Удалённый сервер не найден."
@@ -16915,6 +16909,10 @@ msgstr "Повернуть в…"
 msgid "Rotate viewport"
 msgstr "Повернуть область просмотра"
 
+#: src/renderer/state/hostCatalogReorder.ts
+msgid "Rows on different machines can't be reordered together."
+msgstr "Строки с разных машин нельзя переупорядочивать вместе."
+
 #. placeholder {0}: rows.length
 #. placeholder {1}: block.rows.length
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
@@ -17926,7 +17924,7 @@ msgstr "Сервер {target} работает на этом компьютер�
 msgid "Server base URL"
 msgstr "Базовый URL сервера"
 
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 msgid "Server offline — this conversation may be out of date."
 msgstr "Сервер офлайн — эта переписка может быть устаревшей."
 
@@ -19017,7 +19015,6 @@ msgstr "Запустить без контекста"
 #~ msgid "Start workflows and monitor their runs."
 #~ msgstr "Запускайте рабочие процессы и отслеживайте их выполнение."
 
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/views/MainView/parts/AppContent/AppContent.tsx
 msgid "Started {targetLabel} thread"
 msgstr "Тред {targetLabel} запущен"
@@ -19917,11 +19914,9 @@ msgid "The desktop's own catalog read failed."
 msgstr "Не удалось прочитать собственный каталог рабочего стола."
 
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
-#: src/renderer/state/managedRootCatalog/rootHistory.ts
 msgid "The desktop's own server is not connected yet."
 msgstr "Собственный сервер рабочего стола ещё не подключён."
 
-#: src/renderer/state/remote/historyNoticeActions.ts
 #: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
@@ -19937,11 +19932,11 @@ msgid "The desktop's own server is not connected. Your change was not saved."
 msgstr "Собственный сервер рабочего стола не подключён. Ваше изменение не сохранено."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "The desktop's own server reconnected before the history read completed."
-msgstr "Собственный сервер рабочего стола переподключился до завершения чтения истории."
+#~ msgid "The desktop's own server reconnected before the history read completed."
+#~ msgstr "Собственный сервер рабочего стола переподключился до завершения чтения истории."
 
+#: src/renderer/state/hostCatalogOrder.ts
 #: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
-#: src/renderer/state/managedRootCatalog/rootCatalogIntents.ts
 msgid "The desktop's own server refused the change."
 msgstr "Собственный сервер рабочего стола отклонил изменение."
 
@@ -20088,8 +20083,8 @@ msgstr "Последний запуск мог уже начаться. Преж
 #~ msgstr "Последний запуск мог уже начаться. Прежде чем спрашивать снова, нажмите «Повторить» на панели чата."
 
 #: src/renderer/views/PullRequestsOverlay/chat/launchPrAskThread.ts
-msgid "The launch was cancelled."
-msgstr "Запуск отменён."
+#~ msgid "The launch was cancelled."
+#~ msgstr "Запуск отменён."
 
 #: src/renderer/components/crew/crewTemplates.ts
 #~ msgid "The lead plans and reviews; a cheaper builder does the hands-on work."
@@ -20415,6 +20410,10 @@ msgstr "Сессия треда недоступна для сообщений �
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Тред будет работать в отдельном worktree на новой ветке."
 
+#: src/renderer/state/hostThreadHistory.ts
+msgid "The thread's host is not connected."
+msgstr "Хост треда не подключён."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "Потоки, связанные с этим worktree, изменились. Обновите страницу и попробуйте снова."
@@ -20665,6 +20664,10 @@ msgstr "Для этого выпуска Hex требуется glibc 2.39 ил�
 msgid "This host"
 msgstr "Этот хост"
 
+#: src/renderer/state/hostCatalogOrder.ts
+msgid "This host can't reorder threads across projects. Update it to enable that."
+msgstr "Этот хост не может менять порядок потоков между проектами. Обновите его, чтобы включить эту возможность."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "This host does not support the device workspace."
 msgstr "Этот хост не поддерживает рабочую область устройств."
@@ -20797,7 +20800,6 @@ msgid "This project has no supported source-host remote."
 msgstr "У проекта нет поддерживаемого удалённого репозитория источника."
 
 #: src/renderer/actions/providerSwitchActions.ts
-#: src/renderer/actions/providerSwitchRemoteActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
@@ -20895,8 +20897,8 @@ msgid "This server does not support the bounded catalog read."
 msgstr "Этот сервер не поддерживает ограниченное чтение каталога."
 
 #: src/renderer/state/managedRootCatalog/rootHistory.ts
-msgid "This server does not support the bounded history read."
-msgstr "Этот сервер не поддерживает ограниченное чтение истории."
+#~ msgid "This server does not support the bounded history read."
+#~ msgstr "Этот сервер не поддерживает ограниченное чтение истории."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -21749,8 +21751,8 @@ msgstr "Не удалось запустить Tailscale."
 #~ msgstr "Не удалось запустить терминал"
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
-msgid "Unable to start the remote thread."
-msgstr "Не удалось запустить удалённый поток."
+#~ msgid "Unable to start the remote thread."
+#~ msgstr "Не удалось запустить удалённый поток."
 
 #: src/mobile/routeComponents.tsx
 #: src/mobile/useRemoteDesktop.ts
@@ -22117,7 +22119,7 @@ msgstr "Обновить {0} ({env})"
 msgid "Update {0} to {updateLabel}"
 msgstr "Обновить {0} до {updateLabel}"
 
-#: src/renderer/components/sessionImport/remoteSessionImport.ts
+#: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "Обновите {host}, чтобы импортировать его сессии."
 
@@ -22968,7 +22970,7 @@ msgstr "Подготовка окружения оболочки WSL…"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
-#: src/renderer/components/thread/ThreadRemoteSyncDock.tsx
+#: src/renderer/components/thread/ThreadHostOfflineDock.tsx
 #: src/renderer/components/thread/ThreadResumeUnavailableDock.tsx
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "Warning"

@@ -6,21 +6,13 @@ import {
   readManagedLoopbackActivation,
   subscribeManagedLoopbackActivation,
 } from "@/renderer/hostTransport/loopbackHttpWsTransport";
-import {
-  claimThreadNavigation,
-  openThread,
-  suppressAutomaticThreadReopen,
-} from "@/renderer/actions/threadActions";
-import { switchWorkspaceForProject } from "@/renderer/actions/workspaceActions";
+import { claimThreadNavigation, openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { applyRootCatalogThreadRows } from "@/renderer/state/managedRootCatalog/rootCatalogRows";
+import { entityHost } from "@/renderer/state/entityHost";
+import { readHostThreadExistence } from "@/renderer/state/hostThreadLaunch";
 import { currentRemoteServerGeneration } from "@/renderer/state/remoteServers/eventSocketRegistry";
-import {
-  REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
-  REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
-} from "@/shared/remote/client";
 import type { ConversationSearchHit, ConversationSearchSource } from "./useConversationSearch";
 
 interface SearchTarget {
@@ -67,43 +59,31 @@ export async function openConversationSearchHit(hit: ConversationSearchHit): Pro
       useConversationSearchTarget.setState({ target: null });
       return false;
     };
-    if (hit.source.kind === "remote") {
-      if (
-        !(await useRemoteServersStore
-          .getState()
-          .openRemoteThread(hit.source.connectionKey, hit.threadId, { focus: false }))
-      )
-        throw new Error();
+    // The hit's host, whichever host that is. Old or unopened rows can be
+    // outside the bounded resident catalog: read the row back from that host,
+    // then open it like any thread (its pane reads its history).
+    const host = entityHost(
+      hit.source.kind === "managed"
+        ? { id: target.threadId }
+        : {
+            id: target.threadId,
+            remoteServerId: hit.source.connectionKey,
+            remoteId: hit.threadId,
+          },
+    );
+    if (!host) throw new Error();
+    if (!useAppStore.getState().threads.some((thread) => thread.id === target.threadId)) {
+      const existence = await readHostThreadExistence(host, target.threadId);
       if (!stillCurrent()) return;
-      const thread = useAppStore.getState().threads.find((row) => row.id === target.threadId);
-      if (!thread) throw new Error();
-      switchWorkspaceForProject(thread.projectId);
-      suppressAutomaticThreadReopen(target.threadId);
-      useAppStore.getState().openThreadStandalone(target.threadId);
-    } else {
-      // Old/unopened rows can be outside the bounded resident catalog.
-      if (!useAppStore.getState().threads.some((thread) => thread.id === target.threadId)) {
-        const activation = readManagedLoopbackActivation();
-        if (!activation) throw new Error();
-        const result = await activation.client.boundedThreadHistory(hit.threadId, {
-          compactDetails: true,
-          noticesCapable: true,
-          targetTimelineEntryCount: 20,
-          maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
-          maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
-        });
-        if (!stillCurrent() || readManagedLoopbackActivation() !== activation) return;
-        if (result.negotiation !== "bounded") throw new Error();
-        applyRootCatalogThreadRows([result.page.thread], new Set());
-      }
-      if (!stillCurrent()) return;
-      openThread(target.threadId, {
-        focusComposer: false,
-        switchWorkspace: true,
-        reopenRuntime: false,
-        standalone: true,
-      });
+      if (existence !== "present") throw new Error();
     }
+    if (!stillCurrent()) return;
+    openThread(target.threadId, {
+      focusComposer: false,
+      switchWorkspace: true,
+      reopenRuntime: false,
+      standalone: true,
+    });
     // Once handed to the pane, a later navigation must retire this jump even
     // when the destination has not mounted or finished its initial read yet.
     const stopAppWatch = useAppStore.subscribe((state, previous) => {

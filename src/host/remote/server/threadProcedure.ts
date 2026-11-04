@@ -84,9 +84,11 @@ export async function runRemoteProcedure(
   // Annotated (not cast) on purpose: the assignment only type-checks while the
   // allowlist stays supervisor-typed.
   const name: SupervisorProcedureName = procedure;
-  const parsedPayload = ipcProcedureMap[name].payloadSchema.parse(payload) as IpcProcedurePayload<
-    typeof name
-  >;
+  const parsedPayload = withHostWorktreePlacement(
+    ctx,
+    name,
+    ipcProcedureMap[name].payloadSchema.parse(payload) as IpcProcedurePayload<typeof name>,
+  );
   assertRemoteGitMutationExperimentSafe(procedure, parsedPayload);
   authorizeProjectProcedurePayload(procedure, parsedPayload, () =>
     ctx.security.requireBearerSession(req, []).session.scopes.includes("projects:manage"),
@@ -181,6 +183,27 @@ const FILE_SAVE_PROCEDURES = new Set<string>(["writeProjectFile", "writeExternal
  * untouched so `writeError` keeps redacting it as a generic 500; supervisor
  * internals must never leak through this boundary.
  */
+/**
+ * A new worktree requested without a placement lands where this host places
+ * worktrees (its settings and the project's override), whichever client asked.
+ */
+function withHostWorktreePlacement<Name extends SupervisorProcedureName>(
+  ctx: RemoteServerContext,
+  name: Name,
+  payload: IpcProcedurePayload<Name>,
+): IpcProcedurePayload<Name> {
+  if (name !== "gitAddWorktree") return payload;
+  const add = payload as IpcProcedurePayload<"gitAddWorktree">;
+  if (add.path !== undefined || add.worktreeRoot !== undefined) return payload;
+  const placement = ctx.options.resolveWorktreePlacement?.(add.projectLocation);
+  if (!placement) return payload;
+  return {
+    ...add,
+    ...(placement.root ? { worktreeRoot: placement.root } : {}),
+    ...(placement.omitRepoDir ? { worktreeOmitRepoDir: true } : {}),
+  } as IpcProcedurePayload<Name>;
+}
+
 function mapSupervisorProcedureError(procedure: string, error: unknown): unknown {
   if (
     FILE_SAVE_PROCEDURES.has(procedure) &&

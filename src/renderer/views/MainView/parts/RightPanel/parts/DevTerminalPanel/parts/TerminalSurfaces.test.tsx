@@ -2,6 +2,7 @@ import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { DevTerminalTab } from "@/renderer/state/devTerminalStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { TerminalSurfaces } from "./TerminalSurfaces";
@@ -14,6 +15,7 @@ const { state } = vi.hoisted(() => ({
       string,
       {
         outputSource?: (listener: TerminalFeedListener) => () => void;
+        outputOwner?: string;
         initialScrollback?: string;
         preferDomRenderer?: boolean;
         resizeTerminalOnFit?: boolean;
@@ -46,6 +48,7 @@ vi.mock("@/renderer/components/terminal/XTermSurface", async () => {
       {
         terminalId: string;
         outputSource?: (listener: TerminalFeedListener) => () => void;
+        outputOwner?: string;
         initialScrollback?: string;
         preferDomRenderer?: boolean;
         resizeTerminalOnFit?: boolean;
@@ -68,6 +71,14 @@ vi.mock("@/renderer/components/terminal/XTermSurface", async () => {
     }),
   };
 });
+
+const managedProject = { id: "project-1", name: "app", remoteServerId: undefined };
+const pairedProject = {
+  id: "remote:desktop-1:project:p1",
+  name: "app",
+  remoteServerId: "desktop-1",
+  remoteId: "p1",
+};
 
 const tabA: DevTerminalTab = {
   id: "shell:a",
@@ -110,6 +121,7 @@ function renderSurfaces(props: {
 describe("TerminalSurfaces", () => {
   beforeEach(() => {
     useThreadOutputStore.setState({ buffers: {} });
+    useAppStore.setState({ projects: [] });
     state.focusCalls = [];
     state.refitCalls = [];
     state.surfaceProps.clear();
@@ -242,33 +254,47 @@ describe("TerminalSurfaces", () => {
     ]);
   });
 
-  it("connects every reused desktop surface to a caller-provided terminal feed", () => {
-    const unsubscribe = vi.fn<() => void>();
-    const watchTerminal = vi.fn<(terminalId: string, listener: TerminalFeedListener) => () => void>(
-      () => unsubscribe,
-    );
+  it("names a paired project's host as the output owner on the same surface path", () => {
+    useAppStore.setState({
+      projects: [pairedProject] as never,
+    });
+    const pairedTab = { ...tabA, projectId: "remote:desktop-1:project:p1" };
     render(
       <TerminalSurfaces
-        tabs={[tabA, tabB]}
+        tabs={[pairedTab]}
+        selectedTabId={pairedTab.id}
+        activeTab={pairedTab}
+        focusRequestId={1}
+        markTabActive={vi.fn<() => void>()}
+        updateTabTitle={vi.fn<() => void>()}
+      />,
+    );
+
+    const surface = state.surfaceProps.get(pairedTab.id);
+    expect(surface?.outputOwner).toBe("desktop-1");
+    // One output path for every host: no per-host feed override, and the
+    // renderer choice is not tied to where the project lives.
+    expect(surface?.outputSource).toBeUndefined();
+    expect(surface?.initialScrollback).toBeUndefined();
+    expect(surface?.preferDomRenderer).toBeUndefined();
+  });
+
+  it("leaves a managed project's output owner to terminal routing", () => {
+    useAppStore.setState({ projects: [managedProject] as never });
+    render(
+      <TerminalSurfaces
+        tabs={[tabA]}
         selectedTabId={tabA.id}
         activeTab={tabA}
         focusRequestId={1}
         markTabActive={vi.fn<() => void>()}
         updateTabTitle={vi.fn<() => void>()}
-        watchTerminal={watchTerminal}
       />,
     );
 
     const surface = state.surfaceProps.get(tabA.id);
-    const listener: TerminalFeedListener = {
-      onOutput: vi.fn<(data: string) => void>(),
-      onReset: vi.fn<() => void>(),
-      onExited: vi.fn<(exitCode: number | null) => void>(),
-    };
-    expect(surface?.initialScrollback).toBe("");
-    expect(surface?.preferDomRenderer).toBe(true);
-    expect(surface?.outputSource?.(listener)).toBe(unsubscribe);
-    expect(watchTerminal).toHaveBeenCalledWith(tabA.id, listener);
+    expect(surface?.outputOwner).toBeUndefined();
+    expect(surface?.outputSource).toBeUndefined();
   });
 
   it("restores retained output when an action terminal remounts", () => {

@@ -1,3 +1,5 @@
+import { entityHost } from "@/renderer/state/entityHost";
+import { readHostThreadExistence } from "@/renderer/state/hostThreadLaunch";
 import "fake-indexeddb/auto";
 import { WebSocket as NodeWebSocket } from "ws";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -30,7 +32,6 @@ import {
 import { PreloadIpcTransport } from "@/renderer/hostTransport/preloadIpcTransport";
 import {
   installManagedRootCatalogRuntime,
-  resolveManagedRootThreadPin,
   __resetManagedRootCatalogRuntimeForTest,
 } from "./rootCatalogAdapter";
 import { getManagedRootCatalogStatus } from "./rootCatalogStore";
@@ -330,7 +331,7 @@ describe("managed root catalog over real HTTP + SQLite", () => {
          VALUES (?, ?, 'Pinned', 'claude', '{"model":"sonnet"}', 'idle', 'none', 0, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
       )
       .run(pinnedId, projectId(0));
-    expect(await resolveManagedRootThreadPin(pinnedId)).toBe(true);
+    expect(await readHostThreadExistence(entityHost({ id: pinnedId })!, pinnedId)).toBe("present");
     expect(rootThreads().some((thread) => thread.id === pinnedId)).toBe(true);
 
     // Host-confirmed deletion: the command removes the durable row and the

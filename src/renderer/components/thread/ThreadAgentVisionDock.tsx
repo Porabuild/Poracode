@@ -4,9 +4,7 @@ import { Modal, toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentVision } from "@/shared/agentVision";
 import { useThread } from "@/renderer/state/useThread";
-import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
-import { boundedClientInvoker } from "@/renderer/state/remoteServers/catalog/boundedHistoryRegistry";
-import { currentRemoteServerGeneration } from "@/renderer/state/remoteServers/eventSocketRegistry";
+import { entityHost } from "@/renderer/state/entityHost";
 import {
   ThreadDockCollapseButton,
   ThreadDockHeader,
@@ -41,27 +39,16 @@ export function useThreadAgentVision(threadId: string, visible: boolean, preview
     async function poll() {
       try {
         if (stopStream && hasAgentVisionStream(ownerId)) return;
-        const activation = readManagedLoopbackActivation();
-        const generation = remoteServerId
-          ? currentRemoteServerGeneration(remoteServerId)
-          : undefined;
-        let vision: AgentVision | null;
-        if (remoteServerId && remoteId) {
-          const invoke = boundedClientInvoker();
-          if (!invoke) return;
-          vision = await invoke(remoteServerId, (client) =>
-            client.agentVision(remoteId, preview, controller.signal),
-          );
-          if (currentRemoteServerGeneration(remoteServerId) !== generation) return;
-        } else {
-          if (!activation) return;
-          vision = await activation.client.agentVision(threadId, preview, controller.signal);
-          if (readManagedLoopbackActivation() !== activation) return;
-        }
+        const host = entityHost({ id: threadId, remoteServerId, remoteId });
+        if (!host) return;
+        const vision = await host.withClient((client) =>
+          client.agentVision(host.hostId, preview, controller.signal),
+        );
+        if (!host.isCurrent()) return;
         if (controller.signal.aborted) return;
         if (!stopStream || !hasAgentVisionStream(ownerId)) setSnapshot({ threadId, vision });
         if (preview && vision?.streamVersion === 1 && !stopStream)
-          stopStream = subscribeAgentVisionStream(ownerId, remoteId ?? threadId, (frame) => {
+          stopStream = subscribeAgentVisionStream(ownerId, host.hostId, (frame) => {
             if (!controller.signal.aborted) setSnapshot({ threadId, vision: frame });
           });
       } catch {

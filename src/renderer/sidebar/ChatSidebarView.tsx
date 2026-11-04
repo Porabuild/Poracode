@@ -18,7 +18,6 @@ import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/Bro
 import { ChatSidebarDraft } from "./ChatSidebarDraft";
 import { ImplicitMcpServersContext } from "@/renderer/components/composer/implicitMcpServers";
 import type { BuiltInMcpServerId } from "@/shared/contracts";
-import { useRestoredRemoteThreadLifecycle } from "@/renderer/hooks/useRestoredRemoteThreadLifecycle";
 import { TurnClientContextSource } from "@/renderer/components/composer/turnClientContext";
 import { createBrowserFocusCapture } from "./browserFocusContext";
 
@@ -33,7 +32,6 @@ export function ChatSidebarView() {
     "upgradeRequired" | "inUseElsewhere" | "connection" | null
   >(null);
   const [draftEpoch, setDraftEpoch] = useState(0);
-  useRestoredRemoteThreadLifecycle(checked);
   const server = useRemoteServersStore(selectBrowserBridgeServer);
   const serverKey = server?.connectionId ?? server?.desktopId;
   useEffect(() => (serverKey ? installSidebarAgentReadiness(serverKey) : undefined), [serverKey]);

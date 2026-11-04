@@ -33,7 +33,7 @@ import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import { pruneLiveObservedCrossagentItems } from "@/renderer/state/slices/staleSubAgents";
-import { resetTruncateRecoveryEpoch } from "@/renderer/state/remote/truncateRecovery";
+import { forgetHistoryBaselines } from "@/renderer/state/historyBaselines";
 import { releaseRemoteTerminalsForServer } from "@/renderer/remoteProcedureRouter";
 import { waitForHostUpdateReconnect } from "./hostUpdateReconnect";
 import { clearRemoteGitState } from "./gitState";
@@ -50,7 +50,9 @@ import {
   forgetRemoteServerThreadItemInterests,
   getRemoteServerEventSocketEntry,
   listRemoteServerEventSocketDesktopIds,
+  remoteServerHostSession,
 } from "./eventSocketRegistry";
+import { notePairedItemInterestCoverage } from "./pairedItemInterests";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import {
   beginBoundedCatalogAttempt,
@@ -125,7 +127,7 @@ export function closeRemoteServerEventSocket(
   if (!options.preserveReplayState) {
     deleteRemoteServerSnapshotSeq(desktopId);
     clearRemoteThreadAppliedSeqs(desktopId);
-    resetTruncateRecoveryEpoch(desktopId);
+    forgetHistoryBaselines(remoteServerHostSession(desktopId));
     takeRemoteServerRowResyncPending(desktopId);
   }
   if (options.preserveReplayState) setRemoteTerminalSocketSender(desktopId, null);
@@ -169,6 +171,7 @@ export interface SessionReconnectActionDeps extends RemoteServersStoreApi {
   readonly setRemoteServerFailure: RemoteServerClientBindings["setRemoteServerFailure"];
   readonly clientForServer: RemoteServerClientBindings["clientForServer"];
   readonly withClient: RemoteServerClientBindings["withClient"];
+  readonly disposeSessionRenewal: RemoteServerClientBindings["disposeSessionRenewal"];
   readonly checkHostUpdateInBackground: RemoteServerClientBindings["checkHostUpdateInBackground"];
   readonly startRemoteServerEventStream: StartRemoteServerEventStream;
   readonly persistHasHydrated: () => boolean;
@@ -182,6 +185,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     setRemoteServerFailure,
     clientForServer,
     withClient,
+    disposeSessionRenewal,
     checkHostUpdateInBackground,
     startRemoteServerEventStream,
     persistHasHydrated,
@@ -568,7 +572,8 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         deleteRemoteHostUpdateRequestSeq(key);
         invalidateRemoteServerRefresh(key);
         closeRemoteServerEventSocket(key);
-        resetTruncateRecoveryEpoch(key);
+        forgetHistoryBaselines(remoteServerHostSession(key));
+        disposeSessionRenewal(key);
         bumpRemoteServerGeneration(key);
         // The connection is gone: its bounded walks, cursors and history
         // continuation proofs must not survive a future re-pair.
@@ -594,6 +599,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
           get().closeRemoteThread();
         }
         forgetRemoteServerThreadItemInterests(key);
+        notePairedItemInterestCoverage(key, false);
         disposeEnvironmentSession(key);
         // Gate 6 items 4.2/4.6: the record is gone — its certificate pin and
         // its refresh-token half go with it, so a stale pin or a dead

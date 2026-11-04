@@ -3846,6 +3846,24 @@ describe("ThreadComposerSection", () => {
     expect(screen.getAllByTestId("attach-files-enabled").at(-1)!).toHaveTextContent("no");
   });
 
+  it("treats a thread on another host like a remote session for local-only affordances", () => {
+    // A paired host's thread in the desktop client: not a browser client, yet
+    // its files, PTY and voice frames are not on this machine.
+    const pairedThread = { ...guiThread, remoteServerId: "desktop-1", remoteId: "host-thread" };
+    renderComposer({ thread: pairedThread });
+    expect(screen.getByTestId("attach-files-enabled")).toHaveTextContent("no");
+  });
+
+  it("shows runtime chrome for a terminal thread on another host", () => {
+    const errorDockStates = [{ sourceItemId: "err-2", message: "Tool failed on the host." }];
+    renderComposer({
+      thread: { ...terminalThread, remoteServerId: "desktop-1", remoteId: "host-thread" },
+      agentStatus: claudeTerminalStatus,
+      errorDockStates,
+    });
+    expect(screen.getByText("Tool failed on the host.")).toBeInTheDocument();
+  });
+
   it("shows generic error docks for remote terminal sessions only", () => {
     const errorDockStates = [{ sourceItemId: "err-1", message: "Tool failed remotely." }];
     const { unmount } = renderComposer({

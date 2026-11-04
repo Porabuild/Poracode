@@ -1,8 +1,6 @@
 import type { PersistedRuntimeItem } from "@/shared/ipc";
 import { useAppStore } from "./appStore";
-import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
-import { boundedClientInvoker } from "./remoteServers/catalog/boundedHistoryRegistry";
-import { currentRemoteServerGeneration } from "./remoteServers/eventSocketRegistry";
+import { entityHost } from "./entityHost";
 import { estimateCacheValueBytes } from "./browserMetadataCacheProjection";
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
 import { getThreadMap } from "./useThread";
@@ -23,13 +21,8 @@ let cacheBytes = 0;
 
 /** One connection-owned read shared by expanded instances of the same row. */
 export function acquireHistoryItemDetails(threadId: string, source: RuntimeChatItem) {
-  const owner = getThreadMap(useAppStore.getState().threads).get(threadId);
-  const activation = readManagedLoopbackActivation();
-  const generation = owner?.remoteServerId
-    ? currentRemoteServerGeneration(owner.remoteServerId)
-    : activation?.seq;
-  const authority = owner?.remoteServerId ?? activation?.authority;
-  const key = JSON.stringify([authority, generation, threadId, source.id]);
+  const host = entityHost(getThreadMap(useAppStore.getState().threads).get(threadId));
+  const key = JSON.stringify([host?.sessionKey, threadId, source.id]);
   const cached = cache.get(key);
   if (cached?.source === source) {
     cache.delete(key);
@@ -40,23 +33,11 @@ export function acquireHistoryItemDetails(threadId: string, source: RuntimeChatI
   if (!read || read.source !== source || read.controller.signal.aborted) {
     const controller = new AbortController();
     const promise = (async () => {
-      let item: PersistedRuntimeItem;
-      if (owner?.remoteServerId && owner.remoteId) {
-        const invoke = boundedClientInvoker();
-        if (!invoke) throw new Error("History detail connection is unavailable.");
-        item = await invoke(owner.remoteServerId, (client) =>
-          client.threadHistoryItem(owner.remoteId!, source.id, { signal: controller.signal }),
-        );
-        if (currentRemoteServerGeneration(owner.remoteServerId) !== generation)
-          throw new Error("History detail connection changed.");
-      } else {
-        if (!activation || !owner) throw new Error("History detail owner is unavailable.");
-        item = await activation.client.threadHistoryItem(threadId, source.id, {
-          signal: controller.signal,
-        });
-        if (readManagedLoopbackActivation() !== activation)
-          throw new Error("History detail connection changed.");
-      }
+      if (!host) throw new Error("History detail owner is unavailable.");
+      const item = await host.withClient((client) =>
+        client.threadHistoryItem(host.hostId, source.id, { signal: controller.signal }),
+      );
+      if (!host.isCurrent()) throw new Error("History detail connection changed.");
       controller.signal.throwIfAborted();
       const bytes = estimateCacheValueBytes(item);
       if (bytes <= MAX_CACHE_BYTES && pending.get(key)?.source === source) {

@@ -1,41 +1,43 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { useAppStore } from "@/renderer/state/appStore";
-import { remoteOwner, unprojectRemoteThreadId } from "@/renderer/state/remoteProjection";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { resolveManagedRootThreadPin } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
-import {
-  getManagedRootCatalogStatus,
-  subscribeManagedRootCatalogStatus,
-} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
+import { entityHost } from "@/renderer/state/entityHost";
+import { readHostThreadExistence } from "@/renderer/state/hostThreadLaunch";
+import { useEntityHostReady } from "@/renderer/hooks/useEntityHostReady";
 
 /** Resolve a retained child outside the loaded catalog page without creating or launching it. */
 export function useSideChatThreadRestore(threadId: string, source: Thread) {
   const { t } = useLingui();
   const present = useAppStore((state) => state.threads.some((thread) => thread.id === threadId));
-  const desktopId = remoteOwner(source)?.desktopId;
-  const remoteStatus = useRemoteServersStore((s) =>
-    desktopId ? s.runtime[desktopId]?.status : undefined,
-  );
-  const rootStatus = useSyncExternalStore(
-    subscribeManagedRootCatalogStatus,
-    () => getManagedRootCatalogStatus().status,
-  );
+  // The child lives on its source's host, whichever host that is.
+  const hostReady = useEntityHostReady(source);
+  const sourceServerId = source.remoteServerId;
+  const sourceRemoteId = source.remoteId;
   const [failure, setFailure] = useState<{ attempt: number; message: string }>();
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (present || (desktopId ? remoteStatus !== "online" : rootStatus !== "ready")) return;
+    if (present || !hostReady) return;
     let cancelled = false;
-    const restore = desktopId
-      ? useRemoteServersStore
-          .getState()
-          .openRemoteThread(desktopId, unprojectRemoteThreadId(desktopId, threadId) ?? threadId, {
-            focus: false,
-            quiet: true,
+    const sourceHost = entityHost({
+      id: source.id,
+      remoteServerId: sourceServerId,
+      remoteId: sourceRemoteId,
+    });
+    const childHostId = sourceHost?.hostThreadId(threadId);
+    const childHost =
+      sourceHost && childHostId
+        ? entityHost({
+            id: threadId,
+            ...(sourceHost.connectionKey
+              ? { remoteServerId: sourceHost.connectionKey, remoteId: childHostId }
+              : {}),
           })
-      : resolveManagedRootThreadPin(threadId);
+        : undefined;
+    const restore = childHost
+      ? readHostThreadExistence(childHost, threadId).then((existence) => existence === "present")
+      : Promise.resolve(false);
     void restore
       .then((restored) => {
         if (!restored && !cancelled)
@@ -50,7 +52,7 @@ export function useSideChatThreadRestore(threadId: string, source: Thread) {
     return () => {
       cancelled = true;
     };
-  }, [present, threadId, desktopId, remoteStatus, rootStatus, attempt, t]);
+  }, [present, threadId, source.id, sourceServerId, sourceRemoteId, hostReady, attempt, t]);
   return {
     present,
     error: failure?.attempt === attempt ? failure.message : undefined,

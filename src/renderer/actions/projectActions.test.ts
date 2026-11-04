@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitHubAccountRef, McpServer, Project, ProjectScripts } from "@/shared/contracts";
+import type {
+  GitHubAccountRef,
+  McpServer,
+  Project,
+  ProjectScripts,
+  Thread,
+} from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -14,6 +20,7 @@ import * as bridgeRuntime from "@/renderer/bridge";
 import {
   saveProjectMcpServers,
   setProjectDisabled,
+  isFolderChangeBlockedByRunningThread,
   relocateProject,
   updateProjectGhAccount,
   updateProjectIcon,
@@ -22,10 +29,12 @@ import {
   deleteProject,
 } from "./projectActions";
 
-const { runProjectCommand, toast } = vi.hoisted(() => ({
+const { runProjectCommand, serverRuntime, toast } = vi.hoisted(() => ({
   runProjectCommand: vi.fn<(desktopId: string, command: unknown) => Promise<void>>(),
+  serverRuntime: {} as Record<string, { status: string } | undefined>,
   toast: {
     danger: vi.fn<(message: string) => void>(),
+    success: vi.fn<(message: string) => void>(),
   },
 }));
 
@@ -33,7 +42,7 @@ vi.mock("@heroui/react", () => ({ toast }));
 
 vi.mock("@/renderer/state/remoteServersStore", () => ({
   useRemoteServersStore: {
-    getState: () => ({ runProjectCommand }),
+    getState: () => ({ runProjectCommand, runtime: serverRuntime }),
   },
 }));
 
@@ -57,7 +66,9 @@ describe("remote project actions", () => {
     confirmProjectRemoval(project.id);
     forgetPendingCatalogEdit("project", project.id);
     runProjectCommand.mockReset().mockResolvedValue(undefined);
+    serverRuntime["desktop-1"] = { status: "online" };
     toast.danger.mockReset();
+    toast.success.mockReset();
     useAppStore.setState({ projects: [project], threads: [] });
   });
 
@@ -179,36 +190,38 @@ describe("remote project actions", () => {
     });
   });
 
-  it("blocks a local relocation conflict before asking the supervisor to repair worktrees", async () => {
-    const first: Project = {
-      id: "first",
-      name: "First",
-      location: { kind: "windows", path: "C:\\first" },
-      createdAt: project.createdAt,
-    };
-    const second: Project = {
-      ...first,
-      id: "second",
-      location: { kind: "windows", path: "C:\\second" },
-    };
-    useAppStore.setState({ projects: [first, second], threads: [] });
-    const relocate = vi.fn<ReturnType<typeof bridgeRuntime.readBridge>["relocateProject"]>();
-    const readBridge = vi.spyOn(bridgeRuntime, "readBridge").mockReturnValue({
-      platform: "win32",
-      pickFolder: async () => "c:/FIRST/",
-      relocateProject: relocate,
-    } as unknown as ReturnType<typeof bridgeRuntime.readBridge>);
-    try {
-      await relocateProject(second.id);
-      expect(relocate).not.toHaveBeenCalled();
-      expect(toast.danger).toHaveBeenCalledWith("This folder is already registered as a project.");
-      expect(useAppStore.getState().projects).toEqual([first, second]);
-      expect(() => useAppStore.getState().updateProjectLocation(second.id, first.location)).toThrow(
-        /already registered/,
-      );
-    } finally {
-      readBridge.mockRestore();
-    }
+  it("relocates a project through its host and surfaces the host's refusal", async () => {
+    await relocateProject(project.id, "/moved/repo");
+    expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
+      kind: "relocate",
+      projectId: "remote-project",
+      path: "/moved/repo",
+    });
+    expect(toast.success).toHaveBeenCalledTimes(1);
+
+    runProjectCommand.mockRejectedValueOnce(
+      new Error("This folder is already registered as a project."),
+    );
+    await relocateProject(project.id, "/other/repo");
+    expect(toast.danger).toHaveBeenCalledWith("This folder is already registered as a project.");
+    expect(toast.success).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a folder change while one of the project's threads is running, before and after choosing", async () => {
+    useAppStore.setState({
+      threads: [{ id: "running", projectId: project.id, status: "working" } as Thread],
+    });
+
+    expect(isFolderChangeBlockedByRunningThread(project.id)).toBe(true);
+    expect(toast.danger).toHaveBeenCalledWith(
+      "Stop the project's running threads before changing its folder.",
+    );
+
+    await relocateProject(project.id, "/moved/repo");
+    expect(runProjectCommand).not.toHaveBeenCalled();
+
+    useAppStore.setState({ threads: [] });
+    expect(isFolderChangeBlockedByRunningThread(project.id)).toBe(false);
   });
 
   it("keeps project settings unchanged when the remote host is offline", async () => {
@@ -396,6 +409,71 @@ describe("remote project actions", () => {
 
     await vi.waitFor(() => expect(toast.danger).toHaveBeenCalledWith("remote server offline"));
     expect(useAppStore.getState().projects[0]?.disabled).not.toBe(true);
+  });
+
+  it("stops the owning host's git watch once it accepts disabling a paired project", async () => {
+    const gitUnwatchProject = vi.fn<(payload: unknown) => Promise<void>>(async () => undefined);
+    const readBridge = vi.spyOn(bridgeRuntime, "readBridge").mockReturnValue({
+      gitUnwatchProject,
+    } as unknown as ReturnType<typeof bridgeRuntime.readBridge>);
+    try {
+      setProjectDisabled(project.id, true);
+
+      await vi.waitFor(() => expect(gitUnwatchProject).toHaveBeenCalledTimes(1));
+      expect(gitUnwatchProject).toHaveBeenCalledWith({ projectId: project.id });
+    } finally {
+      readBridge.mockRestore();
+    }
+  });
+
+  it("does not ask an unreachable paired host to stop its git watch", async () => {
+    serverRuntime["desktop-1"] = { status: "offline" };
+    const gitUnwatchProject = vi.fn<(payload: unknown) => Promise<void>>(async () => undefined);
+    const readBridge = vi.spyOn(bridgeRuntime, "readBridge").mockReturnValue({
+      gitUnwatchProject,
+    } as unknown as ReturnType<typeof bridgeRuntime.readBridge>);
+    try {
+      setProjectDisabled(project.id, true);
+
+      await vi.waitFor(() => expect(useAppStore.getState().projects[0]?.disabled).toBe(true));
+      expect(gitUnwatchProject).not.toHaveBeenCalled();
+    } finally {
+      readBridge.mockRestore();
+    }
+  });
+
+  it("releases a WSL distro only when no other project on the same host still uses it", async () => {
+    const wsl = (id: string, remoteServerId?: string): Project => ({
+      ...project,
+      id,
+      location: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        ...(remoteServerId ? { remoteServerId } : {}),
+      } as Project["location"],
+      ...(remoteServerId ? { remoteServerId, remoteId: id } : {}),
+    });
+    const paired = wsl("paired-wsl", "desktop-1");
+    // Same distro name on this machine must not keep the paired host's distro alive.
+    const managed = { ...wsl("managed-wsl"), remoteServerId: undefined, remoteId: undefined };
+    useAppStore.setState({ projects: [paired, managed] as Project[] });
+    const gitUnwatchProject = vi.fn<(payload: unknown) => Promise<void>>(async () => undefined);
+    const readBridge = vi.spyOn(bridgeRuntime, "readBridge").mockReturnValue({
+      gitUnwatchProject,
+    } as unknown as ReturnType<typeof bridgeRuntime.readBridge>);
+    try {
+      setProjectDisabled(paired.id, true);
+
+      await vi.waitFor(() =>
+        expect(gitUnwatchProject).toHaveBeenCalledWith({
+          projectId: paired.id,
+          releaseWslDistro: "Ubuntu",
+        }),
+      );
+    } finally {
+      readBridge.mockRestore();
+    }
   });
 
   it("preserves dirty editor contents and restores navigation when disabling is refused", async () => {

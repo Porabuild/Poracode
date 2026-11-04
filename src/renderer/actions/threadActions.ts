@@ -1,3 +1,8 @@
+import {
+  dropPendingThreadLaunch,
+  peekPendingThreadLaunch,
+  trackPendingThreadRemoval,
+} from "@/renderer/state/threadLaunchIntents";
 import { startTransition } from "react";
 import { toast } from "@heroui/react";
 import {
@@ -20,20 +25,8 @@ import { prepareRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydr
 import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
-import {
-  isApplyingHostOriginatedManagedRootMutation,
-  managedRootOwner,
-  sendManagedRootThreadCommand,
-} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import {
-  dropPendingManagedRootLaunch,
-  pinManagedRootThread,
-  peekPendingManagedRootLaunch,
-  trackPendingManagedRootThreadRemoval,
-} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
-import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { isApplyingHostOriginatedManagedRootMutation } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import { entityHost, intentHost } from "@/renderer/state/entityHost";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
@@ -106,25 +99,20 @@ export function claimThreadNavigation(): () => boolean {
 }
 
 /**
- * Routes one thread content intent to whoever owns the row:
- *
- * - a projected remote row goes through the paired server's client;
- * - a root row (managed desktop, no projection) goes through the ONE managed
- *   loopback client as an explicit host command (B4: the renderer no longer
- *   writes catalog rows locally, so a local-only apply would be display-only);
- * - a command the host forwarded back for local mirroring never echoes: the
- *   caller's local path applies it.
+ * Routes one thread content intent to the host that owns the row, as an
+ * explicit host command (the renderer never writes catalog rows locally, so a
+ * local-only apply would be display-only). A command the host forwarded back
+ * for local mirroring never echoes: the caller's local path applies it.
  */
-function dispatchRemoteThreadMutation(
+function dispatchHostThreadMutation(
   thread: Thread,
   command: (remoteThreadId: string) => RemoteThreadCommand,
   apply: () => void,
   onConfirmed?: () => void,
   onRejected?: (error: unknown) => void,
 ): boolean {
-  const owner = remoteOwner(thread);
-  const rootOwner = managedRootOwner(thread);
-  if (!owner && (!rootOwner || isApplyingHostOriginatedManagedRootMutation())) return false;
+  const host = intentHost(thread);
+  if (!host) return false;
   const oldView = useAppStore.getState().view;
   apply();
   const painted = useAppStore.getState().threads.find((row) => row.id === thread.id) ?? thread;
@@ -133,19 +121,14 @@ function dispatchRemoteThreadMutation(
   // Runtime status is live authority, even while a content command is pending.
   // Acknowledging a finished turn must never mask the next turn's working event.
   const { status: _status, ...patch } = rollbackPatch;
-  const release = rootOwner ? pinManagedRootThread(rootOwner.threadId) : () => {};
+  const release = host.pinThread(thread.id);
   void dispatchOptimisticCatalogEdit({
     kind: "thread",
     row: thread,
     patch,
     apply: () => {},
     serverGeneratedFields: ["updatedAt", "archivedAt", "doneAt"],
-    write: () =>
-      owner
-        ? useRemoteServersStore
-            .getState()
-            .sendThreadCommand(owner.desktopId, command(owner.remoteId))
-        : sendManagedRootThreadCommand(command(rootOwner!.threadId)),
+    write: () => host.sendThreadCommand(command(host.hostId)),
     restore: (base) =>
       useAppStore.setState((state) => ({
         threads: state.threads.map((row) =>
@@ -161,14 +144,10 @@ function dispatchRemoteThreadMutation(
         ...(state.view === paintedView ? { view: oldView } : {}),
       })),
   })
-    .then(() => {
-      onConfirmed?.();
-      if (rootOwner) refreshManagedRootCatalogSoon();
-    })
+    .then(() => onConfirmed?.())
     .catch((error) => {
       toast.danger(friendlyError(error));
       onRejected?.(error);
-      if (rootOwner) refreshManagedRootCatalogSoon();
     })
     .finally(release);
   return true;
@@ -365,7 +344,7 @@ export function openThread(
   // A slow host read must still reveal the pane's existing loading state.
   // Retain its live stream too, so the mounted reader adopts this baseline
   // across the interest grace period instead of starting a second recovery.
-  if (thread?.presentationMode === "gui" || remoteOwner(thread)) {
+  if (thread?.presentationMode === "gui") {
     const hydrated = hasHydratedThreadRuntimeItems(threadId);
     let unsubscribe = () => {};
     let active = true;
@@ -543,9 +522,8 @@ export async function unloadStoredThread(
   const view = useAppStore.getState().view;
   const inVisiblePane = view.kind === "thread" && view.panes.includes(threadId);
 
-  const owner = remoteOwner(thread);
   await readBridge().closeThread({ threadId });
-  if (owner) await useRemoteServersStore.getState().refreshServer(owner.desktopId);
+  entityHost(thread)?.refreshCatalog();
   startTransition(() => {
     useAppStore.getState().markThreadExited(threadId);
     if (inVisiblePane && !options?.keepSidePanels) {
@@ -592,7 +570,7 @@ export function archiveThread(threadId: string): void {
   const thread = useAppStore.getState().threads.find((candidate) => candidate.id === threadId);
   if (
     thread &&
-    dispatchRemoteThreadMutation(
+    dispatchHostThreadMutation(
       thread,
       (remoteThreadId) => ({
         kind: "archive",
@@ -611,7 +589,7 @@ export function unarchiveThread(threadId: string): void {
   const thread = store.threads.find((candidate) => candidate.id === threadId);
   if (!thread) return;
   if (
-    dispatchRemoteThreadMutation(
+    dispatchHostThreadMutation(
       thread,
       (remoteThreadId) => ({ kind: "unarchive", threadId: remoteThreadId }),
       () => useAppStore.getState().unarchiveThread(threadId),
@@ -640,7 +618,7 @@ export function markThreadDone(threadId: string): void {
   const thread = store.threads.find((t) => t.id === threadId);
   if (!thread || thread.done) return;
   if (
-    dispatchRemoteThreadMutation(
+    dispatchHostThreadMutation(
       thread,
       (remoteThreadId) => ({ kind: "set-done", threadId: remoteThreadId, done: true }),
       () => useAppStore.getState().markThreadDone(threadId),
@@ -683,7 +661,7 @@ export function toggleMarkThreadDone(threadId: string): void {
   if (!thread) return;
   const done = !thread.done;
   if (
-    dispatchRemoteThreadMutation(
+    dispatchHostThreadMutation(
       thread,
       (remoteThreadId) => ({ kind: "set-done", threadId: remoteThreadId, done }),
       () => {
@@ -710,7 +688,7 @@ export function toggleStarThread(threadId: string): void {
   if (!thread) return;
   const starred = !thread.starred;
   if (
-    dispatchRemoteThreadMutation(
+    dispatchHostThreadMutation(
       thread,
       (remoteThreadId) => ({ kind: "set-starred", threadId: remoteThreadId, starred }),
       () => {
@@ -733,7 +711,7 @@ export function renameThread(threadId: string, title: string): void {
   const thread = store.threads.find((candidate) => candidate.id === threadId);
   if (
     thread &&
-    dispatchRemoteThreadMutation(
+    dispatchHostThreadMutation(
       thread,
       (remoteThreadId) => ({ kind: "rename", threadId: remoteThreadId, title }),
       () => useAppStore.getState().renameThread(threadId, title),
@@ -765,31 +743,19 @@ export async function setThreadWorktree(
     });
   };
 
-  const owner = remoteOwner(thread);
-  if (owner) {
-    await useRemoteServersStore.getState().sendThreadCommand(owner.desktopId, {
-      kind: "set-worktree",
-      threadId: owner.remoteId,
-      worktreePath,
-      ...(worktreeBranch ? { worktreeBranch } : {}),
-      ...(options?.isNewWorktree ? { isNewWorktree: true } : {}),
-    });
-  } else {
-    const rootOwner = managedRootOwner(thread);
-    if (rootOwner && !isApplyingHostOriginatedManagedRootMutation()) {
-      const release = pinManagedRootThread(rootOwner.threadId);
-      try {
-        await sendManagedRootThreadCommand({
-          kind: "set-worktree",
-          threadId: rootOwner.threadId,
-          worktreePath,
-          ...(worktreeBranch ? { worktreeBranch } : {}),
-          ...(options?.isNewWorktree ? { isNewWorktree: true } : {}),
-        });
-        refreshManagedRootCatalogSoon();
-      } finally {
-        release();
-      }
+  const host = intentHost(thread);
+  if (host) {
+    const release = host.pinThread(threadId);
+    try {
+      await host.sendThreadCommand({
+        kind: "set-worktree",
+        threadId: host.hostId,
+        worktreePath,
+        ...(worktreeBranch ? { worktreeBranch } : {}),
+        ...(options?.isNewWorktree ? { isNewWorktree: true } : {}),
+      });
+    } finally {
+      release();
     }
   }
   apply();
@@ -811,7 +777,7 @@ export function acknowledgeThread(threadId: string): void {
   };
   if (
     thread &&
-    dispatchRemoteThreadMutation(
+    dispatchHostThreadMutation(
       thread,
       (remoteThreadId) => ({ kind: "acknowledge", threadId: remoteThreadId }),
       apply,
@@ -828,15 +794,15 @@ function deleteThreadOnly(
 ): void {
   const store = useAppStore.getState();
   const thread = store.threads.find((candidate) => candidate.id === threadId) ?? record;
-  const rootOwner = thread ? managedRootOwner(thread) : undefined;
-  const pendingLaunch = peekPendingManagedRootLaunch(threadId);
+  const hasHost = thread !== undefined && entityHost(thread) !== undefined;
+  const pendingLaunch = peekPendingThreadLaunch(threadId);
   const visualHostId = thread ? readNativeVisualHostId(thread) : undefined;
   const visualThreadId = thread?.remoteId ?? threadId;
   const forgetVisuals = () =>
     useNativeVisualUiStore.getState().forgetThread(visualHostId, visualThreadId);
   const persistedProvisioning =
     store.provisioningWorktreeThreadIds[threadId] === true &&
-    rootOwner !== undefined &&
+    hasHost &&
     (pendingLaunch?.metadataCreated === true || pendingLaunch?.metadataCreationUncertain === true);
   if (store.provisioningWorktreeThreadIds[threadId] === true && !persistedProvisioning) {
     store.deleteThread(threadId);
@@ -844,14 +810,14 @@ function deleteThreadOnly(
     return;
   }
   const removal = persistedProvisioning ? Promise.withResolvers<boolean>() : undefined;
-  if (removal) trackPendingManagedRootThreadRemoval(threadId, removal.promise);
+  if (removal) trackPendingThreadRemoval(threadId, removal.promise);
   const confirmRemoteDelete = () => {
     forgetVisuals();
     // A successful explicit delete is authoritative resolution of any
     // retained uncertain launch episode. Keep the marker until command
     // success so a refused or ambiguous delete can still replay the exact
     // original launch operation.
-    if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
+    if (hasHost) dropPendingThreadLaunch(threadId);
     if (persistedProvisioning) useAppStore.getState().deleteThread(threadId);
     removal?.resolve(true);
     void readBridge()
@@ -861,7 +827,7 @@ function deleteThreadOnly(
   };
   if (
     thread &&
-    dispatchRemoteThreadMutation(
+    dispatchHostThreadMutation(
       thread,
       (remoteThreadId) => ({ kind: "delete", threadId: remoteThreadId }),
       () => useAppStore.getState().archiveThread(threadId),
@@ -876,7 +842,7 @@ function deleteThreadOnly(
   // A host-originated delete is already authoritative and deliberately
   // bypasses command echo. Retire any locally retained uncertain launch just
   // as the successful user-command path does.
-  if (rootOwner) dropPendingManagedRootLaunch(rootOwner.threadId);
+  if (hasHost) dropPendingThreadLaunch(threadId);
   if (isApplyingHostOriginatedManagedRootMutation()) forgetVisuals();
   removal?.resolve(true);
   store.deleteThread(threadId);

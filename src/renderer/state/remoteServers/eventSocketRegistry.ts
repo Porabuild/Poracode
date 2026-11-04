@@ -2,9 +2,7 @@ import {
   RemoteSocketHealthMonitor,
   RemoteSocketReconnectPolicy,
 } from "@/shared/remote/socketPolicy";
-import type { OpenRemoteThread, RemoteSocketLike } from "./types";
-import { noteHistoryDeliveryGap } from "../historyResumeRegistry";
-import { remoteThreadId } from "../remoteProjection";
+import type { RemoteSocketLike } from "./types";
 import { HostSession, hostEventThreadIds } from "@/renderer/hostTransport/hostSession";
 
 /**
@@ -38,8 +36,8 @@ export interface RemoteServerEventSocketEntry {
   health: RemoteSocketHealthMonitor<RemoteSocketLike> | null;
   disposeFrames?: () => void;
   dispose?: () => void;
-  /** Re-baselines the current connection's interested threads. */
-  recoverInterestedThreads?: (beforeReplay?: () => void) => Promise<boolean>;
+  /** Re-baselines the current connection's interested threads, or only the given ones. */
+  recoverInterestedThreads?: (onlyThreadIds?: ReadonlySet<string>) => Promise<boolean>;
 }
 
 const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();
@@ -188,13 +186,6 @@ export function sameRemoteServerThreadItemInterests(
   );
 }
 
-/** Raw stored list (undefined = never set); callers own their fallback. */
-export function getRemoteServerThreadItemInterests(
-  desktopId: string,
-): readonly string[] | undefined {
-  return remoteServerThreadItemInterests.get(desktopId);
-}
-
 export function currentRemoteServerThreadItemInterests(desktopId: string): readonly string[] {
   return remoteServerThreadItemInterests.get(desktopId) ?? [];
 }
@@ -203,17 +194,10 @@ export function rememberRemoteServerThreadItemInterests(
   desktopId: string,
   threadIds: readonly string[],
 ): void {
-  const selected = new Set(threadIds);
-  for (const previous of remoteServerThreadItemInterests.get(desktopId) ?? []) {
-    if (!selected.has(previous)) noteHistoryDeliveryGap(remoteThreadId(desktopId, previous));
-  }
   remoteServerThreadItemInterests.set(desktopId, threadIds);
 }
 
 export function forgetRemoteServerThreadItemInterests(desktopId: string): void {
-  for (const threadId of remoteServerThreadItemInterests.get(desktopId) ?? []) {
-    noteHistoryDeliveryGap(remoteThreadId(desktopId, threadId));
-  }
   remoteServerThreadItemInterests.delete(desktopId);
 }
 
@@ -232,39 +216,6 @@ export function setRemoteServerThreadItemInterests(
   } catch {
     // A connecting socket receives the latest interests from activateSocket.
   }
-}
-
-/**
- * Register one more thread whose runtime item content this client wants
- * forwarded. Interests are a per-server set, not a single exclusive thread:
- * several remote panes can be visible at once (desktop split panes), and a
- * pane's live feed must survive another pane's open the same way the last
- * explicit open already survives a pane close.
- */
-export function addRemoteServerThreadItemInterest(desktopId: string, threadId: string): void {
-  const existing = remoteServerThreadItemInterests.get(desktopId);
-  if (existing?.includes(threadId)) return;
-  setRemoteServerThreadItemInterests(desktopId, existing ? [...existing, threadId] : [threadId]);
-}
-
-export function removeRemoteServerThreadItemInterest(desktopId: string, threadId: string): void {
-  const existing = remoteServerThreadItemInterests.get(desktopId);
-  if (!existing?.includes(threadId)) return;
-  setRemoteServerThreadItemInterests(
-    desktopId,
-    existing.filter((candidate) => candidate !== threadId),
-  );
-}
-
-export function setHydratingRemoteServerThreadItemInterest(
-  desktopId: string,
-  threadId: string,
-  previousOpenThread: OpenRemoteThread | null,
-): void {
-  if (previousOpenThread) {
-    addRemoteServerThreadItemInterest(previousOpenThread.desktopId, previousOpenThread.threadId);
-  }
-  addRemoteServerThreadItemInterest(desktopId, threadId);
 }
 
 // ── Cursor-sync v2 negotiation flag ──────────────────────────────────
@@ -287,12 +238,22 @@ export function forgetRemoteServerCursorSyncV2(desktopId: string): void {
 
 // ── Identity generation fence ────────────────────────────────────────
 
+/** The live sequence session of one paired connection. */
+export function remoteServerHostSession(desktopId: string): HostSession {
+  return hostSession(desktopId);
+}
+
 export function currentRemoteServerGeneration(desktopId: string): number {
   return hostSession(desktopId).generation;
 }
 
 export function bumpRemoteServerGeneration(desktopId: string): void {
   hostSession(desktopId).generation += 1;
+}
+
+/** The history-resume authority of one paired connection incarnation. */
+export function remoteHistoryResumeAuthority(desktopId: string): string {
+  return `remote:${desktopId}:${currentRemoteServerGeneration(desktopId)}`;
 }
 
 // ── Test reset ───────────────────────────────────────────────────────

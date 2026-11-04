@@ -28,9 +28,16 @@ vi.mock("@/renderer/state/useThread", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/state/useThread")>()),
   useThread: (id: string) => ({ id }),
 }));
-vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/renderer/hostTransport/loopbackHttpWsTransport")>()),
-  readManagedLoopbackActivation: () => fixture.activation,
+vi.mock("@/renderer/state/entityHost", () => ({
+  entityHost: (entity: { id: string }) => {
+    const activation = fixture.activation as { client: unknown } | null;
+    if (!activation) return undefined;
+    return {
+      hostId: entity.id,
+      isCurrent: () => fixture.activation === activation,
+      withClient: (run: (client: unknown) => Promise<unknown>) => run(activation.client),
+    };
+  },
 }));
 
 const vision: AgentVision = {

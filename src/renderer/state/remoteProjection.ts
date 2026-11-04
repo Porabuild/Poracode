@@ -259,26 +259,6 @@ function threadMentionTextSegment(
   return { kind: "text", content: inlinePromptSegmentText(segment) };
 }
 
-/** Translate renderer-projected thread mention ids back to a remote host id. */
-export function unprojectRemoteThreadMentionSegments(
-  remoteServerId: string,
-  segments: readonly PromptSegment[],
-  threads: readonly Thread[],
-): PromptSegment[] {
-  const remoteThreads = new Map(
-    threads
-      .filter((thread) => thread.remoteServerId === remoteServerId && thread.remoteId)
-      .map((thread) => [thread.id, thread.remoteId!]),
-  );
-  return segments.map((segment) => {
-    if (segment.kind !== "thread") return segment;
-    const remoteId =
-      remoteThreads.get(segment.threadId) ??
-      unprojectRemoteThreadId(remoteServerId, segment.threadId);
-    return remoteId ? { ...segment, threadId: remoteId } : threadMentionTextSegment(segment);
-  });
-}
-
 /**
  * Degrade renderer-projected thread mentions destined for a LOCAL host: a
  * `remote:<desktopId>:thread:<id>` mention references another desktop's thread

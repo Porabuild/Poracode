@@ -7,7 +7,6 @@ import {
   registerRemoteProcedureHost,
   resetRemoteProcedureRouterForTest,
 } from "@/renderer/remoteProcedureRouter";
-import { __resetTruncateRecoveryForTest } from "@/renderer/state/remote/truncateRecovery";
 import { useAppStore } from "@/renderer/state/appStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import {
@@ -78,6 +77,7 @@ import {
   environmentTransportHasParent,
   remoteConnectionKey,
 } from "@/renderer/state/remoteServers/types";
+import { installPairedItemInterests } from "@/renderer/state/remoteServers/pairedItemInterests";
 import {
   certPinForDesktop,
   createPairingActions,
@@ -197,6 +197,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         requireClient,
         directImagesFor,
         withClient,
+        disposeSessionRenewal,
         checkHostUpdateInBackground,
       } = createRemoteServerClientBindings({ set, get }, certPinForDesktop, remoteServersStorage);
       configureEnvironmentSessions({
@@ -256,6 +257,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         setRemoteServerFailure,
         clientForServer,
         withClient,
+        disposeSessionRenewal,
         checkHostUpdateInBackground,
         startRemoteServerEventStream,
         persistHasHydrated: () => useRemoteServersStore.persist.hasHydrated(),
@@ -297,7 +299,6 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         },
 
         loadAgentSlashCommands: projection.loadAgentSlashCommands,
-        launchRemoteThread: projection.launchRemoteThread,
         openRemoteThread: projection.openRemoteThread,
         closeRemoteThread: projection.closeRemoteThread,
         sendThreadCommand: async (desktopId, command, options = {}) => {
@@ -337,16 +338,15 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         checkHostUpdate: session.checkHostUpdate,
         installHostUpdate: session.installHostUpdate,
 
-        setProjectNameOverride: (desktopId, remoteId, name) => {
-          set((state) => ({
-            projectNameOverrides: {
-              ...state.projectNameOverrides,
-              [desktopId]: {
-                ...state.projectNameOverrides[desktopId],
-                [remoteId]: name,
-              },
-            },
-          }));
+        clearProjectNameOverride: (desktopId, remoteId) => {
+          set((state) => {
+            const aliases = state.projectNameOverrides[desktopId];
+            if (!aliases || !(remoteId in aliases)) return {};
+            const { [remoteId]: _cleared, ...remaining } = aliases;
+            return {
+              projectNameOverrides: { ...state.projectNameOverrides, [desktopId]: remaining },
+            };
+          });
         },
 
         setRemoteProjectSynced: (desktopId, remoteId, synced) => {
@@ -494,6 +494,12 @@ export const useRemoteServersStore = create<RemoteServersState>()(
   ),
 );
 
+// Each paired socket carries the live interests panes retain for its host's threads.
+installPairedItemInterests(
+  () => useRemoteServersStore.getState().servers.map(remoteConnectionKey),
+  (connectionKey) => useRemoteServersStore.getState().runtime[connectionKey]?.status === "online",
+);
+
 registerRemoteProcedureHost({
   resolveThreadOwner: (threadId) => {
     const thread = useAppStore.getState().threads.find((candidate) => candidate.id === threadId);
@@ -590,7 +596,6 @@ export function __resetRemoteServersStoreForTest(): void {
   __resetCatalogMutationsCapabilityForTest();
   __resetBoundedHistoryForTest();
   __resetEventSocketRegistryForTest();
-  __resetTruncateRecoveryForTest();
   clearRemoteGitState();
   resetRemoteProcedureRouterForTest();
   __resetConnectAllForTest();

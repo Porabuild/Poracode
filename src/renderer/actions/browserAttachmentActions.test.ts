@@ -36,7 +36,11 @@ describe("materializePickerAttachment", () => {
     vi.clearAllMocks();
     bridge.readLocalImageFile.mockResolvedValue(imageData);
     bridge.saveClipboardImage.mockResolvedValue("/remote/thread/capture.png");
-    saveClipboardImage.mockResolvedValue("/remote/draft/capture.png");
+    saveClipboardImage.mockImplementation(async (_desktopId, input) =>
+      input.threadId.startsWith("draft-")
+        ? "/remote/draft/capture.png"
+        : "/remote/thread/capture.png",
+    );
     useRemoteServersStore.setState({ saveClipboardImage });
     useAppStore.setState((state) => ({ ...state, projects: [], threads: [] }));
   });
@@ -45,6 +49,20 @@ describe("materializePickerAttachment", () => {
     await expect(materializePickerAttachment("local-thread", attachment)).resolves.toBe(attachment);
     expect(bridge.readLocalImageFile).not.toHaveBeenCalled();
     expect(bridge.saveClipboardImage).not.toHaveBeenCalled();
+    expect(saveClipboardImage).not.toHaveBeenCalled();
+  });
+
+  it("keeps the path for a thread whose host shares this machine's filesystem", async () => {
+    // The managed host reads the captured path directly, like a local thread.
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [{ id: "managed-thread" } as Thread],
+    }));
+    await expect(materializePickerAttachment("managed-thread", attachment)).resolves.toBe(
+      attachment,
+    );
+    expect(bridge.readLocalImageFile).not.toHaveBeenCalled();
+    expect(saveClipboardImage).not.toHaveBeenCalled();
   });
 
   it("loads and uploads bytes for an existing remote thread", async () => {
@@ -64,11 +82,12 @@ describe("materializePickerAttachment", () => {
     expect(bridge.readLocalImageFile).toHaveBeenCalledWith({
       url: "poracode-local://local/C:/capture.png",
     });
-    expect(bridge.saveClipboardImage).toHaveBeenCalledWith({
-      threadId: "remote:d1:thread:t1",
+    expect(saveClipboardImage).toHaveBeenCalledWith("d1", {
+      threadId: "t1",
       data: imageData,
       extension: "png",
     });
+    expect(bridge.saveClipboardImage).not.toHaveBeenCalled();
     expect(result).toEqual({ ...attachment, attachmentPath: "/remote/thread/capture.png" });
   });
 
@@ -111,6 +130,6 @@ describe("materializePickerAttachment", () => {
     await expect(materializePickerAttachment("remote:d1:thread:t1", attachment)).rejects.toThrow(
       "capture missing",
     );
-    expect(bridge.saveClipboardImage).not.toHaveBeenCalled();
+    expect(saveClipboardImage).not.toHaveBeenCalled();
   });
 });

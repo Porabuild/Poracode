@@ -37,18 +37,18 @@ export function useComposerMcpSignIns(
     candidates.filter((candidate) => candidate.projectLocation).map(({ server }) => server),
     projectLocation,
   );
-  const remoteOauthLocation = projectLocation?.remoteServerId ? projectLocation : undefined;
-  // Global rows, and project rows of a local project, sign in on this host.
-  const signsInLocally = candidates.some(
-    (candidate) => !candidate.projectLocation || !remoteOauthLocation,
+  // One sign-in owner per scope: Global rows sign in on this host, project rows
+  // on their project's host. The hook resolves which host a location names.
+  const userOauth = useMcpServerOauth(
+    undefined,
+    candidates.some((candidate) => !candidate.projectLocation),
   );
-  const userOauth = useMcpServerOauth(undefined, signsInLocally);
-  const remoteOauth = useMcpServerOauth(remoteOauthLocation, remoteOauthLocation !== undefined);
+  const projectOauth = useMcpServerOauth(projectLocation, projectLocation !== undefined);
 
   return candidates.flatMap((candidate) => {
     const isProject = candidate.projectLocation !== undefined;
     const probes = isProject ? projectProbes : userProbes;
-    const oauth = isProject && remoteOauthLocation ? remoteOauth : userOauth;
+    const oauth = isProject ? projectOauth : userOauth;
     const url = transportUrl(candidate.server);
     if (!url || oauth.authenticatedUrls.has(url)) return [];
     if (probes.states[candidate.server.id]?.status !== "auth-required") return [];

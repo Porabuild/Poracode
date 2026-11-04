@@ -105,6 +105,9 @@ export function runProjectCommand(
         discardPersistedProjectExperiments(project, (payload) =>
           ctx.options.callSupervisor("removeExperimentWorktrees", payload),
         ),
+      relocateProjectRuntime: async (projectId, newLocation) => {
+        await ctx.options.callSupervisor("relocateProject", { projectId, newLocation });
+      },
       hasRunningProjectThread: (projectId) =>
         dbGetThreads().some(
           (thread) => thread.projectId === projectId && thread.status === "working",

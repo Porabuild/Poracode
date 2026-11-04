@@ -50,7 +50,6 @@ import {
   selectBrowserPanelAvailable,
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
-import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
 import {
   closeAllPanels,
@@ -171,7 +170,6 @@ export function ProjectAuxiliaryPanel(props: {
   const globalTerminal = useDevTerminalStore((s) => s.source === "global");
   const terminalProjectId = useDevTerminalStore((s) => s.activeProjectId);
   const terminalWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
-  const terminalProject = projects.find((project) => project.id === terminalProjectId);
   const currentThread = useAppStore((state) =>
     currentThreadId ? state.threads.find((thread) => thread.id === currentThreadId) : undefined,
   );
@@ -478,15 +476,7 @@ export function ProjectAuxiliaryPanel(props: {
                 }
               />
             ) : (
-              <DevTerminalPanel
-                hideHeader
-                {...(terminalProject?.remoteServerId
-                  ? {
-                      watchTerminal: (terminalId, listener) =>
-                        watchRemoteTerminal(terminalProject.remoteServerId!, terminalId, listener),
-                    }
-                  : {})}
-              />
+              <DevTerminalPanel hideHeader />
             ),
           }
         : {})}
