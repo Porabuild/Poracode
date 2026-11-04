@@ -156,6 +156,7 @@ function registerBeforeQuitJoin(deps: DesktopLifecycleDeps): void {
     desktopApp.browserPanelManager = null;
     void deps.disposeBrowserGateway();
     desktopApp.sleepInhibitor.dispose();
+    desktopApp.screenLockInhibitor.dispose();
     desktopApp.tray?.destroy();
     desktopApp.tray = null;
     // Backend disposal joins control, admitted administration and provider

@@ -4666,6 +4666,7 @@ msgstr "Sử dụng máy tính"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Computer Use"
 msgstr "Sử dụng máy tính"
 
@@ -10190,6 +10191,11 @@ msgstr "Giữ Poracode trong khay hệ thống khi ứng dụng khởi chạy c�
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the display on while any selected condition applies, so the screen does not lock from inactivity. Manual locking, closing the lid, and enforced lock policies still apply."
+msgstr "Giữ màn hình bật khi bất kỳ điều kiện đã chọn nào được đáp ứng để màn hình không bị khóa do không hoạt động. Khóa thủ công, gập nắp máy và các chính sách khóa bắt buộc vẫn được áp dụng."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "Giữ Mac không ngủ khi sử dụng máy tính"
 
@@ -10198,17 +10204,22 @@ msgid "Keep the same microphone button. Choose the engine behind it."
 msgstr "Giữ nguyên nút micrô. Chọn động cơ đằng sau nó."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
-msgstr "Giữ hệ thống thức khi Poracode đang chạy, kể cả trong nền. Màn hình vẫn có thể tắt. Cơ chế khóa màn hình không thay đổi."
+#~ msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Giữ hệ thống thức khi Poracode đang chạy, kể cả trong nền. Màn hình vẫn có thể tắt. Cơ chế khóa màn hình không thay đổi."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
-msgstr "Giữ hệ thống thức khi các tác tử đang làm việc hoặc truy cập từ xa được bật. Màn hình vẫn có thể tắt. Cơ chế khóa màn hình không thay đổi."
+#~ msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Giữ hệ thống thức khi các tác tử đang làm việc hoặc truy cập từ xa được bật. Màn hình vẫn có thể tắt. Cơ chế khóa màn hình không thay đổi."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
-msgstr "Giữ hệ thống thức khi bất kỳ tác tử nào đang làm việc, bao gồm Computer Use. Màn hình vẫn có thể tắt. Cơ chế khóa màn hình không thay đổi."
+#~ msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Giữ hệ thống thức khi bất kỳ tác tử nào đang làm việc, bao gồm Computer Use. Màn hình vẫn có thể tắt. Cơ chế khóa màn hình không thay đổi."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any selected condition applies. Working includes Computer Use threads. The display can still turn off."
+msgstr "Giữ hệ thống thức khi bất kỳ điều kiện đã chọn nào được đáp ứng. “Đang làm việc” bao gồm cả các luồng Sử dụng máy tính. Màn hình vẫn có thể tắt."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12081,6 +12092,11 @@ msgstr "Cần trả lời"
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Trung lập"
+
+#. Keep-awake setting with no conditions selected
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Never"
+msgstr "Không bao giờ"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
@@ -14778,6 +14794,11 @@ msgstr "Nhấn phím cách để bắt đầu sắp xếp lại. Dùng các phí
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent screen lock"
+msgstr "Ngăn khóa màn hình"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep"
 #~ msgstr "Ngăn chế độ ngủ"
 
@@ -15745,9 +15766,9 @@ msgstr "Tải lại bản xem trước"
 msgid "Remote"
 msgstr "Từ xa"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-#~ msgid "Remote access"
-#~ msgstr "Truy cập từ xa"
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Remote access"
+msgstr "Truy cập từ xa"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -23095,8 +23116,8 @@ msgid "Where the terminal panel appears."
 msgstr "Nơi bảng điều khiển đầu cuối xuất hiện."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "While working"
-msgstr "Khi đang làm việc"
+#~ msgid "While working"
+#~ msgstr "Khi đang làm việc"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Whisper with broad multilingual support."
@@ -23220,12 +23241,13 @@ msgid "Workflows added under .github/workflows will appear here."
 msgstr "Các workflow được thêm vào .github/workflows sẽ xuất hiện ở đây."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Working"
 msgstr "Đang làm việc"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Working + remote access"
-msgstr "Làm việc + truy cập từ xa"
+#~ msgid "Working + remote access"
+#~ msgstr "Làm việc + truy cập từ xa"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"

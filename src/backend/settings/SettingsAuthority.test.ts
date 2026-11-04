@@ -143,6 +143,41 @@ describe("SettingsAuthority", () => {
     },
   );
 
+  it("migrates the released preventSleep enum and keeps it on disk for older apps", async () => {
+    await writeFile(
+      settingsPath,
+      JSON.stringify({ [SETTINGS_DOCUMENT_VERSION_KEY]: 3, preventSleep: "while-working" }),
+    );
+    const authority = await open();
+    const before = authority.snapshot();
+    expect(before.settings).toMatchObject({
+      preventSleepWhen: ["working"],
+      preventScreenLockWhen: [],
+    });
+    const lock: SettingsSubject = { kind: "field", field: "preventScreenLockWhen" };
+    const sleep: SettingsSubject = { kind: "field", field: "preventSleepWhen" };
+    await expect(
+      authority.mutate(
+        request(before, [
+          set(before, sleep, ["working", "computer-use"]),
+          set(before, lock, ["computer-use"]),
+        ]),
+        allow,
+      ),
+    ).resolves.toMatchObject({ status: "committed" });
+    // An older app ignores the new lists and still reads its own valid enum.
+    expect(await disk()).toMatchObject({
+      preventSleep: "while-working",
+      preventSleepWhen: ["working", "computer-use"],
+      preventScreenLockWhen: ["computer-use"],
+    });
+    await authority.close();
+    expect((await open()).readSettings()).toMatchObject({
+      preventSleepWhen: ["working", "computer-use"],
+      preventScreenLockWhen: ["computer-use"],
+    });
+  });
+
   it("keeps simultaneous disjoint edits and rejects a stale competing edit without writing", async () => {
     const authority = await open();
     const a = authority.snapshot(),

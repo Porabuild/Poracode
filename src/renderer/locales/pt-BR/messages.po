@@ -4666,6 +4666,7 @@ msgstr "Uso do computador"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Computer Use"
 msgstr "Uso do computador"
 
@@ -10190,6 +10191,11 @@ msgstr "Manter o Poracode na bandeja do sistema quando ele for iniciado com o Wi
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the display on while any selected condition applies, so the screen does not lock from inactivity. Manual locking, closing the lid, and enforced lock policies still apply."
+msgstr "Manter a tela ligada enquanto qualquer condição selecionada se aplicar, para que ela não seja bloqueada por inatividade. O bloqueio manual, fechar a tampa e políticas de bloqueio obrigatórias continuam valendo."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "Manter o Mac ativo durante o Uso do computador"
 
@@ -10198,17 +10204,22 @@ msgid "Keep the same microphone button. Choose the engine behind it."
 msgstr "Mantenha o mesmo botão do microfone. Escolha o motor por trás dele."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
-msgstr "Manter o sistema ativo enquanto o Poracode estiver em execução, inclusive em segundo plano. A tela ainda pode ser desligada. O bloqueio de tela permanece inalterado."
+#~ msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Manter o sistema ativo enquanto o Poracode estiver em execução, inclusive em segundo plano. A tela ainda pode ser desligada. O bloqueio de tela permanece inalterado."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
-msgstr "Manter o sistema ativo enquanto os agentes trabalham ou o acesso remoto está ativado. A tela ainda pode ser desligada. O bloqueio de tela permanece inalterado."
+#~ msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Manter o sistema ativo enquanto os agentes trabalham ou o acesso remoto está ativado. A tela ainda pode ser desligada. O bloqueio de tela permanece inalterado."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
-msgstr "Manter o sistema ativo enquanto qualquer agente trabalha, incluindo o Computer Use. A tela ainda pode ser desligada. O bloqueio de tela permanece inalterado."
+#~ msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Manter o sistema ativo enquanto qualquer agente trabalha, incluindo o Computer Use. A tela ainda pode ser desligada. O bloqueio de tela permanece inalterado."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any selected condition applies. Working includes Computer Use threads. The display can still turn off."
+msgstr "Manter o sistema ativo enquanto qualquer condição selecionada se aplicar. “Trabalhando” inclui tópicos de Uso do computador. A tela ainda pode ser desligada."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12081,6 +12092,11 @@ msgstr "Precisa de resposta"
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Neutro"
+
+#. Keep-awake setting with no conditions selected
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Never"
+msgstr "Nunca"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
@@ -14778,6 +14794,11 @@ msgstr "Pressione Espaço para começar a reordenar. Use as setas para mover, Es
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent screen lock"
+msgstr "Impedir o bloqueio de tela"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep"
 #~ msgstr "Impedir suspensão"
 
@@ -15745,9 +15766,9 @@ msgstr "Recarregar prévia"
 msgid "Remote"
 msgstr "Remoto"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-#~ msgid "Remote access"
-#~ msgstr "Acesso remoto"
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Remote access"
+msgstr "Acesso remoto"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -23095,8 +23116,8 @@ msgid "Where the terminal panel appears."
 msgstr "Onde o painel do terminal aparece."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "While working"
-msgstr "Durante o trabalho"
+#~ msgid "While working"
+#~ msgstr "Durante o trabalho"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Whisper with broad multilingual support."
@@ -23220,12 +23241,13 @@ msgid "Workflows added under .github/workflows will appear here."
 msgstr "Workflows adicionados em .github/workflows aparecerão aqui."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Working"
 msgstr "Trabalhando"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Working + remote access"
-msgstr "Trabalho + acesso remoto"
+#~ msgid "Working + remote access"
+#~ msgstr "Trabalho + acesso remoto"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"

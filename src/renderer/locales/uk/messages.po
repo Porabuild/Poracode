@@ -4666,6 +4666,7 @@ msgstr "Керування комп’ютером"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Computer Use"
 msgstr "Керування комп'ютером"
 
@@ -10190,6 +10191,11 @@ msgstr "Під час запуску разом із системою залиш
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the display on while any selected condition applies, so the screen does not lock from inactivity. Manual locking, closing the lid, and enforced lock policies still apply."
+msgstr "Не вимикати екран, поки виконується будь-яка з вибраних умов, щоб він не блокувався через бездіяльність. Ручне блокування, закриття кришки та примусові політики блокування й надалі діють."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Keep the Mac awake during Computer Use"
 #~ msgstr "Не давати Mac заснути під час керування комп'ютером"
 
@@ -10198,17 +10204,22 @@ msgid "Keep the same microphone button. Choose the engine behind it."
 msgstr "Кнопка мікрофона залишиться тією самою. Виберіть рушій розпізнавання."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
-msgstr "Не давати системі засинати, поки Poracode запущено, зокрема у фоновому режимі. Екран і надалі може вимикатися. Блокування екрана не змінюється."
+#~ msgid "Keep the system awake whenever Poracode is running, even in the background. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Не давати системі засинати, поки Poracode запущено, зокрема у фоновому режимі. Екран і надалі може вимикатися. Блокування екрана не змінюється."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
-msgstr "Не давати системі засинати, поки агенти працюють або ввімкнено віддалений доступ. Екран і надалі може вимикатися. Блокування екрана не змінюється."
+#~ msgid "Keep the system awake while agents work or remote access is enabled. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Не давати системі засинати, поки агенти працюють або ввімкнено віддалений доступ. Екран і надалі може вимикатися. Блокування екрана не змінюється."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
-msgstr "Не давати системі засинати, поки працює будь-який агент, включно з Computer Use. Екран і надалі може вимикатися. Блокування екрана не змінюється."
+#~ msgid "Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged."
+#~ msgstr "Не давати системі засинати, поки працює будь-який агент, включно з Computer Use. Екран і надалі може вимикатися. Блокування екрана не змінюється."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the system awake while any selected condition applies. Working includes Computer Use threads. The display can still turn off."
+msgstr "Не давати системі засинати, поки виконується будь-яка з вибраних умов. «Працює» охоплює треди Керування комп'ютером. Екран і надалі може вимикатися."
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12081,6 +12092,11 @@ msgstr "Потребує відповіді"
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Нейтрально"
+
+#. Keep-awake setting with no conditions selected
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+msgid "Never"
+msgstr "Ніколи"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
@@ -14778,6 +14794,11 @@ msgstr "Натисніть пробіл, щоб почати змінювати 
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prevent screen lock"
+msgstr "Запобігати блокуванню екрана"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Prevent sleep"
 #~ msgstr "Запобігати засинанню"
 
@@ -15745,9 +15766,9 @@ msgstr "Оновити попередній перегляд"
 msgid "Remote"
 msgstr "Віддалений"
 
-#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
-#~ msgid "Remote access"
-#~ msgstr "Віддалений доступ"
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Remote access"
+msgstr "Віддалений доступ"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarFooterNav.tsx
@@ -23095,8 +23116,8 @@ msgid "Where the terminal panel appears."
 msgstr "Де з'являється панель термінала."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "While working"
-msgstr "Під час роботи"
+#~ msgid "While working"
+#~ msgstr "Під час роботи"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Whisper with broad multilingual support."
@@ -23220,12 +23241,13 @@ msgid "Workflows added under .github/workflows will appear here."
 msgstr "Workflow, додані у .github/workflows, з'являться тут."
 
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Working"
 msgstr "Працює"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
-msgid "Working + remote access"
-msgstr "Робота + віддалений доступ"
+#~ msgid "Working + remote access"
+#~ msgstr "Робота + віддалений доступ"
 
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 msgid "Working for {elapsed}"
