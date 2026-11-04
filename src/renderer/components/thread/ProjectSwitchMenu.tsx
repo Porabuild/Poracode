@@ -7,10 +7,6 @@ import { HOME_PROJECT_NAME, isHomeProject, isHomeProjectId } from "@/shared/home
 import { useAppStore } from "@/renderer/state/appStore";
 import { pickGroupMember } from "@/renderer/state/projectGroups/useProjectGroups";
 import {
-  ProjectEnvironmentGlyphs,
-  useProjectEnvironmentMachineLookup,
-} from "@/renderer/components/common/ProjectEnvironment";
-import {
   ResponsiveMenuSurface,
   useResponsiveMenu,
 } from "@/renderer/components/common/ResponsiveMenuSurface";
@@ -40,7 +36,6 @@ export function ProjectSwitchMenu(props: {
   const entries = useProjectSwitchEntries();
   const allProjects = useAppStore((state) => state.projects);
   const remoteServerFor = useProjectRemoteServerLookup();
-  const machineFor = useProjectEnvironmentMachineLookup();
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -113,7 +108,6 @@ export function ProjectSwitchMenu(props: {
         >
           <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />
           <span className="min-w-0 flex-1 truncate">{itemLabel}</span>
-          <ProjectEnvironmentGlyphs members={entry.members} machineFor={machineFor} />
           {serverName ? (
             <span className="max-w-28 shrink-0 truncate text-xs text-muted/60">{serverName}</span>
           ) : null}
@@ -135,11 +129,6 @@ export function ProjectSwitchMenu(props: {
           <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />
           <Label>{itemLabel}</Label>
           {serverName ? <Description>{serverName}</Description> : null}
-          <ProjectEnvironmentGlyphs
-            members={entry.members}
-            machineFor={machineFor}
-            className="ml-auto pl-2"
-          />
         </Dropdown.Item>
       );
     });

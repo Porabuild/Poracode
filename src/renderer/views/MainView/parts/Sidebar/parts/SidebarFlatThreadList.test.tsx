@@ -29,6 +29,7 @@ const newThreadCalls = vi.hoisted(
 );
 const newThreadOptions = vi.hoisted(() => ({
   value: undefined as readonly { id: string; name: string; description?: string }[] | undefined,
+  onSelect: undefined as ((projectId: string) => void) | undefined,
 }));
 const layoutMock = vi.hoisted(() => ({ compact: false }));
 const quickComposeCalls = vi.hoisted(() => [] as string[]);
@@ -42,9 +43,11 @@ vi.mock("./NewThreadButton", () => ({
     projectId: string;
     inline?: boolean;
     projectOptions?: readonly { id: string; name: string; description?: string }[];
+    onSelectProject?: (projectId: string) => void;
   }) => {
     newThreadCalls.push({ projectId: props.projectId, inline: props.inline });
     newThreadOptions.value = props.projectOptions;
+    newThreadOptions.onSelect = props.onSelectProject;
     return <button type="button">new-thread:{props.projectId}</button>;
   },
 }));
@@ -181,15 +184,34 @@ describe("SidebarFlatThreadList", () => {
       expect.objectContaining({
         id: mac.id,
         name: localProject.name,
-        description: "Local, MacBook",
       }),
     ]);
+    expect(newThreadOptions.value?.[1]).not.toHaveProperty("description");
+    await act(async () => {
+      useProjectGroupStore.getState().markProjectUsed(localProject.id, 2);
+    });
+    expect(newThreadOptions.value?.[1]?.id).toBe(localProject.id);
+    await act(async () => {
+      useProjectGroupStore.getState().markProjectUsed(mac.id, 3);
+    });
+    expect(newThreadOptions.value?.[1]?.id).toBe(mac.id);
     await act(async () => {
       useRemoteServersStore.setState({
         runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
       } as never);
     });
     expect(newThreadOptions.value?.map((p) => p.id)).toEqual([HOME_PROJECT_ID, localProject.id]);
+    await act(async () => {
+      newThreadOptions.onSelect?.(localProject.id);
+    });
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: localProject.id });
+    expect(useProjectGroupStore.getState().lastUsedAt[localProject.id]).toBeGreaterThan(3);
+    await act(async () => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+      } as never);
+    });
+    expect(newThreadOptions.value?.[1]?.id).toBe(localProject.id);
   });
 
   it("uses the old PWA quick composer instead of the desktop new-thread row on mobile", () => {

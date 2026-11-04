@@ -291,7 +291,7 @@ describe("ProjectSwitchMenu", () => {
       within(menu)
         .getAllByRole("menuitemradio")
         .map((item) => item.textContent),
-    ).toEqual(["AlphaLocalMacBook 16", "Gamma"]);
+    ).toEqual(["Alpha", "Gamma"]);
   });
 
   it("moves the draft to another environment of the same project", async () => {

@@ -35,8 +35,7 @@ import { MobileQuickCompose } from "./MobileQuickCompose";
 import { useFlatListProjectFilterModel } from "./useFlatListProjectFilterModel";
 import { useProjectSwitchEntries } from "@/renderer/components/thread/projectSwitchGroups";
 import { pickGroupMember } from "@/renderer/state/projectGroups/useProjectGroups";
-import { useProjectEnvironmentMachineLookup } from "@/renderer/components/common/ProjectEnvironment";
-import { machineOptionLabel } from "@/renderer/components/common/MachineIcon";
+import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
 
 /** Scope key for the pinned Done section's own "See more" pager. */
 const FLAT_DONE_SCOPE = `${FLAT_THREAD_LIST_ID}:done`;
@@ -60,7 +59,7 @@ function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | 
 export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const compactLayout = useCompactLayout();
   const newThreadEntries = useProjectSwitchEntries();
-  const machineFor = useProjectEnvironmentMachineLookup();
+  const lastUsedAt = useProjectGroupStore((state) => state.lastUsedAt);
   const {
     workspaceProjects,
     visibleProjects,
@@ -147,17 +146,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         canOpenAsPanel={currentThreadCount > 0 && currentThreadCount < 3}
         projectOptions={newThreadEntries.map((entry) => {
           const project = entry.members[0]!;
-          const target = pickGroupMember(entry.members, () => true)!;
+          const target = pickGroupMember(entry.members, () => true, lastUsedAt)!;
           const remote = remoteServerFor(project);
-          const description =
-            entry.members.length > 1
-              ? entry.members
-                  .flatMap((member) => {
-                    const environment = machineFor(member);
-                    return environment ? [machineOptionLabel(environment.machine)] : [];
-                  })
-                  .join(", ")
-              : remote.serverName;
+          const description = entry.members.length === 1 ? remote.serverName : undefined;
           return {
             id: target.id,
             name: project.name,
@@ -166,7 +157,10 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
           };
         })}
         onPress={() => openNewThread(latestProjectId)}
-        onSelectProject={openNewThread}
+        onSelectProject={(projectId) => {
+          useProjectGroupStore.getState().markProjectUsed(projectId);
+          openNewThread(projectId);
+        }}
         onOpenAsPanel={() => openNewThreadSideBySide(latestProjectId)}
       />
     ) : null;
