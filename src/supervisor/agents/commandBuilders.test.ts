@@ -267,6 +267,25 @@ describe("agent command builders", () => {
     expect(spec.args).toContain('approvals_reviewer="auto_review"');
   });
 
+  it.each([undefined, "", "auto_review"])(
+    "resets the reviewer for full-access terminal sessions with saved reviewer %j",
+    async (approvalsReviewer) => {
+      const spec = await buildCodexArgvFor(
+        windowsProject,
+        {
+          ...config,
+          approvalPolicy: "never",
+          sandboxMode: "danger-full-access",
+          ...(approvalsReviewer !== undefined ? { approvalsReviewer } : {}),
+        },
+        "hello",
+      );
+
+      expect(spec.args).toContain('approvals_reviewer="user"');
+      expect(spec.args).not.toContain('approvals_reviewer="auto_review"');
+    },
+  );
+
   it("passes the Codex context window and compact limit to terminal sessions", async () => {
     const spec = await buildCodexArgvFor(windowsProject, { ...config, contextSize: "1m" }, "hello");
 
