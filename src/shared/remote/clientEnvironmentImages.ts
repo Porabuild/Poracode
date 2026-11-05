@@ -72,9 +72,20 @@ export const ENVIRONMENT_IMAGE_MAX_CONCURRENT_FETCHES = 4;
  * of every queued key and may use one fetch slot reserved for it, so it never
  * waits behind transcript or gallery work. A `focus` request without that
  * subscription is ordinary foreground demand.
+ *
+ * `prefetch` is bounded speculative demand for an image the user is likely to
+ * see next (the newest images of a thread running out of view). It starts after
+ * foreground demand and ahead of `background` enumeration, and unlike that
+ * enumeration it may replace least-recently-used unmounted entries at capacity.
+ * It never displaces an image a mounted consumer holds.
  */
-export type EnvironmentImagePriority = "focus" | "foreground" | "background";
+export type EnvironmentImagePriority = "focus" | "foreground" | "prefetch" | "background";
 type EntryPriority = Exclude<EnvironmentImagePriority, "focus">;
+
+/** Focus and foreground subscriptions mark a key as held by a mounted consumer. */
+function holdsForeground(priority: EnvironmentImagePriority): boolean {
+  return priority === "focus" || priority === "foreground";
+}
 /** Extra in-flight fetch kept for focused keys beyond `maxConcurrentFetches`. */
 const FOCUS_RESERVED_FETCHES = 1;
 
@@ -96,7 +107,12 @@ export type EnvironmentImageVariant = "card";
  * coordinate) for no transfer saving. `RemoteImageRefValue.bytes` is the
  * encoded (base64) size, hence the slightly larger floor here.
  */
-export const CARD_VARIANT_MIN_SOURCE_BYTES = 128 * 1024;
+const CARD_VARIANT_MIN_SOURCE_BYTES = 128 * 1024;
+
+/** The display variant a transcript card requests for `ref`; shared so prefetch warms the same key. */
+export function cardVariantForRef(ref: RemoteImageRefValue): EnvironmentImageVariant | undefined {
+  return ref.bytes > CARD_VARIANT_MIN_SOURCE_BYTES ? "card" : undefined;
+}
 
 /** Missing-key snapshots are cached to keep `getSnapshot` identity stable. */
 const MISSING_SNAPSHOT_LIMIT = 256;
@@ -295,7 +311,7 @@ export class RemoteEnvironmentImageCache {
     listener: () => void,
     priority: EnvironmentImagePriority = "foreground",
   ): () => void {
-    if (priority !== "background") {
+    if (holdsForeground(priority)) {
       this.foregroundSubscriptions.set(key, (this.foregroundSubscriptions.get(key) ?? 0) + 1);
       const entry = this.entries.get(key);
       if (entry) entry.priority = "foreground";
@@ -316,7 +332,7 @@ export class RemoteEnvironmentImageCache {
       if (!subscribed) return;
       subscribed = false;
       if (priority === "focus") releaseCount(this.focusSubscriptions, key);
-      if (priority !== "background" && releaseCount(this.foregroundSubscriptions, key)) {
+      if (holdsForeground(priority) && releaseCount(this.foregroundSubscriptions, key)) {
         const entry = this.entries.get(key);
         if (entry) entry.priority = "background";
       }
@@ -351,15 +367,19 @@ export class RemoteEnvironmentImageCache {
   ): RemoteEnvironmentImageResolution {
     if (this.disposed) return this.missingSnapshot(key);
     const priority: EntryPriority =
-      requestedPriority !== "background" || this.foregroundSubscriptions.has(key)
+      holdsForeground(requestedPriority) || this.foregroundSubscriptions.has(key)
         ? "foreground"
-        : "background";
-    if (priority === "foreground") this.touch(key);
+        : requestedPriority === "prefetch"
+          ? "prefetch"
+          : "background";
+    if (priority !== "background") this.touch(key);
     const latch = this.latches.get(key);
     if (latch) {
+      // Foreground demand bypasses a speculative eviction's latch; failures
+      // latch as foreground and keep their backoff.
       if (
         Date.now() < latch.retryAtMs &&
-        !(priority === "foreground" && latch.priority === "background")
+        !(priority === "foreground" && latch.priority !== "foreground")
       )
         return this.missingSnapshot(key);
       this.clearLatch(key);
@@ -367,15 +387,21 @@ export class RemoteEnvironmentImageCache {
     const entry = this.entries.get(key);
     if (entry) {
       if (priority === "foreground") entry.priority = priority;
+      else if (priority === "prefetch" && entry.priority === "background")
+        entry.priority = priority;
       if (rank !== undefined) entry.rank = rank;
       return this.requestEntry(key, entry);
     }
+    const atCapacity =
+      this.entries.size >= this.maxEntries || this.blobs.totalBytes >= this.maxBytes;
     // A gallery can enumerate more coordinates than fit in the cache. Refuse
-    // speculative work at capacity instead of evicting and aborting the images
-    // that enumeration just requested. A mounted row can still request any key.
+    // background work at capacity instead of evicting and aborting the images
+    // that enumeration just requested. Bounded prefetch may replace an
+    // unmounted entry, but never one a mounted consumer holds. A mounted row
+    // can still request any key.
     if (
-      priority === "background" &&
-      (this.entries.size >= this.maxEntries || this.blobs.totalBytes >= this.maxBytes)
+      atCapacity &&
+      (priority === "background" || (priority === "prefetch" && !this.hasSpeculativeEviction()))
     )
       return this.missingSnapshot(key);
     return this.startOrQueue(key, requestPath, priority, rank).snapshot;
@@ -430,16 +456,18 @@ export class RemoteEnvironmentImageCache {
     while (!this.disposed) {
       let focus: [string, ImageCacheEntry] | undefined;
       let foreground: [string, ImageCacheEntry] | undefined;
+      let prefetch: [string, ImageCacheEntry] | undefined;
       let background: [string, ImageCacheEntry] | undefined;
       for (const [key, entry] of this.entries) {
         if (entry.status !== "queued") continue;
         if (this.focusSubscriptions.has(key)) focus = [key, entry];
         else if (entry.priority === "foreground") foreground = laterDemand(foreground, key, entry);
+        else if (entry.priority === "prefetch") prefetch = laterDemand(prefetch, key, entry);
         else background = laterDemand(background, key, entry);
       }
       const limit = this.maxConcurrentFetches + (focus ? FOCUS_RESERVED_FETCHES : 0);
       if (this.jobs.size >= limit) return;
-      const candidate = focus ?? foreground ?? background;
+      const candidate = focus ?? foreground ?? prefetch ?? background;
       if (!candidate) return;
       const [key, entry] = candidate;
       this.startFetch(key, entry, entry.requestPath);
@@ -514,8 +542,13 @@ export class RemoteEnvironmentImageCache {
     entry.controller = undefined;
     entry.snapshot = snapshotFor(key, resource.url, false);
     // A speculative response whose actual bytes do not fit must not displace
-    // images already in use. Foreground requests retain the ordinary LRU gate.
-    if (entry.priority === "background" && this.blobs.totalBytes > this.maxBytes) {
+    // images already in use. Prefetch first replaces older unmounted entries;
+    // foreground requests retain the ordinary LRU gate.
+    if (entry.priority === "prefetch") {
+      this.touch(key);
+      this.trimSpeculative(key);
+    }
+    if (entry.priority !== "foreground" && this.blobs.totalBytes > this.maxBytes) {
       this.entries.delete(key);
       this.release(entry);
       this.setLatch(key, entry.requestPath, "background");
@@ -584,31 +617,57 @@ export class RemoteEnvironmentImageCache {
     while (this.entries.size > this.maxEntries || this.blobs.totalBytes > this.maxBytes) {
       const candidate = this.evictionCandidate();
       if (!candidate) return;
-      const [key, entry] = candidate;
-      const latched = entry.status === "ready" || entry.status === "failed";
-      this.entries.delete(key);
-      this.release(entry);
+      this.evict(candidate[0], candidate[1]);
       if (this.disposed) return;
-      if (latched)
-        this.setLatch(
-          key,
-          entry.requestPath,
-          entry.status === "failed" ? "foreground" : entry.priority,
-        );
-      this.notify(key);
     }
+  }
+
+  /**
+   * Over-budget trim for a just-admitted prefetch (the most recently used
+   * entry): evicts older unmounted entries only, never a mounted consumer's
+   * image and never the prefetch itself. The caller drops the prefetch when
+   * that cannot bring the cache back within budget.
+   */
+  private trimSpeculative(keep: string): void {
+    while (this.entries.size > this.maxEntries || this.blobs.totalBytes > this.maxBytes) {
+      const candidate = this.evictionCandidate();
+      if (!candidate || candidate[0] === keep || !isPrefetchVictim(candidate[1])) return;
+      this.evict(candidate[0], candidate[1]);
+      if (this.disposed) return;
+    }
+  }
+
+  private evict(key: string, entry: ImageCacheEntry): void {
+    const latched = entry.status === "ready" || entry.status === "failed";
+    this.entries.delete(key);
+    this.release(entry);
+    if (this.disposed) return;
+    if (latched)
+      this.setLatch(
+        key,
+        entry.requestPath,
+        entry.status === "failed" ? "foreground" : entry.priority,
+      );
+    this.notify(key);
+  }
+
+  /** At capacity, can a prefetch replace an unmounted entry instead of a mounted one? */
+  private hasSpeculativeEviction(): boolean {
+    const candidate = this.evictionCandidate();
+    return candidate !== undefined && isPrefetchVictim(candidate[1]);
   }
 
   /**
    * Least-recently-used eviction candidate. Permanently-latched oversized
    * entries are never evicted (they hold no bytes and can never refetch);
-   * background entries yield to mounted consumers. Each priority remains LRU.
+   * speculative (background and prefetch) entries yield to mounted consumers.
+   * Each tier remains LRU.
    */
   private evictionCandidate(): [string, ImageCacheEntry] | undefined {
     let foreground: [string, ImageCacheEntry] | undefined;
     for (const [key, entry] of this.entries) {
       if (entry.status === "oversized") continue;
-      if (entry.priority === "background") return [key, entry];
+      if (entry.priority !== "foreground") return [key, entry];
       foreground ??= [key, entry];
     }
     return foreground;
@@ -666,6 +725,16 @@ export class RemoteEnvironmentImageCache {
       }
     }
   }
+}
+
+/**
+ * Entries a prefetch may replace: unmounted background work, or an earlier
+ * prefetch that already settled. Replacing a queued or in-flight prefetch
+ * would let a burst of prefetches abort each other in turn.
+ */
+function isPrefetchVictim(entry: ImageCacheEntry): boolean {
+  if (entry.priority === "background") return true;
+  return entry.priority === "prefetch" && entry.status !== "queued" && entry.status !== "pending";
 }
 
 /** The queued candidate that starts first: higher rank, then more recent demand. */

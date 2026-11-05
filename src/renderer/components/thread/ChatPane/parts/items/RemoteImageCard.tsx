@@ -1,5 +1,5 @@
 import type { RemoteImageRefValue } from "@/shared/remote";
-import { CARD_VARIANT_MIN_SOURCE_BYTES } from "@/shared/remote/clientEnvironmentImages";
+import { cardVariantForRef } from "@/shared/remote/clientEnvironmentImages";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import {
   fetchRemoteImageRefUrl,
@@ -31,7 +31,9 @@ export function RemoteImageCard(props: {
   const { viewportRef, priority, readRank } = useImageViewportPriority(
     ref !== undefined && readiness !== undefined,
   );
-  const variant = ref && ref.bytes > CARD_VARIANT_MIN_SOURCE_BYTES ? ("card" as const) : undefined;
+  const variant = ref ? cardVariantForRef(ref) : undefined;
+  const warmFull =
+    variant && ref && readiness ? () => readiness.requestRef(ref, "prefetch") : undefined;
   const variantUrl = useRemoteImageRefUrl(
     ref,
     readiness,
@@ -53,6 +55,7 @@ export function RemoteImageCard(props: {
       source={source}
       viewportRef={viewportRef}
       {...(resolveFullSrc ? { resolveFullSrc } : {})}
+      {...(warmFull ? { onPreviewIntent: warmFull } : {})}
       {...(props.className !== undefined ? { className: props.className } : {})}
       {...(props.imageClassName !== undefined ? { imageClassName: props.imageClassName } : {})}
       {...(props.isBlock !== undefined ? { isBlock: props.isBlock } : {})}

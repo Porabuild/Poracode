@@ -440,3 +440,80 @@ describe("ImageView", () => {
     await waitFor(() => expect(toastDanger).toHaveBeenCalledWith("download failed"));
   });
 });
+
+describe("RemoteImageCard preview intent", () => {
+  function imageActions(requestRef: RemoteImageReadiness["requestRef"]) {
+    const readiness: RemoteImageReadiness = {
+      resolveRef: () => "blob:card",
+      subscribeRef: () => () => undefined,
+      requestRef,
+      resolvePath: () => "",
+      subscribePath: () => () => undefined,
+      requestPath: () => undefined,
+    };
+    return { readiness };
+  }
+
+  it("warms the full-resolution ref on pointerDown for a variant card", () => {
+    const requestRef = vi.fn<RemoteImageReadiness["requestRef"]>();
+    const ref = {
+      threadId: "thread-1",
+      itemId: "item-1",
+      path: ["result", "images", 0] as const,
+      mime: "image/png",
+      bytes: 300_000,
+      width: 2560,
+      height: 1600,
+    };
+    const { readiness } = imageActions(requestRef);
+    const view = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={{ remoteImageReadiness: readiness }}>
+          <ImageView
+            item={imageItem({
+              name: "image_view",
+              status: "success",
+              result: { images: [remoteImageRef(ref)] },
+            })}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    requestRef.mockClear();
+    fireEvent.pointerDown(view.container.querySelector("[data-poracode-image-card]")!);
+    expect(requestRef).toHaveBeenCalledWith(
+      expect.objectContaining({ itemId: "item-1" }),
+      "prefetch",
+    );
+  });
+
+  it("does not warm a small ref that has no display variant", () => {
+    const requestRef = vi.fn<RemoteImageReadiness["requestRef"]>();
+    const ref = {
+      threadId: "thread-1",
+      itemId: "small-1",
+      path: ["result", "images", 0] as const,
+      mime: "image/png",
+      bytes: 100,
+      width: 64,
+      height: 64,
+    };
+    const { readiness } = imageActions(requestRef);
+    const view = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={{ remoteImageReadiness: readiness }}>
+          <ImageView
+            item={imageItem({
+              name: "image_view",
+              status: "success",
+              result: { images: [remoteImageRef(ref)] },
+            })}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    requestRef.mockClear();
+    fireEvent.pointerDown(view.container.querySelector("[data-poracode-image-card]")!);
+    expect(requestRef).not.toHaveBeenCalled();
+  });
+});

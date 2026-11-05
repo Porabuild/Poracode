@@ -41,11 +41,13 @@ export function MarkdownImage({ alt, className, src, width, height }: MarkdownIm
   const displaySrc = variantSrc || fullSnapshot || (authority ? "" : fallback);
   const resolveFullSrc =
     path && readiness ? () => fetchRemoteImagePathUrl(path, readiness) : undefined;
+  const warmFull = path && readiness ? () => readiness.requestPath(path, "prefetch") : undefined;
   if (!canonicalSrc) return null;
   return (
     <ImageCard
       viewportRef={viewportRef}
       {...(resolveFullSrc ? { resolveFullSrc } : {})}
+      {...(warmFull ? { onPreviewIntent: warmFull } : {})}
       source={imageViewSourceFromMarkdownImage({
         src: displaySrc,
         alt: typeof alt === "string" ? alt : "",

@@ -7,7 +7,7 @@ import { retainRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydra
 
 const EMPTY_IDS: readonly string[] = [];
 const runningIdCache = new WeakMap<readonly Thread[], readonly string[]>();
-function runningThreadIds(threads: readonly Thread[]): readonly string[] {
+export function runningThreadIds(threads: readonly Thread[]): readonly string[] {
   let ids = runningIdCache.get(threads);
   if (!ids) {
     ids = threads
