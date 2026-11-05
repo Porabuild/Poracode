@@ -203,11 +203,25 @@ describe("crewComposerModel", () => {
     expect(crewSummary("Opus 5.5", binding.roles, labelOf)).toBe("Opus 5.5 + gpt-5.5");
     expect(
       crewMenuMeta(
-        { ...saved, roles: [...saved.roles, { ...saved.roles[0]!, id: "reviewer" }] },
+        {
+          ...saved,
+          roles: [...saved.roles, { ...saved.roles[0]!, id: "reviewer", parallel: 4 }],
+        },
         labelOf,
       ),
     ).toBe("opus-5.5 + 2");
   });
+
+  it.each([undefined, 1, 2, 3, 4])(
+    "keeps the two-model summary for one role at concurrency %s",
+    (parallel) => {
+      const role = {
+        ...binding.roles[0]!,
+        ...(parallel === undefined ? {} : { parallel }),
+      };
+      expect(crewSummary("Opus 5.5", [role], labelOf)).toBe("Opus 5.5 + gpt-5.5");
+    },
+  );
 });
 
 describe("crewPickerEntry", () => {
