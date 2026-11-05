@@ -360,9 +360,11 @@ export const toolCallPayloadSchema = z.object({
   /**
    * This agent row CONTINUES an earlier run instead of launching a new agent —
    * e.g. Claude Code's `SendMessage` resuming a completed sub-agent from its
-   * transcript. Without it a resume is indistinguishable from a fresh launch in
-   * the transcript. Absent on rows persisted before resumes were recognized;
-   * those keep rendering as plain agent rows, which is what they were.
+   * transcript, or a Crossagents follow-up that continues a completed run's
+   * provider session. Without it a resume is indistinguishable from a fresh
+   * launch in the transcript. Absent on rows persisted before resumes were
+   * recognized; those keep rendering as plain agent rows, which is what they
+   * were.
    */
   isSubAgentResume: z.boolean().optional(),
   /**

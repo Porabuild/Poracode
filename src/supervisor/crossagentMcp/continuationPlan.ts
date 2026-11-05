@@ -27,10 +27,15 @@ export function canContinueRun(run: ContinuableRun): boolean {
 }
 
 /** Validate current provider settings but retain the winning session's selection and scope. */
-/** Reasoning/Fast for the next turn of a continued worker; absent keeps the worker's own. */
+/**
+ * The continued worker's next turn: reasoning/Fast (absent keeps the worker's
+ * own) and the lead's task name for its tile (absent derives the title from
+ * the prompt).
+ */
 export interface ContinuationSelectionUpdate {
   effort?: string | undefined;
   fast?: boolean | undefined;
+  name?: string | undefined;
 }
 
 export function prepareContinuation(
@@ -60,6 +65,7 @@ export function prepareContinuation(
     ...(run.plan.resultMode ? { resultMode: run.plan.resultMode } : {}),
     ...(run.plan.crewRole ? { crewRole: run.plan.crewRole } : {}),
     prompt,
+    ...(selectionUpdate?.name ? { name: selectionUpdate.name } : {}),
     background,
     dispatchProvenance: {
       selection: { source: "continuation" },

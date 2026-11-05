@@ -72,3 +72,55 @@ it("shows compact Crossagent tasks and role metadata on separate truncating line
   expect(lineTwo).toHaveClass("truncate");
   expect(container.querySelector(".pl-4")?.children).toHaveLength(2);
 });
+
+it("marks a resumed compact Crossagent as a follow-up", () => {
+  layout.compact = true;
+  const { container } = renderWithI18n(
+    <SubAgentToolCall
+      threadId="compact-crew"
+      item={{
+        id: "run-2",
+        type: "tool_call",
+        state: "started",
+        streams: {},
+        payload: {
+          name: "OpenCode 2 · DeepSeek V4.1 Flash · Max",
+          title: "Fence stale shell pages",
+          status: "running",
+          isCrossagent: true,
+          isSubAgentResume: true,
+          subAgentType: "Sidekick",
+          progress: { stepCount: 3 },
+        },
+      }}
+    />,
+  );
+  const lineTwo = container.querySelector(".text-\\[11px\\]");
+  expect(lineTwo).toHaveTextContent("Sidekick · follow-up · OpenCode 2 · DeepSeek V4.1 Flash");
+});
+
+it("drops the Crossagent Follow-up prefix from a compact task without a title", () => {
+  layout.compact = true;
+  renderWithI18n(
+    <SubAgentToolCall
+      threadId="compact-crew"
+      item={{
+        id: "run-3",
+        type: "tool_call",
+        state: "started",
+        streams: {},
+        payload: {
+          name: "OpenCode 2 · DeepSeek V4.1 Flash · Max",
+          status: "running",
+          isCrossagent: true,
+          isSubAgentResume: true,
+        },
+      }}
+    />,
+  );
+  const button = screen.getByRole("button", {
+    name: /Open Crossagent: OpenCode 2/,
+  });
+  expect(button).toHaveTextContent("OpenCode 2 · DeepSeek V4.1 Flash · Max");
+  expect(button.textContent).not.toContain("Crossagent");
+});

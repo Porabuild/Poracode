@@ -369,6 +369,19 @@ function formatAgentTitle(
     ? (fallbackDescription ?? argsDescription)
     : (argsDescription ?? fallbackDescription);
   const subagent = readSubAgentType(args) ?? options?.subAgentType;
+  // A Crossagents follow-up continues an earlier run's helper session. Dock
+  // rows mark it with an icon, so their bare title stays the task.
+  if (options?.isResume && options.isCrossagent) {
+    if (options.bare) return description ?? subagent ?? i18n._(msg`Crossagent`);
+    if (description) {
+      return subagent
+        ? i18n._(msg`Crossagent Follow-up (${subagent}): ${description}`)
+        : i18n._(msg`Crossagent Follow-up: ${description}`);
+    }
+    return subagent
+      ? i18n._(msg`Crossagent Follow-up: ${subagent}`)
+      : i18n._(msg`Crossagent Follow-up`);
+  }
   // A resume continues an agent that already has a row above it. Labelling it
   // "Agent" too would read as a second, unrelated agent.
   if (options?.isResume) {

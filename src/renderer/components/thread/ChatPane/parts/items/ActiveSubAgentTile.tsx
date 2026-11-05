@@ -1,6 +1,6 @@
 import { Fragment, useEffect, type ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Bot, Check, GitBranch, X } from "lucide-react";
+import { Bot, Check, CornerDownRight, GitBranch, X } from "lucide-react";
 import { useShallow } from "zustand/shallow";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadRuntimeItem } from "@/renderer/state/useThreadRuntimeItem";
@@ -355,6 +355,7 @@ export function ActiveSubAgentRow({
 
   const isRunning = item?.state !== "completed" || payload?.status === "running" || workflowIsLive;
   if (registrationOnly || !item || !payload?.name) return null;
+  const isFollowUp = isCrossagentTool(payload) && payload.isSubAgentResume === true;
 
   // The dock groups rows under kind headers (Subagents/Crossagents), so the
   // per-row "Agent:"/"Crossagent:" prefix would just repeat the header.
@@ -427,6 +428,16 @@ export function ActiveSubAgentRow({
           <PixelLoader size="xxs" className="text-foreground" />
         </span>
       )}
+      {isFollowUp ? (
+        <span
+          role="img"
+          aria-label={t`Follow-up in the same session`}
+          title={t`Follow-up in the same session`}
+          className="inline-flex shrink-0 text-muted"
+        >
+          <CornerDownRight className="size-3" />
+        </span>
+      ) : null}
       {metaLine && twoLineText ? (
         <span className="flex min-w-0 flex-1 flex-col justify-center">
           <span

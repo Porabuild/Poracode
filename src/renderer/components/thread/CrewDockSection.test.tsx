@@ -6,6 +6,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
+import { ActiveSubAgentRow } from "./ChatPane/parts/items/ActiveSubAgentTile";
 import { CrewDockSection } from "./CrewDockSection";
 
 const bridge = {
@@ -177,6 +178,101 @@ describe("CrewDockSection", () => {
     expect(view.container.querySelector('[data-crew-role-runs="builder"]')).toBeNull();
     expect(screen.getByText("Other agents")).toBeInTheDocument();
     expect(screen.getByTestId("run-run-case")).toBeInTheDocument();
+  });
+});
+
+describe("Crew follow-up rows", () => {
+  const sidekickRole = {
+    id: "sidekick",
+    label: "Sidekick",
+    selection: {
+      agentKind: "opencode2",
+      model: "opencode-go/deepseek-v4.1-flash",
+      effort: "max",
+    },
+  };
+  const sidekickBinding: ThreadCrewBinding = {
+    version: 1,
+    name: "Work Crew",
+    policy: "crew-only",
+    roles: [sidekickRole],
+  };
+
+  function seedFollowUpRuns() {
+    const rows = [
+      { id: "sub:run-first", title: "Reproduce paired thread delete flicker", isFollowUp: false },
+      { id: "sub:run-follow", title: "Fence stale shell pages", isFollowUp: true },
+    ];
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "thread-1": rows.map((row) => row.id) },
+      runtimeItemsByIdByThread: {
+        "thread-1": Object.fromEntries(
+          rows.map((row) => [
+            row.id,
+            {
+              id: row.id,
+              type: "tool_call",
+              state: "started",
+              payload: {
+                name: "OpenCode 2 · DeepSeek V4.1 Flash · Max",
+                title: row.title,
+                status: "running",
+                isCrossagent: true,
+                crossagentStatus: "running",
+                subAgentType: "Sidekick",
+                progress: { stepCount: 40 },
+                ...(row.isFollowUp ? { isSubAgentResume: true } : {}),
+              },
+              streams: {},
+            },
+          ]),
+        ),
+      },
+      runtimeStructuralVersionByThread: { "thread-1": 1 },
+    } as never);
+  }
+
+  function renderDock(runIds: string[]) {
+    return renderWithI18n(
+      <CrewDockSection
+        threadId="thread-1"
+        thread={thread}
+        binding={sidekickBinding}
+        runIds={runIds}
+        renderRun={(id, taskOnly) => (
+          <ActiveSubAgentRow
+            key={id}
+            threadId="thread-1"
+            itemId={id}
+            placement="right"
+            taskOnly={taskOnly}
+          />
+        )}
+        showPlacementToggle={false}
+      />,
+    );
+  }
+
+  it("marks a resumed Sidekick run row as a follow-up in the same session", () => {
+    seedFollowUpRuns();
+    useAgentStatusesStore.setState({ agentStatuses: [] });
+    useSharedSettings.setState({ crews: [] });
+    const view = renderDock(["sub:run-first", "sub:run-follow"]);
+    expect(screen.getByText("Fence stale shell pages")).toBeInTheDocument();
+    expect(
+      view.container.querySelectorAll('[aria-label="Follow-up in the same session"]'),
+    ).toHaveLength(1);
+    const icon = view.container.querySelector('[aria-label="Follow-up in the same session"]');
+    expect(icon?.closest("button")?.textContent).toContain("Fence stale shell pages");
+  });
+
+  it("does not mark a first run as a follow-up", () => {
+    seedFollowUpRuns();
+    useAgentStatusesStore.setState({ agentStatuses: [] });
+    useSharedSettings.setState({ crews: [] });
+    const view = renderDock(["sub:run-first"]);
+    expect(screen.getByText("Reproduce paired thread delete flicker")).toBeInTheDocument();
+    expect(view.container.querySelector('[aria-label="Follow-up in the same session"]')).toBeNull();
   });
 });
 

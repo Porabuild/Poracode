@@ -95,6 +95,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   if (!payload?.name) return null;
   const display = deriveToolDisplay(payload);
   const isCrossagent = isCrossagentTool(payload);
+  const isFollowUp = isCrossagent && payload.isSubAgentResume === true;
   const describesCancelledStatus =
     payload.subAgentStatus === "cancelled" ||
     (isCrossagent && payload.crossagentStatus === "cancelled");
@@ -110,7 +111,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
     (typeof args?.description === "string" && args.description.trim()) ||
     payload.title?.trim() ||
     taskFromName ||
-    display.title.replace(/^Crossagent(?:\s*\([^)]*\))?:\s*/i, "");
+    display.title.replace(/^Crossagent(?: Follow-up)?(?:\s*\([^)]*\))?:\s*/i, "");
   const modelMeta = nameSegments.at(-1)?.split(" · ") ?? [];
   const displayPrefix = display.parts
     ? normalizeCallTitleSeparator(display.parts.prefix)
@@ -135,7 +136,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
     workflowIsLive,
     t,
   );
-  const compactMeta = [role, modelMeta[0], modelMeta[1]]
+  const compactMeta = [role, isFollowUp ? t`follow-up` : undefined, modelMeta[0], modelMeta[1]]
     .filter((part): part is string => typeof part === "string" && Boolean(part.trim()))
     .join(" · ");
 

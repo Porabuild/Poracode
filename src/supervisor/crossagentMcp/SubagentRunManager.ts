@@ -401,6 +401,7 @@ export class SubagentRunManager {
       status: "running",
       isCrossagent: true,
       crossagentStatus: "running",
+      ...(record.continuedFrom ? { isSubAgentResume: true } : {}),
       ...(plan.crewRole ? { subAgentType: plan.crewRole.label } : {}),
     };
     this.deps.host.appendRuntimeEvent(parentThreadId, {
@@ -601,6 +602,7 @@ export class SubagentRunManager {
       return await this.continueCompletedRun(latest, request.prompt, background, {
         effort: request.effort,
         fast: request.fast,
+        name: request.name,
       });
     } catch (error) {
       if (error instanceof SubagentSpawnError) return undefined;
@@ -864,6 +866,7 @@ export class SubagentRunManager {
           ...(record.plan.title ? { title: record.plan.title } : {}),
           status: "running",
           isCrossagent: true,
+          ...(record.continuedFrom ? { isSubAgentResume: true } : {}),
           ...(record.plan.crewRole ? { subAgentType: record.plan.crewRole.label } : {}),
           progress: { stepCount: record.stepCount },
         },
@@ -1204,6 +1207,7 @@ export class SubagentRunManager {
       status: record.status === "completed" ? "success" : "error",
       isCrossagent: true,
       crossagentStatus: record.status,
+      ...(record.continuedFrom ? { isSubAgentResume: true } : {}),
       ...(record.plan.crewRole ? { subAgentType: record.plan.crewRole.label } : {}),
       ...(record.stepCount > 0 ? { progress: { stepCount: record.stepCount } } : {}),
       ...(text ? { result: text } : {}),
