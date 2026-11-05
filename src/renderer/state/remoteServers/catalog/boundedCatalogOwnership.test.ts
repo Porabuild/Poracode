@@ -288,6 +288,7 @@ describe("bounded catalog consumer ownership", () => {
           threads: [threadRow("a1", "p-a")],
           projects: [projectRow("p-a")],
         }),
+        graph.controller.boundedCatalogRemovalMark(),
       );
       graph.controller.installBoundedCatalogShellPage(
         KEY_B,
@@ -295,6 +296,7 @@ describe("bounded catalog consumer ownership", () => {
           threads: [threadRow("b1", "p-b")],
           projects: [projectRow("p-b")],
         }),
+        graph.controller.boundedCatalogRemovalMark(),
       );
 
       expect(runtimeIds(graph.store, KEY_A, "threads")).toEqual(["a1"]);
@@ -318,6 +320,7 @@ describe("bounded catalog consumer ownership", () => {
         threads: [threadRow("a1", "p-a"), threadRow("a2", "p-a")],
         projects: [projectRow("p-a")],
       }),
+      graph.controller.boundedCatalogRemovalMark(),
     );
     graph.controller.installBoundedCatalogShellPage(
       KEY_B,
@@ -325,6 +328,7 @@ describe("bounded catalog consumer ownership", () => {
         threads: [threadRow("b1", "p-b"), threadRow("b2", "p-b")],
         projects: [projectRow("p-b")],
       }),
+      graph.controller.boundedCatalogRemovalMark(),
     );
     // The shell install commits threads before projects, so one paint refresh
     // after the project cache exists performs the app-store projection.
@@ -355,10 +359,12 @@ describe("bounded catalog consumer ownership", () => {
     graph.controller.installBoundedCatalogShellPage(
       KEY_A,
       shellPage({ threads: [threadRow("a1", "p-a")], projects: [projectRow("p-a")] }),
+      graph.controller.boundedCatalogRemovalMark(),
     );
     graph.controller.installBoundedCatalogShellPage(
       KEY_B,
       shellPage({ threads: [threadRow("b1", "p-b")], projects: [projectRow("p-b")] }),
+      graph.controller.boundedCatalogRemovalMark(),
     );
 
     const clientA = graph.clients.get(KEY_A)!;
@@ -386,6 +392,7 @@ describe("bounded catalog consumer ownership", () => {
         threads: [threadRow("a1", "p-a"), threadRow("a2", "p-a")],
         projects: [projectRow("p-a"), projectRow("p-b")],
       }),
+      graph.controller.boundedCatalogRemovalMark(),
     );
     graph.controller.requestManualPaintRefresh(KEY_A, "threads");
     await vi.waitFor(() => {
@@ -433,6 +440,7 @@ describe("bounded catalog consumer ownership", () => {
         threads: [threadRow("a1", "p-a"), threadRow("a2", "p-a")],
         projects: [projectRow("p-a")],
       }),
+      graph.controller.boundedCatalogRemovalMark(),
     );
     graph.controller.requestManualPaintRefresh(KEY_A, "threads");
     await vi.waitFor(() => {

@@ -171,6 +171,8 @@ interface BoundedCatalogConnection {
   pendingProjects: boolean;
   lastReconcileAt: number;
   reconcileKind: CatalogKind;
+  /** Removal clock value of this connection's latest confirmed row removal (0 = none). */
+  lastRemovalAt: number;
 }
 
 const EVENT_FOLLOW_UP_DELAY_MS = 600;
@@ -196,6 +198,7 @@ interface RegisteredConsumer extends BoundedCatalogConsumer {
 const consumers = new Map<string, RegisteredConsumer>();
 const connections = new Map<string, BoundedCatalogConnection>();
 const legacyConnections = new Map<string, { generation: number }>();
+let catalogRemovalClock = 0;
 let reconcileTicker: TimerHandle | null = null;
 
 /**
@@ -322,6 +325,7 @@ function ensureConnection(connectionKey: string): BoundedCatalogConnection | und
     pendingProjects: true,
     lastReconcileAt: nowOf(consumer),
     reconcileKind: "threads",
+    lastRemovalAt: 0,
   };
   connections.set(connectionKey, state);
   startReconcileTicker();
@@ -364,10 +368,24 @@ export function noteBoundedCatalogLegacy(connectionKey: string): void {
   legacyConnections.set(connectionKey, { generation });
 }
 
-/** Installs a bounded shell page 1 and schedules the background passes. */
+/**
+ * Capture before starting a shell read. A shell page read before a later
+ * confirmed removal must not restore the removed rows (see
+ * `installBoundedCatalogShellPage`).
+ */
+export function boundedCatalogRemovalMark(): number {
+  return catalogRemovalClock;
+}
+
+/**
+ * Installs a bounded shell page 1 and schedules the background passes.
+ * `readStartedAt` is the {@link boundedCatalogRemovalMark} captured before the
+ * read that produced this page began.
+ */
 export function installBoundedCatalogShellPage(
   connectionKey: string,
   page: RemoteBoundedShellSnapshotPage,
+  readStartedAt: number,
 ): void {
   const state = ensureConnection(connectionKey);
   if (!state) return;
@@ -376,31 +394,41 @@ export function installBoundedCatalogShellPage(
   const active = consumer.deps;
   legacyConnections.delete(connectionKey);
   active.bumpConnectionSeq(connectionKey, page.snapshotSeq);
-  commitThreadPage(active, connectionKey, page.threads, page.snapshotSeq);
-  if (page.projects.length > 0) commitProjectRows(active, connectionKey, page.projects);
-  // Page 1 is authoritative manual paint order. It (re)starts each walk for a
-  // fresh attempt, but a repeated install within the SAME attempt keeps an
-  // in-flight walk (the historical idempotence): replacing it would make the
-  // running loop overwrite the fresh page-1 state with its stale continuation.
-  // The project walk exists only for a connection that declared manual-order
-  // convergence, so a connection without one keeps the historical behavior.
-  installShellPaint(state, active, connectionKey, "threads", {
-    cursor: page.threadsNextCursor,
-    proof: page,
-    ids: page.threads.map((row) => row.id),
-  });
-  if (active.manualOrderConvergence) {
-    installShellPaint(state, active, connectionKey, "projects", {
-      cursor: page.projectsNextCursor,
-      proof: null,
-      ids: page.projects.map((row) => row.id),
+  // A deletion gate that confirmed rows absent after this read began has
+  // already removed them and their pending edits, and this page can still
+  // carry them. Retire its rows, as the gate retires an in-flight paint page,
+  // and repaint page 1 from a fresh read instead.
+  if (state.lastRemovalAt > readStartedAt) {
+    setPaintRefreshRequested(state, "threads", true);
+    if (active.manualOrderConvergence) setPaintRefreshRequested(state, "projects", true);
+  } else {
+    commitThreadPage(active, connectionKey, page.threads, page.snapshotSeq);
+    if (page.projects.length > 0) commitProjectRows(active, connectionKey, page.projects);
+    // Page 1 is authoritative manual paint order. It (re)starts each walk for a
+    // fresh attempt, but a repeated install within the SAME attempt keeps an
+    // in-flight walk (the historical idempotence): replacing it would make the
+    // running loop overwrite the fresh page-1 state with its stale continuation.
+    // The project walk exists only for a connection that declared manual-order
+    // convergence, so a connection without one keeps the historical behavior.
+    installShellPaint(state, active, connectionKey, "threads", {
+      cursor: page.threadsNextCursor,
+      proof: page,
+      ids: page.threads.map((row) => row.id),
     });
+    if (active.manualOrderConvergence) {
+      installShellPaint(state, active, connectionKey, "projects", {
+        cursor: page.projectsNextCursor,
+        proof: null,
+        ids: page.projects.map((row) => row.id),
+      });
+    }
   }
   // Idempotent: resumes a walk whose page failed (no loop owns the slot) and
   // never opens a second loop while one is in flight. Without this a plain
   // refresh would leave a failed paint walk stalled until a fresh attempt.
   schedulePaintSegment(connectionKey, "threads");
-  if (state.paintProjects) schedulePaintSegment(connectionKey, "projects");
+  if (state.paintProjects || paintRefreshRequested(state, "projects"))
+    schedulePaintSegment(connectionKey, "projects");
   if (!state.passesStarted) {
     state.passesStarted = true;
     scheduleInventory(connectionKey, "threads", 0);
@@ -1048,6 +1076,8 @@ async function runDeletionGate(
       return rowsFor().some((row) => row.id === id);
     });
     if (absent.length === 0) continue;
+    catalogRemovalClock += 1;
+    state.lastRemovalAt = catalogRemovalClock;
     if (kind === "threads") active.removeThreadRows(connectionKey, absent);
     else active.removeProjectRows(connectionKey, absent);
     // A sealed paint cursor can still contain these rows. Retire its pending

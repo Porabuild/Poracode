@@ -2644,6 +2644,74 @@ describe("useRemoteServersStore", () => {
     expect(calls[1]?.options).toBeUndefined();
   });
 
+  it("schedules a catalog refresh after a rejected paired thread command and rethrows", async () => {
+    const failure = new Error("thread command refused");
+    const sendThreadCommand: RemoteDesktopClient["sendThreadCommand"] = async () => {
+      throw failure;
+    };
+    const client = makeClient({ sendThreadCommand });
+    (client as unknown as { endpoint: string }).endpoint = "http://desktop-one.test/";
+    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://desktop-one.test/",
+          accessToken: "token-one",
+          scopes: [],
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+    });
+    const scheduleServerRefresh = vi.fn<(desktopId: string) => void>();
+    const originalScheduleServerRefresh = useRemoteServersStore.getState().scheduleServerRefresh;
+    useRemoteServersStore.setState({ scheduleServerRefresh });
+    try {
+      await expect(
+        useRemoteServersStore
+          .getState()
+          .sendThreadCommand("d1", { kind: "delete", threadId: "t1" }),
+      ).rejects.toBe(failure);
+      expect(scheduleServerRefresh).toHaveBeenCalledWith("d1");
+    } finally {
+      useRemoteServersStore.setState({ scheduleServerRefresh: originalScheduleServerRefresh });
+    }
+  });
+
+  it("schedules a catalog refresh after a rejected paired project command and rethrows", async () => {
+    const failure = new Error("project command refused");
+    const projectCommand: RemoteDesktopClient["projectCommand"] = async () => {
+      throw failure;
+    };
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ projectCommand })));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://desktop-one.test/",
+          accessToken: "token-one",
+          scopes: [],
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+    });
+    const scheduleServerRefresh = vi.fn<(desktopId: string) => void>();
+    const originalScheduleServerRefresh = useRemoteServersStore.getState().scheduleServerRefresh;
+    useRemoteServersStore.setState({ scheduleServerRefresh });
+    try {
+      await expect(
+        useRemoteServersStore
+          .getState()
+          .runProjectCommand("d1", { kind: "add-existing", path: "/r/two" }),
+      ).rejects.toBe(failure);
+      expect(scheduleServerRefresh).toHaveBeenCalledWith("d1");
+    } finally {
+      useRemoteServersStore.setState({ scheduleServerRefresh: originalScheduleServerRefresh });
+    }
+  });
+
   it("derives a mirror's workspace from its local counterpart until filed explicitly", async () => {
     const previousProjects = useAppStore.getState().projects;
     useAppStore.setState({

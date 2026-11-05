@@ -302,10 +302,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         openRemoteThread: projection.openRemoteThread,
         closeRemoteThread: projection.closeRemoteThread,
         sendThreadCommand: async (desktopId, command, options = {}) => {
-          await withClient(desktopId, (client) =>
-            sendClientThreadCommand(client, command, options),
-          );
-          get().scheduleServerRefresh(desktopId);
+          try {
+            await withClient(desktopId, (client) =>
+              sendClientThreadCommand(client, command, options),
+            );
+          } finally {
+            get().scheduleServerRefresh(desktopId);
+          }
         },
 
         pairServer: pairing.pairServer,
@@ -366,14 +369,21 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // legacy response (and receives no unsupported declaration). The
           // explicit per-operation id the mode requires is minted in the
           // shared command seam, which also honors a caller's reused id.
-          await withClient(desktopId, (client) =>
-            sendClientProjectCommand(client, command, {
-              ...options,
-              ...(hostSupportsProjectCommandResultsForConnection(desktopId)
-                ? { result: "bounded" as const }
-                : {}),
-            }),
-          );
+          try {
+            await withClient(desktopId, (client) =>
+              sendClientProjectCommand(client, command, {
+                ...options,
+                ...(hostSupportsProjectCommandResultsForConnection(desktopId)
+                  ? { result: "bounded" as const }
+                  : {}),
+              }),
+            );
+          } catch (error) {
+            // A refused or ambiguous command still needs the catalog to
+            // converge on the host's authoritative state.
+            get().scheduleServerRefresh(desktopId);
+            throw error;
+          }
           if (command.kind === "update") {
             get().scheduleServerRefresh(desktopId);
           } else {

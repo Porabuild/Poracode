@@ -23,6 +23,7 @@ import {
 } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import {
   beginBoundedCatalogAttempt,
+  boundedCatalogRemovalMark,
   configureBoundedCatalogController,
   disposeBoundedCatalog,
   installBoundedCatalogShellPage,
@@ -228,6 +229,7 @@ async function loadRootCatalogPageOne(
   setManagedRootCatalogStatus({ status: "starting" });
   beginBoundedCatalogAttempt(MANAGED_ROOT_CATALOG_KEY);
   try {
+    const removalMark = boundedCatalogRemovalMark();
     const result = await activation.client.boundedShellSnapshot({
       order: "manual",
       threadLimit: BOUNDED_CATALOG_PAGE_LIMIT,
@@ -244,7 +246,7 @@ async function loadRootCatalogPageOne(
       });
       return;
     }
-    installBoundedCatalogShellPage(MANAGED_ROOT_CATALOG_KEY, result.page);
+    installBoundedCatalogShellPage(MANAGED_ROOT_CATALOG_KEY, result.page, removalMark);
     setManagedRootCatalogStatus({ status: "ready" });
   } catch (error) {
     if (readManagedLoopbackActivation() !== activation) return;
