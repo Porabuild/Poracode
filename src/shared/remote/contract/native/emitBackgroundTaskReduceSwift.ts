@@ -38,6 +38,26 @@ public struct RemoteBackgroundTaskStopAction: Equatable, Sendable {
   }
 }
 
+public struct RemoteBackgroundTaskOutput: Codable, Equatable, Sendable {
+  public static let maxOutputUtf16Length = ${spec.outputResult.maxOutputUtf16Length}
+  public static let maxTotalBytes = ${spec.outputResult.maxTotalBytes}.0
+  public var output: String
+  public var totalBytes: Double
+  public var truncated: Bool
+  public init(output: String, totalBytes: Double, truncated: Bool) {
+    self.output = output
+    self.totalBytes = totalBytes
+    self.truncated = truncated
+  }
+  public var isValid: Bool {
+    output.utf16.count <= Self.maxOutputUtf16Length
+      && totalBytes.isFinite
+      && totalBytes >= 0
+      && totalBytes.rounded(.towardZero) == totalBytes
+      && totalBytes <= Self.maxTotalBytes
+  }
+}
+
 public struct RemoteBackgroundTaskIdentity: Equatable, Sendable {
   public var taskId: String
   public var kind: String
@@ -46,7 +66,10 @@ public struct RemoteBackgroundTaskIdentity: Equatable, Sendable {
   public var lastProgressAt: Double?
   public var progress: String?
   public var stopAction: RemoteBackgroundTaskStopAction?
-  public init(taskId: String, kind: String, description: String, startedAt: Double? = nil, lastProgressAt: Double? = nil, progress: String? = nil, stopAction: RemoteBackgroundTaskStopAction? = nil) {
+  public var category: String?
+  public var command: String?
+  public var outputAction: RemoteBackgroundTaskStopAction?
+  public init(taskId: String, kind: String, description: String, startedAt: Double? = nil, lastProgressAt: Double? = nil, progress: String? = nil, stopAction: RemoteBackgroundTaskStopAction? = nil, category: String? = nil, command: String? = nil, outputAction: RemoteBackgroundTaskStopAction? = nil) {
     self.taskId = taskId
     self.kind = kind
     self.description = description
@@ -54,6 +77,9 @@ public struct RemoteBackgroundTaskIdentity: Equatable, Sendable {
     self.lastProgressAt = lastProgressAt
     self.progress = progress
     self.stopAction = stopAction
+    self.category = category
+    self.command = command
+    self.outputAction = outputAction
   }
 }
 

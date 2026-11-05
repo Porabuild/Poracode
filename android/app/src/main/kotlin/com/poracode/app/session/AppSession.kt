@@ -277,7 +277,7 @@ class AppSession(
 
     /** Registers the receiver for sequenced-replay side effects (e.g. terminal fresh-baseline). */
     fun setReplaySideEffectSink(
-        sink: ((com.poracode.app.session.replay.ReplayOutcome) -> Unit)?,
+        sink: ((com.poracode.app.session.replay.ReplayOutcome, Int) -> Unit)?,
     ) {
         sinks.replaySideEffectSink = sink
     }

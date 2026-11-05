@@ -98,7 +98,11 @@ export function closeClaudeGenerationItems(state: ClaudeMapperState): RuntimeEve
 
 export function closeClaudeOpenItems(
   state: ClaudeMapperState,
-  options?: { closePlan?: boolean; abandonTools?: boolean },
+  options?: {
+    closePlan?: boolean;
+    abandonTools?: boolean;
+    abandonChildren?: boolean;
+  },
 ): RuntimeEvent[] {
   const events = closeClaudeOpenTextItems(state);
   const completedToolIds = new Set<string>();
@@ -122,6 +126,23 @@ export function closeClaudeOpenItems(
     state.toolItemsByIndex.delete(index);
   }
   for (const [id, tool] of [...state.toolItemsById]) {
+    const orphanedChild = state.subAgentChildToolItemIds?.has(id) === true;
+    if (options?.abandonChildren && orphanedChild && tool.awaitingTaskReport !== true) {
+      // The grace-guarded settlement runs only once no awaited subagent is
+      // live, so a still-tracked child can never receive its result. Complete
+      // it as an error and drop its tracking. A nested Agent row that is itself
+      // awaiting a late terminal report is NOT abandoned: its error payload and
+      // the retained metadata are how the late notification finds it.
+      events.push({
+        type: "item.completed",
+        threadId: state.threadId,
+        itemId: tool.itemId,
+        payload: toolPayload(tool, "error"),
+      });
+      state.toolItemsById.delete(id);
+      state.subAgentChildToolItemIds?.delete(id);
+      continue;
+    }
     if (!options?.abandonTools && isLiveSubAgentScopedTool(state, tool)) continue;
     // A dangling sub-agent child whose subagent already closed will never get
     // its tool_result; flush it with a completion (like the open main-thread
@@ -143,6 +164,7 @@ export function closeClaudeOpenItems(
     state.toolItemsById.delete(id);
     state.subAgentChildToolItemIds?.delete(id);
   }
+  if (options?.abandonChildren) state.subAgentChildToolItemIds?.clear();
   if (options?.closePlan && state.planAggregator) {
     events.push(...closePlanAggregator(state.planAggregator));
   }

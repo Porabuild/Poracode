@@ -314,6 +314,483 @@ final class RichChatSessionActionsControllerTests: XCTestCase {
     XCTAssertNil(controller.state.failure)
   }
 
+  // MARK: - Background task details
+
+  func testBackgroundTaskReadKeySortsOpaquePayloadAndIncludesOwnerScope() {
+    let action = Self.action(
+      "background-task.output.v1",
+      payload: ["taskId": "task-1", "token": "token-1"]
+    )
+    let reordered = Self.action(
+      "background-task.output.v1",
+      payload: ["token": "token-1", "taskId": "task-1"]
+    )
+    let first = RichChatBackgroundTaskReadKey(
+      lease: Self.lease,
+      owner: Self.owner(sessionRefID: "session-1"),
+      taskID: "task-1",
+      action: action
+    )
+    XCTAssertEqual(
+      first,
+      RichChatBackgroundTaskReadKey(
+        lease: Self.lease,
+        owner: Self.owner(sessionRefID: "session-1"),
+        taskID: "task-1",
+        action: reordered
+      )
+    )
+    // Same task id and action, different live session owner.
+    XCTAssertNotEqual(
+      first,
+      RichChatBackgroundTaskReadKey(
+        lease: Self.lease,
+        owner: Self.owner(sessionRefID: "session-2"),
+        taskID: "task-1",
+        action: action
+      )
+    )
+    // Different host generation fences just like a provider-key change.
+    XCTAssertNotEqual(
+      first,
+      RichChatBackgroundTaskReadKey(
+        lease: RichChatHostLease(
+          connectionID: RichChatControllerTestValues.hostA,
+          generation: 2
+        ),
+        owner: Self.owner(sessionRefID: "session-1"),
+        taskID: "task-1",
+        action: action
+      )
+    )
+    XCTAssertNotEqual(
+      first,
+      RichChatBackgroundTaskReadKey(
+        lease: Self.lease,
+        owner: Self.owner(sessionRefID: "session-1"),
+        taskID: "task-2",
+        action: action
+      )
+    )
+  }
+
+  func testBackgroundTaskOutputDecodingAppliesGeneratedBounds() throws {
+    XCTAssertEqual(
+      try XCTUnwrap(RichChatBackgroundTaskOutputDecoding.decode(Self.outputResult())),
+      RemoteBackgroundTaskOutput(output: "tail", totalBytes: 42, truncated: true)
+    )
+    XCTAssertEqual(
+      try XCTUnwrap(
+        RichChatBackgroundTaskOutputDecoding.decode(
+          ["output": .string(""), "totalBytes": .number(0), "truncated": .bool(false)]
+        )),
+      RemoteBackgroundTaskOutput(output: "", totalBytes: 0, truncated: false)
+    )
+    XCTAssertNil(
+      RichChatBackgroundTaskOutputDecoding.decode(
+        ["output": .string("tail"), "totalBytes": .number(42)]
+      )
+    )
+    XCTAssertNil(
+      RichChatBackgroundTaskOutputDecoding.decode(
+        ["output": .string("tail"), "totalBytes": .number(1.5), "truncated": .bool(false)]
+      )
+    )
+    XCTAssertNil(
+      RichChatBackgroundTaskOutputDecoding.decode(
+        [
+          "output": .string(String(repeating: "a", count: 16_385)),
+          "totalBytes": .number(1),
+          "truncated": .bool(false),
+        ]
+      )
+    )
+  }
+
+  func testBackgroundTaskReaderPublishesOutputThenRetainsFailureUntilRetry() async {
+    let gateway = FakeSessionActionsGateway()
+    gateway.inventoryResult = .success([Self.outputActionID, Self.stopActionID])
+    gateway.invokeResult = .success(Self.outputResult())
+    let actions = RichChatSessionActionsController(gateway: gateway)
+    actions.activate(access: Self.access, threadID: "thread-a")
+    await actions.refreshInventory()
+
+    let reader = RichChatBackgroundTaskDetailsController(
+      sessionActions: actions,
+      pollInterval: .seconds(60)
+    )
+    let key = Self.readKey()
+    reader.startReading(identity: key, action: Self.outputAction)
+
+    let ready = await Self.awaitOutput(reader, identity: key.value) {
+      if case .ready = $0 { return true }
+      return false
+    }
+    XCTAssertTrue(ready)
+    XCTAssertEqual(
+      reader.displayedOutput(for: key.value),
+      .ready(RemoteBackgroundTaskOutput(output: "tail", totalBytes: 42, truncated: true))
+    )
+    XCTAssertEqual(
+      gateway.invokeCalls.filter { $0.actionID == Self.outputActionID }.count,
+      1
+    )
+
+    reader.stopReading()
+    gateway.invokeResult = .failure(RichChatGatewayError.transport)
+    reader.retry(identity: key, action: Self.outputAction)
+    let failed = await Self.awaitOutput(reader, identity: key.value) {
+      $0 == .failed
+    }
+    XCTAssertTrue(failed)
+
+    gateway.invokeResult = .success(Self.outputResult())
+    reader.retry(identity: key, action: Self.outputAction)
+    let recovered = await Self.awaitOutput(reader, identity: key.value) {
+      if case .ready = $0 { return true }
+      return false
+    }
+    XCTAssertTrue(recovered)
+    XCTAssertEqual(
+      gateway.invokeCalls.filter { $0.actionID == Self.outputActionID }.count,
+      3
+    )
+    reader.stopReading()
+  }
+
+  func testStaleReadResponseCannotOverwriteANewerOwnerOutput() async {
+    let gateway = FakeSessionActionsGateway()
+    gateway.inventoryResult = .success([Self.outputActionID, Self.stopActionID])
+    let suspense = GatewaySuspense()
+    gateway.invokeSuspense = { _ in await suspense.wait() }
+    gateway.invokeResult = .success(Self.outputResult("old"))
+    let actions = RichChatSessionActionsController(gateway: gateway)
+    actions.activate(access: Self.access, threadID: "thread-a")
+    await actions.refreshInventory()
+
+    let reader = RichChatBackgroundTaskDetailsController(
+      sessionActions: actions,
+      pollInterval: .seconds(60)
+    )
+    let oldKey = Self.readKey(sessionRefID: "session-1")
+    reader.startReading(identity: oldKey, action: Self.outputAction)
+    while gateway.invokeCalls.isEmpty { await Task.yield() }
+
+    // The live session is replaced while the first read is still in flight;
+    // the provider keeps the same task id and opaque action.
+    gateway.invokeSuspense = nil
+    gateway.invokeResult = .success(Self.outputResult("new"))
+    let newKey = Self.readKey(sessionRefID: "session-2")
+    reader.startReading(identity: newKey, action: Self.outputAction)
+
+    // The old owner's output is hidden immediately, before any new response.
+    XCTAssertEqual(reader.displayedOutput(for: oldKey.value), .idle)
+    suspense.release()
+
+    let ready = await Self.awaitOutput(reader, identity: newKey.value) {
+      if case .ready = $0 { return true }
+      return false
+    }
+    XCTAssertTrue(ready)
+    XCTAssertEqual(
+      reader.displayedOutput(for: newKey.value),
+      .ready(RemoteBackgroundTaskOutput(output: "new", totalBytes: 42, truncated: true))
+    )
+    XCTAssertEqual(reader.displayedOutput(for: oldKey.value), .idle)
+    reader.stopReading()
+  }
+
+  func testBackgroundTaskCloseReopenReusesOneInFlightRead() async {
+    let gateway = FakeSessionActionsGateway()
+    gateway.inventoryResult = .success([Self.outputActionID, Self.stopActionID])
+    let suspense = GatewaySuspense()
+    gateway.invokeSuspense = { _ in await suspense.wait() }
+    gateway.invokeResult = .success(Self.outputResult("reused"))
+    let actions = RichChatSessionActionsController(gateway: gateway)
+    actions.activate(access: Self.access, threadID: "thread-a")
+    await actions.refreshInventory()
+
+    let reader = RichChatBackgroundTaskDetailsController(
+      sessionActions: actions,
+      pollInterval: .seconds(60)
+    )
+    let key = Self.readKey()
+    reader.startReading(identity: key, action: Self.outputAction)
+    while gateway.invokeCalls.isEmpty { await Task.yield() }
+    XCTAssertEqual(reader.displayedOutput(for: key.value), .loading)
+
+    // Close and reopen the same identity while the non-cooperative transport
+    // read is parked. The reopened reader must await that one attempt, not
+    // issue a second overlapping read.
+    reader.stopReading()
+    XCTAssertEqual(reader.displayedOutput(for: key.value), .idle)
+    reader.startReading(identity: key, action: Self.outputAction)
+    XCTAssertEqual(reader.displayedOutput(for: key.value), .loading)
+    XCTAssertEqual(
+      gateway.invokeCalls.filter { $0.actionID == Self.outputActionID }.count,
+      1
+    )
+
+    suspense.release()
+    let ready = await Self.awaitOutput(reader, identity: key.value) {
+      if case .ready = $0 { return true }
+      return false
+    }
+    XCTAssertTrue(ready)
+    XCTAssertEqual(
+      reader.displayedOutput(for: key.value),
+      .ready(RemoteBackgroundTaskOutput(output: "reused", totalBytes: 42, truncated: true))
+    )
+    XCTAssertEqual(
+      gateway.invokeCalls.filter { $0.actionID == Self.outputActionID }.count,
+      1
+    )
+    XCTAssertEqual(gateway.maxConcurrentInvocations, 1)
+    reader.stopReading()
+  }
+
+  func testBackgroundTaskIdentitySwitchSerializesAndDropsOldOutput() async {
+    let gateway = FakeSessionActionsGateway()
+    gateway.inventoryResult = .success([Self.outputActionID, Self.stopActionID])
+    let suspense = GatewaySuspense()
+    gateway.invokeSuspense = { _ in await suspense.wait() }
+    gateway.invokeResult = .success(Self.outputResult("switched"))
+    let actions = RichChatSessionActionsController(gateway: gateway)
+    actions.activate(access: Self.access, threadID: "thread-a")
+    await actions.refreshInventory()
+
+    let reader = RichChatBackgroundTaskDetailsController(
+      sessionActions: actions,
+      pollInterval: .seconds(60)
+    )
+    let oldKey = Self.readKey(sessionRefID: "session-1")
+    let newKey = Self.readKey(sessionRefID: "session-2")
+    reader.startReading(identity: oldKey, action: Self.outputAction)
+    while gateway.invokeCalls.isEmpty { await Task.yield() }
+
+    reader.startReading(identity: newKey, action: Self.outputAction)
+    XCTAssertEqual(reader.displayedOutput(for: oldKey.value), .idle)
+    XCTAssertEqual(reader.displayedOutput(for: newKey.value), .loading)
+    // The new identity may not start its transport read until the old one has
+    // settled, so only one invocation exists so far.
+    XCTAssertEqual(
+      gateway.invokeCalls.filter { $0.actionID == Self.outputActionID }.count,
+      1
+    )
+
+    suspense.release()
+    let ready = await Self.awaitOutput(reader, identity: newKey.value) {
+      if case .ready = $0 { return true }
+      return false
+    }
+    XCTAssertTrue(ready)
+    XCTAssertEqual(
+      reader.displayedOutput(for: newKey.value),
+      .ready(RemoteBackgroundTaskOutput(output: "switched", totalBytes: 42, truncated: true))
+    )
+    XCTAssertEqual(reader.displayedOutput(for: oldKey.value), .idle)
+    XCTAssertEqual(
+      gateway.invokeCalls.filter { $0.actionID == Self.outputActionID }.count,
+      2
+    )
+    XCTAssertEqual(gateway.maxConcurrentInvocations, 1)
+    reader.stopReading()
+  }
+
+  func testStopAttemptStaysIndependentFromOutputReadsAndReportsItsOwnFailure() async {
+    let gateway = FakeSessionActionsGateway()
+    gateway.inventoryResult = .success([Self.outputActionID, Self.stopActionID])
+    gateway.invokeResultForAction = { actionID in
+      actionID == Self.outputActionID ? .success(Self.outputResult()) : .success([:])
+    }
+    let actions = RichChatSessionActionsController(gateway: gateway)
+    actions.activate(access: Self.access, threadID: "thread-a")
+    await actions.refreshInventory()
+
+    let reader = RichChatBackgroundTaskDetailsController(
+      sessionActions: actions,
+      pollInterval: .seconds(60)
+    )
+    let readKey = Self.readKey()
+    let stopKey = Self.readKey(action: Self.stopAction)
+    reader.startReading(identity: readKey, action: Self.outputAction)
+    _ = await Self.awaitOutput(reader, identity: readKey.value) {
+      if case .ready = $0 { return true }
+      return false
+    }
+
+    let stopSuspense = GatewaySuspense()
+    gateway.invokeSuspense = { actionID in
+      if actionID == Self.stopActionID { await stopSuspense.wait() }
+    }
+    let stopping = Task {
+      await reader.stop(identity: stopKey, action: Self.stopAction)
+    }
+    while !gateway.invokeCalls.contains(where: { $0.actionID == Self.stopActionID }) {
+      await Task.yield()
+    }
+    XCTAssertTrue(reader.displayedStopState(for: stopKey.value)?.isPending == true)
+
+    // A read retry during the pending Stop replaces only the output state.
+    reader.retry(identity: readKey, action: Self.outputAction)
+    let reread = await Self.awaitOutput(reader, identity: readKey.value) {
+      if case .ready = $0 { return true }
+      return false
+    }
+    XCTAssertTrue(reread)
+    XCTAssertTrue(reader.displayedStopState(for: stopKey.value)?.isPending == true)
+    XCTAssertNil(reader.displayedStopState(for: stopKey.value)?.failure)
+
+    stopSuspense.release()
+    await stopping.value
+    XCTAssertFalse(reader.displayedStopState(for: stopKey.value)?.isPending == true)
+    XCTAssertNil(reader.displayedStopState(for: stopKey.value)?.failure)
+    XCTAssertEqual(
+      reader.displayedOutput(for: readKey.value),
+      .ready(RemoteBackgroundTaskOutput(output: "tail", totalBytes: 42, truncated: true))
+    )
+
+    // Stop failure is kept on its own identity and never clears the output.
+    gateway.invokeSuspense = nil
+    gateway.invokeResultForAction = { actionID in
+      actionID == Self.outputActionID
+        ? .success(Self.outputResult()) : .failure(RichChatGatewayError.transport)
+    }
+    await reader.stop(identity: stopKey, action: Self.stopAction)
+    XCTAssertEqual(
+      reader.displayedStopState(for: stopKey.value)?.failure,
+      Optional(RichChatControllerFailure.transport)
+    )
+    XCTAssertEqual(
+      reader.displayedOutput(for: readKey.value),
+      .ready(RemoteBackgroundTaskOutput(output: "tail", totalBytes: 42, truncated: true))
+    )
+    reader.stopReading()
+  }
+
+  func testStopCancelledByLifecycleChangeClearsPendingWithoutInventedFailure() async {
+    for scenario in ["background", "owner"] {
+      let gateway = FakeSessionActionsGateway()
+      gateway.inventoryResult = .success([Self.outputActionID, Self.stopActionID])
+      gateway.invokeResultForAction = { actionID in
+        actionID == Self.outputActionID ? .success(Self.outputResult()) : .success([:])
+      }
+      let actions = RichChatSessionActionsController(gateway: gateway)
+      actions.activate(access: Self.access, threadID: "thread-a")
+      await actions.refreshInventory()
+
+      let reader = RichChatBackgroundTaskDetailsController(
+        sessionActions: actions,
+        pollInterval: .seconds(60)
+      )
+      let stopKey = Self.readKey(action: Self.stopAction)
+      let stopSuspense = GatewaySuspense()
+      gateway.invokeSuspense = { actionID in
+        if actionID == Self.stopActionID { await stopSuspense.wait() }
+      }
+      let stopping = Task {
+        await reader.stop(identity: stopKey, action: Self.stopAction)
+      }
+      while !gateway.invokeCalls.contains(where: { $0.actionID == Self.stopActionID }) {
+        await Task.yield()
+      }
+      XCTAssertTrue(
+        reader.displayedStopState(for: stopKey.value)?.isPending == true,
+        scenario
+      )
+
+      switch scenario {
+      case "background":
+        actions.enterBackground()
+      default:
+        actions.updateOwner(
+          RichChatSessionActionOwner(
+            threadID: "thread-a",
+            agentKind: "codex",
+            agentInstanceID: "instance-a",
+            presentationMode: "gui",
+            sessionRefID: "session-other",
+            executionIdentity: "exec-a"
+          )
+        )
+      }
+
+      stopSuspense.release()
+      await stopping.value
+      XCTAssertFalse(
+        reader.displayedStopState(for: stopKey.value)?.isPending == true,
+        scenario
+      )
+      XCTAssertNil(reader.displayedStopState(for: stopKey.value)?.failure, scenario)
+      XCTAssertNil(actions.state.failure, scenario)
+    }
+  }
+
+  private static let outputActionID = "background-task.output.v1"
+  private static let stopActionID = "background-task.stop.v1"
+  private static let outputAction = RemoteBackgroundTaskStopAction(
+    id: outputActionID,
+    payload: ["taskId": "task-1", "token": "token-1"]
+  )
+  private static let stopAction = RemoteBackgroundTaskStopAction(
+    id: stopActionID,
+    payload: ["taskId": "task-1", "token": "token-1"]
+  )
+  private static let lease = RichChatHostLease(
+    connectionID: RichChatControllerTestValues.hostA,
+    generation: 1
+  )
+
+  private static func action(
+    _ id: String,
+    payload: [String: String]
+  ) -> RemoteBackgroundTaskStopAction {
+    RemoteBackgroundTaskStopAction(id: id, payload: payload)
+  }
+
+  private static func owner(sessionRefID: String?) -> RichChatSessionActionOwner {
+    RichChatSessionActionOwner(
+      threadID: "thread-a",
+      agentKind: "claude",
+      agentInstanceID: "instance-1",
+      presentationMode: "gui",
+      sessionRefID: sessionRefID,
+      executionIdentity: "execution-1"
+    )
+  }
+
+  private static func readKey(
+    sessionRefID: String? = "session-1",
+    action: RemoteBackgroundTaskStopAction? = nil
+  ) -> RichChatBackgroundTaskReadKey {
+    RichChatBackgroundTaskReadKey(
+      lease: lease,
+      owner: owner(sessionRefID: sessionRefID),
+      taskID: "task-1",
+      action: action ?? outputAction
+    )
+  }
+
+  private static func outputResult(_ output: String = "tail") -> [String: RichJSON] {
+    [
+      "output": .string(output),
+      "totalBytes": .number(42),
+      "truncated": .bool(true),
+    ]
+  }
+
+  private static func awaitOutput(
+    _ reader: RichChatBackgroundTaskDetailsController,
+    identity: String,
+    matches: (RichChatBackgroundTaskDetailsController.OutputState) -> Bool
+  ) async -> Bool {
+    for _ in 0..<2_000 {
+      if matches(reader.displayedOutput(for: identity)) { return true }
+      await Task.yield()
+    }
+    return false
+  }
+
   private static let access = RichChatControllerTestValues.access(
     capabilities: [.sessionRead, .sessionOperate]
   )
@@ -358,6 +835,8 @@ private final class FakeSessionActionsGateway: RichChatSessionActionsGateway, @u
   private var _invokeSuspense: (@Sendable (String) async -> Void)?
   private var _inventoryCalls = 0
   private var _invokeCalls: [(actionID: String, payload: [String: RichJSON])] = []
+  private var _activeInvocations = 0
+  private var _maxConcurrentInvocations = 0
 
   var inventoryResult: Result<[String], Error> {
     get { withLock { _inventoryResult } }
@@ -384,6 +863,7 @@ private final class FakeSessionActionsGateway: RichChatSessionActionsGateway, @u
   var invokeCalls: [(actionID: String, payload: [String: RichJSON])] {
     withLock { _invokeCalls }
   }
+  var maxConcurrentInvocations: Int { withLock { _maxConcurrentInvocations } }
 
   private func withLock<T>(_ body: () -> T) -> T {
     lock.lock()
@@ -401,7 +881,12 @@ private final class FakeSessionActionsGateway: RichChatSessionActionsGateway, @u
     actionID: String,
     payload: [String: RichJSON]
   ) async throws -> [String: RichJSON] {
-    withLock { _invokeCalls.append((actionID, payload)) }
+    withLock {
+      _invokeCalls.append((actionID, payload))
+      _activeInvocations += 1
+      _maxConcurrentInvocations = max(_maxConcurrentInvocations, _activeInvocations)
+    }
+    defer { withLock { _activeInvocations -= 1 } }
     if let suspense = invokeSuspense { await suspense(actionID) }
     if let forAction = invokeResultForAction {
       return try forAction(actionID).get()

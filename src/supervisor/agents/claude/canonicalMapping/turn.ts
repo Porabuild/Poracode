@@ -25,9 +25,10 @@ export function startClaudeTurn(
   // Background subagents keep running across user turns: their live parent
   // tool_call (and forwarded children) must survive this reset so the later
   // `task_notification` can still find and close them — a blanket clear would
-  // strand the parent pill on "running" forever. `toolItemsByIndex` is
-  // per-message scratch (cleared on every message_start), so clearing it fully
-  // is safe.
+  // strand the parent pill on "running" forever. A parent already settled as a
+  // missing report is kept too: a late terminal notification must still be
+  // able to replace that error. `toolItemsByIndex` is per-message scratch
+  // (cleared on every message_start), so clearing it fully is safe.
   for (const [id, tool] of [...state.toolItemsById]) {
     if (isLiveSubAgentScopedTool(state, tool)) continue;
     state.toolItemsById.delete(id);

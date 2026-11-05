@@ -232,4 +232,23 @@
     <string name="rich_chat_fork_name">대화 이름</string>
     <string name="rich_chat_fork_boundary">이어받은 기록은 여기까지입니다</string>
     <string name="rich_chat_fork_source">%1$s에서 분기됨</string>
+    <string name="rich_chat_background_tasks">백그라운드 작업</string>
+    <string name="rich_chat_background_task">백그라운드 작업</string>
+    <string name="rich_chat_background_task_monitor">모니터</string>
+    <string name="rich_chat_background_task_tool">도구</string>
+    <string name="rich_chat_background_task_agent">에이전트</string>
+    <string name="rich_chat_background_task_other">기타</string>
+    <string name="rich_chat_background_task_output">작업 출력</string>
+    <string name="rich_chat_background_task_output_unavailable">이 작업의 출력을 사용할 수 없습니다.</string>
+    <string name="rich_chat_background_task_output_read_failed">백그라운드 작업 출력을 읽을 수 없습니다.</string>
+    <string name="rich_chat_background_task_output_loading">출력을 불러오는 중…</string>
+    <string name="rich_chat_background_task_no_output">아직 출력이 없습니다</string>
+    <string name="rich_chat_background_task_output_truncated">출력의 끝부분만 표시됩니다(%1$s바이트).</string>
+    <string name="rich_chat_background_task_stop">작업 중지</string>
+    <string name="rich_chat_background_task_stopping">작업 중지 중…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">작업이 중지되었는지 아직 확인되지 않았습니다. 다시 시도하세요.</string>
+    <string name="rich_chat_background_task_running_for">%1$s 동안 실행 중</string>
+    <string name="rich_chat_background_task_last_progress">마지막 진행 보고: %1$s 전</string>
+    <string name="rich_chat_background_task_close">작업 세부정보 닫기</string>
+    <string name="rich_chat_background_task_report_missing">작업이 완료 보고서 없이 종료되었습니다.</string>
 </resources>

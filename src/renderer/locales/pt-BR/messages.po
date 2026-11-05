@@ -1675,6 +1675,7 @@ msgstr "Anuncie uma URL base personalizada, por exemplo, um proxy reverso ou tú
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
@@ -2714,6 +2715,10 @@ msgstr "Processo em segundo plano reiniciado"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "Tarefa em segundo plano"
+
+#: src/renderer/components/thread/useThreadBackgroundTaskOutput.ts
+msgid "Background task output could not be read."
+msgstr "Não foi possível ler a saída da tarefa em segundo plano."
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
@@ -4430,6 +4435,7 @@ msgstr "Combinar com {name} ({machines})"
 #~ msgstr "Entradas proprietário/nome separadas por vírgula, por exemplo acme/website, acme/api. A lista é enviada ao Devin exatamente como digitada."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Command"
 msgstr "Comando"
 
@@ -10817,6 +10823,10 @@ msgstr "Carregando modelo…"
 msgid "Loading notes…"
 msgstr "Carregando notas…"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Loading output…"
+msgstr "Carregando saída…"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "Loading PDF…"
@@ -11909,6 +11919,10 @@ msgstr "Modos"
 msgid "Modified"
 msgstr "Modificado"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Monitor"
+msgstr "Monitor"
+
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Monitoring"
 msgstr "Monitoramento"
@@ -12906,6 +12920,10 @@ msgstr "Nenhum modelo encontrado"
 msgid "No other agents installed"
 msgstr "Nenhum outro agente instalado"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No output yet"
+msgstr "Ainda não há saída"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "No package plugins installed."
 msgstr "Nenhum pacote de plugin instalado."
@@ -12953,8 +12971,8 @@ msgid "No profile with its own isolated login exists yet. Set a profile to \"Own
 msgstr "Ainda não existe um perfil com login isolado próprio. Defina um perfil como \"Login isolado próprio\" e inicie a sessão lá primeiro; ele então aparece aqui."
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
-msgid "No progress reported"
-msgstr "Nenhum progresso informado"
+#~ msgid "No progress reported"
+#~ msgstr "Nenhum progresso informado"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -13422,6 +13440,11 @@ msgstr "Token de pareamento de uso único"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Online"
+
+#. placeholder {0}: state.totalBytes.toLocaleString()
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Only the end of the output is shown ({0} bytes)."
+msgstr "Apenas o final da saída é exibido ({0} bytes)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13983,6 +14006,7 @@ msgstr "Organização (opcional)"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
@@ -14026,6 +14050,10 @@ msgstr "Outlook"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "Saída"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Output isn’t available for this task."
+msgstr "A saída não está disponível para esta tarefa."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -16753,6 +16781,7 @@ msgstr "Somente o uso retido neste host."
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
@@ -19813,6 +19842,7 @@ msgid "Task Notification"
 msgstr "Notificação de tarefa"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Task output"
 msgstr "Saída da tarefa"
 
@@ -20624,6 +20654,10 @@ msgstr "As configurações de subagentes exigem o Codex 0.145 ou mais recente. E
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "o provedor alvo"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The task ended without a completion report."
+msgstr "A tarefa terminou sem um relatório de conclusão."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The task has not confirmed that it stopped. Try again."
@@ -21507,6 +21541,10 @@ msgstr "Há solicitações remotas demais em andamento. Tente novamente em insta
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "Há muitas visualizações nesta mensagem. Exibindo apenas o código-fonte."
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Tool"
+msgstr "Ferramenta"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -23452,6 +23490,7 @@ msgid "Worked for {elapsed}"
 msgstr "Trabalhou por {elapsed}"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Workflow"
 msgstr "Fluxo de trabalho"
 

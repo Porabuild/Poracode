@@ -427,11 +427,17 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
     /// B1 durable history notice. Optional on the wire and absent on hosts
     /// without the feature; an omitted field never clears a retained notice.
     var runtimeNotice: RemoteHistoryNotice? = nil
+    /// Authoritative live background work. Raw JSON so the strict protocol
+    /// `backgroundTaskSchema` parser stays the single field decoder; `nil`
+    /// with `backgroundTasksPresent == false` means an old host that does not
+    /// report the roster, and retained live metadata must be preserved.
+    var backgroundTasks: [JSONValue]? = nil
+    var backgroundTasksPresent: Bool = false
 
     private enum CodingKeys: String, CodingKey {
         case snapshotSeq, thread, runtimeItems, runtimeNextCursor, completedTurns
         case contextUsage, terminalScrollback, updatedAt, followUpQueue
-        case completedTurnsNextCursor, reads, runtimeNotice
+        case completedTurnsNextCursor, reads, runtimeNotice, backgroundTasks
     }
 
     init(
@@ -447,7 +453,9 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         followUpQueuePresent: Bool = false,
         completedTurnsNextCursor: String? = nil,
         reads: String? = nil,
-        runtimeNotice: RemoteHistoryNotice? = nil
+        runtimeNotice: RemoteHistoryNotice? = nil,
+        backgroundTasks: [JSONValue]? = nil,
+        backgroundTasksPresent: Bool = false
     ) {
         self.snapshotSeq = snapshotSeq
         self.thread = thread
@@ -462,6 +470,8 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         self.completedTurnsNextCursor = completedTurnsNextCursor
         self.reads = reads
         self.runtimeNotice = runtimeNotice
+        self.backgroundTasks = backgroundTasks
+        self.backgroundTasksPresent = backgroundTasksPresent
     }
 
     init(from decoder: Decoder) throws {
@@ -486,6 +496,13 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         )
         reads = try container.decodeIfPresent(String.self, forKey: .reads)
         runtimeNotice = try container.decodeIfPresent(RemoteHistoryNotice.self, forKey: .runtimeNotice)
+        if container.contains(.backgroundTasks) {
+            backgroundTasksPresent = true
+            backgroundTasks = try container.decodeIfPresent([JSONValue].self, forKey: .backgroundTasks)
+        } else {
+            backgroundTasksPresent = false
+            backgroundTasks = nil
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -504,6 +521,9 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         try container.encodeIfPresent(completedTurnsNextCursor, forKey: .completedTurnsNextCursor)
         try container.encodeIfPresent(reads, forKey: .reads)
         try container.encodeIfPresent(runtimeNotice, forKey: .runtimeNotice)
+        if backgroundTasksPresent {
+            try container.encode(backgroundTasks, forKey: .backgroundTasks)
+        }
     }
 }
 

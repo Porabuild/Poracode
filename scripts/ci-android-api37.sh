@@ -118,9 +118,34 @@ adb reverse tcp:49161 tcp:49161
 # Keep this lane on the mock-capable API 37 classes. The real-host family and
 # capable-history runners own the one-time pairing URLs their classes require;
 # discovering those classes here would fail before exercising either contract.
-mock_classes="com.poracode.app.Android37MultihostInstrumentedTest,com.poracode.app.Android37WireLabFamilyInstrumentedTest,com.poracode.app.Android37WireLabJourneyInstrumentedTest,com.poracode.app.Android37WireLabSmokeInstrumentedTest"
+mock_classes="com.poracode.app.Android37MultihostInstrumentedTest,com.poracode.app.Android37WireLabFamilyInstrumentedTest,com.poracode.app.Android37WireLabJourneyInstrumentedTest,com.poracode.app.Android37WireLabSmokeInstrumentedTest,com.poracode.app.BackgroundTaskDetailsInstrumentedTest"
+test_status=0
 ./gradlew connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.capability="$capability" \
   -Pandroid.testInstrumentationRunnerArguments.class="$mock_classes" \
-  --no-daemon --stacktrace
+  --no-daemon --stacktrace || test_status=$?
+
+# Bounded evidence pull for THIS feature only: the journey writes its rendered
+# details screenshot through context.getExternalFilesDir(null). Never enumerate
+# or delete device data. API 30+ hides Android/data from the shell, so fall back
+# to the debuggable app's own uid via run-as for the same exact file.
+screenshot_dir="$RUNNER_TEMP/android-api37-screenshots"
+mkdir -p "$screenshot_dir"
+pull_known_screenshot() {
+  local name="$1"
+  local remote="/sdcard/Android/data/com.lightcodeapp.mobile/files/$name"
+  if ! adb pull "$remote" "$screenshot_dir/$name" >/dev/null 2>&1 || [ ! -s "$screenshot_dir/$name" ]; then
+    rm -f "$screenshot_dir/$name"
+    adb exec-out run-as com.lightcodeapp.mobile cat "$remote" > "$screenshot_dir/$name" 2>/dev/null || true
+  fi
+  if [ -s "$screenshot_dir/$name" ]; then
+    echo "Pulled background-task screenshot evidence: $screenshot_dir/$name"
+  else
+    rm -f "$screenshot_dir/$name"
+  fi
+}
+pull_known_screenshot "background-task-details.png"
+if [ "$test_status" -ne 0 ]; then
+  exit "$test_status"
+fi
 printf '%s\n' '### Android 17 runtime evidence' '' '- API 37 emulator booted as Android 17 (REL).' '- The targetSdk 37 / minSdk 34 APK installed and launched.' '- The API 37 instrumentation suite passed.' >> "$GITHUB_STEP_SUMMARY"

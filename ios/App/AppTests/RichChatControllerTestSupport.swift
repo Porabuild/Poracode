@@ -512,7 +512,9 @@ enum RichChatControllerTestValues {
     items: [PersistedRuntimeItem] = [persistedItem(id: "history")],
     nextCursor: Int? = 4,
     followUpQueue: JSONValue? = nil,
-    followUpQueuePresent: Bool = false
+    followUpQueuePresent: Bool = false,
+    backgroundTasks: [JSONValue]? = nil,
+    backgroundTasksPresent: Bool = false
   ) -> RemoteThreadSnapshot {
     RemoteThreadSnapshot(
       snapshotSeq: sequence,
@@ -524,7 +526,9 @@ enum RichChatControllerTestValues {
       terminalScrollback: nil,
       updatedAt: "2026-08-12T00:00:00.000Z",
       followUpQueue: followUpQueue,
-      followUpQueuePresent: followUpQueuePresent
+      followUpQueuePresent: followUpQueuePresent,
+      backgroundTasks: backgroundTasks,
+      backgroundTasksPresent: backgroundTasksPresent
     )
   }
 }

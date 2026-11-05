@@ -76,6 +76,10 @@ object RichChatUiLogic {
         "file_change_output",
     )
 
+    /** Host-authored source for a background task settled without a report. */
+    private const val BACKGROUND_TASK_REPORT_MISSING_MESSAGE =
+        "The task ended without a completion report."
+
     fun generationActive(activeOperations: Set<String>, hasOpenTurn: Boolean): Boolean =
         "send" in activeOperations || hasOpenTurn
 
@@ -95,6 +99,22 @@ object RichChatUiLogic {
         return listOf("title", "name", "summary", "message", "command", "path", "result")
             .firstNotNullOfOrNull { key -> payload[key].displayScalar() }
             .orEmpty()
+    }
+
+    /**
+     * The host settles a sub-agent task whose run ended without its terminal
+     * report by completing the tool row with this exact app-authored error.
+     * Generic [itemText] prefers the row's title/name, which would hide it, so
+     * the timeline surfaces the localized equivalent for this one canonical
+     * payload only. Actual output and provider-authored errors are untouched.
+     */
+    fun backgroundTaskReportMissing(item: RichRuntimeItem): Boolean {
+        if (item.type != RichItemTypes.TOOL_CALL) return false
+        val payload = item.payload as? JsonObject ?: return false
+        if (payload["status"].displayScalar() != "error") return false
+        val result = payload["result"] as? JsonObject ?: return false
+        if (result.size != 1) return false
+        return result["error"].displayScalar() == BACKGROUND_TASK_REPORT_MISSING_MESSAGE
     }
 
     /**

@@ -237,4 +237,23 @@
     <string name="rich_chat_fork_name">Nazwa rozmowy</string>
     <string name="rich_chat_fork_boundary">Tutaj kończy się przejęta historia</string>
     <string name="rich_chat_fork_source">Odgałęzienie z %1$s</string>
+    <string name="rich_chat_background_tasks">Zadania w tle</string>
+    <string name="rich_chat_background_task">Zadanie w tle</string>
+    <string name="rich_chat_background_task_monitor">Monitor</string>
+    <string name="rich_chat_background_task_tool">Narzędzie</string>
+    <string name="rich_chat_background_task_agent">Agent</string>
+    <string name="rich_chat_background_task_other">Inne</string>
+    <string name="rich_chat_background_task_output">Dane wyjściowe zadania</string>
+    <string name="rich_chat_background_task_output_unavailable">Dane wyjściowe nie są dostępne dla tego zadania.</string>
+    <string name="rich_chat_background_task_output_read_failed">Nie można odczytać danych wyjściowych zadania w tle.</string>
+    <string name="rich_chat_background_task_output_loading">Ładowanie danych wyjściowych…</string>
+    <string name="rich_chat_background_task_no_output">Brak danych wyjściowych</string>
+    <string name="rich_chat_background_task_output_truncated">Wyświetlany jest tylko koniec danych wyjściowych (%1$s bajtów).</string>
+    <string name="rich_chat_background_task_stop">Zatrzymaj zadanie</string>
+    <string name="rich_chat_background_task_stopping">Zatrzymywanie zadania…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">Zadanie nie potwierdziło zatrzymania. Spróbuj ponownie.</string>
+    <string name="rich_chat_background_task_running_for">Działa od %1$s</string>
+    <string name="rich_chat_background_task_last_progress">Ostatni postęp %1$s temu</string>
+    <string name="rich_chat_background_task_close">Zamknij szczegóły zadania</string>
+    <string name="rich_chat_background_task_report_missing">Zadanie zakończyło się bez raportu końcowego.</string>
 </resources>

@@ -47,21 +47,29 @@ internal object RemoteV3TransportAdapters {
             RemoteThreadSnapshot.serializer(),
             "thread history",
         )
+        val wire = try {
+            Json.parseToJsonElement(raw).jsonObject
+        } catch (_: Exception) {
+            null
+        }
+        var result = snapshot
         // kotlinx maps both an absent field and an explicit JSON null to the
         // nullable element's default. The queue contract needs the split:
         // absent means the supervisor read failed (keep the prior queue);
         // explicit null means no queue. Mark explicit nulls with the JsonNull
         // sentinel so the mapper can tell them apart from absence.
-        if (snapshot.followUpQueue == null && containsFollowUpQueueKey(raw)) {
-            return snapshot.copy(followUpQueue = JsonNull)
+        if (result.followUpQueue == null && wire?.containsKey("followUpQueue") == true) {
+            result = result.copy(followUpQueue = JsonNull)
         }
-        return snapshot
-    }
-
-    private fun containsFollowUpQueueKey(raw: String): Boolean = try {
-        Json.parseToJsonElement(raw).jsonObject.containsKey("followUpQueue")
-    } catch (_: Exception) {
-        false
+        // Background tasks are optional-NONnullable on the wire: present means
+        // the array is authoritative (including []), absent preserves retained
+        // metadata, and an explicit null is a contract violation, never an
+        // implicit drain.
+        if (wire?.containsKey("backgroundTasks") == true) {
+            if (result.backgroundTasks == null) invalid("background tasks")
+            result = result.copy(backgroundTasksPresent = true)
+        }
+        return result
     }
 
     fun historyItems(raw: String): RemoteRuntimeItemsPage = project(

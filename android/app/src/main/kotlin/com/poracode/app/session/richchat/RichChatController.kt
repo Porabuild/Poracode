@@ -115,11 +115,16 @@ class RichChatController(
         events: List<RichRuntimeEvent>,
         pendingSteer: RichPendingSteerEnvelope? = null,
         followUpQueue: RichFollowUpQueueEnvelope? = null,
+        backgroundTaskChanges: List<RichChatBackgroundTaskChange> = emptyList(),
     ): Boolean {
         if (!lifecycle.isForeground || !isSelected(lease) || !session.isCurrent(lease.host)) {
             return false
         }
-        if (events.isEmpty() && pendingSteer == null && followUpQueue == null) return false
+        if (events.isEmpty() && pendingSteer == null && followUpQueue == null &&
+            backgroundTaskChanges.isEmpty()
+        ) {
+            return false
+        }
         if (events.any { it.threadKey != lease.key } ||
             pendingSteer?.let { it.threadKey != lease.key } == true ||
             followUpQueue?.let { it.threadKey != lease.key } == true
@@ -129,15 +134,27 @@ class RichChatController(
         if (frameBuffer.isStale(sequence)) {
             return false
         }
-        val frame = RichChatLiveFrame(sequence, events, pendingSteer, followUpQueue)
+        val frame = RichChatLiveFrame(sequence, events, pendingSteer, followUpQueue, backgroundTaskChanges)
         var accepted = false
         val truncated = events.any { it is RichRuntimeEvent.RuntimeTruncated }
         mutableState.update { current ->
             val transcript = current.transcript
+            val nextBackgroundTasks = applyBackgroundTaskChanges(
+                current.backgroundTasks,
+                backgroundTaskChanges,
+            )
+            val nextBackgroundTaskSequence =
+                if (backgroundTaskChanges.isNotEmpty() && sequence != null) {
+                    current.backgroundTaskSequence?.let { maxOf(it, sequence) } ?: sequence
+                } else {
+                    current.backgroundTaskSequence
+                }
             if (transcript == null) {
                 frameBuffer.buffer(frame)
                 accepted = true
                 return@update current.copy(
+                    backgroundTasks = nextBackgroundTasks,
+                    backgroundTaskSequence = nextBackgroundTaskSequence,
                     needsAuthoritativeRefresh = current.needsAuthoritativeRefresh ||
                         frameBuffer.overflow,
                 )
@@ -157,6 +174,8 @@ class RichChatController(
             val truncationCatchup = frameNeedsTruncationCatchup(next, frame)
             current.copy(
                 transcript = next,
+                backgroundTasks = nextBackgroundTasks,
+                backgroundTaskSequence = nextBackgroundTaskSequence,
                 // A truncate renumbers/removes turn rows: the held `ct1.`
                 // continuation is dropped and in-flight older pages are fenced.
                 olderTurnsCursor = if (truncated) null else current.olderTurnsCursor,
@@ -168,6 +187,30 @@ class RichChatController(
         if (accepted && truncated) invalidateOlderPaging()
         if (accepted) frameBuffer.markAccepted(sequence)
         return accepted
+    }
+
+    /**
+     * Accepted host `thread-exited` side effect for the selected rich-chat
+     * thread: drains the roster and advances the background-task watermark so
+     * an older history snapshot cannot resurrect it. Fenced to the exact
+     * current host and selection; other threads and stale hosts are ignored.
+     */
+    @Synchronized
+    fun drainBackgroundTasksForThreadExit(threadId: String, sequence: Int?): Boolean {
+        if (!lifecycle.isForeground) return false
+        val selected = mutableSelection.value ?: return false
+        if (selected.threadId != threadId) return false
+        if (!session.isCurrent(selected.host)) return false
+        mutableState.update { current ->
+            val nextSequence = sequence?.let { incoming ->
+                current.backgroundTaskSequence?.let { maxOf(it, incoming) } ?: incoming
+            } ?: current.backgroundTaskSequence
+            current.copy(
+                backgroundTasks = null,
+                backgroundTaskSequence = nextSequence,
+            )
+        }
+        return true
     }
 
     fun applyPendingSteer(

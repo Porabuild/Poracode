@@ -102,6 +102,7 @@ const messages = {
   "thread.sessionActionFailed": "The session action failed. Try again or reopen the session.",
   "thread.sessionActionUnavailable": "Session actions are unavailable for this thread.",
   "thread.backgroundTaskStopUnconfirmed": "The task has not confirmed that it stopped. Try again.",
+  "thread.backgroundTaskReportMissing": "The task ended without a completion report.",
   "voice.unavailable": "Live voice is unavailable for this thread.",
   "voice.alreadyConnected": "A voice conversation is already active.",
   "voice.subscriptionRequired": "Live voice requires a subscription sign-in for this provider.",

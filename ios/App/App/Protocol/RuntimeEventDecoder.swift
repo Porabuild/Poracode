@@ -56,6 +56,88 @@ enum RuntimeEventDecoder {
         "cancelled",
     ]
 
+    /// Additive `backgroundTaskSchema.category`; absent means fall back to `kind`.
+    static let backgroundTaskCategories: Set<String> = [
+        "command",
+        "monitor",
+        "tool",
+        "agent",
+        "workflow",
+        "other",
+    ]
+
+    /// Strict `backgroundTaskSchema` parse shared by the live event and the
+    /// authoritative snapshot (`thread-runtime-history` `backgroundTasks`).
+    /// Returns nil on any malformed field so callers reject the whole list and
+    /// never install a partially decoded roster.
+    static func decodeBackgroundTask(_ value: JSONValue) -> RuntimeBackgroundTask? {
+        guard case .object(let taskObject) = value,
+              let taskId = taskObject["taskId"]?.stringValue, !taskId.isEmpty,
+              let kind = taskObject["kind"]?.stringValue,
+              kind == "command" || kind == "other",
+              let description = taskObject["description"]?.stringValue
+        else { return nil }
+        for key in ["startedAt", "lastProgressAt"] {
+            if let value = taskObject[key] {
+                guard let number = value.numberValue, number.isFinite, number >= 0 else { return nil }
+            }
+        }
+        if let progress = taskObject["progress"] {
+            guard let text = progress.stringValue, text.unicodeScalars.count <= 4096 else { return nil }
+        }
+        if let category = taskObject["category"] {
+            guard let text = category.stringValue,
+                  Self.backgroundTaskCategories.contains(text)
+            else { return nil }
+        }
+        if let command = taskObject["command"] {
+            guard let text = command.stringValue, text.unicodeScalars.count <= 16384 else { return nil }
+        }
+        var stopAction: RemoteBackgroundTaskStopAction?
+        var outputAction: RemoteBackgroundTaskStopAction?
+        if let action = taskObject["stopAction"] {
+            guard let decoded = Self.decodeTaskAction(action) else { return nil }
+            stopAction = decoded
+        }
+        if let action = taskObject["outputAction"] {
+            guard let decoded = Self.decodeTaskAction(action) else { return nil }
+            outputAction = decoded
+        }
+        return RuntimeBackgroundTask(taskId: taskId, kind: kind, description: description,
+            startedAt: taskObject["startedAt"]?.numberValue, lastProgressAt: taskObject["lastProgressAt"]?.numberValue,
+            progress: taskObject["progress"]?.stringValue, stopAction: stopAction,
+            category: taskObject["category"]?.stringValue, command: taskObject["command"]?.stringValue,
+            outputAction: outputAction)
+    }
+
+    /// Strict array parse for the roster. Unknown fields are stripped; a single
+    /// invalid member rejects the list, matching the zod array schema.
+    static func decodeBackgroundTasks(_ value: JSONValue) -> [RuntimeBackgroundTask]? {
+        guard case .array(let taskValues) = value else { return nil }
+        var tasks: [RuntimeBackgroundTask] = []
+        for taskValue in taskValues {
+            guard let task = Self.decodeBackgroundTask(taskValue) else { return nil }
+            tasks.append(task)
+        }
+        return tasks
+    }
+
+    /// Shared decoder for `stopAction` / `outputAction` (same wire shape).
+    private static func decodeTaskAction(_ value: JSONValue) -> RemoteBackgroundTaskStopAction? {
+        guard case .object(let fields) = value,
+              let id = fields["id"]?.stringValue, !id.isEmpty, id.unicodeScalars.count <= 120,
+              case .object(let params)? = fields["payload"]
+        else { return nil }
+        var payload: [String: String] = [:]
+        for (key, value) in params {
+            guard key.unicodeScalars.count <= 120,
+                  let text = value.stringValue, text.unicodeScalars.count <= 512
+            else { return nil }
+            payload[key] = text
+        }
+        return RemoteBackgroundTaskStopAction(id: id, payload: payload)
+    }
+
     // MARK: - Decode
 
     /// Strict parse. Returns nil for unknown types or missing/invalid required fields.
@@ -90,41 +172,8 @@ enum RuntimeEventDecoder {
             // valid host-driven drain). Unknown fields are stripped. String
             // bounds count Unicode scalars, like Zod and the generated runtime.
             guard let threadId = object["threadId"]?.stringValue,
-                  case .array(let taskValues)? = object["tasks"]
+                  let tasks = Self.decodeBackgroundTasks(object["tasks"] ?? .null)
             else { return nil }
-            var tasks: [RuntimeBackgroundTask] = []
-            for value in taskValues {
-                guard case .object(let taskObject) = value,
-                      let taskId = taskObject["taskId"]?.stringValue, !taskId.isEmpty,
-                      let kind = taskObject["kind"]?.stringValue,
-                      kind == "command" || kind == "other",
-                      let description = taskObject["description"]?.stringValue
-                else { return nil }
-                for key in ["startedAt", "lastProgressAt"] {
-                    if let value = taskObject[key] {
-                        guard let number = value.numberValue, number.isFinite, number >= 0 else { return nil }
-                    }
-                }
-                if let progress = taskObject["progress"] {
-                    guard let text = progress.stringValue, text.unicodeScalars.count <= 4096 else { return nil }
-                }
-                var stopAction: RemoteBackgroundTaskStopAction?
-                if let action = taskObject["stopAction"] {
-                    guard case .object(let fields) = action,
-                          let id = fields["id"]?.stringValue, !id.isEmpty, id.unicodeScalars.count <= 120,
-                          case .object(let params)? = fields["payload"]
-                    else { return nil }
-                    var payload: [String: String] = [:]
-                    for (key, value) in params {
-                        guard key.unicodeScalars.count <= 120, let text = value.stringValue, text.unicodeScalars.count <= 512 else { return nil }
-                        payload[key] = text
-                    }
-                    stopAction = RemoteBackgroundTaskStopAction(id: id, payload: payload)
-                }
-                tasks.append(RuntimeBackgroundTask(taskId: taskId, kind: kind, description: description,
-                    startedAt: taskObject["startedAt"]?.numberValue, lastProgressAt: taskObject["lastProgressAt"]?.numberValue,
-                    progress: taskObject["progress"]?.stringValue, stopAction: stopAction))
-            }
             return .init(
                 type: type,
                 threadId: threadId,

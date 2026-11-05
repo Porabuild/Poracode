@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { RemoteScope } from "./constants.ts";
+import { initialBackgroundTasks } from "./backgroundTaskLab.ts";
 import { loadProtocolManifest } from "./manifest.ts";
 import { protocolFixturePath } from "./paths.ts";
 
@@ -54,7 +55,11 @@ export function buildShellSnapshot(snapshotSeq: number): Record<string, unknown>
 
 export function buildThreadHistory(snapshotSeq: number): Record<string, unknown> {
   const fixture = readFixture("thread-history.json") as Record<string, unknown>;
-  return { ...fixture, snapshotSeq };
+  return {
+    ...fixture,
+    snapshotSeq,
+    backgroundTasks: initialBackgroundTasks(),
+  };
 }
 
 export function buildRuntimeEvent(

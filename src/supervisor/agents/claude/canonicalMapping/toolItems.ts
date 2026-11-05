@@ -7,12 +7,15 @@ import { toolPayload } from "./toolPayload";
 
 /**
  * Whether a tool item belongs to a still-running background subagent — either
- * the launching Agent/Task parent itself or a forwarded child tool inside it.
- * Such items must survive turn-boundary map resets (`closeClaudeOpenItems`,
+ * the launching Agent/Task parent itself or a forwarded child tool inside it —
+ * or is a settled parent row still awaiting a late terminal report. Such items
+ * must survive turn-boundary map resets (`closeClaudeOpenItems`,
  * `startClaudeTurn`) so the eventual `task_notification` / forwarded
- * tool_result can complete them.
+ * tool_result can complete them. This is a retention guard only: an
+ * awaiting-report row is not live work.
  */
 export function isLiveSubAgentScopedTool(state: ClaudeMapperState, tool: ToolItemState): boolean {
+  if (tool.awaitingTaskReport === true) return true;
   const liveParents = state.activeSubAgentToolToTask;
   if (!liveParents || liveParents.size === 0) return false;
   return liveParents.has(tool.itemId) || state.subAgentChildToolItemIds?.has(tool.itemId) === true;

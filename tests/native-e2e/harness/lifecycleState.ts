@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { protocolFixturePath } from "./paths.ts";
 import { FIXTURE_PROJECT_ID } from "./labFixtures.ts";
+import { initialBackgroundTasks, type BackgroundTaskFixtureTask } from "./backgroundTaskLab.ts";
 
 const FIXTURE_TIME = "2026-08-12T10:03:00.000Z";
 
@@ -18,6 +19,9 @@ export class LabLifecycleState {
   private notes: Record<string, unknown> | null = null;
   private pendingSteer: Record<string, unknown> | null = null;
   private goal: Record<string, unknown> | null = null;
+  /** Authoritative live roster; the snapshot carries it so reconnect never
+   * resurrects a drained list from a stale event. */
+  private backgroundTasks: readonly BackgroundTaskFixtureTask[] = [];
   private readonly attachments = new Map<string, Buffer>();
   private readonly pendingFollowUps = new Set<string>();
   private readonly projectMcpServers = new Map<string, unknown[]>();
@@ -40,6 +44,7 @@ export class LabLifecycleState {
     this.notes = null;
     this.pendingSteer = null;
     this.goal = null;
+    this.backgroundTasks = initialBackgroundTasks();
     this.attachments.clear();
     this.pendingFollowUps.clear();
     this.projectMcpServers.clear();
@@ -64,8 +69,15 @@ export class LabLifecycleState {
       runtimeItems: structuredClone(this.runtimeItems),
       completedTurns: structuredClone(this.completedTurns),
       contextUsage: structuredClone(this.contextUsage),
+      backgroundTasks: structuredClone(this.backgroundTasks),
       updatedAt: FIXTURE_TIME,
     };
+  }
+
+  /** Installs the authoritative roster a live `background_tasks.changed` event
+   * announced, so the next history read (reconnect) agrees with the event. */
+  setBackgroundTasks(tasks: readonly BackgroundTaskFixtureTask[]): void {
+    this.backgroundTasks = structuredClone(tasks) as BackgroundTaskFixtureTask[];
   }
 
   hasThread(threadId: string): boolean {

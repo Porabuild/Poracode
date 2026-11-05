@@ -232,4 +232,23 @@
     <string name="rich_chat_fork_name">Nome da conversa</string>
     <string name="rich_chat_fork_boundary">O histórico herdado termina aqui</string>
     <string name="rich_chat_fork_source">Ramificada de %1$s</string>
+    <string name="rich_chat_background_tasks">Tarefas em segundo plano</string>
+    <string name="rich_chat_background_task">Tarefa em segundo plano</string>
+    <string name="rich_chat_background_task_monitor">Monitor</string>
+    <string name="rich_chat_background_task_tool">Ferramenta</string>
+    <string name="rich_chat_background_task_agent">Agente</string>
+    <string name="rich_chat_background_task_other">Outros</string>
+    <string name="rich_chat_background_task_output">Saída da tarefa</string>
+    <string name="rich_chat_background_task_output_unavailable">A saída não está disponível para esta tarefa.</string>
+    <string name="rich_chat_background_task_output_read_failed">Não foi possível ler a saída da tarefa em segundo plano.</string>
+    <string name="rich_chat_background_task_output_loading">Carregando saída…</string>
+    <string name="rich_chat_background_task_no_output">Ainda não há saída</string>
+    <string name="rich_chat_background_task_output_truncated">Apenas o final da saída é exibido (%1$s bytes).</string>
+    <string name="rich_chat_background_task_stop">Parar tarefa</string>
+    <string name="rich_chat_background_task_stopping">Parando tarefa…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">A tarefa não confirmou que parou. Tente novamente.</string>
+    <string name="rich_chat_background_task_running_for">Em execução há %1$s</string>
+    <string name="rich_chat_background_task_last_progress">Último progresso há %1$s</string>
+    <string name="rich_chat_background_task_close">Fechar detalhes da tarefa</string>
+    <string name="rich_chat_background_task_report_missing">A tarefa terminou sem um relatório de conclusão.</string>
 </resources>

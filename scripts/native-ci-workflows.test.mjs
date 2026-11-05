@@ -221,6 +221,7 @@ if (process.argv[2] === 'assembleDebug') {
               "com.poracode.app.Android37WireLabFamilyInstrumentedTest",
               "com.poracode.app.Android37WireLabJourneyInstrumentedTest",
               "com.poracode.app.Android37WireLabSmokeInstrumentedTest",
+              "com.poracode.app.BackgroundTaskDetailsInstrumentedTest",
             ].join(","),
         );
         assert.doesNotMatch(classFilter, /CapableHistory|NoticeCapability/u);

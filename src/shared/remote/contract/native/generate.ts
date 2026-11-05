@@ -166,6 +166,7 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
       eventCount: BACKGROUND_TASK_REDUCE_SPEC.events.length,
       actionCount: BACKGROUND_TASK_REDUCE_SPEC.actions.length,
       ruleCount: BACKGROUND_TASK_REDUCE_SPEC.rules.length,
+      outputResult: BACKGROUND_TASK_REDUCE_SPEC.outputResult,
       sources: {
         swift: "swift/BackgroundTaskReduce.swift",
         kotlin: "kotlin/BackgroundTaskReduce.kt",

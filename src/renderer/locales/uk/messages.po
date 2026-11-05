@@ -1675,6 +1675,7 @@ msgstr "Оголосіть власний базовий URL, наприклад
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
@@ -2714,6 +2715,10 @@ msgstr "Фоновий процес перезапущено"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "Фонове завдання"
+
+#: src/renderer/components/thread/useThreadBackgroundTaskOutput.ts
+msgid "Background task output could not be read."
+msgstr "Не вдалося прочитати вивід фонового завдання."
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
@@ -4430,6 +4435,7 @@ msgstr "Об’єднати з {name} ({machines})"
 #~ msgstr "Записи виду «власник/ім'я» через кому, наприклад acme/website, acme/api. Список надсилається до Devin точно в тому вигляді, у якому введений."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Command"
 msgstr "Команда"
 
@@ -10817,6 +10823,10 @@ msgstr "Завантаження моделі…"
 msgid "Loading notes…"
 msgstr "Завантаження нотаток…"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Loading output…"
+msgstr "Завантаження виводу…"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "Loading PDF…"
@@ -11909,6 +11919,10 @@ msgstr "Режими"
 msgid "Modified"
 msgstr "Змінено"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Monitor"
+msgstr "Монітор"
+
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Monitoring"
 msgstr "Моніторинг"
@@ -12906,6 +12920,10 @@ msgstr "Моделі не знайдено"
 msgid "No other agents installed"
 msgstr "Інших встановлених агентів немає"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No output yet"
+msgstr "Виводу ще немає"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "No package plugins installed."
 msgstr "Пакети плагінів не встановлено."
@@ -12953,8 +12971,8 @@ msgid "No profile with its own isolated login exists yet. Set a profile to \"Own
 msgstr "Ще немає профілю з власним ізольованим входом. Установіть профілю «Власний ізольований вхід» і увійдіть там спершу; він з'явиться тут."
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
-msgid "No progress reported"
-msgstr "Немає даних про перебіг виконання"
+#~ msgid "No progress reported"
+#~ msgstr "Немає даних про перебіг виконання"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -13422,6 +13440,11 @@ msgstr "Одноразовий токен сполучення"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Онлайн"
+
+#. placeholder {0}: state.totalBytes.toLocaleString()
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Only the end of the output is shown ({0} bytes)."
+msgstr "Показано лише кінець виводу ({0} байт)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13983,6 +14006,7 @@ msgstr "Організація (необов'язково)"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
@@ -14026,6 +14050,10 @@ msgstr "Outlook"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "Вихід"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Output isn’t available for this task."
+msgstr "Вивід недоступний для цього завдання."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -16753,6 +16781,7 @@ msgstr "Лише використання, збережене на цьому х
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
@@ -19813,6 +19842,7 @@ msgid "Task Notification"
 msgstr "Повідомлення про завдання"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Task output"
 msgstr "Вивід завдання"
 
@@ -20624,6 +20654,10 @@ msgstr "Для налаштувань субагентів потрібен Code
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "цільовий провайдер"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The task ended without a completion report."
+msgstr "Завдання завершилося без звіту про виконання."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The task has not confirmed that it stopped. Try again."
@@ -21507,6 +21541,10 @@ msgstr "Виконується забагато віддалених запит�
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "У цьому повідомленні забагато візуалізацій. Показано лише вихідний код."
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Tool"
+msgstr "Інструмент"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -23452,6 +23490,7 @@ msgid "Worked for {elapsed}"
 msgstr "Працював {elapsed}"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Workflow"
 msgstr "Робочий процес"
 

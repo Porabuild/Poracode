@@ -3,6 +3,7 @@ import SwiftUI
 enum RichChatCompactControlDestination: Identifiable {
   case authentication
   case delegatedAgents(RichDelegatedAgentKind)
+  case backgroundTasks
   case context
   case usage
   case plan
@@ -16,6 +17,7 @@ enum RichChatCompactControlDestination: Identifiable {
     switch self {
     case .authentication: "authentication"
     case .delegatedAgents(let kind): "delegated-agents:\(kind.rawValue)"
+    case .backgroundTasks: "background-tasks"
     case .context: "context"
     case .usage: "usage"
     case .plan: "plan"

@@ -232,4 +232,23 @@
     <string name="rich_chat_fork_name">Назва розмови</string>
     <string name="rich_chat_fork_boundary">Успадкована історія закінчується тут</string>
     <string name="rich_chat_fork_source">Відгалуження від %1$s</string>
+    <string name="rich_chat_background_tasks">Фонові завдання</string>
+    <string name="rich_chat_background_task">Фонове завдання</string>
+    <string name="rich_chat_background_task_monitor">Монітор</string>
+    <string name="rich_chat_background_task_tool">Інструмент</string>
+    <string name="rich_chat_background_task_agent">Агент</string>
+    <string name="rich_chat_background_task_other">Інші</string>
+    <string name="rich_chat_background_task_output">Вивід завдання</string>
+    <string name="rich_chat_background_task_output_unavailable">Вивід недоступний для цього завдання.</string>
+    <string name="rich_chat_background_task_output_read_failed">Не вдалося прочитати вивід фонового завдання.</string>
+    <string name="rich_chat_background_task_output_loading">Завантаження виводу…</string>
+    <string name="rich_chat_background_task_no_output">Виводу ще немає</string>
+    <string name="rich_chat_background_task_output_truncated">Показано лише кінець виводу (%1$s байт).</string>
+    <string name="rich_chat_background_task_stop">Зупинити завдання</string>
+    <string name="rich_chat_background_task_stopping">Зупинення завдання…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">Завдання ще не підтвердило зупинення. Спробуйте ще раз.</string>
+    <string name="rich_chat_background_task_running_for">Виконується %1$s</string>
+    <string name="rich_chat_background_task_last_progress">Останнє оновлення %1$s тому</string>
+    <string name="rich_chat_background_task_close">Закрити відомості про завдання</string>
+    <string name="rich_chat_background_task_report_missing">Завдання завершилося без звіту про виконання.</string>
 </resources>

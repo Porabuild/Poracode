@@ -21,6 +21,15 @@ struct RichChatControlPanel: View {
         if !delegatedAgents.isEmpty {
           RichChatDelegatedAgentsView(agents: delegatedAgents)
         }
+        let backgroundTasks = (suite.transcript.state.backgroundTasks ?? [])
+          .map(RichBackgroundTaskPresentation.init)
+        if !backgroundTasks.isEmpty {
+          RichChatBackgroundTasksPanel(
+            suite: suite,
+            tasks: backgroundTasks,
+            canOperate: canOperate
+          )
+        }
         let recentErrors = RichChatPresentation.recentErrors(in: transcript.itemsInOrder)
         if RichChatPresentation.authenticationRequired(
           agentStatus: agentStatus,

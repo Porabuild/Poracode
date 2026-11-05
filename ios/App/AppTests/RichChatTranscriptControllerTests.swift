@@ -745,6 +745,503 @@ final class RichChatTranscriptControllerTests: XCTestCase {
       "pagination has no status evidence and must not fabricate an open turn")
   }
 
+  // MARK: - Background task metadata
+
+  func testSnapshotBackgroundTasksInstallThenNewerBufferedMetadataWins() async {
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(
+      .value(
+        RichChatControllerTestValues.history(
+          sequence: 10,
+          backgroundTasks: [Self.rawBackgroundTask("snapshot")],
+          backgroundTasksPresent: true
+        )),
+      barrier: barrier
+    )
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID,
+          tasks: [Self.backgroundTask("live")]
+        )
+      ],
+      sequence: 11,
+      target: target
+    )
+    XCTAssertNil(controller.state.backgroundTasks, "buffered until the snapshot installs")
+    await barrier.release()
+    await loading.value
+
+    XCTAssertEqual(controller.state.backgroundTasks?.map(\.taskId), ["live"])
+    XCTAssertEqual(controller.state.liveSequence, 11)
+    XCTAssertEqual(controller.state.loadState, .loaded)
+  }
+
+  func testMetadataOnlyUpdateKeepsTimelineProjectionAndTranscriptUnchanged() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history(sequence: 10)))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+
+    _ = controller.timeline
+    let rebuilds = controller.timelineProjectionRebuildCount
+    let transcript = controller.state.transcript
+
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID,
+          tasks: [Self.backgroundTask("metadata")]
+        )
+      ],
+      sequence: 11,
+      target: target
+    )
+
+    XCTAssertEqual(controller.state.backgroundTasks?.map(\.taskId), ["metadata"])
+    XCTAssertEqual(controller.state.transcript, transcript)
+    _ = controller.timeline
+    XCTAssertEqual(
+      controller.timelineProjectionRebuildCount,
+      rebuilds,
+      "background-task progress must not invalidate the timeline projection"
+    )
+  }
+
+  func testAbsentOldHostSnapshotPreservesRetainedBackgroundTasks() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history(sequence: 10)))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID, tasks: [Self.backgroundTask("live")])
+      ],
+      sequence: 11,
+      target: target
+    )
+
+    // An old host omits the field entirely; the live level must survive.
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history(sequence: 12)))
+    await controller.loadHistory()
+
+    XCTAssertEqual(controller.state.backgroundTasks?.map(\.taskId), ["live"])
+  }
+
+  func testOlderSnapshotCannotResurrectNewerLiveBackgroundTasks() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history(sequence: 10)))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID, tasks: [Self.backgroundTask("live")])
+      ],
+      sequence: 11,
+      target: target
+    )
+    XCTAssertEqual(controller.state.backgroundTaskSequence, Optional(11))
+
+    // A stale in-flight snapshot with an older sequence must not replace the
+    // newer live level, even though the transcript read still installs.
+    await gateway.configureHistory(
+      .value(
+        RichChatControllerTestValues.history(
+          sequence: 10,
+          backgroundTasks: [Self.rawBackgroundTask("stale")],
+          backgroundTasksPresent: true
+        )))
+    await controller.loadHistory()
+
+    XCTAssertEqual(controller.state.backgroundTasks?.map(\.taskId), ["live"])
+    XCTAssertEqual(controller.state.backgroundTaskSequence, Optional(11))
+  }
+
+  func testNewerLiveDrainsSurviveAnOlderSnapshot() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history(sequence: 10)))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID, tasks: [Self.backgroundTask("a")])
+      ],
+      sequence: 11,
+      target: target
+    )
+    controller.receiveLiveEvents(
+      [.backgroundTasksChanged(threadID: target.threadID, tasks: [])],
+      sequence: 12,
+      target: target
+    )
+    XCTAssertNil(controller.state.backgroundTasks)
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID, tasks: [Self.backgroundTask("b")])
+      ],
+      sequence: 13,
+      target: target
+    )
+    controller.receiveLiveEvents(
+      [.sessionExited(threadID: target.threadID)],
+      sequence: 14,
+      target: target
+    )
+    XCTAssertNil(controller.state.backgroundTasks)
+    XCTAssertEqual(controller.state.backgroundTaskSequence, Optional(14))
+
+    // An older snapshot that still names the drained roster cannot revive it.
+    await gateway.configureHistory(
+      .value(
+        RichChatControllerTestValues.history(
+          sequence: 13,
+          backgroundTasks: [Self.rawBackgroundTask("b")],
+          backgroundTasksPresent: true
+        )))
+    await controller.loadHistory()
+
+    XCTAssertNil(controller.state.backgroundTasks)
+    XCTAssertEqual(controller.state.backgroundTaskSequence, Optional(14))
+  }
+
+  func testExplicitEmptySnapshotDrainsTheRoster() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(
+      .value(
+        RichChatControllerTestValues.history(
+          sequence: 10,
+          backgroundTasks: [Self.rawBackgroundTask("a")],
+          backgroundTasksPresent: true
+        )))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+    XCTAssertEqual(controller.state.backgroundTasks?.map(\.taskId), ["a"])
+
+    await gateway.configureHistory(
+      .value(
+        RichChatControllerTestValues.history(
+          sequence: 12,
+          backgroundTasks: [],
+          backgroundTasksPresent: true
+        )))
+    await controller.loadHistory()
+
+    XCTAssertNil(controller.state.backgroundTasks)
+    XCTAssertEqual(controller.state.backgroundTaskSequence, Optional(12))
+  }
+
+  func testUnrelatedNewerTranscriptEventDoesNotBlockBackgroundDrain() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(
+      .value(
+        RichChatControllerTestValues.history(
+          sequence: 10,
+          backgroundTasks: [Self.rawBackgroundTask("a")],
+          backgroundTasksPresent: true
+        )))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+    XCTAssertEqual(controller.state.backgroundTasks?.map(\.taskId), ["a"])
+
+    // Unrelated transcript traffic is newer than the next snapshot but says
+    // nothing about background tasks; it must not fence the authoritative [].
+    controller.receiveLiveEvents(
+      [.warning(threadID: target.threadID)],
+      sequence: 20,
+      target: target
+    )
+    XCTAssertEqual(controller.state.liveSequence, 20)
+    XCTAssertNil(controller.state.backgroundTaskSequence)
+
+    await gateway.configureHistory(
+      .value(
+        RichChatControllerTestValues.history(
+          sequence: 15,
+          backgroundTasks: [],
+          backgroundTasksPresent: true
+        )))
+    await controller.loadHistory()
+
+    XCTAssertNil(controller.state.backgroundTasks)
+    XCTAssertEqual(controller.state.backgroundTaskSequence, Optional(15))
+  }
+
+  func testMalformedSnapshotBackgroundTasksNeverClearTheBaseline() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history(sequence: 10)))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID, tasks: [Self.backgroundTask("live")])
+      ],
+      sequence: 11,
+      target: target
+    )
+
+    await gateway.configureHistory(
+      .value(
+        RichChatControllerTestValues.history(
+          sequence: 12,
+          // taskId is empty: the strict schema rejects the whole list.
+          backgroundTasks: [.object(["taskId": .string(""), "kind": .string("command")])],
+          backgroundTasksPresent: true
+        )))
+    await controller.loadHistory()
+
+    XCTAssertEqual(controller.state.backgroundTasks?.map(\.taskId), ["live"])
+  }
+
+  func testEmptyReplacementDrainsAndSessionExitDrains() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history(sequence: 10)))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID, tasks: [Self.backgroundTask("a")])
+      ],
+      sequence: 11,
+      target: target
+    )
+    XCTAssertEqual(controller.state.backgroundTasks?.map(\.taskId), ["a"])
+
+    controller.receiveLiveEvents(
+      [.backgroundTasksChanged(threadID: target.threadID, tasks: [])],
+      sequence: 12,
+      target: target
+    )
+    XCTAssertNil(controller.state.backgroundTasks)
+
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID, tasks: [Self.backgroundTask("b")])
+      ],
+      sequence: 13,
+      target: target
+    )
+    controller.receiveLiveEvents(
+      [.sessionExited(threadID: target.threadID)],
+      sequence: 14,
+      target: target
+    )
+    XCTAssertNil(controller.state.backgroundTasks)
+
+    // A committed `thread-exited` replay event drains the same session scope.
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID, tasks: [Self.backgroundTask("c")])
+      ],
+      sequence: 15,
+      target: target
+    )
+    controller.drainBackgroundTasks()
+    XCTAssertNil(controller.state.backgroundTasks)
+  }
+
+  func testBufferedEmptyDrainAppliesOverSnapshot() async {
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(
+      .value(
+        RichChatControllerTestValues.history(
+          sequence: 10,
+          backgroundTasks: [Self.rawBackgroundTask("snapshot")],
+          backgroundTasksPresent: true
+        )),
+      barrier: barrier
+    )
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    controller.receiveLiveEvents(
+      [.backgroundTasksChanged(threadID: target.threadID, tasks: [])],
+      sequence: 11,
+      target: target
+    )
+    await barrier.release()
+    await loading.value
+
+    XCTAssertNil(controller.state.backgroundTasks)
+  }
+
+  func testSelectionReplacementAndDeliveredReplacementDropTheRoster() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history(sequence: 10)))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID, tasks: [Self.backgroundTask("a")])
+      ],
+      sequence: 11,
+      target: target
+    )
+    controller.invalidateForDeliveredReplacement(requiresRefresh: false)
+    XCTAssertNil(controller.state.backgroundTasks)
+    XCTAssertNil(controller.state.backgroundTaskSequence)
+
+    controller.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: target.threadID, tasks: [Self.backgroundTask("b")])
+      ],
+      sequence: 12,
+      target: target
+    )
+    // A reconnect installs a new host lease; the old session's roster is gone.
+    controller.updateAccess(RichChatControllerTestValues.access(generation: 2))
+    XCTAssertNil(controller.state.backgroundTasks)
+    XCTAssertNil(controller.state.backgroundTaskSequence)
+
+    controller.deactivate()
+    XCTAssertNil(controller.state.backgroundTasks)
+    XCTAssertNil(controller.state.backgroundTaskSequence)
+
+    controller.activate(
+      access: RichChatControllerTestValues.access(host: RichChatControllerTestValues.hostB),
+      threadID: "replacement"
+    )
+    XCTAssertNil(controller.state.backgroundTasks)
+    XCTAssertNil(controller.state.backgroundTaskSequence)
+  }
+
+  func testLiveBackgroundTaskEventDecodesThroughTheSharedStrictParser() throws {
+    let decoded = try RichRuntimeEventDecoder.decode(
+      .object([
+        "type": .string("background_tasks.changed"),
+        "threadId": .string("thread-rich"),
+        "tasks": .array([
+          .object([
+            "taskId": .string("task-a"),
+            "kind": .string("command"),
+            "description": .string("pnpm test"),
+            "category": .string("command"),
+            "command": .string("pnpm test"),
+            "outputAction": .object([
+              "id": .string("background-task.output.v1"),
+              "payload": .object(["taskId": .string("task-a")]),
+            ]),
+          ])
+        ]),
+      ]))
+    guard case .backgroundTasksChanged(let threadID, let tasks) = decoded else {
+      return XCTFail("expected a typed background task event")
+    }
+    XCTAssertEqual(threadID, "thread-rich")
+    XCTAssertEqual(tasks.map(\.taskId), ["task-a"])
+    XCTAssertEqual(tasks.first?.outputAction?.payload["taskId"], "task-a")
+
+    // The rich-chat bridge must reject exactly what the schema rejects.
+    XCTAssertThrowsError(
+      try RichRuntimeEventDecoder.decode(
+        .object([
+          "type": .string("background_tasks.changed"),
+          "threadId": .string("thread-rich"),
+          "tasks": .array([
+            .object([
+              "taskId": .string("task-a"),
+              "kind": .string("command"),
+              "description": .string("pnpm test"),
+              "category": .string("watcher"),
+            ])
+          ]),
+        ]))
+    )
+
+    let exited = try RichRuntimeEventDecoder.decode(
+      .object(["type": .string("session.exited"), "threadId": .string("thread-rich")])
+    )
+    guard case .sessionExited(let exitedThreadID) = exited else {
+      return XCTFail("expected a typed session exit")
+    }
+    XCTAssertEqual(exitedThreadID, "thread-rich")
+  }
+
+  func testSnapshotBackgroundTasksWirePresenceIsTriState() throws {
+    let present = RichChatControllerTestValues.history(
+      sequence: 10,
+      backgroundTasks: [Self.rawBackgroundTask("wire")],
+      backgroundTasksPresent: true
+    )
+    let decodedPresent = try JSONDecoder().decode(
+      RemoteThreadSnapshot.self, from: JSONEncoder().encode(present)
+    )
+    XCTAssertTrue(decodedPresent.backgroundTasksPresent)
+    XCTAssertEqual(decodedPresent.backgroundTasks?.count, 1)
+
+    let absent = RichChatControllerTestValues.history(sequence: 10)
+    let decodedAbsent = try JSONDecoder().decode(
+      RemoteThreadSnapshot.self, from: JSONEncoder().encode(absent)
+    )
+    XCTAssertFalse(decodedAbsent.backgroundTasksPresent)
+    XCTAssertNil(decodedAbsent.backgroundTasks)
+  }
+
+  private static func backgroundTask(_ id: String) -> RemoteBackgroundTaskIdentity {
+    RemoteBackgroundTaskIdentity(
+      taskId: id,
+      kind: "command",
+      description: id,
+      startedAt: 1_770_000_000_000,
+      category: "command",
+      command: "pnpm test"
+    )
+  }
+
+  /// Raw wire shape for `RemoteThreadSnapshot.backgroundTasks`, which is
+  /// intentionally `[JSONValue]` so the controller applies the shared strict
+  /// parser. Live events use the typed `backgroundTask` helper above.
+  private static func rawBackgroundTask(_ id: String) -> JSONValue {
+    .object([
+      "taskId": .string(id),
+      "kind": .string("command"),
+      "description": .string(id),
+      "startedAt": .number(1_770_000_000_000),
+      "category": .string("command"),
+      "command": .string("pnpm test"),
+    ])
+  }
+
   private static func history(status: String, sequence: Int = 10) -> RemoteThreadSnapshot {
     var snapshot = RichChatControllerTestValues.history(sequence: sequence)
     snapshot.thread.status = status

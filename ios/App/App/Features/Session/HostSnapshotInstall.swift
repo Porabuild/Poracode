@@ -144,6 +144,10 @@ enum HostSnapshotInstall {
     /// A buffered frame was non-contiguous; the caller must request one resync.
     var requiresResync: Bool
     var appliedBoundaryEvents: Int
+    /// Exact envelopes replayed by this commit, in application order. Used to
+    /// project only the boundary's accepted lifecycle effects; duplicates and
+    /// frames beyond a gap are intentionally absent.
+    var appliedBoundary: [ReplayInstallBuffer.Envelope] = []
   }
 
   /// Decodes the additive shell-snapshot Git fields over the existing per-host
@@ -194,6 +198,7 @@ enum HostSnapshotInstall {
     var replay = prepared.replay
     var cursor = prepared.snapshotSeq
     var applied = 0
+    var appliedBoundary: [ReplayInstallBuffer.Envelope] = []
     var requiresResync = false
     for envelope in boundary.sorted(by: { $0.seq < $1.seq }) {
       if envelope.seq <= cursor { continue }
@@ -204,12 +209,14 @@ enum HostSnapshotInstall {
       ReplayEventApplier.apply(envelope.event, to: &replay, generation: generation)
       cursor = envelope.seq
       applied += 1
+      appliedBoundary.append(envelope)
     }
     return Commit(
       replay: replay,
       cursor: cursor,
       requiresResync: requiresResync,
-      appliedBoundaryEvents: applied
+      appliedBoundaryEvents: applied,
+      appliedBoundary: appliedBoundary
     )
   }
 }

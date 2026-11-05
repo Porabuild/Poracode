@@ -44,7 +44,7 @@ struct RichChatTimelineView: View {
   @State private var completedInitialScroll = false
 
   var body: some View {
-    let projection = controller.state.timeline
+    let projection = controller.timeline
     let actions = timelineActions(for: projection)
     let displayedTurns = controller.state.displayedCompletedTurns(in: projection)
     let boundaryIndex = controller.state.completedTurns.firstIndex { $0.anchorItemID == forkBoundaryItemID }

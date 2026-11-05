@@ -24,6 +24,12 @@ const STATEFUL_PROCEDURES = new Set<RemoteProcedureName>([
   "gitProjectSnapshot",
   "gitListWorktrees",
   "writeProjectFile",
+  // Shared background-task fixture: the roster, action inventory, and opaque
+  // action results are stateful, so the generic contract request is checked
+  // for a valid {result:T} envelope instead of the legacy golden payload.
+  "listThreadSessionActions",
+  "invokeThreadSessionAction",
+  "readThreadBackgroundTasks",
 ]);
 
 export async function exerciseRemainingRoutes(

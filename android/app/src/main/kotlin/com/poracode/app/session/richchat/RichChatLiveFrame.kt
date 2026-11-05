@@ -5,6 +5,9 @@ import com.poracode.app.chat.RichPendingSteerEnvelope
 import com.poracode.app.chat.RichReducer
 import com.poracode.app.chat.RichRuntimeEvent
 import com.poracode.app.chat.RichThreadState
+import com.poracode.app.protocol.BackgroundTask
+import com.poracode.app.protocol.RuntimeEventReducer
+import com.poracode.remote.v3.generated.RemoteBackgroundTaskReduce
 
 /** Decoded live events and their server sequence for the selected thread. */
 internal data class RichChatLiveFrame(
@@ -12,7 +15,41 @@ internal data class RichChatLiveFrame(
     val events: List<RichRuntimeEvent>,
     val pendingSteer: RichPendingSteerEnvelope? = null,
     val followUpQueue: RichFollowUpQueueEnvelope? = null,
+    /**
+     * Background-task level changes carried by this frame, in arrival order.
+     * Kept outside [RichThreadState] so task progress never invalidates the
+     * timeline projection; the generated reduce machine owns replace/drain.
+     */
+    val backgroundTaskChanges: List<RichChatBackgroundTaskChange> = emptyList(),
 )
+
+/**
+ * One `background_tasks.changed` / `session.exited` level change. Only the
+ * generated event type and the already-decoded task list travel here: no
+ * wire field is re-declared and no opaque action payload is inspected.
+ */
+data class RichChatBackgroundTaskChange(
+    val eventType: String,
+    val tasks: List<BackgroundTask> = emptyList(),
+)
+
+internal fun RuntimeEventReducer.RuntimeEvent.asBackgroundTaskChange(): RichChatBackgroundTaskChange? = when (type) {
+    "background_tasks.changed" -> tasks?.let { RichChatBackgroundTaskChange(type, it) }
+    "session.exited" -> RichChatBackgroundTaskChange(type)
+    else -> null
+}
+
+/** Folds a frame's changes through the generated reduce machine (V6 E.3). */
+internal fun applyBackgroundTaskChanges(
+    previous: List<BackgroundTask>?,
+    changes: List<RichChatBackgroundTaskChange>,
+): List<BackgroundTask>? {
+    var next = previous
+    for (change in changes) {
+        next = RemoteBackgroundTaskReduce.apply(change.eventType, change.tasks, next)
+    }
+    return next
+}
 
 internal fun reduceLiveFrame(state: RichThreadState, frame: RichChatLiveFrame): RichThreadState {
     val stateEvents = frame.events.filterNot {
@@ -52,6 +89,10 @@ internal data class RichChatBufferedReplay(
     val transcript: RichThreadState,
     val hadOverflow: Boolean,
     val truncationCatchup: Boolean,
+    /** Metadata level after the snapshot baseline plus newer buffered changes. */
+    val backgroundTasks: List<BackgroundTask>? = null,
+    /** Watermark of the last background-task change applied by this replay. */
+    val backgroundTaskSequence: Int? = null,
 )
 
 /**
@@ -154,6 +195,8 @@ internal class RichChatLiveFrameBuffer(
     fun replayAfterSnapshot(
         snapshot: RichChatHistorySnapshot,
         base: RichThreadState = snapshot.state,
+        baseBackgroundTasks: List<BackgroundTask>? = snapshot.backgroundTasks,
+        baseBackgroundTaskSequence: Int? = null,
     ): RichChatBufferedReplay {
         val now = arrivalClockMs()
         var hadOverflow = overflow
@@ -167,10 +210,30 @@ internal class RichChatLiveFrameBuffer(
         bufferedBytes = 0L
         overflow = false
         var transcript = base
+        var backgroundTasks = baseBackgroundTasks
+        var backgroundTaskSequence = baseBackgroundTaskSequence
         var truncationCatchup = false
         replay.forEach { frame ->
             if (frame.sequence == null || frame.sequence > snapshot.snapshotSeq) {
                 transcript = reduceLiveFrame(transcript, frame)
+                // A background change at or below the carried watermark was
+                // already folded into the retained level (including a
+                // thread-exit drain), so replay must not resurrect it. Text
+                // still reduces; unrelated events never advance this watermark.
+                val replayBackgroundLevel = baseBackgroundTaskSequence == null ||
+                    frame.sequence == null ||
+                    frame.sequence > baseBackgroundTaskSequence
+                if (replayBackgroundLevel && frame.backgroundTaskChanges.isNotEmpty()) {
+                    backgroundTasks = applyBackgroundTaskChanges(
+                        backgroundTasks,
+                        frame.backgroundTaskChanges,
+                    )
+                    frame.sequence?.let { sequence ->
+                        backgroundTaskSequence = backgroundTaskSequence
+                            ?.let { maxOf(it, sequence) }
+                            ?: sequence
+                    }
+                }
                 if (!truncationCatchup && frameNeedsTruncationCatchup(transcript, frame)) {
                     truncationCatchup = true
                 }
@@ -180,7 +243,13 @@ internal class RichChatLiveFrameBuffer(
             snapshot.snapshotSeq,
             lastAcceptedSequence ?: snapshot.snapshotSeq,
         )
-        return RichChatBufferedReplay(transcript, hadOverflow, truncationCatchup)
+        return RichChatBufferedReplay(
+            transcript = transcript,
+            hadOverflow = hadOverflow,
+            truncationCatchup = truncationCatchup,
+            backgroundTasks = backgroundTasks,
+            backgroundTaskSequence = backgroundTaskSequence,
+        )
     }
 
     companion object {

@@ -11531,9 +11531,12 @@
             "evidence": [
               "ios/App/App/Protocol/RuntimeEventDecoder.swift",
               "ios/App/App/Protocol/RuntimeEventReducer.swift",
-              "ios/App/App/Features/Session/SessionState.swift"
+              "ios/App/App/Features/Session/SessionState.swift",
+              "ios/App/App/Features/RichChat/UI/RichChatControlPanel.swift",
+              "ios/App/App/Features/RichChat/UI/RichChatCompactControlSheets.swift",
+              "screen:ios.background_tasks.changed"
             ],
-            "note": "No screen-registry entry yet: no device journey exercises a dedicated screen for it. The cited surface-side sources are RuntimeEventDecoder.swift, RuntimeEventReducer.swift, SessionState.swift."
+            "note": "The shared rich-chat panel/details UI and its checked-in device journey are landing with this change; the ui claim stays partial until NativeBackgroundTaskUITests.testBackgroundTaskDetailsJourney executes against the mock wire lab on the pushed SHA. No runtime pass is claimed from source alone."
           }
         },
         "android": {
@@ -11548,12 +11551,15 @@
             "disposition": "partial",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventSchema.kt",
-              "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeThreadState.kt"
+              "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeThreadState.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatBackgroundTaskControls.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadScreen.kt",
+              "screen:android.background_tasks.changed"
             ],
-            "note": "No dedicated native screen and no device journey: the operation is reached through the shared RuntimeEventSchema.kt, RuntimeThreadState.kt plumbing cited here."
+            "note": "The shared rich-chat panel/details UI and its checked-in device journey are landing with this change; the ui claim stays partial until BackgroundTaskDetailsInstrumentedTest.backgroundTaskDetailsJourney executes against the mock wire lab on the pushed SHA. No runtime pass is claimed from source alone."
           }
         },
-        "note": "Protocol v9 adds live background-task levels inside the replayable thread-runtime-event envelopes and thread snapshots. Both natives decode the event strictly and reduce it into session-scoped background-task state, including optional timing, progress and opaque Stop actions (replace/drain, not persisted, not rendered). Native task controls remain planned; this compact dock enhancement is scoped to the existing desktop/web surface."
+        "note": "Protocol v9 adds live background-task levels inside the replayable thread-runtime-event envelopes and thread snapshots. Both natives decode the event strictly and reduce it into session-scoped background-task state, including optional timing, progress and opaque Stop/output actions (replace/drain, not persisted). The shared wire-lab fixture installs three neutral tasks in the initial snapshot, publishes progress and category/command-only replacements, drains the roster, and answers the unguessable fixture actions; both platforms have a checked-in details-panel journey. Runtime qualification of those journeys remains open."
       },
       {
         "id": "request.opened",

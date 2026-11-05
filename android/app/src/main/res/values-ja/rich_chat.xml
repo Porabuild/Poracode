@@ -232,4 +232,23 @@
     <string name="rich_chat_fork_name">会話名</string>
     <string name="rich_chat_fork_boundary">引き継いだ履歴はここまで</string>
     <string name="rich_chat_fork_source">%1$s から分岐</string>
+    <string name="rich_chat_background_tasks">バックグラウンドタスク</string>
+    <string name="rich_chat_background_task">バックグラウンドタスク</string>
+    <string name="rich_chat_background_task_monitor">モニター</string>
+    <string name="rich_chat_background_task_tool">ツール</string>
+    <string name="rich_chat_background_task_agent">エージェント</string>
+    <string name="rich_chat_background_task_other">その他</string>
+    <string name="rich_chat_background_task_output">タスクの出力</string>
+    <string name="rich_chat_background_task_output_unavailable">このタスクの出力は利用できません。</string>
+    <string name="rich_chat_background_task_output_read_failed">バックグラウンドタスクの出力を読み取れませんでした。</string>
+    <string name="rich_chat_background_task_output_loading">出力を読み込み中…</string>
+    <string name="rich_chat_background_task_no_output">出力はまだありません</string>
+    <string name="rich_chat_background_task_output_truncated">出力の最後のみを表示しています（%1$s バイト）。</string>
+    <string name="rich_chat_background_task_stop">タスクの停止</string>
+    <string name="rich_chat_background_task_stopping">タスクを停止中…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">タスクの停止がまだ確認されていません。もう一度お試しください。</string>
+    <string name="rich_chat_background_task_running_for">実行時間：%1$s</string>
+    <string name="rich_chat_background_task_last_progress">最後の進捗報告は%1$s前</string>
+    <string name="rich_chat_background_task_close">タスクの詳細を閉じる</string>
+    <string name="rich_chat_background_task_report_missing">タスクは完了レポートなしで終了しました。</string>
 </resources>

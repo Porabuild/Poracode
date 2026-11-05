@@ -485,6 +485,7 @@ jobs:
             ${{ runner.temp }}/android-wire-lab.stderr
             ${{ runner.temp }}/android-real-host.stdout
             ${{ runner.temp }}/android-real-host.stderr
+            ${{ runner.temp }}/android-api37-screenshots/**
             android/app/build/outputs/androidTest-results/**
             android/app/build/reports/androidTests/**
           if-no-files-found: warn

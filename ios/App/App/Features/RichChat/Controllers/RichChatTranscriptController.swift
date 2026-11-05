@@ -15,6 +15,9 @@ enum RichChatTranscriptLoadState: Equatable, Sendable {
 struct RichTimelineProjectionCache {
   private(set) var transcript: RichTranscriptState?
   private(set) var projection: RichTimelineProjection?
+  /// Number of full timeline projections. Exposed through the controller for
+  /// tests proving metadata-only updates never rebuild the history projection.
+  private(set) var rebuildCount = 0
 
   init() {}
 
@@ -22,6 +25,7 @@ struct RichTimelineProjectionCache {
     if transcript != self.transcript {
       self.transcript = transcript
       projection = transcript.map { RichTimeline.project($0.itemsInOrder) }
+      rebuildCount += 1
     }
     return projection
   }
@@ -31,6 +35,17 @@ struct RichChatTranscriptControllerState: Equatable, Sendable {
   var access: RichChatSessionAccess?
   var target: RichChatThreadTarget?
   var transcript: RichTranscriptState?
+  /// Live background-work roster for the selected thread. Deliberately outside
+  /// `transcript` so task progress only invalidates this metadata, never the
+  /// memoized timeline projection. `nil` means no live list (the generated
+  /// reduce drains an empty replacement list to nil).
+  var backgroundTasks: [RemoteBackgroundTaskIdentity]? = nil
+  /// Sequence of the newest applied background-task level (including drains).
+  /// Background tasks have their own high-water mark: an in-flight history
+  /// snapshot older than this must not resurrect a retired roster, while
+  /// unrelated newer transcript events must not block an authoritative snapshot
+  /// drain. Reset with selection/lease/runtime replacement.
+  var backgroundTaskSequence: Int? = nil
   var completedTurns: [RichCompletedTurn] = []
   var contextUsage: RichContextUsage?
   var pendingSteer: RichPendingSteer?
@@ -81,6 +96,10 @@ final class RichChatTranscriptController {
   var timeline: RichTimelineProjection? {
     projectionCache.projection(for: state.transcript)
   }
+
+  /// Test-only proof that background-task metadata updates leave the timeline
+  /// projection cache untouched.
+  var timelineProjectionRebuildCount: Int { projectionCache.rebuildCount }
 
   /// Retained history-read batches (accounting; exposed for tests). B6/F-D1:
   /// every terminal path of a history read releases the window, so this is
@@ -262,6 +281,11 @@ final class RichChatTranscriptController {
     olderPaging.invalidateAll()
     syncOlderPagingState()
     state.completedTurns.removeAll(keepingCapacity: true)
+    // A delivered replacement installs a new host runtime; the session-scoped
+    // background roster from the retired runtime is no longer provable, and the
+    // new runtime's snapshot must be free to set a fresh level.
+    state.backgroundTasks = nil
+    state.backgroundTaskSequence = nil
     // A delivered replacement fences the in-flight read even when the caller
     // (the resync engine) supplies its own follow-up refresh: the held payload
     // was served before the replacement and its commit must not win.
@@ -272,6 +296,28 @@ final class RichChatTranscriptController {
     guard requiresRefresh, !isBackgrounded else { return }
     demandAuthoritativeRefresh()
     scheduleAuthoritativeRefresh()
+  }
+
+  /// A committed `thread-exited` replay event ends this session. The live
+  /// background roster is session-scoped, so it drains immediately; the
+  /// transcript history remains readable and no refresh is implied. The replay
+  /// sequence becomes the roster high-water mark so an older in-flight snapshot
+  /// cannot resurrect the retired tasks.
+  func drainBackgroundTasks(sequence: Int? = nil) {
+    // A boundary/replay drain may be older than a background level that already
+    // arrived live while that frame waited. Never let the older drain erase the
+    // newer level; an unsequenced drain keeps its unconditional meaning.
+    if let sequence, let highWater = state.backgroundTaskSequence,
+      sequence < highWater
+    {
+      return
+    }
+    if state.backgroundTasks != nil {
+      state.backgroundTasks = nil
+    }
+    if let sequence {
+      state.backgroundTaskSequence = max(state.backgroundTaskSequence ?? sequence, sequence)
+    }
   }
 
   func receiveLiveEvents(
@@ -322,7 +368,7 @@ final class RichChatTranscriptController {
     }
     guard sequence > state.liveSequence else { return }
     let alreadyRequiresRefresh = state.requiresAuthoritativeRefresh
-    apply(events, receivedAtMilliseconds: receivedAtMilliseconds)
+    apply(events, sequence: sequence, receivedAtMilliseconds: receivedAtMilliseconds)
     state.liveSequence = sequence
     if state.requiresAuthoritativeRefresh && !alreadyRequiresRefresh {
       scheduleAuthoritativeRefresh()
@@ -419,6 +465,31 @@ final class RichChatTranscriptController {
         snapshotSequence: history.snapshotSeq,
         target: target
       )
+      // The snapshot roster is authoritative only when the host reported the
+      // field. An old host omits it entirely, so the retained live level is
+      // preserved; a malformed list is likewise never allowed to clear it.
+      // Valid lists follow the generated include/no-op/drain semantics, and a
+      // newer buffered metadata event then replaces them below. A snapshot older
+      // than an already-applied background level (its own sequence high-water)
+      // must not resurrect retired tasks; unrelated transcript sequences never
+      // participate in this fence.
+      var installedBackgroundTasks = state.backgroundTasks
+      var installedBackgroundTaskSequence = state.backgroundTaskSequence
+      let snapshotIsAtLeastBackgroundHighWater =
+        state.backgroundTaskSequence.map { history.snapshotSeq >= $0 } ?? true
+      if history.backgroundTasksPresent, let rawTasks = history.backgroundTasks,
+        let decodedTasks = RuntimeEventDecoder.decodeBackgroundTasks(.array(rawTasks)),
+        snapshotIsAtLeastBackgroundHighWater {
+        installedBackgroundTasks = RemoteBackgroundTaskReduce.apply(
+          eventType: "background_tasks.changed",
+          incoming: decodedTasks,
+          previous: installedBackgroundTasks
+        )
+        installedBackgroundTaskSequence = max(
+          installedBackgroundTaskSequence ?? history.snapshotSeq,
+          history.snapshotSeq
+        )
+      }
       // Retained age is evaluated again at commit: a history read that
       // outlived the budget releases its payload and demands the same
       // authoritative refresh as any other coverage loss instead of replaying
@@ -453,6 +524,19 @@ final class RichChatTranscriptController {
           threadID: target.threadID,
           into: mergedContext
         )
+        let appliesBackgroundMetadata =
+          installedBackgroundTaskSequence.map { batch.sequence > $0 } ?? true
+        if appliesBackgroundMetadata,
+          Self.applyBackgroundTaskEvents(
+            batch.events,
+            threadID: target.threadID,
+            to: &installedBackgroundTasks
+          ) {
+          installedBackgroundTaskSequence = max(
+            installedBackgroundTaskSequence ?? batch.sequence,
+            batch.sequence
+          )
+        }
         liveSequence = max(liveSequence, batch.sequence)
       }
       state.transcript = transcript
@@ -474,6 +558,8 @@ final class RichChatTranscriptController {
       }
       state.contextUsage = mergedContext
       state.followUpQueue = installedQueue
+      state.backgroundTasks = installedBackgroundTasks
+      state.backgroundTaskSequence = installedBackgroundTaskSequence
       state.terminalScrollback = history.terminalScrollback
       // A truncation replayed from the buffer invalidates the cursor the
       // snapshot carried: no continuation until a fresh authoritative tail.
@@ -537,7 +623,11 @@ final class RichChatTranscriptController {
     state.pageFailure = olderPaging.state.pageFailure
   }
 
-  private func apply(_ events: [RichRuntimeEvent], receivedAtMilliseconds: Int64) {
+  private func apply(
+    _ events: [RichRuntimeEvent],
+    sequence: Int,
+    receivedAtMilliseconds: Int64
+  ) {
     guard var transcript = state.transcript else { return }
     if Self.containsRuntimeTruncation(events, threadID: transcript.threadID) {
       // A live truncation renumbers the host's turn indices: the held cursor is
@@ -557,6 +647,59 @@ final class RichChatTranscriptController {
       threadID: transcript.threadID,
       into: state.contextUsage
     )
+    var backgroundTasks = state.backgroundTasks
+    if Self.applyBackgroundTaskEvents(
+      events,
+      threadID: transcript.threadID,
+      to: &backgroundTasks
+    ) {
+      // Any applied task level or drain advances the background-specific
+      // high-water mark, including equal no-op replacements and session exits.
+      state.backgroundTaskSequence = max(
+        state.backgroundTaskSequence ?? sequence,
+        sequence
+      )
+    }
+    if backgroundTasks != state.backgroundTasks {
+      state.backgroundTasks = backgroundTasks
+    }
+  }
+
+  /// Applies the generated background-task reduce over the events for exactly
+  /// this thread. `background_tasks.changed` replaces (empty drains, an equal
+  /// list is a no-op) and `session.exited` drains; other events cannot touch the
+  /// roster. Metadata-only: no transcript item or working state is mutated.
+  /// Returns true when a background event for this thread was consumed, so the
+  /// caller can advance the background-specific sequence high-water mark.
+  @discardableResult
+  private static func applyBackgroundTaskEvents(
+    _ events: [RichRuntimeEvent],
+    threadID: String,
+    to tasks: inout [RemoteBackgroundTaskIdentity]?
+  ) -> Bool {
+    var applied = false
+    for event in events {
+      switch event {
+      case .backgroundTasksChanged(let eventThreadID, let incoming)
+      where eventThreadID == threadID:
+        tasks = RemoteBackgroundTaskReduce.apply(
+          eventType: "background_tasks.changed",
+          incoming: incoming,
+          previous: tasks
+        )
+        applied = true
+      case .sessionExited(let eventThreadID) where eventThreadID == threadID:
+        tasks = RemoteBackgroundTaskReduce.apply(
+          eventType: "session.exited",
+          incoming: nil,
+          previous: tasks
+        )
+        applied = true
+      default:
+        break
+      }
+    }
+    return applied
   }
 
   /// True when the batch contains an applied `runtime.truncated` for this

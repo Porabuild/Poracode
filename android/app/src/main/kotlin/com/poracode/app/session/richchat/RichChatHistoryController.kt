@@ -184,6 +184,29 @@ fun RichChatController.installAuthoritativeSnapshot(
     // snapshot still win.
     val previousTranscript = mutableState.value.transcript
     val previousQueue = previousTranscript?.followUpQueue
+    val previousBackgroundTasks = mutableState.value.backgroundTasks
+    val previousBackgroundTaskSequence = mutableState.value.backgroundTaskSequence
+    // Only a background-task change advances this watermark; a newer unrelated
+    // text/status event must never make an authoritative roster look stale. A
+    // snapshot built before the last live roster change (including a
+    // thread-exit drain) preserves the retained level; otherwise a supplied
+    // valid array wins, including [] as an authoritative drain. An omitted
+    // field (old host) always preserves what the same owner already reported.
+    val snapshotBackgroundTaskLevelStale = previousBackgroundTaskSequence?.let {
+        snapshot.snapshotSeq < it
+    } == true
+    val snapshotBackgroundTaskLevelWins =
+        snapshot.backgroundTasksPresent && !snapshotBackgroundTaskLevelStale
+    val backgroundTaskBaseline = if (snapshotBackgroundTaskLevelWins) {
+        snapshot.backgroundTasks?.takeIf { it.isNotEmpty() }
+    } else {
+        previousBackgroundTasks
+    }
+    val backgroundTaskBaselineSequence = if (snapshotBackgroundTaskLevelWins) {
+        snapshot.snapshotSeq
+    } else {
+        previousBackgroundTaskSequence
+    }
     // Tail replacement: the authoritative tail level wins, while turns the
     // user already paged in survive by `(startedAt, endedAt)` — a refresh must
     // never drop loaded older turns, and replay below still prunes truncations.
@@ -198,13 +221,23 @@ fun RichChatController.installAuthoritativeSnapshot(
     } else {
         snapshotState.copy(followUpQueue = previousQueue)
     }
-    val replayed = frameBuffer.replayAfterSnapshot(snapshot, base)
+    val replayed = frameBuffer.replayAfterSnapshot(
+        snapshot,
+        base,
+        backgroundTaskBaseline,
+        backgroundTaskBaselineSequence,
+    )
     val transcript = replayed.transcript
     val truncationCatchup = replayed.truncationCatchup
     val needsFollowUp = replayed.hadOverflow
     mutableState.update {
         it.copy(
             transcript = transcript,
+            // Background-task metadata is installed at the snapshot baseline and
+            // then replayed from the same buffered window, so a task event that
+            // landed while the read was in flight survives an older snapshot.
+            backgroundTasks = replayed.backgroundTasks,
+            backgroundTaskSequence = replayed.backgroundTaskSequence,
             snapshotSeq = snapshot.snapshotSeq,
             olderCursor = snapshot.olderCursor,
             olderTurnsCursor = snapshot.completedTurnsNextCursor,

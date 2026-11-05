@@ -65,6 +65,24 @@ class WireLabControl(controlBaseUrl: String, private val capability: String) {
 
     fun clearFaults(): JSONObject = action(JSONObject().put("type", "clear-faults"))
 
+    /**
+     * Selects one stage of the shared background-task fixture. The harness
+     * publishes exactly one authoritative `background_tasks.changed`
+     * replacement and installs the same roster in the thread snapshot.
+     */
+    fun setBackgroundTaskStage(stage: String): JSONObject =
+        action(JSONObject().put("type", "background-task-stage").put("stage", stage))
+
+    /**
+     * Arms a one-shot delay on the next fixture output read, so the journey can
+     * close/reopen the details sheet while an older reply is still in flight.
+     */
+    fun delayNextBackgroundTaskOutput(delayMs: Long): JSONObject =
+        action(JSONObject().put("type", "background-task-output-delay").put("delayMs", delayMs))
+
+    /** Primary host's background-task fixture counters/roster from scenario state. */
+    fun backgroundTaskState(): JSONObject = state().optJSONObject("backgroundTasks") ?: JSONObject()
+
     /** Broadcasts the allowlisted [fixtureId] frame (e.g. `resync-required`) over live sockets. */
     fun emitFrame(fixtureId: String): JSONObject =
         post("/v1/frames/${encode(fixtureId)}", null, retryTransport = false)

@@ -12,6 +12,8 @@ import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.protocol.BackgroundTask
+import com.poracode.app.session.richchat.RichChatBackgroundTaskStopState
 import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.session.richchat.RichChatThreadLease
 import com.poracode.app.session.richchat.RichCheckpointState
@@ -30,6 +32,10 @@ internal fun RichChatControlPanel(
     agentStatus: AgentStatusEntry?,
     requests: List<RichOpenRequest>,
     pendingSteer: RichPendingSteer?,
+    backgroundTasks: List<BackgroundTask>,
+    backgroundTaskStop: RichChatBackgroundTaskStopState,
+    sessionActionIds: List<String>?,
+    onOpenBackgroundTask: (BackgroundTask) -> Unit,
     checkpointState: RichCheckpointState,
     projectLocation: ProjectLocation?,
     selection: RichChatThreadLease?,
@@ -38,6 +44,8 @@ internal fun RichChatControlPanel(
     busy: Boolean,
     onOpenAgentSettings: () -> Unit,
     modifier: Modifier,
+    /** The phone dock renders the task section inline; its sheet omits the duplicate. */
+    showBackgroundTasks: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
     val delegatedAgents = RichChatRuntimeInfo.activeDelegatedAgents(items)
@@ -59,6 +67,18 @@ internal fun RichChatControlPanel(
             },
         )
         if (plan != null) RichPlanCard(plan)
+        if (showBackgroundTasks) {
+            RichBackgroundTasksCard(
+                tasks = backgroundTasks,
+                actionIds = sessionActionIds,
+                stopState = backgroundTaskStop,
+                selection = selection,
+                canOperate = canOperate,
+                busy = busy,
+                onOpenTask = onOpenBackgroundTask,
+                onStopTask = { task -> scope.launch { runtime.backgroundTasks.stop(task) } },
+            )
+        }
         RichErrorsCard(visibleErrors)
         RichGoalCard(
             items = items,

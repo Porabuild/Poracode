@@ -237,4 +237,23 @@
     <string name="rich_chat_fork_name">Thread name</string>
     <string name="rich_chat_fork_boundary">Inherited history ends here</string>
     <string name="rich_chat_fork_source">Forked from %1$s</string>
+    <string name="rich_chat_background_tasks">Background tasks</string>
+    <string name="rich_chat_background_task">Background task</string>
+    <string name="rich_chat_background_task_monitor">Monitor</string>
+    <string name="rich_chat_background_task_tool">Tool</string>
+    <string name="rich_chat_background_task_agent">Agent</string>
+    <string name="rich_chat_background_task_other">Other</string>
+    <string name="rich_chat_background_task_output">Task output</string>
+    <string name="rich_chat_background_task_output_unavailable">Output isn’t available for this task.</string>
+    <string name="rich_chat_background_task_output_read_failed">Background task output could not be read.</string>
+    <string name="rich_chat_background_task_output_loading">Loading output…</string>
+    <string name="rich_chat_background_task_no_output">No output yet</string>
+    <string name="rich_chat_background_task_output_truncated">Only the end of the output is shown (%1$s bytes).</string>
+    <string name="rich_chat_background_task_stop">Stop task</string>
+    <string name="rich_chat_background_task_stopping">Stopping task…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">The task has not confirmed that it stopped. Try again.</string>
+    <string name="rich_chat_background_task_running_for">Running for %1$s</string>
+    <string name="rich_chat_background_task_last_progress">Last progress %1$s ago</string>
+    <string name="rich_chat_background_task_close">Close task details</string>
+    <string name="rich_chat_background_task_report_missing">The task ended without a completion report.</string>
 </resources>

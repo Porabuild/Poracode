@@ -2,6 +2,7 @@ import { Activity, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ThreadDocksPlacement } from "@/shared/settings";
 import { ThreadBackgroundTaskRow } from "./ThreadBackgroundTaskRow";
+import { backgroundTaskActionKey } from "./useThreadBackgroundTaskOutput";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
 import { useVisibleThreadBackgroundTasks } from "./useThreadDocksSummary";
 import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
@@ -42,7 +43,12 @@ export function ThreadBackgroundTasksDock({
   const shown = collapsed ? tasks.slice(-1) : tasks;
 
   return (
-    <ThreadDockSection placement={placement} collapsed={collapsed} ariaLabel={t`Background tasks`}>
+    <ThreadDockSection
+      placement={placement}
+      collapsed={collapsed}
+      ariaLabel={t`Background tasks`}
+      className={placement === "composer" ? "[&>div>ul]:max-h-[min(18rem,calc(45dvh-3rem))]" : ""}
+    >
       <ThreadDockHeader
         icon={Activity}
         title={t`Background tasks`}
@@ -74,14 +80,21 @@ export function ThreadBackgroundTasksDock({
         }
       />
       <ThreadDockList placement={placement} collapsed={collapsed} gap="px">
-        {shown.map((task) => (
-          <ThreadBackgroundTaskRow
-            key={`${task.taskId}:${task.startedAt ?? ""}:${JSON.stringify(task.stopAction ?? null)}`}
-            threadId={threadId}
-            task={task}
-            placement={placement}
-          />
-        ))}
+        {shown.map((task) => {
+          const actionKey = task.stopAction
+            ? backgroundTaskActionKey(task.stopAction)
+            : task.outputAction
+              ? backgroundTaskActionKey(task.outputAction)
+              : "";
+          return (
+            <ThreadBackgroundTaskRow
+              key={JSON.stringify([threadId, task.taskId, task.startedAt ?? null, actionKey])}
+              threadId={threadId}
+              task={task}
+              placement={placement}
+            />
+          );
+        })}
       </ThreadDockList>
     </ThreadDockSection>
   );

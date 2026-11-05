@@ -632,6 +632,178 @@ final class RichChatPresentationTests: XCTestCase {
     }
   }
 
+  func testBackgroundTaskPresentationDeduplicatesPurposeProgressAndCommand() {
+    let task = RemoteBackgroundTaskIdentity(
+      taskId: "task-1",
+      kind: "command",
+      description: "Run tests",
+      startedAt: 1_700_000_000_000,
+      lastProgressAt: 1_700_000_010_000,
+      progress: "Run tests",
+      category: "command",
+      command: "pnpm test"
+    )
+    let presentation = RichBackgroundTaskPresentation(task: task)
+    XCTAssertEqual(presentation.label, "Run tests")
+    XCTAssertNil(presentation.progress, "progress equal to the purpose must not repeat")
+    XCTAssertEqual(presentation.command, "pnpm test")
+    XCTAssertTrue(presentation.showsCommandSection)
+    XCTAssertFalse(presentation.commandIsLabel)
+    XCTAssertEqual(presentation.category, .command)
+    XCTAssertEqual(presentation.category.label, RichChatStrings.command)
+    XCTAssertEqual(presentation.startedAtMilliseconds, 1_700_000_000_000)
+
+    // Progress equal to the command is not genuine either; a distinct report
+    // is kept exactly once.
+    var duplicate = task
+    duplicate.progress = "pnpm test"
+    XCTAssertNil(RichBackgroundTaskPresentation(task: duplicate).progress)
+    duplicate.progress = "Server ready"
+    XCTAssertEqual(RichBackgroundTaskPresentation(task: duplicate).progress, "Server ready")
+
+    // The command becomes the single label when no purpose was reported.
+    let legacy = RemoteBackgroundTaskIdentity(
+      taskId: "legacy",
+      kind: "other",
+      description: "",
+      command: "tail -f log"
+    )
+    let legacyPresentation = RichBackgroundTaskPresentation(task: legacy)
+    XCTAssertEqual(legacyPresentation.category, .other)
+    XCTAssertEqual(legacyPresentation.label, "tail -f log")
+    XCTAssertFalse(legacyPresentation.showsCommandSection)
+    XCTAssertTrue(legacyPresentation.commandIsLabel)
+    XCTAssertNil(legacyPresentation.progress)
+    XCTAssertNil(legacyPresentation.startedAtMilliseconds)
+
+    // An unknown/absent category falls back to the legacy kind, never a guess.
+    let unknown = RemoteBackgroundTaskIdentity(
+      taskId: "u",
+      kind: "command",
+      description: "d",
+      category: "watched"
+    )
+    XCTAssertEqual(RichBackgroundTaskPresentation(task: unknown).category, .command)
+
+    let elapsed = RichBackgroundTaskElapsed.text(
+      startedAtMilliseconds: 1_000,
+      now: Date(timeIntervalSince1970: 66)
+    )
+    XCTAssertFalse(elapsed.isEmpty)
+  }
+
+  func testBackgroundTaskMissingReportProvisionalErrorShowsLocalizedString() {
+    let item = RichRuntimeItem(
+      id: "task-row",
+      type: "tool_call",
+      state: .completed,
+      payload: .object([
+        "name": .string("Task"),
+        "title": .string("Review the fixture"),
+        "status": .string("error"),
+        "result": .object([
+          "error": .string("The task ended without a completion report.")
+        ]),
+      ]),
+      streams: ["command_output": "launching task"],
+      parentItemID: nil
+    )
+
+    // The check precedes streams and title so the provisional outcome is
+    // actually visible rather than hidden by the launch text.
+    XCTAssertEqual(
+      RichChatPresentation.text(for: item),
+      RichChatStrings.backgroundTaskReportMissing
+    )
+    XCTAssertEqual(
+      RichChatPresentation.text(for: item),
+      NSLocalizedString(
+        "rich_chat_background_task_report_missing",
+        tableName: nil,
+        bundle: .main,
+        value: "missing catalog key",
+        comment: ""
+      )
+    )
+    XCTAssertNotEqual(RichChatPresentation.text(for: item), "launching task")
+    XCTAssertNotEqual(RichChatPresentation.text(for: item), "Review the fixture")
+    XCTAssertEqual(
+      RichChatPresentation.messageBody(for: item),
+      RichChatStrings.backgroundTaskReportMissing
+    )
+  }
+
+  func testBackgroundTaskUnrelatedToolErrorKeepsNormalPresentation() {
+    let item = RichRuntimeItem(
+      id: "task-row",
+      type: "tool_call",
+      state: .completed,
+      payload: .object([
+        "name": .string("Task"),
+        "title": .string("Deploy"),
+        "status": .string("error"),
+        "result": .object(["error": .string("Task crashed: disk full")]),
+      ]),
+      streams: [:],
+      parentItemID: nil
+    )
+
+    XCTAssertEqual(RichChatPresentation.text(for: item), "Deploy")
+    XCTAssertNotEqual(
+      RichChatPresentation.text(for: item),
+      RichChatStrings.backgroundTaskReportMissing
+    )
+  }
+
+  func testBackgroundTaskLateCompletionWithNullResultClearsProvisionalReport() {
+    var item = RichRuntimeItem(
+      id: "task-row",
+      type: "tool_call",
+      state: .completed,
+      payload: .object([
+        "name": .string("Task"),
+        "title": .string("Review the fixture"),
+        "status": .string("error"),
+        "result": .object([
+          "error": .string("The task ended without a completion report.")
+        ]),
+      ]),
+      streams: ["command_output": "launching task"],
+      parentItemID: nil
+    )
+    XCTAssertEqual(
+      RichChatPresentation.text(for: item),
+      RichChatStrings.backgroundTaskReportMissing
+    )
+
+    // A late terminal notification rewrites the same row with no provisional
+    // result; the normal stream/title projection must return.
+    item.payload = .object([
+      "name": .string("Task"),
+      "title": .string("Review the fixture"),
+      "status": .string("success"),
+      "result": .null,
+    ])
+    XCTAssertEqual(RichChatPresentation.text(for: item), "launching task")
+    XCTAssertEqual(RichChatPresentation.messageBody(for: item), "launching task")
+    XCTAssertNotEqual(
+      RichChatPresentation.text(for: item),
+      RichChatStrings.backgroundTaskReportMissing
+    )
+  }
+
+  func testBackgroundTaskElapsedClampsAdversarialTimestamps() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let zero = RichBackgroundTaskElapsed.text(startedAtMilliseconds: 1_000_000, now: now)
+    let future = RichBackgroundTaskElapsed.text(startedAtMilliseconds: 1e300, now: now)
+    XCTAssertEqual(future, zero, "A huge future timestamp must display as zero age")
+    XCTAssertFalse(future.isEmpty)
+    // A huge past timestamp must not trap in the Double-to-Int conversion.
+    XCTAssertFalse(
+      RichBackgroundTaskElapsed.text(startedAtMilliseconds: -1e300, now: now).isEmpty
+    )
+  }
+
   private func providerUsageSnapshot(
     _ providerID: String,
     percent: Double

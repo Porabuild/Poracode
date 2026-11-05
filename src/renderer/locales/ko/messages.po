@@ -1675,6 +1675,7 @@ msgstr "사용자 정의 기본 URL을 게시합니다(예: 리버스 프록시 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
@@ -2714,6 +2715,10 @@ msgstr "백그라운드 프로세스가 다시 시작되었습니다."
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "백그라운드 작업"
+
+#: src/renderer/components/thread/useThreadBackgroundTaskOutput.ts
+msgid "Background task output could not be read."
+msgstr "백그라운드 작업 출력을 읽을 수 없습니다."
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
@@ -4430,6 +4435,7 @@ msgstr "{name}와(과) 합치기 ({machines})"
 #~ msgstr "쉼표로 구분된 owner/name 항목(예: acme/website, acme/api). 목록은 입력한 그대로 Devin에 전달됩니다."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Command"
 msgstr "명령"
 
@@ -10817,6 +10823,10 @@ msgstr "모델 로드 중…"
 msgid "Loading notes…"
 msgstr "메모 로드 중…"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Loading output…"
+msgstr "출력을 불러오는 중…"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "Loading PDF…"
@@ -11909,6 +11919,10 @@ msgstr "모드"
 msgid "Modified"
 msgstr "수정됨"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Monitor"
+msgstr "모니터"
+
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Monitoring"
 msgstr "모니터링"
@@ -12906,6 +12920,10 @@ msgstr "모델을 찾을 수 없습니다."
 msgid "No other agents installed"
 msgstr "다른 에이전트가 설치되어 있지 않습니다."
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No output yet"
+msgstr "아직 출력이 없습니다"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "No package plugins installed."
 msgstr "설치된 플러그인 패키지가 없습니다."
@@ -12953,8 +12971,8 @@ msgid "No profile with its own isolated login exists yet. Set a profile to \"Own
 msgstr "아직 자체 격리 로그인을 가진 프로필이 없습니다. 먼저 프로필을 \"자체 격리 로그인\"으로 설정하고 거기서 로그인하면 여기에 나타납니다."
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
-msgid "No progress reported"
-msgstr "보고된 진행 상황 없음"
+#~ msgid "No progress reported"
+#~ msgstr "보고된 진행 상황 없음"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -13422,6 +13440,11 @@ msgstr "일회용 페어링 토큰"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "온라인"
+
+#. placeholder {0}: state.totalBytes.toLocaleString()
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Only the end of the output is shown ({0} bytes)."
+msgstr "출력의 끝부분만 표시됩니다({0}바이트)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13983,6 +14006,7 @@ msgstr "조직(선택 사항)"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
@@ -14026,6 +14050,10 @@ msgstr "Outlook"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "출력"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Output isn’t available for this task."
+msgstr "이 작업의 출력을 사용할 수 없습니다."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -16753,6 +16781,7 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
@@ -19813,6 +19842,7 @@ msgid "Task Notification"
 msgstr "작업 알림"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Task output"
 msgstr "작업 출력"
 
@@ -20624,6 +20654,10 @@ msgstr "하위 에이전트 설정에는 Codex 0.145 이상이 필요합니다. 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "대상 공급자"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The task ended without a completion report."
+msgstr "작업이 완료 보고서 없이 종료되었습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The task has not confirmed that it stopped. Try again."
@@ -21507,6 +21541,10 @@ msgstr "진행 중인 원격 요청이 너무 많습니다. 잠시 후 다시 �
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "이 메시지에 시각화가 너무 많습니다. 소스만 표시합니다."
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Tool"
+msgstr "도구"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -23452,6 +23490,7 @@ msgid "Worked for {elapsed}"
 msgstr "{elapsed} 동안 작업함"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Workflow"
 msgstr "워크플로"
 

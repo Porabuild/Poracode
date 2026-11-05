@@ -5,14 +5,6 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-internal val schema_437e2d5d20b6b495: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("checks"), properties = mapOf("checks" to schema_3c115ff749c28304), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_4392338ffc80bed7: RemoteSchema by lazy {
-    RemoteSchema(type = "array", items = schema_a399fbc7541223f3, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_43d29f1d5a2e1f23: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("action"), properties = mapOf("action" to schema_2d862d697d08c085), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -199,6 +191,10 @@ internal val schema_4a10e57442c165ec: RemoteSchema by lazy {
 
 internal val schema_4a22ffc9b41926c0: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("nextName", "path", "projectLocation"), properties = mapOf("nextName" to schema_36fea325bf1aca70, "path" to schema_36fea325bf1aca70, "projectLocation" to schema_080f9cc154af9e27), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_4a5ba059d38b8eac: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_94a8055a7bc1b620, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_4a927b60e49ddae0: RemoteSchema by lazy {
@@ -447,4 +443,8 @@ internal val schema_552de755ef856a71: RemoteSchema by lazy {
 
 internal val schema_553c5c509350e4e7: RemoteSchema by lazy {
     RemoteSchema(type = "array", items = schema_6508684ba659826b, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_559c498a020be6ad: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("projectLocation"), properties = mapOf("branch" to schema_36fea325bf1aca70, "projectLocation" to schema_080f9cc154af9e27, "retry" to schema_feeb8bb50144d96d, "state" to schema_b191f81602296a89), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
