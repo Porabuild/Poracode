@@ -1259,6 +1259,8 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
 
     /* App-specific variables (not HeroUI) */
     --working-tone: var(--success);
+    /* "Moonlight" finished/unread status (provider icon, collapsed worktree). */
+    --finished-tone: oklch(0.82 0.12 260);
     --pr-merged: oklch(0.7 0.17 292);
     --git-branch-tone: var(--muted);
     --sidebar-background: var(--surface);
@@ -1330,6 +1332,8 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --danger: oklch(0.48 0.2 25);
     --danger-foreground: var(--snow);
     --pr-merged: oklch(0.5 0.18 292);
+    /* The pale dark-mode moonlight vanishes on near-white surfaces; deepen it. */
+    --finished-tone: oklch(0.56 0.19 262);
     --git-branch-tone: oklch(0.5 0.13 265);
     /* Decorative palette for user-chosen project icon colours. Fixed hues
        rather than semantic tokens (--danger, --success, …): the swatch a user
@@ -4182,15 +4186,15 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-provider-icon--finished {
-  color: oklch(0.82 0.12 260);
+  color: var(--finished-tone);
   animation: poracode-finished-pulse 1.8s ease-in-out infinite;
   will-change: opacity, transform;
   transform: translate3d(0, 0, 0);
 }
 
 .poracode-provider-icon--finished svg {
-  filter: drop-shadow(0 0 0.35rem oklch(0.82 0.12 260 / 0.55))
-    drop-shadow(0 0 0.7rem oklch(0.82 0.12 260 / 0.25));
+  filter: drop-shadow(0 0 0.35rem color-mix(in oklab, var(--finished-tone) 55%, transparent))
+    drop-shadow(0 0 0.7rem color-mix(in oklab, var(--finished-tone) 25%, transparent));
 }
 
 @keyframes poracode-finished-pulse {
