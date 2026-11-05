@@ -6960,6 +6960,7 @@ msgstr "Xong ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Xong ({remainingSeconds} giây)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Download"
 msgstr "Tải xuống"
@@ -6969,8 +6970,8 @@ msgid "Download · {modelSize} MB"
 msgstr "Tải xuống · {modelSize} MB"
 
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
-msgid "Download {fileName}"
-msgstr "Tải xuống {fileName}"
+#~ msgid "Download {fileName}"
+#~ msgstr "Tải xuống {fileName}"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Download a voice model to finish setup."
@@ -21755,7 +21756,7 @@ msgstr "Không thể xóa mật khẩu đã lưu."
 msgid "Unable to determine the experiment's source branch."
 msgstr "Không thể xác định nhánh nguồn của thử nghiệm."
 
-#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 msgid "Unable to download the file."
 msgstr "Không thể tải xuống tệp."
 

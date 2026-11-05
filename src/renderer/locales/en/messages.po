@@ -6969,6 +6969,7 @@ msgstr "Done ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Done ({remainingSeconds}s)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Download"
 msgstr "Download"
@@ -6978,8 +6979,8 @@ msgid "Download · {modelSize} MB"
 msgstr "Download · {modelSize} MB"
 
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
-msgid "Download {fileName}"
-msgstr "Download {fileName}"
+#~ msgid "Download {fileName}"
+#~ msgstr "Download {fileName}"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Download a voice model to finish setup."
@@ -21764,7 +21765,7 @@ msgstr "Unable to delete the saved password."
 msgid "Unable to determine the experiment's source branch."
 msgstr "Unable to determine the experiment's source branch."
 
-#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 msgid "Unable to download the file."
 msgstr "Unable to download the file."
 

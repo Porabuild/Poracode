@@ -958,8 +958,10 @@ describe("ItemMarkdownInner", () => {
     const chip = screen.getByRole("button", { name: /MissingFile\.ts.*12/ });
     fireEvent.click(chip);
 
-    await waitFor(() => expect(chip).toBeDisabled());
+    await waitFor(() => expect(chip).toHaveAttribute("aria-disabled", "true"));
     expect(chip).toHaveClass("poracode-inline-path-chip--inert");
+    fireEvent.click(chip);
+    expect(actions.openProjectRelativePath).toHaveBeenCalledOnce();
   });
 
   it("normalizes a stored Windows path chip without project context", () => {
@@ -1087,12 +1089,12 @@ describe("ItemMarkdownInner", () => {
       </AppProvider>,
     );
     await waitFor(() =>
-      expect(container.querySelectorAll("[data-testid=chat-file]").length).toBe(4),
+      expect(container.querySelectorAll(".poracode-inline-path-chip").length).toBe(4),
     );
     const lists = [...container.querySelectorAll("ul")];
     const fileList = container.querySelector("ul.poracode-chat-file-list");
     expect(fileList).not.toBeNull();
-    expect(fileList!.querySelectorAll("[data-testid=chat-file]")).toHaveLength(2);
+    expect(fileList!.querySelectorAll(".poracode-inline-path-chip")).toHaveLength(2);
     const others = lists.filter((ul) => ul !== fileList);
     expect(others.length).toBeGreaterThan(0);
     for (const ul of others) expect(ul.className).not.toContain("poracode-chat-file-list");

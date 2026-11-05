@@ -5102,6 +5102,8 @@ button.poracode-thread-mention-chip:active {
 
 .poracode-inline-path-chip {
   display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
   align-items: center;
   gap: 0.2rem;
   padding: 0.1em 0.3em;
@@ -5145,6 +5147,9 @@ button.poracode-thread-mention-chip:active {
 }
 
 .poracode-inline-path-chip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 400;
   white-space: nowrap;
 }
