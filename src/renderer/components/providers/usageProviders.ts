@@ -79,6 +79,9 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   codex: {
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet"] },
   },
+  commandcode: {
+    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
+  },
   // Copilot uses GitHub's OAuth device flow through the in-app browser.
   copilot: { supportsBrowserLogin: true },
   cursor: {
@@ -95,7 +98,10 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   },
   fx: { rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "daily"] } },
   grok: { supportsBrowserLogin: true },
-  opencode: { supportsBrowserLogin: true },
+  opencode: {
+    supportsBrowserLogin: true,
+    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
+  },
   // z.ai authenticates with a pasted API key, not a browser session.
   // The ring tracks token rate-limits only: the 5h window plus the weekly window
   // when the plan returns one. The monthly MCP-tools quota is a different kind of
