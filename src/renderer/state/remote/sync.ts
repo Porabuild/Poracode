@@ -9,6 +9,10 @@ import {
   remoteGitSummariesEventSchema,
   remoteUserNotificationEventSchema,
 } from "@/shared/remote";
+import {
+  remoteForgeActivityEventSchema,
+  type RemoteForgeActivityEvent,
+} from "@/shared/remote/protocol/forgeActivity";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   isThreadFollowUpQueueSnapshotCurrent,
@@ -601,6 +605,12 @@ export interface RemoteDispatchHooks {
   readonly onGitSummaries?: (summaries: RemoteGitSummaries) => void;
   /** Applies the host-owned normalized Git/PR read model on remote clients. */
   readonly onGitState?: (patch: GitStatePatch) => void;
+  /**
+   * Fired when an out-of-band `remote-forge-activity` event lands on the stream:
+   * an agent in that thread pushed or changed a pull/merge request, so clients
+   * re-read that checkout's PR through their normal forge lookup.
+   */
+  readonly onForgeActivity?: (event: RemoteForgeActivityEvent) => void;
 }
 
 /**
@@ -774,6 +784,11 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
   const gitState = remoteGitStateEventSchema.safeParse(value);
   if (gitState.success) {
     hooks?.onGitState?.(gitState.data.patch);
+    return;
+  }
+  const forgeActivity = remoteForgeActivityEventSchema.safeParse(value);
+  if (forgeActivity.success) {
+    hooks?.onForgeActivity?.(forgeActivity.data);
     return;
   }
   const userNotification = remoteUserNotificationEventSchema.safeParse(value);

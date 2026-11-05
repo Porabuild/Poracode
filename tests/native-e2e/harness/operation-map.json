@@ -3,14 +3,14 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:2f0e4ac343291e50bf08d38fc48d1e78d34a97232bf2f26b062d48f3931e0441",
-  "keyCount": 341,
+  "manifestHash": "sha256:28f94e71ae1900ce404407e803dba1e58ac0a8fac5ce3262000aabefb0e3a01a",
+  "keyCount": 342,
   "counts": {
     "route": 119,
     "procedure": 167,
     "ws-client": 11,
     "ws-server": 12,
-    "replay": 16,
+    "replay": 17,
     "runtime": 16
   },
   "operations": {
@@ -685,6 +685,10 @@
     "replay:agent-status-updated": {
       "kind": "replay",
       "id": "agent-status-updated"
+    },
+    "replay:remote-forge-activity": {
+      "kind": "replay",
+      "id": "remote-forge-activity"
     },
     "replay:remote-git-state": {
       "kind": "replay",

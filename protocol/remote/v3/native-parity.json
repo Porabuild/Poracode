@@ -10978,6 +10978,30 @@
         }
       },
       {
+        "id": "remote-forge-activity",
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/state/remoteServers/eventSocketMessages.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/state/gitRefresh.ts"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/state/remoteServers/eventSocketMessages.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/state/gitRefresh.ts"]
+          }
+        }
+      },
+      {
         "id": "remote-git-summaries",
         "batch": "projects",
         "ios": {

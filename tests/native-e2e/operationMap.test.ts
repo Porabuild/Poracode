@@ -38,7 +38,7 @@ describe("operation-map inventory lock", () => {
       procedure: 167,
       "ws-client": 11,
       "ws-server": 12,
-      replay: 16,
+      replay: 17,
       runtime: 16,
     });
   });

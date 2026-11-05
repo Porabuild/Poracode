@@ -121,6 +121,9 @@ export type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "./remote
  *   `agent-status-updated`, `windows-agent-statuses`, `wsl-agent-statuses`).
  * - `src/renderer/state/remoteServersStore.ts` `shouldRefreshRemoteServerAfterEvent`
  *   (adds `remote-projects-changed` / `remote-threads-changed`).
+ * - `src/renderer/state/remoteServers/eventRouting.ts` `filterRemoteThreadEvents`
+ *   (adds `remote-forge-activity`, which `sync.ts` `dispatchRemoteSupervisorEvent`
+ *   hands to its `onForgeActivity` hook).
  *
  * `thread-output` is intentionally absent: it short-circuits to
  * `broadcastTerminalOutput` before reaching this allowlist.
@@ -141,6 +144,7 @@ const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> =
   "windows-agent-statuses",
   "wsl-agent-statuses",
   // Out-of-band remote events.
+  "remote-forge-activity",
   "remote-git-summaries",
   "remote-git-state",
   "remote-projects-changed",

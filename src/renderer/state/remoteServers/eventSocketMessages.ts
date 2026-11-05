@@ -7,9 +7,14 @@ import { HostEventDrain } from "@/renderer/hostTransport/hostEventDrain";
 import { resetRemoteThreadProjection } from "@/renderer/state/remote/resetThreadProjection";
 import { dispatchRemoteSupervisorEvent } from "@/renderer/state/remote";
 import { discardQueuedRuntimeEvents } from "@/renderer/state/remote/sync";
+import { refreshPrAfterForgeActivity } from "@/renderer/state/gitRefresh";
 import { useAppStore } from "@/renderer/state/appStore";
 import { pruneLiveObservedCrossagentItems } from "@/renderer/state/slices/staleSubAgents";
-import { projectRemoteThreadEvent, remoteThreadId } from "@/renderer/state/remoteProjection";
+import {
+  projectRemoteThreadEvent,
+  remoteProjectId,
+  remoteThreadId,
+} from "@/renderer/state/remoteProjection";
 import {
   emitRemoteTerminalExited,
   emitRemoteTerminalReset,
@@ -70,6 +75,15 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
       runtimeSequence: sequence,
       onGitSummaries: (summaries) => syncRemoteGitSummaries(connectionKey, summaries),
       onGitState: (patch) => syncRemoteGitStatePatch(connectionKey, patch),
+      onForgeActivity: (event) =>
+        refreshPrAfterForgeActivity({
+          projectId: remoteProjectId(connectionKey, event.projectId),
+          // The host's checkout path is the same value the projected thread and
+          // the remote git-state projection store (`target.ref.worktreePath`).
+          ...(event.worktreePath ? { worktreePath: event.worktreePath } : {}),
+          ...(event.branch ? { branch: event.branch } : {}),
+          action: event.action,
+        }),
     });
   };
 

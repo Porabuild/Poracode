@@ -63,7 +63,7 @@ const EXPECTED_COUNTS = {
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 12,
-  replayableEventTypes: 16,
+  replayableEventTypes: 17,
   runtimeEventTypes: 16,
 } as const;
 

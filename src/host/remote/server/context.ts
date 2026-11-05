@@ -9,6 +9,7 @@ import type {
   RemoteUserNotificationEvent,
   RemoteWebSocketServerMessage,
 } from "@/shared/remote";
+import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { BackgroundTask } from "@/shared/contracts";
 import type { GitStateInterest } from "@/shared/gitState";
@@ -29,6 +30,7 @@ import type { ThreadHistoryReplay } from "./threadHistoryReplay";
 
 export type RemoteBroadcastEvent =
   | SupervisorEvent
+  | RemoteForgeActivityEvent
   | RemoteGitSummariesEvent
   | RemoteGitStateEvent
   | RemoteProjectsChangedEvent

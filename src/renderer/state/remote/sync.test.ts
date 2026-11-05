@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfigOptions } from "@/shared/contracts/sessionConfigOptions";
 import type { SessionRef, Thread, ThreadFollowUpQueueState } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
+import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import { useAppStore } from "@/renderer/state/appStore";
 import type {
   OpenRuntimeRequest,
@@ -629,5 +630,32 @@ describe("remote thread snapshot inventory replacement", () => {
       thread: snapshotThread({ status: "inactive" }),
     });
     expect(residentInventory()).toBeUndefined();
+  });
+});
+
+describe("remote forge activity events", () => {
+  it("forwards a parsed forge-activity event to the hook exactly once", () => {
+    const onForgeActivity = vi.fn<(event: RemoteForgeActivityEvent) => void>();
+    dispatchRemoteSupervisorEvent(
+      { type: "remote-forge-activity", projectId: "p", threadId: "t", action: "create" },
+      { onForgeActivity },
+    );
+
+    expect(onForgeActivity).toHaveBeenCalledExactlyOnceWith({
+      type: "remote-forge-activity",
+      projectId: "p",
+      threadId: "t",
+      action: "create",
+    });
+  });
+
+  it("ignores a malformed forge-activity event", () => {
+    const onForgeActivity = vi.fn<(event: RemoteForgeActivityEvent) => void>();
+    dispatchRemoteSupervisorEvent(
+      { type: "remote-forge-activity", threadId: "t", action: "create" },
+      { onForgeActivity },
+    );
+
+    expect(onForgeActivity).not.toHaveBeenCalled();
   });
 });

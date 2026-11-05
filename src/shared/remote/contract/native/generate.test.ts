@@ -90,8 +90,10 @@ describe("remote v3 native binding generator", () => {
         // Host-owned Hex voice transcription adds one typed procedure and schema roots.
         // The optional mediaFileRequest `disposition` attachment literal moves the source hash.
         // Background PR polling adds one read procedure and its typed status result.
-        sourceHash: "sha256:a28648352642c1ad0f19617b072464b5030a90245a203586acd2989b3b7f6daf",
-        manifestHash: "sha256:112aff22c48994414f73d50d40f0b71e3e2df5ea094325b9affb02084fe5add6",
+        // The additive remote-forge-activity broadcast event moves both authority
+        // hashes and grows only the replayable-event count.
+        sourceHash: "sha256:79f0a3b54bf6e88e35f88718cddb56832aab9646fb14165e84c2290249c8c34c",
+        manifestHash: "sha256:e5903f6ffc97f048708b77a075974c0fe31d49ea2985a3a3af1eb5125dae396c",
         counts: {
           routes: 119,
           procedures: 167,

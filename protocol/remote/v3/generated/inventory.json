@@ -6,14 +6,14 @@
     "blockedProcedureResults": [],
     "jsonProcedureResults": 103,
     "procedures": 167,
-    "replayableEventTypes": 16,
+    "replayableEventTypes": 17,
     "routes": 119,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 64,
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:112aff22c48994414f73d50d40f0b71e3e2df5ea094325b9affb02084fe5add6",
+  "manifestHash": "sha256:e5903f6ffc97f048708b77a075974c0fe31d49ea2985a3a3af1eb5125dae396c",
   "protocolVersion": 14,
-  "sourceHash": "sha256:a28648352642c1ad0f19617b072464b5030a90245a203586acd2989b3b7f6daf"
+  "sourceHash": "sha256:79f0a3b54bf6e88e35f88718cddb56832aab9646fb14165e84c2290249c8c34c"
 }

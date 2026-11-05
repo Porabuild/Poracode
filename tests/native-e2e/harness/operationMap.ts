@@ -29,11 +29,11 @@ const EXPECTED_COUNTS = {
   procedure: 167,
   "ws-client": 11,
   "ws-server": 12,
-  replay: 16,
+  replay: 17,
   runtime: 16,
 } as const;
 
-export const EXPECTED_OPERATION_KEY_COUNT = 341;
+export const EXPECTED_OPERATION_KEY_COUNT = 342;
 
 interface ProtocolInventoryHeader {
   readonly sourceHash: string;
