@@ -129,6 +129,14 @@ export function buildReplayableEvent(
     case "windows-agent-statuses":
     case "wsl-agent-statuses":
       return { type, statuses: [] };
+    case "remote-forge-activity":
+      return {
+        type,
+        projectId: FIXTURE_PROJECT_ID,
+        threadId,
+        worktreePath: "/tmp/native-e2e-fixture-worktree",
+        action: "create",
+      };
     case "remote-git-summaries":
       return {
         type,
