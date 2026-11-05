@@ -348,7 +348,9 @@ describe("Thread details", () => {
       </AppProvider>,
     );
     const header = screen.getByRole("button", { name: "Usage" });
-    expect(within(header).getByRole("img", { name: "Codex" })).toBeInTheDocument();
+    expect(
+      within(header).getByRole("img", { name: "Codex" }).querySelector(".poracode-provider-icon"),
+    ).toHaveClass("poracode-provider-icon--active");
     expect(header).toHaveAttribute("aria-expanded", "false");
     expect(header).toHaveTextContent("Session 48%");
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
