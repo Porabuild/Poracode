@@ -55,8 +55,10 @@ vi.mock("@/renderer/state/remoteServers/catalog/boundedCatalogController", () =>
     harness.provider = provider;
   }),
   beginBoundedCatalogAttempt: vi.fn<(connectionKey: string) => void>(),
+  boundedCatalogRemovalMark: vi.fn<() => number>(() => 0),
   disposeBoundedCatalog: vi.fn<(connectionKey: string) => void>(),
-  installBoundedCatalogShellPage: vi.fn<(connectionKey: string, page: unknown) => void>(),
+  installBoundedCatalogShellPage:
+    vi.fn<(connectionKey: string, page: unknown, readStartedAt: number) => void>(),
   noteBoundedCatalogMembershipEvent: vi.fn<(connectionKey: string, eventType: string) => void>(),
   requestManualPaintRefresh: vi.fn<(connectionKey: string, kind: string) => void>(),
   resetBoundedCatalogForResync: vi.fn<(connectionKey: string) => void>(),

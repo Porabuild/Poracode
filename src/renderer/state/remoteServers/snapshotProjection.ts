@@ -55,6 +55,7 @@ import { recordHostWorkspaces } from "./hostWorkspacePlacement";
 import { reconcileThreadRowsWithAppliedEvents, reuseRemoteRows } from "./rowReuse";
 import {
   beginBoundedCatalogAttempt,
+  boundedCatalogRemovalMark,
   configureBoundedCatalogController,
   installBoundedCatalogShellPage,
   isKnownLegacyCatalogConnection,
@@ -356,9 +357,10 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
   const installBoundedShellPage = (
     connectionKey: string,
     page: RemoteBoundedShellSnapshotPage,
+    readStartedAt: number,
   ): void => {
     bumpRemoteServerSnapshotSeq(connectionKey, page.snapshotSeq, undefined, page.snapshotEpoch);
-    installBoundedCatalogShellPage(connectionKey, page);
+    installBoundedCatalogShellPage(connectionKey, page, readStartedAt);
     if (page.gitSummariesByThread) {
       syncRemoteGitSummaries(connectionKey, page.gitSummariesByThread);
     }
@@ -540,6 +542,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         // negotiation verdict decides the path; only an absent echo downgrades
         // to the assembled legacy snapshot, anything else must throw.
         if (!isKnownLegacyCatalogConnection(desktopId)) {
+          const removalMark = boundedCatalogRemovalMark();
           const bounded = await client.boundedShellSnapshot({
             order: "manual",
             threadLimit: REMOTE_SHELL_THREAD_PAGE_LIMIT,
@@ -553,7 +556,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
               beginBoundedCatalogAttempt(desktopId);
             }
             recordHostWorkspaces(desktopId, bounded.page.workspaces);
-            installBoundedShellPage(desktopId, bounded.page);
+            installBoundedShellPage(desktopId, bounded.page, removalMark);
             await patchBoundedAgentStatuses(desktopId, agentStatusesPromise, isLatest);
             if (!isLatest()) return;
             syncDesktopBrowserBridgeClient(get());
