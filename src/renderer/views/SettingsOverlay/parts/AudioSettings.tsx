@@ -224,6 +224,7 @@ export function AudioSettings() {
             }}
           />
         </SettingRow>
+        {transcriptionBackend === "hex" && <HexVoiceSettings language={transcriptionLanguage} />}
         {transcriptionBackend === "transformers" && (
           <>
             <SettingRow
@@ -261,7 +262,6 @@ export function AudioSettings() {
           </>
         )}
       </AudioGroup>
-      {transcriptionBackend === "hex" && <HexVoiceSettings language={transcriptionLanguage} />}
       <DictationTest
         key={`${transcriptionBackend}:${transcriptionLanguage}:${transcriptionModel}:${hexModel}:${microphoneDeviceId}`}
       />

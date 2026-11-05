@@ -10,11 +10,20 @@ host's cache. Removing a managed engine does not remove Hex-owned model data.
 Linux managed assets require glibc 2.39 or newer. Other platforms and
 architectures do not have a managed release.
 
-Audio settings keep model selection and test dictation on the page. **Set up
-Hex…** or **Manage Hex…** opens a responsive engine-management dialog with
-compatibility, installation progress, updates, removal and license information.
-Opening it never starts a download; installation requires an explicit action.
-Closing it does not cancel installation or model preparation.
+Engines can list models newer than the pinned SDK's `MODEL_IDS` (Hex 3.1.1
+lists QwenCleo and Underdog Bark models that `@kitlangton/hex` 0.3.1 does not
+know), and the SDK rejects a whole catalog when one id is unknown. The host
+passes `hexCatalogFetch` as the SDK transport so catalog entries the SDK cannot
+drive are dropped and the install probe and model list keep working; those
+models appear after the SDK is upgraded.
+
+Audio settings show Hex as one row with its current status and a **Set up…**
+or **Manage…** button. The button opens the Hex setup dialog, which holds
+both steps — engine installation (progress, updates, removal) and voice-model
+selection and download — plus compatibility and license information. The
+dialog keeps a fixed layout across states. Opening it never starts a download;
+installation and model downloads require an explicit action. Closing it does
+not cancel installation or model preparation.
 
 An externally installed executable remains supported. Resolution order is the
 host-only `PORACODE_HEX_EXECUTABLE` absolute path, the managed engine, then
