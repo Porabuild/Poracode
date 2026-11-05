@@ -974,7 +974,7 @@ final class RichChatTranscriptControllerTests: XCTestCase {
       target: target
     )
     XCTAssertEqual(controller.state.liveSequence, 20)
-    XCTAssertNil(controller.state.backgroundTaskSequence)
+    XCTAssertEqual(controller.state.backgroundTaskSequence, Optional(10))
 
     await gateway.configureHistory(
       .value(
