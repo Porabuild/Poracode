@@ -628,3 +628,141 @@ describe("reserved slot", () => {
     expect(img.getAttribute("style") ?? "").not.toContain("width:");
   });
 });
+
+describe("preview intent", () => {
+  it("fires once after a 150 ms pointer rest and not after a leave", () => {
+    vi.useFakeTimers();
+    try {
+      const onIntent = vi.fn<() => void>();
+      const view = render(
+        <AppProvider>
+          <ImageCard source={source({ src: "blob:card" })} onPreviewIntent={onIntent} />
+        </AppProvider>,
+      );
+      const card = view.container.querySelector("[data-poracode-image-card]")!;
+      fireEvent.pointerEnter(card, { pointerType: "mouse" });
+      act(() => {
+        void vi.advanceTimersByTime(149);
+      });
+      expect(onIntent).not.toHaveBeenCalled();
+      act(() => {
+        void vi.advanceTimersByTime(1);
+      });
+      expect(onIntent).toHaveBeenCalledTimes(1);
+
+      onIntent.mockClear();
+      fireEvent.pointerEnter(card, { pointerType: "mouse" });
+      act(() => {
+        void vi.advanceTimersByTime(100);
+      });
+      fireEvent.pointerLeave(card);
+      act(() => {
+        void vi.advanceTimersByTime(100);
+      });
+      expect(onIntent).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fires immediately on pointer down and on preview-button focus", () => {
+    const onIntent = vi.fn<() => void>();
+    const view = render(
+      <AppProvider>
+        <ImageCard source={source({ src: "blob:card" })} onPreviewIntent={onIntent} />
+      </AppProvider>,
+    );
+    const card = view.container.querySelector("[data-poracode-image-card]")!;
+    fireEvent.pointerDown(card, { pointerType: "mouse" });
+    expect(onIntent).toHaveBeenCalledTimes(1);
+    fireEvent.focus(view.getByRole("button", { name: "Open image preview" }));
+    expect(onIntent).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fire after the card unmounts during the dwell", () => {
+    vi.useFakeTimers();
+    try {
+      const onIntent = vi.fn<() => void>();
+      const view = render(
+        <AppProvider>
+          <ImageCard source={source({ src: "blob:card" })} onPreviewIntent={onIntent} />
+        </AppProvider>,
+      );
+      const card = view.container.querySelector("[data-poracode-image-card]")!;
+      fireEvent.pointerEnter(card, { pointerType: "mouse" });
+      act(() => {
+        void vi.advanceTimersByTime(100);
+      });
+      view.unmount();
+      act(() => {
+        void vi.advanceTimersByTime(200);
+      });
+      expect(onIntent).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not attach the intent when the prop is absent or the source is empty", () => {
+    vi.useFakeTimers();
+    try {
+      const onIntent = vi.fn<() => void>();
+      const withoutProp = render(
+        <AppProvider>
+          <ImageCard source={source({ src: "blob:card" })} />
+        </AppProvider>,
+      );
+      expect(() =>
+        fireEvent.pointerEnter(withoutProp.container.querySelector("[data-poracode-image-card]")!),
+      ).not.toThrow();
+      const empty = render(
+        <AppProvider>
+          <ImageCard source={source({ src: "" })} onPreviewIntent={onIntent} />
+        </AppProvider>,
+      );
+      fireEvent.pointerEnter(empty.container.querySelector("[data-poracode-image-card]")!);
+      act(() => {
+        void vi.advanceTimersByTime(200);
+      });
+      expect(onIntent).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+it("ignores touch pointers that may start a scroll", () => {
+  vi.useFakeTimers();
+  class TestPointerEvent extends MouseEvent {
+    readonly pointerType: string;
+    readonly pointerId = 1;
+    constructor(type: string, init: PointerEventInit = {}) {
+      super(type, init);
+      this.pointerType = init.pointerType ?? "";
+    }
+  }
+  vi.stubGlobal("PointerEvent", TestPointerEvent);
+  try {
+    const onIntent = vi.fn<() => void>();
+    const view = render(
+      <AppProvider>
+        <ImageCard source={source({ src: "blob:card" })} onPreviewIntent={onIntent} />
+      </AppProvider>,
+    );
+    const card = view.container.querySelector("[data-poracode-image-card]")!;
+    fireEvent.pointerEnter(card, { pointerType: "touch" });
+    act(() => {
+      void vi.advanceTimersByTime(200);
+    });
+    expect(onIntent).not.toHaveBeenCalled();
+    fireEvent.pointerDown(card, { pointerType: "touch" });
+    expect(onIntent).not.toHaveBeenCalled();
+    fireEvent.pointerEnter(card, { pointerType: "mouse" });
+    act(() => {
+      void vi.advanceTimersByTime(200);
+    });
+    expect(onIntent).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  }
+});

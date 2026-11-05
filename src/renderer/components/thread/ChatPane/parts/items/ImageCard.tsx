@@ -1,7 +1,15 @@
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Check, Copy, Download, Maximize2 } from "lucide-react";
-import { memo, useEffect, useRef, useState, type ReactNode, type Ref } from "react";
+import {
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { fetchImageBytes, toClipboardPngBytes } from "@/renderer/utils/imageActions";
 import { readBridge } from "@/renderer/bridge";
 import {
@@ -25,12 +33,22 @@ interface ImageCardProps {
   isBlock?: boolean;
   viewportRef?: Ref<HTMLSpanElement>;
   /**
+   * Called when the user signals they may open the preview: the pointer
+   * resting on the card, pressing it, or keyboard focus. A card that displays
+   * a downscaled variant uses it to warm the full-resolution image before the
+   * click. May be called more than once. Touch pointers are ignored: a touch
+   * that starts a scroll is not intent.
+   */
+  onPreviewIntent?: () => void;
+  /**
    * When the displayed `source.src` is a downscaled variant, resolves the
    * full-resolution URL on demand for preview/copy/download. Resolves ""
    * when unavailable; actions report the failure without using card bytes.
    */
   resolveFullSrc?: () => Promise<string>;
 }
+
+const PREVIEW_INTENT_DWELL_MS = 150;
 
 /**
  * Shared interactive image used by tool results, message image blocks, and
@@ -43,6 +61,7 @@ export const ImageCard = memo(function ImageCard({
   isBlock = false,
   viewportRef,
   resolveFullSrc,
+  onPreviewIntent,
 }: ImageCardProps) {
   const { t } = useLingui();
   const imageAlt = source.alt || t`Image`;
@@ -52,6 +71,12 @@ export const ImageCard = memo(function ImageCard({
   // single-image preview when rendered outside a thread.
   const threadId = useChatPaneActions()?.threadId;
   const imageRef = useRef<HTMLImageElement>(null);
+  const intentTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    return () => {
+      if (intentTimer.current !== undefined) clearTimeout(intentTimer.current);
+    };
+  }, []);
   const previewRequest = useRef({ src: source.src, threadId, version: 0 });
   useEffect(() => {
     const owner = { src: source.src, threadId, version: 0 };
@@ -165,10 +190,36 @@ export const ImageCard = memo(function ImageCard({
   // fetched image lands. Inline `data:` images paint immediately and keep the
   // natural `w-auto` sizing.
   const reservedSlot = isInline ? undefined : reserveInlineImageSlot(source.width, source.height);
+  const clearIntentTimer = () => {
+    if (intentTimer.current === undefined) return;
+    clearTimeout(intentTimer.current);
+    intentTimer.current = undefined;
+  };
+  const previewIntentHandlers =
+    onPreviewIntent && hasSource
+      ? {
+          onPointerEnter: (event: ReactPointerEvent<HTMLSpanElement>) => {
+            if (event.pointerType === "touch") return;
+            clearIntentTimer();
+            intentTimer.current = setTimeout(() => {
+              intentTimer.current = undefined;
+              onPreviewIntent();
+            }, PREVIEW_INTENT_DWELL_MS);
+          },
+          onPointerLeave: clearIntentTimer,
+          onPointerDown: (event: ReactPointerEvent<HTMLSpanElement>) => {
+            if (event.pointerType === "touch") return;
+            clearIntentTimer();
+            onPreviewIntent();
+          },
+          onFocus: () => onPreviewIntent(),
+        }
+      : {};
 
   return (
     <span
       ref={viewportRef}
+      {...previewIntentHandlers}
       className={`poracode-image-card relative self-start ${isBlock ? "flex w-fit" : "inline-flex"} max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)]${className ? ` ${className}` : ""}`}
       data-poracode-image-card="true"
     >

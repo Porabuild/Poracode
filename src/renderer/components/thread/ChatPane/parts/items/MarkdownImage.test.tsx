@@ -11,6 +11,7 @@ import {
   __resetDirectImageSessionsForTest,
 } from "@/renderer/state/remoteServers/directImages";
 import { ChatPaneActionsContext, type ChatPaneActions } from "../../chatPaneActionsContext";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 import { createMarkdownLocalImageAuthority } from "../../markdownLocalImageAuthority";
 import ItemMarkdownInner from "./ItemMarkdownInner";
 import { MarkdownImage } from "./MarkdownImage";
@@ -261,4 +262,34 @@ describe("live Markdown image consumer", () => {
     expect(active.fallback).not.toHaveBeenCalled();
     expect(view.getByAltText("Inline")).not.toHaveClass("opacity-0");
   });
+});
+
+it("warms the full-resolution host path on pointer intent", () => {
+  const requestPath = vi.fn<RemoteImageReadiness["requestPath"]>();
+  const readiness: RemoteImageReadiness = {
+    resolveRef: () => "",
+    subscribeRef: () => () => undefined,
+    requestRef: () => undefined,
+    resolvePath: () => "blob:card",
+    subscribePath: () => () => undefined,
+    requestPath,
+  };
+  const actions: ChatPaneActions = {
+    markdownLocalImageReadiness: {
+      readiness,
+      pathForUrl: () => "/x.png",
+    },
+  };
+  const view = render(
+    <AppProvider syncWindowChrome={false}>
+      <ChatPaneActionsContext.Provider value={actions}>
+        <MarkdownImage src="poracode-local://local/x.png" alt="x" />
+      </ChatPaneActionsContext.Provider>
+    </AppProvider>,
+  );
+  const card = view.container.querySelector("[data-poracode-image-card]");
+  expect(card).not.toBeNull();
+  requestPath.mockClear();
+  fireEvent.pointerDown(card!);
+  expect(requestPath).toHaveBeenCalledWith("/x.png", "prefetch");
 });
