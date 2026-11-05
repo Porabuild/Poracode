@@ -784,9 +784,9 @@ interface AssistantTurnProjection {
 }
 
 /**
- * Per-thread assistant turn metadata shared by every assistant row. Rows used
- * to run a fresh transcript scan and completed-turn lookup on every global
- * store notification; the projection scans once per meaningful thread change.
+ * Per-thread assistant turn metadata shared by every assistant row, so a store
+ * notification costs each row a map lookup instead of a transcript scan. The
+ * projection rebuilds once per meaningful thread change.
  *
  * The source item index is replaced for every runtime commit, including
  * content deltas that cannot affect this projection. The weak key lets a

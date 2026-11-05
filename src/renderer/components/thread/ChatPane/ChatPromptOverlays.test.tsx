@@ -234,8 +234,8 @@ describe("ChatPromptOverlays", () => {
     resetRowRectCalls();
     scrollTo(ROW_HEIGHT);
 
-    // One pass over the rendered rows: the sticky prompt's old index scan and
-    // the rail's range are now the same measurement.
+    // One pass over the rendered rows serves both the sticky prompt and the
+    // rail's range.
     expect(readRowRectCalls()).toBe(ENTRIES.length);
     // The sticky prompt follows the first visible row; the rail follows the last.
     expect(stickyButton("Scroll to prompt: First question")).toBeVisible();
