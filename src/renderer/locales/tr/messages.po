@@ -184,7 +184,7 @@ msgid "{0} — Terminal"
 msgstr "{0} — Terminal"
 
 #. placeholder {0}: item.name
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "{0} · Installed"
 msgstr "{0} · Yüklendi"
 
@@ -331,7 +331,7 @@ msgid "{0} logged out."
 msgstr "{0} oturumu kapatıldı."
 
 #. placeholder {0}: Math.ceil(item.downloadBytes / 1_000_000)
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "{0} MB download"
 msgstr "{0} MB indir"
 
@@ -591,8 +591,8 @@ msgid "{days}d ago"
 msgstr "{days} gün önce"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "{downloadSize} MB download"
-msgstr "{downloadSize} MB indirme"
+#~ msgid "{downloadSize} MB download"
+#~ msgstr "{downloadSize} MB indirme"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{envOrAgentLabel} needs authentication."
@@ -2416,7 +2416,7 @@ msgstr "Deneme {0} · Yineleme {1}"
 msgid "Audio"
 msgstr "Ses"
 
-#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Audio is sent only to your selected host, not to a cloud transcription service. Recordings are limited to five minutes. Models have separate licenses; download size is not memory usage."
 msgstr "Ses, bulut transkripsiyon hizmetine değil, yalnızca seçtiğiniz ana bilgisayara gönderilir. Kayıtlar beş dakika ile sınırlıdır. Modellerin ayrı lisansları vardır; indirme boyutu hafıza kullanımı değildir."
 
@@ -2621,9 +2621,13 @@ msgstr "mevcut"
 msgid "Available ACP Agents"
 msgstr "Mevcut ACP Temsilcileri"
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Available models appear after the engine is installed."
+msgstr "Kullanılabilir modeller motor kurulduktan sonra görünür."
+
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Available models will appear after the engine is installed."
-msgstr "Mevcut modeller motor kurulduktan sonra görünecektir."
+#~ msgid "Available models will appear after the engine is installed."
+#~ msgstr "Mevcut modeller motor kurulduktan sonra görünecektir."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectEnvironmentScope.tsx
 msgid "Available when {names} is back online."
@@ -3213,6 +3217,7 @@ msgstr "Bu model seçimi bu arayüzde kullanılamaz"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -3226,13 +3231,12 @@ msgid "Cancel agent discovery"
 msgstr "Ajan keşfini iptal et"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Cancel download"
 msgstr "İndirmeyi iptal et"
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-msgid "Cancel installation"
-msgstr "Kurulumu iptal et"
+#~ msgid "Cancel installation"
+#~ msgstr "Kurulumu iptal et"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #~ msgid "Cancel new Claude profile"
@@ -3540,7 +3544,7 @@ msgstr "{invalidPaletteName} paletinde geçersiz renkleri kontrol edin."
 msgid "Check the live input level from the selected device."
 msgstr "Seçilen cihazdan canlı giriş seviyesini kontrol edin."
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Check the supported languages before downloading."
 msgstr "İndirmeden önce desteklenen dilleri kontrol edin."
 
@@ -3571,6 +3575,10 @@ msgstr "Güncellemeler kontrol ediliyor…"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Checking Tailscale…"
 msgstr "Tailscale kontrol ediliyor…"
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Checking this host…"
+msgstr "Bu ana bilgisayar denetleniyor…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
@@ -3652,8 +3660,8 @@ msgid "Choose a saved credential to sign out."
 msgstr "Çıkış yapmak için kayıtlı bir kimlik bilgisi seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Choose a voice model"
-msgstr "Bir ses modeli seçin"
+#~ msgid "Choose a voice model"
+#~ msgstr "Bir ses modeli seçin"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Choose an available conversation in this project."
@@ -3992,7 +4000,7 @@ msgstr "Klonlanıyor…"
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Close"
 msgstr "Kapat"
 
@@ -6865,6 +6873,10 @@ msgstr "Panolar"
 msgid "Docs"
 msgstr "Dokümanlar"
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Documentation and licenses"
+msgstr "Belgeler ve lisanslar"
+
 #: src/renderer/components/crew/crewRoleTemplates.ts
 msgid "Does the broad searching: finds the files, callers, tests and conventions a task touches, and reports paths and facts, not a review."
 msgstr "Geniş aramayı yapar: bir görevin dosyalarını, çağıranlarını, testlerini ve kurallarını bulur; inceleme değil, yolları ve olguları bildirir."
@@ -6911,9 +6923,21 @@ msgstr "Bitti ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Bitti ({remainingSeconds}sn)"
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Download"
+msgstr "İndir"
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Download · {modelSize} MB"
+msgstr "İndir · {modelSize} MB"
+
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
 msgid "Download {fileName}"
 msgstr "{fileName} indir"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Download a voice model to finish setup."
+msgstr "Kurulumu tamamlamak için bir ses modeli indirin."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download failed"
@@ -6929,12 +6953,12 @@ msgid "Download image"
 msgstr "Görseli indir"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Download model"
-msgstr "Modeli indir"
+#~ msgid "Download model"
+#~ msgstr "Modeli indir"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Download model · {downloadSize} MB"
-msgstr "Modeli indir · {downloadSize} MB"
+#~ msgid "Download model · {downloadSize} MB"
+#~ msgstr "Modeli indir · {downloadSize} MB"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Download progress"
@@ -6944,13 +6968,23 @@ msgstr "İndirme ilerlemesi"
 #~ msgid "Download required"
 #~ msgstr "İndirme gerekli"
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Download size unavailable"
 msgstr "İndirme boyutu mevcut değil"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "Downloading"
 msgstr "İndiriliyor"
+
+#. placeholder {0}: Math.round(preparation.progress)
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Downloading {preparingName}… {0}%"
+#~ msgstr "İndiriliyor: {preparingName}… %{0}"
+
+#. placeholder {0}: Math.round(preparation.progress)
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#~ msgid "Downloading {preparingName}… {0}%. Continues if you close this dialog."
+#~ msgstr "İndiriliyor: {preparingName}… %{0}. Bu iletişim kutusunu kapatsanız da devam eder."
 
 #. placeholder {0}: name || t`the chosen folder`
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
@@ -7241,7 +7275,7 @@ msgstr "Efor düzeyleri"
 msgid "Effort levels for {modelName}"
 msgstr "{modelName} için efor düzeyleri"
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Egyptian Arabic speech with English terms."
 msgstr "İngilizce terimlerle Mısır Arapçası konuşması."
 
@@ -7359,20 +7393,23 @@ msgstr "Sesli sohbeti bitir"
 #~ msgid "Endpoint, e.g. http://192.168.1.20:49152/"
 #~ msgstr "Uç nokta, örn. http://192.168.1.20:49152/"
 
-#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Engine"
+msgstr "Motor"
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Engine installation progress"
 msgstr "Motor kurulum ilerlemesi"
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "English dictation based on Parakeet."
 msgstr "Parakeet'e dayalı İngilizce dikte."
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "English dictation with filler-word removal."
 msgstr "Dolgu kelimesini kaldıran İngilizce dikte."
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "English speech recognition."
 msgstr "İngilizce konuşma tanıma."
 
@@ -9043,6 +9080,22 @@ msgstr "Hex · Ana makine motoru"
 #~ msgid "Hex (native)"
 #~ msgstr "Hex (yerel)"
 
+#. placeholder {0}: engine.version
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Hex {0} · Managed by Poracode."
+msgstr "Hex {0} · Poracode tarafından yönetiliyor."
+
+#. placeholder {0}: engine.version
+#. placeholder {1}: engine.availableVersion
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Hex {0} · Update to {1} available."
+msgstr "Hex {0} · {1} sürümüne güncelleme mevcut."
+
+#. placeholder {0}: engine.version
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#~ msgid "Hex {0} · Your existing installation. Poracode will not modify it."
+#~ msgstr "Hex {0} · Mevcut kurulumunuz. Poracode bunu değiştirmez."
+
 #: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "Hex renk"
@@ -9052,8 +9105,8 @@ msgid "Hex could not process this request. Check the model and language in Audio
 msgstr "Hex bu isteği işleyemedi. Ses ayarlarından modeli ve dili kontrol edin."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-msgid "Hex documentation and licenses"
-msgstr "Hex belgeleri ve lisansları"
+#~ msgid "Hex documentation and licenses"
+#~ msgstr "Hex belgeleri ve lisansları"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #~ msgid "Hex installation"
@@ -9067,7 +9120,9 @@ msgstr "Hex başka bir ses isteğiyle meşgul. Kısa süre sonra tekrar deneyin.
 msgid "Hex is unavailable on this host. Install a compatible Hex executable and restart Poracode, or choose the built-in backend."
 msgstr "Hex bu ana makinede kullanılamıyor. Uyumlu bir Hex çalıştırılabilir dosyası yükleyip Poracode'u yeniden başlatın veya yerleşik arka ucu seçin."
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Hex setup"
 msgstr "Hex kurulumu"
 
@@ -9075,8 +9130,7 @@ msgstr "Hex kurulumu"
 msgid "Hex timed out. Please try again."
 msgstr "Hex zaman aşımına uğradı. Lütfen tekrar deneyin."
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Hex voice model"
 msgstr "Hex ses modeli"
 
@@ -9751,11 +9805,16 @@ msgstr "yükle"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Install"
 msgstr "Yükle"
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Install · {engineSize} MB"
+msgstr "Kur · {engineSize} MB"
 
 #. placeholder {0}: slot.badge
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -9892,16 +9951,16 @@ msgid "Install GitHub CLI (gh) on {executionHost}, then retry."
 msgstr "{executionHost} üzerine GitHub CLI (gh) yükleyip yeniden deneyin."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-msgid "Install Hex"
-msgstr "Hex'i yükleyin"
+#~ msgid "Install Hex"
+#~ msgstr "Hex'i yükleyin"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #~ msgid "Install Hex · {engineSize} MB"
 #~ msgstr "Hex · {engineSize} MB'yi yükleyin"
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-msgid "Install Hex · {size} MB"
-msgstr "Hex'i yükle · {size} MB"
+#~ msgid "Install Hex · {size} MB"
+#~ msgstr "Hex'i yükle · {size} MB"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #~ msgid "Install Hex on the connected host first. Poracode uses its native service, not its dictation app. Model downloads may be large and have their own licenses."
@@ -9963,8 +10022,12 @@ msgid "Install Tailscale to enable HTTPS access through MagicDNS."
 msgstr "MagicDNS üzerinden HTTPS erişimini etkinleştirmek için Tailscale'i yükleyin."
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Install the engine"
-msgstr "Motoru takın"
+#~ msgid "Install the engine"
+#~ msgstr "Motoru takın"
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Install the engine first"
+msgstr "Önce motoru kurun"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Install the package to add its API key."
@@ -9999,8 +10062,8 @@ msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılamıyor."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-msgid "Installation continues when you close this dialog."
-msgstr "Bu iletişim kutusunu kapatsanız bile yükleme devam eder."
+#~ msgid "Installation continues when you close this dialog."
+#~ msgstr "Bu iletişim kutusunu kapatsanız bile yükleme devam eder."
 
 #: src/renderer/components/plugins/ComputerUsePluginSettings.tsx
 msgid "Installation couldn't be verified, so it was rolled back. Nothing was changed."
@@ -10038,10 +10101,23 @@ msgstr "Yüklü, kapalı"
 msgid "Installing"
 msgstr "Kuruluyor"
 
-#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Installing engine…"
 msgstr "Motor kuruluyor…"
+
+#. placeholder {0}: Math.round(engine.progress)
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Installing engine… {0}%"
+msgstr "Motor kuruluyor… %{0}"
+
+#. placeholder {0}: Math.round(engine.progress)
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Installing engine… {0}%. Continues if you close this dialog."
+msgstr "Motor kuruluyor… %{0}. Bu iletişim kutusunu kapatsanız da devam eder."
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Installing engine… Continues if you close this dialog."
+msgstr "Motor kuruluyor… Bu iletişim kutusunu kapatsanız da devam eder."
 
 #: src/renderer/views/LoginTerminalOverlay/LoginTerminalOverlay.tsx
 msgid "Installing in this terminal. Closes when finished."
@@ -10310,7 +10386,7 @@ msgid "Language the speech model should expect when transcribing composer dictat
 msgstr "Yazma alanı diktesini yazıya dökerken konuşma modelinin beklemesi gereken dil."
 
 #. placeholder {0}: selected.languages.join(", ")
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Languages: {0}"
 msgstr "Diller: {0}"
 
@@ -10998,12 +11074,12 @@ msgstr "Yönet"
 #~ msgstr "Diğer sağlayıcılardan içe aktarılanlar dahil olmak üzere genel ve proje aracı becerilerini yönetin."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-msgid "Manage Hex"
-msgstr "Hex'i yönet"
+#~ msgid "Manage Hex"
+#~ msgstr "Hex'i yönet"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Manage Hex…"
-msgstr "Hex'i yönet…"
+#~ msgid "Manage Hex…"
+#~ msgstr "Hex'i yönet…"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
@@ -11071,6 +11147,10 @@ msgstr "Bu projenin eklentilerini, ana makinesindeki bir Poracode istemcisinden 
 #~ msgid "Manage workspaces"
 #~ msgstr "Çalışma alanlarını yönet"
 
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Manage…"
+msgstr "Yönet…"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed"
 #~ msgstr "Yönetiliyor"
@@ -11088,8 +11168,7 @@ msgstr "{pluginName} tarafından yönetiliyor"
 msgid "Managed by Poracode"
 msgstr "Poracode tarafından yönetiliyor"
 
-#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Managed by Poracode. No separate app to open."
 msgstr "Poracode tarafından yönetilmektedir. Açılacak ayrı bir uygulama yok."
 
@@ -11106,8 +11185,12 @@ msgid "Managed Hex installation is not available on this host."
 msgstr "Yönetilen Hex kurulumu bu ana bilgisayarda mevcut değil."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
-msgstr "Yönetilen kurulum bu ana bilgisayarda mevcut değil. Uyumlu bir harici Hex motorunu veya yerleşik arka ucu kullanın."
+#~ msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
+#~ msgstr "Yönetilen kurulum bu ana bilgisayarda mevcut değil. Uyumlu bir harici Hex motorunu veya yerleşik arka ucu kullanın."
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in engine."
+msgstr "Yönetilen kurulum bu ana bilgisayarda kullanılamıyor. Uyumlu bir harici Hex motoru veya yerleşik motor kullanın."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
@@ -11734,13 +11817,13 @@ msgstr "Model etiketi"
 msgid "Model pairing"
 msgstr "Model çifti"
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Model preparation progress"
 msgstr "Model hazırlama ilerlemesi"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Model ready. Try a short recording below."
-msgstr "Model hazır. Aşağıda kısa bir kayıt yapmayı deneyin."
+#~ msgid "Model ready. Try a short recording below."
+#~ msgstr "Model hazır. Aşağıda kısa bir kayıt yapmayı deneyin."
 
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
@@ -11983,11 +12066,11 @@ msgstr "Değişiklikleriniz \"{newBranch}\" üzerindeki yeni bir çalışma ağa
 msgid "Moving changes…"
 msgstr "Değişiklikler taşınıyor…"
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Multilingual dictation for the supported languages."
 msgstr "Desteklenen diller için çok dilli dikte."
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Multilingual speech recognition."
 msgstr "Çok dilli konuşma tanıma."
 
@@ -14598,8 +14681,7 @@ msgstr "Poracode'in Hex motorunu kurma veya çalıştırma izni yok."
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode, pazar yeri kimlik bilgilerini ayarlarda düz metin olarak saklamaz. Güvenlik taramasından geçmiş becerilere göz atmak için kataloğu açın."
 
-#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Poracode downloads and verifies Hex on this host. No administrator access is needed."
 msgstr "Poracode bu ana makinede Hex'i indirir ve doğrular. Yönetici erişimine gerek yoktur."
 
@@ -14794,8 +14876,8 @@ msgstr "Pre-commit kancası başarısız oldu"
 #~ msgstr "Tercih edilen yönlendirme sırası"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Preparation continues when you leave settings. You can return here to check progress."
-msgstr "Ayarlardan çıktığınızda hazırlık devam ediyor. İlerlemeyi kontrol etmek için buraya dönebilirsiniz."
+#~ msgid "Preparation continues when you leave settings. You can return here to check progress."
+#~ msgstr "Ayarlardan çıktığınızda hazırlık devam ediyor. İlerlemeyi kontrol etmek için buraya dönebilirsiniz."
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #~ msgid "Prepare model"
@@ -14806,8 +14888,26 @@ msgid "Prepare the selected Hex model in Audio settings before recording."
 msgstr "Kayıttan önce Ses ayarlarından seçili Hex modelini hazırlayın."
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Preparing model…"
-msgstr "Model hazırlanıyor…"
+msgid "Preparing {preparingName}…"
+msgstr "Hazırlanıyor: {preparingName}…"
+
+#. placeholder {0}: Math.round(progress)
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Preparing {preparingName}… {0}%"
+msgstr "Hazırlanıyor: {preparingName}… %{0}"
+
+#. placeholder {0}: Math.round(progress)
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Preparing {preparingName}… {0}%. Continues if you close this dialog."
+msgstr "Hazırlanıyor: {preparingName}… %{0}. Bu iletişim kutusunu kapatsanız da devam eder."
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Preparing {preparingName}… Continues if you close this dialog."
+msgstr "Hazırlanıyor: {preparingName}… Bu iletişim kutusunu kapatsanız da devam eder."
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Preparing model…"
+#~ msgstr "Model hazırlanıyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Preparing remote environment…"
@@ -15548,9 +15648,18 @@ msgstr "Tüm diff'i ve dokunduğu kodu okur, hedefli kontroller çalıştırır;
 msgid "Ready"
 msgstr "Hazır"
 
+#. placeholder {0}: selected.name
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Ready for dictation"
-msgstr "Dikteye hazır"
+msgid "Ready · {0}"
+msgstr "Hazır · {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#~ msgid "Ready for dictation"
+#~ msgstr "Dikteye hazır"
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Ready for dictation."
+msgstr "Dikte için hazır."
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Ready for review"
@@ -15710,7 +15819,6 @@ msgstr "Referans"
 #: src/renderer/views/PullRequestsOverlay/list/PrCompactListBar.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
@@ -15912,6 +16020,7 @@ msgstr "Uzak URL"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Remove"
 msgstr "Kaldır"
@@ -16044,8 +16153,8 @@ msgid "Remove Hex engine?"
 msgstr "Hex motoru kaldırılsın mı?"
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-msgid "Remove managed engine"
-msgstr "Yönetilen motoru kaldır"
+#~ msgid "Remove managed engine"
+#~ msgstr "Yönetilen motoru kaldır"
 
 #: src/renderer/components/plugins/PluginCatalogBrowser.tsx
 msgid "Remove marketplace"
@@ -17793,6 +17902,10 @@ msgstr "Düzenlemeye başlamak için bir dosya seçin."
 msgid "Select a guide writer that supports an enforced read-only workspace."
 msgstr "Salt okunur çalışma alanını zorunlu kılan bir rehber yazarı seçin."
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Select a model"
+msgstr "Model seçin"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Select a project before importing to Project."
 #~ msgstr "Projeye içe aktarmadan önce bir proje seçin."
@@ -17853,7 +17966,7 @@ msgstr "Uygun olanların tümünü seçin"
 msgid "Select an agent to see its prompt and outcome."
 msgstr "İstemini ve sonucunu görmek için bir aracı seçin."
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Select an available model for this language."
 msgstr "Bu dil için kullanılabilir bir model seçin."
 
@@ -18056,12 +18169,16 @@ msgid "Set shortcut"
 msgstr "Kısayol belirle"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Set up Hex…"
-msgstr "Hex'i kur…"
+#~ msgid "Set up Hex…"
+#~ msgstr "Hex'i kur…"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Set up voice"
 msgstr "Sesi ayarla"
+
+#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+msgid "Set up…"
+msgstr "Kur…"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Set when this session started — start a new thread to change MCP servers"
@@ -18860,7 +18977,7 @@ msgstr "Belirli bir persona"
 msgid "Specific repositories"
 msgstr "Belirli depolar"
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Speech recognition for supported East Asian languages and English."
 msgstr "Desteklenen Doğu Asya dilleri ve İngilizce için konuşma tanıma."
 
@@ -20726,8 +20843,12 @@ msgid "This guide is out of date. Rewrite it to see excerpts for the current cha
 msgstr "Bu rehber güncel değil. Mevcut değişikliğin alıntılarını görmek için yeniden yazın."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-msgid "This Hex release requires glibc 2.39 or newer on Linux."
-msgstr "Bu Hex sürümü, Linux'ta glibc 2.39 veya daha yenisini gerektirir."
+#~ msgid "This Hex release requires glibc 2.39 or newer on Linux."
+#~ msgstr "Bu Hex sürümü, Linux'ta glibc 2.39 veya daha yenisini gerektirir."
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "This Hex release requires glibc 2.39 or newer on Linux. Use the built-in engine instead."
+msgstr "Bu Hex sürümü Linux'ta glibc 2.39 veya üstünü gerektirir. Bunun yerine yerleşik motoru kullanın."
 
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "This host"
@@ -22172,6 +22293,7 @@ msgstr "güncelleme"
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
@@ -22251,8 +22373,8 @@ msgid "Update Cursor SDK to v{availableVersion}"
 msgstr "Cursor SDK'yı v{availableVersion} sürümüne güncelle"
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-msgid "Update engine"
-msgstr "Motoru güncelle"
+#~ msgid "Update engine"
+#~ msgstr "Motoru güncelle"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Update error: {detail}"
@@ -22537,8 +22659,8 @@ msgid "Use as default for new worktrees"
 msgstr "Yeni çalışma ağaçları için varsayılan olarak kullan"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Use built-in transcription"
-msgstr "Yerleşik transkripsiyonu kullanın"
+#~ msgid "Use built-in transcription"
+#~ msgstr "Yerleşik transkripsiyonu kullanın"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Use Chrome safely when a task needs an existing browser session."
@@ -22703,8 +22825,7 @@ msgstr "Bu makinede Devin'in kendi girişini kullanır. Devin temel sayfasından
 msgid "Using the built-in Claude model list."
 msgstr "Yerleşik Claude model listesi kullanılıyor."
 
-#: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Using your existing Hex installation. Poracode will not modify it."
 msgstr "Mevcut Hex kurulumunuzu kullanma. Poracode bunu değiştirmeyecektir."
 
@@ -22733,13 +22854,17 @@ msgstr "değer"
 #~ msgid "Verification could not load. Please try again."
 #~ msgstr "Doğrulama yüklenemedi. Lütfen tekrar deneyin."
 
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Verify"
+msgstr "Doğrula"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify host key"
 #~ msgstr "Ana makine anahtarını doğrula"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
-msgid "Verify model"
-msgstr "Modeli doğrulayın"
+#~ msgid "Verify model"
+#~ msgstr "Modeli doğrulayın"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify SSH host key"
@@ -22919,6 +23044,10 @@ msgstr "Ses girişi modeli"
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 msgid "Voice input needs attention"
 msgstr "Ses girişine dikkat edilmesi gerekiyor"
+
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+msgid "Voice model"
+msgstr "Ses modeli"
 
 #: src/renderer/speech/hexVoice.ts
 msgid "Voice transcription cancelled."
@@ -23216,7 +23345,7 @@ msgstr "Terminal panelinin göründüğü yer."
 #~ msgid "While working"
 #~ msgstr "Çalışırken"
 
-#: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Whisper with broad multilingual support."
 msgstr "Geniş çoklu dil desteğine sahip Whisper."
 

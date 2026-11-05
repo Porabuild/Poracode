@@ -196,7 +196,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   {
     section: "audio",
     anchor: "audio.hexModel",
-    title: msg`Hex voice model`,
+    title: msg`Hex setup`,
     description: msg`Models available on the connected host for the selected language.`,
     keywords: "hex native model install setup download prepare parakeet whisper",
     conditional: true,
