@@ -125,27 +125,19 @@ test_status=0
   -Pandroid.testInstrumentationRunnerArguments.class="$mock_classes" \
   --no-daemon --stacktrace || test_status=$?
 
-# Bounded evidence pull for THIS feature only: the journey writes its rendered
-# details screenshot through context.getExternalFilesDir(null). Never enumerate
-# or delete device data. API 30+ hides Android/data from the shell, so fall back
-# to the debuggable app's own uid via run-as for the same exact file.
+# Orchestrator clears app data between methods. The shell-owned screenshot
+# survives that cleanup; pull only this known file, then remove it on device.
 screenshot_dir="$RUNNER_TEMP/android-api37-screenshots"
 mkdir -p "$screenshot_dir"
-pull_known_screenshot() {
-  local name="$1"
-  local remote="/sdcard/Android/data/com.lightcodeapp.mobile/files/$name"
-  if ! adb pull "$remote" "$screenshot_dir/$name" >/dev/null 2>&1 || [ ! -s "$screenshot_dir/$name" ]; then
-    rm -f "$screenshot_dir/$name"
-    adb exec-out run-as com.lightcodeapp.mobile cat "$remote" > "$screenshot_dir/$name" 2>/dev/null || true
-  fi
-  if [ -s "$screenshot_dir/$name" ]; then
-    echo "Pulled background-task screenshot evidence: $screenshot_dir/$name"
-  else
-    rm -f "$screenshot_dir/$name"
-  fi
-}
-pull_known_screenshot "background-task-details.png"
+screenshot="$screenshot_dir/background-task-details.png"
+adb pull /data/local/tmp/poracode-background-task-details.png "$screenshot" >/dev/null 2>&1 || true
+adb shell rm -f /data/local/tmp/poracode-background-task-details.png >/dev/null 2>&1 || true
 if [ "$test_status" -ne 0 ]; then
   exit "$test_status"
 fi
+if [ ! -s "$screenshot" ] || [ "$(head -c 8 "$screenshot" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
+  echo "Background-task screenshot is missing or is not a PNG." >&2
+  exit 1
+fi
+echo "Pulled background-task screenshot evidence: $screenshot"
 printf '%s\n' '### Android 17 runtime evidence' '' '- API 37 emulator booted as Android 17 (REL).' '- The targetSdk 37 / minSdk 34 APK installed and launched.' '- The API 37 instrumentation suite passed.' >> "$GITHUB_STEP_SUMMARY"

@@ -3,7 +3,6 @@ package com.poracode.app
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -25,8 +24,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.poracode.app.transport.RemoteWebSocketClient
 import com.poracode.app.wirelab.WireLabArgs
 import com.poracode.app.wirelab.WireLabControl
-import java.io.File
-import java.io.FileOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -144,7 +141,7 @@ class BackgroundTaskDetailsInstrumentedTest {
             (displayedReadOrdinal() ?: 0) > staleRead,
         )
 
-        captureScreenshot("background-task-details.png")
+        captureScreenshot()
 
         // Stop is not blocked and its confirmation replaces the roster.
         compose.onNodeWithTag("background-task-stop").performClick()
@@ -295,21 +292,9 @@ class BackgroundTaskDetailsInstrumentedTest {
         compose.waitUntil(timeoutMs) { backgroundTaskField("outputDelivered") >= readCount() }
     }
 
-    /**
-     * Full-screen rendered evidence. `uiAutomation.takeScreenshot()` avoids the
-     * multi-root window problem `onRoot().captureToImage()` has while a
-     * ModalBottomSheet owns a separate window, and matches the existing API-37
-     * evidence idiom. The name keeps the `.png` extension the CI screenshot
-     * pull/artifact expects.
-     */
-    private fun captureScreenshot(name: String) {
-        val bitmap: Bitmap = instrumentation.uiAutomation.takeScreenshot()
-        try {
-            val out = File(context.getExternalFilesDir(null), name)
-            FileOutputStream(out).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-            println("BACKGROUND_TASK_DETAILS_SCREENSHOT=${out.absolutePath}")
-        } finally {
-            bitmap.recycle()
-        }
+    private fun captureScreenshot() {
+        // Orchestrator clears app data after each test. Shell-owned evidence
+        // survives until CI pulls this exact file after instrumentation ends.
+        shell("screencap -p /data/local/tmp/poracode-background-task-details.png")
     }
 }

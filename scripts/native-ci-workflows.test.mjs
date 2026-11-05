@@ -75,6 +75,7 @@ void test("API 37 workflow preserves shell state, joins its harness, and propaga
         join(bin, "adb"),
         `#!/bin/sh
 case "$*" in
+  'pull /data/local/tmp/poracode-background-task-details.png '*) if [ "$FAILURE_STAGE" = screenshot ]; then printf 'not-a-png' > "$3"; else printf '\\211PNG\\r\\n\\032\\n' > "$3"; fi;;
   'install -r '*) if [ "$FAILURE_STAGE" = install ]; then exit 6; fi;;
   'logcat -d -t '*) if [ "$FAILURE_STAGE" = instrumentation-logcat ]; then echo fixture-logcat-error >&2; exit 8; fi; echo fixture-logcat;;
   'logcat -d '*) echo fixture-logcat;;
@@ -142,6 +143,7 @@ if (process.argv[2] === 'assembleDebug') {
       ["harness", 1],
       ["instrumentation", 7],
       ["instrumentation-logcat", 7],
+      ["screenshot", 1],
     ]) {
       const evidence = join(temporary, failureStage);
       await mkdir(evidence);
