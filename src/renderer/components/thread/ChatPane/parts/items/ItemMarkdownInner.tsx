@@ -39,7 +39,7 @@ import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
 import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
 import { normalizeHighlightLanguage } from "./languageDetect";
-import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
+import { parseChatPathRef, parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
 import { normalizeWindowsDrivePath } from "@/shared/pathUtils";
 import { chatRemarkMath, withChatMathRehype } from "@/renderer/markdown/mathPlugins";
 import { splitStreamdownMarkdownBlocks } from "@/renderer/markdown/streamdownBlockSplitter";
@@ -183,11 +183,11 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
             rootNames: rootNames ? [...rootNames].sort() : null,
           }),
           parsePathRef: (token: string) => {
-            const ref = parseProjectPathRef(token, { rootNames });
+            const ref = parseChatPathRef(token, rootNames);
             const projectLocation = actions?.projectLocation;
             if (ref || !projectLocation) return ref;
             const normalized = normalizeChatProjectPath(token, projectLocation);
-            return normalized === token ? null : parseProjectPathRef(normalized, { rootNames });
+            return normalized === token ? null : parseChatPathRef(normalized, rootNames);
           },
         },
       ],
@@ -609,7 +609,12 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
       );
     }
   }
-  if (href.startsWith("/") || href.startsWith("file:")) {
+  // Without a project, a relative path link has nothing to open; keep its label.
+  if (
+    href.startsWith("/") ||
+    href.startsWith("file:") ||
+    (!actions?.projectLocation && parseProjectPathRef(href))
+  ) {
     return <span>{props.children}</span>;
   }
   return (

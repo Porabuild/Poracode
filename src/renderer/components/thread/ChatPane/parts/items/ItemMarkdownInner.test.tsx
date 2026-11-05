@@ -360,6 +360,41 @@ describe("ItemMarkdownInner", () => {
     );
   });
 
+  it("leaves slash prose as text when no project can verify folders", () => {
+    const homeActions: ChatPaneActions = {
+      openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
+    };
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={homeActions}>
+          <ItemMarkdownInner text="Subscribe to the GOAT plan ($10/month) and open src/main.ts now" />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const chips = [...container.querySelectorAll(".poracode-inline-path-chip")];
+    expect(chips.some((chip) => chip.textContent?.includes("10/month"))).toBe(false);
+    expect(container.textContent).toContain("$10/month");
+    expect(screen.getByRole("button", { name: /main.ts/ })).not.toBeNull();
+  });
+
+  it("shows a relative folder link label as text when no project can open it", () => {
+    const homeActions: ChatPaneActions = {
+      openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
+    };
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={homeActions}>
+          <ItemMarkdownInner text="See [the guide](docs/guide) for details" />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.querySelector(".poracode-inline-path-chip")).toBeNull();
+    expect(container.textContent).toContain("See the guide for details");
+  });
+
   it.each([
     { refreshRate: 60, initial: "Hello" },
     { refreshRate: 120, initial: "Hello" },

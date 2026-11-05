@@ -82,3 +82,18 @@ export function parseProjectPathRef(s: string, options: ParseOptions = {}): Proj
   }
   return { kind: "folder", path: candidate };
 }
+
+/**
+ * Chat variant for auto-detected prose tokens and relative link destinations.
+ * Without the project's root names there is nothing to verify a folder against
+ * (Home threads), so prose such as `$10/month`, `and/or`, or `/plan` would
+ * become a folder chip that opens nothing. Files keep their chip: an extension
+ * or `:line` suffix is evidence on its own.
+ */
+export function parseChatPathRef(
+  token: string,
+  rootNames: ReadonlySet<string> | undefined,
+): ProjectPathRef | null {
+  const ref = parseProjectPathRef(token, { rootNames });
+  return ref?.kind === "folder" && !rootNames ? null : ref;
+}
