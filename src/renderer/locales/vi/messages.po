@@ -5646,6 +5646,7 @@ msgstr "Số dư tín dụng"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mobileComposer/ComposerCompactSummary.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -5653,6 +5654,10 @@ msgstr "Số dư tín dụng"
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Crew"
 msgstr "Crew"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew ({subagent}): {description}"
+msgstr "Crew ({subagent}): {description}"
 
 #: src/renderer/commands/registry.ts
 msgid "Crew added to favorites"
@@ -5666,6 +5671,14 @@ msgstr "Ưu tiên Crew"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "Crew first: may also use other agents"
 msgstr "Ưu tiên Crew: cũng có thể dùng tác nhân khác"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew Follow-up ({subagent}): {description}"
+msgstr "Tiếp tục Crew ({subagent}): {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew Follow-up: {subagent}"
+msgstr "Tiếp tục Crew: {subagent}"
 
 #: src/renderer/components/crew/CrewRosterMenu.tsx
 msgid "Crew members"
@@ -5693,6 +5706,14 @@ msgstr "Chính sách nhóm"
 #: src/renderer/commands/registry.ts
 msgid "Crew removed from favorites"
 msgstr "Đã xóa nhóm khỏi mục yêu thích"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Crew Result"
+msgstr "Kết quả Crew"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew: {subagent}"
+msgstr "Crew: {subagent}"
 
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
@@ -5729,6 +5750,22 @@ msgstr "Crossagent"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Crossagent ({subagent}): {description}"
 msgstr "Crossagent ({subagent}): {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crossagent Follow-up"
+msgstr "Tiếp tục Crossagent"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crossagent Follow-up ({subagent}): {description}"
+msgstr "Tiếp tục Crossagent ({subagent}): {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crossagent Follow-up: {description}"
+msgstr "Tiếp tục Crossagent: {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crossagent Follow-up: {subagent}"
+msgstr "Tiếp tục Crossagent: {subagent}"
 
 #. placeholder {0}: props.provider.label
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
@@ -8501,10 +8538,18 @@ msgstr "Theo dõi {0}"
 #~ msgid "Follow up..."
 #~ msgstr "Tiếp tục..."
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "follow-up"
+msgstr "tiếp tục"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Follow-up behavior"
 msgstr "Cách xử lý tin nhắn tiếp theo"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Follow-up in the same session"
+msgstr "Tiếp tục trong cùng phiên"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
@@ -13520,6 +13565,10 @@ msgstr "Mở trình giải quyết xung đột trong"
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Open conversation"
 msgstr "Mở cuộc trò chuyện"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Open Crew run: {task}"
+msgstr "Mở lượt chạy Crew: {task}"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
