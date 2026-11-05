@@ -7,7 +7,9 @@ import type { PersistedPromptIndex } from "@/shared/ipc";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ChatTimelineEntry } from "./chatPaneSelectors";
 import { ChatPromptRail } from "./ChatPromptRail";
+import { buildRailPrompts } from "./promptRailTarget";
 import { useRailPane } from "./useRailPane";
+import { useVisibleRowRange } from "./useVisibleRowRange";
 
 const { readThreadPromptIndex, cache } = vi.hoisted(() => ({
   cache: new Map<string, PersistedPromptIndex>(),
@@ -15,6 +17,13 @@ const { readThreadPromptIndex, cache } = vi.hoisted(() => ({
     (threadId: string, signal?: AbortSignal) => Promise<PersistedPromptIndex | null>
   >(async () => null),
 }));
+vi.mock("./promptRailTarget", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./promptRailTarget")>();
+  return {
+    ...actual,
+    buildRailPrompts: vi.fn<typeof actual.buildRailPrompts>(actual.buildRailPrompts),
+  };
+});
 vi.mock("@/renderer/state/threadPromptIndex", () => ({
   threadPromptIndexOwner: () => "host",
   shouldRefreshThreadPromptIndex: () => false,
@@ -108,11 +117,11 @@ function createScroller(initial: readonly ChatTimelineEntry[] = ENTRIES) {
 
 function railElement(
   scroller: HTMLDivElement,
-  props: Partial<Parameters<typeof ChatPromptRail>[0]> = {},
+  props: Partial<Omit<Parameters<typeof ChatPromptRail>[0], "visibleRange">> = {},
 ) {
   return (
     <AppProvider>
-      <ChatPromptRail
+      <ChatPromptRailWithRange
         threadId={THREAD_ID}
         entries={ENTRIES}
         scrollElement={scroller}
@@ -125,9 +134,17 @@ function railElement(
   );
 }
 
+/** Supplies the shared range the overlays measure in production. */
+function ChatPromptRailWithRange(
+  props: Omit<Parameters<typeof ChatPromptRail>[0], "visibleRange">,
+) {
+  const visibleRange = useVisibleRowRange(props.scrollElement, props.entries);
+  return <ChatPromptRail {...props} visibleRange={visibleRange} />;
+}
+
 async function renderRail(
   scroller: HTMLDivElement,
-  props: Partial<Parameters<typeof ChatPromptRail>[0]> = {},
+  props: Partial<Omit<Parameters<typeof ChatPromptRail>[0], "visibleRange">> = {},
 ) {
   const onJumpToPrompt = vi.fn<(itemId: string) => void>();
   const result = render(railElement(scroller, { onJumpToPrompt, ...props }));
@@ -181,6 +198,7 @@ describe("ChatPromptRail", () => {
   beforeEach(() => {
     ImmediateResizeObserver.callbacks.clear();
     readThreadPromptIndex.mockReset();
+    vi.mocked(buildRailPrompts).mockClear();
     cache.clear();
     readThreadPromptIndex.mockResolvedValue({ prompts: [], truncated: false });
     vi.stubGlobal("ResizeObserver", ImmediateResizeObserver);
@@ -574,13 +592,19 @@ describe("ChatPromptRail", () => {
 
   it("does nothing, not even read the host index, when the column leaves no gutter", async () => {
     readThreadPromptIndex.mockResolvedValue(OLDER_INDEX);
-    const { scroller } = createScroller();
+    const { scroller, scrollTo } = createScroller();
     scroller.getBoundingClientRect = () => new DOMRect(0, 0, 920, 2 * ROW_HEIGHT);
     await renderRail(scroller);
     await flushIndex();
 
     expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
     expect(readThreadPromptIndex).not.toHaveBeenCalled();
+    // The shared visible-range update re-renders the hidden rail; it must not
+    // project every entry and prompt on that path.
+    expect(buildRailPrompts).not.toHaveBeenCalled();
+    scrollTo(ROW_HEIGHT);
+    expect(buildRailPrompts).not.toHaveBeenCalled();
+    expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
   });
 
   it("does nothing on a touch device", async () => {

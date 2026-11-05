@@ -8,7 +8,10 @@ import {
   selectActiveSubAgentParentItemIds,
   selectThreadHasActiveNativeSubAgent,
 } from "@/renderer/state/subAgentSelectors";
+import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import {
+  clearRuntimeItemStoreSelectorCacheForThread,
+  selectAssistantTurnRowState,
   selectChatScrollAnchor,
   selectChildTimelineEntries,
   selectCompletedTurnsByAnchorItem,
@@ -1566,6 +1569,304 @@ describe("chatPaneSelectors", () => {
       expect(selectMostRecentDisplayableCompletedTurn(state, "t1")).toMatchObject({
         anchorItemId: null,
       });
+    });
+  });
+
+  describe("assistant turn row state", () => {
+    const threadId = "t1";
+
+    function assistantItem(
+      id: string,
+      state: RuntimeChatItem["state"] = "completed",
+      parentItemId?: string,
+    ): RuntimeChatItem {
+      return {
+        id,
+        type: "assistant_message",
+        state,
+        payload: { content: [{ kind: "text", text: id }] },
+        streams: {},
+        ...(parentItemId ? { parentItemId } : {}),
+      };
+    }
+
+    function userItem(id: string): RuntimeChatItem {
+      return { id, type: "user_message", state: "completed", streams: {} };
+    }
+
+    function toolItem(id: string): RuntimeChatItem {
+      return {
+        id,
+        type: "tool_call",
+        state: "completed",
+        payload: { name: "Read", status: "success" },
+        streams: {},
+      };
+    }
+
+    function goalItem(id: string): RuntimeChatItem {
+      return { id, type: "goal", state: "completed", streams: {} };
+    }
+
+    function errorItem(id: string): RuntimeChatItem {
+      return {
+        id,
+        type: "error",
+        state: "completed",
+        payload: { message: "failed" },
+        streams: {},
+      };
+    }
+
+    function stateWith(
+      items: Record<string, RuntimeChatItem>,
+      turns: ReadonlyArray<{ startedAt: number; endedAt: number; anchorItemId: string }> = [],
+    ): AppStoreState {
+      return {
+        runtimeItemIdsByThread: { [threadId]: Object.keys(items) },
+        runtimeItemsByIdByThread: { [threadId]: items },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+        runtimeCompletedTurnsByThread: { [threadId]: turns },
+      } as unknown as AppStoreState;
+    }
+
+    function rowState(state: AppStoreState, item: RuntimeChatItem, active = false) {
+      return selectAssistantTurnRowState(state, threadId, item, active);
+    }
+
+    function countingItems(items: Record<string, RuntimeChatItem>): {
+      items: Record<string, RuntimeChatItem>;
+      counts: { gets: number };
+    } {
+      const counts = { gets: 0 };
+      const proxy = new Proxy(items, {
+        get(target, property, receiver) {
+          counts.gets += 1;
+          return Reflect.get(target, property, receiver);
+        },
+      });
+      return { items: proxy, counts };
+    }
+
+    it("derives confirmed, none and tail statuses in one reverse walk", () => {
+      const answer1 = assistantItem("answer-1");
+      const answer2 = assistantItem("answer-2");
+      const answer3 = assistantItem("answer-3");
+      const child = assistantItem("child-1", "completed", "answer-2");
+      const confirmed = stateWith({
+        "user-1": userItem("user-1"),
+        "answer-1": answer1,
+        "user-2": userItem("user-2"),
+      });
+      expect(rowState(confirmed, answer1)).toMatchObject({
+        finalAnswerStatus: "confirmed",
+        latestCompletedAnswerId: undefined,
+        completedTurnStartedAt: undefined,
+      });
+
+      const trailingTool = stateWith({
+        "user-1": userItem("user-1"),
+        "answer-2": answer2,
+        "tool-1": toolItem("tool-1"),
+      });
+      expect(rowState(trailingTool, answer2).finalAnswerStatus).toBe("none");
+
+      const trailingGoal = stateWith({
+        "user-1": userItem("user-1"),
+        "answer-3": answer3,
+        "goal-1": goalItem("goal-1"),
+      });
+      expect(rowState(trailingGoal, answer3).finalAnswerStatus).toBe("none");
+
+      const trailingError = stateWith({
+        "user-1": userItem("user-1"),
+        "answer-3": answer3,
+        "error-1": errorItem("error-1"),
+      });
+      expect(rowState(trailingError, answer3).finalAnswerStatus).toBe("none");
+
+      const nestedOnly = stateWith({
+        "user-1": userItem("user-1"),
+        "answer-2": answer2,
+        "child-1": child,
+      });
+      expect(rowState(nestedOnly, answer2, true).finalAnswerStatus).toBe("candidate");
+      expect(rowState(nestedOnly, answer2, false).finalAnswerStatus).toBe("confirmed");
+      expect(rowState(nestedOnly, child, false)).toMatchObject({
+        finalAnswerStatus: "none",
+        completedTurnStartedAt: undefined,
+        completedTurnEndedAt: undefined,
+      });
+    });
+
+    it("keeps the existing latest completed answer and timestamp behavior", () => {
+      const answer1 = assistantItem("answer-1");
+      const answer2 = assistantItem("answer-2");
+      const items = {
+        "user-1": userItem("user-1"),
+        "answer-1": answer1,
+        "user-2": userItem("user-2"),
+        "answer-2": answer2,
+      };
+      const turns = [
+        { startedAt: 1_000, endedAt: 2_000, anchorItemId: "answer-1" },
+        { startedAt: 3_000, endedAt: 4_000, anchorItemId: "answer-2" },
+      ];
+      const state = stateWith(items, turns);
+      expect(rowState(state, answer1)).toMatchObject({
+        completedTurnStartedAt: 1_000,
+        completedTurnEndedAt: 2_000,
+        latestCompletedAnswerId: "answer-2",
+      });
+      expect(rowState(state, answer2).latestCompletedAnswerId).toBe("answer-2");
+
+      const secondAnswerPending = {
+        ...state,
+        runtimeItemsByIdByThread: {
+          [threadId]: { ...items, "answer-2": assistantItem("answer-2", "started") },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 2 },
+      } as AppStoreState;
+      expect(rowState(secondAnswerPending, answer1).latestCompletedAnswerId).toBe("answer-1");
+
+      const nonAssistantLatest = {
+        ...state,
+        runtimeCompletedTurnsByThread: {
+          [threadId]: [turns[0]!, { startedAt: 5_000, endedAt: 6_000, anchorItemId: "tool-1" }],
+        },
+      } as AppStoreState;
+      expect(rowState(nonAssistantLatest, answer1).latestCompletedAnswerId).toBe("answer-1");
+    });
+
+    it("derives once for many rows and skips content and unrelated canonical commits", () => {
+      const source = Object.fromEntries(
+        Array.from({ length: 20 }, (_, index) => {
+          const item = assistantItem(`answer-${index}`);
+          return [item.id, item] as const;
+        }),
+      );
+      const { items, counts } = countingItems(source);
+      const state = stateWith(items);
+      const firstRow = source["answer-0"]!;
+      expect(rowState(state, firstRow).finalAnswerStatus).toBe("none");
+
+      const afterFirst = counts.gets;
+      expect(afterFirst).toBe(20);
+      for (const item of Object.values(source)) rowState(state, item);
+      expect(counts.gets).toBe(afterFirst);
+
+      const contentDelta = {
+        ...state,
+        ...applyRuntimeEventsToState(state, threadId, [
+          {
+            type: "content.delta",
+            threadId,
+            itemId: "answer-0",
+            stream: "assistant_text",
+            delta: " more",
+          },
+        ]),
+      } as AppStoreState;
+      const beforeContentRead = counts.gets;
+      expect(rowState(contentDelta, firstRow).finalAnswerStatus).toBe("none");
+      expect(counts.gets).toBe(beforeContentRead);
+
+      const unrelatedCommit = {
+        ...contentDelta,
+        ...applyRuntimeEventsToState(contentDelta, "other", [
+          {
+            type: "item.started",
+            threadId: "other",
+            itemId: "answer-other",
+            itemType: "assistant_message",
+          },
+        ]),
+      } as AppStoreState;
+      const beforeUnrelatedRead = counts.gets;
+      expect(rowState(unrelatedCommit, firstRow).finalAnswerStatus).toBe("none");
+      expect(counts.gets).toBe(beforeUnrelatedRead);
+    });
+
+    it("rebuilds on own structural/turn-only changes, unhinted recovery and missed predecessors", () => {
+      const answer = assistantItem("answer-1");
+      const source = {
+        "user-1": userItem("user-1"),
+        "answer-1": answer,
+        "user-2": userItem("user-2"),
+      };
+      const { items, counts } = countingItems(source);
+      const state = stateWith(items);
+      expect(rowState(state, answer).finalAnswerStatus).toBe("confirmed");
+      const initialReads = counts.gets;
+
+      const structural = {
+        ...state,
+        ...applyRuntimeEventsToState(state, threadId, [
+          {
+            type: "item.updated",
+            threadId,
+            itemId: "answer-1",
+            payload: { content: [{ kind: "text", text: "edited" }] },
+          },
+        ]),
+      } as AppStoreState;
+      rowState(structural, answer);
+      expect(counts.gets).toBeGreaterThan(initialReads);
+
+      const turnOnly = {
+        ...structural,
+        runtimeCompletedTurnsByThread: {
+          [threadId]: [{ startedAt: 1_000, endedAt: 2_000, anchorItemId: "answer-1" }],
+        },
+      } as AppStoreState;
+      const beforeTurnRead = counts.gets;
+      expect(rowState(turnOnly, answer)).toMatchObject({
+        completedTurnStartedAt: 1_000,
+        completedTurnEndedAt: 2_000,
+        latestCompletedAnswerId: "answer-1",
+      });
+      expect(counts.gets).toBeGreaterThan(beforeTurnRead);
+
+      const recovery = {
+        ...turnOnly,
+        runtimeItemsByIdByThread: { ...turnOnly.runtimeItemsByIdByThread },
+      } as AppStoreState;
+      const beforeRecoveryRead = counts.gets;
+      rowState(recovery, answer);
+      expect(counts.gets).toBeGreaterThan(beforeRecoveryRead);
+
+      const firstDelta = {
+        ...recovery,
+        ...applyRuntimeEventsToState(recovery, threadId, [
+          {
+            type: "content.delta",
+            threadId,
+            itemId: "answer-1",
+            stream: "assistant_text",
+            delta: " one",
+          },
+        ]),
+      } as AppStoreState;
+      const secondDelta = {
+        ...firstDelta,
+        ...applyRuntimeEventsToState(firstDelta, threadId, [
+          {
+            type: "content.delta",
+            threadId,
+            itemId: "answer-1",
+            stream: "assistant_text",
+            delta: " two",
+          },
+        ]),
+      } as AppStoreState;
+      const beforeMissedPredecessorRead = counts.gets;
+      rowState(secondDelta, answer);
+      expect(counts.gets).toBeGreaterThan(beforeMissedPredecessorRead);
+
+      const beforeClearedRead = counts.gets;
+      clearRuntimeItemStoreSelectorCacheForThread(threadId);
+      rowState(secondDelta, answer);
+      expect(counts.gets).toBeGreaterThan(beforeClearedRead);
     });
   });
 });

@@ -53,9 +53,8 @@ import { ImportedThreadNotice } from "./parts/ImportedThreadNotice";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { ThreadForkOrigin, ThreadForkTurnAction } from "../ThreadForkControls";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
-import { ChatPromptRail } from "./ChatPromptRail";
+import { ChatPromptOverlays } from "./ChatPromptOverlays";
 import { promptAnchorScrollTop } from "./promptAnchorScrollTop";
-import { StickyPrompt } from "./StickyPrompt";
 import { usePromptJump } from "./usePromptJump";
 import { resolveThreadMarkdownImageRoots, threadHostHomeDir } from "../threadMarkdownImageRoots";
 import { resolveThreadTranscriptMarkdownFormatter } from "../threadTranscriptMarkdown";
@@ -632,21 +631,14 @@ export function ChatPane(props: ChatPaneProps) {
                 showSubAgentPanel(threadId, parentItemId, projectLocation);
               }}
             />
-            <StickyPrompt
-              key={`sticky-prompt:${threadId}`}
-              threadId={threadId}
-              entries={listEntries}
-              scrollElement={scrollEl}
-              isEnabled={isInitialScrollSettled}
-              onScrollToEntry={scrollToEntry}
-            />
-            <ChatPromptRail
-              key={`prompt-rail:${threadId}`}
+            <ChatPromptOverlays
+              key={`prompt-chrome:${threadId}`}
               threadId={threadId}
               entries={listEntries}
               scrollElement={scrollEl}
               isEnabled={isInitialScrollSettled}
               pendingPromptId={promptJump.pendingId}
+              onScrollToEntry={scrollToEntry}
               onJumpToPrompt={promptJump.jumpToPrompt}
             />
             <ChatFindBar
