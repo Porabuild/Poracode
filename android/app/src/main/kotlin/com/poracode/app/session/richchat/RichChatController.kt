@@ -24,7 +24,7 @@ import kotlinx.serialization.json.JsonObject
 class RichChatController(
     internal val session: StateFlow<RichChatHostLease?>,
     private val gateway: RichChatSessionGateway,
-    private val lifecycle: ForegroundOperationRegistry = ForegroundOperationRegistry(),
+    internal val lifecycle: ForegroundOperationRegistry = ForegroundOperationRegistry(),
 ) : RichChatEventSink {
     internal val mutableState = MutableStateFlow(RichChatControllerState())
     val state: StateFlow<RichChatControllerState> = mutableState.asStateFlow()
@@ -187,30 +187,6 @@ class RichChatController(
         if (accepted && truncated) invalidateOlderPaging()
         if (accepted) frameBuffer.markAccepted(sequence)
         return accepted
-    }
-
-    /**
-     * Accepted host `thread-exited` side effect for the selected rich-chat
-     * thread: drains the roster and advances the background-task watermark so
-     * an older history snapshot cannot resurrect it. Fenced to the exact
-     * current host and selection; other threads and stale hosts are ignored.
-     */
-    @Synchronized
-    fun drainBackgroundTasksForThreadExit(threadId: String, sequence: Int?): Boolean {
-        if (!lifecycle.isForeground) return false
-        val selected = mutableSelection.value ?: return false
-        if (selected.threadId != threadId) return false
-        if (!session.isCurrent(selected.host)) return false
-        mutableState.update { current ->
-            val nextSequence = sequence?.let { incoming ->
-                current.backgroundTaskSequence?.let { maxOf(it, incoming) } ?: incoming
-            } ?: current.backgroundTaskSequence
-            current.copy(
-                backgroundTasks = null,
-                backgroundTaskSequence = nextSequence,
-            )
-        }
-        return true
     }
 
     fun applyPendingSteer(

@@ -19,6 +19,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
 /** Projects canonical generated snapshots into the app's stable transport domain. */
@@ -61,15 +62,7 @@ internal object RemoteV3TransportAdapters {
         if (result.followUpQueue == null && wire?.containsKey("followUpQueue") == true) {
             result = result.copy(followUpQueue = JsonNull)
         }
-        // Background tasks are optional-NONnullable on the wire: present means
-        // the array is authoritative (including []), absent preserves retained
-        // metadata, and an explicit null is a contract violation, never an
-        // implicit drain.
-        if (wire?.containsKey("backgroundTasks") == true) {
-            if (result.backgroundTasks == null) invalid("background tasks")
-            result = result.copy(backgroundTasksPresent = true)
-        }
-        return result
+        return result.withBackgroundTaskPresence(wire) ?: invalid("background tasks")
     }
 
     fun historyItems(raw: String): RemoteRuntimeItemsPage = project(
@@ -137,4 +130,10 @@ internal object RemoteV3TransportAdapters {
             "Remote contract projection failed at $boundary.",
         )
     }
+}
+
+internal fun RemoteThreadSnapshot.withBackgroundTaskPresence(wire: JsonObject?): RemoteThreadSnapshot? {
+    if (wire?.containsKey("backgroundTasks") != true) return this
+    if (backgroundTasks == null) return null
+    return copy(backgroundTasksPresent = true)
 }

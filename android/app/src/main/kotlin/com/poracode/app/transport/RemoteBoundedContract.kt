@@ -343,22 +343,9 @@ internal object RemoteBoundedWire {
     fun threadHistory(raw: String): RemoteBoundedReadResult<RemoteThreadSnapshot, RemoteThreadSnapshot> {
         val codec = RemoteRootCodecs.routeU2EThreadU2DHistoryU2EResponse
         val envelope = envelope(raw, codec, "thread history")
-        var page = project(envelope, RemoteThreadSnapshot.serializer(), "thread history")
-        // Valid supplied array (including []) is authoritative; absent preserves
-        // retained metadata; explicit null violates the optional-nonnullable
-        // schema and is a protocol error, never an implicit drain. Check the raw
-        // envelope too so a canonicalization that drops null cannot mask it.
-        val rawHasBackgroundTasks = try {
-            RemoteJson.parseToJsonElement(raw).jsonObject.containsKey("backgroundTasks")
-        } catch (_: Exception) {
-            false
-        }
-        if (rawHasBackgroundTasks || envelope.containsKey("backgroundTasks")) {
-            if (page.backgroundTasks == null) {
-                throw protocolError("invalid_field:thread history:backgroundTasks")
-            }
-            page = page.copy(backgroundTasksPresent = true)
-        }
+        val page = project(envelope, RemoteThreadSnapshot.serializer(), "thread history").withBackgroundTaskPresence(
+            RemoteJson.parseToJsonElement(raw).jsonObject,
+        ) ?: throw protocolError("invalid_field:thread history:backgroundTasks")
         return when (val reads = echo(envelope)) {
             null -> RemoteBoundedReadResult.Legacy(page)
             RemoteBoundedReadCodes.CAPABILITY -> {

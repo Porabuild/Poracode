@@ -114,6 +114,22 @@ class RichChatBackgroundTaskThreadExitTest {
     }
 
     @Test
+    fun olderExitPreservesANewerSnapshotTaskLevel() = runTest {
+        val session = MutableStateFlow<RichChatHostLease?>(richLease())
+        val runtime = RichChatSessionRuntime(session, FakeRichChatSessionGateway(), scope = backgroundScope)
+        val selected = (runtime.selectThread("thread-a") as RichChatOperationResult.Success).value
+        runtime.chat.installAuthoritativeSnapshot(
+            selected,
+            richSnapshot(seq = 21).withTasks(listOf(task("new-task")), seq = 21),
+        )
+
+        runtime.handleReplaySideEffect(exitOutcome("thread-a"), sequence = 20)
+
+        assertEquals(listOf("new-task"), runtime.chat.state.value.backgroundTasks?.map { it.taskId })
+        assertEquals(21, runtime.chat.state.value.backgroundTaskSequence)
+    }
+
+    @Test
     fun exitForAnotherThreadIsIgnoredForTheSelectedRichChat() = runTest {
         val session = MutableStateFlow<RichChatHostLease?>(richLease())
         val runtime = RichChatSessionRuntime(session, FakeRichChatSessionGateway(), scope = backgroundScope)

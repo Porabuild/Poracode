@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
 import com.poracode.app.chat.RichOpenRequest
 import com.poracode.app.chat.RichPendingSteer
@@ -34,7 +35,6 @@ import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.protocol.BackgroundTask
-import com.poracode.app.session.richchat.RichChatBackgroundTaskStopState
 import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.session.richchat.RichChatThreadLease
 import com.poracode.app.session.richchat.RichCheckpointState
@@ -50,7 +50,6 @@ internal fun RichChatCompactControlDock(
     requests: List<RichOpenRequest>,
     pendingSteer: RichPendingSteer?,
     backgroundTasks: List<BackgroundTask>,
-    backgroundTaskStop: RichChatBackgroundTaskStopState,
     sessionActionIds: List<String>?,
     onOpenBackgroundTask: (BackgroundTask) -> Unit,
     checkpointState: RichCheckpointState,
@@ -70,6 +69,7 @@ internal fun RichChatCompactControlDock(
     }
     var showDetails by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val backgroundTaskStop by runtime.backgroundTasks.stop.collectAsStateWithLifecycle()
     val canResolve = selection?.host?.scopes?.contains("requests:resolve") == true
     Column(
         modifier
@@ -147,7 +147,6 @@ internal fun RichChatCompactControlDock(
                     requests = requests,
                     pendingSteer = pendingSteer,
                     backgroundTasks = backgroundTasks,
-                    backgroundTaskStop = backgroundTaskStop,
                     sessionActionIds = sessionActionIds,
                     onOpenBackgroundTask = onOpenBackgroundTask,
                     showBackgroundTasks = false,

@@ -6,8 +6,6 @@ import com.poracode.app.chat.RichReducer
 import com.poracode.app.chat.RichRuntimeEvent
 import com.poracode.app.chat.RichThreadState
 import com.poracode.app.protocol.BackgroundTask
-import com.poracode.app.protocol.RuntimeEventReducer
-import com.poracode.remote.v3.generated.RemoteBackgroundTaskReduce
 
 /** Decoded live events and their server sequence for the selected thread. */
 internal data class RichChatLiveFrame(
@@ -22,34 +20,6 @@ internal data class RichChatLiveFrame(
      */
     val backgroundTaskChanges: List<RichChatBackgroundTaskChange> = emptyList(),
 )
-
-/**
- * One `background_tasks.changed` / `session.exited` level change. Only the
- * generated event type and the already-decoded task list travel here: no
- * wire field is re-declared and no opaque action payload is inspected.
- */
-data class RichChatBackgroundTaskChange(
-    val eventType: String,
-    val tasks: List<BackgroundTask> = emptyList(),
-)
-
-internal fun RuntimeEventReducer.RuntimeEvent.asBackgroundTaskChange(): RichChatBackgroundTaskChange? = when (type) {
-    "background_tasks.changed" -> tasks?.let { RichChatBackgroundTaskChange(type, it) }
-    "session.exited" -> RichChatBackgroundTaskChange(type)
-    else -> null
-}
-
-/** Folds a frame's changes through the generated reduce machine (V6 E.3). */
-internal fun applyBackgroundTaskChanges(
-    previous: List<BackgroundTask>?,
-    changes: List<RichChatBackgroundTaskChange>,
-): List<BackgroundTask>? {
-    var next = previous
-    for (change in changes) {
-        next = RemoteBackgroundTaskReduce.apply(change.eventType, change.tasks, next)
-    }
-    return next
-}
 
 internal fun reduceLiveFrame(state: RichThreadState, frame: RichChatLiveFrame): RichThreadState {
     val stateEvents = frame.events.filterNot {

@@ -83,7 +83,6 @@ fun RichChatThreadScreen(
     val state by runtime.chat.state.collectAsStateWithLifecycle()
     val checkpointState by runtime.checkpoints.state.collectAsStateWithLifecycle()
     val sessionActionsState by runtime.sessionActions.state.collectAsStateWithLifecycle()
-    val backgroundTaskStopState by runtime.backgroundTasks.stop.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val threadId = state.selection?.threadId ?: thread?.id.orEmpty()
@@ -126,14 +125,7 @@ fun RichChatThreadScreen(
     var pendingRevertItemId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
     val fileDownloadSnackbarHost = remember { SnackbarHostState() }
     var showCloseDialog by rememberSaveable(threadId) { mutableStateOf(false) }
-    var selectedBackgroundTaskId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
-    val selectedBackgroundTask = state.backgroundTasks
-        ?.firstOrNull { it.taskId == selectedBackgroundTaskId }
-    LaunchedEffect(selectedBackgroundTaskId, state.backgroundTasks) {
-        if (selectedBackgroundTaskId != null && selectedBackgroundTask == null) {
-            selectedBackgroundTaskId = null
-        }
-    }
+    val openBackgroundTask = rememberRichChatBackgroundTaskDetails(runtime, state, sessionActionsState.actionIds, canOperate, scope)
     val canMutate = canOperate && state.selection != null && !mutating && !refreshing
     var forkIntent by rememberSaveable(threadId, state.selection?.host?.connectionId, state.selection?.host?.bindingGeneration, stateSaver = RichChatForkIntent.Saver) { mutableStateOf<RichChatForkIntent?>(null) }
     val canFork = canMutate && forksSupported && thread?.status in listOf("idle", "inactive", "error")
@@ -253,19 +245,6 @@ fun RichChatThreadScreen(
             canFork = canFork,
             onDismiss = { forkIntent = null },
             onOpenThread = onOpenThread,
-        )
-    }
-    selectedBackgroundTask?.let { task ->
-        RichChatBackgroundTaskDetailsSheet(
-            runtime = runtime,
-            task = task,
-            selection = state.selection,
-            actionIds = sessionActionsState.actionIds,
-            canOperate = canOperate,
-            onStopTask = { task ->
-                scope.launch { runtime.backgroundTasks.stop(task) }
-            },
-            onDismiss = { selectedBackgroundTaskId = null },
         )
     }
     Scaffold(
@@ -438,11 +417,8 @@ fun RichChatThreadScreen(
                                 requests = transcript.openRequests,
                                 pendingSteer = transcript.pendingSteer,
                                 backgroundTasks = state.backgroundTasks.orEmpty(),
-                                backgroundTaskStop = backgroundTaskStopState,
                                 sessionActionIds = sessionActionsState.actionIds,
-                                onOpenBackgroundTask = { task ->
-                                    selectedBackgroundTaskId = task.taskId
-                                },
+                                onOpenBackgroundTask = openBackgroundTask,
                                 checkpointState = checkpointState,
                                 projectLocation = projectLocation,
                                 selection = state.selection,
@@ -501,11 +477,8 @@ fun RichChatThreadScreen(
                                         requests = transcript.openRequests,
                                         pendingSteer = transcript.pendingSteer,
                                         backgroundTasks = state.backgroundTasks.orEmpty(),
-                                        backgroundTaskStop = backgroundTaskStopState,
                                         sessionActionIds = sessionActionsState.actionIds,
-                                        onOpenBackgroundTask = { task ->
-                                            selectedBackgroundTaskId = task.taskId
-                                        },
+                                        onOpenBackgroundTask = openBackgroundTask,
                                         checkpointState = checkpointState,
                                         projectLocation = projectLocation,
                                         selection = state.selection,

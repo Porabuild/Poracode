@@ -726,8 +726,8 @@ final class RichChatSessionActionsControllerTests: XCTestCase {
     }
   }
 
-  private static let outputActionID = "background-task.output.v1"
-  private static let stopActionID = "background-task.stop.v1"
+  nonisolated private static let outputActionID = "background-task.output.v1"
+  nonisolated private static let stopActionID = "background-task.stop.v1"
   private static let outputAction = RemoteBackgroundTaskStopAction(
     id: outputActionID,
     payload: ["taskId": "task-1", "token": "token-1"]
@@ -771,7 +771,7 @@ final class RichChatSessionActionsControllerTests: XCTestCase {
     )
   }
 
-  private static func outputResult(_ output: String = "tail") -> [String: RichJSON] {
+  nonisolated private static func outputResult(_ output: String = "tail") -> [String: RichJSON] {
     [
       "output": .string(output),
       "totalBytes": .number(42),
