@@ -10,6 +10,8 @@ import {
   type ChatPaneActions,
 } from "../chatPaneActionsContext";
 import { useAppStore } from "@/renderer/state/appStore";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
+import { remoteImageRef } from "@/shared/remote";
 import { MessageList } from "./MessageList";
 import { clearTimelineMeasurementCache } from "./timelineMeasurementCache";
 
@@ -821,6 +823,56 @@ describe("MessageList", () => {
 
     const props = latestLegendProps.current as MockLegendProps;
     expect(props.getFixedItemSize(entries[0]!, 0, "image_view")).toBe(28);
+  });
+
+  it("reserves host-held image rows only when the pane can render a pending image card", () => {
+    useAppStore.getState().applyRuntimeEvent("thread-1", {
+      type: "item.started",
+      threadId: "thread-1",
+      itemId: "image",
+      itemType: "image_view",
+      payload: {
+        name: "image_view",
+        status: "success",
+        result: {
+          images: [
+            remoteImageRef({
+              threadId: "thread-1",
+              itemId: "image",
+              path: ["result", "images", 0],
+              mime: "image/png",
+              bytes: 3,
+              width: 800,
+              height: 600,
+            }),
+          ],
+        },
+      },
+    });
+    const entries = makeEntries(["image"]);
+
+    const detached = render(<MessageList threadId="thread-1" entries={entries} />);
+    const detachedProps = latestLegendProps.current as MockLegendProps;
+    expect(detachedProps.getFixedItemSize(entries[0]!, 0, "image_view")).toBeUndefined();
+    detached.unmount();
+
+    const readiness: RemoteImageReadiness = {
+      resolveRef: () => "",
+      subscribeRef: () => () => undefined,
+      requestRef: () => undefined,
+      resolvePath: () => "",
+      subscribePath: () => () => undefined,
+      requestPath: () => undefined,
+    };
+    render(
+      <ChatPaneActionsContext.Provider
+        value={{ threadId: "thread-1", remoteImageReadiness: readiness }}
+      >
+        <MessageList threadId="thread-1" entries={entries} />
+      </ChatPaneActionsContext.Provider>,
+    );
+    const attachedProps = latestLegendProps.current as MockLegendProps;
+    expect(attachedProps.getFixedItemSize(entries[0]!, 0, "image_view")).toBeGreaterThan(28);
   });
 
   it("exposes LegendList's scroll node and content node to the shared chat controls", () => {
