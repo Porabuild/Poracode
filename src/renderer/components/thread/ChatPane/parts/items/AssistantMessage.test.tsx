@@ -1,3 +1,4 @@
+import { Profiler } from "react";
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
@@ -614,6 +615,60 @@ describe("AssistantMessage", () => {
 
       expect(screen.getByLabelText("Copy message")).toBeTruthy();
       expect(container.querySelector(".poracode-message-action-strip")).toBe(reservedStrip);
+    });
+
+    it("does not commit for unrelated thread updates but refreshes its own completed turns", () => {
+      seed([answer]);
+      useAppStore
+        .getState()
+        .hydrateThreadCompletedTurns("thread-1", [
+          { startedAt: 1_000, endedAt: 2_000, anchorItemId: answer.id },
+        ]);
+      const commits: string[] = [];
+      const view = render(
+        <AppProvider>
+          <Profiler id="assistant-message" onRender={() => commits.push("commit")}>
+            <AssistantMessage threadId="thread-1" item={answer} isTurnActive={false} />
+          </Profiler>
+        </AppProvider>,
+      );
+      const initialCommits = commits.length;
+      expect(initialCommits).toBeGreaterThan(0);
+      expect(view.container.querySelector("time")).toHaveAttribute(
+        "datetime",
+        new Date(2_000).toISOString(),
+      );
+
+      act(() => {
+        useAppStore.getState().applyRuntimeEvent("thread-2", {
+          type: "item.started",
+          threadId: "thread-2",
+          itemId: "other-answer",
+          itemType: "assistant_message",
+        });
+      });
+      expect(commits.length).toBe(initialCommits);
+
+      act(() => {
+        useAppStore
+          .getState()
+          .replaceThreadCompletedTurns("thread-1", [
+            { startedAt: 1_000, endedAt: 3_000, anchorItemId: answer.id },
+          ]);
+      });
+      expect(commits.length).toBeGreaterThan(initialCommits);
+      expect(view.container.querySelector("time")).toHaveAttribute(
+        "datetime",
+        new Date(3_000).toISOString(),
+      );
+
+      act(() => {
+        useAppStore.getState().replaceThreadCompletedTurns("thread-1", []);
+      });
+      expect(view.container.querySelector("time")).toBeNull();
+      expect(view.container.querySelector(".poracode-message-action-strip")).toHaveClass(
+        "[@media(hover:hover)]:opacity-0",
+      );
     });
   });
 });

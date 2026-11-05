@@ -17,8 +17,7 @@ import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ChatTimelineEntry } from "./chatPaneSelectors";
 import { buildUserPromptPreview } from "./parts/items/userPromptText";
-import { findStickyPromptIndex } from "./stickyPromptTarget";
-import { useVisibleRowRange } from "./useVisibleRowRange";
+import { findStickyPromptIndex, type VisibleRowRange } from "./stickyPromptTarget";
 
 const PROMPT_HANDOFF_GAP_PX = 8;
 
@@ -28,6 +27,8 @@ interface StickyPromptProps {
   scrollElement: HTMLDivElement | null;
   /** False while the transcript is still hidden for its initial scroll. */
   isEnabled: boolean;
+  /** Rows overlapping the transcript viewport, measured once by the overlays. */
+  visibleRange: VisibleRowRange | null;
   onScrollToEntry: (index: number) => void;
 }
 
@@ -42,13 +43,14 @@ export function StickyPrompt({
   entries,
   scrollElement,
   isEnabled,
+  visibleRange,
   onScrollToEntry,
 }: StickyPromptProps) {
   const { t } = useLingui();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const isFindOpen = useChatFindStore((state) => state.activeThreadId === threadId);
-  const firstVisibleIndex = useVisibleRowRange(scrollElement, entries)?.first ?? null;
+  const firstVisibleIndex = visibleRange?.first ?? null;
   const promptItemId = useAppStore((state) => {
     if (firstVisibleIndex === null) return null;
     const itemsById = state.runtimeItemsByIdByThread[threadId];

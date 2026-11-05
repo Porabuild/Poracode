@@ -11,6 +11,8 @@ const EDGE_TOLERANCE_PX = 2;
 interface VisibleRowIds {
   firstId: string;
   lastId: string;
+  first: number;
+  last: number;
 }
 
 /**
@@ -51,10 +53,20 @@ export function useVisibleRowRange(
     );
     const next =
       range && currentEntries[range.first] && currentEntries[range.last]
-        ? { firstId: currentEntries[range.first]!.id, lastId: currentEntries[range.last]!.id }
+        ? {
+            firstId: currentEntries[range.first]!.id,
+            lastId: currentEntries[range.last]!.id,
+            first: range.first,
+            last: range.last,
+          }
         : null;
     setVisibleIds((previous) =>
-      previous?.firstId === next?.firstId && previous?.lastId === next?.lastId ? previous : next,
+      previous?.firstId === next?.firstId &&
+      previous?.lastId === next?.lastId &&
+      previous?.first === next?.first &&
+      previous?.last === next?.last
+        ? previous
+        : next,
     );
   });
 
@@ -77,7 +89,13 @@ export function useVisibleRowRange(
   }, [scrollElement, entries]);
 
   if (visibleIds === null) return null;
-  const first = entries.findIndex((entry) => entry.id === visibleIds.firstId);
-  const last = entries.findIndex((entry) => entry.id === visibleIds.lastId);
+  const first =
+    entries[visibleIds.first]?.id === visibleIds.firstId
+      ? visibleIds.first
+      : entries.findIndex((entry) => entry.id === visibleIds.firstId);
+  const last =
+    entries[visibleIds.last]?.id === visibleIds.lastId
+      ? visibleIds.last
+      : entries.findIndex((entry) => entry.id === visibleIds.lastId);
   return first >= 0 && last >= 0 ? { first, last } : null;
 }

@@ -12,6 +12,7 @@ import { MAX_NATIVE_VISUALS_PER_MESSAGE } from "@/shared/nativeVisuals";
 import type { MessageItemPayload } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useShallow } from "zustand/react/shallow";
 import { formatMessageTimestamp } from "@/renderer/utils/formatTime";
 import type { RuntimeStreamRetention } from "@/renderer/state/slices/runtimeStreamRetention";
 import { HYDRATED_STREAM_HEAD_CHARS } from "@/renderer/state/slices/runtimeStreamRetention";
@@ -31,7 +32,7 @@ import { SmoothItemMarkdown } from "./ItemMarkdown";
 import { WindowedPlainText } from "./WindowedPlainText";
 import { useWindowedAssistantText } from "./useWindowedAssistantText";
 import { isMessageReplyFormFallback } from "../../../messageReplyForms";
-import { selectCompletedTurnsByAnchorItem } from "../../chatPaneSelectors";
+import { selectAssistantTurnRowState } from "../../chatPaneSelectors";
 import { ThreadForkTurnAction } from "../../../ThreadForkControls";
 
 interface AssistantMessageProps {
@@ -47,24 +48,6 @@ export const AssistantMessage = memo(function AssistantMessage({
 }: AssistantMessageProps) {
   const { t, i18n } = useLingui();
   const actions = useChatPaneActions();
-  const completedTurnStartedAt = useAppStore((state) =>
-    item.parentItemId
-      ? undefined
-      : selectCompletedTurnsByAnchorItem(state, threadId).get(item.id)?.startedAt,
-  );
-  const completedTurnEndedAt = useAppStore((state) =>
-    item.parentItemId
-      ? undefined
-      : selectCompletedTurnsByAnchorItem(state, threadId).get(item.id)?.endedAt,
-  );
-  const latestCompletedAnswerId = useAppStore((state) => {
-    let latestId: string | undefined;
-    for (const anchorId of selectCompletedTurnsByAnchorItem(state, threadId).keys()) {
-      const anchor = state.runtimeItemsByIdByThread[threadId]?.[anchorId];
-      if (anchor?.type === "assistant_message" && anchor.state === "completed") latestId = anchorId;
-    }
-    return latestId;
-  });
   // The copy action only appears under a turn's *final* answer: the message
   // must be the last top-level item of its turn — any trailing item (another
   // message, a tool call, an error from a failed turn) means the text was an
@@ -74,20 +57,14 @@ export const AssistantMessage = memo(function AssistantMessage({
   // terminal status. A completed item at the live tail is still an
   // intermediate update until the turn itself settles, so it must not expose
   // a copy action yet.
-  const finalAnswerStatus = useAppStore((state): "confirmed" | "candidate" | "none" => {
-    if (item.parentItemId) return "none";
-    const ids = state.runtimeItemIdsByThread[threadId];
-    const byId = state.runtimeItemsByIdByThread[threadId];
-    if (!ids || !byId) return "none";
-    const index = ids.indexOf(item.id);
-    if (index < 0) return "none";
-    for (let i = index + 1; i < ids.length; i += 1) {
-      const next = byId[ids[i]!];
-      if (!next || next.parentItemId) continue;
-      return next.type === "user_message" ? "confirmed" : "none";
-    }
-    return isTurnActive ? "candidate" : "confirmed";
-  });
+  const {
+    completedTurnStartedAt,
+    completedTurnEndedAt,
+    latestCompletedAnswerId,
+    finalAnswerStatus,
+  } = useAppStore(
+    useShallow((state) => selectAssistantTurnRowState(state, threadId, item, isTurnActive)),
+  );
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
   const isStreaming = item.state !== "completed";
   // Stream/payload arbitration lives in the shared helper so find-in-chat and
