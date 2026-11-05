@@ -42,7 +42,7 @@ it("updates a saved host interruption disclosure when the client's locale change
   expect(result.error).toBe(source);
 });
 
-it("shows compact Crossagent tasks and role metadata on separate truncating lines", () => {
+it("shows compact crew tasks and role metadata on separate truncating lines", () => {
   layout.compact = true;
   const { container } = renderWithI18n(
     <SubAgentToolCall
@@ -63,7 +63,7 @@ it("shows compact Crossagent tasks and role metadata on separate truncating line
       }}
     />,
   );
-  const button = screen.getByRole("button", { name: /Open Crossagent: Implement authentication/ });
+  const button = screen.getByRole("button", { name: /Open Crew run: Implement authentication/ });
   const lineOne = button.querySelector(".truncate");
   expect(lineOne).toHaveTextContent("Implement authentication");
   expect(lineOne).toHaveClass("truncate");
@@ -123,4 +123,47 @@ it("drops the Crossagent Follow-up prefix from a compact task without a title", 
   });
   expect(button).toHaveTextContent("OpenCode 2 · DeepSeek V4.1 Flash · Max");
   expect(button.textContent).not.toContain("Crossagent");
+});
+
+it("labels a crew run's completed result as a Crew Result", () => {
+  renderWithI18n(
+    <SubAgentToolCall
+      threadId="crew-result"
+      item={{
+        id: "run-4",
+        type: "tool_call",
+        state: "completed",
+        streams: {},
+        payload: {
+          name: "OpenCode 2 · DeepSeek V4.1 Flash · Max",
+          status: "success",
+          isCrossagent: true,
+          subAgentType: "Sidekick",
+          result: "Crew finished.",
+        },
+      }}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Crew Result" })).toBeInTheDocument();
+});
+
+it("keeps a non-crew Crossagent result labeled Crossagent Result", () => {
+  renderWithI18n(
+    <SubAgentToolCall
+      threadId="crossagent-result"
+      item={{
+        id: "run-5",
+        type: "tool_call",
+        state: "completed",
+        streams: {},
+        payload: {
+          name: "Fence stale shell pages — OpenCode 2 · DeepSeek V4.1 Flash · Max",
+          status: "success",
+          isCrossagent: true,
+          result: "Crossagent finished.",
+        },
+      }}
+    />,
+  );
+  expect(screen.getByRole("button", { name: "Crossagent Result" })).toBeInTheDocument();
 });

@@ -205,7 +205,13 @@ function ActiveAgentSection({
       }).length,
   );
   const title =
-    kind === "workflow" ? t`Workflows` : kind === "crossagent" ? t`Crossagents` : t`Subagents`;
+    kind === "workflow"
+      ? t`Workflows`
+      : kind === "crossagent"
+        ? crewBinding
+          ? (crewBinding.name ?? t`Crew`)
+          : t`Crossagents`
+        : t`Subagents`;
   const closePanelLabel =
     kind === "workflow"
       ? t`Close workflows panel`

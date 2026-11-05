@@ -232,7 +232,7 @@ describe("deriveToolDisplay", () => {
     );
   });
 
-  it("labels a Crossagents follow-up as continuing the same helper session", () => {
+  it("names a crew follow-up for the crew instead of the Crossagents tool", () => {
     const payload = makePayload({
       name: "Fence stale shell pages — OpenCode 2 · DeepSeek V4.1 Flash · Max",
       title: "Fence stale shell pages",
@@ -241,7 +241,7 @@ describe("deriveToolDisplay", () => {
       subAgentType: "Sidekick",
     });
     expect(deriveToolDisplay(payload).title).toBe(
-      "Crossagent Follow-up (Sidekick): Fence stale shell pages",
+      "Crew Follow-up (Sidekick): Fence stale shell pages",
     );
     expect(deriveToolDisplay(payload, { bareAgentTitle: true }).title).toBe(
       "Fence stale shell pages",
@@ -264,9 +264,7 @@ describe("deriveToolDisplay", () => {
       isCrossagent: true,
       subAgentType: "Sidekick",
     });
-    expect(deriveToolDisplay(persisted).title).toBe(
-      "Crossagent (Sidekick): Fence stale shell pages",
-    );
+    expect(deriveToolDisplay(persisted).title).toBe("Crew (Sidekick): Fence stale shell pages");
   });
 
   it("does not label a fresh Agent launch as a resume", () => {

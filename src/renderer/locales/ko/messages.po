@@ -5638,6 +5638,7 @@ msgstr "크레딧"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mobileComposer/ComposerCompactSummary.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -5645,6 +5646,10 @@ msgstr "크레딧"
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Crew"
 msgstr "Crew"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew ({subagent}): {description}"
+msgstr "Crew ({subagent}): {description}"
 
 #: src/renderer/commands/registry.ts
 msgid "Crew added to favorites"
@@ -5658,6 +5663,14 @@ msgstr "Crew 우선"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "Crew first: may also use other agents"
 msgstr "크루 우선: 다른 에이전트도 사용할 수 있음"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew Follow-up ({subagent}): {description}"
+msgstr "Crew 재개 ({subagent}): {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew Follow-up: {subagent}"
+msgstr "Crew 재개: {subagent}"
 
 #: src/renderer/components/crew/CrewRosterMenu.tsx
 msgid "Crew members"
@@ -5685,6 +5698,14 @@ msgstr "크루 정책"
 #: src/renderer/commands/registry.ts
 msgid "Crew removed from favorites"
 msgstr "크루를 즐겨찾기에서 제거했습니다"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Crew Result"
+msgstr "Crew 결과"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew: {subagent}"
+msgstr "Crew: {subagent}"
 
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
@@ -13461,6 +13482,10 @@ msgstr "충돌 해결 도구 열기 위치:"
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Open conversation"
 msgstr "대화 열기"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Open Crew run: {task}"
+msgstr "Crew 실행 열기: {task}"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx

@@ -5638,6 +5638,7 @@ msgstr "鸣谢"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mobileComposer/ComposerCompactSummary.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -5645,6 +5646,10 @@ msgstr "鸣谢"
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Crew"
 msgstr "Crew"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew ({subagent}): {description}"
+msgstr "Crew（{subagent}）：{description}"
 
 #: src/renderer/commands/registry.ts
 msgid "Crew added to favorites"
@@ -5658,6 +5663,14 @@ msgstr "优先使用 Crew"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "Crew first: may also use other agents"
 msgstr "Crew 优先：也可以使用其他代理"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew Follow-up ({subagent}): {description}"
+msgstr "继续 Crew（{subagent}）：{description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew Follow-up: {subagent}"
+msgstr "继续 Crew：{subagent}"
 
 #: src/renderer/components/crew/CrewRosterMenu.tsx
 msgid "Crew members"
@@ -5685,6 +5698,14 @@ msgstr "团队策略"
 #: src/renderer/commands/registry.ts
 msgid "Crew removed from favorites"
 msgstr "团队已从收藏中移除"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Crew Result"
+msgstr "Crew 结果"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew: {subagent}"
+msgstr "Crew：{subagent}"
 
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
@@ -13460,6 +13481,10 @@ msgstr "在以下位置打开冲突解决器"
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Open conversation"
 msgstr "打开对话"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Open Crew run: {task}"
+msgstr "打开 Crew 运行：{task}"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx

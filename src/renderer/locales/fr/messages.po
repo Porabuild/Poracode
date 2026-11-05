@@ -5638,6 +5638,7 @@ msgstr "Crédits"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mobileComposer/ComposerCompactSummary.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -5645,6 +5646,10 @@ msgstr "Crédits"
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Crew"
 msgstr "Crew"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew ({subagent}): {description}"
+msgstr "Crew ({subagent}) : {description}"
 
 #: src/renderer/commands/registry.ts
 msgid "Crew added to favorites"
@@ -5658,6 +5663,14 @@ msgstr "Crew d'abord"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "Crew first: may also use other agents"
 msgstr "Crew d'abord : peut aussi utiliser d'autres agents"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew Follow-up ({subagent}): {description}"
+msgstr "Crew repris ({subagent}) : {description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew Follow-up: {subagent}"
+msgstr "Crew repris : {subagent}"
 
 #: src/renderer/components/crew/CrewRosterMenu.tsx
 msgid "Crew members"
@@ -5685,6 +5698,14 @@ msgstr "Politique de l’équipe"
 #: src/renderer/commands/registry.ts
 msgid "Crew removed from favorites"
 msgstr "Équipe retirée des favoris"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Crew Result"
+msgstr "Résultat de Crew"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew: {subagent}"
+msgstr "Crew : {subagent}"
 
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
@@ -13460,6 +13481,10 @@ msgstr "Ouvrir le résolveur de conflits dans"
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Open conversation"
 msgstr "Ouvrir la conversation"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Open Crew run: {task}"
+msgstr "Ouvrir une exécution Crew : {task}"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
