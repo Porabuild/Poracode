@@ -119,7 +119,7 @@ export const AssistantMessage = memo(function AssistantMessage({
     (block) => block.kind === "file" && isChatVideoSource(block.path, block.mimeType),
   );
   // Canonical file blocks explicitly declare a file, so any safe local ref
-  // (any extension) becomes a download card; unsafe refs stay inert.
+  // (any extension) becomes a file chip; unsafe refs stay inert.
   const fileCards = (payload?.content ?? []).filter(
     (block) =>
       block.kind === "file" &&

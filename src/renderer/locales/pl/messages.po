@@ -6960,6 +6960,7 @@ msgstr "Gotowe ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Gotowe ({remainingSeconds}s)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Download"
 msgstr "Pobierz"
@@ -6969,8 +6970,8 @@ msgid "Download · {modelSize} MB"
 msgstr "Pobierz · {modelSize} MB"
 
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
-msgid "Download {fileName}"
-msgstr "Pobierz {fileName}"
+#~ msgid "Download {fileName}"
+#~ msgstr "Pobierz {fileName}"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Download a voice model to finish setup."
@@ -21755,7 +21756,7 @@ msgstr "Nie udało się usunąć zapisanego hasła."
 msgid "Unable to determine the experiment's source branch."
 msgstr "Nie udało się określić gałęzi źródłowej eksperymentu."
 
-#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 msgid "Unable to download the file."
 msgstr "Nie można pobrać pliku."
 

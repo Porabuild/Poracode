@@ -6960,6 +6960,7 @@ msgstr "Завершено ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Завершено ({remainingSeconds}с)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Download"
 msgstr "Завантажити"
@@ -6969,8 +6970,8 @@ msgid "Download · {modelSize} MB"
 msgstr "Завантажити · {modelSize} МБ"
 
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
-msgid "Download {fileName}"
-msgstr "Завантажити {fileName}"
+#~ msgid "Download {fileName}"
+#~ msgstr "Завантажити {fileName}"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Download a voice model to finish setup."
@@ -21755,7 +21756,7 @@ msgstr "Не вдалося видалити збережений пароль."
 msgid "Unable to determine the experiment's source branch."
 msgstr "Не вдалося визначити вихідну гілку експерименту."
 
-#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 msgid "Unable to download the file."
 msgstr "Не вдалося завантажити файл."
 

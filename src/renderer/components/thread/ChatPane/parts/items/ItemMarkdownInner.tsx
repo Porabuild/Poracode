@@ -549,10 +549,10 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
     return <MarkdownVideo src={href} name={flattenMdChildren(props.children)} />;
   }
 
-  // A recognized local artifact link becomes a download card before the
+  // A recognized local artifact link uses the file chip before the
   // project path/folder chip fallback gets a chance to claim it.
   if (isChatDownloadSource(href)) {
-    // The card shows the real basename; the link label stays out of the name.
+    // The chip shows the real basename; the link label stays out of the name.
     return <MarkdownFile src={href} />;
   }
 

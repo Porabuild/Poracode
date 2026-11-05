@@ -6960,6 +6960,7 @@ msgstr "완료({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "완료 ({remainingSeconds}초)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Download"
 msgstr "다운로드"
@@ -6969,8 +6970,8 @@ msgid "Download · {modelSize} MB"
 msgstr "다운로드 · {modelSize} MB"
 
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
-msgid "Download {fileName}"
-msgstr "{fileName} 다운로드"
+#~ msgid "Download {fileName}"
+#~ msgstr "{fileName} 다운로드"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Download a voice model to finish setup."
@@ -21755,7 +21756,7 @@ msgstr "저장된 암호를 삭제할 수 없습니다."
 msgid "Unable to determine the experiment's source branch."
 msgstr "실험의 소스 브랜치를 확인할 수 없습니다."
 
-#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 msgid "Unable to download the file."
 msgstr "파일을 다운로드할 수 없습니다."
 
