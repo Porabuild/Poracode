@@ -141,6 +141,41 @@ it.each([{ background: "true" }, { output_mode: "invalid" }])(
   },
 );
 
+it("forwards an optional trimmed task name to the run manager", async () => {
+  const h = await setup();
+  const steer = vi.spyOn(h.manager, "steer");
+  const response = await dispatchTool(
+    "steer_agent",
+    {
+      run_id: h.runId,
+      prompt: "Next task",
+      name: "  Fix crew model labels  ",
+      background: true,
+    },
+    h.ctx,
+  );
+  expect(value(response)).toEqual({ run_id: h.runId, status: "accepted" });
+  expect(steer).toHaveBeenCalledWith(h.runId, "Next task", PARENT, true, "Fix crew model labels");
+  h.handle.completeTurn("completed");
+});
+
+it.each([{ name: 7 }, { name: "   " }])(
+  "rejects an invalid task name before delivering anything: %j",
+  async (options) => {
+    const h = await setup();
+    const steer = vi.spyOn(h.manager, "steer");
+    const result = await dispatchTool(
+      "steer_agent",
+      { run_id: h.runId, prompt: "Correction", ...options },
+      h.ctx,
+    );
+    expect(result.isError).toBe(true);
+    expect(steer).not.toHaveBeenCalled();
+    expect(h.deliver).not.toHaveBeenCalled();
+    h.handle.completeTurn("completed");
+  },
+);
+
 it("waits for the replacement turn on an interrupt-and-restart execution lane", async () => {
   const h = await setup(false);
   h.handle.interruptTurn = async () => h.handle.completeTurn("completed");

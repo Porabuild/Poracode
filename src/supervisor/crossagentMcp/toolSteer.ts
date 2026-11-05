@@ -17,6 +17,10 @@ export async function steerAgent(
   const prompt = typeof args.prompt === "string" ? args.prompt : "";
   if (!runId) return errorResult("run_id is required");
   if (!prompt.trim()) return errorResult("prompt must not be empty");
+  const name = typeof args.name === "string" ? args.name.trim() : undefined;
+  if (args.name !== undefined && (typeof args.name !== "string" || !name)) {
+    return errorResult("name must be a non-empty string");
+  }
   if (args.background !== undefined && typeof args.background !== "boolean") {
     return errorResult("background must be a boolean");
   }
@@ -29,6 +33,7 @@ export async function steerAgent(
     prompt,
     ctx.parentThreadId,
     args.background === true,
+    name,
   );
   const receipt = {
     run_id: next.runId,
