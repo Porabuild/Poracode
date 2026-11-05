@@ -50,6 +50,14 @@ describe("explicit Markdown path references", () => {
     });
   });
 
+  it("leaves slash prose as text without project root names", () => {
+    expect(tokenizePlainText("A $10/month plan, see src/main.ts:2.", undefined)).toEqual([
+      { kind: "text", value: "A $10/month plan, see " },
+      { kind: "file", path: "src/main.ts", line: 2 },
+      { kind: "text", value: "." },
+    ]);
+  });
+
   it("preserves ordinary prose, URL punctuation, and inferred paths", () => {
     expect(
       tokenizePlainText("See https://example.test/docs, then src/main.ts:2-4.", new Set(["src"])),
