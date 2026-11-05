@@ -33,6 +33,7 @@ import {
 } from "./subAgentProgressMeta";
 import {
   deriveToolDisplay,
+  isCrewRun,
   isCrossagentTool,
   isWorkflowTool,
   readSubAgentType,
@@ -95,6 +96,8 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
   if (!payload?.name) return null;
   const display = deriveToolDisplay(payload);
   const isCrossagent = isCrossagentTool(payload);
+  const isCrew = isCrewRun(payload);
+  const isFollowUp = isCrossagent && payload.isSubAgentResume === true;
   const describesCancelledStatus =
     payload.subAgentStatus === "cancelled" ||
     (isCrossagent && payload.crossagentStatus === "cancelled");
@@ -110,7 +113,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
     (typeof args?.description === "string" && args.description.trim()) ||
     payload.title?.trim() ||
     taskFromName ||
-    display.title.replace(/^Crossagent(?:\s*\([^)]*\))?:\s*/i, "");
+    display.title.replace(/^(?:Crossagent|Crew)(?: Follow-up)?(?:\s*\([^)]*\))?:\s*/i, "");
   const modelMeta = nameSegments.at(-1)?.split(" · ") ?? [];
   const displayPrefix = display.parts
     ? normalizeCallTitleSeparator(display.parts.prefix)
@@ -135,7 +138,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
     workflowIsLive,
     t,
   );
-  const compactMeta = [role, modelMeta[0], modelMeta[1]]
+  const compactMeta = [role, isFollowUp ? t`follow-up` : undefined, modelMeta[0], modelMeta[1]]
     .filter((part): part is string => typeof part === "string" && Boolean(part.trim()))
     .join(" · ");
 
@@ -146,7 +149,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
           type="button"
           onClick={() => openSubAgent(threadId, item.id)}
           className={`group ${chatRowClass} min-w-0 gap-1.5 text-[length:var(--lc-chat-font-size-command)] leading-tight ${chatRowHoverClass}`}
-          aria-label={t`Open Crossagent: ${task}`}
+          aria-label={isCrew ? t`Open Crew run: ${task}` : t`Open Crossagent: ${task}`}
           {...(describesCancelledStatus ? { "aria-describedby": statusDescriptionId } : {})}
         >
           <Bot className="size-3 shrink-0 text-muted" />
@@ -166,7 +169,9 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
             {status.rightLabel}
           </span>
         ) : null}
-        {resultText ? <SubAgentResultDisclosure text={resultText} isCrossagent /> : null}
+        {resultText ? (
+          <SubAgentResultDisclosure text={resultText} kind={isCrew ? "crew" : "crossagent"} />
+        ) : null}
       </div>
     );
   }
@@ -178,7 +183,11 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
         onClick={() => openSubAgent(threadId, item.id)}
         className={`group ${chatRowClass} gap-1.5 text-[length:var(--lc-chat-font-size-command)] leading-tight ${chatRowHoverClass}`}
         aria-label={
-          isCrossagent ? t`Open Crossagent: ${display.title}` : t`Open subagent: ${display.title}`
+          isCrew
+            ? t`Open Crew run: ${task}`
+            : isCrossagent
+              ? t`Open Crossagent: ${display.title}`
+              : t`Open subagent: ${display.title}`
         }
         {...(describesCancelledStatus ? { "aria-describedby": statusDescriptionId } : {})}
       >
@@ -229,7 +238,10 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
       </button>
       {workflowResultText ? <WorkflowResultGroup resultText={workflowResultText} /> : null}
       {resultText ? (
-        <SubAgentResultDisclosure text={resultText} isCrossagent={isCrossagent} />
+        <SubAgentResultDisclosure
+          text={resultText}
+          kind={isCrew ? "crew" : isCrossagent ? "crossagent" : "subagent"}
+        />
       ) : null}
     </div>
   );
@@ -242,7 +254,13 @@ function extractToolUseErrorText(text: string): string | null {
   return inner.length > 0 ? inner : null;
 }
 
-function SubAgentResultDisclosure({ text, isCrossagent }: { text: string; isCrossagent: boolean }) {
+function SubAgentResultDisclosure({
+  text,
+  kind,
+}: {
+  text: string;
+  kind: "crew" | "crossagent" | "subagent";
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const actions = useChatPaneActions();
   return (
@@ -258,7 +276,13 @@ function SubAgentResultDisclosure({ text, isCrossagent }: { text: string; isCros
       >
         <Bot className="size-3 shrink-0" />
         <span>
-          {isCrossagent ? <Trans>Crossagent Result</Trans> : <Trans>Subagent Result</Trans>}
+          {kind === "crew" ? (
+            <Trans>Crew Result</Trans>
+          ) : kind === "crossagent" ? (
+            <Trans>Crossagent Result</Trans>
+          ) : (
+            <Trans>Subagent Result</Trans>
+          )}
         </span>
         <ChevronDown
           className={`size-3 shrink-0 opacity-100 transition-[transform,opacity] [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-visible:opacity-100 ${isOpen ? "rotate-180" : ""}`}

@@ -5637,6 +5637,7 @@ msgstr "クレジット"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mobileComposer/ComposerCompactSummary.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
@@ -5644,6 +5645,10 @@ msgstr "クレジット"
 #: src/renderer/views/ExperimentView/parts/ExperimentWinnerCrewActions.tsx
 msgid "Crew"
 msgstr "Crew"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew ({subagent}): {description}"
+msgstr "Crew（{subagent}）：{description}"
 
 #: src/renderer/commands/registry.ts
 msgid "Crew added to favorites"
@@ -5657,6 +5662,14 @@ msgstr "Crew優先"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "Crew first: may also use other agents"
 msgstr "Crew 優先: 他のエージェントも利用可能"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew Follow-up ({subagent}): {description}"
+msgstr "Crew 再開（{subagent}）：{description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew Follow-up: {subagent}"
+msgstr "Crew 再開：{subagent}"
 
 #: src/renderer/components/crew/CrewRosterMenu.tsx
 msgid "Crew members"
@@ -5684,6 +5697,14 @@ msgstr "クルーポリシー"
 #: src/renderer/commands/registry.ts
 msgid "Crew removed from favorites"
 msgstr "クルーをお気に入りから削除しました"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Crew Result"
+msgstr "Crewの結果"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crew: {subagent}"
+msgstr "Crew：{subagent}"
 
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
@@ -5720,6 +5741,22 @@ msgstr "Crossagent"
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Crossagent ({subagent}): {description}"
 msgstr "Crossagent（{subagent}）：{description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crossagent Follow-up"
+msgstr "Crossagent 再開"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crossagent Follow-up ({subagent}): {description}"
+msgstr "Crossagent 再開（{subagent}）：{description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crossagent Follow-up: {description}"
+msgstr "Crossagent 再開：{description}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+msgid "Crossagent Follow-up: {subagent}"
+msgstr "Crossagent 再開：{subagent}"
 
 #. placeholder {0}: props.provider.label
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentModelFilterDropdown.tsx
@@ -8463,10 +8500,18 @@ msgstr "{0} をフォロー"
 #~ msgid "Follow up..."
 #~ msgstr "続けて質問..."
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "follow-up"
+msgstr "再開"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Follow-up behavior"
 msgstr "フォローアップの動作"
+
+#: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
+msgid "Follow-up in the same session"
+msgstr "同じセッションでの再開"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
@@ -13435,6 +13480,10 @@ msgstr "競合リゾルバーを開く"
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "Open conversation"
 msgstr "会話を開く"
+
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+msgid "Open Crew run: {task}"
+msgstr "Crew実行を開く: {task}"
 
 #. placeholder {0}: display.title
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx

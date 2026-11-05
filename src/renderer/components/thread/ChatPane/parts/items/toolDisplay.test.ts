@@ -232,6 +232,41 @@ describe("deriveToolDisplay", () => {
     );
   });
 
+  it("names a crew follow-up for the crew instead of the Crossagents tool", () => {
+    const payload = makePayload({
+      name: "Fence stale shell pages — OpenCode 2 · DeepSeek V4.1 Flash · Max",
+      title: "Fence stale shell pages",
+      isCrossagent: true,
+      isSubAgentResume: true,
+      subAgentType: "Sidekick",
+    });
+    expect(deriveToolDisplay(payload).title).toBe(
+      "Crew Follow-up (Sidekick): Fence stale shell pages",
+    );
+    expect(deriveToolDisplay(payload, { bareAgentTitle: true }).title).toBe(
+      "Fence stale shell pages",
+    );
+
+    const withoutRole = makePayload({
+      name: "Fence stale shell pages — OpenCode 2 · DeepSeek V4.1 Flash · Max",
+      title: "Fence stale shell pages",
+      isCrossagent: true,
+      isSubAgentResume: true,
+    });
+    expect(deriveToolDisplay(withoutRole).title).toBe(
+      "Crossagent Follow-up: Fence stale shell pages",
+    );
+
+    // A row persisted before follow-ups were recognized keeps its old label.
+    const persisted = makePayload({
+      name: "Fence stale shell pages — OpenCode 2 · DeepSeek V4.1 Flash · Max",
+      title: "Fence stale shell pages",
+      isCrossagent: true,
+      subAgentType: "Sidekick",
+    });
+    expect(deriveToolDisplay(persisted).title).toBe("Crew (Sidekick): Fence stale shell pages");
+  });
+
   it("does not label a fresh Agent launch as a resume", () => {
     const payload = makePayload({
       name: "Agent",
