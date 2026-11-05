@@ -19,9 +19,10 @@ const EMPTY_ARTIFACTS: readonly ThreadArtifact[] = [];
  * Right-panel "Images" section: a 2-row horizontal mosaic of every renderable
  * image in the thread's loaded history, newest first. Thumbnails lazy-load
  * (`loading="lazy"` + `decoding="async"`) so opening the panel never fetches
- * off-screen bytes up front, then downsample to a 2x device-pixel contain
- * rect so each tile shows the full, sharp image. Clicking any tile opens the
- * fullscreen lightbox at that image with prev/next across the whole thread.
+ * off-screen bytes up front, then downsample to a 2x device-pixel cover
+ * rect so each tile is filled by a center-cropped, proportionally scaled
+ * image (the full original remains in the lightbox). Clicking any tile opens
+ * the fullscreen lightbox at that image with prev/next across the whole thread.
  */
 export function ThreadImagesDock({
   gallery,
@@ -141,9 +142,9 @@ export function ThreadImagesDock({
                           src={img.src}
                           alt={img.alt || ""}
                           cssPx={160}
-                          fit="contain"
+                          fit="cover"
                           resolutionScale={2}
-                          className="size-full rounded-[inherit] object-contain [image-rendering:high-quality]"
+                          className="size-full rounded-[inherit] object-cover [image-rendering:high-quality]"
                         />
                       ) : null}
                       <span
