@@ -19,6 +19,8 @@ import {
   type TerminalConnectionCapabilities,
 } from "@/renderer/state/remoteServers/terminalCapabilities";
 import { persistedRemoteServersState } from "@/renderer/state/remoteServers/projectCache";
+import { pinRemoteHomeThreadWorkspace } from "@/renderer/state/remoteServers/workspaceFilings";
+import { registerRemoteHomeThreadWorkspacePin } from "@/renderer/state/slices/threadSlice";
 import { clearRemoteGitState } from "@/renderer/state/remoteServers/gitState";
 import { withRemoteProjectSync } from "@/renderer/state/remoteServers/projectSync";
 import { syncRemoteAppRows } from "@/renderer/state/remoteServers/appRows";
@@ -142,6 +144,7 @@ const remoteServersStorage = createSecureRemoteServersStorage<
   excludedProjectIds: {},
   projectWorkspaceIds: {},
   explicitProjectWorkspaceIds: {},
+  homeThreadWorkspaceIds: {},
   projectNameOverrides: {},
   lastKnownProjects: {},
 }));
@@ -283,6 +286,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         excludedProjectIds: {},
         projectWorkspaceIds: {},
         explicitProjectWorkspaceIds: {},
+        homeThreadWorkspaceIds: {},
         hostWorkspaces: {},
         projectNameOverrides: {},
         lastKnownProjects: {},
@@ -485,11 +489,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // valid; workspaceFilings.test covers delayed hydration and reload.
       // `explicitProjectWorkspaceIds` is additive: a document without it reads
       // as no user moves recorded, and older apps ignore the key.
+      // `homeThreadWorkspaceIds` is additive too: a v2 document without the
+      // field hydrates empty, entries are merged per full thread id, and older
+      // apps ignore the key, so the document version stays 2.
       // Token rotation updates existing bearer slots through secure storage;
       // v1/v2 records and encrypted vault keys remain valid without a bump.
       // `recentHistoryCacheId` is additive local cache metadata (no credential):
       // records without it stay valid, gain one after their next verified
       // connect, and older apps ignore it, so no version bump or migration.
+      // Remote Home uses the existing ids and workspace filings; v2 caches and
+      // exclusions remain valid and are reprojected without a version bump.
       version: 2,
       /**
        * v1 → v2: `connectionId` becomes the per-connection key.
@@ -506,6 +515,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
     },
   ),
 );
+
+// The app store's thread slice pins paired Home filings through this late
+// binding: a static import there would cycle the app-store module graph.
+registerRemoteHomeThreadWorkspacePin(pinRemoteHomeThreadWorkspace);
 
 // Each paired socket carries the live interests panes retain for its host's threads.
 installPairedItemInterests(

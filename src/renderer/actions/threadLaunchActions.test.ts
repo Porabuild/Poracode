@@ -195,6 +195,15 @@ const remoteProject: Project = {
   remoteId: "p1",
 };
 
+const remoteHomeProject: Project = {
+  ...remoteProject,
+  id: `remote:d1:project:${HOME_PROJECT_ID}`,
+  name: "Home",
+  location: { kind: "posix", path: "/Users/me", remoteServerId: "d1" },
+  remoteId: HOME_PROJECT_ID,
+  disabled: true,
+};
+
 describe("startThreadFromDraft host transport", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -806,6 +815,38 @@ describe("startThreadFromDraft host transport", () => {
       }),
     );
     expect(mocks.generateTitleAsync).toHaveBeenCalled();
+  });
+
+  it("starts a paired Home draft with the canonical Home id and the host's home location", async () => {
+    mocks.appState.projects = [remoteHomeProject];
+
+    await startThreadFromDraft(remoteHomeProject, {
+      agentKind: "codex",
+      config: { model: "gpt-5.6" },
+      prompt: "home on the mac",
+      presentationMode: "gui",
+    });
+
+    const created = mocks.appState.createThread.mock.calls[0]![0] as {
+      threadId: string;
+      remoteServerId: string;
+    };
+    expect(created.remoteServerId).toBe("d1");
+    expect(mocks.remoteState.sendThreadCommand).toHaveBeenCalledWith(
+      "d1",
+      expect.objectContaining({
+        kind: "create",
+        threadId: (created.threadId as string).slice("remote:d1:thread:".length),
+        projectId: HOME_PROJECT_ID,
+      }),
+    );
+    expect(mocks.remoteClient.startThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectLocation: { kind: "posix", path: "/Users/me" },
+        prompt: "home on the mac",
+      }),
+    );
+    expect(mocks.createWorktree).not.toHaveBeenCalled();
   });
 
   it("runs a paired project's new worktree setup once, from this client", async () => {

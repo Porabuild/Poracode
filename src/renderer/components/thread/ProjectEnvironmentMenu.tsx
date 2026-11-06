@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Description, Dropdown, Label } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { isHomeProjectId } from "@/shared/homeScope";
+import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import type { MachineDescriptor } from "@/renderer/state/machines";
 import { useProjectGroup } from "@/renderer/state/projectGroups/useProjectGroups";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceProjectFilter } from "@/renderer/state/workspaceSelectors";
 import {
   ResponsiveMenuSurface,
@@ -30,17 +31,24 @@ export function ProjectEnvironmentMenu(
 ) {
   const { currentProjectId } = props;
   const { t } = useLingui();
-  const group = useProjectGroup(isHomeProjectId(currentProjectId) ? undefined : currentProjectId);
+  const group = useProjectGroup(currentProjectId);
+  const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const isInWorkspace = useWorkspaceProjectFilter();
   const machineFor = useProjectEnvironmentMachineLookup();
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
 
+  // Home is only offered while its scope setting is on, like the switcher.
+  if (isHomeProjectId(currentProjectId) && !homeScopeEnabled) return null;
+
   // Same membership as the project switcher: the active workspace's enabled
-  // rows. The current row always stays, even if it is filed elsewhere.
+  // rows. Home's disabled flag is an internal marker, not a disabled project.
+  // The current row always stays, even if it is filed elsewhere.
   const environments = (group?.members ?? []).flatMap((member) => {
     const isCurrent = member.id === currentProjectId;
-    if (!isCurrent && (member.disabled || !isInWorkspace(member))) return [];
+    if (!isCurrent && ((member.disabled && !isHomeProject(member)) || !isInWorkspace(member))) {
+      return [];
+    }
     const entry = machineFor(member);
     return entry ? [entry] : [];
   });

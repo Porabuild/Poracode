@@ -246,6 +246,17 @@ export interface RemoteServersState {
    * workspace above those, but never above a filing listed here.
    */
   explicitProjectWorkspaceIds: Record<string, Readonly<Record<string, true>>>;
+  /**
+   * Client-owned workspace pins for paired Home threads, keyed by the FULL
+   * renderer-mirrored thread id (`remote:<connection>:thread:<id>`). A paired
+   * host never receives the client workspace on create, and desktop clients do
+   * not persist mirrored thread rows, so this local preference is what a cold
+   * restart projects back onto catalog and history rows. `null` records an
+   * explicit unfiling (visible in every workspace). Entries are flat so the
+   * secure-storage object-entry patches merge threads written by different
+   * windows instead of replacing a nested per-connection map.
+   */
+  homeThreadWorkspaceIds: Record<string, string | null>;
   /** Each connection's workspace names from its latest shell snapshot (session only). */
   hostWorkspaces: Record<string, readonly RemoteHostWorkspace[]>;
   /**

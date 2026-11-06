@@ -53,6 +53,31 @@ import {
   type ThreadConfigSubmission,
 } from "../pendingThreadConfig";
 
+type RemoteHomeThreadIdentity = Pick<Thread, "id" | "projectId" | "remoteServerId">;
+
+/**
+ * Late-bound writer for paired remote Home thread pins. The remote-servers
+ * store owns the persisted map and registers its `workspaceFilings` writer once
+ * its store exists; importing that module here would pull the whole
+ * remote-server/workspace store graph into this app-store slice module.
+ */
+let pinRemoteHomeThreadWorkspaceImpl:
+  | ((thread: RemoteHomeThreadIdentity, workspaceId: string | undefined) => void)
+  | undefined;
+
+export function registerRemoteHomeThreadWorkspacePin(
+  pin: (thread: RemoteHomeThreadIdentity, workspaceId: string | undefined) => void,
+): void {
+  pinRemoteHomeThreadWorkspaceImpl = pin;
+}
+
+function pinRemoteHomeThreadWorkspace(
+  thread: RemoteHomeThreadIdentity,
+  workspaceId: string | undefined,
+): void {
+  pinRemoteHomeThreadWorkspaceImpl?.(thread, workspaceId);
+}
+
 export interface ThreadSlice {
   /** Volatile GUI intent, retaining field revisions while dispatches are in flight. */
   pendingThreadConfigByThreadId: Record<string, PendingThreadConfig>;
@@ -221,7 +246,7 @@ export function normalizeRuntimeSnapshotLaunchConfig<T extends ThreadRuntimeSnap
   return { ...snapshot, launchConfig: snapshot.launchConfig ?? null };
 }
 
-export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
+export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
   threads: [],
   provisioningWorktreeThreadIds: {},
   pendingThreadConfigByThreadId: {},
@@ -364,6 +389,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           : keepAlivePatch({ ...state, threads: [thread, ...state.threads] }, thread.id)),
       };
     });
+    // A paired Home host never receives this client workspace on create, and a
+    // desktop cold restart has no resident mirrored row: pin the client filing
+    // so catalog and history projection can restore it.
+    pinRemoteHomeThreadWorkspace(thread, thread.workspaceId);
 
     // Durable "thread started" usage fact (survives later delete/archive).
     recordThreadStarted(thread);
@@ -589,22 +618,24 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         thread.id === threadId ? { ...thread, title } : thread,
       ),
     })),
-  setThreadWorkspace: (threadId, workspaceId) =>
-    set((state) => {
-      const thread = state.threads.find((t) => t.id === threadId);
-      if (!thread || thread.workspaceId === workspaceId) return {};
-      return {
-        threads: state.threads.map((t) => {
-          if (t.id !== threadId) return t;
-          const { workspaceId: _dropped, ...rest } = t;
-          return {
-            ...rest,
-            ...(workspaceId ? { workspaceId } : {}),
-            updatedAt: new Date().toISOString(),
-          };
-        }),
-      };
-    }),
+  setThreadWorkspace: (threadId, workspaceId) => {
+    const thread = get().threads.find((t) => t.id === threadId);
+    if (!thread || thread.workspaceId === workspaceId) return;
+    set((state) => ({
+      threads: state.threads.map((t) => {
+        if (t.id !== threadId) return t;
+        const { workspaceId: _dropped, ...rest } = t;
+        return {
+          ...rest,
+          ...(workspaceId ? { workspaceId } : {}),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    }));
+    // A genuine move or explicit unfile is client-owned for paired Home
+    // threads; persist it outside the set callback, after the row changed.
+    pinRemoteHomeThreadWorkspace(thread, workspaceId);
+  },
   setThreadWorktree: (threadId, worktreePath, worktreeBranch, options) =>
     set((state) => {
       const { [threadId]: _droppedProvisioning, ...provisioningWorktreeThreadIds } =

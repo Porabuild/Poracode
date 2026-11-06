@@ -224,6 +224,12 @@ export function ThreadDraftView(props: {
   submitOnEnter?: boolean;
   /** Override mount autofocus for embedded draft-composer surfaces. */
   autoFocusComposer?: boolean;
+  /**
+   * True while this surface's submission is in flight. A pending submission
+   * must stay mounted through connection changes so its failure checkpoint can
+   * still recover the submitted editor content.
+   */
+  submissionPending?: boolean;
   pickFiles?: () => Promise<string[] | null>;
   saveClipboardImage?: SaveClipboardImage;
   paneAlign?: "left" | "center" | "right";
@@ -1593,7 +1599,7 @@ export function ThreadDraftView(props: {
     spacerRef: anchorSpacerRef,
   });
 
-  if (remoteConnection === "connecting" && !hostUpdateRestarting) {
+  if (!props.submissionPending && remoteConnection === "connecting" && !hostUpdateRestarting) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <PixelLoader size="md" />
@@ -1603,7 +1609,12 @@ export function ThreadDraftView(props: {
       </div>
     );
   }
-  if (!hostUpdateRestarting && remoteConnection !== "local" && remoteConnection !== "online") {
+  if (
+    !props.submissionPending &&
+    !hostUpdateRestarting &&
+    remoteConnection !== "local" &&
+    remoteConnection !== "online"
+  ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">

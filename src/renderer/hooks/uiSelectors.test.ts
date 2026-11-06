@@ -7,6 +7,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { AgentStatus, BackgroundTask, Project, Thread } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import {
   selectThreadIsWaitingForBackground,
   useIsProjectGitPanelActive,
@@ -277,6 +278,21 @@ describe("host-keyed agent statuses", () => {
     const { result } = renderHook(() => useDraftEnvironment(project));
     expect(result.current.agentStatuses.map((status) => status.kind)).toEqual(["host-native"]);
     expect(result.current.isDetectingAgents).toBe(true);
+    expect(result.current.pickFiles).toBeTypeOf("function");
+  });
+
+  it("uses the paired host's agents and models for a mirrored Home draft", () => {
+    seedPairedHost("online");
+    const project = {
+      id: `remote:studio:project:${HOME_PROJECT_ID}`,
+      name: "Home",
+      location: { kind: "posix", path: "/Users/me", remoteServerId: "studio" },
+      remoteServerId: "studio",
+      remoteId: HOME_PROJECT_ID,
+      createdAt: "2026-11-04",
+    } satisfies Project;
+    const { result } = renderHook(() => useDraftEnvironment(project));
+    expect(result.current.agentStatuses.map((status) => status.kind)).toEqual(["host-native"]);
     expect(result.current.pickFiles).toBeTypeOf("function");
   });
 });

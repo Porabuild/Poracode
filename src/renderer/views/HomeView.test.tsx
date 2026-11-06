@@ -324,7 +324,7 @@ describe("HomeView", () => {
     expect(remoteThread).toHaveTextContent("MacBook 16");
   });
 
-  it("lists each paired machine's Home and tags Home threads with their own machine", () => {
+  it("lists one Home row with every paired machine's Home and tags its threads", () => {
     useRemoteServersStore.setState({
       servers: [
         { desktopId: "desktop-1", label: "Poracode on MacBook 16" },
@@ -358,9 +358,9 @@ describe("HomeView", () => {
     const homeRows = screen
       .getAllByRole("button", { pressed: false })
       .filter((row) => row.textContent?.startsWith(HOME_PROJECT_NAME));
-    expect(homeRows).toHaveLength(2);
+    expect(homeRows).toHaveLength(1);
     expect(homeRows[0]).toHaveTextContent("MacBook 16");
-    expect(homeRows[1]).toHaveTextContent("Studio PC");
+    expect(homeRows[0]).toHaveTextContent("Studio PC");
     expect(screen.getByText("Mac chat").closest("button")).toHaveTextContent("MacBook 16");
     expect(screen.getByText("Studio chat").closest("button")).toHaveTextContent("Studio PC");
   });

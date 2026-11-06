@@ -214,17 +214,13 @@ export function syncRemoteAppRows(
   }
   const remoteState = useRemoteServersStore.getState();
   const excluded = remoteState.excludedProjectIds[desktopId];
-  // Browser clients (web app, PWA, chat sidebar) have no Home of their own.
-  const syncOptions = { includeHomeScope: isBrowserClientRuntime() };
-  const projects = allProjects
-    ? filterSyncedRemoteProjects(allProjects, excluded, syncOptions)
-    : undefined;
+  const projects = allProjects ? filterSyncedRemoteProjects(allProjects, excluded) : undefined;
   // A threads-only update has no project list to scope against, so fall back to
   // the cached snapshot — always written before rows are synced.
   const cachedProjects = remoteState.runtime[desktopId]?.projects ?? [];
   const syncedProjectIds = allThreads
     ? new Set(
-        (projects ?? filterSyncedRemoteProjects(cachedProjects, excluded, syncOptions)).map(
+        (projects ?? filterSyncedRemoteProjects(cachedProjects, excluded)).map(
           (project) => project.id,
         ),
       )

@@ -109,10 +109,45 @@ describe("deriveProjectGroups", () => {
     expect(ids(index)).toEqual([["a", remote("mac", "x").id]]);
   });
 
-  it("keeps Home on its own", () => {
+  it("groups Home rows from distinct machines with null sync keys", () => {
     const home = local(HOME_PROJECT_ID, "Home");
-    const index = deriveProjectGroups([home, remote("mac", "h", "Home")], noRepo, NONE);
-    expect(ids(index)).toEqual([[HOME_PROJECT_ID], [remote("mac", "h").id]]);
+    const macHome = remote("mac", HOME_PROJECT_ID, "Home");
+    const index = deriveProjectGroups([home, macHome], noRepo, NONE);
+    expect(ids(index)).toEqual([[HOME_PROJECT_ID, macHome.id]]);
+    const group = index.groupByProjectId.get(macHome.id)!;
+    expect(group.syncKeys.get(HOME_PROJECT_ID)).toBeNull();
+    expect(group.syncKeys.get(macHome.id)).toBeNull();
+  });
+
+  it("never merges a real home-folder project or ordinary project named Home into Home", () => {
+    const home = local(HOME_PROJECT_ID, "Home");
+    const macHome = remote("mac", HOME_PROJECT_ID, "Home");
+    const realHome = local("real-home", "sdsle", {
+      location: { kind: "windows", path: "C:\\Users\\me" },
+    });
+    const namedHome = local("named-home", "Home");
+    const index = deriveProjectGroups([home, realHome, namedHome, macHome], noRepo, NONE);
+    expect(ids(index)).toEqual([[HOME_PROJECT_ID, macHome.id], ["real-home"], ["named-home"]]);
+  });
+
+  it("ignores repository identity and manual tokens for Home", () => {
+    const home = local(HOME_PROJECT_ID, "Home");
+    const macHome = remote("mac", HOME_PROJECT_ID, "Home");
+    const overrides: ProjectGroupOverrides = {
+      manualGroups: { [home.id]: "group:home", [macHome.id]: "group:other" },
+    };
+    const index = deriveProjectGroups([home, macHome], () => "github.com/me/app", overrides);
+    expect(ids(index)).toEqual([[home.id, macHome.id]]);
+  });
+
+  it("keeps a same-machine Home row separate instead of merging environments", () => {
+    const macHome = remote("mac", HOME_PROJECT_ID, "Home");
+    const duplicateHome: Project = {
+      ...macHome,
+      id: `remote:mac:project:duplicate:project:${HOME_PROJECT_ID}`,
+    };
+    const index = deriveProjectGroups([macHome, duplicateHome], noRepo, NONE);
+    expect(ids(index)).toEqual([[macHome.id], [duplicateHome.id]]);
   });
 
   it("honors separate and join overrides", () => {

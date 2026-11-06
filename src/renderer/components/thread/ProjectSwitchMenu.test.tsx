@@ -560,4 +560,215 @@ describe("ProjectSwitchMenu", () => {
       expect(useProjectGroupStore.getState().lastUsedAt[mac.id]).toBeTypeOf("number");
     });
   });
+
+  describe("Home machines", () => {
+    const macHome = {
+      ...project(`remote:mac:project:${HOME_PROJECT_ID}`, HOME_PROJECT_NAME),
+      id: `remote:mac:project:${HOME_PROJECT_ID}`,
+      remoteServerId: "mac",
+      remoteId: HOME_PROJECT_ID,
+      disabled: true,
+      location: { kind: "posix" as const, path: "/Users/me", remoteServerId: "mac" },
+    } as Project;
+
+    function pair(status: "online" | "offline") {
+      useRemoteServersStore.setState({
+        servers: [{ desktopId: "mac", label: "Poracode on MacBook" }],
+        runtime: { mac: { status, projects: [], threads: [] } },
+      } as never);
+    }
+
+    beforeEach(() => {
+      useSharedSettings.setState({ homeScopeEnabled: true });
+    });
+
+    it("lists one Home project and offers Local and MacBook Home environments", async () => {
+      pair("online");
+      useAppStore.setState({
+        projects: [homeProject, macHome, workProject],
+        view: { kind: "draft", projectId: HOME_PROJECT_ID },
+      });
+      render(<ProjectSwitchMenu currentProjectId={HOME_PROJECT_ID} variant="compact" />);
+
+      expect(screen.getByRole("button", { name: "Switch project" })).not.toHaveTextContent(
+        "MacBook",
+      );
+      expect(screen.getByRole("button", { name: "Machine: Local" })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
+      fireEvent.click(
+        within(await screen.findByRole("menu")).getByRole("menuitemradio", { name: /MacBook/ }),
+      );
+      await waitFor(() => {
+        expect(useAppStore.getState().view).toEqual({
+          kind: "draft",
+          projectId: macHome.id,
+        });
+      });
+    });
+
+    it("shows one Home entry in the project menu", async () => {
+      pair("online");
+      useAppStore.setState({
+        projects: [homeProject, macHome, workProject],
+        view: { kind: "draft", projectId: workProject.id },
+      });
+      render(<ProjectSwitchMenu currentProjectId={workProject.id} variant="compact" />);
+
+      const menu = await openMenu();
+      expect(
+        within(menu)
+          .getAllByRole("menuitemradio")
+          .filter((item) => item.textContent === HOME_PROJECT_NAME),
+      ).toHaveLength(1);
+    });
+
+    it("moves the draft and model through the embedded callback without navigating", async () => {
+      pair("online");
+      const sourceConfig: ProjectDraftConfig = {
+        agentKind: "codex",
+        model: "gpt-5.4",
+        effort: "high",
+        approvalPolicy: "never",
+        sandboxMode: "danger-full-access",
+        worktreeMode: true,
+      };
+      const targetConfig: ProjectDraftConfig = {
+        agentKind: "codex",
+        model: "gpt-5.4-mini",
+        effort: "low",
+        approvalPolicy: "on-request",
+        sandboxMode: "read-only",
+        worktreeMode: false,
+      };
+      const attachmentContent = {
+        segments: [],
+        attachments: [{ id: "image", path: "C:\\image.png", name: "image.png", isImage: true }],
+      };
+      useAppStore.setState({
+        projects: [
+          { ...homeProject, lastDraftConfig: sourceConfig },
+          { ...macHome, lastDraftConfig: targetConfig },
+        ],
+        view: { kind: "draft", projectId: HOME_PROJECT_ID },
+        draftContents: { [HOME_PROJECT_ID]: attachmentContent },
+      });
+      const snapshots: Array<ReturnType<typeof useAppStore.getState>["draftContents"]> = [];
+      const unsubscribe = useAppStore.subscribe((state) => snapshots.push(state.draftContents));
+      const onSelectProject = vi.fn<(projectId: string) => void>();
+      const { rerender } = render(
+        <ProjectSwitchMenu
+          currentProjectId={HOME_PROJECT_ID}
+          variant="compact"
+          onSelectProject={onSelectProject}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
+      fireEvent.click(
+        within(await screen.findByRole("menu")).getByRole("menuitemradio", { name: /MacBook/ }),
+      );
+      await waitFor(() => expect(onSelectProject).toHaveBeenCalledWith(macHome.id));
+      // The embedding surface receives the target, but the shared helper leaves
+      // the main view alone.
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: HOME_PROJECT_ID });
+      expect(useAppStore.getState().draftContents).toEqual({ [macHome.id]: attachmentContent });
+      const copiedForward = snapshots.find((draft) => draft[macHome.id] === attachmentContent);
+      expect(copiedForward?.[HOME_PROJECT_ID]).toBe(attachmentContent);
+
+      const textContent = {
+        segments: [{ kind: "text" as const, content: "Back to local" }],
+        attachments: [],
+      };
+      useAppStore.setState({ draftContents: { [macHome.id]: textContent } });
+      rerender(
+        <ProjectSwitchMenu
+          currentProjectId={macHome.id}
+          variant="compact"
+          onSelectProject={onSelectProject}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Machine: MacBook" }));
+      fireEvent.click(
+        within(await screen.findByRole("menu")).getByRole("menuitemradio", { name: "Local" }),
+      );
+      await waitFor(() => expect(onSelectProject).toHaveBeenNthCalledWith(2, HOME_PROJECT_ID));
+      unsubscribe();
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: HOME_PROJECT_ID });
+      expect(useAppStore.getState().draftContents).toEqual({ [HOME_PROJECT_ID]: textContent });
+      expect(
+        useAppStore.getState().projects.find((row) => row.id === HOME_PROJECT_ID)?.lastDraftConfig,
+      ).toMatchObject(sourceConfig);
+      const copiedBack = snapshots.find((draft) => draft[HOME_PROJECT_ID] === textContent);
+      expect(copiedBack?.[macHome.id]).toBe(textContent);
+    });
+
+    it("switches Mac Home back to Local and carries the draft model", async () => {
+      pair("online");
+      const sourceConfig = { agentKind: "codex", model: "gpt-5.4" } as const;
+      const content = {
+        segments: [{ kind: "text" as const, content: "Ship it" }],
+        attachments: [],
+      };
+      useAppStore.setState({
+        projects: [homeProject, { ...macHome, lastDraftConfig: sourceConfig }, workProject],
+        view: { kind: "draft", projectId: macHome.id },
+        draftContents: { [macHome.id]: content },
+      });
+      render(<ProjectSwitchMenu currentProjectId={macHome.id} variant="compact" />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Machine: MacBook" }));
+      fireEvent.click(
+        within(await screen.findByRole("menu")).getByRole("menuitemradio", { name: "Local" }),
+      );
+      await waitFor(() => {
+        expect(useAppStore.getState().view).toEqual({
+          kind: "draft",
+          projectId: HOME_PROJECT_ID,
+        });
+      });
+      expect(useAppStore.getState().draftContents).toEqual({ [HOME_PROJECT_ID]: content });
+      expect(
+        useAppStore.getState().projects.find((row) => row.id === HOME_PROJECT_ID)?.lastDraftConfig,
+      ).toMatchObject(sourceConfig);
+    });
+
+    it("admits disabled Home rows while keeping an offline machine unselectable", async () => {
+      pair("offline");
+      useAppStore.setState({
+        projects: [homeProject, macHome],
+        view: { kind: "draft", projectId: HOME_PROJECT_ID },
+      });
+      render(<ProjectSwitchMenu currentProjectId={HOME_PROJECT_ID} variant="compact" />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
+      const offline = within(await screen.findByRole("menu")).getByRole("menuitemradio", {
+        name: /MacBook/,
+      });
+      expect(offline).toHaveAttribute("aria-disabled", "true");
+      fireEvent.click(offline);
+      expect(useAppStore.getState().view).toEqual({
+        kind: "draft",
+        projectId: HOME_PROJECT_ID,
+      });
+    });
+
+    it("hides Home from the project and machine menus when the Home setting is off", async () => {
+      pair("online");
+      useSharedSettings.setState({ homeScopeEnabled: false });
+      useAppStore.setState({
+        projects: [homeProject, macHome, workProject],
+        view: { kind: "draft", projectId: HOME_PROJECT_ID },
+      });
+      render(<ProjectSwitchMenu currentProjectId={HOME_PROJECT_ID} variant="compact" />);
+
+      expect(screen.queryByRole("button", { name: /^Machine:/ })).not.toBeInTheDocument();
+      const menu = await openMenu();
+      expect(
+        within(menu)
+          .queryAllByRole("menuitemradio")
+          .filter((item) => item.textContent === HOME_PROJECT_NAME),
+      ).toHaveLength(0);
+    });
+  });
 });

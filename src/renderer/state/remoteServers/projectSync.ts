@@ -6,12 +6,13 @@ import { isHomeProjectId } from "@/shared/homeScope";
  * A paired server offers every project in its own database, but the desktop
  * client only imports the ones the user wants in their sidebar:
  *
- * - The remote's built-in **Home scope** row is only mirrored into browser
- *   clients. It is not a real project (it is re-created on every launch and
- *   exists so browser clients can run home-scoped threads); the desktop app
- *   already has its own Home scope.
+ * - The remote's built-in **Home scope** row is always mirrored. Every client
+ *   needs the host's Home chats; a desktop app groups its own Home with each
+ *   paired host's Home. It is not a real project (it is re-created on every
+ *   launch) and is never offered in the project-sync picker.
  * - Anything the user excluded is skipped. Exclusion is purely local state, so
- *   it applies — and can be changed — while the server is offline.
+ *   it applies — and can be changed — while the server is offline. A legacy
+ *   exclusion naming the built-in Home id is ignored: Home is not excludable.
  *
  * Pure helpers, kept free of store imports so the store can use them without a
  * cycle and so the selection rules stay unit-testable on their own.
@@ -23,11 +24,8 @@ export type ExcludedRemoteProjectIds = Record<string, readonly string[]>;
 export function isRemoteProjectSynced(
   remoteProjectId: string,
   excluded: readonly string[] | undefined,
-  options: { readonly includeHomeScope?: boolean } = {},
 ): boolean {
-  // Browser clients have no Home of their own, so they need the host's
-  // built-in scope and its chats. Desktop mirrors keep their local Home scope.
-  if (isHomeProjectId(remoteProjectId)) return options.includeHomeScope === true;
+  if (isHomeProjectId(remoteProjectId)) return true;
   return !excluded?.includes(remoteProjectId);
 }
 
@@ -35,9 +33,8 @@ export function isRemoteProjectSynced(
 export function filterSyncedRemoteProjects<T extends { readonly id: string }>(
   projects: readonly T[],
   excluded: readonly string[] | undefined,
-  options: { readonly includeHomeScope?: boolean } = {},
 ): T[] {
-  return projects.filter((project) => isRemoteProjectSynced(project.id, excluded, options));
+  return projects.filter((project) => isRemoteProjectSynced(project.id, excluded));
 }
 
 /**
