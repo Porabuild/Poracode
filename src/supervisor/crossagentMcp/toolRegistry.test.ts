@@ -1207,7 +1207,14 @@ describe("subagent tool registration", () => {
       ctx,
     );
     expect(JSON.parse(result.content[0]!.text)).toEqual({ run_id: "r", status: "accepted" });
-    expect(steer).toHaveBeenCalledWith("r", "focus on tests", ctx.parentThreadId, true, undefined);
+    expect(steer).toHaveBeenCalledWith(
+      "r",
+      "focus on tests",
+      ctx.parentThreadId,
+      true,
+      undefined,
+      undefined,
+    );
     expect(TOOLS.find((tool) => tool.name === "steer_agent")?.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,

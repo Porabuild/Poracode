@@ -23,8 +23,8 @@ import { readRunResult } from "./runResult";
 import {
   canContinueRun,
   prepareContinuation,
+  prepareWorkerTurn,
   type ContinuableRun,
-  type ContinuationSelectionUpdate,
 } from "./continuationPlan";
 export { MAX_RUNNING_OUTPUT_TAIL_CHARS } from "./runResult";
 import { RunLifecycle, type RunLifecycleEvent } from "./RunLifecycle";
@@ -518,12 +518,13 @@ export class SubagentRunManager {
     parentThreadId: string,
     background = false,
     name?: string,
+    roleRequest?: SpawnAgentRequest,
   ): Promise<{ runId: string; continuedFrom?: string }> {
     const record = this.ownedRun(runId, parentThreadId);
     if (!record) throw new SubagentSpawnError(`Unknown run_id: ${runId}`);
     if (!prompt.trim()) throw new SubagentSpawnError("prompt is required");
     if (record.status !== "running")
-      return this.continueCompletedRun(record, prompt, background, undefined, name);
+      return this.continueCompletedRun(record, prompt, background, roleRequest, name);
     if (!record.steerReady)
       throw new SubagentSpawnError("Subagent is still starting; try again once it is ready");
     const handle = record.handle;
@@ -533,6 +534,17 @@ export class SubagentRunManager {
       throw new SubagentSpawnError(
         "The previous message to this subagent is still being delivered",
       );
+    const nextPlan =
+      !handle.steerTurn && roleRequest
+        ? prepareWorkerTurn(
+            this.deps,
+            this.requireParent(parentThreadId),
+            record,
+            prompt,
+            record.background,
+            roleRequest,
+          )
+        : undefined;
     const steering: SteerState = { completion: "none" };
     record.steerGeneration += 1;
     record.steering = steering;
@@ -542,7 +554,15 @@ export class SubagentRunManager {
       if (handle.steerTurn) {
         await handle.steerTurn(prompt, config);
       } else {
-        await this.interruptAndRestartTurn(record, attemptIndex, steering, handle, prompt, config);
+        await this.interruptAndRestartTurn(
+          record,
+          attemptIndex,
+          steering,
+          handle,
+          prompt,
+          config,
+          nextPlan,
+        );
       }
       if (!this.isCurrentAttempt(record, attemptIndex)) {
         throw new SubagentSpawnError("Subagent stopped before the message was delivered");
@@ -608,7 +628,7 @@ export class SubagentRunManager {
         latest,
         request.prompt,
         background,
-        { effort: request.effort, fast: request.fast },
+        request,
         request.name,
       );
     } catch (error) {
@@ -621,7 +641,7 @@ export class SubagentRunManager {
     record: RunRecord,
     prompt: string,
     background: boolean,
-    selectionUpdate?: ContinuationSelectionUpdate,
+    selectionUpdate?: SpawnAgentRequest,
     name?: string,
   ): Promise<{ runId: string; continuedFrom: string }> {
     const parentThreadId = record.parentThreadId;
@@ -686,6 +706,7 @@ export class SubagentRunManager {
     handle: StructuredSessionHandle,
     prompt: string,
     config: ThreadConfig,
+    nextPlan?: PreparedSubagentRun,
   ): Promise<void> {
     const generation = record.steerGeneration;
     const drained = new Promise<void>((resolve) => {
@@ -717,6 +738,21 @@ export class SubagentRunManager {
       steering.onStarted = resolve;
     });
     record.turnStarted = false;
+    if (nextPlan) {
+      const nextAttempt = nextPlan.attempts[0]!;
+      const { crewRole: _previousRole, ...previousPlan } = record.plan;
+      record.plan = {
+        ...previousPlan,
+        ...(nextPlan.crewRole ? { crewRole: nextPlan.crewRole } : {}),
+        prompt: nextPlan.prompt,
+        attempts: record.plan.attempts
+          .slice(0, attemptIndex + 1)
+          .map((attempt, index) => (index === attemptIndex ? nextAttempt : attempt)),
+      };
+      record.label = nextAttempt.label;
+      prompt = nextPlan.prompt;
+      config = nextAttempt.config;
+    }
     const turn = handle.startTurn!(prompt, config).catch((error: unknown) => {
       // A later correction can interrupt this prompt after delivery returns.
       if (record.steerGeneration === generation) {
