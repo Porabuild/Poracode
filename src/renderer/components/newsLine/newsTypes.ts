@@ -22,6 +22,8 @@ export interface NewsItem extends NewsPlaylistEntry {
   action?: NewsAction;
   /** Present on changelog items: the action expands this point in place. */
   highlight?: ChangelogHighlight;
+  /** Stays on screen longer because the action needs a deliberate read. */
+  longDwell?: boolean;
   /** Called once per visit when the item first becomes the visible one. */
   onShown?: () => void;
   /** The close button: hides this item (scope depends on the kind). */

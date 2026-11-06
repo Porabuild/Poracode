@@ -26,31 +26,40 @@ export interface NewsPlaylistSources<T extends NewsPlaylistEntry> {
   promotions: readonly T[];
 }
 
-/** One promotion follows this many other items, so at most one in five is a promotion. */
+/** Later promotions follow this many other items, keeping promotions infrequent. */
 export const PROMOTION_SPACING = 4;
 /** Upper bound on non-promotional items in one rotation. */
 export const MAX_PLAYLIST_ITEMS = 12;
 
 /**
  * Order the news line's rotation. Urgent items lead; the rest alternate
- * between sources (insight, changelog, announcement, discovery, tip, usage)
- * so consecutive items differ.
- * Promotions sit between other items — never first, at most one per
- * {@link PROMOTION_SPACING} others. With nothing else to show, the line shows
- * only the promotions.
+ * between sources so consecutive items differ. Each source gets a random rank
+ * from the visit's generator, so a new visit does not always open on the same
+ * item, while each source keeps its own priority order (announcement weight,
+ * new features first, changelog priority).
+ * Promotions are placed early (the first one takes the second slot) and later
+ * ones keep at least {@link PROMOTION_SPACING} other items between them. With
+ * nothing else to show, the line shows only the promotions.
  */
 export function buildNewsPlaylist<T extends NewsPlaylistEntry>(
   sources: NewsPlaylistSources<T>,
+  random: () => number,
 ): T[] {
   const urgent = sources.usage.filter((item) => item.urgent === true);
+  // Draw one rank per source in a fixed order, including empty sources, so a
+  // source appearing or emptying mid-visit does not reshuffle the others.
   const queues = [
-    [...sources.insights],
-    [...sources.changelog],
-    [...(sources.announcements ?? [])],
-    [...(sources.discovery ?? [])],
-    [...sources.tips],
+    sources.insights,
+    sources.changelog,
+    sources.announcements ?? [],
+    sources.discovery ?? [],
+    sources.tips,
     sources.usage.filter((item) => item.urgent !== true),
-  ];
+  ]
+    .map((items) => ({ items: [...items], rank: random() }))
+    .filter(({ items }) => items.length > 0)
+    .toSorted((a, b) => a.rank - b.rank)
+    .map(({ items }) => items);
   const base: T[] = [...urgent];
   while (base.length < MAX_PLAYLIST_ITEMS && queues.some((queue) => queue.length > 0)) {
     for (const queue of queues) {
@@ -58,18 +67,20 @@ export function buildNewsPlaylist<T extends NewsPlaylistEntry>(
       if (next && base.length < MAX_PLAYLIST_ITEMS) base.push(next);
     }
   }
-  if (base.length === 0) return [...sources.promotions];
 
-  const promotions = [...sources.promotions];
+  const promotions = shuffled(sources.promotions, random);
+  if (base.length === 0) return promotions;
+
   const playlist: T[] = [];
+  let sincePromotion = 0;
   base.forEach((item, index) => {
     playlist.push(item);
-    if (
-      (index + 1) % PROMOTION_SPACING === 0 ||
-      (index === base.length - 1 && index < PROMOTION_SPACING)
-    ) {
-      const promotion = promotions.shift();
-      if (promotion) playlist.push(promotion);
+    sincePromotion += 1;
+    if (promotions.length === 0) return;
+    // The first promotion follows the opening item so it is seen early.
+    if (index === 0 || sincePromotion >= PROMOTION_SPACING) {
+      playlist.push(promotions.shift()!);
+      sincePromotion = 0;
     }
   });
   return playlist;

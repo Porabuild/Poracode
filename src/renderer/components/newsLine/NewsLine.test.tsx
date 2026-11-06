@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ProfileCoreStats } from "@/shared/contracts";
@@ -9,12 +9,7 @@ import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { NEWS_LINE_STORAGE_KEYS, useNewsLineStore } from "@/renderer/state/newsLineStore";
 import { COMMUNITY_PROMOTION_URLS } from "@/shared/communityLinks";
-import {
-  NEWS_PROMOTION_ROTATE_MS,
-  NEWS_ROTATE_MS,
-  NEWS_TYPING_PAUSE_MS,
-  NewsLine,
-} from "./NewsLine";
+import { NEWS_LONG_DWELL_MS, NEWS_ROTATE_MS, NEWS_TYPING_PAUSE_MS, NewsLine } from "./NewsLine";
 import { resetProfileStatsCache } from "./useProfileStats";
 import { useFeatureUsageStore } from "@/renderer/state/featureUsageStore";
 import { useNewsFeedStore } from "@/renderer/state/newsFeedStore";
@@ -111,6 +106,10 @@ function currentKind(): string | null {
   return document.querySelector("[data-news-item]")?.getAttribute("data-news-kind") ?? null;
 }
 
+function currentId(): string | null {
+  return document.querySelector("[data-news-item]")?.getAttribute("data-news-item") ?? null;
+}
+
 function advanceTo(kind: string) {
   for (let step = 0; step < 12 && currentKind() !== kind; step++) {
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -153,10 +152,11 @@ describe("NewsLine", () => {
     dismissPromotion.mockClear();
   });
 
-  it("leads with an activity insight and opens Profile from it", async () => {
+  it("shows an activity insight and opens Profile from it", async () => {
     mocks.stats = streakStats();
     render(<NewsLine />);
-    await waitFor(() => expect(currentKind()).toBe("insight"));
+    await act(async () => {});
+    advanceTo("insight");
     expect(screen.getByRole("region", { name: "News" })).toHaveTextContent(
       "6 days in a row · your best is 11",
     );
@@ -169,8 +169,8 @@ describe("NewsLine", () => {
     useSharedSettings.setState({ newsLineActivity: false } as never);
     render(<NewsLine />);
     await act(async () => {});
-    expect(currentKind()).toBe("changelog");
-    for (let step = 0; step < 6; step++) {
+    advanceTo("changelog");
+    for (let step = 0; step < 8; step++) {
       fireEvent.click(screen.getByRole("button", { name: "Next" }));
       expect(currentKind()).not.toBe("insight");
     }
@@ -188,12 +188,13 @@ describe("NewsLine", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Pause news" }));
     act(() => {
-      vi.advanceTimersByTime(NEWS_ROTATE_MS * 3);
+      vi.advanceTimersByTime(NEWS_LONG_DWELL_MS * 2);
     });
     expect(document.querySelector("[data-news-item]")?.getAttribute("data-news-item")).toBe(second);
     fireEvent.click(screen.getByRole("button", { name: "Resume news" }));
     act(() => {
-      vi.advanceTimersByTime(NEWS_ROTATE_MS);
+      // The longest dwell, so the assertion holds for any kind in the rotation.
+      vi.advanceTimersByTime(NEWS_LONG_DWELL_MS);
     });
     expect(document.querySelector("[data-news-item]")?.getAttribute("data-news-item")).not.toBe(
       second,
@@ -225,36 +226,45 @@ describe("NewsLine", () => {
     );
   });
 
-  it("keeps promotions visible longer and restores the regular interval afterwards", () => {
+  it("keeps star and follow promotions visible longer and restores the regular interval", () => {
     vi.useFakeTimers();
+    // Only the star and follow promotions remain, so whichever shows is one of them.
+    useSharedSettings.setState({ dismissedPromotions: ["x-creator"] } as never);
     render(<NewsLine />);
     advanceTo("promotion");
-    const promotion = document.querySelector("[data-news-item]")?.getAttribute("data-news-item");
+    const promotion = currentId();
 
     act(() => {
       vi.advanceTimersByTime(NEWS_ROTATE_MS);
     });
-    expect(document.querySelector("[data-news-item]")?.getAttribute("data-news-item")).toBe(
-      promotion,
-    );
+    expect(currentId()).toBe(promotion);
     act(() => {
-      vi.advanceTimersByTime(NEWS_PROMOTION_ROTATE_MS - NEWS_ROTATE_MS - 1);
+      vi.advanceTimersByTime(NEWS_LONG_DWELL_MS - NEWS_ROTATE_MS - 1);
     });
-    expect(document.querySelector("[data-news-item]")?.getAttribute("data-news-item")).toBe(
-      promotion,
-    );
+    expect(currentId()).toBe(promotion);
     act(() => {
       vi.advanceTimersByTime(1);
     });
     expect(currentKind()).not.toBe("promotion");
 
-    const next = document.querySelector("[data-news-item]")?.getAttribute("data-news-item");
+    const next = currentId();
     act(() => {
       vi.advanceTimersByTime(NEWS_ROTATE_MS);
     });
-    expect(document.querySelector("[data-news-item]")?.getAttribute("data-news-item")).not.toBe(
-      next,
-    );
+    expect(currentId()).not.toBe(next);
+  });
+
+  it("gives the creator promotion the regular interval", () => {
+    vi.useFakeTimers();
+    useSharedSettings.setState({ dismissedPromotions: ["github-star", "x-poracode"] } as never);
+    render(<NewsLine />);
+    advanceTo("promotion");
+    const promotion = currentId();
+
+    act(() => {
+      vi.advanceTimersByTime(NEWS_ROTATE_MS);
+    });
+    expect(currentId()).not.toBe(promotion);
   });
 
   it.each([false, true])(

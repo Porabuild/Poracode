@@ -40,6 +40,11 @@ import { NewsUsageMeter } from "./NewsVisuals";
 /** Changelog points and keyboard tips featured per visit. */
 const HIGHLIGHTS_PER_VISIT = 3;
 const TIPS_PER_VISIT = 2;
+/** Promotions whose call to action needs the longer read: star and subscribe. */
+const LONG_DWELL_PROMOTIONS: ReadonlySet<CommunityPromotionId> = new Set([
+  "github-star",
+  "x-poracode",
+]);
 
 function currentPlatform(): PlatformName {
   try {
@@ -67,7 +72,8 @@ export interface NewsLineModel {
  * activity insights, changelog highlights, remote announcements, features the
  * user has not tried, a usage limit, keyboard tips, and community promotions.
  * Choices are fixed for the visit (seeded once); dismissals and settings apply
- * live.
+ * live. The caller remounts the line for each draft visit, so reopening the
+ * draft re-rolls the rotation instead of repeating the last one.
  */
 export function useNewsLineItems(): NewsLineModel {
   const { t } = useLingui();
@@ -244,11 +250,11 @@ export function useNewsLineItems(): NewsLineModel {
       label: t`Follow ${"@serg_vecher"}`,
     },
   };
-  const promotions: NewsItem[] = shuffled(COMMUNITY_PROMOTION_IDS, seededRandom(seed ^ 0xc2b2ae35))
-    .filter((id) => !dismissed.has(id))
-    .map((id) => ({
+  const promotions: NewsItem[] = COMMUNITY_PROMOTION_IDS.filter((id) => !dismissed.has(id)).map(
+    (id) => ({
       id: `promotion:${id}`,
       kind: "promotion",
+      longDwell: LONG_DWELL_PROMOTIONS.has(id),
       icon: promotionCopy[id].icon,
       content: <span>{promotionCopy[id].text}</span>,
       action: {
@@ -262,18 +268,22 @@ export function useNewsLineItems(): NewsLineModel {
         },
       },
       onDismiss: () => dismissPromotion(id),
-    }));
+    }),
+  );
 
   return {
-    items: buildNewsPlaylist({
-      insights,
-      changelog,
-      announcements,
-      discovery,
-      usage,
-      tips,
-      promotions,
-    }),
+    items: buildNewsPlaylist(
+      {
+        insights,
+        changelog,
+        announcements,
+        discovery,
+        usage,
+        tips,
+        promotions,
+      },
+      seededRandom(seed ^ 0x7f4a7c15),
+    ),
     highlights: pool,
   };
 }
