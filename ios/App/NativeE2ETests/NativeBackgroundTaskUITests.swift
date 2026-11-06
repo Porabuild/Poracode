@@ -236,7 +236,9 @@ final class NativeBackgroundTaskUITests: XCTestCase {
     }
     XCTAssertTrue(home.waitForExistence(timeout: 20), "Pairing never reached Home")
     home.tap()
-    XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 15))
+    guard app.staticTexts["Fixture response"].waitForExistence(timeout: 15) else {
+      throw BackgroundTaskJourneyError.timedOut
+    }
   }
 
   private func pairingURL() async throws -> URL {

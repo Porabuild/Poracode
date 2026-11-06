@@ -89,7 +89,7 @@ private struct RichChatBufferedRuntimeBatch: Sendable {
 @Observable
 final class RichChatTranscriptController {
   private(set) var state = RichChatTranscriptControllerState()
-  private var projectionCache = RichTimelineProjectionCache()
+  @ObservationIgnored private var projectionCache = RichTimelineProjectionCache()
 
   /// Memoized over `state.transcript`; read this instead of `state.timeline`
   /// so repeated reads within one update never re-project.

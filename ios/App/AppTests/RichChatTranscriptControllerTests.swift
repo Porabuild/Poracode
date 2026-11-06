@@ -1,3 +1,4 @@
+import Observation
 import XCTest
 
 #if canImport(App)
@@ -817,6 +818,44 @@ final class RichChatTranscriptControllerTests: XCTestCase {
     )
   }
 
+  /// Reading `timeline` must not invalidate its own observation through the
+  /// projection cache, while real controller state changes still do.
+  func testTimelineReadsDoNotInvalidateObservationButStateChangeDoes() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history(sequence: 10)))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+
+    let readInvalidations = RichChatObservationInvalidationCounter()
+    withObservationTracking {
+      _ = controller.timeline
+    } onChange: {
+      readInvalidations.record()
+    }
+    // Cache-hit reads after registration used to write the observed cache.
+    for _ in 0..<4 {
+      _ = controller.timeline
+    }
+    XCTAssertEqual(
+      readInvalidations.count, 0,
+      "timeline reads must not invalidate their own observation")
+
+    let stateInvalidations = RichChatObservationInvalidationCounter()
+    withObservationTracking {
+      _ = controller.timeline
+    } onChange: {
+      stateInvalidations.record()
+    }
+    controller.deactivate()
+    XCTAssertEqual(
+      stateInvalidations.count, 1,
+      "a real controller state change must still invalidate observation")
+    XCTAssertNil(controller.timeline)
+    XCTAssertNil(controller.state.transcript)
+  }
+
   func testAbsentOldHostSnapshotPreservesRetainedBackgroundTasks() async {
     let gateway = RichChatControllerGatewayFake()
     await gateway.configureHistory(.value(RichChatControllerTestValues.history(sequence: 10)))
@@ -1299,4 +1338,18 @@ private final class RichChatStallingURLProtocol: URLProtocol {
   }
 
   override func stopLoading() {}
+}
+
+/// Lock-guarded count of observation invalidations.
+private final class RichChatObservationInvalidationCounter: @unchecked Sendable {
+  private let lock = NSLock()
+  private var invalidations = 0
+
+  var count: Int {
+    lock.withLock { invalidations }
+  }
+
+  func record() {
+    lock.withLock { invalidations += 1 }
+  }
 }
