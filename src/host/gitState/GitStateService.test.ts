@@ -604,6 +604,30 @@ describe("GitStateService", () => {
     expect(service.getSnapshot().pullRequests[key]?.details?.checks[0]?.conclusion).toBe("SUCCESS");
   });
 
+  it("associates targets when a concurrent project list aliases the same PR during a branch read", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    const branchRead = Promise.withResolvers<PrData | null>();
+    vi.mocked(fakeExecutor.ghGetPrForBranch).mockReturnValueOnce(branchRead.promise);
+    vi.mocked(fakeExecutor.ghListPullRequests).mockResolvedValue({
+      pullRequests: [summary({ state: "draft", isDraft: true, checksStatus: "FAILURE" })],
+    });
+    const target = { projectId: project.id, worktreePath: "/repo/.poracode/worktrees/a" };
+    const refreshing = service.refreshTarget(target);
+    await vi.waitFor(() => expect(fakeExecutor.ghGetPrForBranch).toHaveBeenCalledOnce());
+
+    await service.refreshProjectPullRequests(project.id);
+    branchRead.resolve(pr({ state: "draft", isDraft: true }));
+    await refreshing;
+
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+    const snapshot = service.getSnapshot();
+    expect(snapshot.targets[gitTargetKey({ hostId: "host-1", ...target })]?.pullRequestKey).toBe(
+      key,
+    );
+    // The list reading landed first and is kept; the association is what was missing.
+    expect(snapshot.pullRequests[key]?.data.checksStatus).toBe("FAILURE");
+  });
+
   it("attaches an explicitly created PR to targets on a reused branch", async () => {
     const { service, executor: fakeExecutor } = createService();
     vi.mocked(fakeExecutor.ghGetPrForBranch).mockResolvedValue(pr({ number: 6, state: "merged" }));

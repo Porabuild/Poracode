@@ -110,7 +110,7 @@ describe("ForgeActivityService", () => {
     expect(refreshProjectPullRequests).not.toHaveBeenCalled();
   });
 
-  it("publishes a created pull request and refreshes the project's pull requests", () => {
+  it("publishes a created pull request and refreshes the project's pull requests", async () => {
     const { service, publish, refreshProjectPullRequests } = createService();
     service.observeSupervisorEvent({
       type: "thread-runtime-events",
@@ -123,7 +123,7 @@ describe("ForgeActivityService", () => {
       ),
     });
 
-    vi.advanceTimersByTime(750);
+    await vi.advanceTimersByTimeAsync(750);
     expect(publish).toHaveBeenCalledExactlyOnceWith({
       type: "remote-forge-activity",
       projectId: "p1",
@@ -233,7 +233,7 @@ describe("ForgeActivityService", () => {
     expect(publish).not.toHaveBeenCalled();
   });
 
-  it("coalesces two items in one checkout into a single publish and refresh pair", () => {
+  it("coalesces two items in one checkout into a single publish and refresh pair", async () => {
     const { service, publish, refreshTarget, refreshProjectPullRequests } = createService();
     service.observeSupervisorEvent({
       type: "thread-runtime-events",
@@ -244,7 +244,7 @@ describe("ForgeActivityService", () => {
       ],
     });
 
-    vi.advanceTimersByTime(750);
+    await vi.advanceTimersByTimeAsync(750);
     expect(publish).toHaveBeenCalledExactlyOnceWith({
       type: "remote-forge-activity",
       projectId: "p1",
@@ -255,6 +255,29 @@ describe("ForgeActivityService", () => {
     });
     expect(refreshTarget).toHaveBeenCalledOnce();
     expect(refreshProjectPullRequests).toHaveBeenCalledOnce();
+  });
+
+  it("refreshes the project list only after the checkout refresh settles", async () => {
+    const checkout = Promise.withResolvers<void>();
+    const refreshTarget = vi.fn<
+      (input: Parameters<GitStateService["refreshTarget"]>[0]) => Promise<void>
+    >(() => checkout.promise);
+    const { service, refreshProjectPullRequests } = createService({ refreshTarget });
+    service.observeSupervisorEvent({
+      type: "thread-runtime-events",
+      threadId: "t1",
+      events: commandEvents("t1", "i1", { command: "gh pr ready" }, { status: "success" }),
+    });
+
+    await vi.advanceTimersByTimeAsync(750);
+    expect(refreshTarget).toHaveBeenCalledOnce();
+    expect(refreshProjectPullRequests).not.toHaveBeenCalled();
+
+    checkout.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(refreshProjectPullRequests).toHaveBeenCalledExactlyOnceWith("p1", {
+      afterMutation: true,
+    });
   });
 
   it("classifies forge MCP tool calls from a multi-thread batch", () => {
@@ -486,7 +509,7 @@ describe("ForgeActivityService", () => {
     expect(refreshTarget).not.toHaveBeenCalled();
   });
 
-  it("prefers the branch the command names over the thread's checked-out branch", () => {
+  it("prefers the branch the command names over the thread's checked-out branch", async () => {
     const { service, publish, refreshProjectPullRequests } = createService();
     service.observeSupervisorEvent({
       type: "thread-runtime-events",
@@ -499,7 +522,7 @@ describe("ForgeActivityService", () => {
       ),
     });
 
-    vi.advanceTimersByTime(750);
+    await vi.advanceTimersByTimeAsync(750);
     expect(publish).toHaveBeenCalledExactlyOnceWith({
       type: "remote-forge-activity",
       projectId: "p1",

@@ -241,6 +241,8 @@ export class ForgeActivityService {
       this.report(error);
     }
 
+    // The supervisor serializes pull-request polls per project, so the visible
+    // checkout's lookup runs first and the slower open-PR list follows it.
     void this.options.gitState
       .refreshTarget({
         projectId: batch.projectId,
@@ -248,12 +250,13 @@ export class ForgeActivityService {
         includePrDetails: true,
         afterMutation: true,
       })
-      .catch((error: unknown) => this.report(error));
-
-    if (!batch.needsProjectList) return;
-    void this.options.gitState
-      .refreshProjectPullRequests(batch.projectId, { afterMutation: true })
-      .catch((error: unknown) => this.report(error));
+      .catch((error: unknown) => this.report(error))
+      .then(() => {
+        if (!batch.needsProjectList || this.disposed) return;
+        return this.options.gitState
+          .refreshProjectPullRequests(batch.projectId, { afterMutation: true })
+          .catch((error: unknown) => this.report(error));
+      });
   }
 
   private clearThreadPending(threadId: string): void {
