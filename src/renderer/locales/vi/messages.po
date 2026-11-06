@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "{0} mô hình"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0} cần xác thực."
 
@@ -595,8 +597,8 @@ msgstr "{days} ngày trước"
 #~ msgstr "Tải xuống {downloadSize} MB"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel} cần xác thực."
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel} cần xác thực."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "Mức sử dụng {label} — mở bảng sử dụng"
 #~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel} {env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel} {env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1676,7 +1678,6 @@ msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Tác nhân"
 
@@ -4608,8 +4609,8 @@ msgstr "Hoàn tất đăng nhập {0} trước khi chủ đề này có thể ch
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "Hoàn tất đăng nhập {0} cho {env}."
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "Hoàn tất đăng nhập {0} cho {env}."
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6102,7 +6103,6 @@ msgstr "Trò chuyện DeepSeek Harness với phiên được lưu, tùy chỉnh 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -9869,8 +9869,8 @@ msgstr "Cài đặt · {engineSize} MB"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "Cài đặt {0} cho {env}."
+#~ msgid "Install {0} for {env}."
+#~ msgstr "Cài đặt {0} cho {env}."
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9921,6 +9921,10 @@ msgstr "Cài đặt và quản lý plugin gốc của OpenCode."
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "Cài đặt và khởi động lại"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "Cài đặt và đăng nhập chưa khả dụng trên máy từ xa."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10035,8 +10039,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Cài đặt nhà cung cấp gốc trước; sử dụng ACP cho các tác nhân giao thức bổ sung."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "Cài đặt trên {env}"
+#~ msgid "Install on {env}"
+#~ msgstr "Cài đặt trên {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10104,8 +10108,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "Cài Xcode và môi trường chạy iOS Simulator trên máy chủ này."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên máy từ xa."
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên máy từ xa."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -11035,8 +11039,8 @@ msgid "Logout"
 msgstr "Đăng xuất"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "Đăng xuất {env}"
+#~ msgid "Logout {env}"
+#~ msgstr "Đăng xuất {env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11973,8 +11977,8 @@ msgid "More sign-in methods"
 msgstr "Thêm phương thức đăng nhập"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "Thêm phương thức đăng nhập {env}"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "Thêm phương thức đăng nhập {env}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -20860,8 +20864,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "Thiết bị này không có camera dùng được. Hãy dán liên kết ghép nối hoặc chọn ảnh của mã thay thế."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "môi trường này"
+#~ msgid "this environment"
+#~ msgstr "môi trường này"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -22358,8 +22362,8 @@ msgstr "Cập nhật {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "Cập nhật {0} ({env})"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "Cập nhật {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22481,8 +22485,8 @@ msgstr "Cập nhật lên {updateLabel} cho {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "Cập nhật lên {updateLabel} cho {0} ({env})"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "Cập nhật lên {updateLabel} cho {0} ({env})"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22538,8 +22542,8 @@ msgstr "Đang cập nhật {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "Đang cập nhật {0} ({env})"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "Đang cập nhật {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23399,10 +23403,9 @@ msgstr "Nơi bảng điều khiển đầu cuối xuất hiện."
 msgid "Whisper with broad multilingual support."
 msgstr "Whisper với sự hỗ trợ đa ngôn ngữ rộng rãi."
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "Sẽ chạy trong {0}:"
+msgid "Will run in this environment:"
+msgstr "Sẽ chạy trong môi trường này:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx

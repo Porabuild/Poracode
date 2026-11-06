@@ -1337,6 +1337,29 @@
       "scope": "projects:manage"
     },
     {
+      "name": "getLatestAgentVersion",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
+      "name": "listAcpRegistry",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "updateAgentBinary",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "updateAcpRegistryAgent",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
       "name": "listThreadSessionActions",
       "owner": "thread",
       "scope": "session:read"

@@ -31,18 +31,18 @@ describe("remote contract registry", () => {
     });
   });
 
-  it("covers exactly the 119 routes and 167 procedures with no duplicates", () => {
+  it("covers exactly the 119 routes and 171 procedures with no duplicates", () => {
     expect(REMOTE_HTTP_ROUTES).toHaveLength(119);
-    expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(167);
+    expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(171);
     expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(119);
     expect(new Set(REMOTE_HTTP_ROUTES.map((route) => `${route.method} ${route.path}`)).size).toBe(
       119,
     );
-    expect(new Set(REMOTE_PROCEDURE_CONTRACTS.map((procedure) => procedure.name)).size).toBe(167);
+    expect(new Set(REMOTE_PROCEDURE_CONTRACTS.map((procedure) => procedure.name)).size).toBe(171);
     expect(REMOTE_CONTRACT_INVENTORY.routes).toBe(119);
-    expect(REMOTE_CONTRACT_INVENTORY.procedures).toBe(167);
+    expect(REMOTE_CONTRACT_INVENTORY.procedures).toBe(171);
     expect(REMOTE_CONTRACT_INVENTORY.voidProcedureResults).toBe(64);
-    expect(REMOTE_CONTRACT_INVENTORY.jsonProcedureResults).toBe(103);
+    expect(REMOTE_CONTRACT_INVENTORY.jsonProcedureResults).toBe(107);
     expect(REMOTE_CONTRACT_INVENTORY.blockedProcedureResults).toEqual([]);
     expect(BLOCKED_PROCEDURE_RESULTS).toEqual([]);
   });

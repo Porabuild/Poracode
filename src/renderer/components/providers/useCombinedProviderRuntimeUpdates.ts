@@ -4,14 +4,17 @@ import { useLingui } from "@lingui/react/macro";
 import { isNewerVersion } from "@/shared/agents/updateResolver";
 import type { AcpRegistryListResult, AgentStatus } from "@/shared/contracts";
 import { localizeCatalogMessage } from "@/shared/messages";
-import { readBridge } from "@/renderer/bridge";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   currentWslDistros,
   findStatusForTarget,
   scopeEnvForStatus,
   statusUpdateScope,
 } from "@/renderer/utils/acpRegistryAuth";
+import {
+  hostScopedKey,
+  LOCAL_AGENT_MANAGEMENT_HOST,
+  type AgentManagementHost,
+} from "./settings/agentManagementHost";
 import { getCombinedRuntimeUpdates, type CombinedRuntimeUpdate } from "./providerComposer";
 
 export interface CombinedProviderRuntimeVersion {
@@ -38,10 +41,12 @@ function statusKey(status: AgentStatus): string {
   return `${status.kind}:${status.envKind ?? "native"}:${status.envDistro ?? ""}`;
 }
 
-function probeKey(status: AgentStatus, runtime: CombinedRuntimeUpdate): string {
-  return runtime.channel.kind === "agent-binary"
-    ? `${status.kind}:agent-binary`
-    : `${status.kind}:acp-registry:${runtime.channel.agentId}`;
+function probeKey(status: AgentStatus, runtime: CombinedRuntimeUpdate, hostKey: string): string {
+  const key =
+    runtime.channel.kind === "agent-binary"
+      ? `${status.kind}:agent-binary`
+      : `${status.kind}:acp-registry:${runtime.channel.agentId}`;
+  return hostScopedKey(hostKey, key);
 }
 
 function updateAvailable(
@@ -57,40 +62,45 @@ function updateAvailable(
  * `listAcpRegistry` is not a cheap read: the supervisor fetches the remote
  * registry and runs the auto-update sweep for every installed generic agent.
  * The composer dock mounts once per thread view, so the listing is shared and
- * short-lived here instead of re-triggering that sweep on every mount.
+ * short-lived here instead of re-triggering that sweep on every mount. Each
+ * machine has its own listing: a paired host's registry is not this client's.
  */
 const REGISTRY_LISTING_TTL_MS = 5 * 60_000;
-let registryListing: { at: number; promise: Promise<AcpRegistryListResult> } | undefined;
+const registryListings = new Map<string, { at: number; promise: Promise<AcpRegistryListResult> }>();
 
-export function loadAcpRegistryListing(): Promise<AcpRegistryListResult> {
+export function loadAcpRegistryListing(
+  host: AgentManagementHost = LOCAL_AGENT_MANAGEMENT_HOST,
+): Promise<AcpRegistryListResult> {
   const now = Date.now();
-  if (registryListing && now - registryListing.at < REGISTRY_LISTING_TTL_MS) {
-    return registryListing.promise;
+  const cached = registryListings.get(host.key);
+  if (cached && now - cached.at < REGISTRY_LISTING_TTL_MS) {
+    return cached.promise;
   }
-  const promise = readBridge()
-    .listAcpRegistry()
-    .catch((error: unknown) => {
-      registryListing = undefined;
-      throw error;
-    });
-  registryListing = { at: now, promise };
+  const promise = host.listAcpRegistry().catch((error: unknown) => {
+    if (registryListings.get(host.key)?.promise === promise) {
+      registryListings.delete(host.key);
+    }
+    throw error;
+  });
+  registryListings.set(host.key, { at: now, promise });
   return promise;
 }
 
 /** Dropped after an install/update, and by tests so one never inherits another's registry. */
 export function resetAcpRegistryListingCache(): void {
-  registryListing = undefined;
+  registryListings.clear();
 }
 
 async function probeLatestVersion(
   status: AgentStatus,
   runtime: CombinedRuntimeUpdate,
+  host: AgentManagementHost,
 ): Promise<string | undefined> {
   if (runtime.channel.kind === "agent-binary") {
-    return (await readBridge().getLatestAgentVersion({ agentKind: status.kind })).version;
+    return (await host.getLatestAgentVersion({ agentKind: status.kind })).version;
   }
   const registryAgentId = runtime.channel.agentId;
-  const registry = await loadAcpRegistryListing();
+  const registry = await loadAcpRegistryListing(host);
   return registry.agents.find((agent) => agent.id === registryAgentId)?.version;
 }
 
@@ -102,9 +112,9 @@ async function probeLatestVersion(
 export function useCombinedProviderRuntimeUpdates(
   statuses: readonly AgentStatus[],
   registryVersions: Readonly<Record<string, string>> = {},
+  host: AgentManagementHost = LOCAL_AGENT_MANAGEMENT_HOST,
 ) {
   const { t } = useLingui();
-  const syncInstalledAgents = useSharedSettings((state) => state.syncAcpRegistryInstalledAgents);
   const [latestByProbe, setLatestByProbe] = useState<Readonly<Record<string, string>>>({});
   const [verifiedVersions, setVerifiedVersions] = useState<Readonly<Record<string, string>>>({});
   const [pendingStatusKeys, setPendingStatusKeys] = useState<ReadonlySet<string>>(() => new Set());
@@ -116,7 +126,7 @@ export function useCombinedProviderRuntimeUpdates(
       if (runtime.channel.kind === "acp-registry" && registryVersions[runtime.channel.agentId]) {
         continue;
       }
-      probes.set(probeKey(status, runtime), { status, runtime });
+      probes.set(probeKey(status, runtime, host.key), { status, runtime });
     }
   }
   const probesKey = [...probes.entries()]
@@ -131,7 +141,7 @@ export function useCombinedProviderRuntimeUpdates(
     if (!probesKey) return;
     let cancelled = false;
     for (const [key, probe] of probes) {
-      void probeLatestVersion(probe.status, probe.runtime)
+      void probeLatestVersion(probe.status, probe.runtime, host)
         .then((version) => {
           if (cancelled || !version) return;
           setLatestByProbe((current) =>
@@ -150,7 +160,7 @@ export function useCombinedProviderRuntimeUpdates(
     };
     // `probesKey` is the stable identity of the provider-owned probe set.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [probesKey]);
+  }, [probesKey, host]);
 
   function entryFor(status: AgentStatus): CombinedProviderRuntimeUpdateEntry {
     const resolver = getCombinedRuntimeUpdates(status.kind);
@@ -163,7 +173,7 @@ export function useCombinedProviderRuntimeUpdates(
       const probedLatestVersion =
         (runtime.channel.kind === "acp-registry"
           ? registryVersions[runtime.channel.agentId]
-          : undefined) ?? latestByProbe[probeKey(status, runtime)];
+          : undefined) ?? latestByProbe[probeKey(status, runtime, host.key)];
       const latestVersion =
         installedVersion &&
         probedLatestVersion &&
@@ -199,8 +209,8 @@ export function useCombinedProviderRuntimeUpdates(
             (runtime.channel.kind === "acp-registry"
               ? registryVersions[runtime.channel.agentId]
               : undefined) ??
-            latestByProbe[probeKey(status, runtime)] ??
-            (await probeLatestVersion(status, runtime));
+            latestByProbe[probeKey(status, runtime, host.key)] ??
+            (await probeLatestVersion(status, runtime, host));
           const installedVersion =
             verifiedVersions[`${key}:${runtime.id}`] ?? runtime.installedVersion;
           return { runtime, latestVersion, installedVersion };
@@ -228,7 +238,7 @@ export function useCombinedProviderRuntimeUpdates(
           try {
             if (runtime.channel.kind === "agent-binary") {
               const scope = statusUpdateScope(status);
-              const result = await readBridge().updateAgentBinary({
+              const result = await host.updateAgentBinary({
                 agentKind: status.kind,
                 envKind: scope.envKind,
                 ...(scope.wslDistro ? { wslDistro: scope.wslDistro } : {}),
@@ -242,11 +252,11 @@ export function useCombinedProviderRuntimeUpdates(
             } else {
               const target = scopeEnvForStatus(status);
               const registryAgentId = runtime.channel.agentId;
-              const result = await readBridge().updateAcpRegistryAgent({
+              const result = await host.updateAcpRegistryAgent({
                 agentId: registryAgentId,
                 target,
               });
-              syncInstalledAgents(result.installed);
+              host.recordRegistryInstalls(result.installed);
               resetAcpRegistryListingCache();
               const record = result.installed.find((installed) => installed.id === registryAgentId);
               expectedVersion =
@@ -259,7 +269,7 @@ export function useCombinedProviderRuntimeUpdates(
             expected.set(runtime.id, {
               version: expectedVersion,
               channel: runtime.channel.kind,
-              probe: probeKey(status, runtime),
+              probe: probeKey(status, runtime, host.key),
             });
           } catch (error) {
             failure ??=
@@ -267,7 +277,7 @@ export function useCombinedProviderRuntimeUpdates(
           }
         }
 
-        const response = await readBridge().refreshAgentStatuses(currentWslDistros(), {
+        const response = await host.refreshAgentStatuses(currentWslDistros(), {
           agentKinds: [status.kind],
           envs: [scopeEnvForStatus(status)],
         });

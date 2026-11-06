@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "{0} 个模型"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0}需要身份验证。"
 
@@ -595,8 +597,8 @@ msgstr "{days}天前"
 #~ msgstr "下载 {downloadSize} MB"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel}需要身份验证。"
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel}需要身份验证。"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "{label}用法 — 打开用法面板"
 #~ msgstr "{loginLabel}{0}{env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel}{env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel}{env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1676,7 +1678,6 @@ msgstr "公布自定义基础 URL，例如反向代理或隧道。留空则自�
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "智能体"
 
@@ -4608,8 +4609,8 @@ msgstr "在此线程运行之前完成{0}登录。"
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "完成{env}的{0}登录。"
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "完成{env}的{0}登录。"
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6102,7 +6103,6 @@ msgstr "DeepSeek Harness 聊天，支持持久会话、推理设置和 MCP 工�
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -9869,8 +9869,8 @@ msgstr "安装 · {engineSize} MB"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "为{env}安装{0}。"
+#~ msgid "Install {0} for {env}."
+#~ msgstr "为{env}安装{0}。"
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9921,6 +9921,10 @@ msgstr "安装和管理 OpenCode 原生插件。"
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "安装并重启"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "远程设备暂不支持安装和登录。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10035,8 +10039,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "首先安装原生提供程序；使用 ACP 作为附加协议代理。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "安装到 {env}"
+#~ msgid "Install on {env}"
+#~ msgstr "安装到 {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10104,8 +10108,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "请在此主机上安装 Xcode 和 iOS Simulator 运行时。"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "远程设备暂不支持安装、更新和登录。"
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "远程设备暂不支持安装、更新和登录。"
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -11035,8 +11039,8 @@ msgid "Logout"
 msgstr "退出"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "注销{env}"
+#~ msgid "Logout {env}"
+#~ msgstr "注销{env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11972,8 +11976,8 @@ msgid "More sign-in methods"
 msgstr "更多登录方式"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "{env} 的更多登录方式"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "{env} 的更多登录方式"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -20859,8 +20863,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "此设备没有可用摄像头。请改为粘贴配对链接，或选择二维码照片。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "这个环境"
+#~ msgid "this environment"
+#~ msgstr "这个环境"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -22357,8 +22361,8 @@ msgstr "更新 {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "更新 {0}（{env}）"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "更新 {0}（{env}）"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22480,8 +22484,8 @@ msgstr "将{0}更新到{updateLabel}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "将{0}({env})更新到{updateLabel}"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "将{0}({env})更新到{updateLabel}"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22537,8 +22541,8 @@ msgstr "正在更新{0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "更新{0}({env})"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "更新{0}({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23398,10 +23402,9 @@ msgstr "终端面板出现的位置。"
 msgid "Whisper with broad multilingual support."
 msgstr "Whisper 具有广泛的多语言支持。"
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "将在{0}运行："
+msgid "Will run in this environment:"
+msgstr "将在这个环境运行："
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx

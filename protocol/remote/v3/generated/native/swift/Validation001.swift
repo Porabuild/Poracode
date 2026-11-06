@@ -161,6 +161,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_056e1da676eab3d9 = RemoteSchema(type: "object", required: Set(["description", "distribution", "id", "name", "version"]), properties: ["authors": RemoteSchemas.schema_0f732b9fceb2c6ac, "description": RemoteSchemas.schema_36fea325bf1aca70, "distribution": RemoteSchemas.schema_97a8dc6944322187, "icon": RemoteSchemas.schema_bf0b727f7b1c6d07, "id": RemoteSchemas.schema_36fea325bf1aca70, "license": RemoteSchemas.schema_bf0b727f7b1c6d07, "name": RemoteSchemas.schema_36fea325bf1aca70, "repository": RemoteSchemas.schema_6bb6e13415c8cbba, "version": RemoteSchemas.schema_36fea325bf1aca70, "website": RemoteSchemas.schema_6bb6e13415c8cbba], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_05812a27bb4846c1 = RemoteSchema(type: "object", required: Set(["projectId"]), properties: ["projectId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -361,6 +365,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_0d863fe3501fe68f = RemoteSchema(type: "object", required: Set(["ok"]), properties: ["ok": RemoteSchemas.schema_feeb8bb50144d96d, "output": RemoteSchemas.schema_bf0b727f7b1c6d07, "strategy": RemoteSchemas.schema_b82b9e494d3a9a40], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_0dc750244bb89d0c = RemoteSchema(type: "array", minItems: 2, items: RemoteSchemas.schema_27d9340da4120b27, unknownPolicy: .strip)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_118f67a0fa6bb27d = RemoteSchema(type: "string", literals: [.string("skills-sh"), .string("skills-directory")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_11ada4e73a793b0d = RemoteSchema(type: "string", literals: [.string("pending"), .string("completed"), .string("failed"), .string("ambiguous"), .string("skipped_no_turns"), .string("skipped_missing_checkpoint")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_11da754926e41b05 = RemoteSchema(type: "string", literals: [.string("append")], unknownPolicy: .strip)
 }

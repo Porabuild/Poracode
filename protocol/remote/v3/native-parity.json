@@ -5175,6 +5175,86 @@
         }
       },
       {
+        "id": "getLatestAgentVersion",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+          }
+        }
+      },
+      {
+        "id": "listAcpRegistry",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        }
+      },
+      {
+        "id": "updateAgentBinary",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+          }
+        }
+      },
+      {
+        "id": "updateAcpRegistryAgent",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        }
+      },
+      {
         "id": "rollbackThreadConversation",
         "batch": "rich-chat-requests",
         "ios": {

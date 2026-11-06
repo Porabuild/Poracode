@@ -1,6 +1,38 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let routeU2ERuntimeU2DImageU2EQuery: RemoteRootCodec<RouteruntimeU2DImageQuery_864ab6444b> = .init(id: "route.runtime-image.query", schema: RemoteSchemas.schema_864ab6444b74d387)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EScheduleU2DRunU2DCommandU2ERequest: RemoteRootCodec<RoutescheduleU2DRunU2DCommandRequest_c4921dbeb3> = .init(id: "route.schedule-run-command.request", schema: RemoteSchemas.schema_c4921dbeb36e2b97)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EScheduleU2DRunU2DCommandU2EResponse: RemoteRootCodec<RoutescheduleU2DRunU2DCommandResponse_6f4c2b2449> = .init(id: "route.schedule-run-command.response", schema: RemoteSchemas.schema_6f4c2b2449f0afb5)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EScheduleU2DRunU2DInboxU2EQuery: RemoteRootCodec<RouteautomationsU2DSnapshotQuery_8cdebfa85e> = .init(id: "route.schedule-run-inbox.query", schema: RemoteSchemas.schema_8cdebfa85eb53602)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EScheduleU2DRunU2DInboxU2EResponse: RemoteRootCodec<RoutescheduleU2DRunU2DInboxResponse_d9b927ff80> = .init(id: "route.schedule-run-inbox.response", schema: RemoteSchemas.schema_d9b927ff80c17b5c)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EScheduleU2DRunsU2DReadU2EQuery: RemoteRootCodec<RoutescheduleU2DRunsU2DReadQuery_08eb4244d2> = .init(id: "route.schedule-runs-read.query", schema: RemoteSchemas.schema_08eb4244d2d3b53e)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EScheduleU2DRunsU2DReadU2EResponse: RemoteRootCodec<RoutescheduleU2DRunU2DInboxResponse_d9b927ff80> = .init(id: "route.schedule-runs-read.response", schema: RemoteSchemas.schema_d9b927ff80c17b5c)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2ESchedulesU2DCommandU2ERequest: RemoteRootCodec<RouteschedulesU2DCommandRequest_8be22931a5> = .init(id: "route.schedules-command.request", schema: RemoteSchemas.schema_8be22931a515cd6d)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2ESchedulesU2DCommandU2EResponse: RemoteRootCodec<RouteschedulesU2DCommandResponse_bc1920595e> = .init(id: "route.schedules-command.response", schema: RemoteSchemas.schema_bc1920595e8cfd89)
 }
 
@@ -33,7 +65,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2ETerminalU2DCloseU2ERequest: RemoteRootCodec<RoutehostU2DUpdateU2DInstallResponse_81055c9199> = .init(id: "route.terminal-close.request", schema: RemoteSchemas.schema_81055c9199569630)
+  static let routeU2ETerminalU2DCloseU2ERequest: RemoteRootCodec<ProcedurelistAcpRegistryRequest_81055c9199> = .init(id: "route.terminal-close.request", schema: RemoteSchemas.schema_81055c9199569630)
 }
 
 public extension RemoteRootCodecs {
@@ -101,7 +133,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DCloseU2ERequest: RemoteRootCodec<RoutehostU2DUpdateU2DInstallResponse_81055c9199> = .init(id: "route.thread-close.request", schema: RemoteSchemas.schema_81055c9199569630)
+  static let routeU2EThreadU2DCloseU2ERequest: RemoteRootCodec<ProcedurelistAcpRegistryRequest_81055c9199> = .init(id: "route.thread-close.request", schema: RemoteSchemas.schema_81055c9199569630)
 }
 
 public extension RemoteRootCodecs {
@@ -193,7 +225,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DInterruptU2ERequest: RemoteRootCodec<RoutehostU2DUpdateU2DInstallResponse_81055c9199> = .init(id: "route.thread-interrupt.request", schema: RemoteSchemas.schema_81055c9199569630)
+  static let routeU2EThreadU2DInterruptU2ERequest: RemoteRootCodec<ProcedurelistAcpRegistryRequest_81055c9199> = .init(id: "route.thread-interrupt.request", schema: RemoteSchemas.schema_81055c9199569630)
 }
 
 public extension RemoteRootCodecs {
@@ -273,7 +305,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DSteerU2DClearU2ERequest: RemoteRootCodec<RoutehostU2DUpdateU2DInstallResponse_81055c9199> = .init(id: "route.thread-steer-clear.request", schema: RemoteSchemas.schema_81055c9199569630)
+  static let routeU2EThreadU2DSteerU2DClearU2ERequest: RemoteRootCodec<ProcedurelistAcpRegistryRequest_81055c9199> = .init(id: "route.thread-steer-clear.request", schema: RemoteSchemas.schema_81055c9199569630)
 }
 
 public extension RemoteRootCodecs {

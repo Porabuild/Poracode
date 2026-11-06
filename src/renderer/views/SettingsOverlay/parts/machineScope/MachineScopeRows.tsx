@@ -107,7 +107,7 @@ export function RemoteMachineNotice(props: { machine: MachineDescriptor }) {
         </p>
       ) : null}
       <p className="text-xs text-muted/70">
-        <Trans>Install, update, and sign-in are not yet available on remote machines.</Trans>
+        <Trans>Install and sign-in are not yet available on remote machines.</Trans>
       </p>
     </div>
   );
