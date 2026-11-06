@@ -170,7 +170,7 @@ pipeline, including WSL and SSH deployments. It shares the SDK connection
 implementation with Pi extensions (see
 [Provider Runtime](provider-runtime.md#terminal-mcp-launch-integration)).
 
-Qualified newer Command Code versions also support structured Chat through `command-code acp`; older installations remain terminal-only. Detection qualifies these presentation capabilities separately. The ACP harness retains its own filesystem/terminal ownership, and native usage updates, not prompt consumption, report context occupancy. See `detection.acp.test.ts` and `acp.test.ts` in the provider folder for the compatibility contracts.
+Qualified newer Command Code versions also support structured Chat through `command-code acp`; older installations remain terminal-only. Detection qualifies these presentation capabilities separately. The ACP harness retains its own filesystem/terminal ownership, and native usage updates, not prompt consumption, report context occupancy. See `detection.acp.test.ts` and `acp.test.ts` in the provider folder for the compatibility contracts. Native `subagent_progress` carries only `toolName(displayInput)` lines on the parent `agent` call, with no child tool calls or child session; `CommandCodeSubagentSteps` in `acpUpdates.ts` turns each line into a completed child tool row under the subagent and keeps it as progress metadata, so the subagent transcript and step count fill in.
 
 ## fx
 

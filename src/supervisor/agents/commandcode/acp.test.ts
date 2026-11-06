@@ -14,6 +14,7 @@ import {
 } from "./acp";
 import { buildCommandCodeArgs } from "./argv";
 import { normalizeCommandCodePermissionRequest } from "./acpRequests";
+import { CommandCodeSubagentSteps, normalizeCommandCodeSessionUpdate } from "./acpUpdates";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -135,8 +136,11 @@ describe("Command Code native ACP", () => {
 
   it("creates the shared GUI session with the native mode resolver and updater suppression", async () => {
     vi.spyOn(binaryResolver, "resolveAgentBinaryPath").mockReturnValue(process.execPath);
+    const attachExternalSessionUpdateSource =
+      vi.fn<AcpStructuredSession["attachExternalSessionUpdateSource"]>();
     const fake = {
       sessionId: "native-session",
+      attachExternalSessionUpdateSource,
     } as unknown as AcpStructuredSession;
     const created = vi.spyOn(AcpStructuredSession, "create").mockReturnValue(fake);
     const adapter = createCommandCodeAdapter();
@@ -161,12 +165,15 @@ describe("Command Code native ACP", () => {
       resolveMode: resolveCommandCodeAcpMode,
       permissionRequestTransform: normalizeCommandCodePermissionRequest,
       promptErrorReason: resolveCommandCodePromptErrorReason,
-      sessionUpdateTransform: expect.any(Function),
+      sessionUpdateTransform: normalizeCommandCodeSessionUpdate,
       behavior: { promptUsageReportsContext: false, strictConfigSelection: true },
       fsTextCapability: false,
       terminalCapability: false,
       mcpServers: [],
     });
+    expect(attachExternalSessionUpdateSource).toHaveBeenCalledExactlyOnceWith(
+      expect.any(CommandCodeSubagentSteps),
+    );
   });
 });
 
