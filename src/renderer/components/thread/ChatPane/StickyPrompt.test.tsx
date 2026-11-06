@@ -6,6 +6,7 @@ import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ChatTimelineEntry } from "./chatPaneSelectors";
 import { StickyPrompt } from "./StickyPrompt";
+import { useVisibleRowRange } from "./useVisibleRowRange";
 
 const THREAD_ID = "thread-1";
 const ROW_HEIGHT = 100;
@@ -64,12 +65,12 @@ function createScroller() {
 
 function renderStickyPrompt(
   scroller: HTMLDivElement,
-  props: Partial<Parameters<typeof StickyPrompt>[0]> = {},
+  props: Partial<Omit<Parameters<typeof StickyPrompt>[0], "visibleRange">> = {},
 ) {
   const onScrollToEntry = vi.fn<(index: number) => void>();
   const result = render(
     <AppProvider>
-      <StickyPrompt
+      <StickyPromptWithRange
         threadId={THREAD_ID}
         entries={ENTRIES}
         scrollElement={scroller}
@@ -83,6 +84,12 @@ function renderStickyPrompt(
     vi.runAllTimers();
   });
   return { ...result, onScrollToEntry };
+}
+
+/** Supplies the shared range the overlays measure in production. */
+function StickyPromptWithRange(props: Omit<Parameters<typeof StickyPrompt>[0], "visibleRange">) {
+  const visibleRange = useVisibleRowRange(props.scrollElement, props.entries);
+  return <StickyPrompt {...props} visibleRange={visibleRange} />;
 }
 
 describe("StickyPrompt", () => {

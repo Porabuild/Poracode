@@ -28,6 +28,17 @@ export function recordRuntimeItemChanges(
   changes.set(after, { beforeIdentity, threadIds });
 }
 
+/** Unknown or unhinted transitions are conservative: treat them as changed. */
+export function runtimeThreadItemsChanged(
+  before: RuntimeItemIndexes,
+  after: RuntimeItemIndexes,
+  threadId: string,
+): boolean {
+  if (before === after) return false;
+  const changed = readRuntimeItemChanges(before, after);
+  return changed === null || changed.has(threadId);
+}
+
 /** Unhinted snapshots and recovery updates require conservative notification. */
 export function readRuntimeItemChanges(
   before: RuntimeItemIndexes,

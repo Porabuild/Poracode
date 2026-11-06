@@ -118,7 +118,7 @@ function collectPathAncestors(path: string): string[] {
 }
 
 /** Resolve bare project basenames through the index; explicit paths skip it. */
-async function resolveBareBasename(
+export async function resolveBareBasename(
   path: string,
   projectLocation: ProjectLocation,
   rootNames: ReadonlySet<string> | undefined,

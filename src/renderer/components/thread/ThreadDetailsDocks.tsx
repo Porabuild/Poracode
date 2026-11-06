@@ -132,6 +132,7 @@ export function ThreadAgentUsageDock({ usage }: { usage: ReturnType<typeof useTh
           <span role="img" aria-label={label}>
             <ProviderIcon
               kind={reported.providerId}
+              tone="active"
               fallbackLabel={label}
               className="size-3.5 shrink-0"
             />

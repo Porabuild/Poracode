@@ -2,7 +2,6 @@
  * order. The app uses no date/calendar widgets; a new widget must register its
  * style closure before rendering. Re-audit this registry on package upgrades. */
 @layer theme, base, components, utilities;
-@import "tailwindcss";
 @import "tw-animate-css";
 @import "@heroui/styles/base" layer(base);
 @import "@heroui/styles/base/scrollbar.css" layer(base);

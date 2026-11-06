@@ -42,7 +42,14 @@ import {
   providerVisibilityKey,
 } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
-import { useCombinedProviderRuntimeUpdates } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
+import {
+  loadAcpRegistryListing,
+  useCombinedProviderRuntimeUpdates,
+} from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
+import {
+  agentManagementHostForMachine,
+  useHostRegistryInstalledAgents,
+} from "@/renderer/components/providers/settings/agentManagementHost";
 import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
 import {
@@ -63,7 +70,6 @@ import {
   type AgentEnvironmentRuntimes,
 } from "./parts/AgentEnvironmentRow";
 import { HookPluginSettings } from "./parts/HookPluginSettings";
-import { MachineScopeHeading } from "@/renderer/components/machineScope/MachineScopeHeading";
 import {
   MachineAttentionHint,
   NoMachineStatusRow,
@@ -101,10 +107,12 @@ export function SingleAgentSettings(props: {
   // for ~100ms before settling.
   const [latestRegistryEntry, setLatestRegistryEntry] = useState<{
     agentId: string;
+    hostKey: string;
     version: string | undefined;
   }>();
   const [latestNpmEntry, setLatestNpmEntry] = useState<{
     agentKind: string;
+    hostKey: string;
     version: string | undefined;
   }>();
   const [installPendingEnvKey, setInstallPendingEnvKey] = useState<string | undefined>();
@@ -145,6 +153,7 @@ export function SingleAgentSettings(props: {
   const selectedMachine = useSelectedMachine();
   const machines = useMachines();
   const isRemoteMachine = selectedMachine.ref.host === "remote";
+  const agentHost = agentManagementHostForMachine(selectedMachine);
   const { scoped: machineStatuses, othersNeedingAttention } = useMachineScopedStatuses(
     props.agentKind,
     selectedMachine,
@@ -155,7 +164,11 @@ export function SingleAgentSettings(props: {
   // Everything actionable on this page — env rows, auth, versions, provider
   // panel — is scoped to the selected machine.
   const installedStatuses = machineStatuses.filter((a) => a.installed);
-  const combinedRuntimeUpdates = useCombinedProviderRuntimeUpdates(installedStatuses);
+  const combinedRuntimeUpdates = useCombinedProviderRuntimeUpdates(
+    installedStatuses,
+    {},
+    agentHost,
+  );
   const combinedRuntimeEntries = installedStatuses.map((status) => ({
     status,
     entry: combinedRuntimeUpdates.entryFor(status),
@@ -178,9 +191,8 @@ export function SingleAgentSettings(props: {
     useSharedSettings((s) => s.disabledAgents.includes(props.agentKind)) ||
     (!isRemoteMachine && profileInstance?.enabled === false);
   const setAgentDisabled = useSharedSettings((s) => s.setAgentDisabled);
-  const installedRegistryRecord = useSharedSettings(
-    (s) => s.acpRegistryInstalledAgents[extractAcpGenericInstanceId(props.agentKind) ?? ""],
-  );
+  const installedRegistryRecord =
+    useHostRegistryInstalledAgents(agentHost)[extractAcpGenericInstanceId(props.agentKind) ?? ""];
   const syncInstalledAgents = useSharedSettings((s) => s.syncAcpRegistryInstalledAgents);
   const projectWslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
   // Include the selected machine's distro even when no project lives in it, so
@@ -198,11 +210,15 @@ export function SingleAgentSettings(props: {
   // previous panel renders as `undefined` on the very first frame after the
   // switch — no flash.
   const latestRegistryVersion =
-    latestRegistryEntry && latestRegistryEntry.agentId === registryAgentId
+    latestRegistryEntry &&
+    latestRegistryEntry.agentId === registryAgentId &&
+    latestRegistryEntry.hostKey === agentHost.key
       ? latestRegistryEntry.version
       : undefined;
   const latestNpmVersion =
-    latestNpmEntry && latestNpmEntry.agentKind === props.agentKind
+    latestNpmEntry &&
+    latestNpmEntry.agentKind === props.agentKind &&
+    latestNpmEntry.hostKey === agentHost.key
       ? latestNpmEntry.version
       : undefined;
   // Peer versions from every machine: a copy lagging behind another machine's
@@ -217,18 +233,21 @@ export function SingleAgentSettings(props: {
   useEffect(() => {
     if (!registryAgentId) return;
     let cancelled = false;
-    readBridge()
-      .listAcpRegistry()
+    loadAcpRegistryListing(agentHost)
       .then((result) => {
         if (cancelled) return;
         const match = result.agents.find((entry) => entry.id === registryAgentId);
-        setLatestRegistryEntry({ agentId: registryAgentId, version: match?.version });
+        setLatestRegistryEntry({
+          agentId: registryAgentId,
+          hostKey: agentHost.key,
+          version: match?.version,
+        });
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [registryAgentId]);
+  }, [agentHost, registryAgentId]);
 
   // Probe the upstream registry (npm) for the kind's latest version so we can
   // gate the per-env Update button on "actually outdated" rather than just
@@ -238,11 +257,11 @@ export function SingleAgentSettings(props: {
     if (registryAgentId || hasCombinedRuntimeUpdates) return;
     let cancelled = false;
     const kind = props.agentKind;
-    readBridge()
+    agentHost
       .getLatestAgentVersion({ agentKind: kind })
       .then((result) => {
         if (cancelled) return;
-        setLatestNpmEntry({ agentKind: kind, version: result.version });
+        setLatestNpmEntry({ agentKind: kind, hostKey: agentHost.key, version: result.version });
       })
       .catch((error) => {
         // Surface IPC / network failures so users can diagnose missing update
@@ -255,7 +274,7 @@ export function SingleAgentSettings(props: {
     return () => {
       cancelled = true;
     };
-  }, [hasCombinedRuntimeUpdates, props.agentKind, registryAgentId]);
+  }, [agentHost, hasCombinedRuntimeUpdates, props.agentKind, registryAgentId]);
 
   // Resolve the provider account on open. Resolvers may briefly spawn a
   // helper process (e.g. Antigravity's `agy` language server), so this can
@@ -585,12 +604,12 @@ export function SingleAgentSettings(props: {
   const performUpdate = () => {
     if (!acpInstanceId || !updateAvailable) return;
     setUpdatePending(true);
-    readBridge()
+    agentHost
       .updateAcpRegistryAgent({ agentId: acpInstanceId })
       .then((result) => {
-        syncInstalledAgents(result.installed);
+        agentHost.recordRegistryInstalls(result.installed);
       })
-      .then(() => readBridge().refreshAgentStatuses(wslDistros, { agentKinds: [props.agentKind] }))
+      .then(() => agentHost.refreshAgentStatuses(wslDistros, { agentKinds: [props.agentKind] }))
       .then(() => toast.success(t`${agent.label} updated to v${latestRegistryVersion}.`))
       .catch((error) =>
         toast.danger(error instanceof Error ? error.message : t`Unable to update ${agent.label}.`),
@@ -601,10 +620,10 @@ export function SingleAgentSettings(props: {
   const performBinaryUpdate = (status: AgentStatus) => {
     const scope = statusUpdateScope(status);
     const envKey = statusEnvKey(status);
-    const envName = envLabelForStatus(status);
+    const envName = isRemoteMachine ? "" : envLabelForStatus(status);
     const previousVersion = status.version;
     setBinaryUpdatePendingEnvKeys((current) => new Set(current).add(envKey));
-    readBridge()
+    agentHost
       .updateAgentBinary({
         agentKind: props.agentKind,
         envKind: scope.envKind,
@@ -614,41 +633,40 @@ export function SingleAgentSettings(props: {
         if (result.ok) {
           setRedetectingEnvKeys((current) => new Set(current).add(envKey));
           try {
-            await readBridge().refreshAgentStatuses(wslDistros, {
+            const pools = await agentHost.refreshAgentStatuses(wslDistros, {
               agentKinds: [props.agentKind],
               envs: [scopeEnvForStatus(status)],
             });
+            const pool = status.envKind === "wsl" ? pools.wsl : pools.windows;
+            const newVersion = pool.find(
+              (entry) =>
+                entry.kind === props.agentKind &&
+                entry.envKind === status.envKind &&
+                entry.envDistro === status.envDistro,
+            )?.version;
+            if (newVersion && newVersion === previousVersion) {
+              toast.success(
+                envName
+                  ? t`${agent.label} (${envName}) is already up to date.`
+                  : t`${agent.label} is already up to date.`,
+              );
+            } else if (newVersion) {
+              toast.success(
+                envName
+                  ? t`${agent.label} (${envName}) updated to v${newVersion}.`
+                  : t`${agent.label} updated to v${newVersion}.`,
+              );
+            } else {
+              toast.success(
+                envName ? t`${agent.label} (${envName}) updated.` : t`${agent.label} updated.`,
+              );
+            }
           } finally {
             setRedetectingEnvKeys((current) => {
               const next = new Set(current);
               next.delete(envKey);
               return next;
             });
-          }
-          const store = useAgentStatusesStore.getState();
-          const pool = status.envKind === "wsl" ? store.wslAgentStatuses : store.agentStatuses;
-          const newVersion = pool.find(
-            (entry) =>
-              entry.kind === props.agentKind &&
-              entry.envKind === status.envKind &&
-              entry.envDistro === status.envDistro,
-          )?.version;
-          if (newVersion && newVersion === previousVersion) {
-            toast.success(
-              envName
-                ? t`${agent.label} (${envName}) is already up to date.`
-                : t`${agent.label} is already up to date.`,
-            );
-          } else if (newVersion) {
-            toast.success(
-              envName
-                ? t`${agent.label} (${envName}) updated to v${newVersion}.`
-                : t`${agent.label} updated to v${newVersion}.`,
-            );
-          } else {
-            toast.success(
-              envName ? t`${agent.label} (${envName}) updated.` : t`${agent.label} updated.`,
-            );
           }
           return;
         }
@@ -907,9 +925,7 @@ export function SingleAgentSettings(props: {
         canLogout={!isRemoteMachine && statusHasAuthenticatedLogout(rowStatus, acpInstanceId)}
         includeAuthFallback={includeAuthFallbackMetadata}
         isRedetecting={redetectingEnvKeys.has(envKey)}
-        latestNpmVersion={
-          isRemoteMachine || hasCombinedRuntimeUpdates ? undefined : latestNpmVersion
-        }
+        latestNpmVersion={hasCombinedRuntimeUpdates ? undefined : latestNpmVersion}
         livePlan={resolveLivePlanLabel(rowMetadata, providerUsage)}
         newestInstalledVersion={hasCombinedRuntimeUpdates ? undefined : newestInstalledVersion}
         pendingMessage={authPendingEnvKey === rowKey ? authPendingMessage : undefined}
@@ -942,9 +958,6 @@ export function SingleAgentSettings(props: {
 
   const environmentRows = (
     <>
-      {machines.length > 1 ? (
-        <MachineScopeHeading scope="machine" machineLabel={selectedMachine.label} />
-      ) : null}
       {installedStatuses.flatMap((status) =>
         runtimeSlots?.separateEnvironmentRows && status.runtimeVariants
           ? runtimeSlots.runtimes.map((slot) => renderEnvironmentRow(status, { slot }))
@@ -1180,11 +1193,6 @@ export function SingleAgentSettings(props: {
       </div>
 
       <div className={`transition-opacity ${isDisabled ? "pointer-events-none opacity-40" : ""}`}>
-        {machines.length > 1 && (defs.length > 0 || hasSelectableModels) ? (
-          <div className="mt-6">
-            <MachineScopeHeading scope="all" />
-          </div>
-        ) : null}
         {defs.length > 0 && (
           <div className="mt-6">
             {defs.map((def) => (

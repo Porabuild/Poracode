@@ -4,6 +4,7 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { runtimeThreadItemsChanged } from "@/renderer/state/runtimeItemChanges";
 import { currentProviderItemStart } from "./threadProviderEra";
 
 export type ThreadTodoStepStatus = PlanItemPayload["steps"][number]["status"];
@@ -45,15 +46,20 @@ export function selectThreadTodoDockState(
 ): ThreadTodoDockState | null {
   const itemIds = state.runtimeItemIdsByThread[threadId];
   const itemsById = state.runtimeItemsByIdByThread[threadId];
+  const itemsIndex = state.runtimeItemsByIdByThread;
   const cached = todoDockStateCache.get(threadId);
-  // The outer index changes on runtime updates even when an inner thread map
-  // is reused. Non-runtime updates can skip the search without retaining that
-  // outer snapshot or weakening plan/era invalidation.
+  const previousItemsIndex = cached?.itemsIndex.deref();
+  // Runtime snapshots replace the outer index even when this thread's inner
+  // map is untouched. Advance the weak key so the next commit can fast-hit.
   if (
     cached &&
     cached.itemIds === itemIds &&
-    cached.itemsIndex.deref() === state.runtimeItemsByIdByThread
+    previousItemsIndex !== undefined &&
+    !runtimeThreadItemsChanged(previousItemsIndex, itemsIndex, threadId)
   ) {
+    if (previousItemsIndex !== itemsIndex) {
+      cached.itemsIndex = new WeakRef(itemsIndex);
+    }
     return cached.result;
   }
   const latestPlanItem = selectLatestThreadPlanItem(itemIds, itemsById);

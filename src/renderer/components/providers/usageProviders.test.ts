@@ -207,6 +207,41 @@ describe("usageProviders", () => {
     expect(rings.inner?.id).toBe("weekly");
   });
 
+  describe.each(["opencode", "commandcode"])("%s quota rings", (providerId) => {
+    const session: UsageWindow = { id: "session-5h", label: "Session (5h)", usedPercent: 4 };
+    const weekly: UsageWindow = { id: "weekly", label: "Weekly", usedPercent: 20 };
+    const monthly: UsageWindow = { id: "monthly", label: "Monthly", usedPercent: 90 };
+
+    it("shows the 5h and weekly quotas even when monthly usage is higher", () => {
+      expect(pickUsageRings(providerId, [monthly, weekly, session])).toEqual({
+        outer: session,
+        inner: weekly,
+      });
+    });
+
+    it("keeps both rings when the 5h and weekly quotas are unused", () => {
+      const unusedSession = { ...session, usedPercent: 0 };
+      const unusedWeekly = { ...weekly, usedPercent: 0 };
+      expect(pickUsageRings(providerId, [unusedSession, unusedWeekly, monthly])).toEqual({
+        outer: unusedSession,
+        inner: unusedWeekly,
+      });
+    });
+
+    it("uses the monthly quota inside when weekly is unavailable", () => {
+      expect(pickUsageRings(providerId, [monthly, session])).toEqual({
+        outer: session,
+        inner: monthly,
+      });
+    });
+
+    it("shows a single ring when only one quota window is available", () => {
+      for (const window of [session, weekly, monthly]) {
+        expect(pickUsageRings(providerId, [window])).toEqual({ outer: window });
+      }
+    });
+  });
+
   it("rings Qoder with the monthly credits window", () => {
     const windows: UsageWindow[] = [
       { id: "monthly", label: "Credits", usedPercent: 45, unit: "credits" },

@@ -41,6 +41,7 @@ export function crewPlaybookText(binding: ThreadCrewBinding): string {
     "- You do not need to load a skill to delegate; these rules cover it.",
     "- Wait with wait_for_agent instead of polling get_status.",
     "- Spawning the same role again continues its helper's previous session, so it keeps its context: a follow-up only needs what changed, not the earlier brief. Pass fresh_session=true only for unrelated work. Use steer_agent to correct a helper that is still running.",
+    "- Name every new task and follow-up with a short action + target (for example `Fix crew model labels`); summarize the actual work and leave out permission or `New task` boilerplate.",
     // A crew that may not edit leaves no diff to read and no change to send back.
     crewCanEdit
       ? "- When a helper reports, read the full diff and give a verdict before your next step, then send all rework in one follow-up. Do not redo work it reported as done, and do not re-edit files it changed: send the fix back instead, unless it is a trivial one-turn fix."

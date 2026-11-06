@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import type { SessionRef, ToolCallPayload } from "@/shared/contracts";
+import type { AgentCapability, SessionRef, ToolCallPayload } from "@/shared/contracts";
 import { dispatchTool } from "./toolRegistry";
 import { FakeHandle, flush, makeHarness, PARENT } from "./testHarness";
 
@@ -396,6 +396,170 @@ it("titles a role follow-up with the lead's task name", async () => {
   });
   h.manager.cancelAllForThread(PARENT);
   await flush();
+});
+
+it("names a completed crew steer follow-up and keeps its original selection", async () => {
+  const statusCapabilities = {
+    supportsResume: true,
+    models: [{ id: "gpt-5.5", label: "GPT-5.5" }],
+    efforts: ["low", "high"],
+    fastModels: ["gpt-5.5"],
+    contextSizes: [
+      { id: "272k", label: "272k" },
+      { id: "1m", label: "1M" },
+    ],
+    modelContextSizes: { "gpt-5.5": ["272k", "1m"] },
+    approvalPolicies: [
+      { id: "on-request", label: "On Request" },
+      { id: "never", label: "Full Access" },
+    ],
+    sandboxModes: [
+      { id: "workspace-write", label: "Workspace Write" },
+      { id: "danger-full-access", label: "Full Access" },
+    ],
+    bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+  } as unknown as AgentCapability;
+  const h = makeHarness({ resume: { sessionId: "role-session" }, statusCapabilities });
+  const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+  const { runId } = h.manager.spawn(PARENT, {
+    agent: "codex",
+    name: "First task",
+    prompt: "First prompt",
+    crewRole,
+    effort: "high",
+    fast: true,
+    contextSize: "1m",
+  });
+  await flush();
+  answer(h.handles[0]!, "First result");
+  await h.manager.waitForSettlement(PARENT, runId);
+
+  const pending = dispatchTool(
+    "steer_agent",
+    {
+      run_id: runId,
+      prompt:
+        "New task: you may now EDIT files (no commit, no push). Implement the crew label fix.",
+      name: "  Fix crew model labels  ",
+    },
+    { parentThreadId: PARENT, runManager: h.manager, listSpawnableAgents: async () => [] },
+  );
+  await flush();
+  const nextRunId = h.manager.listRuns(PARENT)[1]!.run_id;
+  const payloadFor = (eventType: string) =>
+    (
+      h.appended
+        .filter((entry) => (entry.event as { itemId?: string }).itemId === `sub:${nextRunId}`)
+        .find((entry) => entry.event.type === eventType)?.event as
+        | { payload?: ToolCallPayload }
+        | undefined
+    )?.payload;
+
+  expect(h.inputs[1]!.sessionRef?.providerSessionId).toBe("role-session");
+  expect(h.inputs[1]!.config).toMatchObject({
+    model: "gpt-5.5",
+    effort: "high",
+    fast: true,
+    contextSize: "1m",
+  });
+  expect(payloadFor("item.started")).toMatchObject({
+    title: "Fix crew model labels",
+    name: expect.stringMatching(/^Fix crew model labels — /),
+  });
+
+  answer(h.handles[1]!, "Done");
+  const response = await pending;
+  expect(response.isError).not.toBe(true);
+  expect(payloadFor("item.completed")).toMatchObject({
+    title: "Fix crew model labels",
+    name: expect.stringMatching(/^Fix crew model labels — /),
+  });
+});
+
+it("keeps a live correction's task label when a name is supplied", async () => {
+  const h = makeHarness();
+  const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+  const { runId } = h.manager.spawn(PARENT, {
+    agent: "codex",
+    name: "First task",
+    prompt: "First prompt",
+    crewRole,
+  });
+  await flush();
+  h.handles[0]!.steerTurn = async () => {};
+
+  const response = await dispatchTool(
+    "steer_agent",
+    { run_id: runId, prompt: "Correction", name: "Should not replace", background: true },
+    { parentThreadId: PARENT, runManager: h.manager, listSpawnableAgents: async () => [] },
+  );
+  expect(response.isError).not.toBe(true);
+  const payloadFor = (eventType: string) =>
+    (
+      h.appended
+        .filter((entry) => (entry.event as { itemId?: string }).itemId === `sub:${runId}`)
+        .find((entry) => entry.event.type === eventType)?.event as
+        | { payload?: ToolCallPayload }
+        | undefined
+    )?.payload;
+  expect(payloadFor("item.started")).toMatchObject({
+    title: "First task",
+    name: expect.stringMatching(/^First task — /),
+  });
+  expect(h.manager.listRuns(PARENT)).toHaveLength(1);
+
+  h.handles[0]!.completeTurn("completed");
+  await h.manager.waitForSettlement(PARENT, runId);
+  expect(payloadFor("item.completed")).toMatchObject({
+    title: "First task",
+    name: expect.stringMatching(/^First task — /),
+  });
+  expect(h.manager.listRuns(PARENT)[0]?.name).toMatch(/^First task — /);
+});
+
+it("keeps the previous label but derives the title from the prompt without a new name", async () => {
+  const h = makeHarness({ resume: { sessionId: "role-session" } });
+  const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+  const { runId } = h.manager.spawn(PARENT, {
+    agent: "codex",
+    name: "First task",
+    prompt: "First prompt",
+    crewRole,
+  });
+  await flush();
+  answer(h.handles[0]!, "First result");
+  await h.manager.waitForSettlement(PARENT, runId);
+
+  const pending = dispatchTool(
+    "steer_agent",
+    { run_id: runId, prompt: "Verify once more" },
+    { parentThreadId: PARENT, runManager: h.manager, listSpawnableAgents: async () => [] },
+  );
+  await flush();
+  const nextRunId = h.manager.listRuns(PARENT)[1]!.run_id;
+  const payloadFor = (eventType: string) =>
+    (
+      h.appended
+        .filter((entry) => (entry.event as { itemId?: string }).itemId === `sub:${nextRunId}`)
+        .find((entry) => entry.event.type === eventType)?.event as
+        | { payload?: ToolCallPayload }
+        | undefined
+    )?.payload;
+
+  expect(h.inputs[1]!.sessionRef?.providerSessionId).toBe("role-session");
+  expect(payloadFor("item.started")).toMatchObject({
+    title: "Verify once more",
+    name: expect.stringMatching(/^First task — /),
+  });
+
+  answer(h.handles[1]!, "Done");
+  const response = await pending;
+  expect(response.isError).not.toBe(true);
+  expect(payloadFor("item.completed")).toMatchObject({
+    title: "Verify once more",
+    name: expect.stringMatching(/^First task — /),
+  });
+  expect(h.manager.listRuns(PARENT)[1]?.name).toMatch(/^First task — /);
 });
 
 it("continues the newest helper run when runs share a creation timestamp", async () => {

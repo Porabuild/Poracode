@@ -176,7 +176,7 @@ const SUBAGENT_TASK_PROPERTIES = {
   name: {
     type: "string",
     description:
-      "Short specific label describing what this run does (its task or goal), shown to the user in the thread. Always provide one; provider/model details are appended automatically.",
+      "Short action + target describing what this run does (its task or goal), summarizing the actual work (for example `Fix crew model labels`), shown to the user in the thread. Always provide one. Do not copy permission or `New task` instruction boilerplate into it; provider/model details are appended automatically.",
   },
   fallbacks: {
     type: "array",
@@ -437,6 +437,11 @@ const RAW_TOOLS: ToolSpec[] = [
       properties: {
         run_id: { type: "string" },
         prompt: { type: "string", minLength: 1 },
+        name: {
+          ...SUBAGENT_TASK_PROPERTIES.name,
+          description:
+            "For a completed worker's next task: a short action + target summarizing the new work (for example `Fix crew model labels`). Always provide one for a new task; do not copy permission or `New task` boilerplate. Provider/model details are appended automatically. Omit for a live correction, which keeps the current task label.",
+        },
         background: {
           type: "boolean",
           description:

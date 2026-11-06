@@ -186,7 +186,7 @@ export function WorktreeGroupHeader({
           <GitFork
             className={`size-3 shrink-0 transition-colors ${
               props.collapsedStatusTone === "finished"
-                ? "text-[oklch(0.82_0.12_260)]"
+                ? "text-[var(--finished-tone)]"
                 : props.collapsedStatusTone === "working"
                   ? "text-success"
                   : "text-muted/60"

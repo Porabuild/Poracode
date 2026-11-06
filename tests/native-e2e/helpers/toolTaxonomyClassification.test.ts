@@ -48,7 +48,7 @@ import {
   isSkillTool,
 } from "@/renderer/components/thread/ChatPane/parts/items/toolDisplay";
 import { isContextCompactionToolCall } from "@/renderer/components/thread/ChatPane/parts/items/ContextCompaction";
-import { isPlanProposalToolCall } from "@/renderer/components/thread/ChatPane/parts/items/PlanProposal";
+import { isPlanProposalToolCall } from "@/renderer/components/thread/ChatPane/parts/items/planProposalToolCall";
 import { commandIntentDisplay } from "@/renderer/components/thread/ChatPane/parts/items/commandSummary";
 import { imageViewRendersInline } from "@/renderer/components/thread/ChatPane/parts/items/imageViewSource";
 import {

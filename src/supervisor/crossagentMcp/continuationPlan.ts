@@ -27,15 +27,10 @@ export function canContinueRun(run: ContinuableRun): boolean {
 }
 
 /** Validate current provider settings but retain the winning session's selection and scope. */
-/**
- * The continued worker's next turn: reasoning/Fast (absent keeps the worker's
- * own) and the lead's task name for its tile (absent derives the title from
- * the prompt).
- */
+/** Reasoning/Fast for the next turn of a continued worker; absent keeps the worker's own. */
 export interface ContinuationSelectionUpdate {
   effort?: string | undefined;
   fast?: boolean | undefined;
-  name?: string | undefined;
 }
 
 export function prepareContinuation(
@@ -45,6 +40,7 @@ export function prepareContinuation(
   prompt: string,
   background: boolean,
   selectionUpdate?: ContinuationSelectionUpdate,
+  name?: string,
 ): PreparedSubagentRun {
   if (run.continuedBy) {
     throw new SubagentSpawnError(
@@ -54,6 +50,7 @@ export function prepareContinuation(
   if (!hasCompletedSession(run)) {
     throw new SubagentSpawnError("This run has no completed, resumable worker session");
   }
+  const taskName = name?.trim();
   const attempt = run.plan.attempts[run.attemptIndex]!;
   const effort = selectionUpdate ? selectionUpdate.effort : attempt.config.effort;
   const fast = selectionUpdate ? selectionUpdate.fast === true : attempt.config.fast === true;
@@ -65,7 +62,7 @@ export function prepareContinuation(
     ...(run.plan.resultMode ? { resultMode: run.plan.resultMode } : {}),
     ...(run.plan.crewRole ? { crewRole: run.plan.crewRole } : {}),
     prompt,
-    ...(selectionUpdate?.name ? { name: selectionUpdate.name } : {}),
+    ...(taskName ? { name: taskName } : {}),
     background,
     dispatchProvenance: {
       selection: { source: "continuation" },
@@ -84,7 +81,9 @@ export function prepareContinuation(
     next.config = { ...rest, ...(effort ? { effort } : {}), ...(fast ? { fast: true } : {}) };
   } else {
     next.config = attempt.config;
-    next.label = attempt.label;
+    // A supplied name resolves a new descriptive label; without one the old
+    // label (including its original name) stays authoritative.
+    if (!taskName) next.label = attempt.label;
   }
   plan.projectLocation = run.plan.projectLocation;
   return plan;

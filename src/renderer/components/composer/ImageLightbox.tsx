@@ -1,16 +1,10 @@
-import {
-  memo,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+import { memo, useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
 import { ImageLightboxActions } from "./ImageLightboxActions";
+import { MAX_SCALE, MIN_SCALE, SCALE_STEP, useImageLightboxZoom } from "./useImageLightboxZoom";
 import { useThreadGalleryImages } from "../thread/useThreadGalleryImages";
 import { useRenderOnNotify } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 
@@ -49,12 +43,6 @@ type LightboxState = {
    */
   liveThreadId: string | null;
 };
-
-type Point = { x: number; y: number };
-
-const MIN_SCALE = 1;
-const MAX_SCALE = 4;
-const SCALE_STEP = 0.5;
 
 let lightboxState: LightboxState | null = null;
 let lightboxNonce = 0;
@@ -191,17 +179,6 @@ export function ImageLightboxView(props: {
   const { t } = useLingui();
   const { images, initialIndex, onClose } = props;
   const [index, setIndex] = useState(initialIndex);
-  const [scale, setScale] = useState(MIN_SCALE);
-  const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
-  const stageRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
-  const dragRef = useRef<{
-    pointerId: number;
-    pointerStart: Point;
-    panStart: Point;
-    /** Source the drag started on; a stale drag never pans a different image. */
-    src: string;
-  } | null>(null);
   const selected = images[index];
   const resource = selected?.resource;
   const onNotify = useRenderOnNotify();
@@ -212,6 +189,26 @@ export function ImageLightboxView(props: {
   const current = selected
     ? { ...selected, src: resource ? resolvedSrc : selected.src }
     : undefined;
+  const fullSrc = current?.src;
+  const previewSrc = current?.src === selected?.src ? current?.previewSrc : undefined;
+  const currentImageKey = current ? (previewSrc ?? imageKey(current) ?? current.src) : undefined;
+  const {
+    scale,
+    pan,
+    animate,
+    stageRef,
+    imageRef,
+    zoomBy,
+    resetZoom,
+    onDoubleClick,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel,
+    onLostPointerCapture,
+    onClickCapture,
+  } = useImageLightboxZoom(currentImageKey);
+
   useEffect(() => {
     if (resource && !resolvedSrc) resource.request();
   });
@@ -224,8 +221,7 @@ export function ImageLightboxView(props: {
     const nextIndex = prevImageKey.initial !== initialIndex ? initialIndex : index;
     setPrevImageKey({ initial: initialIndex, current: nextIndex });
     if (nextIndex !== index) setIndex(nextIndex);
-    setScale(MIN_SCALE);
-    setPan({ x: 0, y: 0 });
+    resetZoom();
   }
 
   // A live gallery update (a pending host-held blob resolving) replaces the
@@ -246,8 +242,6 @@ export function ImageLightboxView(props: {
   }
 
   const [decodedSrc, setDecodedSrc] = useState<string>();
-  const fullSrc = current?.src;
-  const previewSrc = current?.src === selected?.src ? current?.previewSrc : undefined;
   useEffect(() => {
     if (!fullSrc || !previewSrc || fullSrc === previewSrc) return;
     let active = true;
@@ -278,59 +272,7 @@ export function ImageLightboxView(props: {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, images.length]);
 
-  useEffect(() => {
-    function handleResize() {
-      setPan((currentPan) => clampPan(currentPan, scale, stageRef.current, imageRef.current));
-    }
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [scale]);
-
   if (!current) return null;
-  const currentImageKey = previewSrc ?? imageKey(current) ?? current.src;
-
-  function zoomBy(delta: number) {
-    const nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale + delta));
-    setScale(nextScale);
-    setPan((currentPan) => clampPan(currentPan, nextScale, stageRef.current, imageRef.current));
-  }
-
-  function handlePointerDown(event: ReactPointerEvent<HTMLImageElement>) {
-    if (scale <= MIN_SCALE || event.button !== 0) return;
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      pointerId: event.pointerId,
-      pointerStart: { x: event.clientX, y: event.clientY },
-      panStart: pan,
-      src: currentImageKey,
-    };
-  }
-
-  function handlePointerMove(event: ReactPointerEvent<HTMLImageElement>) {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId || drag.src !== currentImageKey) return;
-    event.preventDefault();
-    setPan(
-      clampPan(
-        {
-          x: drag.panStart.x + event.clientX - drag.pointerStart.x,
-          y: drag.panStart.y + event.clientY - drag.pointerStart.y,
-        },
-        scale,
-        stageRef.current,
-        imageRef.current,
-      ),
-    );
-  }
-
-  function handlePointerEnd(event: ReactPointerEvent<HTMLImageElement>) {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    dragRef.current = null;
-  }
 
   return createPortal(
     <div // eslint-disable-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop click-to-dismiss is mouse-only by design; Escape (handled via the useEffect above) is the keyboard equivalent
@@ -376,15 +318,22 @@ export function ImageLightboxView(props: {
         ref={stageRef}
         className="poracode-image-lightbox__stage"
         style={{ containerType: "size" }}
+        onClickCapture={onClickCapture}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        onLostPointerCapture={onLostPointerCapture}
       >
         {current.src ? (
-          <img // eslint-disable-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- the image supports pointer-drag panning; keyboard image navigation remains on the dialog
+          <img // eslint-disable-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- the stage handles pointer-drag panning and pinch; keyboard image navigation remains on the dialog
             ref={imageRef}
             className={`poracode-image-lightbox__image${scale > MIN_SCALE ? " poracode-image-lightbox__image--zoomed" : ""}`}
             src={previewSrc && decodedSrc !== current.src ? previewSrc : current.src}
             alt={current.alt ?? ""}
             style={{
               transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})`,
+              ...(animate ? {} : { transition: "none" }),
               ...(previewSrc && current.width && current.height
                 ? {
                     width: `min(100%, calc(100cqh * ${current.width} / ${current.height}))`,
@@ -393,10 +342,7 @@ export function ImageLightboxView(props: {
                 : {}),
             }}
             onClick={(event) => event.stopPropagation()}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerEnd}
-            onPointerCancel={handlePointerEnd}
+            onDoubleClick={onDoubleClick}
             decoding="async"
             draggable={false}
           />
@@ -466,19 +412,4 @@ const emptyImageSnapshot = () => "";
 
 function imageKey(image: LightboxImage | undefined): string | undefined {
   return image?.resource?.key ?? image?.src;
-}
-
-function clampPan(
-  point: Point,
-  scale: number,
-  stage: HTMLDivElement | null,
-  image: HTMLImageElement | null,
-): Point {
-  if (!stage || !image || scale <= MIN_SCALE) return { x: 0, y: 0 };
-  const maxX = Math.max(0, (image.clientWidth * scale - stage.clientWidth) / 2);
-  const maxY = Math.max(0, (image.clientHeight * scale - stage.clientHeight) / 2);
-  return {
-    x: Math.min(maxX, Math.max(-maxX, point.x)),
-    y: Math.min(maxY, Math.max(-maxY, point.y)),
-  };
 }

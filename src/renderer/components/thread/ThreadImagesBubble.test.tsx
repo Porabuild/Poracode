@@ -405,7 +405,7 @@ describe("ThreadImagesDock", () => {
       expect(img.getAttribute("decoding")).toBe("async");
       expect(img).toHaveClass(
         "rounded-[inherit]",
-        "object-contain",
+        "object-cover",
         "[image-rendering:high-quality]",
       );
       expect(img.className).not.toContain("group-hover:scale");

@@ -115,6 +115,9 @@ describe("CrewDockSection", () => {
     const member = view.container.querySelector('[data-crew-member-row="Builder"]');
     expect(member?.querySelector('[data-crew-member-line="text"]')).toHaveClass("truncate");
     expect(member?.querySelector('[data-crew-member-line="meta"]')).toHaveClass("truncate");
+    expect(member?.querySelector(".poracode-provider-icon")).toHaveClass(
+      "poracode-provider-icon--active",
+    );
   });
 
   it("shows the helper subprovider alongside provider and effort", () => {

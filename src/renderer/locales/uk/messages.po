@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "Моделей: {0}"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0} потребує автентифікації."
 
@@ -595,8 +597,8 @@ msgstr "{days}д тому"
 #~ msgstr "Завантаження: {downloadSize} МБ"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel} потребує автентифікації."
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel} потребує автентифікації."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "Використання {label} — відкрити панель ви�
 #~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel} {env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel} {env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1677,7 +1679,6 @@ msgstr "Оголосіть власний базовий URL, наприклад
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Агент"
 
@@ -4614,8 +4615,8 @@ msgstr "Завершіть вхід у {0}, перш ніж цей тред зм
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "Завершіть вхід у {0} для {env}."
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "Завершіть вхід у {0} для {env}."
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6108,7 +6109,6 @@ msgstr "Чат DeepSeek Harness зі збереженням сесій, нала
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -6966,6 +6966,7 @@ msgstr "Завершено ({doneCount})"
 msgid "Done ({remainingSeconds}s)"
 msgstr "Завершено ({remainingSeconds}с)"
 
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 msgid "Download"
 msgstr "Завантажити"
@@ -6975,8 +6976,8 @@ msgid "Download · {modelSize} MB"
 msgstr "Завантажити · {modelSize} МБ"
 
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
-msgid "Download {fileName}"
-msgstr "Завантажити {fileName}"
+#~ msgid "Download {fileName}"
+#~ msgstr "Завантажити {fileName}"
 
 #: src/renderer/views/SettingsOverlay/parts/HexVoiceSettings.tsx
 msgid "Download a voice model to finish setup."
@@ -9874,8 +9875,8 @@ msgstr "Встановити · {engineSize} МБ"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "Встановити {0} для {env}."
+#~ msgid "Install {0} for {env}."
+#~ msgstr "Встановити {0} для {env}."
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9926,6 +9927,10 @@ msgstr "Установлення й керування нативними пла
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "Установити й перезапустити"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "Встановлення та вхід поки недоступні на віддалених комп’ютерах."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10040,8 +10045,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Спершу встановіть нативні провайдери; використовуйте ACP для додаткових протокольних агентів."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "Встановити: {env}"
+#~ msgid "Install on {env}"
+#~ msgstr "Встановити: {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10109,8 +10114,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "Установіть Xcode і середовище виконання симулятора iOS на цьому хості."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "Встановлення, оновлення та вхід поки недоступні на віддалених комп’ютерах."
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "Встановлення, оновлення та вхід поки недоступні на віддалених комп’ютерах."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -11044,8 +11049,8 @@ msgid "Logout"
 msgstr "Вийти"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "Вийти {env}"
+#~ msgid "Logout {env}"
+#~ msgstr "Вийти {env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11986,8 +11991,8 @@ msgid "More sign-in methods"
 msgstr "Інші способи входу"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "Інші способи входу {env}"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "Інші способи входу {env}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -20893,8 +20898,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "На цьому пристрої немає придатної камери. Вставте посилання для сполучення або виберіть фото коду замість цього."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "це середовище"
+#~ msgid "this environment"
+#~ msgstr "це середовище"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -21793,7 +21798,7 @@ msgstr "Не вдалося видалити збережений пароль."
 msgid "Unable to determine the experiment's source branch."
 msgstr "Не вдалося визначити вихідну гілку експерименту."
 
-#: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 msgid "Unable to download the file."
 msgstr "Не вдалося завантажити файл."
 
@@ -22395,8 +22400,8 @@ msgstr "Оновити {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "Оновити {0} ({env})"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "Оновити {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22518,8 +22523,8 @@ msgstr "Оновити до {updateLabel} для {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "Оновити до {updateLabel} для {0} ({env})"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "Оновити до {updateLabel} для {0} ({env})"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22575,8 +22580,8 @@ msgstr "Оновлення {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "Оновлення {0} ({env})"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "Оновлення {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23436,10 +23441,9 @@ msgstr "Де з'являється панель термінала."
 msgid "Whisper with broad multilingual support."
 msgstr "Whisper із широкою багатомовною підтримкою."
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "Буде виконано в {0}:"
+msgid "Will run in this environment:"
+msgstr "Буде виконано в цьому середовищі:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx

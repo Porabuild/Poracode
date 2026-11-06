@@ -9,6 +9,13 @@ import type {
   InstalledAcpRegistryAgent,
   Project,
 } from "@/shared/contracts";
+import type { RemoteAgentStatuses } from "@/shared/remote/protocol";
+import { RemoteClientError } from "@/shared/remote/clientErrors";
+import type { RemoteServerRecord, RemoteServersState } from "@/renderer/state/remoteServers/types";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
+import { useSettingsHostStore } from "@/renderer/state/settingsHostStore";
+import { __resetBrowserBridgeForTest } from "@/renderer/state/remoteServers/browserBridge";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { reconcileAcpRegistryInstalls } from "@/renderer/state/reconcileAcpRegistryInstalls";
 import { dynamicActivate } from "@/renderer/i18n/i18n";
@@ -59,14 +66,93 @@ const toastMock = vi.hoisted(() => ({
   danger: vi.fn<(message: string) => void>(),
 }));
 
+const remoteCalls = {
+  callRemoteProcedure: vi.fn<(procedure: string, payload: unknown) => Promise<unknown>>(),
+  agentStatuses: vi.fn<() => Promise<RemoteAgentStatuses>>(),
+  agentSlashCommands: vi.fn<(kind: string) => Promise<{ kind: string; commands: never[] }>>(),
+};
+const remoteWithClientCalls: string[] = [];
+const connectionProcedures = new Map<
+  string,
+  (procedure: string, payload: unknown) => Promise<unknown>
+>();
+const remoteClient = {
+  endpoint: "https://conn-1.test",
+  callRemoteProcedure: remoteCalls.callRemoteProcedure,
+  agentStatuses: remoteCalls.agentStatuses,
+  agentSlashCommands: remoteCalls.agentSlashCommands,
+};
+const remoteWithClient: RemoteServersState["withClient"] = async (desktopId, invoke) => {
+  remoteWithClientCalls.push(desktopId);
+  const callRemoteProcedure = connectionProcedures.get(desktopId);
+  return invoke(
+    (callRemoteProcedure ? { ...remoteClient, callRemoteProcedure } : remoteClient) as never,
+  );
+};
+
+const REMOTE_MACHINE_ID = "remote:conn-1";
+const REMOTE_SERVERS: RemoteServerRecord[] = [
+  {
+    desktopId: "conn-1",
+    connectionId: "conn-1",
+    label: "Studio",
+    endpoint: "https://conn-1.test",
+    accessToken: "fixture",
+    scopes: ["session:read", "session:operate"],
+  },
+];
+
+function remoteStatuses(version = "1.2.0"): RemoteAgentStatuses {
+  return {
+    windows: [makeStatus({ kind: "claude", label: "Claude Code", version, envKind: "posix" })],
+    wsl: [],
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+function selectRemoteMachine(statuses: RemoteAgentStatuses): void {
+  useRemoteServersStore.setState({
+    servers: REMOTE_SERVERS,
+    runtime: {
+      "conn-1": { status: "online", projects: [], threads: [], agentStatuses: statuses },
+    },
+    withClient: remoteWithClient,
+  });
+  useMachineSelectionStore.setState({ selectedMachineId: REMOTE_MACHINE_ID });
+}
+
+/** A remote client whose bridge host is `desktopId`, so its local entries point there. */
+function selectBridgeHost(desktopId: string, statuses: RemoteAgentStatuses): void {
+  useRemoteServersStore.setState({
+    servers: [
+      {
+        desktopId,
+        connectionId: desktopId,
+        label: `Bridge ${desktopId}`,
+        endpoint: `https://${desktopId}.test`,
+        accessToken: "fixture",
+        scopes: ["session:read", "session:operate"],
+      },
+    ],
+    runtime: {
+      [desktopId]: { status: "online", projects: [], threads: [], agentStatuses: statuses },
+    },
+    withClient: remoteWithClient,
+  });
+  useSettingsHostStore.getState().choose(desktopId);
+}
+
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
   useAgentStatusesStore: (selector: (state: typeof statusesState) => unknown) =>
     selector(statusesState),
+  isDetectingAgentsForLocation: () => false,
 }));
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
-  useSharedSettings: (selector: (state: typeof settingsState) => unknown) =>
-    selector(settingsState),
+  useSharedSettings: Object.assign(
+    (selector: (state: typeof settingsState) => unknown) => selector(settingsState),
+    { getState: () => settingsState },
+  ),
 }));
 
 vi.mock("@/renderer/state/appStore", () => ({
@@ -83,11 +169,16 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
 
-vi.mock("@/renderer/state/remoteServersStore", () => ({
-  useRemoteServersStore: (
-    selector: (state: { servers: never[]; runtime: Record<string, never> }) => unknown,
-  ) => selector({ servers: [], runtime: {} }),
-}));
+vi.mock("@/renderer/state/remoteServersStore", async () => {
+  const { create } = await import("zustand");
+  return {
+    useRemoteServersStore: create(() => ({
+      servers: [],
+      runtime: {},
+      withClient: vi.fn<RemoteServersState["withClient"]>(),
+    })),
+  };
+});
 
 vi.mock("@heroui/react", () => ({
   toast: toastMock,
@@ -166,6 +257,15 @@ describe("ModelOrderSection provider updates", () => {
       .mockReset()
       .mockResolvedValue({ windows: [], wsl: [] } as unknown as AgentStatusesResponse);
     bridge.listAcpRegistry.mockReset().mockResolvedValue({ version: "1", agents: [] });
+    remoteCalls.callRemoteProcedure.mockReset();
+    remoteCalls.agentStatuses.mockReset().mockResolvedValue(remoteStatuses());
+    remoteCalls.agentSlashCommands.mockReset();
+    remoteWithClientCalls.length = 0;
+    connectionProcedures.clear();
+    useRemoteServersStore.setState({ servers: [], runtime: {}, withClient: remoteWithClient });
+    useMachineSelectionStore.setState({ selectedMachineId: "local" });
+    useSettingsHostStore.setState({ desktopId: null });
+    __resetBrowserBridgeForTest();
   });
 
   it("shows the installed version of every provider", async () => {
@@ -180,18 +280,165 @@ describe("ModelOrderSection provider updates", () => {
     expect(screen.getByText("—")).toBeTruthy();
   });
 
-  it("never probes for updates from a remote client, which has no supervisor", async () => {
-    // A remote client labels its bridge host as the local machine.
+  it("probes the bridge host's providers from a remote client", async () => {
+    // A remote client labels its bridge host as the local machine; that host
+    // runs the agents, so its providers are probed and updated over the same
+    // connection as any paired machine.
     session.remote = true;
-    statusesState.agentStatuses = [
-      makeStatus({ kind: "claude", label: "Claude Code", version: "1.2.3" }),
-    ];
+    const statuses = remoteStatuses("1.2.3");
+    statusesState.agentStatuses = statuses.windows;
+    const bridgeCall = vi.fn<(procedure: string, payload: unknown) => Promise<unknown>>(
+      async (procedure) => {
+        if (procedure === "getLatestAgentVersion") return { version: "1.3.0" };
+        if (procedure === "updateAgentBinary") return { ok: true };
+        if (procedure === "listAcpRegistry") return { version: "1", agents: [] };
+        throw new Error(`unexpected procedure: ${procedure}`);
+      },
+    );
+    connectionProcedures.set("conn-bridge", bridgeCall);
+    selectBridgeHost("conn-bridge", statuses);
 
     render(<ModelOrderSection />);
 
-    expect(await screen.findByText("v1.2.3")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Update Claude Code to v1.3.0" }));
+
+    await waitFor(() =>
+      expect(bridgeCall).toHaveBeenCalledWith("updateAgentBinary", {
+        agentKind: "claude",
+        envKind: "posix",
+      }),
+    );
+    expect(remoteWithClientCalls).toContain("conn-bridge");
+    expect(remoteWithClientCalls.every((key) => key === "conn-bridge")).toBe(true);
     expect(bridge.getLatestAgentVersion).not.toHaveBeenCalled();
-    expect(bridge.listAcpRegistry).not.toHaveBeenCalled();
+    expect(bridge.updateAgentBinary).not.toHaveBeenCalled();
+  });
+
+  it("re-probes when the bridge host changes", async () => {
+    session.remote = true;
+    const statuses = remoteStatuses("1.2.3");
+    statusesState.agentStatuses = statuses.windows;
+    connectionProcedures.set("bridge-a", async (procedure) => {
+      if (procedure === "getLatestAgentVersion") return { version: "1.3.0" };
+      if (procedure === "listAcpRegistry") return { version: "1", agents: [] };
+      throw new Error(`unexpected procedure: ${procedure}`);
+    });
+    connectionProcedures.set("bridge-b", async (procedure) => {
+      if (procedure === "getLatestAgentVersion") return { version: "1.4.0" };
+      if (procedure === "listAcpRegistry") return { version: "1", agents: [] };
+      throw new Error(`unexpected procedure: ${procedure}`);
+    });
+    selectBridgeHost("bridge-a", statuses);
+
+    render(<ModelOrderSection />);
+
+    expect(
+      await screen.findByRole("button", { name: "Update Claude Code to v1.3.0" }),
+    ).toBeTruthy();
+
+    act(() => selectBridgeHost("bridge-b", statuses));
+
+    expect(
+      await screen.findByRole("button", { name: "Update Claude Code to v1.4.0" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Update Claude Code to v1.3.0" })).toBeNull();
+    expect(remoteWithClientCalls).toContain("bridge-b");
+  });
+
+  it("shows and updates a paired machine's provider through its host", async () => {
+    const statuses = remoteStatuses();
+    remoteCalls.callRemoteProcedure.mockImplementation(async (procedure) => {
+      if (procedure === "getLatestAgentVersion") return { version: "1.3.0" };
+      if (procedure === "updateAgentBinary") return { ok: true };
+      if (procedure === "listAcpRegistry") return { version: "1", agents: [] };
+      throw new Error(`unexpected procedure: ${procedure}`);
+    });
+    selectRemoteMachine(statuses);
+
+    render(<ModelOrderSection />);
+
+    expect(await screen.findByText("v1.2.0")).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: "Update Claude Code to v1.3.0" }));
+
+    await waitFor(() =>
+      expect(remoteCalls.callRemoteProcedure).toHaveBeenCalledWith("updateAgentBinary", {
+        agentKind: "claude",
+        envKind: "posix",
+      }),
+    );
+    expect(remoteWithClientCalls.every((key) => key === "conn-1")).toBe(true);
+    expect(bridge.getLatestAgentVersion).not.toHaveBeenCalled();
+    expect(bridge.updateAgentBinary).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(toastMock.success).toHaveBeenCalledWith("Claude Code updated to v1.3.0."),
+    );
+  });
+
+  it("updates a paired machine's ACP registry provider through its host", async () => {
+    const statuses: RemoteAgentStatuses = {
+      windows: [
+        makeStatus({
+          kind: "acp-generic:pi-acp",
+          label: "Pi",
+          version: "0.1.0",
+          envKind: "posix",
+        }),
+      ],
+      wsl: [],
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    remoteCalls.callRemoteProcedure.mockImplementation(async (procedure) => {
+      if (procedure === "listAcpRegistry")
+        return {
+          version: "1",
+          agents: [
+            {
+              id: "pi-acp",
+              name: "Pi",
+              version: "0.2.0",
+              description: "Pi agent",
+              distribution: {},
+            },
+          ],
+        };
+      if (procedure === "updateAcpRegistryAgent") return { installed: [] };
+      throw new Error(`unexpected procedure: ${procedure}`);
+    });
+    selectRemoteMachine(statuses);
+
+    render(<ModelOrderSection />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update Pi to v0.2.0" }));
+
+    await waitFor(() =>
+      expect(remoteCalls.callRemoteProcedure).toHaveBeenCalledWith("updateAcpRegistryAgent", {
+        agentId: "pi-acp",
+      }),
+    );
+    expect(remoteWithClientCalls).toContain("conn-1");
+    expect(remoteWithClientCalls.every((key) => key === "conn-1")).toBe(true);
+    expect(settingsState.syncAcpRegistryInstalledAgents).not.toHaveBeenCalled();
+    expect(bridge.updateAcpRegistryAgent).not.toHaveBeenCalled();
+  });
+
+  it("leaves a paired machine's version visible when its host predates remote updates", async () => {
+    // Older hosts reject the update procedures with a 403; the row must still
+    // show what is installed, just without an offered update.
+    remoteCalls.callRemoteProcedure.mockRejectedValue(
+      new RemoteClientError("not allowed", 403, "git_procedure_not_allowed"),
+    );
+    selectRemoteMachine(remoteStatuses());
+
+    render(<ModelOrderSection />);
+
+    expect(await screen.findByText("v1.2.0")).toBeTruthy();
+    await waitFor(() =>
+      expect(remoteCalls.callRemoteProcedure).toHaveBeenCalledWith("getLatestAgentVersion", {
+        agentKind: "claude",
+      }),
+    );
+    expect(screen.queryByRole("button", { name: /^Update/u })).toBeNull();
+    expect(bridge.getLatestAgentVersion).not.toHaveBeenCalled();
   });
 
   it("scopes each provider row's version to the selected machine", async () => {

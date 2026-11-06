@@ -62,6 +62,14 @@ export const REMOTE_PROCEDURE_SPECS = {
   refreshProviderUsage: operate("desktop"),
   // Host CLI transcripts: paths and first prompts, so project-management scope.
   listImportableSessions: manageProjects("desktop"),
+  // Host agent management: version probes are reads, while registry listing and
+  // updates change the host (install/update agents, write settings) and are
+  // therefore operate-scoped, so a paired machine's agents can only be changed
+  // by a client holding session:operate.
+  getLatestAgentVersion: read("desktop"),
+  listAcpRegistry: mutating(longRunning(operate("desktop"))),
+  updateAgentBinary: mutating(longRunning(operate("desktop"))),
+  updateAcpRegistryAgent: mutating(longRunning(operate("desktop"))),
 
   listThreadSessionActions: read("thread"),
   invokeThreadSessionAction: mutating(operate("thread")),
@@ -279,6 +287,20 @@ export function isRemoteFollowUpQueueProcedure(
   procedure: string,
 ): procedure is (typeof REMOTE_FOLLOW_UP_QUEUE_PROCEDURES)[number] {
   return remoteFollowUpQueueProcedures.has(procedure);
+}
+
+/** Agent install/update procedures; clients give them the supervisor's agent
+ * update budget instead of the generic long-request timeout. */
+export const REMOTE_AGENT_UPDATE_PROCEDURES = [
+  "listAcpRegistry",
+  "updateAgentBinary",
+  "updateAcpRegistryAgent",
+] as const satisfies readonly RemoteProcedureName[];
+
+const remoteAgentUpdateProcedures: ReadonlySet<string> = new Set(REMOTE_AGENT_UPDATE_PROCEDURES);
+
+export function isRemoteAgentUpdateProcedure(procedure: string): boolean {
+  return remoteAgentUpdateProcedures.has(procedure);
 }
 
 export function isRemoteProcedure(name: string): name is RemoteProcedureName {

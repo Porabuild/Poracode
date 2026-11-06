@@ -1,5 +1,30 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct ProcedureghPollPullRequestsRequest_559c498a02: Codable, Sendable, RemoteModelMetadata {
+  public var branch: RemoteField<String> = .missing
+  public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
+  public var retry: RemoteField<Bool> = .missing
+  public var state: RemoteField<ProcedureghPollPullRequestsRequestU2DState_b191f81602> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "branch", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "retry", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "state", typeName: "ProcedureghPollPullRequestsRequestU2DState_b191f81602", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case branch = "branch"
+    case projectLocation = "projectLocation"
+    case retry = "retry"
+    case state = "state"
+  }
+}
+
+public enum ProcedureghPollPullRequestsResultU2DOptionU2D1U2DStatus_0200f968d2: String, Codable, Sendable {
+  case `ready` = "ready"
+}
+
 public struct ProcedureghPollPullRequestsResultU2DOptionU2D1_cbf9eddea4: Codable, Sendable, RemoteModelMetadata {
   public var prs: ProcedureforgeListPrsResultU2DPrs_a7a958b1f6
   public var pullRequests: [ProcedureforgeListPullRequestsInStateResultU2DPullRequestsU2DItem_11f2043035]
@@ -420,23 +445,5 @@ public struct ProceduregitGetWorktreeSourceBranchRequest_6900ba2bd9: Codable, Se
     case branch = "branch"
     case projectLocation = "projectLocation"
     case sourceBranchOverride = "sourceBranchOverride"
-  }
-}
-
-public struct ProceduregitGetWorktreeSourceBranchResult_4864c5f65a: Codable, Sendable, RemoteModelMetadata {
-  public var commitsAhead: Int64
-  public var sourceAhead: Int64
-  public var sourceBranch: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "commitsAhead", typeName: "Int64", required: true, nullable: false, minimum: -9007199254740991, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "sourceAhead", typeName: "Int64", required: true, nullable: false, minimum: -9007199254740991, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "sourceBranch", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case commitsAhead = "commitsAhead"
-    case sourceAhead = "sourceAhead"
-    case sourceBranch = "sourceBranch"
   }
 }

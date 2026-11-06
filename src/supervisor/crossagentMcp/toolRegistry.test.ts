@@ -689,6 +689,10 @@ describe("subagent tool registration", () => {
     });
     expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
     expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });
+    const steerSchema = byName.get("steer_agent")!.inputSchema;
+    expect(steerSchema.required).toEqual(["run_id", "prompt"]);
+    expect(steerSchema.required).not.toContain("name");
+    expect(steerSchema.properties).toMatchObject({ name: { type: "string" } });
     expect(byName.get("list_agents")!.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
@@ -1203,7 +1207,7 @@ describe("subagent tool registration", () => {
       ctx,
     );
     expect(JSON.parse(result.content[0]!.text)).toEqual({ run_id: "r", status: "accepted" });
-    expect(steer).toHaveBeenCalledWith("r", "focus on tests", ctx.parentThreadId, true);
+    expect(steer).toHaveBeenCalledWith("r", "focus on tests", ctx.parentThreadId, true, undefined);
     expect(TOOLS.find((tool) => tool.name === "steer_agent")?.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,

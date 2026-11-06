@@ -57,18 +57,22 @@ describe("ResponsiveContextMenu", () => {
       const onAction = vi.fn<(key: string) => void>();
       const onPress = vi.fn<() => void>();
       render(
-        <ResponsiveContextMenu
-          label="Starting a conversation"
-          items={[{ id: "archive", label: "Archive" }]}
-          onAction={onAction}
-        >
-          <button type="button" onClick={onPress}>
-            Starting a conversation
-          </button>
-        </ResponsiveContextMenu>,
+        <p>
+          <ResponsiveContextMenu
+            as="span"
+            label="Starting a conversation"
+            items={[{ id: "archive", label: "Archive" }]}
+            onAction={onAction}
+          >
+            <button type="button" onClick={onPress}>
+              Starting a conversation
+            </button>
+          </ResponsiveContextMenu>
+        </p>,
       );
 
       const trigger = screen.getByRole("button", { name: "Starting a conversation" });
+      expect(trigger.parentElement?.tagName).toBe("SPAN");
       fireEvent.pointerDown(trigger, {
         pointerType: "touch",
         isPrimary: true,

@@ -507,18 +507,21 @@ export class SubagentRunManager {
    * `steerTurn` enqueue it onto the running turn. Every other structured
    * session takes the same interrupt-and-restart path the main thread uses:
    * preserve provider work, interrupt, wait for the turn to settle, then open
-   * the correction as a fresh turn on the same session.
+   * the correction as a fresh turn on the same session. `name` labels a
+   * completed worker's next task; a live correction keeps its current label.
    */
   async steer(
     runId: string,
     prompt: string,
     parentThreadId: string,
     background = false,
+    name?: string,
   ): Promise<{ runId: string; continuedFrom?: string }> {
     const record = this.ownedRun(runId, parentThreadId);
     if (!record) throw new SubagentSpawnError(`Unknown run_id: ${runId}`);
     if (!prompt.trim()) throw new SubagentSpawnError("prompt is required");
-    if (record.status !== "running") return this.continueCompletedRun(record, prompt, background);
+    if (record.status !== "running")
+      return this.continueCompletedRun(record, prompt, background, undefined, name);
     if (!record.steerReady)
       throw new SubagentSpawnError("Subagent is still starting; try again once it is ready");
     const handle = record.handle;
@@ -599,11 +602,13 @@ export class SubagentRunManager {
     )
       return undefined;
     try {
-      return await this.continueCompletedRun(latest, request.prompt, background, {
-        effort: request.effort,
-        fast: request.fast,
-        name: request.name,
-      });
+      return await this.continueCompletedRun(
+        latest,
+        request.prompt,
+        background,
+        { effort: request.effort, fast: request.fast },
+        request.name,
+      );
     } catch (error) {
       if (error instanceof SubagentSpawnError) return undefined;
       throw error;
@@ -615,6 +620,7 @@ export class SubagentRunManager {
     prompt: string,
     background: boolean,
     selectionUpdate?: ContinuationSelectionUpdate,
+    name?: string,
   ): Promise<{ runId: string; continuedFrom: string }> {
     const parentThreadId = record.parentThreadId;
     if (record.resuming)
@@ -633,6 +639,7 @@ export class SubagentRunManager {
         prompt,
         background,
         selectionUpdate,
+        name,
       );
       // Completion releases readers before process disposal. Join it before
       // reopening the same provider session; concurrent use can corrupt history.

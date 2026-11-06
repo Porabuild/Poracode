@@ -349,6 +349,32 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   readThreadBackgroundTasks: [],
   getProviderUsage: { snapshots: [], fromCache: true },
   refreshProviderUsage: { snapshots: [], fromCache: false },
+  getLatestAgentVersion: { version: "1.2.3", source: "npm" },
+  listAcpRegistry: {
+    version: "1.0.0",
+    agents: [
+      {
+        id: "claude-acp",
+        name: "Claude Code",
+        version: "2.1.0",
+        description: "Anthropic's coding agent over ACP.",
+        distribution: { npx: { package: "@anthropic-ai/claude-code" } },
+      },
+    ],
+  },
+  updateAgentBinary: { ok: true, strategy: "npm-global" },
+  updateAcpRegistryAgent: {
+    installed: [
+      {
+        id: "claude-acp",
+        name: "Claude Code",
+        version: "2.1.0",
+        installedAt: "2026-08-12T00:00:00.000Z",
+        adapterKind: "claude",
+        installKind: "first-class",
+      },
+    ],
+  },
   listImportableSessions: {
     sessions: [
       {

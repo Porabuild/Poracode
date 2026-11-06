@@ -7,10 +7,13 @@ import { downloadChatFile } from "@/renderer/components/media/fileMediaSource";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { ChatPaneActionsContext, type ChatPaneActions } from "../../chatPaneActionsContext";
 import { MarkdownFile } from "./MarkdownFile";
+import { InlineFilePathChip } from "./InlineFilePathChip";
 import ItemMarkdownInner from "./ItemMarkdownInner";
 import { AssistantMessage } from "./AssistantMessage";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ProjectLocation } from "@/shared/contracts";
+import { getBasename } from "@/shared/pathUtils";
+import type { PoracodeBridge } from "@/shared/ipc";
 
 vi.mock("@/renderer/components/media/fileMediaSource", () => ({
   createEditorMediaSource: vi.fn<() => Promise<never>>(),
@@ -47,25 +50,30 @@ function fileItem(state: RuntimeChatItem["state"], path: string, mimeType?: stri
     state,
     streams: {},
     payload: {
-      content: [{ kind: "file", path, name: "release.zip", ...(mimeType ? { mimeType } : {}) }],
+      content: [{ kind: "file", path, name: getBasename(path), ...(mimeType ? { mimeType } : {}) }],
     },
   };
   return item;
 }
 
-describe("chat file download card", () => {
+async function downloadFromMenu(view: ReturnType<typeof render>, name: string) {
+  fireEvent.contextMenu(view.getByRole("button", { name }));
+  fireEvent.click(await view.findByRole("menuitem", { name: "Download" }));
+}
+
+describe("inline chat files", () => {
   it.each([
     ["[Build](dist/release.zip)", "release.zip"],
     ["[Doc](docs/spec.pdf)", "spec.pdf"],
     ["[Win](D:\\\\out\\\\release.zip)", "release.zip"],
     ["[Space](dist/my%20build.zip)", "my build.zip"],
     ["[Abs](file:///project/dist/release.zip)", "release.zip"],
-  ])("renders a card for %s and mints only on click", async (text, shown) => {
+  ])("renders an inline chip for %s and downloads from its context menu", async (text, shown) => {
     const view = render(pane(<ItemMarkdownInner text={text} />));
-    const card = await waitFor(() => view.getByTestId("chat-file"));
+    const card = await view.findByRole("button", { name: shown });
     expect(card.textContent).toContain(shown);
     expect(downloadChatFile).not.toHaveBeenCalled();
-    fireEvent.click(view.getByRole("button", { name: /Download/ }));
+    await downloadFromMenu(view, shown);
     await waitFor(() => expect(downloadChatFile).toHaveBeenCalledOnce());
     const [owner, path] = vi.mocked(downloadChatFile).mock.calls[0]!;
     expect(owner).toEqual(location);
@@ -81,7 +89,7 @@ describe("chat file download card", () => {
         projectLocation: project,
       }),
     );
-    fireEvent.click(view.getByRole("button", { name: /Download/ }));
+    fireEvent.click(view.getByRole("button", { name: "release.zip" }));
     await waitFor(() =>
       expect(downloadChatFile).toHaveBeenCalledWith(media, "release.zip", expect.any(AbortSignal)),
     );
@@ -89,7 +97,7 @@ describe("chat file download card", () => {
 
   it("resolves a project-relative artifact path against the owner", async () => {
     const view = render(pane(<MarkdownFile src="dist/release.zip" />));
-    fireEvent.click(view.getByRole("button", { name: /Download release\.zip/ }));
+    fireEvent.click(view.getByRole("button", { name: "release.zip" }));
     await waitFor(() =>
       expect(downloadChatFile).toHaveBeenCalledWith(
         location,
@@ -108,9 +116,10 @@ describe("chat file download card", () => {
         }),
     );
     const view = render(pane(<MarkdownFile src="release.zip" name="release.zip" />));
-    const button = view.getByRole("button", { name: "Download release.zip" });
+    const button = view.getByRole("button", { name: "release.zip" });
     fireEvent.click(button);
     fireEvent.click(button);
+    await waitFor(() => expect(downloadChatFile).toHaveBeenCalledOnce());
     await act(async () => release());
     expect(downloadChatFile).toHaveBeenCalledOnce();
 
@@ -141,11 +150,11 @@ describe("chat file download card", () => {
         }),
     );
     const view = render(pane(<MarkdownFile src="release.zip" name="release.zip" />));
-    const button = view.getByRole("button", { name: "Download release.zip" });
+    const button = view.getByRole("button", { name: "release.zip" });
     fireEvent.click(button);
-    await waitFor(() =>
-      expect(button.querySelector("svg, [class*=loader], [class*=spinner]")).not.toBeNull(),
-    );
+    await waitFor(() => expect(button.querySelector(".poracode-pixel-loader")).not.toBeNull());
+    expect(button).toHaveAttribute("aria-busy", "true");
+    await waitFor(() => expect(downloadChatFile).toHaveBeenCalledOnce());
     await act(async () => release());
   });
 
@@ -158,13 +167,13 @@ describe("chat file download card", () => {
         }),
     );
     const view = render(pane(<MarkdownFile src="first.zip" />));
-    fireEvent.click(view.getByRole("button", { name: /Download/ }));
+    fireEvent.click(view.getByRole("button", { name: "first.zip" }));
     await waitFor(() => expect(signal).toBeDefined());
     view.rerender(pane(<MarkdownFile src="second.zip" />));
     await waitFor(() => expect(signal.aborted).toBe(true));
   });
 
-  it.each(["notes.txt", "report.pdf", "data.csv"])(
+  it.each(["notes.txt", "report.pdf", "data.csv", "file.ts", "README.md"])(
     "keeps an editor preview on the name for %s",
     async (name) => {
       const openProjectRelativePath = vi.fn<(path: string, line?: number) => Promise<void>>(
@@ -176,11 +185,13 @@ describe("chat file download card", () => {
         openProjectRelativePath,
       };
       const view = render(pane(<MarkdownFile src={`docs/${name}`} />, actions));
+      expect(view.getByRole("button", { name }).querySelector(".lucide-download")).toBeNull();
       fireEvent.click(view.getByRole("button", { name }));
       await waitFor(() =>
         expect(openProjectRelativePath).toHaveBeenCalledWith(`docs/${name}`, undefined),
       );
-      fireEvent.click(view.getByRole("button", { name: new RegExp(`Download ${name}`) }));
+      expect(downloadChatFile).not.toHaveBeenCalled();
+      await downloadFromMenu(view, name);
       await waitFor(() => expect(downloadChatFile).toHaveBeenCalledOnce());
     },
   );
@@ -195,18 +206,34 @@ describe("chat file download card", () => {
       projectLocation: location,
       openProjectRelativePath,
     };
-    const view = render(pane(<MarkdownFile src="docs/notes.txt" />, actions));
-    fireEvent.click(view.getByRole("button", { name: "notes.txt" }));
+    const view = render(pane(<MarkdownFile src="docs/report.pdf" />, actions));
+    fireEvent.click(view.getByRole("button", { name: "report.pdf" }));
     await waitFor(() => expect(danger).toHaveBeenCalled());
-    fireEvent.click(view.getByRole("button", { name: /Download notes\.txt/ }));
+    await downloadFromMenu(view, "report.pdf");
     await waitFor(() => expect(downloadChatFile).toHaveBeenCalledOnce());
   });
 
-  it("does not offer a preview action for archives without an editor action", async () => {
-    const actions: ChatPaneActions = { mediaLocation: location, projectLocation: location };
+  it("downloads archives on the default click instead of attempting a preview", async () => {
+    const openProjectRelativePath = vi.fn<(path: string, line?: number) => Promise<void>>();
+    const actions: ChatPaneActions = {
+      mediaLocation: location,
+      projectLocation: location,
+      openProjectRelativePath,
+    };
     const view = render(pane(<MarkdownFile src="dist/release.zip" />, actions));
-    expect(view.queryByRole("button", { name: "release.zip" })).toBeNull();
-    expect(view.getByRole("button", { name: /Download release\.zip/ })).toBeInTheDocument();
+    expect(view.queryByRole("button", { name: /Download/ })).toBeNull();
+    const chip = view.getByRole("button", { name: "release.zip" });
+    expect(chip.lastElementChild).toHaveClass("lucide-download");
+    expect(chip.lastElementChild).toHaveAttribute("aria-hidden", "true");
+    fireEvent.click(chip);
+    await waitFor(() => expect(downloadChatFile).toHaveBeenCalledOnce());
+    expect(openProjectRelativePath).not.toHaveBeenCalled();
+  });
+
+  it("keeps static file chips free of action icons", () => {
+    const view = render(pane(<InlineFilePathChip path="dist/release.zip" isStatic />));
+    expect(view.queryByRole("button")).toBeNull();
+    expect(view.container.querySelector(".lucide-download")).toBeNull();
   });
 
   it("aborts a pending mint on unmount", async () => {
@@ -218,7 +245,7 @@ describe("chat file download card", () => {
         }),
     );
     const view = render(pane(<MarkdownFile src="release.zip" />));
-    fireEvent.click(view.getByRole("button", { name: /Download/ }));
+    fireEvent.click(view.getByRole("button", { name: "release.zip" }));
     await waitFor(() => expect(signal).toBeDefined());
     view.unmount();
     expect(signal.aborted).toBe(true);
@@ -232,7 +259,7 @@ describe("chat file download card", () => {
         </ChatPaneActionsContext.Provider>
       </AppProvider>,
     );
-    const button = view.getByRole("button", { name: /Download/ });
+    const button = view.getByRole("button", { name: "release.zip" });
     expect(button).toBeDisabled();
     fireEvent.click(button);
     await act(async () => {});
@@ -243,7 +270,7 @@ describe("chat file download card", () => {
     const view = render(
       pane(<MarkdownFile src="https://example.test/release.zip" name="release.zip" />),
     );
-    fireEvent.click(view.getByRole("button", { name: /Download/ }));
+    fireEvent.click(view.getByRole("button", { name: "release.zip" }));
     await waitFor(() =>
       expect(openExternalWithFeedback).toHaveBeenCalledWith("https://example.test/release.zip"),
     );
@@ -265,8 +292,127 @@ describe("chat file download card", () => {
     };
     const view = render(pane(<ItemMarkdownInner text={text} />, actions));
     await act(async () => {});
-    expect(view.queryByTestId("chat-file")).toBeNull();
+    expect(view.queryByRole("button", { name: /Download/ })).toBeNull();
     expect(downloadChatFile).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["tmp/checks.txt", "/project/tmp/checks.txt"],
+    ["file:///project/checks.txt", "/project/checks.txt"],
+    ["poracode-local://local/project/checks.txt", "/project/checks.txt"],
+    ["file:///D:/out/checks.txt", "D:/out/checks.txt"],
+    ["tmp/check%20results.TXT", "/project/tmp/check results.TXT"],
+  ])("opens %s as an inline text file reference without a download", async (src, path) => {
+    const openProjectRelativePath = vi
+      .fn<(path: string, line?: number) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const view = render(
+      pane(<ItemMarkdownInner text={`See [checks](${src}) for results.`} />, {
+        mediaLocation: location,
+        projectLocation: location,
+        openProjectRelativePath,
+      }),
+    );
+    const chip = await view.findByRole("button");
+    expect(chip.closest("p")).toHaveTextContent("See");
+    expect(chip.closest("p")).toHaveTextContent("for results.");
+    expect(view.queryByRole("button", { name: /Download/ })).toBeNull();
+    fireEvent.click(chip);
+    expect(openProjectRelativePath).toHaveBeenCalledExactlyOnceWith(path, undefined);
+    expect(downloadChatFile).not.toHaveBeenCalled();
+  });
+
+  it("renders a typed text file with the same inline open action", async () => {
+    const openProjectRelativePath = vi
+      .fn<(path: string, line?: number) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const view = render(
+      pane(
+        <AssistantMessage
+          threadId="t"
+          item={fileItem("completed", "/project/checks.txt")}
+          isTurnActive={false}
+        />,
+        { mediaLocation: location, openProjectRelativePath },
+      ),
+    );
+    fireEvent.click(await view.findByRole("button", { name: "checks.txt" }));
+    expect(openProjectRelativePath).toHaveBeenCalledExactlyOnceWith(
+      "/project/checks.txt",
+      undefined,
+    );
+    expect(view.queryByRole("button", { name: /Download/ })).toBeNull();
+    expect(downloadChatFile).not.toHaveBeenCalled();
+  });
+
+  it("downloads a source reference from its context menu without including its line number", async () => {
+    const openProjectRelativePath = vi
+      .fn<(path: string, line?: number) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const view = render(
+      pane(<ItemMarkdownInner text="See `src/main.ts:12`." />, {
+        projectLocation: location,
+        openProjectRelativePath,
+      }),
+    );
+    const chip = view.getByRole("button", { name: /main.ts/ });
+    fireEvent.click(chip);
+    expect(openProjectRelativePath).toHaveBeenCalledExactlyOnceWith("src/main.ts", 12);
+    fireEvent.contextMenu(chip);
+    fireEvent.click(await view.findByRole("menuitem", { name: "Download" }));
+    await waitFor(() =>
+      expect(downloadChatFile).toHaveBeenCalledExactlyOnceWith(
+        location,
+        "src/main.ts",
+        expect.any(AbortSignal),
+      ),
+    );
+  });
+
+  it("aborts a pending download when the file's owning host changes", async () => {
+    let signal!: AbortSignal;
+    vi.mocked(downloadChatFile).mockImplementationOnce(
+      (_owner, _path, s) =>
+        new Promise<void>(() => {
+          signal = s;
+        }),
+    );
+    const view = render(pane(<MarkdownFile src="release.zip" />));
+    fireEvent.click(view.getByRole("button", { name: "release.zip" }));
+    await waitFor(() => expect(signal).toBeDefined());
+    view.rerender(
+      pane(<MarkdownFile src="release.zip" />, {
+        mediaLocation: { ...location, remoteServerId: "other-host" },
+      }),
+    );
+    expect(signal.aborted).toBe(true);
+  });
+
+  it("resolves a bare filename to the same indexed project file before downloading", async () => {
+    const searchProjectFiles = vi.fn<PoracodeBridge["searchProjectFiles"]>().mockResolvedValue({
+      totalIndexed: 1,
+      entries: [{ type: "file", name: "main.ts", path: "src/main.ts" }],
+    });
+    vi.stubGlobal("poracode", { searchProjectFiles });
+    try {
+      const view = render(
+        pane(<ItemMarkdownInner text="See `main.ts:12`." />, {
+          projectLocation: location,
+          projectRootNames: new Set(["src"]),
+        }),
+      );
+      fireEvent.contextMenu(view.getByRole("button", { name: /main.ts/ }));
+      fireEvent.click(await view.findByRole("menuitem", { name: "Download" }));
+      await waitFor(() =>
+        expect(downloadChatFile).toHaveBeenCalledExactlyOnceWith(
+          location,
+          "src/main.ts",
+          expect.any(AbortSignal),
+        ),
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("renders a canonical non-video file block as a card in a text-free completed message", async () => {
@@ -279,9 +425,9 @@ describe("chat file download card", () => {
         />,
       ),
     );
-    const card = await waitFor(() => view.getByTestId("chat-file"));
+    const card = await view.findByRole("button", { name: "release.zip" });
     expect(card.textContent).toContain("release.zip");
-    fireEvent.click(view.getByRole("button", { name: /Download/ }));
+    fireEvent.click(view.getByRole("button", { name: "release.zip" }));
     await waitFor(() =>
       expect(downloadChatFile).toHaveBeenCalledWith(
         location,
@@ -301,7 +447,7 @@ describe("chat file download card", () => {
         />,
       ),
     );
-    await waitFor(() => view.getByTestId("chat-file"));
+    await view.findByRole("button", { name: "release.zip" });
     expect(view.container.querySelector("[class*='pixel'], svg animate")).toBeNull();
   });
 
@@ -309,7 +455,7 @@ describe("chat file download card", () => {
     const item = fileItem("completed", "javascript:alert(1)");
     const view = render(pane(<AssistantMessage threadId="t" item={item} isTurnActive={false} />));
     await act(async () => {});
-    expect(view.queryByTestId("chat-file")).toBeNull();
+    expect(view.queryByRole("button")).toBeNull();
     expect(downloadChatFile).not.toHaveBeenCalled();
   });
 });

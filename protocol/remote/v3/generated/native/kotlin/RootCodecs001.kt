@@ -296,6 +296,12 @@ val RemoteRootCodecs.procedureU2EGetGitStatusU2ERequest: RemoteRootCodec<Procedu
 val RemoteRootCodecs.procedureU2EGetGitStatusU2EResult: RemoteRootCodec<ProceduregetGitStatusResult_c1d4a9f752>
     get() = RemoteRootCodec("procedure.getGitStatus.result", serializer<ProceduregetGitStatusResult_c1d4a9f752>(), schema_c1d4a9f752e166b1)
 
+val RemoteRootCodecs.procedureU2EGetLatestAgentVersionU2ERequest: RemoteRootCodec<ProceduregetLatestAgentVersionRequest_50280a13d2>
+    get() = RemoteRootCodec("procedure.getLatestAgentVersion.request", serializer<ProceduregetLatestAgentVersionRequest_50280a13d2>(), schema_50280a13d2b97f83)
+
+val RemoteRootCodecs.procedureU2EGetLatestAgentVersionU2EResult: RemoteRootCodec<ProceduregetLatestAgentVersionResult_bfe4502f31>
+    get() = RemoteRootCodec("procedure.getLatestAgentVersion.result", serializer<ProceduregetLatestAgentVersionResult_bfe4502f31>(), schema_bfe4502f319fd2d1)
+
 val RemoteRootCodecs.procedureU2EGetMcpOauthStatusU2ERequest: RemoteRootCodec<ProceduregetMcpOauthStatusRequest_c51ef8291e>
     get() = RemoteRootCodec("procedure.getMcpOauthStatus.request", serializer<ProceduregetMcpOauthStatusRequest_c51ef8291e>(), schema_c51ef8291e597045)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.procedureU2EGhPostPrCommentU2EResult: RemoteRootCodec<Proce
 
 val RemoteRootCodecs.procedureU2EGhReopenPrU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a>
     get() = RemoteRootCodec("procedure.ghReopenPr.request", serializer<ProcedureghClosePrRequest_868bf1042a>(), schema_868bf1042a1bbba1)
-
-val RemoteRootCodecs.procedureU2EGhRerunWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghRerunWorkflowRunRequest_4492692f82>
-    get() = RemoteRootCodec("procedure.ghRerunWorkflowRun.request", serializer<ProcedureghRerunWorkflowRunRequest_4492692f82>(), schema_4492692f82322049)
-
-val RemoteRootCodecs.procedureU2EGhSubmitPrReviewU2ERequest: RemoteRootCodec<ProcedureghSubmitPrReviewRequest_09cbc76a2a>
-    get() = RemoteRootCodec("procedure.ghSubmitPrReview.request", serializer<ProcedureghSubmitPrReviewRequest_09cbc76a2a>(), schema_09cbc76a2a7d52d2)

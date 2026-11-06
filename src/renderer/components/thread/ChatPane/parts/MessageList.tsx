@@ -465,7 +465,12 @@ export function MessageList({
         estimatedItemSize={DEFAULT_ROW_ESTIMATE_PX}
         extraData={`${lastLiveIndex}:${isTurnActive}:${markTailAsLive}:${suppressInlineTurnAnchorId ?? ""}:${canRevertCheckpoints}`}
         getFixedItemSize={(entry) =>
-          getFixedTimelineEntrySize(entry, threadId, () => scrollElementRef.current?.clientWidth)
+          getFixedTimelineEntrySize(
+            entry,
+            threadId,
+            () => scrollElementRef.current?.clientWidth,
+            parentActions?.remoteImageReadiness !== undefined,
+          )
         }
         getItemType={(entry, index) =>
           getTimelineEntryType(
@@ -810,6 +815,7 @@ function getFixedTimelineEntrySize(
   entry: ChatTimelineEntry,
   threadId: string,
   readListWidth: () => number | undefined,
+  reservesPendingRemoteImages: boolean,
 ): number | undefined {
   if (entry.kind !== "item") return undefined;
   const item = selectRuntimeItemById(useAppStore.getState(), threadId, entry.id);
@@ -827,6 +833,12 @@ function getFixedTimelineEntrySize(
     { pendingAsPlaceholder: true },
   );
   if (!source?.width || !source.height) return undefined;
+  // ImageView keeps an unresolved host-held reference as a reserved card only
+  // under remote image readiness. Without it (the right-panel subagent
+  // transcript mounts outside ChatPane's actions) the row can fall back to the
+  // one-line tool row, so a fixed card height would leave a blank slot. Let
+  // LegendList measure those rows instead.
+  if (source.remoteRef && !reservesPendingRemoteImages) return undefined;
   // Ordinary message/tool rows need no geometry read at all.
   const listWidth = readListWidth();
   if (!listWidth) return undefined;
