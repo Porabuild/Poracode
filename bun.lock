@@ -66,7 +66,7 @@
         "material-icon-theme": "^5.38.1",
         "micromatch": "^4.0.8",
         "monaco-editor": "0.56.0",
-        "node-pty": "^1.1.0",
+        "node-pty": "1.2.0-beta.10",
         "proper-lockfile": "4.1.2",
         "qrcode": "^1.5.4",
         "react": "19.2.8",
@@ -2160,7 +2160,7 @@
 
     "node-int64": ["node-int64@0.4.0", "", {}, "sha512-O5lz91xSOeoXP6DulyHfllpq+Eg00MWitZIbtPfoSEvqIHdl5gfcY6hYzDWnj0qD5tz52PI08u9qUvSVeUBeHw=="],
 
-    "node-pty": ["node-pty@1.1.0", "", { "dependencies": { "node-addon-api": "7.1.1" } }, "sha512-20JqtutY6JPXTUnL0ij1uad7Qe1baT46lyolh2sSENDd4sTzKZ4nmAFkeAARDKwmlLjPx6XKRlwRUxwjOy+lUg=="],
+    "node-pty": ["node-pty@1.2.0-beta.10", "", { "dependencies": { "node-addon-api": "^7.1.0" }, "hasInstallScript": true }, "sha512-vONwSCtAiOVNxeaP/lzDdRw733Q6uB/ELOCFM8DUfKMw6rTFovwFCuvqr9usya7JXV2pfaers3EwuzZfv0QtwA=="],
 
     "node-releases": ["node-releases@2.0.54", "", {}, "sha512-YHs7BmmcsdAI5Ozuf8JZo6PT0mv2GIWC9vMfvUC3dp65M8hn7Ux8CPL+2oBI7juNuj9d0ndhTcznq2ODBps9cQ=="],
 
