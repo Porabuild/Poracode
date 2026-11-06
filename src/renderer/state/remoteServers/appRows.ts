@@ -1,6 +1,7 @@
 import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import type { Project, Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
+import { isUnconfirmedSshOrigin } from "@/shared/repoIdentity";
 import { useAppStore } from "../appStore";
 import { visibleCatalogProjects, confirmAbsentProjectRemovals } from "../projectRemovalIntents";
 import { finalizeProjectRemoval } from "../projectRemovalPresentation";
@@ -420,8 +421,19 @@ export function syncRemoteAppRows(
   const gitStatuses = useGitStore.getState().statuses;
   for (const project of projectedProjects) {
     // Home is the host's home folder, not a repository; local Home skips Git too.
-    if (gitStatuses[project.id] || isHomeProject(project)) continue;
-    void refreshGitProject(project, "manual", "full").catch(() => undefined);
+    if (isHomeProject(project)) continue;
+    const status = gitStatuses[project.id];
+    if (!status) {
+      void refreshGitProject(project, "manual", "full").catch(() => undefined);
+      continue;
+    }
+    // A cached status without an origin (or a non-SSH failure) is already the
+    // host's answer; do not retry it from every catalog page.
+    if (!status.remoteInfo || !isUnconfirmedSshOrigin(status.remoteInfo.url)) continue;
+    // Compact browser clients have no useGitRefresh loop, and a desktop import
+    // can see a cached raw alias before its periodic refresh. A status-only
+    // refresh repairs repository identity without rebuilding the full panel.
+    void refreshGitProject(project, "poll", "status").catch(() => undefined);
   }
 }
 

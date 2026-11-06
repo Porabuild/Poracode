@@ -1,5 +1,6 @@
 import type { GitRemoteInfo, ProjectLocation } from "@/shared/contracts";
 import { parseForgeRemote } from "@/shared/forgeRemote";
+import { isUnconfirmedSshOrigin } from "@/shared/repoIdentity";
 import type { ForgeRuntime } from "../forges/runtime";
 import { parseRemoteUrl } from "./exec";
 
@@ -9,7 +10,8 @@ export async function resolveGitRemoteInfo(
   info: GitRemoteInfo | null,
   runtime: Pick<ForgeRuntime, "run" | "environment">,
 ): Promise<GitRemoteInfo | null> {
-  if (!info || (info.url.includes("://") && !info.url.startsWith("ssh://"))) return info;
+  if (!info) return info;
+  if (!isUnconfirmedSshOrigin(info.url)) return info;
   if (!parseForgeRemote(info.url, "origin")) return info;
   try {
     const env = await runtime.environment(location);
@@ -40,10 +42,13 @@ export async function resolveGitRemoteInfo(
     if (port && port !== "22") return info;
     if (/^proxy(?:command|jump)\s+(?!none\s*$)\S/im.test(output)) return info;
     const hostname = /^hostname\s+(\S+)\s*$/im.exec(output)?.[1];
-    if (!hostname || hostname.toLowerCase() === url.hostname.toLowerCase()) return info;
+    if (!hostname) return info;
     url.hostname = hostname;
     if (url.hostname.toLowerCase() !== hostname.toLowerCase()) return info;
-    return parseRemoteUrl(url.toString()) ?? info;
+    // The host proved a direct default-port route, so publish canonical HTTPS
+    // metadata even when the configured host was already canonical. The
+    // configured Git remote is never rewritten; raw SSH stays unconfirmed.
+    return parseRemoteUrl(`https://${url.hostname}${url.pathname}`) ?? info;
   } catch {
     // Missing SSH or an unreadable config must not prevent Git status refreshes.
     return info;
