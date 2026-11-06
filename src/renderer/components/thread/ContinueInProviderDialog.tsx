@@ -812,9 +812,12 @@ export function ContinueInProviderDialog(props: {
     return resolveProviderHandoffStrategy({
       sourcePresentationMode,
       targetPresentationMode,
-      // Whether `read_thread` stays callable is decided by the launching
-      // host's settings; the ones read here are only this machine's.
-      readThreadToolEnabled: settingsOwnedHere && readThreadToolsEnabled,
+      // Local settings can veto the last session's launch snapshot. A paired
+      // host reports its own resolved tool availability; this machine's
+      // settings say nothing about whether that host can read its history.
+      readThreadToolEnabled: settingsOwnedHere
+        ? readThreadToolsEnabled
+        : threadMentionToolsAvailable,
       threadResolvedReadThreadTool: threadMentionToolsAvailable,
       targetReadThreadToolGuaranteed:
         targetCapabilities !== undefined &&
