@@ -301,13 +301,14 @@ export function ProjectAuxiliaryPanel(props: {
 
       // Let the thread and linked-panel frames paint before paying for PR I/O.
       // The prefetch itself gates on gh availability + GitHub remote, and also
-      // throttles and deduplicates per project.
+      // throttles and deduplicates per project. Prefetch the panel's displayed
+      // checkout, not the focused thread: a draft has no focused thread, and a
+      // pinned panel may show a different project/worktree than the focus.
       refreshTimer = window.setTimeout(() => {
-        const app = useAppStore.getState();
-        if (selectFocusedThreadId(app) !== currentThreadId) return;
-        const thread = app.threads.find((item) => item.id === currentThreadId);
-        if (!thread || isHomeProjectId(thread.projectId)) return;
-        void prefetchVisibleGitPanelPrData(thread.projectId, thread.worktreePath);
+        if (selectFocusedThreadId(useAppStore.getState()) !== currentThreadId) return;
+        const context = usePanelStore.getState().gitReviewContext;
+        if (!context || isHomeProjectId(context.projectId)) return;
+        void prefetchVisibleGitPanelPrData(context.projectId, context.worktreePath);
       }, 0);
     });
     return () => {
