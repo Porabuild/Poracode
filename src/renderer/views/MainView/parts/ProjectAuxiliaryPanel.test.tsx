@@ -12,6 +12,7 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { useAppStore } from "@/renderer/state/appStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -31,11 +32,16 @@ vi.mock("@/renderer/state/gitRefresh", () => ({
   ),
 }));
 
+const prefetchGitPanelPrData = vi.mocked(prefetchVisibleGitPanelPrData);
+
 interface CapturedRightPanelProps {
   conversationModel?: ReactNode;
   subagentTitle?: ReactNode;
   activeTab: string;
   projectName?: string;
+  gitContent?: ReactElement<{
+    gitPanelContext: { projectId: string; worktreePath?: string } | null;
+  }>;
   docksContent?: ReactElement;
   docksHeaderActions?: ReactElement;
   notesContent?: ReactElement<{ projectId: string }>;
@@ -126,6 +132,10 @@ function focusThread(threadId: string): void {
     view: { kind: "thread", panes: [threadId] },
     focusedPaneId: threadId,
   });
+}
+
+function shownGitPanelContext() {
+  return unifiedRightPanelProps.current?.gitContent?.props.gitPanelContext;
 }
 
 function seedImageOnlyThread(): void {
@@ -221,6 +231,7 @@ describe("ProjectAuxiliaryPanel", () => {
     applySideChatPanel(null);
     localStorage.clear();
     unifiedRightPanelProps.current = null;
+    prefetchGitPanelPrData.mockClear();
     focusThread(threadA.id);
     useAppStore.setState({
       projects: [],
@@ -545,6 +556,105 @@ describe("ProjectAuxiliaryPanel", () => {
         worktreePath: threadC.worktreePath!,
       });
     });
+  });
+
+  it("keeps the remote Mac panel and prefetches its checkout while the local draft project changes", async () => {
+    const localProject = makeProject("local-project");
+    const macProject: Project = {
+      id: "remote:mac-desktop:project:mac-project",
+      remoteServerId: "mac-desktop",
+      remoteId: "mac-project",
+      name: "Mac Project",
+      location: { kind: "posix", path: "/Users/me/repo", remoteServerId: "mac-desktop" },
+      createdAt: "2026-08-01T00:00:00.000Z",
+    };
+    const remoteWorktreePath = "/Users/me/repo/.poracode/worktrees/mac-branch";
+    const remoteContext = { projectId: macProject.id, worktreePath: remoteWorktreePath };
+    useAppStore.setState({
+      projects: [localProject, macProject],
+      view: { kind: "draft", projectId: localProject.id },
+      focusedPaneId: null,
+    });
+    usePanelStore.setState({
+      gitReviewContext: remoteContext,
+      gitReviewAsPanel: true,
+      rightPanelFollowsThread: false,
+      rightPanelTab: "git",
+    });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() =>
+      expect(prefetchGitPanelPrData).toHaveBeenCalledWith(macProject.id, remoteWorktreePath),
+    );
+    expect(shownGitPanelContext()).toEqual(remoteContext);
+
+    await act(async () => {
+      useAppStore.setState({ view: { kind: "draft", projectId: macProject.id } });
+    });
+    expect(shownGitPanelContext()).toEqual(remoteContext);
+    await act(async () => {
+      useAppStore.setState({ view: { kind: "draft", projectId: localProject.id } });
+    });
+    expect(shownGitPanelContext()).toEqual(remoteContext);
+
+    // The draft target never becomes the prefetch target, even when the draft
+    // itself is on the remote project (which would use its root, not the worktree).
+    expect(prefetchGitPanelPrData.mock.calls).toEqual([[macProject.id, remoteWorktreePath]]);
+  });
+
+  it("prefetches the pinned panel checkout while another thread is focused", async () => {
+    focusThread(threadA.id);
+    usePanelStore.setState({
+      gitReviewContext: {
+        projectId: threadB.projectId,
+        worktreePath: threadB.worktreePath!,
+      },
+      gitReviewAsPanel: true,
+      rightPanelFollowsThread: false,
+      rightPanelTab: "git",
+    });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() =>
+      expect(prefetchGitPanelPrData).toHaveBeenCalledWith(threadB.projectId, threadB.worktreePath),
+    );
+    expect(prefetchGitPanelPrData).not.toHaveBeenCalledWith(
+      threadA.projectId,
+      threadA.worktreePath,
+    );
+  });
+
+  it("still prefetches a local panel checkout", async () => {
+    focusThread(threadA.id);
+    usePanelStore.setState({
+      gitReviewContext: {
+        projectId: threadA.projectId,
+        worktreePath: threadA.worktreePath!,
+      },
+      gitReviewAsPanel: true,
+      rightPanelFollowsThread: true,
+      rightPanelTab: "git",
+    });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() =>
+      expect(prefetchGitPanelPrData).toHaveBeenCalledWith(threadA.projectId, threadA.worktreePath),
+    );
   });
 
   it.each([false, true])(
