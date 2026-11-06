@@ -306,6 +306,13 @@ export function resolveProviderDraftConfig(
       resolveContextSizeValue(agent, nextModel, normalizedPreferred.contextSize))
     : resolveContextSizeValue(agent, nextModel, normalizedPreferred.contextSize);
   const supportsFast = supportsUsableFastMode(agent.capabilities, nextModel);
+  // A declared fastModels list is authoritative: a model it does not name
+  // cannot carry Fast, so a saved `true` must not survive the selection. An
+  // undeclared list stays unknown and keeps the legacy saved value (providers
+  // that have not published per-model Fast support yet).
+  const fastKnown =
+    agent.capabilities.fastModels !== undefined ||
+    agent.capabilities.fastDisabledReason !== undefined;
   // Fast mode is the composer's default for every model that can actually use
   // it unless the provider declares an opt-in default. AI helpers call
   // `resolveFastValue` directly and keep their opt-in default, so background
@@ -314,12 +321,14 @@ export function resolveProviderDraftConfig(
   const nextFast = family
     ? fastBound
       ? (normalizedPreferred.fast ?? false)
-      : (normalizedPreferred.fast ??
-        resolveFastValue(
-          agent,
-          nextModel,
-          normalizedPreferred.fast ?? defaultFastEnabled(agent.kind),
-        ))
+      : fastKnown && !supportsFast
+        ? false
+        : (normalizedPreferred.fast ??
+          resolveFastValue(
+            agent,
+            nextModel,
+            normalizedPreferred.fast ?? defaultFastEnabled(agent.kind),
+          ))
     : resolveFastValue(
         agent,
         nextModel,

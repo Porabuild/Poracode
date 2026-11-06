@@ -1285,6 +1285,67 @@ describe("Devin composite effort through the shared config sync", () => {
     expect(confirmed).toMatchObject({ model: pair, effort: "low" });
   });
 
+  it("switches to a different Fusion pair on a later turn", async () => {
+    // A next-turn model change is a real setter, not just a repeat submit:
+    // the remembered native pair differs from the requested one.
+    const pairB = "fusion-gpt-6-astra-high-sidekick-swe-2-flash-max";
+    const pairBLabel = "Fusion (GPT-6 Astra High Thinking + SWE-2 Flash Max)";
+    const twoPairCatalog = parseDevinModelCatalog(
+      JSON.stringify({
+        families: [
+          {
+            family_label: "Fusion",
+            slug: "fusion",
+            variants: [
+              { model_uid: pair, label: pairLabel },
+              { model_uid: pairB, label: pairBLabel },
+            ],
+          },
+        ],
+      }),
+    );
+    let current: unknown[] = fixtureOptions("swe-2-high", "high");
+    current = current.map((entry) => {
+      const option = entry as { id: string; options: Array<{ value: string; name: string }> };
+      return option.id === "model"
+        ? {
+            ...option,
+            options: [...option.options, { value: pairB, name: pairBLabel }],
+          }
+        : option;
+    });
+    const setSessionConfigOption = vi.fn<
+      (input: { configId: string; value: string }) => Promise<{ configOptions: unknown[] }>
+    >(async ({ configId, value }) => {
+      current = echoOptions(current, configId, value);
+      return { configOptions: current };
+    });
+    const sync = new AcpSessionConfigSync(
+      { setSessionConfigOption } as never,
+      undefined,
+      createDevinAcpModelResolver({ families: twoPairCatalog }),
+      { strictConfigSelection: true },
+    );
+    sync.rememberOptions([], current);
+
+    const first = await sync.applyTurnConfig("s1", threadConfig({ model: pair }), undefined);
+    expect(first).toMatchObject({ model: pair });
+    sync.rememberOptions([], current);
+
+    setSessionConfigOption.mockClear();
+    const second = await sync.applyTurnConfig(
+      "s1",
+      threadConfig({ model: pairB, effort: "high" }),
+      first,
+    );
+    expect(second).toMatchObject({ model: pairB, effort: "high" });
+    // The model setter's own echo already carries the target pair's high
+    // thought level, so no redundant level write follows.
+    expect(setSessionConfigOption.mock.calls.map((call) => call[0])).toEqual([
+      { sessionId: "s1", configId: "model", value: pairB },
+    ]);
+  });
+
   it("rejects a pair effort the advertised thought-level ladder does not carry", async () => {
     // Membership is the shared sync's strict check: the negotiation admits
     // the CARRIER, the ladder refuses the VALUE — the turn fails typed before

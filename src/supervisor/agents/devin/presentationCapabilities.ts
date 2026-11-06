@@ -17,13 +17,12 @@ export function withDevinPresentationCapabilities(capabilities: AgentCapability)
   // declares its own relation (see selectionCapabilities) and wins as-is; an
   // override WITHOUT the field is declared empty so the CLI-wide table is
   // never inherited. With NO override, the GUI fallback declares NO relation
-  // either: the only compiled GUI relation is the accepted-menu one, and a
-  // probe enrichment gap must not change control encoding. The base relation
-  // is model-bound (Terminal), so copying it here would advertise CLI-only
-  // pairs and — once the live model select narrows the inventory — would keep
-  // those model-bound bindings while hiding the native Effort/Fast controls.
-  // The catalog-fallback GUI stays on the ordinary raw models and native
-  // controls until an accepted, config-bound relation exists.
+  // either: the only compiled GUI relation is the catalog one, and a probe
+  // enrichment gap must not change control encoding. The base relation is
+  // model-bound (Terminal), so copying it here would keep those model-bound
+  // bindings while hiding the native Effort/Fast controls. The
+  // catalog-fallback GUI stays on the ordinary raw models and native controls
+  // until a config-bound relation exists.
   const gui = {
     ...selectionFields(capabilities),
     ...detected,

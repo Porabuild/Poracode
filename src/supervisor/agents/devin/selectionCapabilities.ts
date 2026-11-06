@@ -132,11 +132,13 @@ export function devinNegotiatedGuiSelectionCapabilities(
   )) {
     if (!(id in modelEfforts)) modelEfforts[id] = [];
   }
-  // The accepted-menu relation (62 pair rows on the captured inventory,
-  // effort/Fast owned by the independent native selects). Declared even when
-  // EMPTY: a presentation override must re-declare its own accepted-member
-  // relation — the shared fold strips the root value so an override that
-  // stayed silent would advertise no relation at all.
+  // The catalog relation rebound to the independent native effort/Fast
+  // selects. Declared even when EMPTY: a presentation override must
+  // re-declare its own relation — the shared fold strips the root value so an
+  // override that stayed silent would advertise no relation at all. The
+  // relation keeps catalog pairs the detection probe did not accept; the live
+  // session inventory intersects it at the renderer, so pairs the agent adds
+  // later still join the family instead of staying raw-only.
   const guiFamilies = devinGuiFamilySelections(negotiated, families);
   const fastCapable = new Set([
     ...(projection.fastModels ?? []),

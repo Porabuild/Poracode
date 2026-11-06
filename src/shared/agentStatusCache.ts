@@ -10,15 +10,18 @@ import {
 } from "./contracts/agent";
 
 // The supervisor, passive owner inventory, and renderer migration share this
-// codec. v67-v74 have compatible shapes; provider-owned policies invalidate only
+// codec. v67-v75 have compatible shapes; provider-owned policies invalidate only
 // changed derivations. Older/future generations still refuse in full. v71 adds
 // the optional workflow-mode capability fields; only Claude rows are re-probed.
 // v72 refreshes Pi models from the user's scoped settings.
 // v73 discards Pi scope patterns previously published as literal model IDs.
 // v74 refreshes Devin effort ownership so effort-less models don't inherit a global ladder.
+// v75 refreshes Devin's GUI Fusion relation from the catalog, so pairs the
+// agent adds after detection (for example a SWE-2 Flash sidekick) join the
+// family instead of staying raw-only.
 // Provider-only changes advance the producer and provider policy together;
 // incompatible shared changes also advance the minimum compatible generation.
-export const STATUS_CACHE_VERSION = 74;
+export const STATUS_CACHE_VERSION = 75;
 const MINIMUM_COMPATIBLE_STATUS_CACHE_VERSION = 67;
 
 export interface AgentStatusCacheSnapshot {

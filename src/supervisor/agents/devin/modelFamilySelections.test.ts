@@ -352,16 +352,105 @@ describe("Devin GUI family relation (accepted inventory)", () => {
     const reduced = acceptedModels.filter(
       (model) => !model.label.includes("Claude Haiku 5.5 Medium"),
     );
-    const selection = devinGuiFamilySelections(reduced, families)[0]!;
+    // The descriptor keeps the catalog superset so a later session inventory
+    // can join pairs the detection probe had not accepted yet. The shared
+    // projection is what narrows it to the live accepted values.
+    const descriptor = devinGuiFamilySelections(reduced, families)[0]!;
+    const reducedCapabilities = {
+      ...devinDefaultCapabilities,
+      models: reduced,
+      modelFamilies: [descriptor],
+    } as AgentCapability;
+    const selection = projectModelFamilies(reducedCapabilities)[0]!;
     expect(selection.members).toHaveLength(62 - 8);
-    // The removed sidekick choice disappears from the options entirely.
-    const sidekick = selection.selectors.find(
-      (selector) => selector.id === DEVIN_FAMILY_SIDEKICK_SELECTOR_ID,
-    )!;
-    expect(sidekick.options.map((option) => option.label)).not.toContain("Claude Haiku 5.5 Medium");
+    // The removed sidekick choice is unreachable from the projected options.
+    const sidekickOptions = modelFamilySelectorOptions(
+      reducedCapabilities,
+      { model: reduced.find((model) => model.label.startsWith("Fusion"))!.id },
+      DEVIN_FAMILY_SIDEKICK_SELECTOR_ID,
+    );
+    expect(sidekickOptions.map((option) => option.label)).not.toContain("Claude Haiku 5.5 Medium");
     for (const member of selection.members) {
       expect(reduced.some((model) => model.id === member.model)).toBe(true);
     }
+  });
+
+  it("joins a pair the live session adds after detection from the catalog relation", () => {
+    const livePair = {
+      id: "fusion-claude-opus-5-5-high-sidekick-swe-2-flash-max",
+      label: "Fusion (Claude Opus 5.5 High + SWE-2 Flash Max)",
+    };
+    // Detection happened before the agent advertised its SWE-2 Flash sidekick,
+    // so the probe's accepted menu has no pair for it.
+    const staleAccepted = acceptedModels.filter((model) => !model.label.includes("SWE-2 Flash"));
+    expect(staleAccepted.some((model) => model.label.includes("SWE-2 Flash"))).toBe(false);
+    // The catalog already knows the sidekick and the pair; only the live
+    // accepted menu is stale.
+    const expandedFamilies = parseDevinModelCatalog(
+      JSON.stringify({
+        families: [
+          ...catalogFixture.families.filter((family) => family.family_label !== "Fusion"),
+          {
+            family_label: "SWE-2 Flash",
+            slug: "swe-2-flash",
+            variants: [{ model_uid: "swe-2-flash-max", label: "SWE-2 Flash Max" }],
+          },
+          {
+            family_label: "Fusion",
+            slug: "fusion",
+            variants: [
+              {
+                model_uid: "fusion-claude-opus-5-5-high-sidekick-swe-2-medium",
+                label: "Fusion (Claude Opus 5.5 High + SWE-2 Medium)",
+              },
+              { model_uid: livePair.id, label: livePair.label },
+            ],
+          },
+        ],
+      }),
+    );
+    const descriptor = devinGuiFamilySelections(staleAccepted, expandedFamilies)[0]!;
+    expect(
+      descriptor.members.some((member) =>
+        member.selections[DEVIN_FAMILY_SIDEKICK_SELECTOR_ID]?.includes("swe-2-flash"),
+      ),
+    ).toBe(true);
+    // The catalog superset already carries the pair; the live inventory is
+    // what makes it reachable, and its exact UID is the accepted one.
+    const liveAccepted = [...staleAccepted, livePair];
+    const projected = projectModelFamilies({
+      ...devinDefaultCapabilities,
+      models: liveAccepted,
+      modelFamilies: [descriptor],
+    } as AgentCapability)[0]!;
+    expect(projected.members).toHaveLength(63);
+    const sidekick = projected.selectors.find(
+      (selector) => selector.id === DEVIN_FAMILY_SIDEKICK_SELECTOR_ID,
+    )!;
+    expect(sidekick.options.map((option) => option.label)).toContain("SWE-2 Flash Max");
+    expect(projected.members.some((member) => member.model === livePair.id)).toBe(true);
+
+    // The family edit resolves that live member to its exact pair UID.
+    const current = {
+      model: "fusion-claude-opus-5-5-high-sidekick-swe-2-medium",
+      effort: "",
+      fast: false,
+    };
+    expect(
+      applyModelSelectionEdit(
+        {
+          ...devinDefaultCapabilities,
+          models: liveAccepted,
+          modelFamilies: [descriptor],
+        } as AgentCapability,
+        current,
+        {
+          kind: "selector",
+          selectorId: DEVIN_FAMILY_SIDEKICK_SELECTOR_ID,
+          value: "swe-2-flash-max",
+        },
+      ),
+    ).toEqual({ model: livePair.id });
   });
 
   it("decodes a future pair from its label and leaves unreadable rows raw", () => {
@@ -721,6 +810,8 @@ describe("detection composition attaches per-surface relations", () => {
     // A Fusion pair whose (lead, sidekick) tuple has no Fast catalog member
     // keeps no toggle — the live session exposes no `speed` select for it.
     expect(fast.has("fusion-claude-fable-5-1-medium-sidekick-swe-2-medium")).toBe(false);
+    // Claude Fable 5.1 itself carries no Fast variant.
+    expect(fast.has("claude-fable-5-1-medium")).toBe(false);
     // Its Fast-sibling tuple does.
     expect(fast.has("fusion-claude-fable-5-1-medium-sidekick-gpt-5-6-luna-high")).toBe(true);
     // An accepted variant that is NOT its family id still gets the toggle
