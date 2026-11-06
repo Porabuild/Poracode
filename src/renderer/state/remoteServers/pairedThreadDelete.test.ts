@@ -4,7 +4,7 @@ import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { __resetRemoteServersStoreForTest, useRemoteServersStore } from "../remoteServersStore";
 import { useAppStore } from "../appStore";
 import { deleteThread } from "@/renderer/actions/threadActions";
-import { remoteThreadId } from "../remoteProjection";
+import { remoteProjectId, remoteThreadId } from "../remoteProjection";
 import { noteBoundedCatalogMembershipEvent } from "./catalog/boundedCatalogController";
 
 /**
@@ -46,6 +46,8 @@ function threadRow(id: string): Thread {
 
 interface PairedHost {
   readonly client: RemoteDesktopClient;
+  /** Deletes a thread on the host without telling the client. */
+  dropRow(id: string): void;
   holdNextShell(): void;
   releaseHeldShell(): boolean;
   readonly heldShellCount: number;
@@ -129,7 +131,15 @@ function makePairedHost(initialRows: readonly Thread[]): PairedHost {
     snapshot: async () => {
       throw new Error("legacy snapshot must not be used by a bounded paired host");
     },
-    sendThreadCommand: async (command: { readonly kind?: string; readonly threadId?: string }) => {
+    sendThreadCommand: async (command: {
+      readonly kind?: string;
+      readonly threadId?: string;
+      readonly threadIds?: readonly string[];
+    }) => {
+      if (command.kind === "delete-worktree-group") {
+        rows = rows.filter((row) => !command.threadIds?.includes(row.id));
+        return;
+      }
       if (command.kind !== "delete" || !command.threadId) return;
       rows = rows.filter((row) => row.id !== command.threadId);
     },
@@ -137,6 +147,9 @@ function makePairedHost(initialRows: readonly Thread[]): PairedHost {
 
   return {
     client,
+    dropRow: (id) => {
+      rows = rows.filter((row) => row.id !== id);
+    },
     holdNextShell: () => {
       holdShell = true;
     },
@@ -266,5 +279,111 @@ describe("paired thread delete", () => {
     expect(transitions.some((entry) => !entry.exists)).toBe(true);
     expect(transitions.slice(1).every((entry) => !entry.visible)).toBe(true);
     expect(useAppStore.getState().threads.find((row) => row.id === viewId)).toBeUndefined();
+  });
+
+  it("never re-adds a thread removed only from the store once the host stops serving it", async () => {
+    const hostId = "t-gone";
+    const viewId = remoteThreadId("d1", hostId);
+    const host = makePairedHost([threadRow("t-keep-1"), threadRow(hostId)]);
+    installServer(host.client);
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await settle(0);
+    await settle(0);
+    expect(useAppStore.getState().threads.some((row) => row.id === viewId)).toBe(true);
+
+    // The host deleted the thread, and a client path dropped only the store
+    // row: the connection's catalog copy still holds it.
+    host.dropRow(hostId);
+    useAppStore.getState().deleteThread(viewId);
+    const cached = () =>
+      useRemoteServersStore.getState().runtime.d1?.threads.some((row) => row.id === hostId);
+    expect(cached()).toBe(true);
+
+    let shown = false;
+    const unsubscribe = useAppStore.subscribe((state) => {
+      if (state.threads.some((row) => row.id === viewId)) shown = true;
+    });
+    try {
+      // Page 1 no longer serves the row; the commit merges the catalog copy.
+      await useRemoteServersStore.getState().refreshServer("d1");
+      await settle(0);
+      await settle(0);
+      noteBoundedCatalogMembershipEvent("d1", "remote-threads-changed");
+      await settle(700);
+      await settle(2000);
+    } finally {
+      unsubscribe();
+    }
+
+    expect(shown).toBe(false);
+    // The membership pass confirmed it gone and dropped it from the copy too.
+    expect(cached()).toBe(false);
+  });
+
+  it("shows a store-only removal again while the host still serves the thread", async () => {
+    const hostId = "t-still-there";
+    const viewId = remoteThreadId("d1", hostId);
+    const host = makePairedHost([threadRow("t-keep-1"), threadRow(hostId)]);
+    installServer(host.client);
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await settle(0);
+    await settle(0);
+
+    useAppStore.getState().deleteThread(viewId);
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await settle(0);
+    await settle(0);
+
+    expect(useAppStore.getState().threads.some((row) => row.id === viewId)).toBe(true);
+  });
+
+  it("never shows a worktree thread again once its confirmed group delete is followed by a page commit", async () => {
+    const hostId = "t-worktree";
+    const viewId = remoteThreadId("d1", hostId);
+    const worktreePath = "/r/app-wt/feature";
+    const host = makePairedHost([
+      threadRow("t-keep-1"),
+      { ...threadRow(hostId), worktreePath, worktreeBranch: "feature" },
+    ]);
+    installServer(host.client);
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await settle(0);
+    await settle(0);
+    expect(useAppStore.getState().threads.find((row) => row.id === viewId)?.worktreePath).toBe(
+      worktreePath,
+    );
+
+    const visibility: boolean[] = [];
+    const unsubscribe = useAppStore.subscribe((state) => {
+      const row = state.threads.find((candidate) => candidate.id === viewId);
+      const visible = row !== undefined && row.archived !== true;
+      if (visibility.at(-1) !== visible) visibility.push(visible);
+    });
+    try {
+      // The thread alone owns its worktree, so the host removes the group.
+      deleteThread(viewId, worktreePath, remoteProjectId("d1", "p1"));
+      await settle(0);
+      await settle(0);
+      // The host confirmed the group delete: the row leaves the connection's
+      // catalog copy with the store row, before any membership pass ran.
+      expect(useAppStore.getState().threads.find((row) => row.id === viewId)).toBeUndefined();
+      expect(
+        useRemoteServersStore.getState().runtime.d1?.threads.some((row) => row.id === hostId),
+      ).toBe(false);
+      // A page commit right after the command (the host's change event
+      // refresh) merges the catalog copy and must not mirror the row back.
+      await useRemoteServersStore.getState().refreshServer("d1");
+      await settle(0);
+      await settle(0);
+      noteBoundedCatalogMembershipEvent("d1", "remote-threads-changed");
+      await settle(700);
+      await settle(2000);
+    } finally {
+      unsubscribe();
+    }
+
+    expect(visibility).toEqual([false]);
+    expect(useAppStore.getState().threads.find((row) => row.id === viewId)).toBeUndefined();
+    expect(toastDanger).not.toHaveBeenCalled();
   });
 });

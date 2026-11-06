@@ -146,6 +146,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
     connectionKey: string,
     rows: Thread[],
     preserveThreadIds: ReadonlySet<string>,
+    servedThreadIds: ReadonlySet<string>,
   ): void => {
     set((state) => {
       const current = state.runtime[connectionKey];
@@ -165,7 +166,11 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         },
       };
     });
-    syncRemoteAppRows(connectionKey, undefined, rows, { preserveThreadIds, partial: true });
+    syncRemoteAppRows(connectionKey, undefined, rows, {
+      preserveThreadIds,
+      servedThreadIds,
+      partial: true,
+    });
   };
 
   const commitBoundedProjectRows = (connectionKey: string, rows: Project[]): void => {
@@ -642,7 +647,10 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
             desktopId,
             projectsChanged || forceRowSync || hostWorkspacesChanged ? projects : undefined,
             threadsChanged || forceRowSync ? threads : undefined,
-            { preserveThreadIds: staleThreadIds },
+            {
+              preserveThreadIds: staleThreadIds,
+              servedThreadIds: new Set(snapshot.threads.map((thread) => thread.id)),
+            },
           );
         }
         if (snapshot.gitSummariesByThread) {

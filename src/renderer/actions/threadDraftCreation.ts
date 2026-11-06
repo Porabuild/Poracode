@@ -178,7 +178,7 @@ export async function prepareDraftThread(
       if (deleted) {
         await host.sendThreadCommand({ kind: "delete", threadId: host.hostId });
         dropPendingThreadLaunch(thread.id);
-        useAppStore.getState().deleteThread(thread.id);
+        host.removeConfirmedThreads([thread.id]);
         return false;
       }
     } finally {

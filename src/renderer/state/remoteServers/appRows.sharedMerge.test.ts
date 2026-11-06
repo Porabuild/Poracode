@@ -55,6 +55,43 @@ beforeEach(() => {
 });
 
 describe("shared host catalog row merge", () => {
+  it("re-adds a removed paired row only when the host serves it again", () => {
+    const kept = hostThread();
+    const deleted = hostThread({ id: "host-thread-2", title: "Deleted on host" });
+    const deletedId = remoteThreadId(desktopId, deleted.id);
+    const ids = () => useAppStore.getState().threads.map((row) => row.id);
+    syncRemoteAppRows(desktopId, [hostProject], [kept, deleted], { partial: true });
+    useAppStore.getState().deleteThread(deletedId);
+
+    // The catalog copy still restates the deleted row; the host served only `kept`.
+    const keptOnly = new Set([kept.id]);
+    syncRemoteAppRows(desktopId, [hostProject], [kept, deleted], {
+      partial: true,
+      servedThreadIds: keptOnly,
+    });
+    expect(ids()).toEqual([appId]);
+    // The assembled legacy snapshot follows the same rule.
+    syncRemoteAppRows(desktopId, [hostProject], [kept, deleted], { servedThreadIds: keptOnly });
+    expect(ids()).toEqual([appId]);
+
+    // A row the mirror never showed (its project arrived after it) still lands.
+    const late = hostThread({ id: "host-thread-3", title: "Never shown" });
+    syncRemoteAppRows(desktopId, [hostProject], [kept, deleted, late], {
+      partial: true,
+      servedThreadIds: keptOnly,
+    });
+    expect(ids()).toEqual([appId, remoteThreadId(desktopId, late.id)]);
+
+    // A row the host serves again is its statement that the thread exists, and
+    // a resident row the read did not serve still updates in place.
+    syncRemoteAppRows(desktopId, [hostProject], [{ ...kept, title: "Renamed" }, late, deleted], {
+      partial: true,
+      servedThreadIds: new Set([deleted.id]),
+    });
+    expect(ids()).toEqual([appId, remoteThreadId(desktopId, late.id), deletedId]);
+    expect(residentRow().title).toBe("Renamed");
+  });
+
   it.each(["managed", "paired"])("keeps unchanged %s catalog rows stable", (host) => {
     const row = hostThread();
     const apply = (incoming: Thread) => {
