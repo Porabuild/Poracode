@@ -12,6 +12,8 @@ import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGrou
 import { useGitStore } from "@/renderer/state/gitStore";
 import { SidebarFlatThreadList } from "./SidebarFlatThreadList";
 
+// The suite switches workspaces in setup, which must not mute section reveals.
+vi.mock("./workspaceSwitchSettling", () => ({ isWorkspaceSwitchSettling: () => false }));
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
   // sidebarBodyScrollClass (scroll gutter classes) reads the platform.
