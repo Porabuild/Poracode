@@ -283,6 +283,199 @@ final class ReplayInstallTransactionTests: XCTestCase {
     }
   }
 
+  // MARK: - Committed lifecycle boundary background projection
+
+  func testSessionCommitBufferedThreadExitDrainsActiveRichChatBackgroundTasks() throws {
+    let session = makeSession()
+    let suite = attachBackgroundSuite(session)
+    XCTAssertEqual(suite.transcript.state.backgroundTasks?.map(\.taskId), ["task-1"])
+
+    let commit = try XCTUnwrap(
+      commitBuffered(
+        session,
+        event: .threadExited(threadId: "thread-rich", exitCode: 0),
+        seq: 6,
+        snapshotSeq: 5
+      )
+    )
+
+    XCTAssertEqual(commit.appliedBoundaryEvents, 1)
+    XCTAssertEqual(commit.appliedBoundary.map(\.seq), [6])
+    XCTAssertNil(suite.transcript.state.backgroundTasks)
+    XCTAssertEqual(suite.transcript.state.backgroundTaskSequence, Optional(6))
+  }
+
+  func testSessionCommitBufferedThreadResetDrainsActiveRichChatBackgroundTasks() throws {
+    let session = makeSession()
+    let suite = attachBackgroundSuite(session)
+
+    let commit = try XCTUnwrap(
+      commitBuffered(
+        session,
+        event: .threadReset(threadId: "thread-rich"),
+        seq: 6,
+        snapshotSeq: 5
+      )
+    )
+
+    XCTAssertEqual(commit.appliedBoundaryEvents, 1)
+    XCTAssertNil(suite.transcript.state.backgroundTasks)
+    XCTAssertEqual(suite.transcript.state.backgroundTaskSequence, Optional(6))
+  }
+
+  func testUnacceptedBoundaryLifecycleFramesDoNotDrainBackgroundTasks() throws {
+    // A duplicate at the snapshot cursor is accepted by the frame but not
+    // replayed, so no projection runs.
+    let duplicateSession = makeSession()
+    let duplicateSuite = attachBackgroundSuite(duplicateSession)
+    let duplicate = try XCTUnwrap(
+      commitBuffered(
+        duplicateSession,
+        event: .threadExited(threadId: "thread-rich", exitCode: 0),
+        seq: 5,
+        snapshotSeq: 5
+      )
+    )
+    XCTAssertEqual(duplicate.appliedBoundaryEvents, 0)
+    XCTAssertEqual(duplicateSuite.transcript.state.backgroundTasks?.count, 1)
+
+    // A gap stops the contiguous replay before the exit applies.
+    let gapSession = makeSession()
+    let gapSuite = attachBackgroundSuite(gapSession)
+    let gap = try XCTUnwrap(
+      commitBuffered(
+        gapSession,
+        event: .threadExited(threadId: "thread-rich", exitCode: 0),
+        seq: 8,
+        snapshotSeq: 5
+      )
+    )
+    XCTAssertTrue(gap.requiresResync)
+    XCTAssertEqual(gap.appliedBoundaryEvents, 0)
+    XCTAssertEqual(gapSuite.transcript.state.backgroundTasks?.count, 1)
+
+    // A lifecycle frame for another thread is applied but must not touch the
+    // active conversation.
+    let otherSession = makeSession()
+    let otherSuite = attachBackgroundSuite(otherSession)
+    let other = try XCTUnwrap(
+      commitBuffered(
+        otherSession,
+        event: .threadExited(threadId: "other", exitCode: 0),
+        seq: 6,
+        snapshotSeq: 5
+      )
+    )
+    XCTAssertEqual(other.appliedBoundaryEvents, 1)
+    XCTAssertEqual(otherSuite.transcript.state.backgroundTasks?.count, 1)
+    XCTAssertEqual(otherSuite.transcript.state.backgroundTaskSequence, Optional(5))
+
+    // An install superseded before commit returns nil and projects nothing.
+    let abortedSession = makeSession()
+    let abortedSuite = attachBackgroundSuite(abortedSession)
+    let captured = abortedSession.beginReplayInstall(apiEndpoint: "https://a.test")
+    XCTAssertTrue(
+      abortedSession.bufferReplayEventDuringInstall(
+        seq: 6,
+        event: .threadExited(threadId: "thread-rich", exitCode: 0),
+        estimatedByteCount: 64
+      )
+    )
+    _ = abortedSession.beginReplayInstall(apiEndpoint: "https://a.test")
+    let prepared = try HostSnapshotInstall.prepare(
+      shell: shell(seq: 5), existing: abortedSession.state.replay
+    )
+    XCTAssertNil(
+      abortedSession.commitReplayInstall(
+        prepared,
+        shell: shell(seq: 5),
+        captured: captured,
+        currentAPIEndpoint: "https://a.test",
+        advanceCursor: true,
+        isCancelled: false
+      )
+    )
+    XCTAssertEqual(abortedSuite.transcript.state.backgroundTasks?.count, 1)
+  }
+
+  func testNewerLiveBackgroundLevelSurvivesAnOlderBufferedExit() throws {
+    let session = makeSession()
+    let suite = attachBackgroundSuite(session, sequence: 10)
+    XCTAssertEqual(suite.transcript.state.backgroundTaskSequence, Optional(10))
+
+    let commit = try XCTUnwrap(
+      commitBuffered(
+        session,
+        event: .threadExited(threadId: "thread-rich", exitCode: 0),
+        seq: 6,
+        snapshotSeq: 5
+      )
+    )
+
+    XCTAssertEqual(commit.appliedBoundaryEvents, 1)
+    // The boundary drain at 6 is older than the live level at 10; it must not
+    // erase the newer tasks or lower the watermark.
+    XCTAssertEqual(suite.transcript.state.backgroundTasks?.map(\.taskId), ["task-1"])
+    XCTAssertEqual(suite.transcript.state.backgroundTaskSequence, Optional(10))
+  }
+
+  private func attachBackgroundSuite(
+    _ session: AppSession,
+    threadID: String = "thread-rich",
+    sequence: Int = 5
+  ) -> RichChatControllerSuite {
+    let suite = RichChatControllerSuite(gateway: RichChatControllerGatewayFake())
+    suite.select(access: RichChatControllerTestValues.access(), threadID: threadID)
+    session.activeRichChatSuite = suite
+    suite.transcript.receiveLiveEvents(
+      [
+        .backgroundTasksChanged(
+          threadID: threadID,
+          tasks: [
+            RemoteBackgroundTaskIdentity(
+              taskId: "task-1",
+              kind: "command",
+              description: "Run tests",
+              startedAt: 1_700_000_000_000,
+              category: "command",
+              command: "pnpm test"
+            )
+          ]
+        )
+      ],
+      sequence: sequence,
+      target: RichChatControllerTestValues.target(threadID: threadID)
+    )
+    return suite
+  }
+
+  private func commitBuffered(
+    _ session: AppSession,
+    event: SequencedReplayEvent,
+    seq: Int,
+    snapshotSeq: Int
+  ) throws -> HostSnapshotInstall.Commit? {
+    let captured = session.beginReplayInstall(apiEndpoint: "https://a.test")
+    XCTAssertTrue(
+      session.bufferReplayEventDuringInstall(
+        seq: seq,
+        event: event,
+        estimatedByteCount: 64
+      )
+    )
+    let prepared = try HostSnapshotInstall.prepare(
+      shell: shell(seq: snapshotSeq), existing: session.state.replay
+    )
+    return session.commitReplayInstall(
+      prepared,
+      shell: shell(seq: snapshotSeq),
+      captured: captured,
+      currentAPIEndpoint: "https://a.test",
+      advanceCursor: true,
+      isCancelled: false
+    )
+  }
+
   private func makeSession() -> AppSession {
     let keychain = InMemoryKeychainIO()
     let repo = SessionCredentialRepository(

@@ -567,6 +567,48 @@ describe("remote procedure routing registry", () => {
     },
   );
 
+  it.each([
+    ["getLatestAgentVersion", { agentKind: "claude" }],
+    ["listAcpRegistry", {}],
+    ["updateAgentBinary", { agentKind: "claude", envKind: "posix" }],
+    ["updateAcpRegistryAgent", { agentId: "registry-agent" }],
+  ] as const)(
+    "routes host agent management %s through the attached desktop passthrough",
+    async (procedure, payload) => {
+      await remoteResult(decide(procedure, payload));
+      expect(callRemoteProcedure).toHaveBeenCalledWith(procedure, payload);
+      expect(REMOTE_PROCEDURE_ROUTES[procedure]).toEqual({
+        owner: "desktop",
+        handler: "passthrough",
+      });
+    },
+  );
+
+  it("classifies agent version probes as reads and agent listing/updates as long mutations", () => {
+    expect(REMOTE_PROCEDURE_SPECS.getLatestAgentVersion).toEqual({
+      scope: "session:read",
+      owner: "desktop",
+    });
+    expect(REMOTE_PROCEDURE_SPECS.listAcpRegistry).toEqual({
+      scope: "session:operate",
+      owner: "desktop",
+      timeout: "long",
+      mutation: true,
+    });
+    expect(REMOTE_PROCEDURE_SPECS.updateAgentBinary).toEqual({
+      scope: "session:operate",
+      owner: "desktop",
+      timeout: "long",
+      mutation: true,
+    });
+    expect(REMOTE_PROCEDURE_SPECS.updateAcpRegistryAgent).toEqual({
+      scope: "session:operate",
+      owner: "desktop",
+      timeout: "long",
+      mutation: true,
+    });
+  });
+
   it("keeps desktop-scoped procedures local when no desktop owner is attached", () => {
     registerRemoteProcedureHost({ ...host, resolveDesktopOwner: () => undefined });
     expect(decide("getSchedules", {}).kind).toBe("local");

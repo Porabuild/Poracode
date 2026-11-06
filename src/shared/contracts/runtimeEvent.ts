@@ -439,13 +439,28 @@ export type ThreadContextUsage = z.infer<typeof threadContextUsageSchema>;
  * One unit of provider-reported background work that outlives the turn that
  * launched it (a backgrounded shell command, a file watcher, a detached job).
  * Sub-agent runs are NOT reported here — they surface as running `tool_call`
- * items with their own dock. `kind` is a coarse, provider-agnostic class the
- * renderer uses only for iconography; `description` is the provider's own
- * human-readable label (typically the command or the task's stated purpose).
+ * items with their own dock. `kind` is the coarse, legacy two-value class the
+ * first clients know; `category` is the additive, provider-agnostic display
+ * capability (absent on older producers, where readers fall back to `kind`).
+ * `description` is the provider's own human-readable label (typically the
+ * task's stated purpose), never used as progress.
  */
 export const backgroundTaskKindSchema = z.enum(["command", "other"]);
 export type BackgroundTaskKind = z.infer<typeof backgroundTaskKindSchema>;
-/** A provider-declared, instance-bound action using the existing session-action transport. */
+export const backgroundTaskCategorySchema = z.enum([
+  "command",
+  "monitor",
+  "tool",
+  "agent",
+  "workflow",
+  "other",
+]);
+export type BackgroundTaskCategory = z.infer<typeof backgroundTaskCategorySchema>;
+/**
+ * A provider-declared, instance-bound action using the existing session-action
+ * transport. `stopAction` and `outputAction` share this shape; `id` is the
+ * capability the client invokes, `payload` carries the opaque task token.
+ */
 export const backgroundTaskStopActionSchema = z.object({
   id: z.string().min(1).max(120),
   payload: z.record(z.string().max(120), z.string().max(512)),
@@ -453,7 +468,11 @@ export const backgroundTaskStopActionSchema = z.object({
 export const backgroundTaskSchema = z.object({
   taskId: z.string().min(1),
   kind: backgroundTaskKindSchema,
+  /** Additive display class; absent on older producers → fall back to `kind`. */
+  category: backgroundTaskCategorySchema.optional(),
   description: z.string(),
+  /** Bounded, already-trimmed launch command when the provider knows it. */
+  command: z.string().max(16384).optional(),
   /** Host-observed task start, in Unix milliseconds; absent on older hosts. */
   startedAt: z.number().finite().nonnegative().optional(),
   /** Last provider-reported progress, excluding membership updates and heartbeats. */
@@ -461,8 +480,32 @@ export const backgroundTaskSchema = z.object({
   progress: z.string().max(4096).optional(),
   /** Absent when the live provider cannot stop this task independently. */
   stopAction: backgroundTaskStopActionSchema.optional(),
+  /** Read capability returning BackgroundTaskOutput; absent when unsupported. */
+  outputAction: backgroundTaskStopActionSchema.optional(),
 });
 export type BackgroundTask = z.infer<typeof backgroundTaskSchema>;
+
+/**
+ * Maximum UTF-16 code-unit length of a background-task output tail. The
+ * provider feature and every generated native validator render this same value.
+ */
+export const BACKGROUND_TASK_OUTPUT_MAX_UTF16_LENGTH = 16_384;
+
+/**
+ * Provider-normalized answer to a background-task output read: a bounded tail
+ * (never a full unbounded capture), the native total byte count, and whether
+ * the tail is only the end of longer output.
+ */
+export const backgroundTaskOutputSchema = z.object({
+  // Zod's string maximum counts code points; this read contract budgets UTF-16 units.
+  output: z
+    .string()
+    .max(BACKGROUND_TASK_OUTPUT_MAX_UTF16_LENGTH)
+    .refine((value) => value.length <= BACKGROUND_TASK_OUTPUT_MAX_UTF16_LENGTH),
+  totalBytes: z.number().finite().nonnegative().int().max(Number.MAX_SAFE_INTEGER),
+  truncated: z.boolean(),
+});
+export type BackgroundTaskOutput = z.infer<typeof backgroundTaskOutputSchema>;
 
 /**
  * Provider-reported token CONSUMPTION, kept strictly separate from

@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "{0} model"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0} kimlik doğrulaması gerektiriyor."
 
@@ -595,8 +597,8 @@ msgstr "{days} gün önce"
 #~ msgstr "{downloadSize} MB indirme"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel} kimlik doğrulaması gerektiriyor."
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel} kimlik doğrulaması gerektiriyor."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "{label} kullanımı — kullanım panelini aç"
 #~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel} {env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel} {env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1675,8 +1677,8 @@ msgstr "Özel bir temel URL duyurun, örn. bir ters proxy veya tünel. Otomatik 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Temsilci"
 
@@ -2714,6 +2716,10 @@ msgstr "Arka plan işlemi yeniden başlatıldı"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "Arka plan görevi"
+
+#: src/renderer/components/thread/useThreadBackgroundTaskOutput.ts
+msgid "Background task output could not be read."
+msgstr "Arka plan görevinin çıktısı okunamadı."
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
@@ -4430,6 +4436,7 @@ msgstr "{name} ile birleştir ({machines})"
 #~ msgstr "Virgülle ayrılmış sahip/ad girdileri, örneğin acme/website, acme/api. Liste Devin'e girildiği gibi gönderilir."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Command"
 msgstr "Komut"
 
@@ -4608,8 +4615,8 @@ msgstr "Bu konunun çalıştırılabilmesi için {0} oturum açma işlemini tama
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "{env} için {0} oturum açma işlemini tamamlayın."
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "{env} için {0} oturum açma işlemini tamamlayın."
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6102,7 +6109,6 @@ msgstr "Kalıcı oturumlar, akıl yürütme ayarları ve MCP araçlarıyla DeepS
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -9869,8 +9875,8 @@ msgstr "Kur · {engineSize} MB"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "{env} için {0} yükleyin."
+#~ msgid "Install {0} for {env}."
+#~ msgstr "{env} için {0} yükleyin."
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9921,6 +9927,10 @@ msgstr "Yerel OpenCode eklentilerini yükleyin ve yönetin."
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "Yükle ve yeniden başlat"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "Uzak makinelerde kurulum ve oturum açma henüz kullanılamıyor."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10035,8 +10045,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Önce yerel sağlayıcıları yükleyin; ek protokol aracıları için ACP'yi kullanın."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "{env} üzerine kur"
+#~ msgid "Install on {env}"
+#~ msgstr "{env} üzerine kur"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10104,8 +10114,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "Bu ana makineye Xcode ve bir iOS Simulator çalışma zamanı yükleyin."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılamıyor."
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılamıyor."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -10818,6 +10828,10 @@ msgstr "Model yükleniyor…"
 msgid "Loading notes…"
 msgstr "Notlar yükleniyor…"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Loading output…"
+msgstr "Çıktı yükleniyor…"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "Loading PDF…"
@@ -11035,8 +11049,8 @@ msgid "Logout"
 msgstr "Oturumu kapat"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "Oturumu kapat {env}"
+#~ msgid "Logout {env}"
+#~ msgstr "Oturumu kapat {env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11910,6 +11924,10 @@ msgstr "Modlar"
 msgid "Modified"
 msgstr "Değiştirildi"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Monitor"
+msgstr "İzleyici"
+
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Monitoring"
 msgstr "İzleme"
@@ -11973,8 +11991,8 @@ msgid "More sign-in methods"
 msgstr "Diğer oturum açma yöntemleri"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "Diğer oturum açma yöntemleri {env}"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "Diğer oturum açma yöntemleri {env}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -12907,6 +12925,10 @@ msgstr "Hiçbir model bulunamadı"
 msgid "No other agents installed"
 msgstr "Başka aracı yüklü değil"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No output yet"
+msgstr "Henüz çıktı yok"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "No package plugins installed."
 msgstr "Yüklü eklenti paketi yok."
@@ -12954,8 +12976,8 @@ msgid "No profile with its own isolated login exists yet. Set a profile to \"Own
 msgstr "Henüz kendi yalıtılmış girişine sahip bir profil yok. Önce bir profili \"Kendi yalıtılmış girişi\" olarak ayarlayın ve orada oturum açın; ardından burada görünür."
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
-msgid "No progress reported"
-msgstr "İlerleme bildirilmedi"
+#~ msgid "No progress reported"
+#~ msgstr "İlerleme bildirilmedi"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -13423,6 +13445,11 @@ msgstr "Tek kullanımlık eşleştirme belirteci"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Çevrimiçi"
+
+#. placeholder {0}: state.totalBytes.toLocaleString()
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Only the end of the output is shown ({0} bytes)."
+msgstr "Çıktının yalnızca sonu gösteriliyor ({0} bayt)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13984,6 +14011,7 @@ msgstr "Kuruluş (isteğe bağlı)"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
@@ -14027,6 +14055,10 @@ msgstr "Outlook"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "Çıktı"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Output isn’t available for this task."
+msgstr "Bu görev için çıktı kullanılamıyor."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -16754,6 +16786,7 @@ msgstr "Yalnızca bu sunucuda saklanan kullanım."
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
@@ -19814,6 +19847,7 @@ msgid "Task Notification"
 msgstr "Görev bildirimi"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Task output"
 msgstr "Görev çıkışı"
 
@@ -20627,6 +20661,10 @@ msgid "the target provider"
 msgstr "hedef sağlayıcı"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The task ended without a completion report."
+msgstr "Görev, tamamlanma raporu olmadan sona erdi."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The task has not confirmed that it stopped. Try again."
 msgstr "Görev durduğunu henüz doğrulamadı. Tekrar deneyin."
 
@@ -20860,8 +20898,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "Bu cihazda kullanılabilir kamera yok. Bunun yerine eşleştirme bağlantısını yapıştırın veya kodun bir fotoğrafını seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "bu ortam"
+#~ msgid "this environment"
+#~ msgstr "bu ortam"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -21508,6 +21546,10 @@ msgstr "Devam eden çok fazla uzak istek var. Birazdan yeniden deneyin."
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "Bu mesajda çok fazla görsel var. Yalnızca kaynak gösteriliyor."
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Tool"
+msgstr "Araç"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -22358,8 +22400,8 @@ msgstr "{0} güncelle"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "{0} güncelle ({env})"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "{0} güncelle ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22481,8 +22523,8 @@ msgstr "{0} için {updateLabel} güncellemesi"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "{0} ({env}) için {updateLabel} güncellemesi"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "{0} ({env}) için {updateLabel} güncellemesi"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22538,8 +22580,8 @@ msgstr "{0} güncelleniyor"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "{0} ({env}) güncelleniyor"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "{0} ({env}) güncelleniyor"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23399,10 +23441,9 @@ msgstr "Terminal panelinin göründüğü yer."
 msgid "Whisper with broad multilingual support."
 msgstr "Geniş çoklu dil desteğine sahip Whisper."
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "{0} içinde çalışacak:"
+msgid "Will run in this environment:"
+msgstr "Bu ortam içinde çalışacak:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
@@ -23453,6 +23494,7 @@ msgid "Worked for {elapsed}"
 msgstr "{elapsed} boyunca çalıştı"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Workflow"
 msgstr "İş akışı"
 

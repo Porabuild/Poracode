@@ -1,6 +1,8 @@
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 
@@ -38,6 +40,7 @@ import {
   resolveLaunchSpec,
   resolveExecutablePathAsync,
 } from "./base";
+import { resolveAgentBinaryPath } from "./binaryResolver";
 
 const expectedShellArgs = (script: string) =>
   process.platform === "darwin" ? ["-l", "-i", "-c", script] : ["-l", "-c", script];
@@ -124,6 +127,42 @@ describe.skipIf(process.platform === "win32")("POSIX login shell wrappers", () =
         EDITOR: "nvim",
       },
     });
+  });
+
+  it("keeps a detected executable after the probe TTL when the project selects another Node", async () => {
+    const root = mkdtempSync(join(tmpdir(), "poracode-versioned-cli-"));
+    const binary = "versioned-agent";
+    const executable = join(root, binary);
+    writeFileSync(executable, "#!/bin/sh\nexit 0\n");
+    chmodSync(executable, 0o700);
+    const now = Date.now();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      execFileAsyncMock.mockResolvedValueOnce({
+        stdout: `${binary}\t${executable}\n__PORACODE_ENV_BEGIN__\nPATH=${root}:/usr/bin:/bin\n`,
+      });
+      await primeExecutablePathCache([binary]);
+      execFileAsyncMock.mockResolvedValueOnce({
+        stdout: "__PORACODE_ENV_BEGIN__\nPATH=/project-node/bin:/usr/bin:/bin\n",
+      });
+      await primeProjectShellEnv(posixProject.path);
+      clock.mockReturnValue(now + 61_000);
+
+      const resolved = resolveAgentBinaryPath(posixProject, binary);
+      expect(resolved).toBe(executable);
+      expect(buildAgentCommand(posixProject, binary, ["acp"], resolved)).toMatchObject({
+        command: executable,
+        args: ["acp"],
+        env: { PATH: "/project-node/bin:/usr/bin:/bin" },
+      });
+
+      // A removed version-manager shim must still fall back to normal resolution.
+      rmSync(executable);
+      expect(resolveAgentBinaryPath(posixProject, binary)).toBeUndefined();
+    } finally {
+      clock.mockRestore();
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("shell-wraps launches that opt out of absolute binary direct spawn", async () => {

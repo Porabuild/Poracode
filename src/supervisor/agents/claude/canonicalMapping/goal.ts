@@ -7,6 +7,7 @@ import {
   type ProviderGoalState,
 } from "../../goalRuntime";
 import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
+import { hasLiveBackgroundWork } from "./backgroundTasks";
 import { newItemId } from "./helpers";
 import { readClaudeAssistantSpendTokens, readClaudeAssistantUsageSampleId } from "./usageSpent";
 
@@ -188,21 +189,6 @@ function completeActiveGoalNow(state: ActiveGoalState): RuntimeEvent[] {
   );
   clearActiveGoal(state);
   return updateGoalItemEvents(threadId, itemId, payload);
-}
-
-function hasLiveSubAgentTaskEntries(state: ClaudeMapperState): boolean {
-  return (state.activeSubAgentTaskToTool?.size ?? 0) > 0;
-}
-
-/**
- * Whether background work of any kind is still live: tracked subagent tasks
- * (edge bookends, present on older CLIs too) or any entry of the
- * `background_tasks_changed` level set — plain backgrounded Bash included.
- * While this is true, a clean turn end is not the end of the goal's work: the
- * CLI wakes the model when a background task finishes and the work continues.
- */
-function hasLiveBackgroundWork(state: ClaudeMapperState): boolean {
-  return hasLiveSubAgentTaskEntries(state) || (state.liveBackgroundTaskIds?.size ?? 0) > 0;
 }
 
 /**

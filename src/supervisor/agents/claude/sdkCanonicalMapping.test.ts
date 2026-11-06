@@ -17,9 +17,14 @@ import {
   mapClaudeQuestionRequest,
   mapClaudeSdkMessage,
   parseClaudeQuestions,
+  settleMissingSubAgentTaskReports,
   startClaudeTurn,
 } from "./sdkCanonicalMapping";
-import { hasAwaitedBackgroundWork } from "./canonicalMapping/backgroundTasks";
+import {
+  hasAwaitedBackgroundWork,
+  hasLiveBackgroundWork,
+} from "./canonicalMapping/backgroundTasks";
+import { msg } from "@/shared/messages";
 import { readToolVideoSources } from "@/shared/chatVideo";
 
 function streamEvent(event: Record<string, unknown>): SDKMessage {
@@ -805,7 +810,9 @@ describe("sdkCanonicalMapping — prompt content", () => {
     const reported = (events: RuntimeEvent[]) =>
       events.filter((event) => event.type === "background_tasks.changed");
     expect(reported(mapClaudeSdkMessage(roster, state))).toEqual([
-      expect.objectContaining({ tasks: [expect.objectContaining({ kind: "command" })] }),
+      expect.objectContaining({
+        tasks: [expect.objectContaining({ kind: "command", category: "command" })],
+      }),
     ]);
     expect(hasAwaitedBackgroundWork(state)).toBe(false);
     state.toolItemsById.set("tool-monitor", {
@@ -828,7 +835,13 @@ describe("sdkCanonicalMapping — prompt content", () => {
     );
     expect(reported(started)).toEqual([
       expect.objectContaining({
-        tasks: [expect.objectContaining({ taskId: "watch", kind: "other" })],
+        tasks: [
+          expect.objectContaining({
+            taskId: "watch",
+            kind: "other",
+            category: "monitor",
+          }),
+        ],
       }),
     ]);
     expect(hasAwaitedBackgroundWork(state)).toBe(true);
@@ -862,14 +875,34 @@ describe("sdkCanonicalMapping — prompt content", () => {
         type: "background_tasks.changed",
         threadId: "thread-1",
         tasks: [
-          { taskId: "task-2", kind: "command", description: "serve" },
-          { taskId: "task-3", kind: "other", description: "watch build" },
+          {
+            taskId: "task-2",
+            kind: "command",
+            category: "command",
+            description: "serve",
+          },
+          {
+            taskId: "task-3",
+            kind: "other",
+            category: "monitor",
+            description: "watch build",
+          },
         ],
       },
     ]);
     expect(state.reportedBackgroundTasks).toEqual([
-      { taskId: "task-2", kind: "command", description: "serve" },
-      { taskId: "task-3", kind: "other", description: "watch build" },
+      {
+        taskId: "task-2",
+        kind: "command",
+        category: "command",
+        description: "serve",
+      },
+      {
+        taskId: "task-3",
+        kind: "other",
+        category: "monitor",
+        description: "watch build",
+      },
     ]);
 
     // REPLACE, not merge: task-1 finished, task-2 still live.
@@ -887,7 +920,14 @@ describe("sdkCanonicalMapping — prompt content", () => {
       {
         type: "background_tasks.changed",
         threadId: "thread-1",
-        tasks: [{ taskId: "task-2", kind: "command", description: "serve" }],
+        tasks: [
+          {
+            taskId: "task-2",
+            kind: "command",
+            category: "command",
+            description: "serve",
+          },
+        ],
       },
     ]);
 
@@ -932,6 +972,253 @@ describe("sdkCanonicalMapping — prompt content", () => {
         state,
       ),
     ).toEqual([]);
+  });
+
+  it("publishes category and command changes without roster membership changes", () => {
+    const state = createClaudeMapperState("thread-1");
+    const roster = (
+      tasks: ReadonlyArray<{
+        task_id: string;
+        task_type: string;
+        description: string;
+      }>,
+    ) =>
+      ({
+        type: "system",
+        subtype: "background_tasks_changed",
+        session_id: "claude-session",
+        tasks,
+      }) as unknown as SDKMessage;
+
+    // Roster task types normalize to the shared category vocabulary; unknown
+    // values stay `other` and never guess a capability.
+    const first = mapClaudeSdkMessage(
+      roster([
+        {
+          task_id: "bash-1",
+          task_type: "local_bash",
+          description: "pnpm test",
+        },
+        { task_id: "mcp-1", task_type: "mcp_task", description: "mcp call" },
+        {
+          task_id: "future-1",
+          task_type: "future_type",
+          description: "future",
+        },
+      ]),
+      state,
+    );
+    expect(first).toMatchObject([
+      {
+        type: "background_tasks.changed",
+        tasks: [
+          { taskId: "bash-1", kind: "command", category: "command" },
+          { taskId: "mcp-1", kind: "other", category: "tool" },
+          { taskId: "future-1", kind: "other", category: "other" },
+        ],
+      },
+    ]);
+    // Same membership and metadata is a true no-op.
+    expect(
+      mapClaudeSdkMessage(
+        roster([
+          {
+            task_id: "bash-1",
+            task_type: "local_bash",
+            description: "pnpm test",
+          },
+          { task_id: "mcp-1", task_type: "mcp_task", description: "mcp call" },
+          {
+            task_id: "future-1",
+            task_type: "future_type",
+            description: "future",
+          },
+        ]),
+        state,
+      ),
+    ).toEqual([]);
+
+    // The launch tool proves the actual command while the roster membership is
+    // unchanged: the command-only change must still publish.
+    mapClaudeSdkMessage(
+      {
+        type: "stream_event",
+        session_id: "claude-session",
+        event: {
+          type: "content_block_start",
+          index: 0,
+          content_block: {
+            type: "tool_use",
+            id: "toolu_bash",
+            name: "Bash",
+            input: { command: "pnpm test" },
+          },
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(
+      mapClaudeSdkMessage(
+        roster([
+          {
+            task_id: "bash-1",
+            task_type: "local_bash",
+            description: "pnpm test",
+          },
+          {
+            task_id: "bash-2",
+            task_type: "local_bash",
+            description: "pnpm test",
+          },
+        ]),
+        state,
+      ),
+    ).toMatchObject([
+      {
+        tasks: [
+          expect.objectContaining({ taskId: "bash-1" }),
+          expect.objectContaining({ taskId: "bash-2", category: "command" }),
+        ],
+      },
+    ]);
+    const commandOnly = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_started",
+        session_id: "claude-session",
+        task_id: "bash-2",
+        tool_use_id: "toolu_bash",
+        description: "pnpm test",
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(commandOnly).toContainEqual({
+      type: "background_tasks.changed",
+      threadId: "thread-1",
+      tasks: [
+        expect.objectContaining({ taskId: "bash-1" }),
+        expect.objectContaining({
+          taskId: "bash-2",
+          category: "command",
+          command: "pnpm test",
+        }),
+      ],
+    });
+    // The same launch fact observed again publishes nothing.
+    expect(
+      mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "task_progress",
+          session_id: "claude-session",
+          task_id: "bash-2",
+          tool_use_id: "toolu_bash",
+          description: "pnpm test",
+        } as unknown as SDKMessage,
+        state,
+      ).filter((event) => event.type === "background_tasks.changed"),
+    ).toEqual([]);
+  });
+
+  it("treats prototype-named external task types as other", () => {
+    const state = createClaudeMapperState("thread-1");
+    const events = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "background_tasks_changed",
+        session_id: "claude-session",
+        tasks: ["__proto__", "constructor", "toString"].map((task_type) => ({
+          task_id: `task-${task_type}`,
+          task_type,
+          description: task_type,
+        })),
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(events).toMatchObject([
+      {
+        type: "background_tasks.changed",
+        tasks: [
+          expect.objectContaining({ taskId: "task-__proto__", category: "other" }),
+          expect.objectContaining({ taskId: "task-constructor", category: "other" }),
+          expect.objectContaining({ taskId: "task-toString", category: "other" }),
+        ],
+      },
+    ]);
+  });
+
+  it("captures a Bash command when only its typed tool_result names the task", () => {
+    const state = createClaudeMapperState("thread-1");
+    mapClaudeSdkMessage(
+      {
+        type: "stream_event",
+        session_id: "claude-session",
+        event: {
+          type: "content_block_start",
+          index: 0,
+          content_block: {
+            type: "tool_use",
+            id: "toolu_bash",
+            name: "Bash",
+            input: { command: "pnpm dev" },
+          },
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "background_tasks_changed",
+        session_id: "claude-session",
+        tasks: [
+          {
+            task_id: "bash-1",
+            task_type: "local_bash",
+            description: "pnpm dev",
+          },
+        ],
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    // No task_started ever arrives; the structured Bash output carries the
+    // native backgroundTaskId and the row's input carries the real command.
+    const events = mapClaudeSdkMessage(
+      {
+        type: "user",
+        session_id: "claude-session",
+        tool_use_result: { backgroundTaskId: "bash-1" },
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_bash",
+              content: "Command running in background.",
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "background_tasks.changed",
+        tasks: [
+          expect.objectContaining({
+            taskId: "bash-1",
+            category: "command",
+            command: "pnpm dev",
+          }),
+        ],
+      }),
+    );
+    // The launch result still completes the tool row; metadata capture does not
+    // keep an independent command alive.
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: "toolu_bash" }),
+    );
   });
 
   it("completes a /goal at a clean turn end when no active_goal verdict ever arrives", () => {
@@ -3207,7 +3494,11 @@ describe("sdkCanonicalMapping — background sub-agents", () => {
     );
   }
 
-  function taskStarted(toolUseId: string, subagentType: string | undefined): SDKMessage {
+  function taskStarted(
+    toolUseId: string,
+    subagentType: string | undefined,
+    extra: Record<string, unknown> = {},
+  ): SDKMessage {
     return {
       type: "system",
       subtype: "task_started",
@@ -3216,6 +3507,7 @@ describe("sdkCanonicalMapping — background sub-agents", () => {
       tool_use_id: toolUseId,
       description: "Investigate",
       ...(subagentType ? { subagent_type: subagentType } : {}),
+      ...extra,
     } as unknown as SDKMessage;
   }
 
@@ -3843,6 +4135,786 @@ describe("sdkCanonicalMapping — background sub-agents", () => {
       true,
     );
     expect(state.toolItemsById.has("toolu_parent")).toBe(false);
+  });
+
+  function backgroundRoster(taskIds: readonly string[]): SDKMessage {
+    return {
+      type: "system",
+      subtype: "background_tasks_changed",
+      session_id: "claude-session",
+      tasks: taskIds.map((task_id) => ({
+        task_id,
+        task_type: "local_agent",
+        description: "Investigate",
+      })),
+    } as unknown as SDKMessage;
+  }
+
+  function successResult(): SDKMessage {
+    return {
+      type: "result",
+      subtype: "success",
+      session_id: "claude-session",
+    } as unknown as SDKMessage;
+  }
+
+  function taskNotification(
+    status: "completed" | "failed" | "stopped",
+    summary?: string,
+    taskId = "task-A",
+  ): SDKMessage {
+    return {
+      type: "system",
+      subtype: "task_notification",
+      session_id: "claude-session",
+      task_id: taskId,
+      status,
+      ...(summary ? { summary } : {}),
+    } as unknown as SDKMessage;
+  }
+
+  /**
+   * Register a background agent, end the turn with it still listed, drop it
+   * from the roster, then apply the session's grace-time settlement step.
+   */
+  function settledMissingReport(
+    state: ReturnType<typeof createClaudeMapperState>,
+    toolUseId = "toolu_parent",
+  ): RuntimeEvent[] {
+    startClaudeTurn(state, "turn-1", "launch subagent", undefined);
+    startAgentTool(state, toolUseId);
+    mapClaudeSdkMessage(taskStarted(toolUseId, "general-purpose"), state);
+    mapClaudeSdkMessage(launchToolResult(toolUseId), state);
+    mapClaudeSdkMessage(backgroundRoster(["task-A"]), state);
+    mapClaudeSdkMessage(successResult(), state);
+    mapClaudeSdkMessage(backgroundRoster([]), state);
+    return settleMissingSubAgentTaskReports(state);
+  }
+
+  it("keeps a legacy edge-tracked subagent awaited until its notification", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-1", "launch subagent", undefined);
+    startAgentTool(state, "toolu_parent");
+    mapClaudeSdkMessage(taskStarted("toolu_parent", "general-purpose"), state);
+    mapClaudeSdkMessage(launchToolResult("toolu_parent"), state);
+    expect(hasAwaitedBackgroundWork(state)).toBe(true);
+
+    // No background_tasks_changed level ever arrives (older CLI): the edge
+    // registry alone must hold the task and its parent open.
+    const resultEvents = mapClaudeSdkMessage(successResult(), state);
+    expect(
+      resultEvents.some(
+        (event) => event.type === "item.completed" && event.itemId === "toolu_parent",
+      ),
+    ).toBe(false);
+    expect(hasAwaitedBackgroundWork(state)).toBe(true);
+    expect(state.toolItemsById.has("toolu_parent")).toBe(true);
+
+    const closed = mapClaudeSdkMessage(taskNotification("completed", "Done"), state);
+    expect(closed).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_parent",
+        payload: { status: "success" },
+      },
+      {
+        type: "item.completed",
+        itemId: "toolu_parent",
+        payload: { status: "success" },
+      },
+    ]);
+    expect(state.toolItemsById.has("toolu_parent")).toBe(false);
+    expect(hasAwaitedBackgroundWork(state)).toBe(false);
+  });
+
+  it("closes a foreground subagent at its normal tool_result instead of keeping it alive", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_fg");
+    const started = mapClaudeSdkMessage(
+      taskStarted("toolu_fg", "general-purpose", {
+        task_id: "fg-1",
+        is_backgrounded: false,
+      }),
+      state,
+    );
+    // Still correlates progress …
+    expect(started).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_fg",
+        payload: { status: "running" },
+      },
+    ]);
+    expect(state.activeSubAgentToolToTask?.has("toolu_fg")).toBe(true);
+    expect(state.toolItemsById.get("toolu_fg")?.subAgentForeground).toBe(true);
+
+    // … but its normal tool_result is the close; no notification is needed.
+    const resultEvents = mapClaudeSdkMessage(launchToolResult("toolu_fg"), state);
+    expect(resultEvents).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_fg",
+        payload: { status: "success" },
+      },
+      { type: "item.completed", itemId: "toolu_fg" },
+    ]);
+    expect(state.toolItemsById.has("toolu_fg")).toBe(false);
+    expect(state.activeSubAgentTaskToTool?.has("fg-1") ?? false).toBe(false);
+  });
+
+  it("converts a foreground subagent to background when task_updated says so", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_fg");
+    mapClaudeSdkMessage(
+      taskStarted("toolu_fg", "general-purpose", {
+        task_id: "fg-1",
+        is_backgrounded: false,
+      }),
+      state,
+    );
+
+    const converted = mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_updated",
+        session_id: "claude-session",
+        task_id: "fg-1",
+        patch: { is_backgrounded: true, description: "Moved to background" },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(converted).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_fg",
+        payload: {
+          status: "running",
+          progress: { description: "Moved to background" },
+        },
+      },
+    ]);
+
+    // The launch tool_result no longer closes the row: it is background work now.
+    const launchEvents = mapClaudeSdkMessage(launchToolResult("toolu_fg"), state);
+    expect(launchEvents).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_fg",
+        payload: { status: "running" },
+      },
+    ]);
+    expect(state.toolItemsById.has("toolu_fg")).toBe(true);
+
+    const closed = mapClaudeSdkMessage(taskNotification("completed", "Done", "fg-1"), state);
+    expect(closed).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_fg",
+        payload: { status: "success" },
+      },
+      {
+        type: "item.completed",
+        itemId: "toolu_fg",
+        payload: { status: "success" },
+      },
+    ]);
+    expect(state.toolItemsById.has("toolu_fg")).toBe(false);
+  });
+
+  function payloadOf(event: RuntimeEvent | undefined): Record<string, unknown> {
+    return (event as { payload?: Record<string, unknown> } | undefined)?.payload ?? {};
+  }
+
+  it("settles a subagent that leaves the roster without a terminal report", () => {
+    const state = createClaudeMapperState("thread-1");
+    const settled = settledMissingReport(state);
+    expect(settled).toMatchObject([
+      {
+        type: "item.completed",
+        itemId: "toolu_parent",
+        payload: {
+          status: "error",
+          result: { error: msg("thread.backgroundTaskReportMissing") },
+        },
+      },
+    ]);
+    expect(state.activeSubAgentTaskToTool?.size ?? 0).toBe(0);
+    expect(state.toolItemsById.has("toolu_parent")).toBe(true);
+    expect(state.toolItemsById.get("toolu_parent")?.awaitingTaskReport).toBe(true);
+
+    // Late lifecycle frames may enrich the retained row, never revive it.
+    expect(
+      mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "task_progress",
+          session_id: "claude-session",
+          task_id: "task-A",
+          tool_use_id: "toolu_parent",
+          description: "Late progress",
+        } as unknown as SDKMessage,
+        state,
+      ),
+    ).toEqual([]);
+    expect(
+      mapClaudeSdkMessage(
+        {
+          type: "system",
+          subtype: "task_updated",
+          session_id: "claude-session",
+          task_id: "task-A",
+          patch: { description: "Late update" },
+        } as unknown as SDKMessage,
+        state,
+      ),
+    ).toEqual([]);
+    expect(state.toolItemsById.get("toolu_parent")?.progress?.description).toBe("Late update");
+  });
+
+  it.each(["completed", "failed", "stopped"] as const)(
+    "replaces a missing-report error with one exact %s terminal payload",
+    (status) => {
+      const state = createClaudeMapperState("thread-1");
+      settledMissingReport(state);
+
+      // No tool_use_id: the launch map must locate the retired parent row.
+      const events = mapClaudeSdkMessage(taskNotification(status, "Real outcome"), state);
+      expect(events).toHaveLength(2);
+      const updated = events[0] as Extract<RuntimeEvent, { type: "item.updated" }>;
+      const completed = events[1] as Extract<RuntimeEvent, { type: "item.completed" }>;
+      expect(updated).toMatchObject({
+        type: "item.updated",
+        itemId: "toolu_parent",
+      });
+      expect(completed).toMatchObject({
+        type: "item.completed",
+        itemId: "toolu_parent",
+      });
+      // Both events carry the same actual terminal payload.
+      expect(updated.payload).toEqual(completed.payload);
+      expect(completed.payload).toMatchObject({
+        status: status === "completed" ? "success" : "error",
+        result: "Real outcome",
+      });
+      expect(JSON.parse(JSON.stringify(completed.payload)).result).toBe("Real outcome");
+      expect(state.toolItemsById.has("toolu_parent")).toBe(false);
+      expect(state.activeSubAgentTaskToTool?.size ?? 0).toBe(0);
+    },
+  );
+
+  it.each(["completed", "failed", "stopped"] as const)(
+    "clears the provisional error for a late %s notification without a summary",
+    (status) => {
+      const state = createClaudeMapperState("thread-1");
+      settledMissingReport(state);
+
+      const events = mapClaudeSdkMessage(taskNotification(status), state);
+      const updated = events[0] as Extract<RuntimeEvent, { type: "item.updated" }>;
+      const completed = events[1] as Extract<RuntimeEvent, { type: "item.completed" }>;
+      expect(updated.payload).toEqual(completed.payload);
+      const payload = payloadOf(completed);
+      expect(payload).toMatchObject({
+        status: status === "completed" ? "success" : "error",
+        result: null,
+      });
+      expect(JSON.parse(JSON.stringify(payload)).result).toBeNull();
+      const json = JSON.stringify(payload);
+      expect(json).not.toContain(msg("thread.backgroundTaskReportMissing"));
+    },
+  );
+
+  it("does not settle a registered task on the clean-result frame", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-1", "launch subagent", undefined);
+    // A known level exists but never lists this run (edges only).
+    mapClaudeSdkMessage(backgroundRoster([]), state);
+    startAgentTool(state, "toolu_parent");
+    mapClaudeSdkMessage(taskStarted("toolu_parent", "general-purpose"), state);
+    mapClaudeSdkMessage(launchToolResult("toolu_parent"), state);
+
+    const resultEvents = mapClaudeSdkMessage(successResult(), state);
+    expect(
+      resultEvents.some(
+        (event) =>
+          event.type === "item.completed" &&
+          event.itemId === "toolu_parent" &&
+          (event.payload as { status?: string } | undefined)?.status === "error",
+      ),
+    ).toBe(false);
+    expect(state.activeSubAgentTaskToTool?.size ?? 0).toBe(1);
+    expect(state.toolItemsById.get("toolu_parent")?.awaitingTaskReport).toBeUndefined();
+
+    // The session settles it after the held completion's resume grace.
+    expect(settleMissingSubAgentTaskReports(state)).toMatchObject([
+      {
+        type: "item.completed",
+        itemId: "toolu_parent",
+        payload: {
+          status: "error",
+          result: { error: msg("thread.backgroundTaskReportMissing") },
+        },
+      },
+    ]);
+    expect(state.toolItemsById.get("toolu_parent")?.awaitingTaskReport).toBe(true);
+  });
+
+  it("does not retire a foreground run on a roster change", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-1", "launch subagent", undefined);
+    mapClaudeSdkMessage(backgroundRoster(["task-other"]), state);
+    startAgentTool(state, "toolu_fg");
+    mapClaudeSdkMessage(
+      taskStarted("toolu_fg", "general-purpose", {
+        task_id: "fg-1",
+        is_backgrounded: false,
+      }),
+      state,
+    );
+
+    // Roster frames are only a level; they never settle by themselves.
+    const events = mapClaudeSdkMessage(backgroundRoster([]), state);
+    expect(events.some((event) => event.type === "item.completed")).toBe(false);
+    expect(state.toolItemsById.has("toolu_fg")).toBe(true);
+
+    expect(mapClaudeSdkMessage(launchToolResult("toolu_fg"), state)).toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: "toolu_fg" }),
+    );
+  });
+
+  it("keeps a foreground Agent row alive when its structured launch result went async", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_fg");
+    mapClaudeSdkMessage(
+      taskStarted("toolu_fg", "general-purpose", {
+        task_id: "fg-1",
+        is_backgrounded: false,
+      }),
+      state,
+    );
+
+    const asyncResult = {
+      ...(launchToolResult("toolu_fg") as unknown as Record<string, unknown>),
+      tool_use_result: {
+        status: "async_launched",
+        isAsync: true,
+        agentId: "agent-1",
+        description: "Investigate",
+        prompt: "Investigate",
+        outputFile: "out.jsonl",
+      },
+    } as unknown as SDKMessage;
+    const events = mapClaudeSdkMessage(asyncResult, state);
+    expect(events).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_fg",
+        payload: { status: "running" },
+      },
+    ]);
+    expect(state.toolItemsById.has("toolu_fg")).toBe(true);
+
+    // The later move-to-background patch is now just progress metadata.
+    mapClaudeSdkMessage(
+      {
+        type: "system",
+        subtype: "task_updated",
+        session_id: "claude-session",
+        task_id: "fg-1",
+        patch: { is_backgrounded: true },
+      } as unknown as SDKMessage,
+      state,
+    );
+    const closed = mapClaudeSdkMessage(taskNotification("completed", "Done", "fg-1"), state);
+    expect(closed).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_fg",
+        payload: { status: "success" },
+      },
+      {
+        type: "item.completed",
+        itemId: "toolu_fg",
+        payload: { status: "success" },
+      },
+    ]);
+  });
+
+  it("closes a foreground Agent row whose structured launch result completed", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_fg");
+    mapClaudeSdkMessage(
+      taskStarted("toolu_fg", "general-purpose", {
+        task_id: "fg-1",
+        is_backgrounded: false,
+      }),
+      state,
+    );
+
+    const completedResult = {
+      ...(launchToolResult("toolu_fg") as unknown as Record<string, unknown>),
+      tool_use_result: {
+        status: "completed",
+        agentId: "agent-1",
+        content: [{ type: "text", text: "Done" }],
+        prompt: "Investigate",
+        totalToolUseCount: 1,
+      },
+    } as unknown as SDKMessage;
+    const events = mapClaudeSdkMessage(completedResult, state);
+    expect(events).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_fg",
+        payload: { status: "success" },
+      },
+      { type: "item.completed", itemId: "toolu_fg" },
+    ]);
+    expect(state.toolItemsById.has("toolu_fg")).toBe(false);
+  });
+
+  it("keeps forwarded children under the resumed owner after a missing report", () => {
+    const state = createClaudeMapperState("thread-1");
+    settledMissingReport(state, "toolu_launch");
+
+    // A SendMessage resumes the same task under a new tool_use id.
+    startSendMessageTool(state, "toolu_send");
+    mapClaudeSdkMessage(taskStarted("toolu_send", "general-purpose", { task_id: "task-A" }), state);
+    // The old launch row was retained only as missing-report metadata; the
+    // resume fences it and the explicit alias now points at the new owner.
+    expect(state.toolItemsById.has("toolu_launch")).toBe(false);
+
+    const childEvents = mapClaudeSdkMessage(
+      {
+        type: "assistant",
+        session_id: "claude-session",
+        parent_tool_use_id: "toolu_launch",
+        message: {
+          id: "msg-child",
+          role: "assistant",
+          content: [
+            {
+              type: "tool_use",
+              id: "toolu_child",
+              name: "Glob",
+              input: { pattern: "*.json" },
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+    expect(childEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemId: "toolu_child",
+        parentItemId: "toolu_send",
+      }),
+    );
+    expect(childEvents.some((event) => "itemId" in event && event.itemId === "toolu_launch")).toBe(
+      false,
+    );
+
+    // Retiring the NEW row then a tool_use_id-less late report updates NEW,
+    // never the original retained launch row. The new owner's ordinary child
+    // is settled with it, since no tool_result can arrive after that.
+    state.liveBackgroundTaskIds = new Set();
+    expect(settleMissingSubAgentTaskReports(state)).toMatchObject([
+      { type: "item.completed", itemId: "toolu_send" },
+      {
+        type: "item.completed",
+        itemId: "toolu_child",
+        payload: { status: "error" },
+      },
+    ]);
+    expect(state.toolItemsById.has("toolu_child")).toBe(false);
+    const late = mapClaudeSdkMessage(taskNotification("completed", "Late result"), state);
+    expect(late).toMatchObject([
+      {
+        type: "item.updated",
+        itemId: "toolu_send",
+        payload: { result: "Late result" },
+      },
+      {
+        type: "item.completed",
+        itemId: "toolu_send",
+        payload: { result: "Late result" },
+      },
+    ]);
+    expect(late.some((event) => "itemId" in event && event.itemId === "toolu_launch")).toBe(false);
+  });
+
+  it("settles an old owner's ordinary children when a resumed owner takes the task", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.liveBackgroundTaskIds = new Set();
+    settledMissingReport(state, "toolu_old");
+    const forwarded = (parent: string, id: string, name: string, input: Record<string, unknown>) =>
+      ({
+        type: "assistant",
+        session_id: "claude-session",
+        parent_tool_use_id: parent,
+        message: {
+          id: `msg-${id}`,
+          role: "assistant",
+          content: [{ type: "tool_use", id, name, input }],
+        },
+      }) as unknown as SDKMessage;
+
+    // The old run left an ordinary child row behind; nothing will ever deliver
+    // its tool_result after the owner is retired.
+    mapClaudeSdkMessage(
+      forwarded("toolu_old", "toolu_old_child", "Read", {
+        file_path: "old.txt",
+      }),
+      state,
+    );
+    // A forwarded nested Agent row owns its own live task: it is NOT ordinary
+    // and must keep running even though its parent row is retired.
+    mapClaudeSdkMessage(
+      forwarded("toolu_old", "toolu_nested", "Agent", {
+        description: "nested",
+        subagent_type: "general-purpose",
+      }),
+      state,
+    );
+    mapClaudeSdkMessage(
+      taskStarted("toolu_nested", "general-purpose", {
+        task_id: "nested-task",
+      }),
+      state,
+    );
+    // A sibling ordinary child under a different live owner must survive.
+    startAgentTool(state, "toolu_other");
+    mapClaudeSdkMessage(
+      taskStarted("toolu_other", "general-purpose", { task_id: "other-task" }),
+      state,
+    );
+    mapClaudeSdkMessage(
+      forwarded("toolu_other", "toolu_sibling", "Read", {
+        file_path: "other.txt",
+      }),
+      state,
+    );
+
+    // A resume under a NEW tool_use id takes over the same task inside grace.
+    startSendMessageTool(state, "toolu_send");
+    const events = mapClaudeSdkMessage(taskStarted("toolu_send", "general-purpose"), state);
+
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        itemId: "toolu_old_child",
+        payload: expect.objectContaining({ status: "error" }),
+      }),
+    );
+    expect(state.toolItemsById.has("toolu_old_child")).toBe(false);
+    expect(state.subAgentChildToolItemIds?.has("toolu_old_child") ?? false).toBe(false);
+
+    // The live nested owner and the unrelated sibling are untouched.
+    expect(state.toolItemsById.has("toolu_nested")).toBe(true);
+    expect(state.toolItemsById.get("toolu_nested")?.subAgentParentItemId).toBe("toolu_old");
+    expect(state.activeSubAgentToolToTask?.get("toolu_nested")).toBe("nested-task");
+    expect(state.toolItemsById.has("toolu_sibling")).toBe(true);
+    expect(
+      events.some(
+        (event) =>
+          event.type === "item.completed" &&
+          (event.itemId === "toolu_nested" || event.itemId === "toolu_sibling"),
+      ),
+    ).toBe(false);
+
+    // A child forwarded after the alias lands under the NEW row and is not
+    // mistaken for the retired run's child.
+    const childEvents = mapClaudeSdkMessage(
+      forwarded("toolu_old", "toolu_new_child", "Read", {
+        file_path: "new.txt",
+      }),
+      state,
+    );
+    expect(childEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemId: "toolu_new_child",
+        parentItemId: "toolu_send",
+      }),
+    );
+    expect(state.toolItemsById.get("toolu_new_child")?.subAgentParentItemId).toBe("toolu_send");
+  });
+
+  it("keeps a forwarded agent child whose task_started arrives after its parent is superseded", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.liveBackgroundTaskIds = new Set();
+    settledMissingReport(state, "toolu_old");
+    const forwarded = (parent: string, id: string, name: string, input: Record<string, unknown>) =>
+      ({
+        type: "assistant",
+        session_id: "claude-session",
+        parent_tool_use_id: parent,
+        message: {
+          id: `msg-${id}`,
+          role: "assistant",
+          content: [{ type: "tool_use", id, name, input }],
+        },
+      }) as unknown as SDKMessage;
+
+    mapClaudeSdkMessage(
+      forwarded("toolu_old", "toolu_old_child", "Read", { file_path: "old.txt" }),
+      state,
+    );
+    mapClaudeSdkMessage(
+      forwarded("toolu_old", "toolu_nested", "Agent", {
+        description: "nested",
+        subagent_type: "general-purpose",
+      }),
+      state,
+    );
+
+    // The new owner supersedes the old run before the child Agent's
+    // task_started arrives. The ordinary child is settled; the Agent row must
+    // survive so its later binding and terminal report can still use it.
+    startSendMessageTool(state, "toolu_send");
+    const superseded = mapClaudeSdkMessage(taskStarted("toolu_send", "general-purpose"), state);
+    expect(superseded).toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: "toolu_old_child" }),
+    );
+    expect(state.toolItemsById.has("toolu_nested")).toBe(true);
+    expect(state.subAgentChildToolItemIds?.has("toolu_nested") ?? false).toBe(true);
+    expect(state.activeSubAgentToolToTask?.has("toolu_nested") ?? false).toBe(false);
+
+    const started = mapClaudeSdkMessage(
+      taskStarted("toolu_nested", "general-purpose", { task_id: "nested-task" }),
+      state,
+    );
+    expect(
+      started.some((event) => event.type === "item.completed" && event.itemId === "toolu_nested"),
+    ).toBe(false);
+    expect(state.toolItemsById.has("toolu_nested")).toBe(true);
+    expect(state.activeSubAgentToolToTask?.get("toolu_nested")).toBe("nested-task");
+
+    const closed = mapClaudeSdkMessage(
+      taskNotification("completed", "Nested done", "nested-task"),
+      state,
+    );
+    expect(closed).toMatchObject([
+      { type: "item.updated", itemId: "toolu_nested", payload: { status: "success" } },
+      { type: "item.completed", itemId: "toolu_nested", payload: { status: "success" } },
+    ]);
+    expect(state.toolItemsById.has("toolu_nested")).toBe(false);
+    expect(state.activeSubAgentToolToTask?.has("nested-task") ?? false).toBe(false);
+  });
+
+  it("never revives a settled parent from late forwarded child messages", () => {
+    const state = createClaudeMapperState("thread-1");
+    const settled = settledMissingReport(state);
+    expect(settled).toMatchObject([
+      {
+        type: "item.completed",
+        itemId: "toolu_parent",
+        payload: {
+          status: "error",
+          result: { error: msg("thread.backgroundTaskReportMissing") },
+        },
+      },
+    ]);
+
+    const events = mapClaudeSdkMessage(
+      {
+        type: "assistant",
+        session_id: "claude-session",
+        uuid: "uuid-late-child",
+        parent_tool_use_id: "toolu_parent",
+        message: {
+          id: "msg-late-child",
+          role: "assistant",
+          model: "claude-opus-4-6",
+          content: [
+            {
+              type: "tool_use",
+              id: "toolu_late_child",
+              name: "Read",
+              input: { file_path: "a" },
+            },
+          ],
+        },
+      } as unknown as SDKMessage,
+      state,
+    );
+
+    // Child events and private metadata still flow, but the completed
+    // missing-report row never receives a running payload again.
+    expect(events).toMatchObject([
+      {
+        type: "item.started",
+        itemId: "toolu_late_child",
+        parentItemId: "toolu_parent",
+      },
+    ]);
+    expect(
+      events.some((event) => event.type === "item.updated" && event.itemId === "toolu_parent"),
+    ).toBe(false);
+    const parent = state.toolItemsById.get("toolu_parent");
+    expect(parent?.awaitingTaskReport).toBe(true);
+    expect(parent?.progress).toMatchObject({ model: "claude-opus-4-6" });
+  });
+
+  it("evicts the oldest inactive launch with its stranded missing-report row", () => {
+    const state = createClaudeMapperState("thread-1");
+    state.liveBackgroundTaskIds = new Set();
+
+    // Task 0 is missing its terminal report: the row is retained awaiting one.
+    startAgentTool(state, "toolu_0");
+    mapClaudeSdkMessage(taskStarted("toolu_0", "general-purpose", { task_id: "task-0" }), state);
+    mapClaudeSdkMessage(launchToolResult("toolu_0"), state);
+    expect(settleMissingSubAgentTaskReports(state)).toMatchObject([
+      { type: "item.completed", itemId: "toolu_0" },
+    ]);
+    expect(state.toolItemsById.get("toolu_0")?.awaitingTaskReport).toBe(true);
+
+    // Fill the bounded launch map with finished runs.
+    for (let index = 1; index < 500; index += 1) {
+      startAgentTool(state, `toolu_${index}`);
+      mapClaudeSdkMessage(
+        taskStarted(`toolu_${index}`, "general-purpose", {
+          task_id: `task-${index}`,
+        }),
+        state,
+      );
+      mapClaudeSdkMessage(taskNotification("completed", "Done", `task-${index}`), state);
+    }
+    expect(state.subAgentTaskLaunchTools?.size).toBe(500);
+
+    // The 501st launch evicts the oldest inactive entry (task-0) and the row
+    // it stranded, instead of clearing the whole map.
+    startAgentTool(state, "toolu_500");
+    mapClaudeSdkMessage(
+      taskStarted("toolu_500", "general-purpose", { task_id: "task-500" }),
+      state,
+    );
+    expect(state.subAgentTaskLaunchTools?.size).toBe(500);
+    expect(state.subAgentTaskLaunchTools?.has("task-0") ?? true).toBe(false);
+    expect(state.subAgentTaskLaunchTools?.has("task-1") ?? false).toBe(true);
+    expect(state.toolItemsById.has("toolu_0")).toBe(false);
+
+    // An evicted task's late report cannot resurrect the dropped row.
+    expect(mapClaudeSdkMessage(taskNotification("completed", "Late", "task-0"), state)).toEqual([]);
+  });
+
+  it("uses the authoritative level instead of stale edge liveness once it exists", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_ghost");
+    mapClaudeSdkMessage(taskStarted("toolu_ghost", "general-purpose"), state);
+    expect(hasLiveBackgroundWork(state)).toBe(true);
+    expect(hasAwaitedBackgroundWork(state)).toBe(true);
+
+    // Level present: an independent command is live but detached, and the
+    // registered edge (which the level does not list) is no longer ORed in.
+    state.liveBackgroundTaskIds = new Set(["bash-1"]);
+    state.reportedBackgroundTasks = [{ taskId: "bash-1", kind: "command", description: "serve" }];
+    expect(hasLiveBackgroundWork(state)).toBe(true);
+    expect(hasAwaitedBackgroundWork(state)).toBe(false);
+
+    state.liveBackgroundTaskIds = new Set();
+    expect(hasLiveBackgroundWork(state)).toBe(false);
+    expect(hasAwaitedBackgroundWork(state)).toBe(false);
   });
 
   it("flushes a dangling child of a stopped subagent instead of leaving it running", () => {

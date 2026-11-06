@@ -56,6 +56,10 @@ import {
   updateAcpRegistryAgentPayloadSchema,
   updateAgentBinaryPayloadSchema,
   getLatestAgentVersionPayloadSchema,
+  acpRegistryListResultSchema,
+  acpRegistryMutationResultSchema,
+  updateAgentBinaryResultSchema,
+  getLatestAgentVersionResultSchema,
   getAgentConfigDefaultsPayloadSchema,
   resolveAgentAccountPayloadSchema,
   writeTerminalPayloadSchema,
@@ -236,6 +240,7 @@ export const threadProcedures = {
   listAcpRegistry: defineNoArgProcedure<AcpRegistryListResult, "supervisor">(
     "listAcpRegistry",
     "supervisor",
+    acpRegistryListResultSchema,
   ),
   installAcpRegistryAgent: definePayloadProcedure<
     InstallAcpRegistryAgentPayload,
@@ -246,17 +251,32 @@ export const threadProcedures = {
     UpdateAcpRegistryAgentPayload,
     AcpRegistryMutationResult,
     "supervisor"
-  >("updateAcpRegistryAgent", "supervisor", updateAcpRegistryAgentPayloadSchema),
+  >(
+    "updateAcpRegistryAgent",
+    "supervisor",
+    updateAcpRegistryAgentPayloadSchema,
+    acpRegistryMutationResultSchema,
+  ),
   updateAgentBinary: definePayloadProcedure<
     UpdateAgentBinaryPayload,
     UpdateAgentBinaryResult,
     "supervisor"
-  >("updateAgentBinary", "supervisor", updateAgentBinaryPayloadSchema),
+  >(
+    "updateAgentBinary",
+    "supervisor",
+    updateAgentBinaryPayloadSchema,
+    updateAgentBinaryResultSchema,
+  ),
   getLatestAgentVersion: definePayloadProcedure<
     GetLatestAgentVersionPayload,
     GetLatestAgentVersionResult,
     "supervisor"
-  >("getLatestAgentVersion", "supervisor", getLatestAgentVersionPayloadSchema),
+  >(
+    "getLatestAgentVersion",
+    "supervisor",
+    getLatestAgentVersionPayloadSchema,
+    getLatestAgentVersionResultSchema,
+  ),
   resolveAgentAccount: definePayloadProcedure<
     ResolveAgentAccountPayload,
     ResolveAgentAccountResult,

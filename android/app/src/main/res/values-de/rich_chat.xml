@@ -232,4 +232,23 @@
     <string name="rich_chat_fork_name">Name der Unterhaltung</string>
     <string name="rich_chat_fork_boundary">Übernommener Verlauf endet hier</string>
     <string name="rich_chat_fork_source">Abgezweigt von %1$s</string>
+    <string name="rich_chat_background_tasks">Hintergrundaufgaben</string>
+    <string name="rich_chat_background_task">Hintergrundaufgabe</string>
+    <string name="rich_chat_background_task_monitor">Monitor</string>
+    <string name="rich_chat_background_task_tool">Werkzeug</string>
+    <string name="rich_chat_background_task_agent">Agent</string>
+    <string name="rich_chat_background_task_other">Andere</string>
+    <string name="rich_chat_background_task_output">Aufgabenausgabe</string>
+    <string name="rich_chat_background_task_output_unavailable">Die Ausgabe ist für diese Aufgabe nicht verfügbar.</string>
+    <string name="rich_chat_background_task_output_read_failed">Die Ausgabe der Hintergrundaufgabe konnte nicht gelesen werden.</string>
+    <string name="rich_chat_background_task_output_loading">Ausgabe wird geladen…</string>
+    <string name="rich_chat_background_task_no_output">Noch keine Ausgabe</string>
+    <string name="rich_chat_background_task_output_truncated">Es wird nur das Ende der Ausgabe angezeigt (%1$s Bytes).</string>
+    <string name="rich_chat_background_task_stop">Aufgabe stoppen</string>
+    <string name="rich_chat_background_task_stopping">Aufgabe wird gestoppt…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">Die Aufgabe hat noch nicht bestätigt, dass sie gestoppt wurde. Versuche es erneut.</string>
+    <string name="rich_chat_background_task_running_for">Läuft seit %1$s</string>
+    <string name="rich_chat_background_task_last_progress">Letzter Fortschritt vor %1$s</string>
+    <string name="rich_chat_background_task_close">Aufgabendetails schließen</string>
+    <string name="rich_chat_background_task_report_missing">Die Aufgabe wurde ohne Abschlussbericht beendet.</string>
 </resources>

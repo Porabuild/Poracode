@@ -90,23 +90,27 @@ describe("remote v3 native binding generator", () => {
         // Host-owned Hex voice transcription adds one typed procedure and schema roots.
         // The optional mediaFileRequest `disposition` attachment literal moves the source hash.
         // Background PR polling adds one read procedure and its typed status result.
+        // Additive background-task category/command display metadata adds one
+        // structural enum and moves the source hash without changing wire versions.
+        // Host agent management adds four desktop procedures and their request/result roots;
+        // registry listing is an operate-scoped long mutation because it can install/update agents.
         // The additive remote-forge-activity broadcast event moves both authority
         // hashes and grows only the replayable-event count.
-        sourceHash: "sha256:79f0a3b54bf6e88e35f88718cddb56832aab9646fb14165e84c2290249c8c34c",
-        manifestHash: "sha256:e5903f6ffc97f048708b77a075974c0fe31d49ea2985a3a3af1eb5125dae396c",
+        sourceHash: "sha256:a9d5d4889436d9076f4914059b283257b6b8172a0301b0d95fe89d91c06e4dfe",
+        manifestHash: "sha256:8eb11d30c196c7662189a1a771e4eab5fecebb2f746a20727f5e81a58e03babd",
         counts: {
           routes: 119,
-          procedures: 167,
+          procedures: 171,
           voidProcedureResults: 64,
-          jsonProcedureResults: 103,
+          jsonProcedureResults: 107,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 552,
-          structuralTypes: 1286,
+          schemaRoots: 560,
+          structuralTypes: 1310,
           semanticValidators: 25,
-          swiftFiles: 78,
-          kotlinFiles: 68,
+          swiftFiles: 79,
+          kotlinFiles: 69,
           stateMachines: 5,
         },
       });
@@ -378,7 +382,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(552);
+        expect(adapters).toHaveLength(560);
         expect(
           adapters
             .map((adapter) => adapter.id)

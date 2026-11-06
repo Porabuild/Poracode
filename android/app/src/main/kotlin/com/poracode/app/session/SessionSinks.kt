@@ -14,7 +14,7 @@ internal class SessionSinks {
     var richChatEventSink: ((Int, JsonElement) -> Unit)? = null
 
     @Volatile
-    var replaySideEffectSink: ((ReplayOutcome) -> Unit)? = null
+    var replaySideEffectSink: ((ReplayOutcome, Int) -> Unit)? = null
 
     @Volatile
     var heavyReviewTargetSupplier: (() -> HeavyReviewTarget?)? = null

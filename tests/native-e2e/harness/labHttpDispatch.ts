@@ -181,7 +181,10 @@ async function handleProcedureCall(
     throw new LabHttpError("unconfigured_contract_case", "Fixture name is not configured.", 501);
   }
   if (fixture.mutates) runtime.ledger.markRequiresFollowUp("procedure", fixture.name);
-  const result = runtime.workspace.invoke(fixture.name, envelope.payload);
+  // A fixture action may answer asynchronously (the delayed background-task
+  // output read proves a late reply never resurrects a closed/older view).
+  const result = await runtime.workspace.invoke(fixture.name, envelope.payload);
+  if (res.destroyed || res.writableEnded) return;
   const bodyOut =
     fixture.resultKind === "omitted"
       ? parseWithSchema(schemas.responseSchema, {}, `${fixture.name} envelope`)

@@ -231,4 +231,35 @@ extension RichJSON {
       self = .object(converted)
     }
   }
+
+  /// Lossless bridge back to the shared protocol JSON shape so strict protocol
+  /// parsers (background tasks, context usage) have exactly one field decoder.
+  var jsonValue: JSONValue? {
+    switch self {
+    case .null:
+      return .null
+    case .bool(let value):
+      return .bool(value)
+    case .number(let value):
+      let number = NSDecimalNumber(decimal: value).doubleValue
+      guard number.isFinite else { return nil }
+      return .number(number)
+    case .string(let value):
+      return .string(value)
+    case .array(let values):
+      var converted: [JSONValue] = []
+      for value in values {
+        guard let json = value.jsonValue else { return nil }
+        converted.append(json)
+      }
+      return .array(converted)
+    case .object(let values):
+      var converted: [String: JSONValue] = [:]
+      for (key, value) in values {
+        guard let json = value.jsonValue else { return nil }
+        converted[key] = json
+      }
+      return .object(converted)
+    }
+  }
 }

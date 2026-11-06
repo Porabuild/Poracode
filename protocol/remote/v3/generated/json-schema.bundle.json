@@ -15010,6 +15010,65 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "procedure.getLatestAgentVersion.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentKind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "npmPackage": {
+          "additionalProperties": true,
+          "properties": {
+            "maxExclusiveMajor": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "minVersion": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "required": [
+        "agentKind"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.getLatestAgentVersion.result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "source": {
+          "enum": [
+            "npm",
+            "homebrew-cask",
+            "version-url",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "procedure.getMcpOauthStatus.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -27209,6 +27268,166 @@
       },
       "type": "object"
     },
+    "procedure.listAcpRegistry.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {},
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.listAcpRegistry.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "args": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "env": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "package": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "package"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agents": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "authors": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "description": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "distribution": {
+                "additionalProperties": true,
+                "properties": {
+                  "binary": {
+                    "additionalProperties": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "archive": {
+                          "format": "uri",
+                          "type": "string"
+                        },
+                        "args": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "cmd": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "env": {
+                          "additionalProperties": {
+                            "type": "string"
+                          },
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "archive",
+                        "cmd"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "npx": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "uvx": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "license": {
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "repository": {
+                "format": "uri",
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "website": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "version",
+              "description",
+              "distribution"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        },
+        "version": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "agents"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "procedure.listFileCheckpoints.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -29940,10 +30159,54 @@
       "x-poracode-unknownFields": "strip"
     },
     "procedure.readThreadBackgroundTasks.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "id": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "payload": {
+              "additionalProperties": {
+                "maxLength": 512,
+                "type": "string"
+              },
+              "propertyNames": {
+                "maxLength": 120,
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "id",
+            "payload"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "items": {
         "additionalProperties": true,
         "properties": {
+          "category": {
+            "enum": [
+              "command",
+              "monitor",
+              "tool",
+              "agent",
+              "workflow",
+              "other"
+            ],
+            "type": "string"
+          },
+          "command": {
+            "maxLength": 16384,
+            "type": "string"
+          },
           "description": {
             "type": "string"
           },
@@ -29958,6 +30221,9 @@
             "minimum": 0,
             "type": "number"
           },
+          "outputAction": {
+            "$ref": "#/$defs/__schema0"
+          },
           "progress": {
             "maxLength": 4096,
             "type": "string"
@@ -29967,31 +30233,7 @@
             "type": "number"
           },
           "stopAction": {
-            "additionalProperties": true,
-            "properties": {
-              "id": {
-                "maxLength": 120,
-                "minLength": 1,
-                "type": "string"
-              },
-              "payload": {
-                "additionalProperties": {
-                  "maxLength": 512,
-                  "type": "string"
-                },
-                "propertyNames": {
-                  "maxLength": 120,
-                  "type": "string"
-                },
-                "type": "object"
-              }
-            },
-            "required": [
-              "id",
-              "payload"
-            ],
-            "type": "object",
-            "x-poracode-unknownFields": "strip"
+            "$ref": "#/$defs/__schema0"
           },
           "taskId": {
             "minLength": 1,
@@ -33937,6 +34179,33 @@
           "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
+        },
+        "__schema1": {
+          "additionalProperties": true,
+          "properties": {
+            "id": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "payload": {
+              "additionalProperties": {
+                "maxLength": 512,
+                "type": "string"
+              },
+              "propertyNames": {
+                "maxLength": 120,
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "id",
+            "payload"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -34385,6 +34654,21 @@
                     "items": {
                       "additionalProperties": true,
                       "properties": {
+                        "category": {
+                          "enum": [
+                            "command",
+                            "monitor",
+                            "tool",
+                            "agent",
+                            "workflow",
+                            "other"
+                          ],
+                          "type": "string"
+                        },
+                        "command": {
+                          "maxLength": 16384,
+                          "type": "string"
+                        },
                         "description": {
                           "type": "string"
                         },
@@ -34399,6 +34683,9 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "outputAction": {
+                          "$ref": "#/$defs/__schema1"
+                        },
                         "progress": {
                           "maxLength": 4096,
                           "type": "string"
@@ -34408,31 +34695,7 @@
                           "type": "number"
                         },
                         "stopAction": {
-                          "additionalProperties": true,
-                          "properties": {
-                            "id": {
-                              "maxLength": 120,
-                              "minLength": 1,
-                              "type": "string"
-                            },
-                            "payload": {
-                              "additionalProperties": {
-                                "maxLength": 512,
-                                "type": "string"
-                              },
-                              "propertyNames": {
-                                "maxLength": 120,
-                                "type": "string"
-                              },
-                              "type": "object"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "payload"
-                          ],
-                          "type": "object",
-                          "x-poracode-unknownFields": "strip"
+                          "$ref": "#/$defs/__schema1"
                         },
                         "taskId": {
                           "minLength": 1,
@@ -34692,6 +34955,225 @@
       ],
       "x-poracode-wire": "omitted"
     },
+    "procedure.updateAcpRegistryAgent.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "target": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "native",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "required": [
+        "agentId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.updateAcpRegistryAgent.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "installedAt": {
+              "type": "string"
+            },
+            "layoutVersion": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "target": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "version",
+            "target",
+            "installedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "installed": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "adapterKind": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "installKind": {
+                "enum": [
+                  "first-class",
+                  "generic"
+                ],
+                "type": "string"
+              },
+              "installations": {
+                "additionalProperties": true,
+                "properties": {
+                  "native": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "wsl": {
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "propertyNames": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "installedAt": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "version",
+              "installedAt",
+              "adapterKind",
+              "installKind"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "installed"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.updateAgentBinary.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentKind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "envKind": {
+          "enum": [
+            "windows",
+            "wsl",
+            "posix"
+          ],
+          "type": "string"
+        },
+        "wslDistro": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "agentKind",
+        "envKind"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.updateAgentBinary.result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ok": {
+          "type": "boolean"
+        },
+        "output": {
+          "type": "string"
+        },
+        "strategy": {
+          "enum": [
+            "built-in",
+            "npm-global",
+            "pnpm-global",
+            "bun-global",
+            "brew",
+            "winget",
+            "installer",
+            "unsupported"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "procedure.waitMcpServerOauth.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -34947,6 +35429,33 @@
           "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
+        },
+        "__schema1": {
+          "additionalProperties": true,
+          "properties": {
+            "id": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "payload": {
+              "additionalProperties": {
+                "maxLength": 512,
+                "type": "string"
+              },
+              "propertyNames": {
+                "maxLength": 120,
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "id",
+            "payload"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -35395,6 +35904,21 @@
                     "items": {
                       "additionalProperties": true,
                       "properties": {
+                        "category": {
+                          "enum": [
+                            "command",
+                            "monitor",
+                            "tool",
+                            "agent",
+                            "workflow",
+                            "other"
+                          ],
+                          "type": "string"
+                        },
+                        "command": {
+                          "maxLength": 16384,
+                          "type": "string"
+                        },
                         "description": {
                           "type": "string"
                         },
@@ -35409,6 +35933,9 @@
                           "minimum": 0,
                           "type": "number"
                         },
+                        "outputAction": {
+                          "$ref": "#/$defs/__schema1"
+                        },
                         "progress": {
                           "maxLength": 4096,
                           "type": "string"
@@ -35418,31 +35945,7 @@
                           "type": "number"
                         },
                         "stopAction": {
-                          "additionalProperties": true,
-                          "properties": {
-                            "id": {
-                              "maxLength": 120,
-                              "minLength": 1,
-                              "type": "string"
-                            },
-                            "payload": {
-                              "additionalProperties": {
-                                "maxLength": 512,
-                                "type": "string"
-                              },
-                              "propertyNames": {
-                                "maxLength": 120,
-                                "type": "string"
-                              },
-                              "type": "object"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "payload"
-                          ],
-                          "type": "object",
-                          "x-poracode-unknownFields": "strip"
+                          "$ref": "#/$defs/__schema1"
                         },
                         "taskId": {
                           "minLength": 1,
@@ -67917,6 +68420,21 @@
         "__schema18": {
           "additionalProperties": true,
           "properties": {
+            "category": {
+              "enum": [
+                "command",
+                "monitor",
+                "tool",
+                "agent",
+                "workflow",
+                "other"
+              ],
+              "type": "string"
+            },
+            "command": {
+              "maxLength": 16384,
+              "type": "string"
+            },
             "description": {
               "type": "string"
             },
@@ -67931,6 +68449,9 @@
               "minimum": 0,
               "type": "number"
             },
+            "outputAction": {
+              "$ref": "#/$defs/__schema19"
+            },
             "progress": {
               "maxLength": 4096,
               "type": "string"
@@ -67940,31 +68461,7 @@
               "type": "number"
             },
             "stopAction": {
-              "additionalProperties": true,
-              "properties": {
-                "id": {
-                  "maxLength": 120,
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "payload": {
-                  "additionalProperties": {
-                    "maxLength": 512,
-                    "type": "string"
-                  },
-                  "propertyNames": {
-                    "maxLength": 120,
-                    "type": "string"
-                  },
-                  "type": "object"
-                }
-              },
-              "required": [
-                "id",
-                "payload"
-              ],
-              "type": "object",
-              "x-poracode-unknownFields": "strip"
+              "$ref": "#/$defs/__schema19"
             },
             "taskId": {
               "minLength": 1,
@@ -67980,6 +68477,113 @@
           "x-poracode-unknownFields": "strip"
         },
         "__schema19": {
+          "additionalProperties": true,
+          "properties": {
+            "id": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "payload": {
+              "additionalProperties": {
+                "maxLength": 512,
+                "type": "string"
+              },
+              "propertyNames": {
+                "maxLength": 120,
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "id",
+            "payload"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema2": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "windows",
+                  "type": "string"
+                },
+                "path": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                },
+                "linuxPath": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uncPath": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro",
+                "linuxPath",
+                "uncPath"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "posix",
+                  "type": "string"
+                },
+                "path": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        },
+        "__schema20": {
           "anyOf": [
             {
               "additionalProperties": true,
@@ -68229,87 +68833,7 @@
             }
           ]
         },
-        "__schema2": {
-          "oneOf": [
-            {
-              "additionalProperties": true,
-              "properties": {
-                "kind": {
-                  "const": "windows",
-                  "type": "string"
-                },
-                "path": {
-                  "$ref": "#/$defs/__schema3"
-                },
-                "remoteServerId": {
-                  "minLength": 1,
-                  "type": "string"
-                }
-              },
-              "required": [
-                "kind",
-                "path"
-              ],
-              "type": "object",
-              "x-poracode-unknownFields": "strip"
-            },
-            {
-              "additionalProperties": true,
-              "properties": {
-                "distro": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "kind": {
-                  "const": "wsl",
-                  "type": "string"
-                },
-                "linuxPath": {
-                  "$ref": "#/$defs/__schema3"
-                },
-                "remoteServerId": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "uncPath": {
-                  "minLength": 1,
-                  "type": "string"
-                }
-              },
-              "required": [
-                "kind",
-                "distro",
-                "linuxPath",
-                "uncPath"
-              ],
-              "type": "object",
-              "x-poracode-unknownFields": "strip"
-            },
-            {
-              "additionalProperties": true,
-              "properties": {
-                "kind": {
-                  "const": "posix",
-                  "type": "string"
-                },
-                "path": {
-                  "$ref": "#/$defs/__schema3"
-                },
-                "remoteServerId": {
-                  "minLength": 1,
-                  "type": "string"
-                }
-              },
-              "required": [
-                "kind",
-                "path"
-              ],
-              "type": "object",
-              "x-poracode-unknownFields": "strip"
-            }
-          ]
-        },
-        "__schema20": {
+        "__schema21": {
           "additionalProperties": true,
           "properties": {
             "acknowledgedCount": {
@@ -68377,7 +68901,7 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema21": {
+        "__schema22": {
           "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
@@ -68511,7 +69035,7 @@
                   "$ref": "#/$defs/__schema15"
                 },
                 "followUpQueue": {
-                  "$ref": "#/$defs/__schema19"
+                  "$ref": "#/$defs/__schema20"
                 },
                 "historyProjection": {
                   "const": "details-v1",
@@ -68583,7 +69107,7 @@
                   ]
                 },
                 "runtimeNotice": {
-                  "$ref": "#/$defs/__schema20"
+                  "$ref": "#/$defs/__schema21"
                 },
                 "runtimeResumeCursor": {
                   "minLength": 1,
@@ -69005,19 +69529,19 @@
                                   "additionalProperties": true,
                                   "properties": {
                                     "cacheRead": {
-                                      "$ref": "#/$defs/__schema21"
+                                      "$ref": "#/$defs/__schema22"
                                     },
                                     "cacheWrite": {
-                                      "$ref": "#/$defs/__schema21"
+                                      "$ref": "#/$defs/__schema22"
                                     },
                                     "cacheWrite1h": {
-                                      "$ref": "#/$defs/__schema21"
+                                      "$ref": "#/$defs/__schema22"
                                     },
                                     "input": {
-                                      "$ref": "#/$defs/__schema21"
+                                      "$ref": "#/$defs/__schema22"
                                     },
                                     "output": {
-                                      "$ref": "#/$defs/__schema21"
+                                      "$ref": "#/$defs/__schema22"
                                     }
                                   },
                                   "required": [
@@ -69303,14 +69827,14 @@
               "$ref": "#/$defs/__schema15"
             },
             "followUpQueue": {
-              "$ref": "#/$defs/__schema19"
+              "$ref": "#/$defs/__schema20"
             },
             "kind": {
               "const": "events",
               "type": "string"
             },
             "runtimeNotice": {
-              "$ref": "#/$defs/__schema20"
+              "$ref": "#/$defs/__schema21"
             },
             "runtimeResumeCursor": {
               "minLength": 1,
@@ -69885,6 +70409,33 @@
           ],
           "type": "string"
         },
+        "__schema11": {
+          "additionalProperties": true,
+          "properties": {
+            "id": {
+              "maxLength": 120,
+              "minLength": 1,
+              "type": "string"
+            },
+            "payload": {
+              "additionalProperties": {
+                "maxLength": 512,
+                "type": "string"
+              },
+              "propertyNames": {
+                "maxLength": 120,
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "required": [
+            "id",
+            "payload"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
         "__schema2": {
           "type": "boolean"
         },
@@ -69989,6 +70540,21 @@
           "items": {
             "additionalProperties": true,
             "properties": {
+              "category": {
+                "enum": [
+                  "command",
+                  "monitor",
+                  "tool",
+                  "agent",
+                  "workflow",
+                  "other"
+                ],
+                "type": "string"
+              },
+              "command": {
+                "maxLength": 16384,
+                "type": "string"
+              },
               "description": {
                 "type": "string"
               },
@@ -70003,6 +70569,9 @@
                 "minimum": 0,
                 "type": "number"
               },
+              "outputAction": {
+                "$ref": "#/$defs/__schema11"
+              },
               "progress": {
                 "maxLength": 4096,
                 "type": "string"
@@ -70012,31 +70581,7 @@
                 "type": "number"
               },
               "stopAction": {
-                "additionalProperties": true,
-                "properties": {
-                  "id": {
-                    "maxLength": 120,
-                    "minLength": 1,
-                    "type": "string"
-                  },
-                  "payload": {
-                    "additionalProperties": {
-                      "maxLength": 512,
-                      "type": "string"
-                    },
-                    "propertyNames": {
-                      "maxLength": 120,
-                      "type": "string"
-                    },
-                    "type": "object"
-                  }
-                },
-                "required": [
-                  "id",
-                  "payload"
-                ],
-                "type": "object",
-                "x-poracode-unknownFields": "strip"
+                "$ref": "#/$defs/__schema11"
               },
               "taskId": {
                 "minLength": 1,
@@ -76113,8 +76658,8 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 103,
-    "procedures": 167,
+    "jsonProcedureResults": 107,
+    "procedures": 171,
     "replayableEventTypes": 17,
     "routes": 119,
     "runtimeEventTypes": 16,
@@ -76122,7 +76667,7 @@
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:e5903f6ffc97f048708b77a075974c0fe31d49ea2985a3a3af1eb5125dae396c",
+  "manifestHash": "sha256:8eb11d30c196c7662189a1a771e4eab5fecebb2f746a20727f5e81a58e03babd",
   "protocolVersion": 14,
-  "sourceHash": "sha256:79f0a3b54bf6e88e35f88718cddb56832aab9646fb14165e84c2290249c8c34c"
+  "sourceHash": "sha256:a9d5d4889436d9076f4914059b283257b6b8172a0301b0d95fe89d91c06e4dfe"
 }

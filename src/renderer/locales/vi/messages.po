@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "{0} mô hình"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0} cần xác thực."
 
@@ -595,8 +597,8 @@ msgstr "{days} ngày trước"
 #~ msgstr "Tải xuống {downloadSize} MB"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel} cần xác thực."
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel} cần xác thực."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "Mức sử dụng {label} — mở bảng sử dụng"
 #~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel} {env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel} {env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1675,8 +1677,8 @@ msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Tác nhân"
 
@@ -2714,6 +2716,10 @@ msgstr "Tiến trình nền đã được khởi động lại"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "Tác vụ nền"
+
+#: src/renderer/components/thread/useThreadBackgroundTaskOutput.ts
+msgid "Background task output could not be read."
+msgstr "Không thể đọc đầu ra của tác vụ nền."
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
@@ -4430,6 +4436,7 @@ msgstr "Gộp với {name} ({machines})"
 #~ msgstr "Các mục chủ/số tên phân tách bằng dấu phẩy, ví dụ acme/website, acme/api. Danh sách được gửi tới Devin chính xác như đã nhập."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Command"
 msgstr "Lệnh"
 
@@ -4608,8 +4615,8 @@ msgstr "Hoàn tất đăng nhập {0} trước khi chủ đề này có thể ch
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "Hoàn tất đăng nhập {0} cho {env}."
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "Hoàn tất đăng nhập {0} cho {env}."
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6102,7 +6109,6 @@ msgstr "Trò chuyện DeepSeek Harness với phiên được lưu, tùy chỉnh 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -9869,8 +9875,8 @@ msgstr "Cài đặt · {engineSize} MB"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "Cài đặt {0} cho {env}."
+#~ msgid "Install {0} for {env}."
+#~ msgstr "Cài đặt {0} cho {env}."
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9921,6 +9927,10 @@ msgstr "Cài đặt và quản lý plugin gốc của OpenCode."
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "Cài đặt và khởi động lại"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "Cài đặt và đăng nhập chưa khả dụng trên máy từ xa."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10035,8 +10045,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Cài đặt nhà cung cấp gốc trước; sử dụng ACP cho các tác nhân giao thức bổ sung."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "Cài đặt trên {env}"
+#~ msgid "Install on {env}"
+#~ msgstr "Cài đặt trên {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10104,8 +10114,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "Cài Xcode và môi trường chạy iOS Simulator trên máy chủ này."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên máy từ xa."
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên máy từ xa."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -10818,6 +10828,10 @@ msgstr "Đang tải mô hình…"
 msgid "Loading notes…"
 msgstr "Đang tải ghi chú…"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Loading output…"
+msgstr "Đang tải đầu ra…"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "Loading PDF…"
@@ -11035,8 +11049,8 @@ msgid "Logout"
 msgstr "Đăng xuất"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "Đăng xuất {env}"
+#~ msgid "Logout {env}"
+#~ msgstr "Đăng xuất {env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11910,6 +11924,10 @@ msgstr "Chế độ"
 msgid "Modified"
 msgstr "Đã sửa đổi"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Monitor"
+msgstr "Giám sát"
+
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Monitoring"
 msgstr "Giám sát"
@@ -11973,8 +11991,8 @@ msgid "More sign-in methods"
 msgstr "Thêm phương thức đăng nhập"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "Thêm phương thức đăng nhập {env}"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "Thêm phương thức đăng nhập {env}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -12907,6 +12925,10 @@ msgstr "Không tìm thấy mô hình nào"
 msgid "No other agents installed"
 msgstr "Không có tác nhân nào khác được cài đặt"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No output yet"
+msgstr "Chưa có đầu ra"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "No package plugins installed."
 msgstr "Chưa cài gói plugin nào."
@@ -12954,8 +12976,8 @@ msgid "No profile with its own isolated login exists yet. Set a profile to \"Own
 msgstr "Chưa có hồ sơ nào có đăng nhập riêng của riêng nó. Hãy đặt một hồ sơ thành \"Đăng nhập riêng biệt\" và đăng nhập ở đó trước; nó sẽ xuất hiện tại đây."
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
-msgid "No progress reported"
-msgstr "Chưa có báo cáo tiến độ"
+#~ msgid "No progress reported"
+#~ msgstr "Chưa có báo cáo tiến độ"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -13423,6 +13445,11 @@ msgstr "Mã ghép nối dùng một lần"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Trực tuyến"
+
+#. placeholder {0}: state.totalBytes.toLocaleString()
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Only the end of the output is shown ({0} bytes)."
+msgstr "Chỉ hiển thị phần cuối của đầu ra ({0} byte)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13984,6 +14011,7 @@ msgstr "Tổ chức (tùy chọn)"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
@@ -14027,6 +14055,10 @@ msgstr "Outlook"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "Đầu ra"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Output isn’t available for this task."
+msgstr "Đầu ra không khả dụng cho tác vụ này."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -16754,6 +16786,7 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
@@ -19814,6 +19847,7 @@ msgid "Task Notification"
 msgstr "Thông báo tác vụ"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Task output"
 msgstr "Đầu ra nhiệm vụ"
 
@@ -20627,6 +20661,10 @@ msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The task ended without a completion report."
+msgstr "Tác vụ đã kết thúc mà không có báo cáo hoàn thành."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The task has not confirmed that it stopped. Try again."
 msgstr "Tác vụ chưa xác nhận đã dừng. Hãy thử lại."
 
@@ -20860,8 +20898,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "Thiết bị này không có camera dùng được. Hãy dán liên kết ghép nối hoặc chọn ảnh của mã thay thế."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "môi trường này"
+#~ msgid "this environment"
+#~ msgstr "môi trường này"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -21508,6 +21546,10 @@ msgstr "Có quá nhiều yêu cầu từ xa đang được xử lý. Hãy thử 
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "Có quá nhiều nội dung trực quan trong tin nhắn này. Chỉ hiển thị mã nguồn."
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Tool"
+msgstr "Công cụ"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -22358,8 +22400,8 @@ msgstr "Cập nhật {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "Cập nhật {0} ({env})"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "Cập nhật {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22481,8 +22523,8 @@ msgstr "Cập nhật lên {updateLabel} cho {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "Cập nhật lên {updateLabel} cho {0} ({env})"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "Cập nhật lên {updateLabel} cho {0} ({env})"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22538,8 +22580,8 @@ msgstr "Đang cập nhật {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "Đang cập nhật {0} ({env})"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "Đang cập nhật {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23399,10 +23441,9 @@ msgstr "Nơi bảng điều khiển đầu cuối xuất hiện."
 msgid "Whisper with broad multilingual support."
 msgstr "Whisper với sự hỗ trợ đa ngôn ngữ rộng rãi."
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "Sẽ chạy trong {0}:"
+msgid "Will run in this environment:"
+msgstr "Sẽ chạy trong môi trường này:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
@@ -23453,6 +23494,7 @@ msgid "Worked for {elapsed}"
 msgstr "Đã làm việc trong {elapsed}"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Workflow"
 msgstr "Quy trình làm việc"
 

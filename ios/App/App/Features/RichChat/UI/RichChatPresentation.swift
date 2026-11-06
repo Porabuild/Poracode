@@ -84,6 +84,9 @@ enum RichChatPresentation {
   ]
 
   static func text(for item: RichRuntimeItem) -> String {
+    if let missingReport = backgroundTaskMissingReportText(for: item) {
+      return missingReport
+    }
     if item.type == "question_answer" {
       return RichQuestionAnswerPresentation.text(for: item)
     }
@@ -103,11 +106,34 @@ enum RichChatPresentation {
     return ""
   }
 
+  private static let backgroundTaskMissingReportHostMessage =
+    "The task ended without a completion report."
+
+  /// A sub-agent whose task ended without its terminal report is settled by
+  /// completing the parent tool with `status: "error"` and the canonical
+  /// `result.error` below. The generic tool projection otherwise prefers the
+  /// request title or a live stream, hiding the provisional outcome. Surface
+  /// the localized sentence only for that exact canonical message; a late
+  /// completion rewrites the payload (for example `result: null`) and this
+  /// check then falls through to the normal presentation.
+  private static func backgroundTaskMissingReportText(for item: RichRuntimeItem) -> String? {
+    guard item.type == "tool_call",
+      let payload = item.payload?.objectValue,
+      payload["status"]?.stringValue == "error",
+      let result = payload["result"]?.objectValue,
+      result["error"]?.stringValue == Self.backgroundTaskMissingReportHostMessage
+    else { return nil }
+    return RichChatStrings.backgroundTaskReportMissing
+  }
+
   /// Visible message prose, kept separate from `text(for:)` because the latter
   /// is also the canonical copy/handoff representation and intentionally names
   /// skills, files, and images. Those structured blocks render as native cards
   /// instead of being duplicated inside the prose.
   static func messageBody(for item: RichRuntimeItem) -> String {
+    if let missingReport = backgroundTaskMissingReportText(for: item) {
+      return missingReport
+    }
     let stream = preferredStreams.compactMap { item.streams[$0] }
       .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
       .joined(separator: "\n")
@@ -518,5 +544,126 @@ enum RichChatPresentation {
     default:
       break
     }
+  }
+}
+
+/// Provider-neutral display class for one live background task. `category` is
+/// additive on the wire; a category-less old producer falls back to the legacy
+/// `kind` exactly like the desktop dock.
+enum RichBackgroundTaskCategory: String, CaseIterable, Equatable, Sendable {
+  case command
+  case monitor
+  case tool
+  case agent
+  case workflow
+  case other
+
+  init(task: RemoteBackgroundTaskIdentity) {
+    if let raw = task.category, let category = Self(rawValue: raw) {
+      self = category
+    } else {
+      self = task.kind == "command" ? .command : .other
+    }
+  }
+
+  var label: String {
+    switch self {
+    case .command: RichChatStrings.command
+    case .monitor: RichChatStrings.backgroundTaskMonitor
+    case .tool: RichChatStrings.tool
+    case .agent: RichChatStrings.backgroundTaskAgent
+    case .workflow: RichChatStrings.backgroundTaskWorkflow
+    case .other: RichChatStrings.backgroundTaskOther
+    }
+  }
+
+  var systemImage: String {
+    switch self {
+    case .command: "terminal"
+    case .monitor: "dot.radiowaves.left.and.right"
+    case .tool: "wrench.and.screwdriver"
+    case .agent: "cpu"
+    case .workflow: "point.3.connected.trianglepath.dotted"
+    case .other: "ellipsis.circle"
+    }
+  }
+}
+
+/// Display-ready, de-duplicated projection of one background task: the purpose
+/// appears once as `label`, a genuine progress report once as `progress`, and
+/// the command only as a separate section when it is not already the label.
+struct RichBackgroundTaskPresentation: Equatable, Sendable, Identifiable {
+  let id: String
+  let category: RichBackgroundTaskCategory
+  let label: String
+  let command: String?
+  let progress: String?
+  let startedAtMilliseconds: Double?
+  let lastProgressAtMilliseconds: Double?
+  let stopAction: RemoteBackgroundTaskStopAction?
+  let outputAction: RemoteBackgroundTaskStopAction?
+
+  init(task: RemoteBackgroundTaskIdentity) {
+    id = task.taskId
+    category = RichBackgroundTaskCategory(task: task)
+    let description = task.description.trimmingCharacters(in: .whitespacesAndNewlines)
+    let command = task.command?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let presentCommand = command?.isEmpty == false ? command : nil
+    self.command = presentCommand
+    if !description.isEmpty {
+      label = description
+    } else if let presentCommand {
+      label = presentCommand
+    } else {
+      label = RichChatStrings.backgroundTask
+    }
+    let progress = task.progress?.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let progress, !progress.isEmpty, progress != label,
+      progress != (presentCommand ?? "")
+    {
+      self.progress = progress
+    } else {
+      self.progress = nil
+    }
+    startedAtMilliseconds = task.startedAt.flatMap { $0.isFinite ? $0 : nil }
+    lastProgressAtMilliseconds = task.lastProgressAt.flatMap { $0.isFinite ? $0 : nil }
+    stopAction = task.stopAction
+    outputAction = task.outputAction
+  }
+
+  /// The command is only a separate section when it is not already the purpose
+  /// or the label fallback, so it is never shown twice.
+  var showsCommandSection: Bool {
+    command.map { $0 != label } ?? false
+  }
+
+  /// When the provider's only label is the command itself, the label is styled
+  /// as command text instead of repeating the command in a section.
+  var commandIsLabel: Bool {
+    command.map { $0 == label } ?? false
+  }
+}
+
+/// Locale-aware elapsed text for a host-observed timestamp. Only called when
+/// `startedAt`/`lastProgressAt` are actually known; never invents a duration.
+enum RichBackgroundTaskElapsed {
+  /// A century of seconds is far beyond any task lifetime while keeping the
+  /// display and the `Int` conversion safe for adversarial finite timestamps
+  /// (for example 1e300 from a provider).
+  private static let maximumDisplayedSeconds: Double = 3_155_760_000
+
+  static func text(startedAtMilliseconds: Double, now: Date = Date()) -> String {
+    let delta = now.timeIntervalSince1970 - startedAtMilliseconds / 1000
+    // Clamp the Double BEFORE converting to Int: `Int(1e300)` traps. Future
+    // timestamps (and NaN) are never displayed as a negative age.
+    let clamped = delta.isFinite ? max(0, delta) : 0
+    let elapsed = Int(min(clamped, maximumDisplayedSeconds).rounded(.down))
+    return Duration.seconds(elapsed).formatted(
+      .units(
+        allowed: [.hours, .minutes, .seconds],
+        width: .abbreviated,
+        maximumUnitCount: 2
+      )
+    )
   }
 }

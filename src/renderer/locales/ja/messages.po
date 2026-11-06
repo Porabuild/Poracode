@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "{0} 個のモデル"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0}には認証が必要です。"
 
@@ -595,8 +597,8 @@ msgstr "{days}日前"
 #~ msgstr "{downloadSize} MB のダウンロード"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel}には認証が必要です。"
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel}には認証が必要です。"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "{label}使用量 — 使用量パネルを開く"
 #~ msgstr "{loginLabel}{0}{env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel}{env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel}{env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1674,8 +1676,8 @@ msgstr "カスタムのベースURLを通知します（例: リバースプロ�
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "エージェント"
 
@@ -2713,6 +2715,10 @@ msgstr "バックグラウンドプロセスが再起動されました"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "バックグラウンドタスク"
+
+#: src/renderer/components/thread/useThreadBackgroundTaskOutput.ts
+msgid "Background task output could not be read."
+msgstr "バックグラウンドタスクの出力を読み取れませんでした。"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
@@ -4429,6 +4435,7 @@ msgstr "{name} と統合 ({machines})"
 #~ msgstr "owner/name エントリをカンマ区切りで指定します（例: acme/website, acme/api）。リストは入力したとおりにそのまま Devin に送られます。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Command"
 msgstr "コマンド"
 
@@ -4607,8 +4614,8 @@ msgstr "このスレッドを実行する前に、{0}サインインを完了し
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "{env}の{0}サインインを完了します。"
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "{env}の{0}サインインを完了します。"
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6101,7 +6108,6 @@ msgstr "永続セッション、推論設定、MCPツールに対応したDeepSe
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -9868,8 +9874,8 @@ msgstr "インストール · {engineSize} MB"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "{env}の{0}をインストールします。"
+#~ msgid "Install {0} for {env}."
+#~ msgstr "{env}の{0}をインストールします。"
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9920,6 +9926,10 @@ msgstr "OpenCode のネイティブプラグインをインストール・管理
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "インストールして再起動"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "リモートマシンでのインストールとサインインはまだ利用できません。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10034,8 +10044,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "最初にネイティブプロバイダーをインストールします。追加のプロトコル エージェントには ACP を使用します。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "{env} にインストール"
+#~ msgid "Install on {env}"
+#~ msgstr "{env} にインストール"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10103,8 +10113,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "このホストに Xcode と iOS Simulator ランタイムをインストールしてください。"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "リモートマシンでのインストール・更新・サインインはまだ利用できません。"
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "リモートマシンでのインストール・更新・サインインはまだ利用できません。"
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -10817,6 +10827,10 @@ msgstr "モデルを読み込み中…"
 msgid "Loading notes…"
 msgstr "メモを読み込んでいます…"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Loading output…"
+msgstr "出力を読み込み中…"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "Loading PDF…"
@@ -11034,8 +11048,8 @@ msgid "Logout"
 msgstr "ログアウト"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "ログアウト{env}"
+#~ msgid "Logout {env}"
+#~ msgstr "ログアウト{env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11908,6 +11922,10 @@ msgstr "モード"
 msgid "Modified"
 msgstr "変更"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Monitor"
+msgstr "モニター"
+
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Monitoring"
 msgstr "モニタリング"
@@ -11971,8 +11989,8 @@ msgid "More sign-in methods"
 msgstr "その他のログイン方法"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "{env} のその他のログイン方法"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "{env} のその他のログイン方法"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -12905,6 +12923,10 @@ msgstr "モデルが見つかりません"
 msgid "No other agents installed"
 msgstr "他のエージェントはインストールされていません"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No output yet"
+msgstr "出力はまだありません"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "No package plugins installed."
 msgstr "プラグインパッケージはインストールされていません。"
@@ -12952,8 +12974,8 @@ msgid "No profile with its own isolated login exists yet. Set a profile to \"Own
 msgstr "専用の分離ログインを持つプロファイルはまだありません。先にプロファイルを「専用の分離ログイン」に設定してそこでサインインすると、ここに表示されます。"
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
-msgid "No progress reported"
-msgstr "進捗の報告はありません"
+#~ msgid "No progress reported"
+#~ msgstr "進捗の報告はありません"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -13421,6 +13443,11 @@ msgstr "ワンタイムペアリングトークン"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "オンライン"
+
+#. placeholder {0}: state.totalBytes.toLocaleString()
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Only the end of the output is shown ({0} bytes)."
+msgstr "出力の最後のみを表示しています（{0} バイト）。"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13982,6 +14009,7 @@ msgstr "組織（省略可）"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
@@ -14025,6 +14053,10 @@ msgstr "Outlook"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "出力"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Output isn’t available for this task."
+msgstr "このタスクの出力は利用できません。"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -16752,6 +16784,7 @@ msgstr "このホストに保存された使用量のみです。"
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
@@ -19812,6 +19845,7 @@ msgid "Task Notification"
 msgstr "タスク通知"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Task output"
 msgstr "タスクの出力"
 
@@ -20625,6 +20659,10 @@ msgid "the target provider"
 msgstr "対象プロバイダー"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The task ended without a completion report."
+msgstr "タスクは完了レポートなしで終了しました。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The task has not confirmed that it stopped. Try again."
 msgstr "タスクの停止がまだ確認されていません。もう一度お試しください。"
 
@@ -20858,8 +20896,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "このデバイスには使用できるカメラがありません。代わりにペアリングリンクを貼り付けるか、コードの写真を選択してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "この環境"
+#~ msgid "this environment"
+#~ msgstr "この環境"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -21506,6 +21544,10 @@ msgstr "実行中のリモートリクエストが多すぎます。しばらく
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "このメッセージのビジュアルが多すぎます。ソースのみ表示しています。"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Tool"
+msgstr "ツール"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -22356,8 +22398,8 @@ msgstr "{0}を更新"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "{0}を更新（{env}）"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "{0}を更新（{env}）"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22479,8 +22521,8 @@ msgstr "{0}の{updateLabel}への更新"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "{0}({env}) の{updateLabel}への更新"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "{0}({env}) の{updateLabel}への更新"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22536,8 +22578,8 @@ msgstr "{0}を更新しています"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "{0}({env}) を更新しています"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "{0}({env}) を更新しています"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23397,10 +23439,9 @@ msgstr "ターミナルパネルが表示される場所。"
 msgid "Whisper with broad multilingual support."
 msgstr "広範な多言語サポートを備えた Whisper。"
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "{0}で実行されます:"
+msgid "Will run in this environment:"
+msgstr "この環境で実行されます:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
@@ -23451,6 +23492,7 @@ msgid "Worked for {elapsed}"
 msgstr "{elapsed}稼働しました"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Workflow"
 msgstr "ワークフロー"
 

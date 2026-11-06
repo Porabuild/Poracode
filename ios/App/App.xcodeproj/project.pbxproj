@@ -22,6 +22,7 @@
 		C72000000000000000000002 /* NativeFamilyJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */; };
 		C72000000000000000000003 /* NativeCapableHistoryJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000004 /* NativeCapableHistoryJourneyUITests.swift */; };
 		C72000000000000000000004 /* NativeE2EPairingLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000005 /* NativeE2EPairingLink.swift */; };
+		C72000000000000000000005 /* NativeBackgroundTaskUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000006 /* NativeBackgroundTaskUITests.swift */; };
 		A1000000000000000000011B /* RemoteMutationClassification.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000011B /* RemoteMutationClassification.swift */; };
 		A1000000000000000000011D /* RemoteMutationClassificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000011D /* RemoteMutationClassificationTests.swift */; };
 		A10000000000000000000116 /* GitStateInterestFlush.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000116 /* GitStateInterestFlush.swift */; };
@@ -480,6 +481,7 @@
 		DA1000000000000000000004 /* ArchivedThreadsParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000004 /* ArchivedThreadsParityTests.swift */; };
 		DC1000000000000000000004 /* RichChatMessageActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000004 /* RichChatMessageActionsTests.swift */; };
 		A100000000000000000000BC /* RichChatControlPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BC /* RichChatControlPanel.swift */; };
+		BA1100000000000000000001 /* RichChatBackgroundTaskControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC1100000000000000000001 /* RichChatBackgroundTaskControls.swift */; };
 		A100000000000000000000BD /* RichChatThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BD /* RichChatThreadView.swift */; };
 		PC1100000000000000000001 /* RichChatResponsiveLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = PC2100000000000000000001 /* RichChatResponsiveLayout.swift */; };
 		PV1100000000000000000001 /* RichChatTranscriptSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV2100000000000000000001 /* RichChatTranscriptSurface.swift */; };
@@ -880,6 +882,7 @@
 		C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFamilyJourneyUITests.swift; sourceTree = "<group>"; };
 		C71000000000000000000004 /* NativeCapableHistoryJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCapableHistoryJourneyUITests.swift; sourceTree = "<group>"; };
 		C71000000000000000000005 /* NativeE2EPairingLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeE2EPairingLink.swift; sourceTree = "<group>"; };
+		C71000000000000000000006 /* NativeBackgroundTaskUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBackgroundTaskUITests.swift; sourceTree = "<group>"; };
 		C71000000000000000000002 /* NativeE2ETests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NativeE2ETests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000116 /* GitStateInterestFlush.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStateInterestFlush.swift; sourceTree = "<group>"; };
 		B1000000000000000000011B /* RemoteMutationClassification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteMutationClassification.swift; sourceTree = "<group>"; };
@@ -1341,6 +1344,7 @@
 		DB1000000000000000000004 /* ArchivedThreadsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedThreadsParityTests.swift; sourceTree = "<group>"; };
 		DD1000000000000000000004 /* RichChatMessageActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatMessageActionsTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000BC /* RichChatControlPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatControlPanel.swift; sourceTree = "<group>"; };
+		BC1100000000000000000001 /* RichChatBackgroundTaskControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatBackgroundTaskControls.swift; sourceTree = "<group>"; };
 		B100000000000000000000BD /* RichChatThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadView.swift; sourceTree = "<group>"; };
 		PC2100000000000000000001 /* RichChatResponsiveLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/RichChatResponsiveLayout.swift; sourceTree = "<group>"; };
 		PV2100000000000000000001 /* RichChatTranscriptSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RichChatTranscriptSurface.swift; sourceTree = "<group>"; };
@@ -2391,6 +2395,7 @@
 				QA2000000000000000000001 /* RichChatQuestionAnswerPresentation.swift */,
 				QA2000000000000000000002 /* RichChatQuestionAnswerView.swift */,
 				B100000000000000000000BC /* RichChatControlPanel.swift */,
+				BC1100000000000000000001 /* RichChatBackgroundTaskControls.swift */,
 				B100000000000000000000BD /* RichChatThreadView.swift */,
 				PC2100000000000000000001 /* RichChatResponsiveLayout.swift */,
 				PV2100000000000000000001 /* RichChatTranscriptSurface.swift */,
@@ -2848,6 +2853,7 @@
 				C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */,
 				C71000000000000000000004 /* NativeCapableHistoryJourneyUITests.swift */,
 				C71000000000000000000005 /* NativeE2EPairingLink.swift */,
+				C71000000000000000000006 /* NativeBackgroundTaskUITests.swift */,
 			);
 			path = NativeE2ETests;
 			sourceTree = "<group>";
@@ -3336,6 +3342,7 @@
 				C72000000000000000000002 /* NativeFamilyJourneyUITests.swift in Sources */,
 				C72000000000000000000003 /* NativeCapableHistoryJourneyUITests.swift in Sources */,
 				C72000000000000000000004 /* NativeE2EPairingLink.swift in Sources */,
+				C72000000000000000000005 /* NativeBackgroundTaskUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3802,6 +3809,7 @@
 				D71000000000000000000006 /* RichChatComposerDraftStore.swift in Sources */,
 				LC1000000000000000000001 /* RichChatSessionConfigOptions.swift in Sources */,
 				A100000000000000000000BC /* RichChatControlPanel.swift in Sources */,
+				BA1100000000000000000001 /* RichChatBackgroundTaskControls.swift in Sources */,
 				A100000000000000000000BD /* RichChatThreadView.swift in Sources */,
 				PC1100000000000000000001 /* RichChatResponsiveLayout.swift in Sources */,
 				PV1100000000000000000001 /* RichChatTranscriptSurface.swift in Sources */,

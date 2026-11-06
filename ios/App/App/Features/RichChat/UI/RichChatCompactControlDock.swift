@@ -78,6 +78,10 @@ struct RichChatCompactControlDock: View {
     transcript.map { RichChatPresentation.activeDelegatedAgents(in: $0.itemsInOrder) } ?? []
   }
 
+  private var backgroundTasks: [RichBackgroundTaskPresentation] {
+    (suite.transcript.state.backgroundTasks ?? []).map(RichBackgroundTaskPresentation.init)
+  }
+
   private var goal: RichGoalPresentation? {
     transcript.flatMap { RichChatPresentation.latestGoal(in: $0.itemsInOrder) }
   }
@@ -116,6 +120,17 @@ struct RichChatCompactControlDock: View {
           systemImage: delegatedAgentIcon(kind),
           accessibilityLabel: delegatedAgentLabel(kind),
           badge: count.formatted(),
+          isActive: true
+        )
+      )
+    }
+    if !backgroundTasks.isEmpty {
+      controls.append(
+        RichChatCompactInfoControl(
+          destination: .backgroundTasks,
+          systemImage: "gearshape.2",
+          accessibilityLabel: RichChatStrings.backgroundTasks,
+          badge: backgroundTasks.count.formatted(),
           isActive: true
         )
       )
@@ -248,6 +263,8 @@ struct RichChatCompactControlDock: View {
       RichChatInfoSheet(title: delegatedAgentLabel(kind)) {
         RichChatDelegatedAgentsView(agents: delegatedAgents.filter { $0.kind == kind })
       }
+    case .backgroundTasks:
+      RichChatBackgroundTasksSheet(suite: suite, canOperate: canOperate)
     case .context:
       RichChatContextControlSheet(usage: suite.transcript.state.contextUsage)
     case .usage:

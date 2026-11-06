@@ -30,13 +30,13 @@ function negativeFor(value: unknown): unknown {
 
 describe("remote procedure result goldens", () => {
   it("covers every allowlisted procedure exactly once", () => {
-    expect(PROCEDURE_NAMES).toHaveLength(167);
+    expect(PROCEDURE_NAMES).toHaveLength(171);
     expect(Object.keys(REMOTE_PROCEDURE_RESULT_FIXTURES).sort()).toEqual(
       [...PROCEDURE_NAMES].sort(),
     );
-    expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(167);
+    expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(171);
     expect(OMITTED_NAMES).toHaveLength(64);
-    expect(JSON_NAMES).toHaveLength(103);
+    expect(JSON_NAMES).toHaveLength(107);
   });
 
   it.each(PROCEDURE_NAMES)("parses the producer fixture for %s", (name) => {

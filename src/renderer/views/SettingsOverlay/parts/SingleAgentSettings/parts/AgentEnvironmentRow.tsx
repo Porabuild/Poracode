@@ -12,7 +12,7 @@ import type {
   AgentStatus,
   AgentTerminalAuthMethod,
 } from "@/shared/contracts";
-import { envLabelForStatus, statusUpdateScope } from "@/renderer/utils/acpRegistryAuth";
+import { statusUpdateScope } from "@/renderer/utils/acpRegistryAuth";
 import { PixelLoader } from "@/renderer/components/common";
 import { formatAgentMetadataSummary, statusNeedsInteractiveLogin } from "./authHelpers";
 
@@ -23,13 +23,11 @@ export function AgentInstallEnvironmentRow(props: {
   onInstall: (status: AgentStatus) => void;
 }) {
   const { t } = useLingui();
-  const env = envLabelForStatus(props.status);
 
   return (
     <div className="flex flex-col py-1.5 px-2 -mx-2 hover:bg-surface-secondary/40 rounded-lg transition-colors group/env">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
-          <span className="shrink-0 text-foreground/90">{env || t`Default`}</span>
           <span className="shrink-0 tabular-nums text-muted/60 font-normal text-xs">
             <Trans>Not installed</Trans>
           </span>
@@ -38,7 +36,6 @@ export function AgentInstallEnvironmentRow(props: {
           size="sm"
           variant="tertiary"
           className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
-          aria-label={env ? t`Install on ${env}` : t`Install`}
           isPending={props.installPending}
           onPress={() => props.onInstall(props.status)}
         >
@@ -48,7 +45,7 @@ export function AgentInstallEnvironmentRow(props: {
       </div>
       <div className="flex min-w-0 h-4 items-center">
         <span className="min-w-0 truncate text-[11px] font-normal text-muted/60">
-          {env ? t`Install ${props.agentLabel} for ${env}.` : t`Install ${props.agentLabel}.`}
+          {t`Install ${props.agentLabel}.`}
         </span>
       </div>
     </div>
@@ -77,7 +74,7 @@ export interface AgentEnvironmentRuntimes {
 export function AgentEnvironmentRow(props: {
   agentLabel: string;
   status: AgentStatus;
-  /** Replaces the env/Default label when one runtime owns this row. */
+  /** Names the runtime slot when one runtime owns this row. */
   title?: string;
   runtimes?: AgentEnvironmentRuntimes | undefined;
   authMethods: ReadonlyArray<AgentOwnedAuthMethod | AgentTerminalAuthMethod>;
@@ -119,7 +116,6 @@ export function AgentEnvironmentRow(props: {
     status.installed &&
     (statusNeedsInteractiveLogin(status) ||
       (status.authState === "unknown" && hasAnyMethod && status.acpSessionEstablished !== true));
-  const env = envLabelForStatus(status);
   const canLogout = status.installed && isAuthenticated && !isMissing && props.canLogout;
   const canReLogin =
     status.installed && isAuthenticated && !isMissing && !canLogout && hasAnyMethod;
@@ -196,20 +192,17 @@ export function AgentEnvironmentRow(props: {
       : undefined;
   const previewCommandLine = previewCommand ? formatUpdateCommandLine(previewCommand) : undefined;
 
-  const envOrAgentLabel = env || t`Agent`;
   const description = isMissing
     ? defaultMethod
-      ? env && !props.title
-        ? t`Complete ${defaultMethod.name} sign-in for ${env}.`
-        : t`Complete ${defaultMethod.name} sign-in.`
-      : t`${envOrAgentLabel} needs authentication.`
+      ? t`Complete ${defaultMethod.name} sign-in.`
+      : t`${props.agentLabel} needs authentication.`
     : "";
 
   return (
     <div className="@container flex flex-col py-1.5 px-2 -mx-2 hover:bg-surface-secondary/40 rounded-lg transition-colors group/env">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium @max-[400px]:flex-wrap">
-          <span className="shrink-0 text-foreground/90">{props.title ?? (env || t`Default`)}</span>
+          {props.title ? <span className="shrink-0 text-foreground/90">{props.title}</span> : null}
           {props.isRedetecting ? (
             <PixelLoader size="xs" />
           ) : (
@@ -222,7 +215,6 @@ export function AgentEnvironmentRow(props: {
               size="sm"
               variant="ghost"
               className="h-5 min-h-5 shrink-0 gap-1 px-1.5 py-0 text-[10px] text-muted hover:text-foreground @max-[400px]:basis-full"
-              aria-label={env ? `${runtimeInstall.label} (${env})` : runtimeInstall.label}
               isPending={runtimeInstall.isPending}
               onPress={runtimeInstall.onInstall}
             >
@@ -238,9 +230,7 @@ export function AgentEnvironmentRow(props: {
             <div
               className="flex h-5 min-h-5 items-center @max-[400px]:basis-full"
               role="status"
-              aria-label={
-                env ? t`Updating ${props.agentLabel} (${env})` : t`Updating ${props.agentLabel}`
-              }
+              aria-label={t`Updating ${props.agentLabel}`}
             >
               <PixelLoader size="xs" />
             </div>
@@ -253,12 +243,8 @@ export function AgentEnvironmentRow(props: {
                   className="h-5 min-h-5 gap-1 px-1.5 py-0 text-[10px] text-muted hover:text-foreground"
                   aria-label={
                     updateLabel
-                      ? env
-                        ? t`Update to ${updateLabel} for ${props.agentLabel} (${env})`
-                        : t`Update to ${updateLabel} for ${props.agentLabel}`
-                      : env
-                        ? t`Update ${props.agentLabel} (${env})`
-                        : t`Update ${props.agentLabel}`
+                      ? t`Update to ${updateLabel} for ${props.agentLabel}`
+                      : t`Update ${props.agentLabel}`
                   }
                   onPress={runUpdate}
                 >
@@ -270,7 +256,7 @@ export function AgentEnvironmentRow(props: {
                 {previewCommandLine ? (
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[11px] text-muted">
-                      <Trans>Will run in {env || t`this environment`}:</Trans>
+                      <Trans>Will run in this environment:</Trans>
                     </span>
                     <code className="font-mono text-[11px]">{previewCommandLine}</code>
                   </div>
@@ -311,15 +297,6 @@ export function AgentEnvironmentRow(props: {
                   size="sm"
                   variant="tertiary"
                   className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
-                  aria-label={
-                    hasMultipleMethods
-                      ? env
-                        ? `${defaultMethod.name} (${env})`
-                        : defaultMethod.name
-                      : env
-                        ? t`${loginLabel} ${env}`
-                        : loginLabel
-                  }
                   onPress={() => props.onLogin(defaultMethod)}
                 >
                   {hasMultipleMethods ? defaultMethod.name : loginLabel}
@@ -332,7 +309,7 @@ export function AgentEnvironmentRow(props: {
                     variant="tertiary"
                     isIconOnly
                     className="h-6 min-h-6 min-w-6 px-0 text-muted hover:text-foreground"
-                    aria-label={env ? t`More sign-in methods ${env}` : t`More sign-in methods`}
+                    aria-label={t`More sign-in methods`}
                   >
                     <ChevronDown className="size-3" />
                   </Button>
@@ -358,7 +335,6 @@ export function AgentEnvironmentRow(props: {
                   size="sm"
                   variant="tertiary"
                   className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
-                  aria-label={env ? t`Logout ${env}` : t`Logout`}
                   onPress={props.onLogout}
                 >
                   <Trans>Logout</Trans>

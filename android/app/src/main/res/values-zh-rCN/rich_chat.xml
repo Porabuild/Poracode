@@ -232,4 +232,23 @@
     <string name="rich_chat_fork_name">对话名称</string>
     <string name="rich_chat_fork_boundary">继承的历史到此结束</string>
     <string name="rich_chat_fork_source">分支自 %1$s</string>
+    <string name="rich_chat_background_tasks">后台任务</string>
+    <string name="rich_chat_background_task">后台任务</string>
+    <string name="rich_chat_background_task_monitor">监控</string>
+    <string name="rich_chat_background_task_tool">工具</string>
+    <string name="rich_chat_background_task_agent">智能体</string>
+    <string name="rich_chat_background_task_other">其他</string>
+    <string name="rich_chat_background_task_output">任务输出</string>
+    <string name="rich_chat_background_task_output_unavailable">此任务没有可用的输出。</string>
+    <string name="rich_chat_background_task_output_read_failed">无法读取后台任务的输出。</string>
+    <string name="rich_chat_background_task_output_loading">正在加载输出…</string>
+    <string name="rich_chat_background_task_no_output">暂无输出</string>
+    <string name="rich_chat_background_task_output_truncated">仅显示输出的末尾（%1$s 字节）。</string>
+    <string name="rich_chat_background_task_stop">停止任务</string>
+    <string name="rich_chat_background_task_stopping">正在停止任务…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">任务尚未确认已停止。请重试。</string>
+    <string name="rich_chat_background_task_running_for">已运行 %1$s</string>
+    <string name="rich_chat_background_task_last_progress">上次进度报告于 %1$s前</string>
+    <string name="rich_chat_background_task_close">关闭任务详情</string>
+    <string name="rich_chat_background_task_report_missing">任务已结束，但未收到完成报告。</string>
 </resources>

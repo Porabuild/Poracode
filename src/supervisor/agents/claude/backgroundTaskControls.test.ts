@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { backgroundTaskOutputSchema } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { ClaudeBackgroundTaskControls } from "./backgroundTaskControls";
 import { createClaudeMapperState } from "./sdkCanonicalMappingState";
 
@@ -159,7 +161,12 @@ describe("Claude background task controls", () => {
     controls.observe(message("task_started", { task_id: "fg-0", is_backgrounded: false }));
     await vi.advanceTimersByTimeAsync(1000);
     for (let index = 1; index <= 200; index++) {
-      controls.observe(message("task_started", { task_id: `fg-${index}`, is_backgrounded: false }));
+      controls.observe(
+        message("task_started", {
+          task_id: `fg-${index}`,
+          is_backgrounded: false,
+        }),
+      );
     }
     const tracked = (controls as unknown as { tasks: Map<string, unknown> }).tasks;
     expect(tracked.size).toBeLessThanOrEqual(64);
@@ -237,11 +244,244 @@ describe("Claude background task controls", () => {
     expect(controls.decorate([task])[0]!.progress).toBe("Ready");
   });
 
+  it("uses actual summary/last-tool progress, never the task description", () => {
+    const { controls } = setup();
+    controls.observe(
+      message("task_progress", {
+        description: "server",
+        usage: { tool_uses: 1 },
+      }),
+    );
+    expect(controls.decorate([task])[0]!.progress).toBeUndefined();
+
+    controls.observe(
+      message("task_progress", {
+        description: "server",
+        last_tool_name: "grep",
+      }),
+    );
+    expect(controls.decorate([task])[0]!.progress).toBe("grep");
+
+    controls.observe(message("task_progress", { description: "server", summary: "Ready" }));
+    expect(controls.decorate([task])[0]!.progress).toBe("Ready");
+  });
+
   it("bounds progress without splitting a Unicode character for native clients", () => {
     const { controls } = setup();
     controls.observe(
-      message("task_progress", { summary: `${"a".repeat(4095)}😀`, description: "server" }),
+      message("task_progress", {
+        summary: `${"a".repeat(4095)}😀`,
+        description: "server",
+      }),
     );
     expect(controls.decorate([task])[0]!.progress).toBe("a".repeat(4095));
+  });
+
+  function outputSetup(
+    getTaskOutput = vi.fn<() => Promise<unknown>>(async () => ({
+      output: "line\n",
+      total_bytes: 5,
+      truncated: false,
+    })),
+  ) {
+    const state = createClaudeMapperState("thread");
+    const stopTask = vi.fn<(taskId: string) => Promise<void>>().mockResolvedValue(undefined);
+    const runtime = { stopTask, getTaskOutput };
+    const controls = new ClaudeBackgroundTaskControls(state, () => runtime);
+    const command = {
+      taskId: "server",
+      kind: "command" as const,
+      description: "serve",
+    };
+    controls.observe(message("task_started"));
+    state.reportedBackgroundTasks = [command];
+    controls.reconcile([command]);
+    const action = controls.decorate([command])[0]!.outputAction!;
+    return { controls, state, stopTask, getTaskOutput, command, action };
+  }
+
+  it("advertises output only for shell/Monitor lanes and returns the bounded read", async () => {
+    const { controls, state, stopTask, getTaskOutput, command, action } = outputSetup();
+    expect(action).toMatchObject({
+      id: "background-task.output.v1",
+      payload: { taskId: "server" },
+    });
+    expect(controls.listActions()).toEqual([
+      { id: "background-task.stop.v1" },
+      { id: "background-task.output.v1" },
+    ]);
+
+    const monitor = {
+      taskId: "watch",
+      kind: "other" as const,
+      description: "tail",
+      category: "monitor" as const,
+    };
+    const tool = {
+      taskId: "mcp",
+      kind: "other" as const,
+      description: "mcp",
+      category: "tool" as const,
+    };
+    state.reportedBackgroundTasks = [command, monitor, tool];
+    const decorated = controls.decorate(state.reportedBackgroundTasks);
+    expect(decorated[0]!.outputAction).toBeDefined();
+    expect(decorated[1]!.outputAction).toMatchObject({
+      payload: { taskId: "watch" },
+    });
+    expect(decorated[2]!.outputAction).toBeUndefined();
+
+    await expect(controls.invoke(action.id, action.payload)).resolves.toEqual({
+      output: "line\n",
+      totalBytes: 5,
+      truncated: false,
+    });
+    expect(getTaskOutput).toHaveBeenCalledExactlyOnceWith("server");
+    // The read path never touches Stop or the native task's lifecycle.
+    expect(stopTask).not.toHaveBeenCalled();
+
+    // Listed-task, token, action and taskId fencing.
+    await expect(controls.invoke(action.id, { ...action.payload, token: "wrong" })).rejects.toThrow(
+      "unavailable",
+    );
+    await expect(
+      controls.invoke(action.id, { ...action.payload, taskId: "watch" }),
+    ).rejects.toThrow("unavailable");
+    state.reportedBackgroundTasks = [];
+    await expect(controls.invoke(action.id, action.payload)).rejects.toThrow("unavailable");
+    expect(getTaskOutput).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a pending output read on reset, run replacement or terminal notification", async () => {
+    for (const interrupt of ["reset", "run", "stop"] as const) {
+      const pendingRead = Promise.withResolvers<unknown>();
+      const getTaskOutput = vi.fn<() => Promise<unknown>>(() => pendingRead.promise);
+      const { controls, action } = outputSetup(getTaskOutput);
+      const pending = controls.invoke(action.id, action.payload).catch((error: unknown) => error);
+      if (interrupt === "reset") {
+        controls.reset();
+      } else if (interrupt === "run") {
+        controls.observe(message("task_started", { run_id: "run-2" }));
+      } else {
+        controls.observe(message("task_notification", { status: "stopped" }));
+      }
+      pendingRead.resolve({ output: "late", total_bytes: 4, truncated: false });
+      expect(await pending).toMatchObject({
+        message: expect.stringContaining("unavailable"),
+      });
+    }
+  });
+
+  it("times out a hung output read, releases the pending slot, and retries", async () => {
+    const hung = Promise.withResolvers<unknown>();
+    const getTaskOutput = vi
+      .fn<() => Promise<unknown>>()
+      .mockImplementationOnce(() => hung.promise)
+      .mockResolvedValueOnce({ output: "after retry\n", total_bytes: 12, truncated: false });
+    const { controls, state, stopTask, action } = outputSetup(getTaskOutput);
+    const reported = state.reportedBackgroundTasks;
+
+    const pending = controls.invoke(action.id, action.payload).catch((error: unknown) => error);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(await pending).toMatchObject({
+      message: msg("thread.sessionActionFailed"),
+    });
+    expect(getTaskOutput).toHaveBeenCalledTimes(1);
+    expect(stopTask).not.toHaveBeenCalled();
+    expect(state.reportedBackgroundTasks).toBe(reported);
+
+    await expect(controls.invoke(action.id, action.payload)).resolves.toEqual({
+      output: "after retry\n",
+      totalBytes: 12,
+      truncated: false,
+    });
+    expect(getTaskOutput).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+
+    // The abandoned native read settling later must not revive the timed-out attempt.
+    hung.resolve({ output: "late\n", total_bytes: 5, truncated: false });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(state.reportedBackgroundTasks).toBe(reported);
+  });
+
+  it("rejects malformed or failed native output and bounds an oversized tail", async () => {
+    const malformed = outputSetup(
+      vi.fn(async () => ({ output: "x", total_bytes: -1, truncated: false })),
+    );
+    await expect(
+      malformed.controls.invoke(malformed.action.id, malformed.action.payload),
+    ).rejects.toThrow("failed");
+
+    const failed = outputSetup(vi.fn(async () => Promise.reject(new Error("native down"))));
+    await expect(failed.controls.invoke(failed.action.id, failed.action.payload)).rejects.toThrow(
+      "native down",
+    );
+
+    const oversized = outputSetup(
+      vi.fn(async () => ({
+        output: "a".repeat(16_385),
+        total_bytes: 16_385,
+        truncated: false,
+      })),
+    );
+    expect(await oversized.controls.invoke(oversized.action.id, oversized.action.payload)).toEqual({
+      output: "a".repeat(16_384),
+      totalBytes: 16_385,
+      truncated: true,
+    });
+  });
+
+  it("keeps the latest output tail and never splits a surrogate pair", async () => {
+    const latest = outputSetup(
+      vi.fn(async () => ({
+        output: `START${"x".repeat(17_000)}LATEST`,
+        total_bytes: 17_011,
+        truncated: false,
+      })),
+    );
+    const latestResult = backgroundTaskOutputSchema.parse(
+      await latest.controls.invoke(latest.action.id, latest.action.payload),
+    );
+    expect(latestResult).toMatchObject({ totalBytes: 17_011, truncated: true });
+    expect(latestResult.output).toHaveLength(16_384);
+    expect(latestResult.output.startsWith("START")).toBe(false);
+    expect(latestResult.output.endsWith("LATEST")).toBe(true);
+
+    // The tail slice starts on the low half of an emoji, which must be dropped.
+    const splitSurrogate = outputSetup(
+      vi.fn(async () => ({
+        output: `x😀${"b".repeat(16_383)}`,
+        total_bytes: 16_386,
+        truncated: true,
+      })),
+    );
+    const surrogateResult = await splitSurrogate.controls.invoke(
+      splitSurrogate.action.id,
+      splitSurrogate.action.payload,
+    );
+    expect(surrogateResult.output).toBe("b".repeat(16_383));
+    expect(surrogateResult).toMatchObject({ totalBytes: 16_386, truncated: true });
+  });
+
+  it("offers no output capability when the SDK query lacks the method", async () => {
+    const controls = new ClaudeBackgroundTaskControls(createClaudeMapperState("t"), () => ({
+      stopTask: vi.fn<() => Promise<void>>(async () => {}),
+    }));
+    const command = {
+      taskId: "server",
+      kind: "command" as const,
+      description: "serve",
+    };
+    controls.observe(message("task_started"));
+    controls.reconcile([command]);
+    expect(controls.listActions()).toEqual([{ id: "background-task.stop.v1" }]);
+    expect(controls.decorate([command])[0]!.outputAction).toBeUndefined();
+    await expect(
+      controls.invoke("background-task.output.v1", {
+        taskId: "server",
+        token: "token",
+      }),
+    ).rejects.toThrow("unavailable");
   });
 });

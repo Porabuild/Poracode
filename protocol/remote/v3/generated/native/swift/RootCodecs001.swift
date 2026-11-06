@@ -389,6 +389,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EGetLatestAgentVersionU2ERequest: RemoteRootCodec<ProceduregetLatestAgentVersionRequest_50280a13d2> = .init(id: "procedure.getLatestAgentVersion.request", schema: RemoteSchemas.schema_50280a13d2b97f83)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGetLatestAgentVersionU2EResult: RemoteRootCodec<ProceduregetLatestAgentVersionResult_bfe4502f31> = .init(id: "procedure.getLatestAgentVersion.result", schema: RemoteSchemas.schema_bfe4502f319fd2d1)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EGetMcpOauthStatusU2ERequest: RemoteRootCodec<ProceduregetMcpOauthStatusRequest_c51ef8291e> = .init(id: "procedure.getMcpOauthStatus.request", schema: RemoteSchemas.schema_c51ef8291e597045)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EGhDeleteWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_eb12aad287> = .init(id: "procedure.ghDeleteWorkflowRun.request", schema: RemoteSchemas.schema_eb12aad2875e1908)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EGhDispatchWorkflowU2ERequest: RemoteRootCodec<ProcedureghDispatchWorkflowRequest_e56382aee3> = .init(id: "procedure.ghDispatchWorkflow.request", schema: RemoteSchemas.schema_e56382aee3ea3c7f)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EGhGetPrChecksU2ERequest: RemoteRootCodec<ProcedureghGetPrChecksRequest_50e8e4265c> = .init(id: "procedure.ghGetPrChecks.request", schema: RemoteSchemas.schema_50e8e4265cb34b55)
 }

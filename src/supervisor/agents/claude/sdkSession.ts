@@ -50,7 +50,11 @@ import {
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { DeferredTurnCompletion } from "./deferredTurnCompletion";
-import { clearBackgroundTasks, hasAwaitedBackgroundWork } from "./canonicalMapping/backgroundTasks";
+import {
+  clearBackgroundTasks,
+  hasAwaitedBackgroundWork,
+  hasLiveBackgroundWork,
+} from "./canonicalMapping/backgroundTasks";
 import { ClaudeBackgroundTaskControls } from "./backgroundTaskControls";
 import {
   isExitPlanModeToolName,
@@ -74,6 +78,7 @@ import {
   nonDiagnosticErrors,
   parseClaudeQuestions,
   readParentToolUseId,
+  settleMissingSubAgentTaskReports,
   startClaudeTurn,
   steerClaudeTurn,
   type ClaudeMapperState,
@@ -1822,7 +1827,17 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         }
       }
       if (this.startPendingSteer()) return;
-      if (!failed && !wasInterrupted && hasAwaitedBackgroundWork(this.mapperState)) {
+      // A registered sub-agent edge whose task is missing from a known level is
+      // the only trace left of a run that ended unreported. Hold the clean
+      // completion for the resume grace and settle it in the flush callback;
+      // the flush itself sees no awaited work and arms that grace. Edge maps
+      // never hold the thread indefinitely while a level exists.
+      const hasRegisteredSubAgentEdges = (this.mapperState.activeSubAgentTaskToTool?.size ?? 0) > 0;
+      if (
+        !failed &&
+        !wasInterrupted &&
+        (hasAwaitedBackgroundWork(this.mapperState) || hasRegisteredSubAgentEdges)
+      ) {
         this.deferredCompletion.defer(completion);
       } else {
         this.emitUpdate(completion);
@@ -1832,16 +1847,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   /**
-   * Whether the CLI still owns live work, for process reuse and goal tracking:
-   * sub-agent runs (edge-tracked, closed by `task_notification`) or any task in
-   * the CLI's `background_tasks_changed` level set — plain backgrounded Bash
-   * and watchers included. Independent commands may outlive a completed response.
+   * Whether the CLI still owns live work, for process reuse, rollback and goal
+   * tracking. The authoritative `background_tasks_changed` level wins once it
+   * exists (plain backgrounded Bash, watchers and sub-agent runs alike);
+   * older CLIs without it fall back to the task_started/task_notification edge
+   * registry. Independent commands may outlive a completed response.
    */
   private hasLiveBackgroundWork(): boolean {
-    return (
-      (this.mapperState.activeSubAgentTaskToTool?.size ?? 0) > 0 ||
-      (this.mapperState.liveBackgroundTaskIds?.size ?? 0) > 0
-    );
+    return hasLiveBackgroundWork(this.mapperState);
   }
 
   /**
@@ -1884,6 +1897,24 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         this.steerDelivery.hasPending
       )
         return;
+      // Only a completion that is actually still held may settle a missing
+      // report; and only once the CLI has emitted a level. A rerun that opens a
+      // new turn clears the held completion, and a resume/notification that
+      // arrives inside this grace replaces the provisional error before it is
+      // ever emitted.
+      if (
+        this.deferredCompletion.hasPending &&
+        this.mapperState.liveBackgroundTaskIds !== undefined &&
+        !this.currentTurnInFlight
+      ) {
+        const settlementEvents = settleMissingSubAgentTaskReports(this.mapperState);
+        if (settlementEvents.length > 0) {
+          this.emitRuntimeEvents(settlementEvents);
+          // No awaited subagent is live at this point, so any child rows still
+          // tracked belong to the settled runs and can never receive a result.
+          this.emitRuntimeEvents(closeClaudeOpenItems(this.mapperState, { abandonChildren: true }));
+        }
+      }
       this.emitRuntimeEvents(completeActiveGoalOnTaskDrainEvents(this.mapperState));
       const update = this.deferredCompletion.take();
       if (update) this.emitUpdate(update);

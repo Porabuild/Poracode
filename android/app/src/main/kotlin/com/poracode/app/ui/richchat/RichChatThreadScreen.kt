@@ -125,6 +125,7 @@ fun RichChatThreadScreen(
     var pendingRevertItemId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
     val fileDownloadSnackbarHost = remember { SnackbarHostState() }
     var showCloseDialog by rememberSaveable(threadId) { mutableStateOf(false) }
+    val openBackgroundTask = rememberRichChatBackgroundTaskDetails(runtime, state, sessionActionsState.actionIds, canOperate, scope)
     val canMutate = canOperate && state.selection != null && !mutating && !refreshing
     var forkIntent by rememberSaveable(threadId, state.selection?.host?.connectionId, state.selection?.host?.bindingGeneration, stateSaver = RichChatForkIntent.Saver) { mutableStateOf<RichChatForkIntent?>(null) }
     val canFork = canMutate && forksSupported && thread?.status in listOf("idle", "inactive", "error")
@@ -415,6 +416,9 @@ fun RichChatThreadScreen(
                                 agentStatus = agentStatus,
                                 requests = transcript.openRequests,
                                 pendingSteer = transcript.pendingSteer,
+                                backgroundTasks = state.backgroundTasks.orEmpty(),
+                                sessionActionIds = sessionActionsState.actionIds,
+                                onOpenBackgroundTask = openBackgroundTask,
                                 checkpointState = checkpointState,
                                 projectLocation = projectLocation,
                                 selection = state.selection,
@@ -472,6 +476,9 @@ fun RichChatThreadScreen(
                                         agentStatus = agentStatus,
                                         requests = transcript.openRequests,
                                         pendingSteer = transcript.pendingSteer,
+                                        backgroundTasks = state.backgroundTasks.orEmpty(),
+                                        sessionActionIds = sessionActionsState.actionIds,
+                                        onOpenBackgroundTask = openBackgroundTask,
                                         checkpointState = checkpointState,
                                         projectLocation = projectLocation,
                                         selection = state.selection,

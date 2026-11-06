@@ -118,6 +118,8 @@ function installStoreSubscriptions(): () => void {
         syncAppView();
       }
 
+      if (state.threads === prevState.threads) return;
+
       const previousThreads = new Map(prevState.threads.map((thread) => [thread.id, thread]));
       for (const thread of state.threads) {
         const previous = previousThreads.get(thread.id);

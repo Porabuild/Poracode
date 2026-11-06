@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "{0} modèles"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0} nécessite une authentification."
 
@@ -595,8 +597,8 @@ msgstr "il y a {days} j"
 #~ msgstr "Téléchargement de {downloadSize} Mo"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel} nécessite une authentification."
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel} nécessite une authentification."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "Utilisation de {label} — ouvrir le panneau d'utilisation"
 #~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel} {env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel} {env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1675,8 +1677,8 @@ msgstr "Annoncez une URL de base personnalisée, par ex. un proxy inverse ou un 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Agent"
 
@@ -2714,6 +2716,10 @@ msgstr "Processus en arrière-plan redémarré"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "Tâche en arrière-plan"
+
+#: src/renderer/components/thread/useThreadBackgroundTaskOutput.ts
+msgid "Background task output could not be read."
+msgstr "Impossible de lire la sortie de la tâche en arrière-plan."
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
@@ -4430,6 +4436,7 @@ msgstr "Combiner avec {name} ({machines})"
 #~ msgstr "Entrées propriétaire/nom séparées par des virgules, par exemple acme/website, acme/api. La liste est envoyée à Devin exactement telle quelle."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Command"
 msgstr "Commande"
 
@@ -4608,8 +4615,8 @@ msgstr "Connectez-vous {0} avant que ce fil de discussion puisse s'exécuter."
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "Complétez la connexion {0} pour {env}."
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "Complétez la connexion {0} pour {env}."
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6102,7 +6109,6 @@ msgstr "Discussion DeepSeek Harness avec sessions persistantes, réglages du rai
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -9869,8 +9875,8 @@ msgstr "Installer · {engineSize} Mo"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "Installez {0} pour {env}."
+#~ msgid "Install {0} for {env}."
+#~ msgstr "Installez {0} pour {env}."
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9921,6 +9927,10 @@ msgstr "Installez et gérez les plugins natifs d’OpenCode."
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "Installer et redémarrer"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "L'installation et la connexion ne sont pas encore disponibles sur les machines distantes."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10035,8 +10045,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Installez d'abord les fournisseurs natifs ; utilisez ACP pour les agents de protocole supplémentaires."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "Installer sur {env}"
+#~ msgid "Install on {env}"
+#~ msgstr "Installer sur {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10104,8 +10114,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "Installez Xcode et un environnement d’exécution du simulateur iOS sur cet hôte."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "L'installation, la mise à jour et la connexion ne sont pas encore disponibles sur les machines distantes."
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "L'installation, la mise à jour et la connexion ne sont pas encore disponibles sur les machines distantes."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -10818,6 +10828,10 @@ msgstr "Chargement du modèle…"
 msgid "Loading notes…"
 msgstr "Chargement des notes…"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Loading output…"
+msgstr "Chargement de la sortie…"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "Loading PDF…"
@@ -11035,8 +11049,8 @@ msgid "Logout"
 msgstr "Déconnexion"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "Déconnexion {env}"
+#~ msgid "Logout {env}"
+#~ msgstr "Déconnexion {env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11909,6 +11923,10 @@ msgstr "Modes"
 msgid "Modified"
 msgstr "Modifié"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Monitor"
+msgstr "Moniteur"
+
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Monitoring"
 msgstr "Surveillance"
@@ -11972,8 +11990,8 @@ msgid "More sign-in methods"
 msgstr "Autres méthodes de connexion"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "Autres méthodes de connexion {env}"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "Autres méthodes de connexion {env}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -12906,6 +12924,10 @@ msgstr "Aucun modèle trouvé"
 msgid "No other agents installed"
 msgstr "Aucun autre agent installé"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No output yet"
+msgstr "Aucune sortie pour le moment"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "No package plugins installed."
 msgstr "Aucun paquet de plugin installé."
@@ -12953,8 +12975,8 @@ msgid "No profile with its own isolated login exists yet. Set a profile to \"Own
 msgstr "Aucun profil n'a encore sa propre connexion isolée. Définissez un profil sur « Connexion isolée dédiée » et connectez-vous d'abord là-bas ; il apparaîtra alors ici."
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
-msgid "No progress reported"
-msgstr "Aucune progression signalée"
+#~ msgid "No progress reported"
+#~ msgstr "Aucune progression signalée"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -13422,6 +13444,11 @@ msgstr "Jeton d’appairage à usage unique"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "En ligne"
+
+#. placeholder {0}: state.totalBytes.toLocaleString()
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Only the end of the output is shown ({0} bytes)."
+msgstr "Seule la fin de la sortie est affichée ({0} octets)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13983,6 +14010,7 @@ msgstr "Organisation (facultatif)"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
@@ -14026,6 +14054,10 @@ msgstr "Outlook"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "Sortie"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Output isn’t available for this task."
+msgstr "La sortie n’est pas disponible pour cette tâche."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -16753,6 +16785,7 @@ msgstr "Uniquement l’utilisation conservée sur cet hôte."
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
@@ -19813,6 +19846,7 @@ msgid "Task Notification"
 msgstr "Notification de tâche"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Task output"
 msgstr "Résultat de la tâche"
 
@@ -20626,6 +20660,10 @@ msgid "the target provider"
 msgstr "le fournisseur cible"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The task ended without a completion report."
+msgstr "La tâche s’est terminée sans rapport de fin."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The task has not confirmed that it stopped. Try again."
 msgstr "La tâche n’a pas confirmé son arrêt. Réessayez."
 
@@ -20859,8 +20897,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "Cet appareil n'a pas de caméra utilisable. Collez plutôt le lien d'association ou choisissez une photo du code."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "cet environnement"
+#~ msgid "this environment"
+#~ msgstr "cet environnement"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -21507,6 +21545,10 @@ msgstr "Trop de requêtes distantes sont en cours. Réessayez dans un instant."
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "Trop de visuels dans ce message. Seul le code source est affiché."
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Tool"
+msgstr "Outil"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -22357,8 +22399,8 @@ msgstr "Mettre à jour {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "Mettre à jour {0} ({env})"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "Mettre à jour {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22480,8 +22522,8 @@ msgstr "Mise à jour vers {updateLabel} pour {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "Mise à jour vers {updateLabel} pour {0} ({env})"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "Mise à jour vers {updateLabel} pour {0} ({env})"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22537,8 +22579,8 @@ msgstr "Mise à jour de {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "Mise à jour de {0} ({env})"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "Mise à jour de {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23398,10 +23440,9 @@ msgstr "Où le panneau du terminal apparaît."
 msgid "Whisper with broad multilingual support."
 msgstr "Whisper avec un large support multilingue."
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "S'exécutera dans {0} :"
+msgid "Will run in this environment:"
+msgstr "S'exécutera dans cet environnement :"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
@@ -23452,6 +23493,7 @@ msgid "Worked for {elapsed}"
 msgstr "A travaillé pendant {elapsed}"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Workflow"
 msgstr "Flux de travail"
 

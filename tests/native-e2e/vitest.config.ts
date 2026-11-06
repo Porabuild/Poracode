@@ -22,7 +22,7 @@ export default defineConfig({
     name: "native-e2e",
     cache: false,
     environment: "node",
-    setupFiles: ["./setup/rendererGlobals.ts"],
+    setupFiles: [fileURLToPath(new URL("./testSetup.ts", import.meta.url))],
     include: ["**/*.test.ts"],
     exclude: ["**/node_modules/**"],
     testTimeout: 20_000,

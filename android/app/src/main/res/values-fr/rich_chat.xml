@@ -232,4 +232,23 @@
     <string name="rich_chat_fork_name">Nom de la conversation</string>
     <string name="rich_chat_fork_boundary">L’historique hérité se termine ici</string>
     <string name="rich_chat_fork_source">Branche issue de %1$s</string>
+    <string name="rich_chat_background_tasks">Tâches en arrière-plan</string>
+    <string name="rich_chat_background_task">Tâche en arrière-plan</string>
+    <string name="rich_chat_background_task_monitor">Moniteur</string>
+    <string name="rich_chat_background_task_tool">Outil</string>
+    <string name="rich_chat_background_task_agent">Agent</string>
+    <string name="rich_chat_background_task_other">Autres</string>
+    <string name="rich_chat_background_task_output">Résultat de la tâche</string>
+    <string name="rich_chat_background_task_output_unavailable">La sortie n’est pas disponible pour cette tâche.</string>
+    <string name="rich_chat_background_task_output_read_failed">Impossible de lire la sortie de la tâche en arrière-plan.</string>
+    <string name="rich_chat_background_task_output_loading">Chargement de la sortie…</string>
+    <string name="rich_chat_background_task_no_output">Aucune sortie pour le moment</string>
+    <string name="rich_chat_background_task_output_truncated">Seule la fin de la sortie est affichée (%1$s octets).</string>
+    <string name="rich_chat_background_task_stop">Arrêter la tâche</string>
+    <string name="rich_chat_background_task_stopping">Arrêt de la tâche…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">La tâche n’a pas confirmé son arrêt. Réessayez.</string>
+    <string name="rich_chat_background_task_running_for">En cours depuis %1$s</string>
+    <string name="rich_chat_background_task_last_progress">Dernière progression il y a %1$s</string>
+    <string name="rich_chat_background_task_close">Fermer les détails de la tâche</string>
+    <string name="rich_chat_background_task_report_missing">La tâche s’est terminée sans rapport de fin.</string>
 </resources>

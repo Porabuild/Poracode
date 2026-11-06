@@ -720,12 +720,14 @@ export function clearExecutablePathCache(): void {
   wslProjectShellEnvResolved.clear();
 }
 
-/** Sync read of the cached binary path. Returns undefined if absent or stale. */
+/**
+ * Last detected launch path. The caller validates that it is still executable.
+ * The probe TTL controls discovery freshness, not launch identity: a project's
+ * Node version may have no copy of a CLI installed under the user's default.
+ * This process-local cache has no persisted format to migrate.
+ */
 export function getCachedExecutablePath(command: string): string | undefined {
-  const cached = execPathCache.get(command);
-  if (!cached) return undefined;
-  if (Date.now() - cached.ts > EXEC_CACHE_TTL_MS) return undefined;
-  return cached.path;
+  return execPathCache.get(command)?.path;
 }
 
 /** Env captured from the user's login shell during prime; undefined until then. */
