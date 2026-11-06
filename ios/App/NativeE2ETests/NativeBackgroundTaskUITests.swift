@@ -69,7 +69,12 @@ final class NativeBackgroundTaskUITests: XCTestCase {
     XCTAssertTrue(details.waitForExistence(timeout: 10), "The details sheet never opened")
     XCTAssertTrue(app.descendants(matching: .any)["background-task-command"]
       .waitForExistence(timeout: 10))
-    try await waitUntil { self.countDescendants(of: details, label: self.monitorPurpose) == 1 }
+    attachScreenshot("background-task-details-initial")
+    let initialAX = XCTAttachment(string: details.debugDescription)
+    initialAX.name = "background-task-details-initial-ax"
+    initialAX.lifetime = .keepAlways
+    add(initialAX)
+    try await waitUntil { self.countLabelOccurrences(of: details, label: self.monitorPurpose) == 1 }
     try await waitUntil {
       self.descendants(of: details).contains { $0.label.localizedCaseInsensitiveContains("monitor") }
     }
@@ -194,11 +199,23 @@ final class NativeBackgroundTaskUITests: XCTestCase {
     element.descendants(matching: .any).allElementsBoundByIndex.filter { $0.exists }
   }
 
-  private func countDescendants(of element: XCUIElement, label: String) -> Int {
-    // The details header combines purpose and category into one accessibility
-    // element, so match containment rather than an exact label.
-    element.descendants(matching: .any)
-      .matching(NSPredicate(format: "label CONTAINS %@", label)).count
+  private func countLabelOccurrences(of element: XCUIElement, label: String) -> Int {
+    // SwiftUI can expose a combined header as an aggregate plus a matching
+    // child. Count literal occurrences only on matching leaves, so a group and
+    // its child are not counted twice; if no child matches, the passed element
+    // itself may carry the combined header label.
+    let predicate = NSPredicate(format: "label CONTAINS %@", label)
+    let matches = element.descendants(matching: .any)
+      .matching(predicate).allElementsBoundByIndex.filter { $0.exists }
+    let leaves = matches.filter { candidate in
+      candidate.descendants(matching: .any).matching(predicate).count == 0
+    }
+    if matches.isEmpty {
+      return element.label.components(separatedBy: label).count - 1
+    }
+    return leaves.reduce(0) { total, leaf in
+      total + leaf.label.components(separatedBy: label).count - 1
+    }
   }
 
   private func label(of identifier: String) -> String {
