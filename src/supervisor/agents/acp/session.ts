@@ -666,6 +666,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private foregroundTurnOpen = false;
   private pendingPromptInterrupt = false;
   private currentTurnInterruptRequested = false;
+  /** Survives cancelled-turn cleanup until a fresh turn accepts new commands. */
+  private terminalCreationInterrupted = false;
   private suppressAgentOutputUntilNextTurn = false;
   /**
    * The provider signalled (via `stderrTurnSignalParser`) that the in-flight
@@ -1772,6 +1774,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       throw new Error("ACP session not opened yet.");
     }
     this.currentTurnInterruptRequested = false;
+    this.terminalCreationInterrupted = false;
     // A fresh turn ends the previous turn's output suppression. An idle
     // interrupt must not cancel a subsequently submitted prompt.
     this.suppressAgentOutputUntilNextTurn = false;
@@ -2127,6 +2130,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
     const closeAwaitingForegroundTurn =
       this.foregroundTurnAwaitingSubagents && !this.promptInFlight;
+    // These commands belong to the supervisor, not the provider process. A
+    // cancelled prompt need not send terminal/kill before it returns idle.
+    this.terminalCreationInterrupted = true;
+    this._terminalManager?.killAllAcpTerminals();
     try {
       const cancelRequest = this.connection.cancel({ sessionId: this.sessionId });
       if (closeAwaitingForegroundTurn) {
@@ -2376,6 +2383,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private async handleCreateTerminal(params: CreateTerminalRequest) {
     if (this.terminalCapability === false) throw RequestError.methodNotFound("terminal/create");
+    if (this.terminalCreationInterrupted) {
+      throw RequestError.invalidParams({
+        message: "ACP terminal request belongs to an interrupted turn.",
+      });
+    }
     const response = await this.terminalManager.handleCreateTerminal(params);
     if (this.behavior?.unreferencedTerminalCorrelation === "attribute-on-create") {
       const target = normalizeTerminalCommandText(
