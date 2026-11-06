@@ -187,6 +187,38 @@ describe("Command Code ACP capability discovery", () => {
     expect((await result)?.modelEfforts).toEqual({ "parallel-model": ["low", "high"] });
   });
 
+  it.each([false, true])(
+    "completes native effort discovery when the CLI catalog is incomplete (failed: %s)",
+    async (failed) => {
+      const cli = vi
+        .spyOn(base, "readAgentCommandOutput")
+        .mockImplementation(async (_location, _path, args) =>
+          args.includes("--list-models")
+            ? { ok: !failed, stdout: failed ? "" : "Open Source\nplain-model  Fast", stderr: "" }
+            : { ok: false, stdout: "", stderr: "Unknown effort. Supported: low, high, max." },
+        );
+      vi.spyOn(acp, "probeAcpCapabilities").mockResolvedValue({
+        models: [
+          { id: "plain-model", label: "Plain" },
+          { id: "deepseek/deepseek-v4-flash-fast", label: "DeepSeek V4 Flash Fast" },
+          { id: "moonshotai/Kimi-K3", label: "Kimi K3" },
+        ],
+        modelEfforts: { "plain-model": [] },
+      });
+      const result = await commandCodeDetectionSpec.capabilitiesProbe?.(context);
+      expect(result?.presentationCapabilities?.gui?.modelEfforts).toEqual({
+        "plain-model": [],
+        "deepseek/deepseek-v4-flash-fast": ["low", "high", "max"],
+        "moonshotai/Kimi-K3": ["low", "high", "max"],
+      });
+      expect(
+        cli.mock.calls
+          .filter(([, , args]) => args.includes("--effort"))
+          .map(([, , args]) => args[1]),
+      ).toEqual(["deepseek/deepseek-v4-flash-fast", "moonshotai/kimi-k3"]);
+    },
+  );
+
   it("retains native models when CLI catalog probing fails and reports missing authentication", async () => {
     mockCatalog("");
     vi.spyOn(acp, "probeAcpCapabilities").mockResolvedValue({

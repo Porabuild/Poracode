@@ -1,2 +1,2 @@
-// v70 declares the default effort instead of selecting the strongest tier.
-export const commandCodeStatusCachePolicy = { kind: "commandcode", minimumVersion: 70 };
+// v76 completes native effort discovery even when the CLI catalog probe fails.
+export const commandCodeStatusCachePolicy = { kind: "commandcode", minimumVersion: 76 };

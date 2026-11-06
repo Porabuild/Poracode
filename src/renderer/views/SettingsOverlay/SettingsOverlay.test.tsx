@@ -13,11 +13,6 @@ const statusesState = {
   inFirstLaunchDiscovery: false,
 };
 
-const refreshAgentDiscoveryMock = vi.fn<(distros: string[]) => void>();
-vi.mock("@/renderer/actions/agentDiscoveryActions", () => ({
-  refreshAgentDiscovery: (distros: string[]) => refreshAgentDiscoveryMock(distros),
-}));
-
 const appState = {
   projects: [] as Project[],
   openSchedules: vi.fn<() => void>(),
@@ -250,7 +245,6 @@ describe("SettingsOverlay", () => {
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useSettingsHostStore.setState({ desktopId: null });
     __resetBrowserBridgeForTest();
-    refreshAgentDiscoveryMock.mockReset();
     usePanelStore.setState({ settingsSection: null, settingsAnchor: null });
   });
 
@@ -720,19 +714,11 @@ describe("SettingsOverlay", () => {
     expect(factoryButton.querySelector(".text-warning")).not.toBeNull();
   });
 
-  it("starts app-owned discovery with the project WSL environments", () => {
-    appState.projects = [
-      {
-        id: "project-1",
-        name: "demo",
-        disabled: false,
-        createdAt: new Date(0).toISOString(),
-        location: { kind: "wsl", distro: "Ubuntu", linuxPath: "/home/demo/project", uncPath: "" },
-      },
-    ];
+  it("keeps the refresh action out of the settings sidebar", () => {
     render(<SettingsOverlay onClose={() => undefined} />);
-    fireEvent.click(screen.getByRole("button", { name: "Refresh detected agents" }));
-    expect(refreshAgentDiscoveryMock).toHaveBeenCalledExactlyOnceWith(["Ubuntu"]);
+    expect(
+      screen.queryByRole("button", { name: "Refresh detected agents" }),
+    ).not.toBeInTheDocument();
   });
 
   it("searches across individual settings, not just sections", () => {

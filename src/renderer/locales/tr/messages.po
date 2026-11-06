@@ -13446,7 +13446,7 @@ msgstr "Tek kullanımlık eşleştirme belirteci"
 msgid "Online"
 msgstr "Çevrimiçi"
 
-#. placeholder {0}: state.totalBytes.toLocaleString()
+#. placeholder {0}: i18n.number(state.totalBytes)
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Only the end of the output is shown ({0} bytes)."
 msgstr "Çıktının yalnızca sonu gösteriliyor ({0} bayt)."
@@ -15927,7 +15927,7 @@ msgstr "{label} sağlayıcısını yenile"
 #~ msgid "Refresh {label} usage"
 #~ msgstr "{label} kullanımını yenile"
 
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Refresh detected agents"
 msgstr "Algılanan aracıları yenile"
 
@@ -21084,6 +21084,7 @@ msgstr "Bu projenin desteklenen bir kaynak uzak deposu yok."
 #: src/renderer/actions/providerSwitchActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Bu projenin uzak sunucusu çevrimdışı. Bir iş parçacığı başlatmak için yeniden bağlanın."
 
@@ -21942,7 +21943,9 @@ msgid "Unable to refresh {0} status."
 msgstr "{0} durumu yenilenemiyor."
 
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: machine.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Unable to refresh {0}."
 msgstr "{0} yenilenemiyor."
 

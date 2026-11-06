@@ -229,7 +229,6 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   getAgentStatuses:
     "local-shell: this machine's CLI agent inventory; remote clients read via the agent-statuses registry route",
   cancelAgentDiscovery: "local-shell: cancels this machine's full agent discovery sweep",
-  refreshAgentStatuses: "local-shell: re-probes this machine's CLI agent installs",
   probeSelectedAgent: "local-shell: local administration probes an exact provider on this machine",
   getAgentHookPluginStatuses: "local-shell: this machine's agent hook plugin inventory",
   installAgentHookPlugin: "local-shell: installs into this machine's CLI hook plugins",

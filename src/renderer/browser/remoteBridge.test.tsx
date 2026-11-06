@@ -412,8 +412,13 @@ describe("remote bridge", () => {
     // deliberately serves runtime/thread hydration from the local sync cache
     // (the selected thread's tail arrives with its snapshot) and browser app
     // state from createDbStorage — those overrides are asserted by their own
-    // tests, so the generic-route sweep skips them.
-    const locallyServiced = new Set(["dbGetThreadsPage", "readTerminalScrollback"]);
+    // tests, so the generic-route sweep skips them. Agent refresh also has a
+    // dedicated override that hydrates both the browser and host projections.
+    const locallyServiced = new Set([
+      "dbGetThreadsPage",
+      "readTerminalScrollback",
+      "refreshAgentStatuses",
+    ]);
     const forwarded = Object.keys(REMOTE_PROCEDURE_SPECS).filter(
       (procedure) => !locallyServiced.has(procedure),
     );

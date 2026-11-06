@@ -104,6 +104,11 @@ describe("authenticated host agent management", () => {
 
   it.each([
     [
+      "refreshAgentStatuses",
+      { wslDistros: ["Ubuntu"] },
+      { windows: [], wsl: [], fromCache: false },
+    ],
+    [
       "updateAgentBinary",
       { agentKind: "claude", envKind: "posix" },
       { ok: true, strategy: "npm-global" },
@@ -120,4 +125,12 @@ describe("authenticated host agent management", () => {
       expect(callSupervisor).toHaveBeenCalledWith(procedure, payload);
     },
   );
+
+  it("rejects viewer discovery before starting any provider probe", async () => {
+    const { call, callSupervisor } = await fixture("viewer");
+    const response = await call("refreshAgentStatuses", { wslDistros: [] });
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: "missing_scope" } });
+    expect(callSupervisor.mock.calls.some(([name]) => name === "refreshAgentStatuses")).toBe(false);
+  });
 });

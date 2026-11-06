@@ -8,10 +8,12 @@ import type { HostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses
 import {
   acpRegistryListResultSchema,
   acpRegistryMutationResultSchema,
+  agentStatusesResponseSchema,
   getLatestAgentVersionResultSchema,
   updateAgentBinaryResultSchema,
   type AcpRegistryListResult,
   type AcpRegistryMutationResult,
+  type AgentStatus,
   type GetLatestAgentVersionPayload,
   type GetLatestAgentVersionResult,
   type InstalledAcpRegistryAgent,
@@ -66,6 +68,8 @@ export interface AgentManagementHost {
     wslDistros: string[],
     scope?: RefreshAgentScope,
   ): Promise<HostAgentStatusPools>;
+  /** Starts fresh host discovery, including when no agents have been found yet. */
+  rediscoverAgents(wslDistros: string[]): Promise<HostAgentStatusPools>;
 }
 
 export const LOCAL_AGENT_MANAGEMENT_HOST: AgentManagementHost = {
@@ -82,23 +86,38 @@ export const LOCAL_AGENT_MANAGEMENT_HOST: AgentManagementHost = {
     const response = await readBridge().refreshAgentStatuses(wslDistros, scope);
     return { windows: response.windows, wsl: response.wsl };
   },
+  rediscoverAgents: (wslDistros) => LOCAL_AGENT_MANAGEMENT_HOST.refreshAgentStatuses(wslDistros),
 };
 
 function readRuntimeStatuses(connectionKey: string) {
   return useRemoteServersStore.getState().runtime[connectionKey]?.agentStatuses;
 }
 
-async function refreshRemoteAgentStatuses(connectionKey: string): Promise<HostAgentStatusPools> {
-  const generation = currentRemoteServerGeneration(connectionKey);
+async function refreshRemoteAgentStatuses(
+  connectionKey: string,
+  discovered?: { generation: number; wsl: AgentStatus[]; wslDistros: string[] },
+): Promise<HostAgentStatusPools> {
+  const generation = discovered?.generation ?? currentRemoteServerGeneration(connectionKey);
   const statuses = await useRemoteServersStore
     .getState()
-    .withClient(connectionKey, async (client) =>
-      refreshSlashCommandCatalogs(
-        client.endpoint,
-        await client.agentStatuses({ omitSlashCommands: true }),
-        (kind) => client.agentSlashCommands(kind).then((result) => result.commands),
-      ),
-    );
+    .withClient(connectionKey, async (client) => {
+      const fetched = await client.agentStatuses({ omitSlashCommands: true });
+      // The snapshot lists project distros; manual discovery may target another distro.
+      const retainedWsl = discovered
+        ? (readRuntimeStatuses(connectionKey)?.wsl ?? []).filter(
+            (entry) => !discovered.wslDistros.includes(entry.envDistro ?? ""),
+          )
+        : [];
+      const wsl = [
+        ...fetched.wsl,
+        ...[...(discovered?.wsl ?? []), ...retainedWsl].filter(
+          (entry) => !fetched.wsl.some((status) => status.envDistro === entry.envDistro),
+        ),
+      ];
+      return refreshSlashCommandCatalogs(client.endpoint, { ...fetched, wsl }, (kind) =>
+        client.agentSlashCommands(kind).then((result) => result.commands),
+      );
+    });
   useRemoteServersStore.setState((state) => {
     const current = state.runtime[connectionKey];
     if (!current) return state;
@@ -132,6 +151,17 @@ function createRemoteAgentManagementHost(connectionKey: string): AgentManagement
       acpRegistryMutationResultSchema.parse(await call("updateAcpRegistryAgent", payload)),
     recordRegistryInstalls: () => undefined,
     refreshAgentStatuses: () => refreshRemoteAgentStatuses(connectionKey),
+    rediscoverAgents: async (wslDistros) => {
+      const generation = currentRemoteServerGeneration(connectionKey);
+      const response = agentStatusesResponseSchema.parse(
+        await call("refreshAgentStatuses", { wslDistros }),
+      );
+      return refreshRemoteAgentStatuses(connectionKey, {
+        generation,
+        wsl: response.wsl,
+        wslDistros,
+      });
+    },
   };
 }
 

@@ -13446,7 +13446,7 @@ msgstr "Token de emparejamiento de un solo uso"
 msgid "Online"
 msgstr "En línea"
 
-#. placeholder {0}: state.totalBytes.toLocaleString()
+#. placeholder {0}: i18n.number(state.totalBytes)
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Only the end of the output is shown ({0} bytes)."
 msgstr "Solo se muestra el final de la salida ({0} bytes)."
@@ -15927,7 +15927,7 @@ msgstr "Actualizar {label}"
 #~ msgid "Refresh {label} usage"
 #~ msgstr "Actualizar el uso de {label}"
 
-#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Refresh detected agents"
 msgstr "Actualizar los agentes detectados"
 
@@ -21084,6 +21084,7 @@ msgstr "Este proyecto no tiene un remoto de origen compatible."
 #: src/renderer/actions/providerSwitchActions.ts
 #: src/renderer/actions/threadLaunchActions.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
+#: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "El servidor remoto de este proyecto está sin conexión. Vuelve a conectarlo para iniciar un hilo."
 
@@ -21942,7 +21943,9 @@ msgid "Unable to refresh {0} status."
 msgstr "No se puede actualizar el estado de {0}."
 
 #. placeholder {0}: agentStatus.label
+#. placeholder {0}: machine.label
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+#: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Unable to refresh {0}."
 msgstr "No se puede actualizar {0}."
 

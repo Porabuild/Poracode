@@ -278,6 +278,12 @@ val RemoteRootCodecs.procedureU2EReadThreadBackgroundTasksU2ERequest: RemoteRoot
 val RemoteRootCodecs.procedureU2EReadThreadBackgroundTasksU2EResult: RemoteRootCodec<ProcedurereadThreadBackgroundTasksResult_f5906c75b7>
     get() = RemoteRootCodec("procedure.readThreadBackgroundTasks.result", serializer<ProcedurereadThreadBackgroundTasksResult_f5906c75b7>(), schema_f5906c75b7204bd5)
 
+val RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2ERequest: RemoteRootCodec<ProcedurerefreshAgentStatusesRequest_0cf7156720>
+    get() = RemoteRootCodec("procedure.refreshAgentStatuses.request", serializer<ProcedurerefreshAgentStatusesRequest_0cf7156720>(), schema_0cf71567208700d7)
+
+val RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2EResult: RemoteRootCodec<ProcedurerefreshAgentStatusesResult_e5e44e3ce8>
+    get() = RemoteRootCodec("procedure.refreshAgentStatuses.result", serializer<ProcedurerefreshAgentStatusesResult_e5e44e3ce8>(), schema_e5e44e3ce8049a8a)
+
 val RemoteRootCodecs.procedureU2ERefreshProviderUsageU2ERequest: RemoteRootCodec<ProceduregetProviderUsageRequest_f2b9759b60>
     get() = RemoteRootCodec("procedure.refreshProviderUsage.request", serializer<ProceduregetProviderUsageRequest_f2b9759b60>(), schema_f2b9759b60404656)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2EConversationU2DSearchU2EResponse: RemoteRootCodec<R
 
 val RemoteRootCodecs.routeU2EDeviceU2DActionU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7>
     get() = RemoteRootCodec("route.device-action.path", serializer<RoutedeviceU2DActionPath_eef64882a7>(), schema_eef64882a7b017fb)
-
-val RemoteRootCodecs.routeU2EDeviceU2DActionU2ERequest: RemoteRootCodec<RoutedeviceU2DActionRequest_c37d7c3aee>
-    get() = RemoteRootCodec("route.device-action.request", serializer<RoutedeviceU2DActionRequest_c37d7c3aee>(), schema_c37d7c3aee05c236)
-
-val RemoteRootCodecs.routeU2EDeviceU2DActionU2EResponse: RemoteRootCodec<RoutedeviceU2DActionResponse_64ba4037c0>
-    get() = RemoteRootCodec("route.device-action.response", serializer<RoutedeviceU2DActionResponse_64ba4037c0>(), schema_64ba4037c0af9670)

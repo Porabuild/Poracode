@@ -5215,6 +5215,26 @@
         }
       },
       {
+        "id": "refreshAgentStatuses",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Manual host discovery is available in the shared desktop and PWA Agents General page; native clients have no agent management surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Manual host discovery is available in the shared desktop and PWA Agents General page; native clients have no agent management surface yet."
+          }
+        }
+      },
+      {
         "id": "updateAgentBinary",
         "batch": "settings-integrations",
         "ios": {

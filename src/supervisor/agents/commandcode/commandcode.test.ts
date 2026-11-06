@@ -711,6 +711,20 @@ describe("dynamic Command Code effort discovery", () => {
     });
   });
 
+  it("limits default discovery to four simultaneous CLI processes", async () => {
+    let active = 0;
+    let maxActive = 0;
+    const ids = Array.from({ length: 10 }, (_, index) => `model-${index}`);
+    const result = await collectCommandCodeModelEfforts(ids, async () => {
+      maxActive = Math.max(maxActive, ++active);
+      await Promise.resolve();
+      active -= 1;
+      return "Unknown effort. Supported: low, high.";
+    });
+    expect(maxActive).toBe(4);
+    expect(Object.keys(result).sort()).toEqual(ids.sort());
+  });
+
   it("refuses the fan-out when neither leader probe gets a parseable rejection reply", async () => {
     const probed: string[] = [];
     const result = await collectCommandCodeModelEfforts(

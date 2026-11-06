@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { agentStatusSchema } from "@/shared/contracts";
 import type {
   AgentStatus,
   AgentStatusesResponse,
@@ -195,6 +196,90 @@ describe("agent management hosts", () => {
     expect(withClientCalls).toEqual(["conn-1"]);
     expect(agentStatuses).toHaveBeenCalledWith({ omitSlashCommands: true });
     expect(useRemoteServersStore.getState().runtime["conn-1"]?.agentStatuses).toEqual(statuses);
+  });
+
+  it("rediscovers local agents through the supervisor even with an empty inventory", async () => {
+    bridge.refreshAgentStatuses.mockResolvedValue({ windows: [], wsl: [], fromCache: false });
+    await LOCAL_AGENT_MANAGEMENT_HOST.rediscoverAgents(["Ubuntu"]);
+    expect(bridge.refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith(["Ubuntu"], undefined);
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
+  });
+
+  it("requests paired-host discovery before re-reading its fresh statuses", async () => {
+    const statuses = makeRemoteStatuses();
+    callRemoteProcedure.mockImplementationOnce(async () => {
+      expect(agentStatuses).not.toHaveBeenCalled();
+      return { windows: [], wsl: [], fromCache: false };
+    });
+    agentStatuses.mockResolvedValue(statuses);
+    const result = await agentManagementHostForMachine(REMOTE_MACHINE).rediscoverAgents(["Ubuntu"]);
+    expect(callRemoteProcedure).toHaveBeenCalledExactlyOnceWith("refreshAgentStatuses", {
+      wslDistros: ["Ubuntu"],
+    });
+    expect(withClientCalls).toEqual(["conn-1", "conn-1"]);
+    expect(result).toEqual({ windows: statuses.windows, wsl: statuses.wsl });
+    expect(useRemoteServersStore.getState().runtime["conn-1"]?.agentStatuses).toEqual(statuses);
+    expect(bridge.refreshAgentStatuses).not.toHaveBeenCalled();
+  });
+
+  it("reports an older host's discovery rejection without a local or cached fallback", async () => {
+    const error = new RemoteClientError("Unsupported procedure", 403, "git_procedure_not_allowed");
+    callRemoteProcedure.mockRejectedValueOnce(error);
+    await expect(agentManagementHostForMachine(REMOTE_MACHINE).rediscoverAgents([])).rejects.toBe(
+      error,
+    );
+    expect(agentStatuses).not.toHaveBeenCalled();
+    expect(bridge.refreshAgentStatuses).not.toHaveBeenCalled();
+  });
+
+  it("keeps a discovered WSL distro absent from the host's project-scoped snapshot", async () => {
+    const statuses = makeRemoteStatuses();
+    const retained = makeStatus({ kind: "claude", envKind: "wsl", envDistro: "Debian" });
+    useRemoteServersStore.setState({
+      runtime: {
+        "conn-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: { ...statuses, wsl: [retained] },
+        },
+      },
+    });
+    const wsl = [
+      agentStatusSchema.parse(
+        makeStatus({
+          kind: "claude",
+          authState: "authenticated",
+          envKind: "wsl",
+          envDistro: "Ubuntu",
+        }),
+      ),
+    ];
+    callRemoteProcedure.mockResolvedValueOnce({ windows: [], wsl, fromCache: false });
+    agentStatuses.mockResolvedValue(statuses);
+    const result = await agentManagementHostForMachine(REMOTE_MACHINE).rediscoverAgents(["Ubuntu"]);
+    expect(result).toEqual({ windows: statuses.windows, wsl: [...wsl, retained] });
+    expect(useRemoteServersStore.getState().runtime["conn-1"]?.agentStatuses?.wsl).toEqual([
+      ...wsl,
+      retained,
+    ]);
+  });
+
+  it("does not publish discovery results across a reconnect during the provider probe", async () => {
+    const initial = makeRemoteStatuses();
+    useRemoteServersStore.setState({
+      runtime: {
+        "conn-1": { status: "online", projects: [], threads: [], agentStatuses: initial },
+      },
+    });
+    const discovery = deferred<AgentStatusesResponse>();
+    callRemoteProcedure.mockReturnValueOnce(discovery.promise);
+    agentStatuses.mockResolvedValue(statusesWithVersion("2.0.0", "2026-01-02T00:00:00.000Z"));
+    const result = agentManagementHostForMachine(REMOTE_MACHINE).rediscoverAgents(["Ubuntu"]);
+    bumpRemoteServerGeneration("conn-1");
+    discovery.resolve({ windows: [], wsl: [], fromCache: false });
+    await expect(result).resolves.toEqual({ windows: initial.windows, wsl: initial.wsl });
+    expect(useRemoteServersStore.getState().runtime["conn-1"]?.agentStatuses).toEqual(initial);
   });
 
   it("propagates a procedure rejection from an older host", async () => {

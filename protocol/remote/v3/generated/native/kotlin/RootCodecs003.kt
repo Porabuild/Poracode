@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EDeviceU2DActionU2ERequest: RemoteRootCodec<RoutedeviceU2DActionRequest_c37d7c3aee>
+    get() = RemoteRootCodec("route.device-action.request", serializer<RoutedeviceU2DActionRequest_c37d7c3aee>(), schema_c37d7c3aee05c236)
+
+val RemoteRootCodecs.routeU2EDeviceU2DActionU2EResponse: RemoteRootCodec<RoutedeviceU2DActionResponse_64ba4037c0>
+    get() = RemoteRootCodec("route.device-action.response", serializer<RoutedeviceU2DActionResponse_64ba4037c0>(), schema_64ba4037c0af9670)
+
 val RemoteRootCodecs.routeU2EDeviceU2DAttachU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.device-attach.path", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2EPushU2DRegisterU2ERequest: RemoteRootCodec<Routepus
 
 val RemoteRootCodecs.routeU2EPushU2DRegisterU2EResponse: RemoteRootCodec<RoutepushU2DRegisterResponse_9633843f8b>
     get() = RemoteRootCodec("route.push-register.response", serializer<RoutepushU2DRegisterResponse_9633843f8b>(), schema_9633843f8b51827f)
-
-val RemoteRootCodecs.routeU2EPushU2DUnregisterU2ERequest: RemoteRootCodec<RoutepushU2DUnregisterRequest_8f934fd77b>
-    get() = RemoteRootCodec("route.push-unregister.request", serializer<RoutepushU2DUnregisterRequest_8f934fd77b>(), schema_8f934fd77b3e45dd)
-
-val RemoteRootCodecs.routeU2EPushU2DUnregisterU2EResponse: RemoteRootCodec<RoutepushU2DRegisterResponse_9633843f8b>
-    get() = RemoteRootCodec("route.push-unregister.response", serializer<RoutepushU2DRegisterResponse_9633843f8b>(), schema_9633843f8b51827f)

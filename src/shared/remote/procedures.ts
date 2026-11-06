@@ -67,6 +67,8 @@ export const REMOTE_PROCEDURE_SPECS = {
   // therefore operate-scoped, so a paired machine's agents can only be changed
   // by a client holding session:operate.
   getLatestAgentVersion: read("desktop"),
+  // Additive: older hosts reject this name; clients report the failure without a local fallback.
+  refreshAgentStatuses: mutating(longRunning(operate("desktop"))),
   listAcpRegistry: mutating(longRunning(operate("desktop"))),
   updateAgentBinary: mutating(longRunning(operate("desktop"))),
   updateAcpRegistryAgent: mutating(longRunning(operate("desktop"))),
@@ -292,6 +294,7 @@ export function isRemoteFollowUpQueueProcedure(
 /** Agent install/update procedures; clients give them the supervisor's agent
  * update budget instead of the generic long-request timeout. */
 export const REMOTE_AGENT_UPDATE_PROCEDURES = [
+  "refreshAgentStatuses",
   "listAcpRegistry",
   "updateAgentBinary",
   "updateAcpRegistryAgent",
