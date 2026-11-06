@@ -22,7 +22,7 @@ import { parseMcpName } from "@/shared/toolCallClassification";
 import { extractAcpDiffSummary, readAcpStringField } from "./acpToolPayload";
 import { commandIntentDisplay } from "./commandSummary";
 import { isContextCompactionToolCall } from "./ContextCompaction";
-import { isPlanProposalToolCall } from "./PlanProposal";
+import { isPlanProposalToolCall } from "./planProposalToolCall";
 import { deriveToolDisplay, isDelegatedAgentTool } from "./toolDisplay";
 
 export type GroupCategory =
