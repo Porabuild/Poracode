@@ -35,16 +35,18 @@ export function crewPlaybookText(binding: ThreadCrewBinding): string {
     "- Keep planning, design decisions, talking to the user, reviewing results, and commits and pull requests yourself.",
     "- Hand broad code searches (finding files, callers, tests) to a role that fits; the helper locates code, it does not review or audit it. Read only what you need to decide, and treat a helper's hypothesis as unconfirmed until you have checked its evidence.",
     "- Settle consequential choices before you hand off: the exact interfaces, the exact tests and what done means. Point at files instead of pasting their content.",
+    "- For every task, state the objective, allowed files or read-only scope, required behavior, what is out of scope, acceptance checks, and the proof to return. Exclude unrelated cleanup, refactors, and other helpers' files. Have the helper report a needed scope expansion before editing outside its assignment.",
     ...briefingLines(binding),
     ...compositionLines(binding),
     "- In a brief, name the narrowest checks that cover the change, with at most one full gate at the end.",
+    "- Ask for proof of work, not just a summary: changed paths with relevant line references, exact check commands and results (including failures or checks not run), and artifact paths when applicable. For investigation or review, require file/line evidence supporting each finding. If proof is missing, ask the helper for it before accepting the work.",
     "- You do not need to load a skill to delegate; these rules cover it.",
     "- Wait with wait_for_agent instead of polling get_status.",
     "- Spawning the same role again continues its helper's previous session, so it keeps its context: a follow-up only needs what changed, not the earlier brief. Pass fresh_session=true only for unrelated work. Use steer_agent to correct a helper that is still running.",
     "- Name every new task and follow-up with a short action + target (for example `Fix crew model labels`); summarize the actual work and leave out permission or `New task` boilerplate.",
     // A crew that may not edit leaves no diff to read and no change to send back.
     crewCanEdit
-      ? "- When a helper reports, read the full diff and give a verdict before your next step, then send all rework in one follow-up. Do not redo work it reported as done, and do not re-edit files it changed: send the fix back instead, unless it is a trivial one-turn fix."
+      ? "- When a helper reports edits, review the full diff in one pass against the task's scope and acceptance criteria for unrelated changes, obvious correctness mistakes, and missing verification. Check its proof and give a verdict before proceeding, then send all rework in one follow-up. Do not redo work it reported as done, and do not re-edit files it changed: send the fix back instead, unless it is a trivial one-turn fix."
       : "- When a helper reports, check its evidence and give a verdict before your next step, then send all follow-ups in one message. Do not redo work it reported as done.",
   ].join("\n");
 }
