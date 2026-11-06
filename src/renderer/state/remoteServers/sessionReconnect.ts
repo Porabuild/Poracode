@@ -637,12 +637,26 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
           const { [key]: _removed, ...runtime } = state.runtime;
           const { [key]: _removedUpdate, ...hostUpdates } = state.hostUpdates;
           const { [key]: _removedRestart, ...hostUpdateRestarts } = state.hostUpdateRestarts;
+          // The connection identity is gone: its client-owned Home thread pins
+          // (including cascaded environment children) must not attach to a
+          // future re-pair. Only full thread ids for this exact connection.
+          const previousHomeThreadWorkspaceIds = state.homeThreadWorkspaceIds ?? {};
+          const threadPrefix = remoteThreadId(key, "");
+          const homeThreadWorkspaceIds = Object.fromEntries(
+            Object.entries(previousHomeThreadWorkspaceIds).filter(
+              ([threadId]) => !threadId.startsWith(threadPrefix),
+            ),
+          );
           return {
             servers: state.servers.filter((candidate) => remoteConnectionKey(candidate) !== key),
             runtime,
             hostUpdates,
             hostUpdateRestarts,
             lastKnownProjects: removeCachedProjects(state.lastKnownProjects, key),
+            ...(Object.keys(homeThreadWorkspaceIds).length ===
+            Object.keys(previousHomeThreadWorkspaceIds).length
+              ? {}
+              : { homeThreadWorkspaceIds }),
           };
         });
         releaseRemoteTerminalsForServer(key);

@@ -955,6 +955,14 @@ export function ThreadDraftComposerArea(props: {
       return;
     }
 
+    // Capture the exact editor segments before submit clears the draft refs.
+    // The launch payload prepends attachment tokens to these segments, so it
+    // cannot be used to recover the editor: the attachment bar restores those
+    // separately. If the parent unmounts this composer before a failed launch
+    // settles, the editor ref is already null and this snapshot is the only
+    // exact copy of what the user submitted.
+    const submittedDraftSegments =
+      mentionRef.current?.serializeSegments() ?? latestSegmentsRef.current;
     resetDraftRefs();
     submittedRef.current = true;
     clearDraftContent(props.project.id);
@@ -993,8 +1001,11 @@ export function ThreadDraftComposerArea(props: {
     // return void or a promise; Promise.resolve normalizes both.
     return Promise.resolve(startResult).catch((error: unknown) => {
       submittedRef.current = false;
-      // Restore the checkpoint from the editor after a failed launch.
-      latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
+      // Restore the checkpoint from the editor after a failed launch. If the
+      // parent unmounted this composer while the launch was in flight (e.g. a
+      // connection gate), the ref is gone; fall back to the captured editor
+      // segments, never the attachment-bearing wire payload.
+      latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? submittedDraftSegments;
       attachmentsRef.current = attachments.attachments;
       checkpointDraft();
       setIsSubmitting(false);

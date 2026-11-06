@@ -23,10 +23,6 @@ import {
   groupProjectRows,
   type ProjectGroupIndex,
 } from "@/renderer/state/projectGroups/projectGroups";
-import {
-  ProjectEnvironmentGlyphs,
-  useProjectEnvironmentMachineLookup,
-} from "@/renderer/components/common/ProjectEnvironment";
 import { useProjectMenu } from "./useProjectMenu";
 
 /**
@@ -229,7 +225,10 @@ export function buildFilterRows(
 ): { available: FilterRow[]; unavailable: FilterRow[] } {
   const available: FilterRow[] = [];
   const unavailable: FilterRow[] = [];
-  for (const { id, members: environments } of groupProjectRows(projects, index)) {
+  const rows = groupProjectRows(projects, index).toSorted(
+    (a, b) => (isHomeProject(a.members[0]!) ? 0 : 1) - (isHomeProject(b.members[0]!) ? 0 : 1),
+  );
+  for (const { id, members: environments } of rows) {
     const members = environments.filter(isFilterable);
     const row = { id, project: members[0] ?? environments[0]!, members, environments };
     (members.length > 0 ? available : unavailable).push(row);
@@ -308,7 +307,6 @@ export function SidebarProjectFilter(props: {
   };
 
   const groupIndex = useProjectGroupIndex();
-  const machineFor = useProjectEnvironmentMachineLookup();
   const { available: filterableRows, unavailable: unavailableRows } = buildFilterRows(
     props.projects,
     (project) => props.filterableProjectIds.has(project.id),
@@ -434,9 +432,12 @@ export function SidebarProjectFilter(props: {
                     aria-pressed={selected || undefined}
                     onClick={() => toggleRow(row.id)}
                   >
-                    <ProjectSelectorIcon project={project} remote={remote} />
+                    <ProjectSelectorIcon
+                      project={project}
+                      remote={remote}
+                      showEnvironment={row.environments.length === 1}
+                    />
                     <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                    <ProjectEnvironmentGlyphs members={row.environments} machineFor={machineFor} />
                     {serverName ? (
                       <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
                         {serverName}
@@ -466,9 +467,12 @@ export function SidebarProjectFilter(props: {
                   data-static="true"
                 >
                   <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 px-2.5">
-                    <ProjectSelectorIcon project={project} remote={remote} />
+                    <ProjectSelectorIcon
+                      project={project}
+                      remote={remote}
+                      showEnvironment={row.environments.length === 1}
+                    />
                     <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                    <ProjectEnvironmentGlyphs members={row.environments} machineFor={machineFor} />
                     {serverName ? (
                       <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
                         {serverName}
@@ -592,22 +596,16 @@ export function SidebarProjectFilter(props: {
             const { project } = row;
             const remote = remoteServerFor(project);
             const serverName = soleServerName(row);
-            const multiEnvironment = row.environments.length > 1;
             return (
               <Dropdown.Item key={row.id} id={row.id} textValue={project.name}>
-                <ProjectSelectorIcon project={project} remote={remote} />
+                <ProjectSelectorIcon
+                  project={project}
+                  remote={remote}
+                  showEnvironment={row.environments.length === 1}
+                />
                 <Label className="min-w-0 truncate">{project.name}</Label>
                 {serverName ? <Description>{serverName}</Description> : null}
-                <ProjectEnvironmentGlyphs
-                  members={row.environments}
-                  machineFor={machineFor}
-                  className="ms-auto"
-                />
-                <span
-                  className={`${multiEnvironment ? "" : "ms-auto "}shrink-0 text-xs text-muted`}
-                >
-                  {rowCount(row)}
-                </span>
+                <span className="ms-auto shrink-0 text-xs text-muted">{rowCount(row)}</span>
                 <Dropdown.ItemIndicator />
                 {isHomeProject(project) ? null : (
                   <ProjectRowMenuButton
@@ -632,14 +630,13 @@ export function SidebarProjectFilter(props: {
                 const serverName = soleServerName(row);
                 return (
                   <Dropdown.Item key={row.id} id={row.id} textValue={project.name}>
-                    <ProjectSelectorIcon project={project} remote={remote} />
+                    <ProjectSelectorIcon
+                      project={project}
+                      remote={remote}
+                      showEnvironment={row.environments.length === 1}
+                    />
                     <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
                     {serverName ? <Description>{serverName}</Description> : null}
-                    <ProjectEnvironmentGlyphs
-                      members={row.environments}
-                      machineFor={machineFor}
-                      className="ms-auto opacity-50"
-                    />
                     {isHomeProject(project) ? null : (
                       <ProjectRowMenuButton
                         project={project}

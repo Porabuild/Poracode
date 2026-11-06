@@ -1,6 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitStatusResult, Project } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -99,6 +100,51 @@ describe("ProjectEnvironmentScope", () => {
     expect(screen.queryByTestId("machine-select")).not.toBeInTheDocument();
     expect(screen.queryByText("All machines")).not.toBeInTheDocument();
     expect(screen.queryByText(/^On /)).not.toBeInTheDocument();
+  });
+
+  it("renders no environment scope for Home even with a paired machine", () => {
+    const canonicalHome: Project = {
+      id: HOME_PROJECT_ID,
+      name: "Home",
+      location: { kind: "windows", path: "C:\\Users\\me" },
+      createdAt: "2026-07-13T10:00:00.000Z",
+      disabled: true,
+    };
+    const mirroredHome: Project = {
+      id: `remote:mac:project:${HOME_PROJECT_ID}`,
+      name: "Home",
+      remoteServerId: "mac",
+      remoteId: HOME_PROJECT_ID,
+      location: { kind: "posix", path: "/Users/me", remoteServerId: "mac" },
+      createdAt: "2026-07-13T10:00:00.000Z",
+      disabled: true,
+    };
+    useAppStore.setState({ projects: [canonicalHome, mirroredHome] });
+
+    render(
+      <>
+        <ProjectEnvironmentScopeBar
+          projectId={HOME_PROJECT_ID}
+          section="general"
+          placement="floating"
+        />
+        <ProjectScopeHeading projectId={HOME_PROJECT_ID} scope="shared" />
+        <ProjectScopeHeading projectId={HOME_PROJECT_ID} scope="environment" />
+        <SharedValueDiff
+          setting="Name"
+          projectId={HOME_PROJECT_ID}
+          read={(row) => row.name}
+          onApplyEverywhere={vi.fn<() => void>()}
+        />
+      </>,
+    );
+
+    expect(screen.queryByTestId("machine-select")).not.toBeInTheDocument();
+    expect(screen.queryByText("All machines")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^On /)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Link as the same project/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("heads shared and machine rows in the Settings idiom", () => {

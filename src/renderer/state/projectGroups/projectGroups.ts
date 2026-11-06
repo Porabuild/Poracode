@@ -119,8 +119,10 @@ function matchesAutomatically(
  * Group per-host project rows into logical projects.
  *
  * Pure and deterministic for its inputs. `repoKeyOf` returns the normalized
- * origin repository of a row, or null while unknown. The Home scope and rows
- * without a usable name always stay on their own.
+ * origin repository of a row, or null while unknown. Home is identified only
+ * by its synthetic ids: every machine's Home joins one Home group, while a
+ * real project in the user's home folder and a regular project named "Home"
+ * never do. Rows without a usable name always stay on their own.
  */
 export function deriveProjectGroups(
   projects: readonly Project[],
@@ -134,9 +136,23 @@ export function deriveProjectGroups(
 
   const builders: GroupBuilder[] = [];
   const manualBuilders = new Map<string, GroupBuilder>();
+  let homeBuilder: GroupBuilder | undefined;
   for (const project of ordered) {
     const repoKey = repoKeyOf(project);
-    if (isHomeProject(project) || !nameKey(project)) {
+    if (isHomeProject(project)) {
+      // Home is a synthetic, client-side group. Its repository identity and
+      // manual tokens are irrelevant, and it never carries shared settings.
+      const environment = projectEnvironmentKey(project);
+      if (homeBuilder && !homeBuilder.environments.has(environment)) {
+        addMember(homeBuilder, project, null, null);
+      } else {
+        const builder = newBuilder(project, null, true, null);
+        builders.push(builder);
+        if (!homeBuilder) homeBuilder = builder;
+      }
+      continue;
+    }
+    if (!nameKey(project)) {
       builders.push(newBuilder(project, repoKey, true));
       continue;
     }

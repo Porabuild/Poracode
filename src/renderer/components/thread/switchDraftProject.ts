@@ -25,13 +25,9 @@ export function switchDraftProject(
   if (nextProjectId === currentProjectId) return;
   rememberWorkspaceProject(nextProjectId);
   useProjectGroupStore.getState().markProjectUsed(nextProjectId);
-  if (options.onSelectProject) {
-    options.onSelectProject(nextProjectId);
-    return;
-  }
   const store = useAppStore.getState();
   const content = store.draftContents[currentProjectId];
-  if (content && flattenSegments(content.segments)) {
+  if (content && (content.attachments.length > 0 || flattenSegments(content.segments))) {
     store.saveDraftContent(nextProjectId, content);
     const sourceConfig = store.projects.find(
       (project) => project.id === currentProjectId,
@@ -61,6 +57,12 @@ export function switchDraftProject(
     }
   }
   store.discardDraftContent(currentProjectId);
+  // Embedding surfaces own their local view; the shared draft move above still
+  // applies before handing the target back to them.
+  if (options.onSelectProject) {
+    options.onSelectProject(nextProjectId);
+    return;
+  }
   const { paneId } = options;
   startTransition(() => {
     if (paneId) {

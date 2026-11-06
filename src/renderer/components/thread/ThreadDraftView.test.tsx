@@ -2159,6 +2159,69 @@ describe("ThreadDraftView", () => {
     expect(screen.getByText("Connecting to host…")).toBeInTheDocument();
     expect(screen.queryByText("Connection error")).not.toBeInTheDocument();
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
+    expect(composerSpy).not.toHaveBeenCalled();
+  });
+
+  it.each(["offline", "error", "connecting"] as const)(
+    "keeps a pending submission's composer mounted while the remote host is %s",
+    (status) => {
+      useRemoteServersStore.setState({
+        servers: [
+          {
+            desktopId: "desktop-1",
+            label: "Remote Mac",
+            endpoint: "http://remote/",
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: {
+          "desktop-1": { status, projects: [], threads: [] },
+        },
+      });
+
+      render(
+        <ThreadDraftView
+          project={remoteProject}
+          agentStatuses={[codexStatus]}
+          submissionPending
+          onStart={() => {}}
+        />,
+      );
+
+      expect(composerSpy).toHaveBeenCalled();
+      expect(screen.queryByText("Connecting to host…")).not.toBeInTheDocument();
+      expect(screen.queryByText("Connection error")).not.toBeInTheDocument();
+    },
+  );
+
+  it("still blocks a draft on an offline host when no submission is pending", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Remote Mac",
+          endpoint: "http://remote/",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "offline", projects: [], threads: [] },
+      },
+    });
+
+    render(
+      <ThreadDraftView
+        project={remoteProject}
+        agentStatuses={[codexStatus]}
+        submissionPending={false}
+        onStart={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Connection error")).toBeInTheDocument();
+    expect(composerSpy).not.toHaveBeenCalled();
   });
 
   it("keeps the remote composer visible and disables submit during a host update restart", () => {

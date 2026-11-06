@@ -89,8 +89,10 @@ describe("SidebarProjectFilter", () => {
     );
 
     const menu = await openMenu();
-    const rows = [...menu.querySelectorAll('[role="menuitemcheckbox"]')].map((r) => r.textContent);
-    expect(rows.filter((row) => row?.includes("MacBook 16"))).toHaveLength(1);
+    const rows = [...menu.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
+    const mirroredRows = rows.filter((row) => row.textContent?.includes("MacBook 16"));
+    expect(mirroredRows).toHaveLength(1);
+    expect(within(mirroredRows[0]!).getByTitle("Online")).toBeInTheDocument();
 
     useRemoteServersStore.setState({ servers: [], runtime: {} });
   });
@@ -112,17 +114,112 @@ describe("SidebarProjectFilter", () => {
 
     const menu = await openMenu();
     const rows = [...menu.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
-    // One Alpha row for both machines, naming each machine it lives on.
+    // One Alpha row for both machines, without per-environment badges.
     expect(rows).toHaveLength(3);
     expect(within(rows[1]!).getByText("Alpha")).toBeInTheDocument();
-    const machines = rows[1]!.querySelector("[data-project-environments]");
-    expect(machines).toHaveTextContent("Local");
-    expect(machines).toHaveTextContent("MacBook 16");
+    expect(rows[1]!.querySelector("[data-project-environments]")).toBeNull();
+    expect(within(rows[1]!).queryByText("Local")).toBeNull();
+    expect(within(rows[1]!).queryByText("MacBook 16")).toBeNull();
+    // The combined row uses the project identity icon, not the local Windows glyph.
+    expect(rows[1]!.querySelector(".lucide-monitor")).toBeNull();
+    expect(rows[1]!.querySelector(".lucide-folder-open")).not.toBeNull();
     expect(within(rows[2]!).getByText("Beta")).toBeInTheDocument();
 
     // Unchecking Alpha in the all state filters out both environments.
     fireEvent.click(rows[1]!);
     expect(onChange).toHaveBeenLastCalledWith(["b"]);
+  });
+
+  it("keeps Home first without disturbing the other projects' order", async () => {
+    const list = [projects[0]!, projects[1]!, projects[2]!, homeProject];
+    useAppStore.setState({ projects: list });
+    renderFilter(null, vi.fn(), list);
+
+    const menu = await openMenu();
+    const rows = [...menu.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
+
+    expect(rows).toHaveLength(5);
+    expect(rows[0]).toHaveTextContent("All projects");
+    expect(within(rows[1]!).getByText("Home")).toBeInTheDocument();
+    expect(within(rows[2]!).getByText("Alpha")).toBeInTheDocument();
+    expect(within(rows[3]!).getByText("Beta")).toBeInTheDocument();
+    expect(within(rows[4]!).getByText("Gamma")).toBeInTheDocument();
+  });
+
+  it("keeps Home first in the mobile project sheet", async () => {
+    responsiveMenuState.mobile = true;
+    const list = [projects[0]!, projects[1]!, projects[2]!, homeProject];
+    useAppStore.setState({ projects: list });
+    renderFilter(null, vi.fn(), list);
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Filter by project" });
+    const labels = within(dialog)
+      .getAllByRole("button")
+      .map((button) => button.textContent?.trim() ?? "")
+      .filter((text) => text.length > 0);
+
+    expect(labels[0]).toContain("All projects");
+    expect(labels[1]).toContain("Home");
+    expect(labels[2]).toContain("Alpha");
+    expect(labels[3]).toContain("Beta");
+    expect(labels[4]).toContain("Gamma");
+  });
+
+  it("groups canonical and mirrored Home into one row", async () => {
+    const mirroredHome = {
+      ...homeProject,
+      id: "remote:desktop-1:project:__lightcode_home__",
+      remoteId: HOME_PROJECT_ID,
+      remoteServerId: "desktop-1",
+      location: { kind: "posix", path: "/Users/me", remoteServerId: "desktop-1" },
+    } as Project;
+    const list = [projects[0]!, homeProject, mirroredHome, projects[1]!];
+    useAppStore.setState({ projects: list });
+    renderFilter(null, vi.fn(), list);
+
+    const menu = await openMenu();
+    const rows = [...menu.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
+
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveTextContent("All projects");
+    expect(rows[1]).toHaveTextContent("Home");
+    expect(rows[1]!.querySelector("[data-project-environments]")).toBeNull();
+    expect(within(rows[1]!).queryByText("Local")).toBeNull();
+    expect(rows.filter((row) => row.textContent?.includes("Home"))).toHaveLength(1);
+  });
+
+  it("hides environment badges on an unavailable combined row", async () => {
+    const mirrored = {
+      ...project("r", "Alpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+      location: { kind: "posix", path: "/Users/me/alpha", remoteServerId: "desktop-1" },
+    } as Project;
+    const list = [projects[0]!, mirrored, projects[1]!];
+    useAppStore.setState({ projects: list });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+    } as never);
+    render(
+      <SidebarProjectFilter
+        projects={list}
+        filterableProjectIds={new Set(["b"])}
+        threadCounts={threadCounts}
+        value={null}
+        onChange={vi.fn<(next: string[] | null) => void>()}
+      />,
+    );
+
+    const menu = await openMenu();
+    const alpha = within(menu).getByText("Alpha").closest<HTMLElement>('[data-slot="menu-item"]');
+    expect(alpha).not.toBeNull();
+    expect(alpha!.querySelector("[data-project-environments]")).toBeNull();
+    expect(within(alpha!).queryByText("Local")).toBeNull();
+    expect(within(alpha!).queryByText("MacBook 16")).toBeNull();
+    expect(alpha!.querySelector(".lucide-monitor")).toBeNull();
+    expect(alpha!.querySelector(".lucide-folder-open")).not.toBeNull();
   });
 
   it("shows a project selected when a saved filter holds one of its machines", async () => {

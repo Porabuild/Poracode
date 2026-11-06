@@ -1,4 +1,5 @@
 import type { Project } from "@/shared/contracts";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { agentEnvForLocation, parseMachineKey } from "@/shared/machines";
 import type { MachineDescriptor } from "@/renderer/state/machines";
 import { projectEnvironmentKey } from "@/renderer/state/projectGroups/projectGroups";
@@ -66,6 +67,9 @@ export function useProjectEnvironmentMachines(
 ): readonly ProjectEnvironmentMachine[] {
   const members = useProjectGroup(projectId)?.members ?? [];
   const machineFor = useProjectEnvironmentMachineLookup();
+  // Home is a projectless OS session on every machine, not one logical project
+  // whose settings span environments.
+  if (isHomeProjectId(projectId)) return [];
   if (members.length < 2) return [];
   return members.flatMap((member) => {
     const entry = machineFor(member);

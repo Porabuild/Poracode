@@ -37,6 +37,7 @@ export function persistedRemoteServersState(state: RemoteServersState) {
     excludedProjectIds: state.excludedProjectIds,
     projectWorkspaceIds: state.projectWorkspaceIds,
     explicitProjectWorkspaceIds: state.explicitProjectWorkspaceIds,
+    homeThreadWorkspaceIds: state.homeThreadWorkspaceIds ?? {},
     projectNameOverrides: state.projectNameOverrides,
     lastKnownProjects: state.lastKnownProjects,
   };

@@ -1,9 +1,14 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
+import { PORACODE_CLIENT_RUNTIME_VERSION } from "@/shared/clientRuntime";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
-import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
+import {
+  installBrowserClientRuntime,
+  installClientRuntime,
+  resetClientRuntimeForTest,
+} from "@/renderer/clientRuntime";
 import { useAppStore } from "../appStore";
 import { useGitStore } from "../gitStore";
 import { useSharedSettings } from "../sharedSettingsStore";
@@ -81,6 +86,41 @@ describe("browser client Home mirror", () => {
 
     const homeRowId = remoteProjectId("d1", HOME_PROJECT_ID);
     expect(useAppStore.getState().projects.map((project) => project.id)).toContain(homeRowId);
+    expect(useAppStore.getState().threads.map((thread) => thread.projectId)).toEqual([homeRowId]);
+    expect(gitRefresh.refreshGitProject.mock.calls.map(([project]) => project.id)).toEqual([
+      remoteProjectId("d1", "p1"),
+    ]);
+  });
+
+  it("mirrors the host's Home on the desktop client too, unfiled and without Git", () => {
+    resetClientRuntimeForTest();
+    installClientRuntime({
+      version: PORACODE_CLIENT_RUNTIME_VERSION,
+      host: "electron",
+      surface: "adaptive",
+      transport: "electron-backend-host",
+      capabilities: {
+        localBackend: true,
+        manageRemoteEnvironments: true,
+        nativeAppUpdates: true,
+        nativeBrowserWebContents: true,
+        nativeShell: true,
+        nativeSsh: true,
+        osNotifications: true,
+      },
+      procedures: {} as never,
+      native: {} as never,
+    });
+    useSharedSettings.setState({
+      workspaces: [{ id: "w1", name: "Work", createdAt, icon: "briefcase" }],
+    } as never);
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1" });
+
+    syncRemoteAppRows("d1", [home, repo], [homeChat]);
+
+    const homeRowId = remoteProjectId("d1", HOME_PROJECT_ID);
+    const byId = new Map(useAppStore.getState().projects.map((project) => [project.id, project]));
+    expect(byId.get(homeRowId)?.workspaceId).toBeUndefined();
     expect(useAppStore.getState().threads.map((thread) => thread.projectId)).toEqual([homeRowId]);
     expect(gitRefresh.refreshGitProject.mock.calls.map(([project]) => project.id)).toEqual([
       remoteProjectId("d1", "p1"),

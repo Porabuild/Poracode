@@ -5692,7 +5692,7 @@ describe("useRemoteServersStore", () => {
     expect(useAppStore.getState().view).toBe(view);
   });
 
-  it("keeps the desktop app on its own Home instead of the remote's built-in Home scope", async () => {
+  it("mirrors the remote's built-in Home on the desktop app alongside its own Home", async () => {
     installClientRuntime({
       version: PORACODE_CLIENT_RUNTIME_VERSION,
       host: "electron",
@@ -5722,7 +5722,7 @@ describe("useRemoteServersStore", () => {
     const mirrored = useAppStore
       .getState()
       .projects.filter((project) => project.remoteServerId === "d1");
-    expect(mirrored.map((project) => project.remoteId)).toEqual(["p1"]);
+    expect(mirrored.map((project) => project.remoteId)).toEqual([HOME_PROJECT_ID, "p1"]);
     // The full list stays in the runtime snapshot for the settings picker.
     expect(useRemoteServersStore.getState().runtime.d1?.projects).toHaveLength(2);
   });
@@ -5857,7 +5857,10 @@ describe("host-owned environment removal cascade (C1 R2)", () => {
 
   beforeEach(() => {
     __resetRemoteServersStoreForTest();
-    useRemoteServersStore.setState({ servers: [parentRecord, childRecord] });
+    useRemoteServersStore.setState({
+      servers: [parentRecord, childRecord],
+      homeThreadWorkspaceIds: {},
+    });
   });
 
   afterEach(() => {
@@ -5885,6 +5888,26 @@ describe("host-owned environment removal cascade (C1 R2)", () => {
       ),
     ).toBeUndefined();
     expect(__peekRefreshTokenForTest(PARENT_KEY)).toBeUndefined();
+  });
+
+  it("purges only the forgotten connections' Home thread filings", () => {
+    const parentThread = remoteThreadId(PARENT_KEY, "home-1");
+    const childThread = remoteThreadId(CHILD_KEY, "home-2");
+    // Same renderer prefix pattern but a different connection identity.
+    const otherThread = remoteThreadId(`${PARENT_KEY}-other`, "home-1");
+    useRemoteServersStore.setState({
+      homeThreadWorkspaceIds: {
+        [parentThread]: "client-work",
+        [childThread]: null,
+        [otherThread]: "client-side",
+      },
+    });
+
+    useRemoteServersStore.getState().removeServer(PARENT_KEY, { cascadeEnvironments: true });
+
+    expect(useRemoteServersStore.getState().homeThreadWorkspaceIds).toEqual({
+      [otherThread]: "client-side",
+    });
   });
 
   it("removing an environment never deletes the parent record or grant", () => {

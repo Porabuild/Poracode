@@ -19,6 +19,7 @@ import {
 interface PersistedState {
   servers: RemoteServerRecord[];
   marker: string;
+  homeThreadWorkspaceIds?: Record<string, string | null>;
 }
 
 function server(desktopId: string, accessToken: string): RemoteServerRecord {
@@ -389,6 +390,46 @@ describe("secure remote-server persistence", () => {
       (await createSecureRemoteServersStorage<PersistedState>().getItem("servers"))?.state.servers,
     ).toEqual([{ ...server("web-1", "token-2"), label: "Renamed" }]);
     expect(await getDesktopToken("legacy-1")).toBeNull();
+  });
+
+  it("merges Home thread filings written by different windows entry by entry", async () => {
+    const main = createSecureRemoteServersStorage<PersistedState>();
+    const sideChat = createSecureRemoteServersStorage<PersistedState>();
+    await main.setItem("servers", {
+      ...stateValue([server("web-1", "token-1")]),
+      state: {
+        servers: [server("web-1", "token-1")],
+        marker: "kept",
+        homeThreadWorkspaceIds: {},
+      },
+    });
+    await main.getItem("servers");
+    await sideChat.getItem("servers");
+
+    await main.setItem("servers", {
+      ...stateValue([server("web-1", "token-1")]),
+      state: {
+        servers: [server("web-1", "token-1")],
+        marker: "kept",
+        homeThreadWorkspaceIds: { "remote:d1:thread:t1": "client-work" },
+      },
+    });
+    // The second window persists from its older view, which never saw t1.
+    await sideChat.setItem("servers", {
+      ...stateValue([server("web-1", "token-1")]),
+      state: {
+        servers: [server("web-1", "token-1")],
+        marker: "kept",
+        homeThreadWorkspaceIds: { "remote:d1:thread:t2": null },
+      },
+    });
+
+    const restored = await createSecureRemoteServersStorage<PersistedState>().getItem("servers");
+    expect(restored?.state.homeThreadWorkspaceIds).toEqual({
+      "remote:d1:thread:t1": "client-work",
+      "remote:d1:thread:t2": null,
+    });
+    expect(restored?.state.servers).toEqual([server("web-1", "token-1")]);
   });
 
   it("keeps both windows' changes when encryption pauses one save", async () => {
