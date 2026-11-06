@@ -8,6 +8,7 @@ import type {
   ForgeRepository,
 } from "@/shared/contracts";
 import { resetGitStoreCache, summaryBackfillMissed, useGitStore } from "./gitStore";
+import { repoIdentityKey } from "@/shared/repoIdentity";
 
 const baseStatus: GitStatusResult = {
   isRepo: true,
@@ -174,26 +175,35 @@ describe("gitStore batch updates", () => {
     }
   });
 
-  it("refreshes a released v2 SSH alias URL without discarding the cached status", async () => {
+  it("keeps released v2 raw SSH statuses but treats their origins as unconfirmed until a canonical refresh", async () => {
     resetGitStoreCache();
-    const cached = {
+    const alias = {
       ...baseStatus,
       remoteInfo: { ...baseStatus.remoteInfo!, url: "git@github.com-personal:owner/repo.git" },
     };
+    const resolvedSsh = {
+      ...baseStatus,
+      remoteInfo: { ...baseStatus.remoteInfo!, url: "ssh://git@github.com/owner/repo.git" },
+    };
     localStorage.setItem(
       "poracode-git-cache-v2",
-      JSON.stringify({ v: 2, ts: Date.now(), statuses: { p1: cached } }),
+      JSON.stringify({ v: 2, ts: Date.now(), statuses: { p1: alias, p2: resolvedSsh } }),
     );
     vi.resetModules();
     const upgraded = await import("./gitStore");
     try {
-      expect(upgraded.useGitStore.getState().statuses.p1).toEqual(cached);
-      const refreshed = {
-        ...cached,
-        remoteInfo: { ...cached.remoteInfo, url: "ssh://git@github.com/owner/repo.git" },
+      expect(upgraded.useGitStore.getState().statuses).toEqual({ p1: alias, p2: resolvedSsh });
+      expect(repoIdentityKey(alias.remoteInfo)).toBeNull();
+      expect(repoIdentityKey(resolvedSsh.remoteInfo)).toBeNull();
+
+      const canonical = {
+        ...alias,
+        remoteInfo: { ...alias.remoteInfo!, url: "https://github.com/owner/repo.git" },
       };
-      upgraded.useGitStore.getState().setProjectSnapshot("p1", { status: refreshed });
-      expect(upgraded.useGitStore.getState().statuses.p1).toEqual(refreshed);
+      upgraded.useGitStore.getState().setProjectSnapshot("p1", { status: canonical });
+      expect(upgraded.useGitStore.getState().statuses.p1).toEqual(canonical);
+      expect(repoIdentityKey(canonical.remoteInfo)).toBe("https://github.com/owner/repo");
+      expect(repoIdentityKey(upgraded.useGitStore.getState().statuses.p2?.remoteInfo)).toBeNull();
     } finally {
       upgraded.resetGitStoreCache();
       vi.resetModules();

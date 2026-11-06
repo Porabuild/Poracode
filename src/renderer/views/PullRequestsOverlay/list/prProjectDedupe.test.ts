@@ -28,15 +28,27 @@ const sshAliasRemote: GitRemoteInfo = {
 };
 
 describe("repoIdentityKey", () => {
-  it("preserves the host while matching HTTPS and SSH forms", () => {
+  it("preserves the host while matching canonical HTTPS forms", () => {
     expect(repoIdentityKey(httpsRemote)).toBe("https://github.com/sdsleon/lightcode");
-    expect(
-      repoIdentityKey({ ...sshAliasRemote, url: "git@github.com:sdsleon/Lightcode.git" }),
-    ).toBe(repoIdentityKey(httpsRemote));
-    expect(repoIdentityKey(sshAliasRemote)).not.toBe(repoIdentityKey(httpsRemote));
+    expect(repoIdentityKey({ ...httpsRemote, url: "https://github.com/SDSLeon/lightcode" })).toBe(
+      "https://github.com/sdsleon/lightcode",
+    );
     expect(
       repoIdentityKey({ ...httpsRemote, url: "https://gitlab.com/SDSLeon/lightcode.git" }),
     ).not.toBe(repoIdentityKey(httpsRemote));
+  });
+
+  it("returns null for raw SSH/SCP aliases until the owning host confirms them", () => {
+    expect(repoIdentityKey(sshAliasRemote)).toBeNull();
+    expect(
+      repoIdentityKey({ ...sshAliasRemote, url: "git@github.com:sdsleon/Lightcode.git" }),
+    ).toBeNull();
+    expect(
+      repoIdentityKey({ ...sshAliasRemote, url: "ssh://git@github.com/sdsleon/Lightcode.git" }),
+    ).toBeNull();
+    expect(
+      repoIdentityKey({ ...sshAliasRemote, url: "git@gitlab-work:sdsleon/Lightcode.git" }),
+    ).toBeNull();
   });
 
   it("returns null when the origin remote is unknown", () => {

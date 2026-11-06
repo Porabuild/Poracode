@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { Project, ProjectDraftConfig } from "@/shared/contracts";
+import type { GitStatusResult, Project, ProjectDraftConfig } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { makeDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -485,6 +485,59 @@ describe("ProjectSwitchMenu", () => {
       await waitFor(() => {
         expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "a" });
       });
+    });
+
+    it("lists the cached local and MacBook HeroGPUI copies as one project", async () => {
+      const server = "hero-mac";
+      const remoteId = "hero-repo";
+      const localHero = project("hero-local", "HeroGPUI", "w1");
+      const macHero = {
+        ...project(`remote:${server}:project:${remoteId}`, "HeroGPUI", "w1"),
+        remoteServerId: server,
+        remoteId,
+        location: {
+          kind: "posix",
+          path: "/Users/tester/work/HeroGPUI",
+          remoteServerId: server,
+        },
+      } as Project;
+      const origin = (url: string) =>
+        ({
+          remoteInfo: { url, platform: "github", owner: "Porabuild", repo: "HeroGPUI" },
+        }) as GitStatusResult;
+      useRemoteServersStore.setState({
+        servers: [{ desktopId: server, label: "Poracode on MacBook" }],
+        runtime: { [server]: { status: "online", projects: [], threads: [] } },
+      } as never);
+      useGitStore.setState({
+        statuses: {
+          [localHero.id]: origin("git@github.com:Porabuild/HeroGPUI.git"),
+          [macHero.id]: origin("git@github.com-SDSLeon:Porabuild/HeroGPUI.git"),
+        },
+      });
+      useAppStore.setState({
+        projects: [localHero, macHero, project("other", "Gamma", "w1")],
+        view: { kind: "draft", projectId: localHero.id },
+      });
+
+      render(<ProjectSwitchMenu currentProjectId={localHero.id} variant="compact" />);
+
+      const machineTrigger = screen.getByRole("button", { name: /^Machine:/ });
+      expect(machineTrigger).toHaveTextContent("Local");
+      fireEvent.click(machineTrigger);
+      const machineMenu = await screen.findByRole("menu");
+      expect(
+        within(machineMenu)
+          .getAllByRole("menuitemradio")
+          .map((item) => item.textContent),
+      ).toEqual(["Local", "MacBook"]);
+      fireEvent.keyDown(machineMenu, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+
+      const menu = await openMenu();
+      const rows = within(menu).getAllByRole("menuitemradio");
+      expect(rows.map((item) => item.textContent)).toEqual(["HeroGPUI", "Gamma"]);
+      expect(rows[0]).not.toHaveTextContent("MacBook");
     });
 
     it("carries the typed draft to the other machine and remembers it", async () => {

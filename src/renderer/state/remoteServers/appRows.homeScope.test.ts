@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project, Thread } from "@/shared/contracts";
+import type { GitStatusResult, Project, Thread } from "@/shared/contracts";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
@@ -13,7 +13,9 @@ import { remoteProjectId } from "../remoteProjection";
 import { syncRemoteAppRows } from "./appRows";
 
 const gitRefresh = vi.hoisted(() => ({
-  refreshGitProject: vi.fn<(project: { id: string }) => Promise<void>>(async () => {}),
+  refreshGitProject: vi.fn<
+    (project: { id: string }, reason: string, mode: string) => Promise<void>
+  >(async () => {}),
 }));
 vi.mock("../gitRefresh", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../gitRefresh")>()),
@@ -34,6 +36,28 @@ const repo: Project = {
   location: { kind: "windows", path: "C:\\repo" },
   createdAt,
 };
+const secondRepo: Project = {
+  id: "p2",
+  name: "Second Repo",
+  location: { kind: "windows", path: "C:\\repo-2" },
+  createdAt,
+};
+function status(url: string): GitStatusResult {
+  return {
+    isRepo: true,
+    branch: "main",
+    tracking: "origin/main",
+    hasRemote: true,
+    remoteInfo: { url, platform: "github", owner: "acme", repo: "repo" },
+    ahead: 0,
+    behind: 0,
+    staged: [],
+    unstaged: [],
+    totalInsertions: 0,
+    totalDeletions: 0,
+  };
+}
+const appId = (projectId: string) => remoteProjectId("d1", projectId);
 const homeChat: Thread = {
   id: "t1",
   projectId: HOME_PROJECT_ID,
@@ -99,5 +123,72 @@ describe("browser client Home mirror", () => {
     expect(byId.get(remoteProjectId("d1", HOME_PROJECT_ID))?.workspaceId).toBeUndefined();
     expect(byId.get(remoteProjectId("d1", "p1"))?.workspaceId).toBe("w1");
     expect(useRemoteServersStore.getState().projectWorkspaceIds.d1).toEqual({ p1: "w1" });
+  });
+
+  it("refreshes every inactive project whose cached origin is still a raw SSH alias", () => {
+    useGitStore.setState({
+      statuses: {
+        [appId(repo.id)]: status("git@gh-personal:acme/repo.git"),
+        [appId(secondRepo.id)]: status("git@gitlab-work:acme/repo.git"),
+      },
+    });
+
+    syncRemoteAppRows("d1", [home, repo, secondRepo], [homeChat]);
+
+    expect(
+      gitRefresh.refreshGitProject.mock.calls.map(([project, reason, mode]) => [
+        project.id,
+        reason,
+        mode,
+      ]),
+    ).toEqual([
+      [appId(repo.id), "poll", "status"],
+      [appId(secondRepo.id), "poll", "status"],
+    ]);
+  });
+
+  it("refreshes a project with no cached status fully and skips confirmed or originless caches", () => {
+    useGitStore.setState({
+      statuses: {
+        [appId(repo.id)]: status("https://github.com/acme/repo.git"),
+        [appId(secondRepo.id)]: { ...status("https://github.com/acme/repo.git"), remoteInfo: null },
+      },
+    });
+
+    syncRemoteAppRows("d1", [home, repo, secondRepo], [homeChat]);
+    expect(gitRefresh.refreshGitProject).not.toHaveBeenCalled();
+
+    useGitStore.setState({ statuses: {} });
+    syncRemoteAppRows("d1", [home, secondRepo], [homeChat]);
+    expect(
+      gitRefresh.refreshGitProject.mock.calls.map(([project, , mode]) => [project.id, mode]),
+    ).toEqual([[appId(secondRepo.id), "full"]]);
+  });
+
+  it("does not refresh cached origins while the paired host is offline", () => {
+    useRemoteServersStore.setState({
+      runtime: { d1: { status: "offline" } },
+    } as never);
+    useGitStore.setState({
+      statuses: { [appId(repo.id)]: status("git@gh-personal:acme/repo.git") },
+    });
+
+    syncRemoteAppRows("d1", [home, repo], [homeChat]);
+
+    expect(gitRefresh.refreshGitProject).not.toHaveBeenCalled();
+  });
+
+  it("stops retrying a project after its host-confirmed origin arrives", () => {
+    useGitStore.setState({
+      statuses: { [appId(repo.id)]: status("git@github.com-work:acme/repo.git") },
+    });
+    syncRemoteAppRows("d1", [home, repo], [homeChat]);
+    expect(gitRefresh.refreshGitProject).toHaveBeenCalledTimes(1);
+
+    useGitStore.setState({
+      statuses: { [appId(repo.id)]: status("https://github.com/acme/repo.git") },
+    });
+    syncRemoteAppRows("d1", [home, repo], [homeChat]);
+    expect(gitRefresh.refreshGitProject).toHaveBeenCalledTimes(1);
   });
 });
