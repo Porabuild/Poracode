@@ -230,6 +230,44 @@ it("includes run_id in a foreground role spawn result", async () => {
   });
 });
 
+it("enforces role ownership of context_size before spawn", async () => {
+  const spawn = vi.fn<(parent: string, request: SpawnAgentRequest) => { runId: string }>(() => ({
+    runId: "run",
+  }));
+  const manager = {
+    spawn,
+    continueRole: async () => undefined,
+  } as unknown as SubagentToolContext["runManager"];
+
+  const noContext = await dispatchTool(
+    "spawn_agent",
+    { role: "builder", context_size: "1m", prompt: "Inspect", background: true },
+    context(manager, roleCrew()),
+  );
+  expect(noContext.isError).toBe(true);
+  expect(noContext.content[0]?.text).toContain("context length");
+  expect(spawn).not.toHaveBeenCalled();
+
+  const wideCrew = roleCrew();
+  wideCrew.roles[0]!.selection = { ...wideCrew.roles[0]!.selection, contextSize: "1m" };
+  const mismatched = await dispatchTool(
+    "spawn_agent",
+    { role: "builder", context_size: "272k", prompt: "Inspect", background: true },
+    context(manager, wideCrew),
+  );
+  expect(mismatched.isError).toBe(true);
+  expect(spawn).not.toHaveBeenCalled();
+
+  const matching = await dispatchTool(
+    "spawn_agent",
+    { role: "builder", context_size: "1m", prompt: "Inspect", background: true },
+    context(manager, wideCrew),
+  );
+  expect(matching.isError).not.toBe(true);
+  expect(spawn).toHaveBeenCalledTimes(1);
+  expect(spawn.mock.calls[0]?.[1]).toMatchObject({ contextSize: "1m" });
+});
+
 it("returns the exact unavailable-role error through the tool layer", async () => {
   const crew = roleCrew();
   crew.roles[0]!.selection = { agentKind: "missing", model: "missing-model" };
@@ -243,7 +281,7 @@ it("returns the exact unavailable-role error through the tool layer", async () =
   );
   expect(result.isError).toBe(true);
   expect(result.content[0]?.text).toBe(
-    "Role Builder has no available agent right now (missing/missing-model and its fallbacks are unavailable).",
+    "Role Builder has no available agent right now (missing/missing-model and its fallbacks are unavailable). Options: missing/missing-model: provider unavailable.",
   );
   expect(spawn).not.toHaveBeenCalled();
 });

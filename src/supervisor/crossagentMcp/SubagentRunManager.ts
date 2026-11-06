@@ -15,7 +15,7 @@ import type { HostResourceAdmission } from "@/supervisor/runtime/hostResourceAdm
 import { ForwardedRuntimeItemTracker } from "./ForwardedRuntimeItemTracker";
 import { SubagentAttemptRunner, type AttemptExecutionState } from "./SubagentAttemptRunner";
 import { SubagentTranscript } from "./SubagentTranscript";
-import { SubagentSpawnError } from "./errors";
+import { SubagentCapabilityChangeError, SubagentSpawnError } from "./errors";
 import { prepareSubagentRun, type PreparedSubagentRun } from "./spawnPlan";
 import type { parseCompactResult } from "./compactResult";
 import { parseCompactRunReport } from "./compactRunResult";
@@ -590,12 +590,13 @@ export class SubagentRunManager {
 
   /**
    * A crew role keeps one helper conversation: a new task for a role whose
-   * latest run completed on the same provider and model continues that
+   * latest run completed on the same winning configured option continues that
    * provider session, so the helper keeps its context instead of rediscovering
    * the repo. The role's current reasoning and Fast apply to the continued
-   * turn. Returns undefined - the caller spawns fresh - when the role still
-   * has an active run (parallel work), its provider, model or context length
-   * changed, or the session cannot resume.
+   * turn. Returns undefined - the caller spawns fresh - when the role still has
+   * an active run, its configured identity changed, or the session cannot
+   * resume. A provider capability failure propagates instead of starting a
+   * fresh default-context helper.
    */
   async continueRole(
     parentThreadId: string,
@@ -614,15 +615,19 @@ export class SubagentRunManager {
     }
     if (!latest || latest.status !== "completed" || latest.continuedBy || latest.resuming)
       return undefined;
-    const attempt = latest.plan.attempts[latest.attemptIndex];
-    if (
-      !attempt ||
-      attempt.provider !== request.agent ||
-      (request.model !== undefined && attempt.model !== request.model) ||
-      // A different context length needs a session started with it.
-      (attempt.config.contextSize || undefined) !== (request.contextSize || undefined)
-    )
-      return undefined;
+    // Internal/manually constructed plans without snapshot metadata preserve
+    // the previous raw requested-context precheck. Provider/model identity is
+    // checked by the shared prepareWorkerTurn comparison inside the guarded
+    // flow below.
+    if (latest.plan.crewRole?.selection === undefined) {
+      const internalAttempt = latest.plan.attempts[latest.attemptIndex];
+      if (
+        !internalAttempt ||
+        (internalAttempt.config.contextSize || undefined) !== (request.contextSize || undefined)
+      ) {
+        return undefined;
+      }
+    }
     try {
       return await this.continueCompletedRun(
         latest,
@@ -632,6 +637,7 @@ export class SubagentRunManager {
         request.name,
       );
     } catch (error) {
+      if (error instanceof SubagentCapabilityChangeError) throw error;
       if (error instanceof SubagentSpawnError) return undefined;
       throw error;
     }
@@ -740,10 +746,28 @@ export class SubagentRunManager {
     record.turnStarted = false;
     if (nextPlan) {
       const nextAttempt = nextPlan.attempts[0]!;
-      const { crewRole: _previousRole, ...previousPlan } = record.plan;
+      const { crewRole: previousRole, ...previousPlan } = record.plan;
+      const nextWinningIndex = nextPlan.crewRole?.optionIndices?.[0];
+      const previousOptionIndices = previousRole?.optionIndices;
+      const mergedOptionIndices =
+        previousOptionIndices && nextWinningIndex !== undefined
+          ? Array.from({ length: attemptIndex + 1 }, (_, index) =>
+              index === attemptIndex ? nextWinningIndex : previousOptionIndices[index],
+            )
+          : undefined;
+      const optionIndices =
+        mergedOptionIndices &&
+        mergedOptionIndices.every((value): value is number => value !== undefined)
+          ? mergedOptionIndices
+          : undefined;
+      let nextCrewRole: PreparedSubagentRun["crewRole"];
+      if (nextPlan.crewRole) {
+        const { optionIndices: _nextOptionIndices, ...rest } = nextPlan.crewRole;
+        nextCrewRole = { ...rest, ...(optionIndices ? { optionIndices } : {}) };
+      }
       record.plan = {
         ...previousPlan,
-        ...(nextPlan.crewRole ? { crewRole: nextPlan.crewRole } : {}),
+        ...(nextCrewRole ? { crewRole: nextCrewRole } : {}),
         prompt: nextPlan.prompt,
         attempts: record.plan.attempts
           .slice(0, attemptIndex + 1)

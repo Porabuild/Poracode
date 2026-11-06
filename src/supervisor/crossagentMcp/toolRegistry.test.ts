@@ -493,7 +493,7 @@ describe("provider discovery", () => {
       "Unknown crew role: missing. Roles: builder.",
     );
     expect(await failure({ role: "builder", provider: "claude", prompt: "work" }, baseCrew)).toBe(
-      "role=builder sets provider, model, reasoning and Fast; omit them.",
+      "role=builder sets provider, model, reasoning, Fast and context length; omit them.",
     );
     expect(await failure({ role: "builder", fallbacks: [], prompt: "work" }, baseCrew)).toBe(
       "role=builder uses the role's own fallbacks; omit fallbacks.",

@@ -179,6 +179,20 @@ export interface ExplicitSpawnAgentSelection {
   };
 }
 
+/**
+ * Immutable snapshot of one configured crew option, captured before
+ * availability filtering. Internal and memory-only; never persisted or sent on
+ * the wire. `contextSize` is the configured value, not the capability-filtered
+ * effective value.
+ */
+export interface CrewRoleOptionSnapshot {
+  provider: string;
+  model: string;
+  contextSize?: string;
+  effort?: string;
+  fast?: boolean;
+}
+
 /** Arguments accepted by `spawn_agent` / `run_agent`. */
 export interface SpawnAgentRequest extends SpawnAgentSelection {
   /** Internal selection provenance; never parsed from caller-supplied metadata. */
@@ -190,6 +204,22 @@ export interface SpawnAgentRequest extends SpawnAgentSelection {
     brief?: string;
     noEdits?: true;
     parallel: number;
+    /**
+     * The role's configured options at resolution time, before availability
+     * filtering. Optional because internal callers and manually constructed
+     * plans may omit metadata; these run plans are memory-only and do not
+     * survive restart.
+     */
+    selection?: CrewRoleOptionSnapshot;
+    fallbacks?: CrewRoleOptionSnapshot[];
+    /**
+     * Maps each `PreparedSubagentRun.attempts` entry to its index in the
+     * configured selection/fallbacks snapshot. Captured before availability
+     * filtering so duplicate identities keep their original occurrence.
+     * Memory-only; the mapping is carried as `[winningIndex]` when planning a
+     * continued single-attempt turn.
+     */
+    optionIndices?: number[];
   };
   prompt: string;
   /** Ask the worker to prepare a structured final report; reads omit narration by default. */
