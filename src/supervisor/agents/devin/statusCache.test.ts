@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeAgentStatusCache } from "@/shared/agentStatusCache";
+import { decodeAgentStatusCache, STATUS_CACHE_VERSION } from "@/shared/agentStatusCache";
 import { isAgentStatusCacheEntryCompatible } from "@/shared/agentStatusCacheRegistry";
 import { modelSelectionFor, capabilitiesForPresentation } from "@/shared/agentSelection";
 import { agentCapabilitySchema } from "@/shared/contracts/agent";
@@ -34,8 +34,8 @@ const row = (kind: string, extra: Record<string, unknown> = {}) => ({
 });
 
 describe("devin status cache policy", () => {
-  it("requires the v74 effort-less family derivation", () => {
-    expect(devinStatusCachePolicy).toEqual({ kind: "devin", minimumVersion: 74 });
+  it("requires the v75 effort and Fusion family derivations", () => {
+    expect(devinStatusCachePolicy).toEqual({ kind: "devin", minimumVersion: 75 });
     // The stale row really did advertise a defaulted "medium" for Adaptive.
     const gui = capabilitiesForPresentation(staleAdaptiveCapabilities, "gui");
     expect(modelSelectionFor(gui, "adaptive").reasoning).toEqual({
@@ -58,8 +58,34 @@ describe("devin status cache policy", () => {
       expect(stale.state).toBe("available");
       expect(stale.statuses).toEqual({ windows: [unaffected], wsl: [], fromCache: false });
       expect(isAgentStatusCacheEntryCompatible(kind, 73)).toBe(false);
-      expect(isAgentStatusCacheEntryCompatible(kind, 74)).toBe(true);
+      expect(isAgentStatusCacheEntryCompatible(kind, 74)).toBe(false);
+      expect(isAgentStatusCacheEntryCompatible(kind, 75)).toBe(true);
       expect(isAgentStatusCacheEntryCompatible("unaffected", 73)).toBe(true);
+    },
+  );
+
+  it.each(["devin", "devin:upgrade-profile"])(
+    "refreshes v74 %s Fusion rows and preserves current native and WSL observations",
+    (kind) => {
+      const native = row(kind);
+      const wsl = row(kind, { envKind: "wsl", envDistro: "Ubuntu" });
+      const unaffected = { ...native, kind: "unaffected", label: "Unaffected" };
+      const stale = decodeAgentStatusCache({
+        version: 74,
+        windows: [native, unaffected],
+        wsl: [wsl],
+      });
+      expect(stale.statuses).toEqual({ windows: [unaffected], wsl: [], fromCache: false });
+      const fresh = decodeAgentStatusCache({
+        version: STATUS_CACHE_VERSION,
+        windows: [native, unaffected],
+        wsl: [wsl],
+      });
+      expect(fresh.statuses).toEqual({
+        windows: [native, unaffected],
+        wsl: [wsl],
+        fromCache: true,
+      });
     },
   );
 });

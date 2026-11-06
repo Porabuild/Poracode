@@ -121,6 +121,37 @@ describe("resolveProviderDraftConfig fast mode", () => {
     expect(resolveProviderDraftConfig(gated, { model: "fast-capable" }).fast).toBeUndefined();
   });
 
+  it("clears a saved Fast=true when the selected family member cannot carry it", () => {
+    // A config-bound family: Fast is an independent carrier, so a member the
+    // declared fastModels list does not name (for example a Fable 5.1 pair
+    // with no Fast sibling) must never keep a stale true.
+    const configBound = {
+      ...capabilities,
+      models: [...capabilities.models, { id: "fusion-a-b", label: "Fusion A B" }],
+      fastModels: [] as string[],
+      modelFamilies: [
+        {
+          model: "fusion-a-b",
+          label: "Fusion",
+          selectors: [
+            { id: "lead", labelKey: "modelSelection.lead", options: [{ id: "a", label: "A" }] },
+            {
+              id: "sidekick",
+              labelKey: "modelSelection.sidekick",
+              options: [{ id: "b", label: "B" }],
+            },
+          ],
+          bindings: { effort: "config", fast: "config" },
+          members: [{ model: "fusion-a-b", selections: { lead: "a", sidekick: "b" } }],
+        },
+      ],
+    } as unknown as AgentCapability;
+    expect(
+      resolveProviderDraftConfig(agentWith({ ...configBound }), { model: "fusion-a-b", fast: true })
+        .fast,
+    ).toBe(false);
+  });
+
   it("normalizes Cursor profile bracket models before resolving draft controls", () => {
     expect(
       resolveProviderDraftConfig(

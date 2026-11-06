@@ -3,4 +3,6 @@
 // Kimi K2.6/K2.7, SWE-1.6) from inheriting the negotiated global thought
 // ladder in the GUI override: a v73 row still advertises "medium" for them,
 // a level the live session has no select for, so it must be re-probed.
-export const devinStatusCachePolicy = { kind: "devin", minimumVersion: 74 };
+// v75 rebuilds the GUI Fusion relation from the catalog so the live session
+// inventory can join pairs added after detection without another probe.
+export const devinStatusCachePolicy = { kind: "devin", minimumVersion: 75 };
