@@ -163,6 +163,12 @@ function upsertRemoteMirrorRows<
 }
 
 /**
+ * Host thread ids each connection's mirror has put in the store. A catalog row
+ * whose id is here but whose store row is gone was removed on purpose.
+ */
+const shownThreadIds = new Map<string, Set<string>>();
+
+/**
  * Mirror a server's snapshot into the app store, restricted to the projects the
  * user syncs. Threads of an unsynced project are dropped too — without their
  * project row they would be orphans in the sidebar.
@@ -186,6 +192,15 @@ export function syncRemoteAppRows(
      * deletes exclusively through the confirmation-gated inventory walk.
      */
     readonly partial?: boolean;
+    /**
+     * Host ids the host served in the read being mirrored. A thread this
+     * mirror already showed, and whose store row is now gone, is added back
+     * only when the host served it: something removed it on purpose (a
+     * confirmed delete), and the connection's catalog copy alone would show a
+     * deleted thread until the next membership pass. A row never shown yet
+     * (its project arrived after it) is still added.
+     */
+    readonly servedThreadIds?: ReadonlySet<string>;
   } = {},
 ): void {
   const partial = options.partial === true;
@@ -291,22 +306,37 @@ export function syncRemoteAppRows(
           .map((thread) => [thread.id, thread])
       : [],
   );
-  const projectedThreads = threads?.map((thread) => {
-    const appRowId = remoteThreadId(desktopId, thread.id);
-    if (options.preserveThreadIds?.has(thread.id)) {
-      const liveRow = residentMirrorRows.get(appRowId);
-      if (liveRow) return liveRow;
-    }
-    const resident = residentMirrorRows.get(appRowId);
-    return mergeMirrorRow(
-      projectBrowserThreadWorkspace(
-        projectPendingCatalogEdit("thread", projectThreadIdentityPreserving(desktopId, thread)),
+  const shown = shownThreadIds.get(desktopId) ?? new Set<string>();
+  const projectedThreads = threads?.flatMap((thread) => {
+    const resident = residentMirrorRows.get(remoteThreadId(desktopId, thread.id));
+    if (
+      !resident &&
+      shown.has(thread.id) &&
+      options.servedThreadIds &&
+      !options.servedThreadIds.has(thread.id)
+    )
+      return [];
+    if (resident && options.preserveThreadIds?.has(thread.id)) return [resident];
+    return [
+      mergeMirrorRow(
+        projectBrowserThreadWorkspace(
+          projectPendingCatalogEdit("thread", projectThreadIdentityPreserving(desktopId, thread)),
+          resident,
+        ),
         resident,
       ),
-      resident,
-    );
+    ];
   });
   const projectedThreadIds = new Set(projectedThreads?.map((thread) => thread.id) ?? []);
+  if (allThreads) {
+    // A complete list also retires ids its host no longer has.
+    if (!partial) {
+      const listed = new Set(allThreads.map((thread) => thread.id));
+      for (const id of shown) if (!listed.has(id)) shown.delete(id);
+    }
+    for (const thread of projectedThreads ?? []) if (thread.remoteId) shown.add(thread.remoteId);
+    shownThreadIds.set(desktopId, shown);
+  }
   // Host housekeeping archives rows without a forwarded user command: the
   // documented policy closes the archived thread's visible pane, on every host.
   closePanesForHostArchivedRows(
@@ -430,6 +460,7 @@ export function removeRemoteAppRows(desktopId: string): void {
   }));
   dropProjectedThreadCache(desktopId);
   syncRemoteAppRows(desktopId, [], []);
+  shownThreadIds.delete(desktopId);
 }
 
 /**

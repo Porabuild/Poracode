@@ -832,7 +832,7 @@ function deleteThreadOnly(
     // success so a refused or ambiguous delete can still replay the exact
     // original launch operation.
     if (hasHost) dropPendingThreadLaunch(threadId);
-    if (persistedProvisioning) useAppStore.getState().deleteThread(threadId);
+    if (persistedProvisioning && thread) entityHost(thread)?.removeConfirmedThreads([threadId]);
     removal?.resolve(true);
     void readBridge()
       .closeSideChatPanel?.(threadId)
