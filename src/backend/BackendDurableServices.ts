@@ -30,6 +30,7 @@ import {
 import type { AppControlsMcpIngressDeps } from "@/host/app-controls/AppControlsMcpIngress";
 import { ensureHomeProjectWithPublish } from "@/host/app-controls/ingressDeps";
 import { createGitStateExecutor, GitStateService, ProjectWatchLeases } from "@/host/gitState";
+import { ForgeActivityService } from "@/host/forgeActivity";
 import {
   buildPrWatchExecutionDeps,
   createDevicePrWatchService,
@@ -46,6 +47,7 @@ import type { PrData, PrDetails, PrWatch, RemoteThreadCommand } from "@/shared/c
 import { isThreadTurnActive } from "@/shared/contracts";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import type { SharedSettings } from "@/shared/settings";
 import type { SettingsMutationResult, SettingsOwnerEdit } from "@/shared/settingsTransactions";
 import { observeRoutingSettingsEvent } from "./BackendRoutingSettings";
@@ -100,6 +102,8 @@ export interface BackendDurableServicesOptions {
   onPrMerged?(watch: PrWatch): void;
   onPrObserved?(watch: PrWatch, pr: PrData, details?: PrDetails): void;
   onGitPatch(patch: GitStatePatch): void;
+  /** Out-of-band trigger for clients to re-read forge state after an agent changed it. */
+  onForgeActivity?(event: RemoteForgeActivityEvent): void;
   reportError?(error: unknown): void;
 }
 
@@ -114,6 +118,7 @@ export class BackendDurableServices {
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
+  readonly forgeActivityService: ForgeActivityService;
   /** Per-owner leases on the supervisor's shared project watcher. Lives with
    * the durable host so remote-server replacement and supervisor resets keep
    * every client's watch interest. */
@@ -226,6 +231,12 @@ export class BackendDurableServices {
       getProject: dbGetProject,
       getProjects: dbGetProjects,
       onPatch: options.onGitPatch,
+    });
+    this.forgeActivityService = new ForgeActivityService({
+      getThread: dbGetThread,
+      gitState: this.gitStateService,
+      publish: (event) => options.onForgeActivity?.(event),
+      ...(options.reportError ? { reportError: options.reportError } : {}),
     });
     this.projectWatchLeases = new ProjectWatchLeases({
       call: (name, payload, callOptions) => supervisor.call(name, payload, callOptions),
@@ -482,6 +493,7 @@ export class BackendDurableServices {
     this.appControls.observeSupervisorEvent(event);
     this.scheduleCoordinator.observeSupervisorEvent(event);
     this.prWatchService.observeSupervisorEvent(event);
+    this.forgeActivityService.observeSupervisorEvent(event);
     this.gitStateService.observeSupervisorEvent(event);
     return false;
   }
@@ -530,6 +542,7 @@ export class BackendDurableServices {
         () => this.scheduleService.dispose(),
         () => this.scheduleCoordinator.dispose(),
         () => this.prWatchService.dispose(),
+        () => Promise.resolve(this.forgeActivityService.dispose()),
         () => this.gitStateService.dispose(),
         () => this.projectWatchLeases.dispose(),
         () => this.appControls.dispose(),

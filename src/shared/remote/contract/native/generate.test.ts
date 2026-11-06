@@ -94,8 +94,10 @@ describe("remote v3 native binding generator", () => {
         // structural enum and moves the source hash without changing wire versions.
         // Host agent management adds four desktop procedures and their request/result roots;
         // registry listing is an operate-scoped long mutation because it can install/update agents.
-        sourceHash: "sha256:e7ede5602a1b2e0b8db0f907c4c09a8b616d4fef9589861301f66ee78853582e",
-        manifestHash: "sha256:9cccf46ae266918a71b1e307b9479046760bfbf0aa96ac952a335b1858a6693f",
+        // The additive remote-forge-activity broadcast event moves both authority
+        // hashes and grows only the replayable-event count.
+        sourceHash: "sha256:a9d5d4889436d9076f4914059b283257b6b8172a0301b0d95fe89d91c06e4dfe",
+        manifestHash: "sha256:8eb11d30c196c7662189a1a771e4eab5fecebb2f746a20727f5e81a58e03babd",
         counts: {
           routes: 119,
           procedures: 171,

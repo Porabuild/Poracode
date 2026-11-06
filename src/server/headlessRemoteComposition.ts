@@ -577,6 +577,9 @@ export async function composeHeadlessRemoteHost(
       onGitPatch: (patch) => {
         serverRef?.publishSupervisorEvent({ type: "remote-git-state", patch });
       },
+      onForgeActivity: (event) => {
+        serverRef?.publishSupervisorEvent(event);
+      },
     });
     supervisorLaunchServicesReady.resolve();
     const scheduleService = durableServices.scheduleService;

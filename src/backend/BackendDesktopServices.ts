@@ -272,6 +272,9 @@ export class BackendDesktopServices {
         this.remote?.getServer()?.publishSupervisorEvent({ type: "remote-git-state", patch });
         options.emitNativeEvent({ type: "git-state-changed", patch });
       },
+      onForgeActivity: (event) => {
+        this.remote?.getServer()?.publishSupervisorEvent(event);
+      },
       onPrMerged: (watch) =>
         options.emitNativeEvent({
           type: "pr-watch-merged",

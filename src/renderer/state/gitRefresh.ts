@@ -12,7 +12,11 @@ import {
   summaryBackfillMissed,
   useGitStore,
 } from "@/renderer/state/gitStore";
-import { buildBranchNamePrKey, buildBranchPrKey } from "@/renderer/state/gitSelectors";
+import {
+  buildBranchNamePrKey,
+  buildBranchPrKey,
+  resolvePrKey,
+} from "@/renderer/state/gitSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -181,6 +185,104 @@ export function prefetchVisibleGitPanelPrData(
   }
   const project = useAppStore.getState().projects.find((item) => item.id === projectId);
   return project ? prefetchBranchPrData(project) : Promise.resolve();
+}
+
+interface ForgeActivityRefreshInput {
+  projectId: string;
+  worktreePath?: string;
+  branch?: string;
+  action: string;
+}
+
+interface ForgeActivityRefreshEntry {
+  latest: ForgeActivityRefreshInput;
+  rerun: boolean;
+}
+
+/** In-flight forge-activity refresh per project + checkout. */
+const forgeActivityRefreshes = new Map<string, ForgeActivityRefreshEntry>();
+
+function forgeActivityRefreshKey(input: ForgeActivityRefreshInput): string {
+  return `${input.projectId}\u0000${input.worktreePath ?? ""}`;
+}
+
+/**
+ * The host saw an agent push or change a pull/merge request for this checkout.
+ * Re-read its PR now instead of waiting for the next background cycle; the
+ * event is only a trigger and the forge lookup stays the source of truth.
+ * Paired hosts only: the co-located desktop renderer already receives the
+ * host's refreshed read model through `git-state-changed`, and paired clients
+ * receive patches without pull-request bodies, so they re-read here.
+ *
+ * A burst for one checkout (reconnect replay can deliver several frames back
+ * to back) keeps the newest input and issues at most one follow-up refresh.
+ */
+export function refreshPrAfterForgeActivity(input: ForgeActivityRefreshInput): void {
+  if (isHomeProjectId(input.projectId)) return;
+  const project = useAppStore.getState().projects.find((item) => item.id === input.projectId);
+  if (!project) return;
+
+  const key = forgeActivityRefreshKey(input);
+  const active = forgeActivityRefreshes.get(key);
+  if (active) {
+    active.latest = input;
+    active.rerun = true;
+    return;
+  }
+  const entry: ForgeActivityRefreshEntry = { latest: input, rerun: false };
+  forgeActivityRefreshes.set(key, entry);
+  void runForgeActivityRefresh(key, project, entry);
+}
+
+async function runForgeActivityRefresh(
+  key: string,
+  project: { id: string; location: ProjectLocation },
+  entry: ForgeActivityRefreshEntry,
+): Promise<void> {
+  const input = entry.latest;
+  const appState = useAppStore.getState();
+  const gitState = useGitStore.getState();
+  const prKey = resolvePrKey(input.projectId, input.worktreePath);
+  const branch = input.worktreePath
+    ? appState.threads.find(
+        (thread) =>
+          thread.projectId === input.projectId && thread.worktreePath === input.worktreePath,
+      )?.worktreeBranch ||
+      gitState.worktreeStatuses[input.worktreePath]?.branch ||
+      input.branch
+    : gitState.statuses[input.projectId]?.branch || input.branch;
+
+  const tasks: Array<Promise<unknown>> = [];
+  if (branch) {
+    tasks.push(
+      refreshSinglePr({
+        projectLocation: project.location,
+        prKey,
+        branch,
+        projectId: input.projectId,
+      }),
+    );
+    // A push can start fresh checks on an already-known PR: watch its status
+    // briefly so the new pending run is caught without the next poll cycle.
+    if (input.action === "push") {
+      startPostPushPrStatusRefresh({
+        projectId: input.projectId,
+        projectLocation: project.location,
+        prKey,
+        branch,
+      });
+    }
+  }
+
+  // Bulk branch-prefetch is throttled so dropdown opens cannot spam the host,
+  // but a real forge change must be reflected immediately.
+  branchPrPrefetchLastRun.delete(input.projectId);
+  tasks.push(prefetchBranchPrData(project));
+  await Promise.allSettled(tasks);
+
+  if (forgeActivityRefreshes.get(key) !== entry) return;
+  forgeActivityRefreshes.delete(key);
+  if (entry.rerun) refreshPrAfterForgeActivity(entry.latest);
 }
 
 function getWorktreeStatusDetail(
@@ -772,6 +874,10 @@ export function cleanupGitRefreshProjects(activeProjectIds: ReadonlySet<string>)
     if (activeProjectIds.has(entry.target.projectId)) continue;
     clearTimeout(entry.timeoutId);
     postPushPrRefreshEntries.delete(key);
+  }
+  for (const key of forgeActivityRefreshes.keys()) {
+    const projectId = key.slice(0, key.indexOf("\u0000"));
+    if (!activeProjectIds.has(projectId)) forgeActivityRefreshes.delete(key);
   }
 }
 

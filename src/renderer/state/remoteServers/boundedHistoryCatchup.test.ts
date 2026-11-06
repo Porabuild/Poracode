@@ -12,6 +12,7 @@ import {
   setOlderThreadHistoryInvalidation,
 } from "../chatRuntimePersister";
 import { clearPendingRuntimeEvents } from "../remote";
+import { remoteProjectId } from "../remoteProjection";
 import {
   canonicalText,
   connection,
@@ -47,6 +48,19 @@ vi.mock("@/renderer/state/remoteServersStore", () => ({
     getState: () => remoteStore.state ?? { servers: [], runtime: {}, openThread: null },
   },
 }));
+
+// Keep the real module for its other exports; the forge-activity trigger itself
+// is asserted by the frame-delivery test below.
+const gitRefreshMocks = vi.hoisted(() => ({
+  refreshPrAfterForgeActivity:
+    vi.fn<
+      (input: { projectId: string; worktreePath?: string; branch?: string; action: string }) => void
+    >(),
+}));
+vi.mock("@/renderer/state/gitRefresh", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/state/gitRefresh")>();
+  return { ...actual, refreshPrAfterForgeActivity: gitRefreshMocks.refreshPrAfterForgeActivity };
+});
 
 const original = useAppStore.getState();
 const server: RemoteServerRecord = {
@@ -134,12 +148,15 @@ function harness() {
       socket.onmessage?.({
         data: JSON.stringify({ type: "event", seq, event: deltaFrame(delta) }),
       }),
+    receiveEvent: (seq: number, event: unknown) =>
+      socket.onmessage?.({ data: JSON.stringify({ type: "event", seq, event }) }),
   };
 }
 
 beforeEach(() => {
   useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
   __resetOpenRemoteThreadRequestSeqForTest();
+  gitRefreshMocks.refreshPrAfterForgeActivity.mockReset();
 });
 
 afterEach(() => {
@@ -208,4 +225,21 @@ it("rejects a pending open response from the replaced connection", async () => {
   expect(await pending).toBe(false);
   expect(liveItem()).toBe(before);
   expect(readHistoryBaseline(remoteServerHostSession(connection), viewThread)).toBeUndefined();
+});
+
+it("maps a replayed forge-activity frame onto the paired project's checkout", () => {
+  const h = harness();
+  h.receiveEvent(101, {
+    type: "remote-forge-activity",
+    projectId: "host-p",
+    threadId: "host-t",
+    worktreePath: "/host/wt",
+    action: "create",
+  });
+
+  expect(gitRefreshMocks.refreshPrAfterForgeActivity).toHaveBeenCalledExactlyOnceWith({
+    projectId: remoteProjectId(connection, "host-p"),
+    worktreePath: "/host/wt",
+    action: "create",
+  });
 });

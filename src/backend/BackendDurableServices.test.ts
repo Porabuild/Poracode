@@ -8,11 +8,13 @@ import { RoutingOverridePersistence } from "@/supervisor/crossagentMcp/RoutingOv
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { defaultSharedSettings } from "@/shared/settings";
 import type { SettingsMutationResult } from "@/shared/settingsTransactions";
+import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import { BackendDurableServices } from "./BackendDurableServices";
 import type { BackendDurableServicesOptions } from "./BackendDurableServices";
 import {
   dbArchiveDoneThreads,
   dbDeleteThread,
+  dbGetThread,
   dbIsThreadPurgeEligible,
   dbSelectPurgeCandidateThreadIds,
   dbUpsertThread,
@@ -67,7 +69,7 @@ vi.mock("@/host/db", () => ({
   dbGetProjectNotes: vi.fn<() => undefined>(),
   dbGetProjects: vi.fn<() => never[]>(() => []),
   dbGetState: vi.fn<() => string | null>(() => null),
-  dbGetThread: vi.fn<() => undefined>(),
+  dbGetThread: vi.fn<() => Thread | null>(() => null),
   dbGetScheduleRun: vi.fn<() => null>(() => null),
   dbGetThreadRuntimeItemCursor: vi.fn<() => Promise<number>>(async () => -1),
   dbGetThreadRuntimeItemsAfter: vi.fn<() => Promise<never[]>>(async () => []),
@@ -124,6 +126,8 @@ vi.mock("@/host/gitState", async (importOriginal) => ({
     dispose = () => {};
     observeSupervisorEvent = () => {};
     applyObservedPullRequest = () => {};
+    refreshTarget = async () => {};
+    refreshProjectPullRequests = async () => {};
   },
 }));
 
@@ -408,6 +412,56 @@ describe("BackendDurableServices host-local invalidation", () => {
       await expect(completion).resolves.toMatchObject({ status: "succeeded", summary: null });
     } finally {
       await durable.dispose();
+    }
+  });
+});
+
+describe("BackendDurableServices forge activity", () => {
+  it("publishes completed forge commands to the composition's onForgeActivity", () => {
+    vi.useFakeTimers();
+    try {
+      const onForgeActivity = vi.fn<(event: RemoteForgeActivityEvent) => void>();
+      const durable = createDurable({ onForgeActivity });
+      vi.mocked(dbGetThread).mockReturnValue({
+        id: "fixture-thread",
+        projectId: "fixture-project",
+        worktreePath: "/fixture/wt",
+        worktreeBranch: "fixture-branch",
+      } as unknown as Thread);
+
+      durable.observeSupervisorEvent({
+        type: "thread-runtime-events",
+        threadId: "fixture-thread",
+        events: [
+          {
+            type: "item.started",
+            threadId: "fixture-thread",
+            itemId: "item-1",
+            itemType: "command_execution",
+            payload: { command: "git push", status: "running" },
+          },
+          {
+            type: "item.completed",
+            threadId: "fixture-thread",
+            itemId: "item-1",
+            payload: { exitCode: 0, status: "success" },
+          },
+        ],
+      });
+
+      expect(onForgeActivity).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(750);
+      expect(onForgeActivity).toHaveBeenCalledExactlyOnceWith({
+        type: "remote-forge-activity",
+        projectId: "fixture-project",
+        threadId: "fixture-thread",
+        worktreePath: "/fixture/wt",
+        branch: "fixture-branch",
+        action: "push",
+      });
+    } finally {
+      vi.useRealTimers();
+      vi.mocked(dbGetThread).mockReturnValue(null);
     }
   });
 });

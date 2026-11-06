@@ -18,4 +18,17 @@ describe("filterRemoteThreadEvents", () => {
       ),
     ).toBeNull();
   });
+
+  it("passes out-of-band forge activity through untouched", () => {
+    const matcher = { has: () => false };
+    const activity = {
+      type: "remote-forge-activity",
+      projectId: "p",
+      threadId: "t",
+      action: "create",
+    };
+
+    expect(filterRemoteThreadEvents(activity, matcher)).toBe(activity);
+    expect(filterRemoteThreadEvents({ type: "unknown-event" }, matcher)).toBeNull();
+  });
 });

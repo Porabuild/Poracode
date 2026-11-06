@@ -9,6 +9,7 @@ import type {
   ProjectLocation,
   Thread,
 } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { msg } from "@/shared/messages";
 import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
@@ -29,6 +30,7 @@ import {
   PR_PENDING_REFRESH_INTERVAL_MS,
   PR_POST_PUSH_STATUS_POLL_MS,
   refreshGitProject,
+  refreshPrAfterForgeActivity,
   refreshSinglePr,
   stopPendingPrRefresh,
   startPostPushPrStatusRefresh,
@@ -1752,3 +1754,144 @@ async function mockPollPullRequests(
   const { prs } = await window.poracode.ghListPrs(input);
   return { status: "ready", prs, pullRequests: [] };
 }
+
+describe("forge activity PR refresh", () => {
+  const activityThread: Thread = {
+    ...worktreeThread,
+    id: "t-forge",
+    worktreePath: "/wt/a",
+    worktreeBranch: "feat-a",
+  };
+
+  beforeEach(() => {
+    cleanupGitRefreshProjects(new Set());
+    ghGetPrForBranchMock.mockReset();
+    ghGetPrDetailsMock.mockReset();
+    ghListPrsMock.mockReset();
+    forgeGetPrForBranchMock.mockReset();
+    forgeGetPrDetailsMock.mockReset();
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        ghGetPrForBranch: ghGetPrForBranchMock,
+        ghGetPrDetails: ghGetPrDetailsMock,
+        ghListPrs: ghListPrsMock,
+        ghPollPullRequests: mockPollPullRequests,
+      },
+    });
+    useGitStore.setState({
+      statuses: {},
+      worktreeStatuses: {},
+      worktrees: {},
+      branches: {},
+      ghAvailable: { p1: true },
+      githubPollingProblems: {},
+      prData: {},
+      worktreeSourceInfo: {},
+      prDetails: {},
+      prFiles: {},
+      prDiffs: {},
+    });
+    useAppStore.setState({
+      projects: [project],
+      threads: [activityThread],
+      view: { kind: "home" },
+    });
+    // Keep the checkout active for the post-push target: earlier tests leave
+    // collapsed sidebar state behind.
+    useSidebarUiStore.setState({
+      collapsedProjects: {},
+      collapsedWorktrees: {},
+      threadListLimits: {},
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    cleanupGitRefreshProjects(new Set());
+  });
+
+  it("re-reads the worktree PR by its thread branch and stores it under the worktree key", async () => {
+    const worktreePr: PrData = { ...basePr, number: 77 };
+    ghGetPrForBranchMock.mockImplementation(async ({ branch }) =>
+      branch === "feat-a" ? worktreePr : null,
+    );
+    ghGetPrDetailsMock.mockResolvedValue({ details: baseDetails });
+    ghListPrsMock.mockResolvedValue({ prs: {} });
+
+    refreshPrAfterForgeActivity({ projectId: "p1", worktreePath: "/wt/a", action: "create" });
+
+    await vi.waitFor(() => expect(useGitStore.getState().prData["/wt/a"]).toEqual(worktreePr));
+    expect(ghGetPrForBranchMock).toHaveBeenCalledWith({
+      projectLocation: location,
+      branch: "feat-a",
+    });
+    // `refreshSinglePr` derives the details cache key from the discovered PR.
+    await vi.waitFor(() => expect(useGitStore.getState().prDetails["p1#77"]).toEqual(baseDetails));
+    expect(ghGetPrDetailsMock).toHaveBeenCalledWith({ projectLocation: location, prNumber: 77 });
+  });
+
+  it("polls a pushed open PR for fresh checks", async () => {
+    vi.useFakeTimers();
+    useGitStore.getState().setPrData("/wt/a", basePr);
+    ghGetPrForBranchMock.mockResolvedValue({
+      ...basePr,
+      checksStatus: "PENDING",
+      updatedAt: "2026-04-04T00:00:30.000Z",
+    });
+    ghGetPrDetailsMock.mockResolvedValue({ details: baseDetails });
+    ghListPrsMock.mockResolvedValue({ prs: {} });
+    const branchPolls = () =>
+      ghGetPrForBranchMock.mock.calls.filter(([payload]) => payload.branch === "feat-a").length;
+
+    refreshPrAfterForgeActivity({ projectId: "p1", worktreePath: "/wt/a", action: "push" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(branchPolls()).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(PR_POST_PUSH_STATUS_POLL_MS);
+    expect(branchPolls()).toBe(2);
+  });
+
+  it("coalesces a burst into at most one follow-up refresh", async () => {
+    ghGetPrForBranchMock.mockResolvedValue(null);
+    ghListPrsMock.mockResolvedValue({ prs: {} });
+    const branchPolls = () =>
+      ghGetPrForBranchMock.mock.calls.filter(([payload]) => payload.branch === "feat-a").length;
+
+    // Reconnect replay can deliver several frames for the same checkout.
+    refreshPrAfterForgeActivity({ projectId: "p1", worktreePath: "/wt/a", action: "create" });
+    refreshPrAfterForgeActivity({ projectId: "p1", worktreePath: "/wt/a", action: "create" });
+    refreshPrAfterForgeActivity({ projectId: "p1", worktreePath: "/wt/a", action: "create" });
+
+    await vi.waitFor(() => expect(ghListPrsMock).toHaveBeenCalledTimes(2));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(ghListPrsMock).toHaveBeenCalledTimes(2);
+    expect(branchPolls()).toBe(2);
+  });
+
+  it("bypasses the bulk branch-prefetch throttle for a repeat event", async () => {
+    ghGetPrForBranchMock.mockResolvedValue(null);
+    ghListPrsMock.mockResolvedValue({ prs: {} });
+
+    refreshPrAfterForgeActivity({ projectId: "p1", worktreePath: "/wt/a", action: "create" });
+    await vi.waitFor(() => expect(ghListPrsMock).toHaveBeenCalledTimes(1));
+    // Let the first bulk prefetch finish and clear its in-flight marker.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    refreshPrAfterForgeActivity({ projectId: "p1", worktreePath: "/wt/a", action: "create" });
+    await vi.waitFor(() => expect(ghListPrsMock).toHaveBeenCalledTimes(2));
+  });
+
+  it("does nothing for the Home project", async () => {
+    refreshPrAfterForgeActivity({
+      projectId: HOME_PROJECT_ID,
+      worktreePath: "/wt/a",
+      action: "push",
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
+    expect(ghListPrsMock).not.toHaveBeenCalled();
+  });
+});

@@ -258,7 +258,15 @@ export class GitStateService {
             ? (this.snapshot.pullRequests[initialBranchKey]?.data ?? null)
             : null;
         const data = result.prs[branch] ?? null;
-        if (this.snapshot.pullRequestKeyByBranch[branchKey] !== initialBranchKey) {
+        const readKey = data ? pullRequestKey({ ...projectRef, prNumber: data.number }) : null;
+        // Another reader moved the branch alias during this fetch. Aliasing it to
+        // the PR read here (a concurrent project list, say) agrees with this read,
+        // so only a different association wins over it.
+        const aliasMovedElsewhere = () => {
+          const currentKey = this.snapshot.pullRequestKeyByBranch[branchKey];
+          return currentKey !== initialBranchKey && currentKey !== readKey;
+        };
+        if (aliasMovedElsewhere()) {
           const currentKey = this.snapshot.pullRequestKeyByBranch[branchKey];
           return currentKey ? (this.snapshot.pullRequests[currentKey]?.data ?? null) : null;
         }
@@ -291,25 +299,35 @@ export class GitStateService {
               .catch(() => undefined)
           : undefined;
         if (this.disposed) return null;
-        if (this.snapshot.pullRequestKeyByBranch[branchKey] !== initialBranchKey) {
+        if (aliasMovedElsewhere()) {
           const currentKey = this.snapshot.pullRequestKeyByBranch[branchKey];
           return currentKey ? (this.snapshot.pullRequests[currentKey]?.data ?? null) : null;
         }
         const latest = this.snapshot.pullRequests[key];
-        if (
-          latest &&
+        // A reading of this same PR published during the fetch is kept, but the
+        // branch and its targets still associate with it.
+        const keepLatest =
+          latest !== undefined &&
           latest.data !== initialPullRequests[key]?.data &&
-          JSON.stringify(latest.data) !== JSON.stringify(data)
-        )
-          return latest.data;
+          JSON.stringify(latest.data) !== JSON.stringify(data);
         this.publish({
-          pullRequests: {
-            [key]: mergePullRequestState({ existing: latest, ref, data, details, at: fetchedAt }),
-          },
+          ...(keepLatest
+            ? {}
+            : {
+                pullRequests: {
+                  [key]: mergePullRequestState({
+                    existing: latest,
+                    ref,
+                    data,
+                    details,
+                    at: fetchedAt,
+                  }),
+                },
+              }),
           pullRequestKeyByBranch: { [branchKey]: key },
           targets: this.targetsForBranch(projectId, branch, key),
         });
-        return data;
+        return keepLatest ? latest.data : data;
       },
       options.afterMutation,
     );
