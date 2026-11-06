@@ -155,7 +155,14 @@ it("forwards an optional trimmed task name to the run manager", async () => {
     h.ctx,
   );
   expect(value(response)).toEqual({ run_id: h.runId, status: "accepted" });
-  expect(steer).toHaveBeenCalledWith(h.runId, "Next task", PARENT, true, "Fix crew model labels");
+  expect(steer).toHaveBeenCalledWith(
+    h.runId,
+    "Next task",
+    PARENT,
+    true,
+    "Fix crew model labels",
+    undefined,
+  );
   h.handle.completeTurn("completed");
 });
 
