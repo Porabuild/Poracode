@@ -155,6 +155,48 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detectInstall).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["startup", "update", "rediscover"])(
+    "replaces cached reasoning capabilities after %s discovery",
+    async (trigger) => {
+      const stale = makeStatus();
+      const fresh = {
+        ...stale,
+        capabilities: { ...capabilities, modelEfforts: { model: ["low", "high"] } },
+      };
+      const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(stale);
+      const fixture = makeService(detectInstall);
+      await fixture.service.refreshAgentStatuses({ wslDistros: [] });
+      detectInstall.mockResolvedValue(fresh);
+      const service =
+        trigger === "startup"
+          ? new AgentStatusService({
+              adapters: new Map([["codex", makeAdapter("codex", "Codex", detectInstall)]]),
+              settingsPath: join(dirname(fixture.statusCachePath), "settings.json"),
+              statusCachePath: fixture.statusCachePath,
+              emit: vi.fn<(event: SupervisorEvent) => void>(),
+            })
+          : fixture.service;
+      if (trigger === "startup") {
+        await service.getAgentStatuses({ wslDistros: [] });
+      } else {
+        await service.refreshAgentStatuses({
+          wslDistros: [],
+          ...(trigger === "update" ? { scope: { agentKinds: ["codex"] } } : {}),
+        });
+      }
+      await vi.waitFor(() => {
+        const saved = JSON.parse(readFileSync(fixture.statusCachePath, "utf8")) as {
+          windows: AgentStatus[];
+        };
+        expect(saved.windows[0]?.capabilities.modelEfforts).toEqual({ model: ["low", "high"] });
+      });
+      expect(service.getCachedCapabilities("codex")?.modelEfforts).toEqual({
+        model: ["low", "high"],
+      });
+      expect(detectInstall).toHaveBeenCalledTimes(2);
+    },
+  );
+
   it("distinguishes a missing status cache from a cached unavailable provider", async () => {
     const detectInstall = vi
       .fn<AgentAdapter["detectInstall"]>()
@@ -285,7 +327,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
           wsl: [],
         }),
       );
-      expect(STATUS_CACHE_VERSION).toBe(75);
+      expect(STATUS_CACHE_VERSION).toBe(76);
       expect(service.getCachedCapabilities("codex")).toBeUndefined();
     },
   );

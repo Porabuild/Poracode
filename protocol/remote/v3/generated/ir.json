@@ -11,8 +11,8 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 107,
-    "procedures": 171,
+    "jsonProcedureResults": 108,
+    "procedures": 172,
     "replayableEventTypes": 17,
     "routes": 119,
     "runtimeEventTypes": 16,
@@ -21,7 +21,7 @@
     "webSocketServerMessages": 12
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:8eb11d30c196c7662189a1a771e4eab5fecebb2f746a20727f5e81a58e03babd",
+  "manifestHash": "sha256:ed403d7e8e9ec18aa837df221e292fd00c54d0dbd5353890c50dd33aee971ec7",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -31206,6 +31206,1584 @@
       "scope": "session:read"
     },
     {
+      "name": "refreshAgentStatuses",
+      "owner": "desktop",
+      "request": {
+        "$defs": {
+          "__schema0": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": true,
+        "properties": {
+          "scope": {
+            "additionalProperties": true,
+            "properties": {
+              "agentKinds": {
+                "items": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              "envs": {
+                "items": {
+                  "oneOf": [
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "kind": {
+                          "const": "native",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    {
+                      "additionalProperties": true,
+                      "properties": {
+                        "distro": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "kind": {
+                          "const": "wsl",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "distro"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    }
+                  ]
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "agentKinds"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "wslDistros": {
+            "default": [],
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "x-poracode-unknownFields": "strip"
+      },
+      "result": {
+        "kind": "json",
+        "schema": {
+          "$defs": {
+            "__schema0": {
+              "additionalProperties": true,
+              "properties": {
+                "acpSessionEstablished": {
+                  "type": "boolean"
+                },
+                "authLogoutSupported": {
+                  "type": "boolean"
+                },
+                "authMethods": {
+                  "items": {
+                    "$ref": "#/$defs/__schema4"
+                  },
+                  "type": "array"
+                },
+                "authState": {
+                  "$ref": "#/$defs/__schema2"
+                },
+                "capabilities": {
+                  "$ref": "#/$defs/__schema8"
+                },
+                "envDistro": {
+                  "type": "string"
+                },
+                "envKind": {
+                  "enum": [
+                    "windows",
+                    "wsl",
+                    "posix"
+                  ],
+                  "type": "string"
+                },
+                "executablePath": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "installed": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "loginCommand": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "loginCommandDisplay": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "preferTerminalLogin": {
+                  "type": "boolean"
+                },
+                "presentationAuthStates": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "gui": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "terminal": {
+                      "$ref": "#/$defs/__schema2"
+                    }
+                  },
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "presentationAuthUsesProviderLogin": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "gui": {
+                      "type": "boolean"
+                    },
+                    "terminal": {
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "providerMetadata": {
+                  "$ref": "#/$defs/__schema3"
+                },
+                "runtimeVariants": {
+                  "additionalProperties": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "authLogoutSupported": {
+                        "type": "boolean"
+                      },
+                      "authMethods": {
+                        "items": {
+                          "$ref": "#/$defs/__schema4"
+                        },
+                        "type": "array"
+                      },
+                      "authState": {
+                        "$ref": "#/$defs/__schema2"
+                      },
+                      "authUsesProviderLogin": {
+                        "type": "boolean"
+                      },
+                      "capabilities": {
+                        "$ref": "#/$defs/__schema8"
+                      },
+                      "installationSource": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "installed": {
+                        "type": "boolean"
+                      },
+                      "loginCommand": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "loginCommandDisplay": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "preferTerminalLogin": {
+                        "type": "boolean"
+                      },
+                      "presentationMode": {
+                        "$ref": "#/$defs/__schema15"
+                      },
+                      "providerMetadata": {
+                        "$ref": "#/$defs/__schema3"
+                      },
+                      "version": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "presentationMode",
+                      "installed",
+                      "authState",
+                      "authUsesProviderLogin",
+                      "capabilities"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "propertyNames": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "sessionRuntimeRouting": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "fallbackRuntime": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "prefixes": {
+                      "additionalProperties": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "propertyNames": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "prefixes"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "update": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "brew": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "builtIn": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "homebrewCask": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "installer": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "posix": {
+                          "$ref": "#/$defs/__schema1"
+                        },
+                        "windows": {
+                          "$ref": "#/$defs/__schema1"
+                        }
+                      },
+                      "required": [
+                        "posix",
+                        "windows"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "latestVersionUrls": {
+                      "items": {
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "npm": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "preferPackageManagerOnWindows": {
+                      "items": {
+                        "enum": [
+                          "npm-global",
+                          "pnpm-global",
+                          "bun-global"
+                        ],
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "verifyBuiltInVersionChange": {
+                      "type": "boolean"
+                    },
+                    "windowsNpmInstallArgs": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "winget": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "label",
+                "installed",
+                "authState",
+                "capabilities"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema1": {
+              "additionalProperties": true,
+              "properties": {
+                "args": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "binary": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "binary",
+                "args"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema10": {
+              "additionalProperties": true,
+              "properties": {
+                "bindings": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "effort": {
+                      "enum": [
+                        "model",
+                        "config"
+                      ],
+                      "type": "string"
+                    },
+                    "fast": {
+                      "enum": [
+                        "model",
+                        "config"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "effort",
+                    "fast"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "members": {
+                  "items": {
+                    "$ref": "#/$defs/__schema12"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "redundantValues": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "contextSize": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "effort": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "fast": {
+                      "items": {
+                        "type": "boolean"
+                      },
+                      "type": "array"
+                    },
+                    "thinking": {
+                      "items": {
+                        "type": "boolean"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "type": "object",
+                  "x-poracode-unknownFields": "reject"
+                },
+                "selectors": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "id": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "labelKey": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "options": {
+                        "items": {
+                          "$ref": "#/$defs/__schema11"
+                        },
+                        "minItems": 1,
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "labelKey",
+                      "options"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "model",
+                "label",
+                "selectors",
+                "bindings",
+                "members"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema11": {
+              "additionalProperties": true,
+              "properties": {
+                "id": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema12": {
+              "additionalProperties": true,
+              "properties": {
+                "effort": {
+                  "type": "string"
+                },
+                "fast": {
+                  "type": "boolean"
+                },
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "selections": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "model",
+                "selections"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema13": {
+              "enum": [
+                "agent",
+                "plan",
+                "autopilot"
+              ],
+              "type": "string"
+            },
+            "__schema14": {
+              "enum": [
+                "terminal",
+                "server"
+              ],
+              "type": "string"
+            },
+            "__schema15": {
+              "enum": [
+                "terminal",
+                "gui"
+              ],
+              "type": "string"
+            },
+            "__schema16": {
+              "additionalProperties": true,
+              "properties": {
+                "approvalPolicy": {
+                  "type": "string"
+                },
+                "sandboxMode": {
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema17": {
+              "enum": [
+                "none",
+                "launch",
+                "always"
+              ],
+              "type": "string"
+            },
+            "__schema18": {
+              "oneOf": [
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "default": {
+                      "type": "boolean"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "env": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "key": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "label": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "platforms": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "type": {
+                      "const": "toggle",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "type",
+                    "env",
+                    "label",
+                    "description",
+                    "default"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "default": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "envVar": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "key": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "label": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "options": {
+                      "items": {
+                        "$ref": "#/$defs/__schema9"
+                      },
+                      "type": "array"
+                    },
+                    "platforms": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "type": {
+                      "const": "select",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "type",
+                    "envVar",
+                    "label",
+                    "description",
+                    "default",
+                    "options"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              ]
+            },
+            "__schema19": {
+              "additionalProperties": true,
+              "properties": {
+                "argumentHint": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "id": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "pluginId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "pluginName": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "section": {
+                  "enum": [
+                    "skills"
+                  ],
+                  "type": "string"
+                },
+                "skillInvocation": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "skillName": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "skillPath": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "skillProvider": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "skillScope": {
+                  "enum": [
+                    "global",
+                    "project"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema2": {
+              "enum": [
+                "authenticated",
+                "missing",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            "__schema20": {
+              "additionalProperties": true,
+              "properties": {
+                "approvalPolicies": {
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
+                },
+                "bypassPermissions": {
+                  "$ref": "#/$defs/__schema16"
+                },
+                "contextSizeChangeReloadsSession": {
+                  "type": "boolean"
+                },
+                "contextSizeReloadStopsSubagents": {
+                  "type": "boolean"
+                },
+                "contextSizes": {
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
+                },
+                "defaultApprovalPolicy": {
+                  "type": "string"
+                },
+                "defaultApprovalsReviewer": {
+                  "type": "string"
+                },
+                "defaultContextSize": {
+                  "type": "string"
+                },
+                "defaultEffort": {
+                  "type": "string"
+                },
+                "defaultHiddenModels": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "defaultSandboxMode": {
+                  "type": "string"
+                },
+                "disabledSkillNames": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "efforts": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "fastDisabledReason": {
+                  "type": "string"
+                },
+                "fastModels": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "liveInputMode": {
+                  "$ref": "#/$defs/__schema14"
+                },
+                "modelContextSizes": {
+                  "additionalProperties": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "modelDefaultEfforts": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "modelEfforts": {
+                  "additionalProperties": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "modelFamilies": {
+                  "items": {
+                    "$ref": "#/$defs/__schema10"
+                  },
+                  "type": "array"
+                },
+                "modelSubProvider": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "models": {
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
+                },
+                "modes": {
+                  "items": {
+                    "$ref": "#/$defs/__schema13"
+                  },
+                  "type": "array"
+                },
+                "presentationMode": {
+                  "$ref": "#/$defs/__schema15"
+                },
+                "presentationModes": {
+                  "items": {
+                    "$ref": "#/$defs/__schema15"
+                  },
+                  "type": "array"
+                },
+                "requiresTerminalFocusBeforeInput": {
+                  "type": "boolean"
+                },
+                "runtimeLabel": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "sandboxModes": {
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
+                },
+                "settingDefs": {
+                  "items": {
+                    "$ref": "#/$defs/__schema18"
+                  },
+                  "type": "array"
+                },
+                "showRuntimeLabelInPicker": {
+                  "type": "boolean"
+                },
+                "slashCommands": {
+                  "items": {
+                    "$ref": "#/$defs/__schema19"
+                  },
+                  "type": "array"
+                },
+                "subProviders": {
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
+                },
+                "supportsDirectInput": {
+                  "type": "boolean"
+                },
+                "supportsResume": {
+                  "type": "boolean"
+                },
+                "thinkingModels": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "workflowLabel": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "workflowModels": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema3": {
+              "additionalProperties": true,
+              "properties": {
+                "authMethod": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "authenticatedAs": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "connectedProviders": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "detail": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "id": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "label": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "label"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                },
+                "organization": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "plan": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema4": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "description": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "id": {
+                      "$ref": "#/$defs/__schema5"
+                    },
+                    "link": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema6"
+                    },
+                    "type": {
+                      "const": "env_var",
+                      "type": "string"
+                    },
+                    "vars": {
+                      "items": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "label": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "optional": {
+                            "type": "boolean"
+                          },
+                          "secret": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "type",
+                    "vars"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "args": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "description": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "env": {
+                      "additionalProperties": {
+                        "type": "string"
+                      },
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    "id": {
+                      "$ref": "#/$defs/__schema5"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema6"
+                    },
+                    "type": {
+                      "const": "terminal",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "type"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                {
+                  "additionalProperties": true,
+                  "properties": {
+                    "description": {
+                      "$ref": "#/$defs/__schema7"
+                    },
+                    "id": {
+                      "$ref": "#/$defs/__schema5"
+                    },
+                    "name": {
+                      "$ref": "#/$defs/__schema6"
+                    },
+                    "type": {
+                      "const": "agent",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                }
+              ]
+            },
+            "__schema5": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema6": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "__schema7": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "__schema8": {
+              "additionalProperties": true,
+              "properties": {
+                "agentSettingsDefaults": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "approvalPolicies": {
+                  "default": [],
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
+                },
+                "bypassPermissions": {
+                  "$ref": "#/$defs/__schema16"
+                },
+                "contextSizeChangeReloadsSession": {
+                  "type": "boolean"
+                },
+                "contextSizeReloadStopsSubagents": {
+                  "type": "boolean"
+                },
+                "contextSizes": {
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
+                },
+                "crossagentMcpRouting": {
+                  "enum": [
+                    "thread-token",
+                    "provider-session"
+                  ],
+                  "type": "string"
+                },
+                "defaultApprovalPolicy": {
+                  "type": "string"
+                },
+                "defaultApprovalsReviewer": {
+                  "type": "string"
+                },
+                "defaultContextSize": {
+                  "type": "string"
+                },
+                "defaultEffort": {
+                  "type": "string"
+                },
+                "defaultHiddenModels": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "defaultSandboxMode": {
+                  "type": "string"
+                },
+                "disabledSkillNames": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "efforts": {
+                  "default": [],
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "fastDisabledReason": {
+                  "type": "string"
+                },
+                "fastModels": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "liveInputMode": {
+                  "$ref": "#/$defs/__schema14",
+                  "default": "terminal"
+                },
+                "liveVoice": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "dataChannel": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "transport": {
+                      "const": "webrtc",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "transport",
+                    "dataChannel"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "mcpConfigSource": {
+                  "enum": [
+                    "thread",
+                    "agentSettings"
+                  ],
+                  "type": "string"
+                },
+                "mcpScope": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "gui": {
+                      "$ref": "#/$defs/__schema17"
+                    },
+                    "terminal": {
+                      "$ref": "#/$defs/__schema17"
+                    }
+                  },
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "modelContextSizes": {
+                  "additionalProperties": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "modelDefaultEfforts": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "modelEfforts": {
+                  "additionalProperties": {
+                    "items": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "default": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "modelFamilies": {
+                  "items": {
+                    "$ref": "#/$defs/__schema10"
+                  },
+                  "type": "array"
+                },
+                "modelSubProvider": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "type": "object"
+                },
+                "models": {
+                  "default": [],
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
+                },
+                "modes": {
+                  "default": [],
+                  "items": {
+                    "$ref": "#/$defs/__schema13"
+                  },
+                  "type": "array"
+                },
+                "presentationCapabilities": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "gui": {
+                      "$ref": "#/$defs/__schema20"
+                    },
+                    "terminal": {
+                      "$ref": "#/$defs/__schema20"
+                    }
+                  },
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "presentationMode": {
+                  "$ref": "#/$defs/__schema15",
+                  "default": "terminal"
+                },
+                "presentationModes": {
+                  "items": {
+                    "$ref": "#/$defs/__schema15"
+                  },
+                  "type": "array"
+                },
+                "readsImageAttachmentsFromHost": {
+                  "type": "boolean"
+                },
+                "readsPdfAttachmentsFromHost": {
+                  "type": "boolean"
+                },
+                "reportsSkillCatalog": {
+                  "type": "boolean"
+                },
+                "requiresTerminalFocusBeforeInput": {
+                  "type": "boolean"
+                },
+                "requiresWorkspaceLocalAttachments": {
+                  "type": "boolean"
+                },
+                "runtimeLabel": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "sandboxModes": {
+                  "default": [],
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
+                },
+                "settingDefs": {
+                  "default": [],
+                  "items": {
+                    "$ref": "#/$defs/__schema18"
+                  },
+                  "type": "array"
+                },
+                "showRuntimeLabelInPicker": {
+                  "type": "boolean"
+                },
+                "slashCommands": {
+                  "items": {
+                    "$ref": "#/$defs/__schema19"
+                  },
+                  "type": "array"
+                },
+                "subProviders": {
+                  "items": {
+                    "$ref": "#/$defs/__schema9"
+                  },
+                  "type": "array"
+                },
+                "supportsDirectInput": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "supportsOneShot": {
+                  "type": "boolean"
+                },
+                "supportsReadOnlyOneShotWorkspace": {
+                  "type": "boolean"
+                },
+                "supportsResume": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "supportsTextOnlyOneShot": {
+                  "type": "boolean"
+                },
+                "thinkingModels": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "threadTitleCommands": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "argumentSubcommands": {
+                        "items": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "command": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "controlArguments": {
+                        "items": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "command"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
+                },
+                "workflowLabel": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "workflowModels": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "models",
+                "efforts",
+                "modelEfforts",
+                "modes",
+                "approvalPolicies",
+                "sandboxModes",
+                "supportsResume",
+                "supportsDirectInput",
+                "liveInputMode",
+                "presentationMode",
+                "settingDefs"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema9": {
+              "additionalProperties": true,
+              "properties": {
+                "description": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "id": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "label": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "tooltipDescription": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          },
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "fromCache": {
+              "type": "boolean"
+            },
+            "windows": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "type": "array"
+            },
+            "wsl": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "windows",
+            "wsl",
+            "fromCache"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
       "name": "refreshProviderUsage",
       "owner": "desktop",
       "request": {
@@ -38021,6 +39599,7 @@
     "readTerminalSize",
     "readTerminalSnapshot",
     "readThreadBackgroundTasks",
+    "refreshAgentStatuses",
     "refreshProviderUsage",
     "relocateProject",
     "removeQueuedThreadFollowUp",
@@ -80875,7 +82454,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:a9d5d4889436d9076f4914059b283257b6b8172a0301b0d95fe89d91c06e4dfe",
+  "sourceHash": "sha256:c50fa5aa82cb58b039aa7d73a712da1b79dcc88a5e6192ae2643e8bee9e37f54",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

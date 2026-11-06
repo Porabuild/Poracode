@@ -349,6 +349,7 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   readThreadBackgroundTasks: [],
   getProviderUsage: { snapshots: [], fromCache: true },
   refreshProviderUsage: { snapshots: [], fromCache: false },
+  refreshAgentStatuses: { windows: [], wsl: [], fromCache: false },
   getLatestAgentVersion: { version: "1.2.3", source: "npm" },
   listAcpRegistry: {
     version: "1.0.0",

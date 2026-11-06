@@ -345,6 +345,10 @@ internal val schema_0cdfc047b0a2e1bb: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("swipe")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_0cf71567208700d7: RemoteSchema by lazy {
+    RemoteSchema(type = "object", properties = mapOf("scope" to schema_be6dbda06af6b811, "wslDistros" to schema_242a5ef77d1f8924), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_0d1cc1ca31f4769d: RemoteSchema by lazy {
     RemoteSchema(type = "array", minItems = 1, maxItems = 100, items = schema_2ebee6ffa37983f2, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -443,8 +447,4 @@ internal val schema_115555b2d2065a65: RemoteSchema by lazy {
 
 internal val schema_118f67a0fa6bb27d: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("skills-sh"), JsonPrimitive("skills-directory")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_11ada4e73a793b0d: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("pending"), JsonPrimitive("completed"), JsonPrimitive("failed"), JsonPrimitive("ambiguous"), JsonPrimitive("skipped_no_turns"), JsonPrimitive("skipped_missing_checkpoint")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

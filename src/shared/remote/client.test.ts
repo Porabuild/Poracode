@@ -1613,7 +1613,11 @@ describe("RemoteDesktopClient", () => {
     // it through a structural cast like the file's other transport tests.
     (client as unknown as { requestJson: typeof requestJson }).requestJson = requestJson;
 
-    for (const procedure of ["updateAgentBinary", "listAcpRegistry"] as const) {
+    for (const procedure of [
+      "updateAgentBinary",
+      "listAcpRegistry",
+      "refreshAgentStatuses",
+    ] as const) {
       await expect(client.callRemoteProcedure(procedure, {})).rejects.toBe(sentinel);
     }
     // A non-agent long procedure keeps the generic long-request deadline.
@@ -1623,7 +1627,8 @@ describe("RemoteDesktopClient", () => {
       (requestJson.mock.calls[call]?.[1] as { timeoutMs?: number } | undefined)?.timeoutMs;
     expect(timeoutFor(0)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
     expect(timeoutFor(1)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
-    expect(timeoutFor(2)).toBe(LONG_REMOTE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(2)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(3)).toBe(LONG_REMOTE_REQUEST_TIMEOUT_MS);
   });
 
   it("gives repository clones the long-running request timeout", async () => {

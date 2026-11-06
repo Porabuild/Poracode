@@ -1342,6 +1342,12 @@
       "scope": "session:read"
     },
     {
+      "name": "refreshAgentStatuses",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
       "name": "listAcpRegistry",
       "owner": "desktop",
       "scope": "session:operate",

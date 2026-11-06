@@ -61,6 +61,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2ERefreshAgentStatusesU2ERequest: RemoteRootCodec<ProcedurerefreshAgentStatusesRequest_0cf7156720> = .init(id: "procedure.refreshAgentStatuses.request", schema: RemoteSchemas.schema_0cf71567208700d7)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2ERefreshAgentStatusesU2EResult: RemoteRootCodec<ProcedurerefreshAgentStatusesResult_e5e44e3ce8> = .init(id: "procedure.refreshAgentStatuses.result", schema: RemoteSchemas.schema_e5e44e3ce8049a8a)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2ERefreshProviderUsageU2ERequest: RemoteRootCodec<ProceduregetProviderUsageRequest_f2b9759b60> = .init(id: "procedure.refreshProviderUsage.request", schema: RemoteSchemas.schema_f2b9759b60404656)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EEnvironmentU2DAdoptU2DLegacyU2ERequest: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyRequest_399c72fc19> = .init(id: "route.environment-adopt-legacy.request", schema: RemoteSchemas.schema_399c72fc193f1510)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DAdoptU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec> = .init(id: "route.environment-adopt-legacy.response", schema: RemoteSchemas.schema_8428abfcec0a8b32)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DConnectU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2> = .init(id: "route.environment-connect.path", schema: RemoteSchemas.schema_149c9d9dd2191aa3)
 }

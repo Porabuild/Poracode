@@ -1,7 +1,6 @@
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { refreshAgentDiscovery } from "@/renderer/actions/agentDiscoveryActions";
 import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/BrowserRemoteConnectionGate";
 import { useProductViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { isRemoteSession } from "@/renderer/bridge";
@@ -9,7 +8,6 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useMachines } from "@/renderer/state/machines";
-import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
 import { agentStatusNeedsAuthAttention } from "@/shared/agentSelection";
@@ -295,10 +293,8 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     return () => cancelAnimationFrame(raf);
   }, [scrollTarget]);
 
-  const isRefreshingAgents = useAgentStatusesStore((s) => s.inFirstLaunchDiscovery);
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
-  const wslProjectDistrosKey = useAppStore((state) => buildWslProjectDistrosKey(state.projects));
   const installedAgents = getSettingsInstalledAgents(agentStatuses, wslAgentStatuses);
   const attentionAgentKinds = new Set(
     [...agentStatuses, ...wslAgentStatuses]
@@ -324,7 +320,6 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     (isMachineScopedSection
       ? machines.length > 1
       : machines.filter((machine) => machine.ref.env.kind === "native").length > 1);
-  const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
   const section = renderSection(
     activeSection,
     (nextSection) => navigateToSection(nextSection, undefined, mobileDetailParent),
@@ -351,20 +346,6 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       : mobileScreen === "desktop"
         ? t`Desktop Settings`
         : detailTitle;
-
-  const refreshAgents = () => {
-    if (isRefreshingAgents) {
-      return;
-    }
-    setActiveSection((prev) => {
-      if (prev === "agents" || prev.startsWith("agents:")) {
-        return prev;
-      }
-      const firstInstalled = installedAgents[0];
-      return firstInstalled ? `agents:${firstInstalled.kind}` : "agents";
-    });
-    refreshAgentDiscovery(wslDistros);
-  };
 
   const mobileIndex = (
     <MobileSettingsIndex
@@ -464,8 +445,6 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
           onClose={onClose}
           installedAgents={installedAgents}
           attentionAgentKinds={attentionAgentKinds}
-          isRefreshingAgents={isRefreshingAgents}
-          onRefreshAgents={refreshAgents}
         />
       }
       content={scopedPageContent}
