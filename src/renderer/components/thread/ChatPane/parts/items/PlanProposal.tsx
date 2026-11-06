@@ -61,12 +61,6 @@ export const PlanProposal = memo(function PlanProposal({ item }: PlanProposalPro
   );
 });
 
-export function isPlanProposalToolCall(item: RuntimeChatItem): boolean {
-  if (item.type !== "tool_call") return false;
-  const name = (item.payload as ToolCallPayload | undefined)?.name;
-  return name === "ExitPlanMode" || name === "exit_plan_mode";
-}
-
 function readArgsObject(payload: ToolCallPayload | undefined): Record<string, unknown> | undefined {
   const a = payload?.args;
   if (!a || typeof a !== "object" || Array.isArray(a)) return undefined;
