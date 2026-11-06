@@ -543,6 +543,42 @@ describe("Devin structured-session wiring", () => {
     }
   });
 
+  it("preserves explicit effort for live validation on an effort-less catalog family", async () => {
+    // The argv carries the id alone; explicit effort remains in the config
+    // for the strict post-open carrier check, whether supported or rejected.
+    mocks.warmDevinModels.mockImplementation(async () => [
+      {
+        id: "adaptive",
+        label: "Adaptive",
+        variants: [
+          {
+            id: "adaptive",
+            label: "Adaptive",
+            effort: "",
+            thinking: false,
+            fast: false,
+            context: "default" as const,
+          },
+        ],
+      },
+    ]);
+    const session = await createDevinAdapter().createStructuredSession?.(
+      guiInput({ model: "adaptive", effort: "medium" }),
+    );
+    expect(session).toBeDefined();
+    const [command, wiredInput] = mocks.createAcpStructuredSession.mock.calls[0]!;
+    expect(JSON.stringify(command)).toContain("adaptive");
+    expect((wiredInput as CreateStructuredSessionInput).config.effort).toBe("medium");
+    // Controls the family cannot carry still fail the open visibly.
+    mocks.createAcpStructuredSession.mockClear();
+    await expect(
+      createDevinAdapter().createStructuredSession?.(
+        guiInput({ model: "adaptive", effort: "medium", contextSize: "1m" }),
+      ),
+    ).rejects.toThrowError(/Unsupported model configuration/);
+    expect(mocks.createAcpStructuredSession).not.toHaveBeenCalled();
+  });
+
   it("keeps the raw id when the catalog is unavailable and mapping was needed", async () => {
     mocks.warmDevinModels.mockImplementation(async () => {
       throw new Error("catalog down");

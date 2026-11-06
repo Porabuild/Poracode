@@ -52,17 +52,26 @@ describe("Muse MSP canonical mapping", () => {
 
   it("maps completion-only messages and the protocol's default text delta", () => {
     const state = createMuseMspItemMapperState("thread-1");
-    expect(
-      mapMuseMspItem(
-        state,
-        { itemId: "message-1", kind: "agentMessage", status: "completed", text: "hello" },
-        "completed",
-      )[0],
-    ).toMatchObject({
+    const completed = mapMuseMspItem(
+      state,
+      { itemId: "message-1", kind: "agentMessage", status: "completed", text: "hello" },
+      "completed",
+    );
+    expect(completed[0]).toMatchObject({
       type: "item.started",
       itemType: "assistant_message",
       payload: { content: [{ kind: "text", text: "hello" }] },
     });
+    expect(completed.slice(1)).toEqual([
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "message-1",
+        stream: "assistant_text",
+        delta: "hello",
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "message-1" },
+    ]);
 
     mapMuseMspItem(
       state,
@@ -71,6 +80,32 @@ describe("Muse MSP canonical mapping", () => {
     );
     expect(mapMuseMspDelta(state, { itemId: "message-2", delta: "default text" })).toEqual([
       expect.objectContaining({ stream: "assistant_text", delta: "default text" }),
+    ]);
+  });
+
+  it("delivers a final snapshot when no text deltas arrived after the item opened", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    mapMuseMspItem(
+      state,
+      { itemId: "message-1", kind: "agentMessage", status: "inProgress", text: "" },
+      "started",
+    );
+    expect(
+      mapMuseMspItem(
+        state,
+        { itemId: "message-1", kind: "agentMessage", status: "completed", text: "SIDEKICK_OK" },
+        "completed",
+      ),
+    ).toEqual([
+      expect.objectContaining({ type: "item.updated", itemId: "message-1" }),
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "message-1",
+        stream: "assistant_text",
+        delta: "SIDEKICK_OK",
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "message-1" },
     ]);
   });
 

@@ -75,6 +75,29 @@ rl.on("line", (line) => {
       send({ type: "agent_start" });
       process.exit(1);
     }
+    if (text.startsWith("FINAL_ERROR")) {
+      send({ type: "agent_start" });
+      const recovered = text.includes("RECOVERED");
+      const errorMessage = recovered ? "Temporary provider overload" : "OAuth refresh failed for anthropic: Refresh token expired";
+      const message = { role: "assistant", content: [], stopReason: "error", ...(text.includes("NO_DETAIL") ? {} : { errorMessage }) };
+      send({ type: "message_start", message });
+      send({ type: "message_end", message });
+      if (text.includes("EXIT")) {
+        process.stdout.write("", () => process.exit(1));
+        return;
+      }
+      send({ type: "turn_end", message, toolResults: [] });
+      send({ type: "agent_end", messages: [message], willRetry: recovered });
+      if (recovered) {
+        send({ type: "auto_retry_start", errorMessage });
+        send({ type: "agent_start" });
+        send({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "RECOVERED" } });
+        send({ type: "message_end", message: { role: "assistant", content: [{ type: "text", text: "RECOVERED" }], stopReason: "stop" } });
+        send({ type: "auto_retry_end", success: true });
+      }
+      send({ type: "agent_settled", aborted: false });
+      return;
+    }
     if (text.includes("FAIL")) {
       send({ type: "agent_start" });
       send({ type: "message_update", assistantMessageEvent: { type: "error", error: { errorMessage: "MOCK_PROVIDER_ERROR" } } });
@@ -599,6 +622,47 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
       ]),
     );
     await disposeSettledSession(session, events, updates);
+  });
+
+  it.each([
+    { prompt: "FINAL_ERROR", message: "OAuth refresh failed for anthropic: Refresh token expired" },
+    {
+      prompt: "FINAL_ERROR_EXIT",
+      message: "OAuth refresh failed for anthropic: Refresh token expired",
+    },
+    { prompt: "FINAL_ERROR_NO_DETAIL", message: "Pi model request failed." },
+  ])(
+    "fails a turn whose error only arrives in the final assistant message ($prompt)",
+    async ({ prompt, message }) => {
+      const { session, events } = await createSession();
+      try {
+        await session.startTurn(prompt, { model: "mock/model", effort: "off" });
+        expect(events.filter((event) => event.type === "error")).toEqual([
+          expect.objectContaining({ message }),
+        ]);
+        expect(events).toContainEqual(
+          expect.objectContaining({ type: "turn.completed", state: "failed" }),
+        );
+      } finally {
+        await session.dispose();
+      }
+    },
+  );
+
+  it("allows a successful final assistant message to recover a failed attempt", async () => {
+    const { session, events } = await createSession();
+    try {
+      await session.startTurn("FINAL_ERROR_RECOVERED", { model: "mock/model", effort: "off" });
+      expect(events.filter((event) => event.type === "error")).toEqual([]);
+      expect(events).toContainEqual(
+        expect.objectContaining({ type: "content.delta", delta: "RECOVERED" }),
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({ type: "turn.completed", state: "completed" }),
+      );
+    } finally {
+      await session.dispose();
+    }
   });
 
   it("maps persisted pi-goal lifecycle entries into a canonical goal item", async () => {
