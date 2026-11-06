@@ -261,6 +261,7 @@ export function ThreadDraftView(props: {
   const helperOptions = useCrewHelperOptions();
   const sharedSettingsHydrated = useSharedSettings((s) => s.sharedSettingsHydrated);
   const newsLineEnabled = useSharedSettings((s) => s.newsLineEnabled);
+  const draftVisit = useAppStore((s) => s.draftVisit);
   const compactLayout = useCompactLayout();
   const isHomeScope = isHomeProject(project);
   const scopeLabel = isHomeScope ? HOME_PROJECT_NAME : undefined;
@@ -1848,7 +1849,9 @@ export function ThreadDraftView(props: {
             The news line lives here so it can never move the composer. */}
         {compactComposer ? null : (
           <div data-draft-slack="" className="flex min-h-0 w-full flex-1 flex-col items-center">
-            {showNewsLine ? <NewsLine className={`mt-3 w-full ${blockMaxWidthClass}`} /> : null}
+            {showNewsLine ? (
+              <NewsLine key={draftVisit} className={`mt-3 w-full ${blockMaxWidthClass}`} />
+            ) : null}
           </div>
         )}
       </div>

@@ -34,6 +34,11 @@ import { usePanelStore } from "../panelStore";
 export interface ViewSlice {
   view: AppView;
   focusedPaneId: string | null;
+  /**
+   * Bumped whenever a draft is opened. Client-only surfaces use it to re-roll
+   * per-visit content (the news line) even though the draft view stays mounted.
+   */
+  draftVisit: number;
   pendingComposerFocusThreadId: string | null;
   chatScrollToBottomTokens: Record<string, number>;
   chatScrollToPromptRequests: Record<string, { afterItemId: string | null; remaining: number }>;
@@ -99,6 +104,7 @@ export interface ViewSlice {
 export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
   view: { kind: "home" },
   focusedPaneId: null,
+  draftVisit: 0,
   pendingComposerFocusThreadId: null,
   chatScrollToBottomTokens: {},
   chatScrollToPromptRequests: {},
@@ -148,14 +154,23 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       return { chatPromptAnchorIds: anchors };
     }),
   setPendingActiveThread: (threadId) => set({ pendingActiveThreadId: threadId }),
-  openDraft: (projectId) => set({ view: { kind: "draft", projectId } }),
+  openDraft: (projectId) =>
+    set((state) => ({
+      view: { kind: "draft", projectId },
+      draftVisit: state.draftVisit + 1,
+    })),
   openDraftSideBySide: (projectId) =>
     set((state) => {
+      const draftVisit = state.draftVisit + 1;
       if (state.view.kind !== "thread") {
-        return { view: { kind: "draft", projectId } };
+        return { view: { kind: "draft", projectId }, draftVisit };
       }
       if (state.view.activeGroupId) {
-        return { groupLayouts: saveGroupLayout(state), view: { kind: "draft", projectId } };
+        return {
+          groupLayouts: saveGroupLayout(state),
+          view: { kind: "draft", projectId },
+          draftVisit,
+        };
       }
       const draftPaneId = makeDraftPaneId(projectId);
       const existing = state.view.panes;
@@ -180,6 +195,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
             panes: collectPaneIds(layout),
             paneLayout: layout,
           },
+          draftVisit,
         };
       }
       const rl = state.view.rowLayout;
@@ -196,6 +212,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       );
       return {
         view: nextView,
+        draftVisit,
       };
     }),
   openHome: () => set({ view: { kind: "home" } }),

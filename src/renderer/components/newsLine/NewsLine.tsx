@@ -8,9 +8,9 @@ import { useNewsLineItems } from "./useNewsLineItems";
 import type { NewsItem } from "./newsTypes";
 
 /** Time a regular item stays before the next one slides in. */
-export const NEWS_ROTATE_MS = 7_000;
-/** Give community promotions more time to be read and acted on. */
-export const NEWS_PROMOTION_ROTATE_MS = 20_000;
+export const NEWS_ROTATE_MS = 5_000;
+/** Give items with a deliberate call to action more time to be read and acted on. */
+export const NEWS_LONG_DWELL_MS = 20_000;
 /** Rotation stays paused this long after the last keystroke in the composer. */
 export const NEWS_TYPING_PAUSE_MS = 15_000;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
@@ -48,7 +48,7 @@ export function NewsLine(props: { className?: string }) {
     foundIndex >= 0 ? foundIndex : Math.min(cursor.index, Math.max(0, items.length - 1));
   const current: NewsItem | undefined = items[index];
   const currentId = current?.id ?? null;
-  const rotateMs = current?.kind === "promotion" ? NEWS_PROMOTION_ROTATE_MS : NEWS_ROTATE_MS;
+  const rotateMs = current?.longDwell ? NEWS_LONG_DWELL_MS : NEWS_ROTATE_MS;
   const paused = userPaused || interacting || typing || pageHidden || openHighlight !== null;
 
   const step = (delta: number) => {
@@ -196,7 +196,7 @@ export function NewsLine(props: { className?: string }) {
       >
         <div
           ref={contentRef}
-          // Announce only while rotation is stopped (APG carousel): never every 7s.
+          // Announce only while rotation is stopped (APG carousel): never on every rotation.
           aria-live={paused ? "polite" : "off"}
           aria-atomic="true"
           className="flex h-8 w-full min-w-0 items-center gap-2 rounded-full px-3 transition-colors group-hover:bg-[var(--row-hover)] group-focus-within:bg-[var(--row-hover)]"

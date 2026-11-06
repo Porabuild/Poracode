@@ -662,6 +662,16 @@ describe("appStore runtime config sync", () => {
     expect(hydrated.provisioningWorktreeThreadIds).toEqual({});
   });
 
+  it("bumps the draft visit on every open so per-visit content re-rolls", () => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+    const before = useAppStore.getState().draftVisit;
+
+    useAppStore.getState().openDraft(project.id);
+    expect(useAppStore.getState().draftVisit).toBe(before + 1);
+    useAppStore.getState().openDraft(project.id);
+    expect(useAppStore.getState().draftVisit).toBe(before + 2);
+  });
+
   it.each([
     ["Home", (state: AppStoreState, _projectId: string, _threadId: string) => state.openHome()],
     [

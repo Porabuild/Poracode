@@ -7,12 +7,12 @@ The news line is the single rotating line below the full-page new-thread compose
 - Rendered by `src/renderer/components/newsLine/NewsLine.tsx` inside the draft view's slack area (`ThreadDraftView.tsx`, `data-draft-slack`), so it can never move the anchored composer. Mounted only after shared settings hydrate (an opted-out user never fetches anything) and not at all in compact layouts, compact panes, the quick composer, or chat-only drafts, so hidden items never count as shown.
 - The message and its action use the full first row; rotation controls sit centered on a second row and appear on hover or focus without shifting the content.
 - Promotion and announcement URL actions open in the system default browser. Feature and What's New actions keep their in-app navigation.
-- Rotates every 7 seconds, with community promotions staying for 20 seconds. Pauses on hover or focus, for 15 seconds after typing in the draft, while a changelog card is open, while the window is hidden, and through the pause button (WCAG 2.2.2). Screen readers hear changes only after the user steps through items.
+- Rotates every 5 seconds. The star and follow promotions (`github-star`, `x-poracode`) stay for 20 seconds; the creator promotion and everything else use the regular interval. Pauses on hover or focus, for 15 seconds after typing in the draft, while a changelog card is open, while the window is hidden, and through the pause button (WCAG 2.2.2). Screen readers hear changes only after the user steps through items.
 - Settings → General: `newsLineEnabled` hides everything; `newsLineActivity` removes personal stats from display (discovery still reads them to know what was used).
 
 ## Sources and ordering
 
-`useNewsLineItems.tsx` builds one rotation per visit; `newsPlaylist.ts` orders it. Urgent items (a usage limit at 80% or more) lead, the rest alternate between sources so consecutive items differ, and promotions sit between other items (never first, at most one in five).
+`useNewsLineItems.tsx` builds one rotation per visit; `newsPlaylist.ts` orders it. Urgent items (a usage limit at 80% or more) lead, the rest alternate between sources so consecutive items differ; each source gets a random rank from the visit's seed, so reopening the draft re-rolls which source leads instead of leading with the same item. Within a source, each module's own order is preserved (announcement weight, new features first, changelog priority). A promotion takes the second slot (never first while other items exist), and later ones keep at least four other items between them.
 
 | Source        | Module                                                                   | Data                                                                                                            | Hidden by ✕                                                     |
 | ------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
@@ -24,7 +24,7 @@ The news line is the single rotating line below the full-page new-thread compose
 | Tips          | `newsTips.ts`                                                            | Command palette registry and the user's key bindings                                                            | This device                                                     |
 | Promotions    | `src/shared/communityLinks.ts`                                           | Fixed GitHub/X links                                                                                            | Shared settings `dismissedPromotions`, every client of the host |
 
-Choices are seeded once per visit so the line is stable while it is open; dismissals and settings apply live.
+Choices are seeded once per visit so the line is stable while it is open; opening a draft again (`viewSlice`'s `draftVisit`) re-seeds the rotation. Dismissals and settings apply live.
 
 ## Feature discovery
 

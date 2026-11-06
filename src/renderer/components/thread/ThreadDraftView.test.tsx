@@ -21,10 +21,26 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { liveVoice } from "@/renderer/speech/liveVoice";
 
-const { composerSpy, launchExperimentMock } = vi.hoisted(() => ({
+const { composerSpy, launchExperimentMock, newsLineMounts } = vi.hoisted(() => ({
   composerSpy: vi.fn<(props: unknown) => void>(),
   launchExperimentMock: vi.fn<(input: unknown) => Promise<string | null>>(),
+  newsLineMounts: { count: 0 },
 }));
+
+vi.mock("@/renderer/components/newsLine/NewsLine", async () => {
+  const React = await import("react");
+  return {
+    NewsLine: () => {
+      // Stable for the lifetime of one mount, so a re-render keeps the id while
+      // a key change (a new draft visit) produces a new one.
+      const [mountId] = React.useState(() => {
+        newsLineMounts.count += 1;
+        return newsLineMounts.count;
+      });
+      return <div data-testid="news-line" data-mount={mountId} />;
+    },
+  };
+});
 
 vi.mock("./ThreadComposer", () => ({
   ThreadComposer: (props: {
@@ -510,6 +526,7 @@ describe("ThreadDraftView", () => {
     composerSpy.mockClear();
     launchExperimentMock.mockReset();
     launchExperimentMock.mockResolvedValue("experiment-1");
+    newsLineMounts.count = 0;
     delete (window as unknown as { poracode?: unknown }).poracode;
     useAgentStatusesStore.setState({
       agentStatuses: [],
@@ -530,15 +547,39 @@ describe("ThreadDraftView", () => {
       lastPresentationModeByAgent: {},
       enabledMcpServers: {},
       disabledBuiltInMcpServers: {},
+      newsLineEnabled: true,
       sharedSettingsHydrated: true,
     });
-    useAppStore.setState({ pendingDraftWorktreeSelections: {} });
+    useAppStore.setState({ pendingDraftWorktreeSelections: {}, draftVisit: 0 });
     useRemoteServersStore.setState({
       servers: [],
       runtime: {},
       hostUpdates: {},
       hostUpdateRestarts: {},
     });
+  });
+
+  it("remounts the news line when a draft is opened again", async () => {
+    const previousProjects = useAppStore.getState().projects;
+    useAppStore.setState({ projects: [project] });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId("news-line")).toBeInTheDocument());
+    const firstMount = screen.getByTestId("news-line").getAttribute("data-mount");
+
+    act(() => {
+      useAppStore.getState().openDraft(project.id);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("news-line").getAttribute("data-mount")).not.toBe(firstMount),
+    );
+    useAppStore.setState({ projects: previousProjects });
   });
 
   it("launches an explicitly selected Plan without remembering it for the next thread", async () => {
