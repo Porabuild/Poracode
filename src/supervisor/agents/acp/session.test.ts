@@ -1691,7 +1691,7 @@ describe("ACP client protocol helpers", () => {
     },
   );
 
-  it("implements ACP terminal create/output/wait/release over a real PTY", async () => {
+  it("implements ACP terminal create/output/wait/release over a real child process", async () => {
     const projectRoot = makePosixProject();
     const { session } = makeConfigSyncSession();
     (session as unknown as Record<string, unknown>)["projectLocation"] = {
@@ -3942,11 +3942,16 @@ describe("ACP turn config sync", () => {
 
   it("cancels active ACP turns immediately when a prompt is in flight", async () => {
     const { connection, session } = makeConfigSyncSession();
+    const killAllAcpTerminals = vi.fn<() => void>();
+    (session as unknown as Record<string, unknown>)["_terminalManager"] = {
+      killAllAcpTerminals,
+    };
     (session as unknown as Record<string, unknown>)["promptInFlight"] = true;
 
     await session.interruptTurn();
 
     expect(connection.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(killAllAcpTerminals).toHaveBeenCalledOnce();
   });
 
   it("wires permission resolution and interrupt cancellation through the request coordinator", async () => {
