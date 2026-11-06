@@ -10,7 +10,8 @@ import { ChatItemAccordion } from "./ChatItemAccordion";
 import { CommandOutputViewport } from "./CommandOutputViewport";
 import { ContextCompaction, isContextCompactionToolCall } from "./ContextCompaction";
 import { detectLanguageFromPath } from "./languageDetect";
-import { PlanProposal, isPlanProposalToolCall } from "./PlanProposal";
+import { PlanProposal } from "./PlanProposal";
+import { isPlanProposalToolCall } from "./planProposalToolCall";
 import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
 import {
   extractAcpArgsPart,
