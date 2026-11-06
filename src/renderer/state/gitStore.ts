@@ -458,7 +458,11 @@ export function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boole
  * / `prDiffs` caches are kept session-local since they're tied to overlay state.
  */
 // v2 recomputes GitHub-only availability and truncated repository namespaces.
-// v2 URLs remain valid; a host's next full refresh resolves SSH aliases in place.
+// v2 remains valid: raw SSH/SCP URLs cached by older hosts still paint branch
+// and diff state, but repoIdentityKey treats them as unconfirmed. The owning
+// host publishes canonical HTTPS only when it proves a direct route; routes it
+// cannot prove stay raw/unconfirmed and are retried on future catalog imports.
+// No cache version or field change is needed.
 const PERSIST_KEY = "poracode-git-cache-v2";
 const PERSIST_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 

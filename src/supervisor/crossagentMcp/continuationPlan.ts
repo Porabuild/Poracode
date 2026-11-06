@@ -1,7 +1,7 @@
 import type { SessionRef } from "@/shared/contracts";
 import { SubagentSpawnError } from "./errors";
 import { prepareSubagentRun, type PreparedSubagentRun } from "./spawnPlan";
-import type { SubagentRunStatus } from "./types";
+import type { SpawnAgentRequest, SubagentRunStatus } from "./types";
 
 export interface ContinuableRun {
   status: SubagentRunStatus;
@@ -26,20 +26,14 @@ export function canContinueRun(run: ContinuableRun): boolean {
   return hasCompletedSession(run) && !run.resuming && !run.continuedBy;
 }
 
-/** Validate current provider settings but retain the winning session's selection and scope. */
-/** Reasoning/Fast for the next turn of a continued worker; absent keeps the worker's own. */
-export interface ContinuationSelectionUpdate {
-  effort?: string | undefined;
-  fast?: boolean | undefined;
-}
-
+/** Validate current settings; crew follow-ups replace the full role snapshot. */
 export function prepareContinuation(
   deps: Parameters<typeof prepareSubagentRun>[0],
   parent: Parameters<typeof prepareSubagentRun>[1],
   run: ContinuableRun,
   prompt: string,
   background: boolean,
-  selectionUpdate?: ContinuationSelectionUpdate,
+  selectionUpdate?: SpawnAgentRequest,
   name?: string,
 ): PreparedSubagentRun {
   if (run.continuedBy) {
@@ -50,17 +44,40 @@ export function prepareContinuation(
   if (!hasCompletedSession(run)) {
     throw new SubagentSpawnError("This run has no completed, resumable worker session");
   }
+  const plan = prepareWorkerTurn(deps, parent, run, prompt, background, selectionUpdate, name);
+  if (!plan.attempts[0]!.supportsResume) {
+    throw new SubagentSpawnError("This provider no longer supports session resume");
+  }
+  return plan;
+}
+
+/** Plan a new provider turn without silently replacing its conversation. */
+export function prepareWorkerTurn(
+  deps: Parameters<typeof prepareSubagentRun>[0],
+  parent: Parameters<typeof prepareSubagentRun>[1],
+  run: Pick<ContinuableRun, "plan" | "attemptIndex">,
+  prompt: string,
+  background: boolean,
+  selectionUpdate?: SpawnAgentRequest,
+  name?: string,
+): PreparedSubagentRun {
   const taskName = name?.trim();
   const attempt = run.plan.attempts[run.attemptIndex]!;
-  const effort = selectionUpdate ? selectionUpdate.effort : attempt.config.effort;
-  const fast = selectionUpdate ? selectionUpdate.fast === true : attempt.config.fast === true;
-  const plan = prepareSubagentRun(deps, parent, {
+  const request: SpawnAgentRequest = selectionUpdate ?? {
     agent: attempt.provider,
     model: attempt.model,
-    ...(effort ? { effort } : {}),
-    ...(fast ? { fast: true } : {}),
-    ...(run.plan.resultMode ? { resultMode: run.plan.resultMode } : {}),
+    ...(attempt.config.effort ? { effort: attempt.config.effort } : {}),
+    ...(attempt.config.fast === true ? { fast: true } : {}),
+    ...(attempt.config.contextSize ? { contextSize: attempt.config.contextSize } : {}),
     ...(run.plan.crewRole ? { crewRole: run.plan.crewRole } : {}),
+    prompt,
+  };
+  // A resumed conversation cannot fall back to a different conversation. The
+  // caller can spawn a fresh role task with a complete brief after a failure.
+  const { fallbacks: _fallbacks, retryMode: _retryMode, ...selection } = request;
+  const plan = prepareSubagentRun(deps, parent, {
+    ...selection,
+    ...(run.plan.resultMode ? { resultMode: run.plan.resultMode } : {}),
     prompt,
     ...(taskName ? { name: taskName } : {}),
     background,
@@ -71,14 +88,27 @@ export function prepareContinuation(
     },
   });
   const next = plan.attempts[0]!;
-  if (!next.supportsResume)
-    throw new SubagentSpawnError("This provider no longer supports session resume");
-  // A follow-up belongs to the original worker, even if parent settings changed.
-  // Only an explicit selection update (a crew role's current reasoning/Fast)
-  // changes the next turn; the session and every other setting stay the worker's.
+  // Compatible crew turns retain the worker's execution/tool scope, replacing
+  // selection fields completely so clearing effort or Fast cannot revive them.
   if (selectionUpdate) {
-    const { effort: _previousEffort, fast: _previousFast, ...rest } = attempt.config;
-    next.config = { ...rest, ...(effort ? { effort } : {}), ...(fast ? { fast: true } : {}) };
+    if (
+      attempt.provider !== next.provider ||
+      attempt.model !== next.model ||
+      (attempt.config.contextSize || undefined) !== (next.config.contextSize || undefined)
+    ) {
+      throw new SubagentSpawnError(
+        `Crew role ${selectionUpdate.crewRole?.id ?? "selection"} changed provider, model or context length. Use spawn_agent with the current role and a self-contained task brief to start a fresh helper; this worker's conversation was not changed.`,
+      );
+    }
+    plan.prompt = `[crew update] The following role configuration replaces previous role instructions for this task, including editing restrictions.\n\n${plan.prompt}`;
+    const { effort: _effort, fast: _fast, contextSize: _contextSize, ...rest } = attempt.config;
+    next.config = {
+      ...rest,
+      model: next.model,
+      ...(next.config.effort !== undefined ? { effort: next.config.effort } : {}),
+      ...(next.config.fast !== undefined ? { fast: next.config.fast } : {}),
+      ...(next.config.contextSize ? { contextSize: next.config.contextSize } : {}),
+    };
   } else {
     next.config = attempt.config;
     // A supplied name resolves a new descriptive label; without one the old

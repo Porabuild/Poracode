@@ -1,4 +1,3 @@
-import { dropPendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { buildWorktreeLocation } from "@/shared/worktree";
@@ -9,14 +8,13 @@ import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { presentThreadRemoval } from "@/renderer/state/threadRemovalPresentation";
-import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
+import { removeConfirmedHostThread } from "@/renderer/state/hostThreadRowRemoval";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { entityHost, intentHost, isSameHost } from "@/renderer/state/entityHost";
-import { clearThreadHistoryNotice } from "@/renderer/state/remote/historyNoticeStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads, runShellScriptToCompletion } from "@/renderer/utils/shellUtils";
@@ -164,12 +162,17 @@ export function forgetRemovedWorktreeGroup(
 ): void {
   const project = useAppStore.getState().projects.find((entry) => entry.id === projectId);
   if (project) cancelQueuedWorktreeSetup(project, worktreePath);
-  for (const threadId of threadIds) {
-    forgetPendingCatalogEdit("thread", threadId);
-    dropPendingThreadLaunch(threadId);
-    clearThreadHistoryNotice(threadId);
-    useAppStore.getState().deleteThread(threadId);
-  }
+  // Through the owning host's catalog: a paired host keeps its own copy of the
+  // rows, which would mirror a store-only removal straight back into view.
+  const host = entityHost(project);
+  if (host) host.removeConfirmedThreads(threadIds);
+  else
+    for (const threadId of threadIds)
+      removeConfirmedHostThread({
+        viewThreadId: threadId,
+        hostThreadId: threadId,
+        visualHostId: undefined,
+      });
   dismissWorktreeUi(worktreePath);
 }
 

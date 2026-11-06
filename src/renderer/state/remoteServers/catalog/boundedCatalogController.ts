@@ -73,11 +73,17 @@ export interface BoundedCatalogDeps {
   readonly runtimeThreads: (connectionKey: string) => readonly Thread[] | undefined;
   readonly runtimeProjects: (connectionKey: string) => readonly Project[] | undefined;
   readonly runtimeStatus: (connectionKey: string) => string | undefined;
-  /** Merge page rows into the runtime catalog and mirror them into app rows. */
+  /**
+   * Merge page rows into the runtime catalog and mirror them into app rows.
+   * `servedThreadIds` names the rows the host served in this read; every other
+   * row comes from the consumer's own catalog view, which must never re-add a
+   * store row removed after it was shown.
+   */
   readonly commitThreadRows: (
     connectionKey: string,
     rows: Thread[],
     preserveThreadIds: ReadonlySet<string>,
+    servedThreadIds: ReadonlySet<string>,
   ) => void;
   readonly commitProjectRows: (connectionKey: string, rows: Project[]) => void;
   readonly removeThreadRows: (connectionKey: string, threadIds: readonly string[]) => void;
@@ -536,7 +542,12 @@ function commitThreadPage(
     current,
   );
   const merged = mergeCatalogRows(current, reuseRemoteRows([...current], [...reconciled]));
-  active.commitThreadRows(connectionKey, merged, staleThreadIds);
+  active.commitThreadRows(
+    connectionKey,
+    merged,
+    staleThreadIds,
+    new Set(rows.map((row) => row.id)),
+  );
 }
 
 function commitProjectRows(
@@ -1076,17 +1087,57 @@ async function runDeletionGate(
       return rowsFor().some((row) => row.id === id);
     });
     if (absent.length === 0) continue;
-    catalogRemovalClock += 1;
-    state.lastRemovalAt = catalogRemovalClock;
-    if (kind === "threads") active.removeThreadRows(connectionKey, absent);
-    else active.removeProjectRows(connectionKey, absent);
-    // A sealed paint cursor can still contain these rows. Retire its pending
-    // response before it can restore them, then start from the current catalog.
-    if (paintRunningAttempt(state, kind) !== null || readPaint(state, kind)?.cursor != null) {
-      setPaintRefreshRequested(state, kind, true);
-      schedulePaintSegment(connectionKey, kind);
-    }
+    commitConfirmedRemoval(active, connectionKey, state, kind, absent);
   }
+}
+
+/**
+ * Removes rows this connection's host confirmed deleted. The rows leave the
+ * consumer's catalog copy and the store together, and reads begun before the
+ * removal can no longer restore them.
+ */
+function commitConfirmedRemoval(
+  active: BoundedCatalogDeps,
+  connectionKey: string,
+  state: BoundedCatalogConnection | undefined,
+  kind: CatalogKind,
+  ids: readonly string[],
+): void {
+  catalogRemovalClock += 1;
+  if (state) state.lastRemovalAt = catalogRemovalClock;
+  if (kind === "threads") active.removeThreadRows(connectionKey, ids);
+  else active.removeProjectRows(connectionKey, ids);
+  if (!state) return;
+  // A sealed paint cursor can still contain these rows. Retire its pending
+  // response before it can restore them, then start from the current catalog.
+  if (paintRunningAttempt(state, kind) !== null || readPaint(state, kind)?.cursor != null) {
+    setPaintRefreshRequested(state, kind, true);
+    schedulePaintSegment(connectionKey, kind);
+  }
+}
+
+/**
+ * Removes threads whose deletion a successful host command already confirmed,
+ * as the deletion gate removes rows it confirmed absent. Removing only the
+ * store row is not enough: a consumer that keeps its own catalog copy (a paired
+ * connection) would mirror the row back on its next page commit. Without an
+ * owning consumer the connection is gone, and its rows with it.
+ */
+export function removeConfirmedCatalogThreads(
+  connectionKey: string,
+  threadIds: readonly string[],
+): void {
+  const state = connections.get(connectionKey);
+  const owner = state ? stateConsumer(state) : undefined;
+  const consumer = owner ?? resolveConsumer(connectionKey);
+  if (!consumer || threadIds.length === 0) return;
+  commitConfirmedRemoval(
+    consumer.deps,
+    connectionKey,
+    owner ? state : undefined,
+    "threads",
+    threadIds,
+  );
 }
 
 function reportIfProtocolError(

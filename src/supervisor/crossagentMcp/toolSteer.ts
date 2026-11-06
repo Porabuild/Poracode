@@ -7,7 +7,9 @@ import {
   runToolResult,
   WAIT_AGAIN_INSTRUCTION,
 } from "./toolResult";
-import type { McpToolResult } from "./types";
+import type { McpToolResult, SpawnAgentRequest } from "./types";
+import { resolveCrewRoleSpawn } from "./crewRoles";
+import { parseSpawnRequest } from "./toolRequests";
 
 export async function steerAgent(
   args: Record<string, unknown>,
@@ -28,12 +30,36 @@ export async function steerAgent(
   const options = parseWaitOptions(args);
   const timeoutMs = parseWaitTimeoutMs(args);
   const startedAt = Date.now();
+  // Every new provider turn uses the current crew, just like spawn_agent.
+  // Native corrections stay in the running turn and retain its admitted config.
+  const crew = ctx.getCrew?.();
+  const run = crew
+    ? ctx.runManager.listRuns(ctx.parentThreadId).find((candidate) => candidate.run_id === runId)
+    : undefined;
+  let roleRequest: SpawnAgentRequest | undefined;
+  if (run?.role) {
+    const resolved = resolveCrewRoleSpawn(
+      { role: run.role, prompt, ...(name ? { name } : {}) },
+      crew,
+      await ctx.listSpawnableAgents(),
+    );
+    if (resolved) {
+      roleRequest = parseSpawnRequest(
+        resolved.args,
+        undefined,
+        undefined,
+        undefined,
+        resolved.crewRole,
+      );
+    }
+  }
   const next = await ctx.runManager.steer(
     runId,
     prompt,
     ctx.parentThreadId,
     args.background === true,
     name,
+    roleRequest,
   );
   const receipt = {
     run_id: next.runId,

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SidebarDoneRows } from "./SidebarDoneRows";
 import type { SidebarRow } from "./sidebarProjectRows";
 import type { Thread } from "@/shared/contracts";
+import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 
 const selection = vi.hoisted(() => ({ openThreadIds: ["selected"] }));
 vi.mock("@/renderer/hooks/uiSelectors", () => ({
@@ -150,5 +151,29 @@ describe("SidebarDoneRows", () => {
     unmount();
 
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("swaps rows without any reveal or exit animation on a workspace switch", () => {
+    const { rerender } = render(<SidebarDoneRows rows={[rows[0]!]} renderRow={renderRow} />);
+
+    act(() => useWorkspaceStore.getState().setActiveWorkspaceId("other-workspace"));
+    rerender(<SidebarDoneRows rows={[rows[1]!, rows[3]!]} renderRow={renderRow} />);
+
+    expect(screen.queryByText("first")).toBeNull();
+    const second = screen.getByRole("button", { name: "second" });
+    expect(second.closest("[inert]")).toBeNull();
+    expect(second.closest(".grid")!.className).not.toContain("starting:");
+    expect(screen.getByRole("button", { name: "last" }).closest(".grid")!.className).not.toContain(
+      "starting:",
+    );
+  });
+
+  it("mounts an already-open section without a reveal after a workspace switch", () => {
+    act(() => useWorkspaceStore.getState().setActiveWorkspaceId("another-workspace"));
+    render(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+
+    expect(screen.getByRole("button", { name: "first" }).closest(".grid")!.className).not.toContain(
+      "starting:",
+    );
   });
 });

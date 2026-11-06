@@ -10,6 +10,7 @@ import {
   subscribeManagedLoopbackActivation,
 } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import {
+  MANAGED_ROOT_CATALOG_KEY,
   managedRootHostSession,
   refreshManagedRootCatalogSoon,
 } from "./managedRootCatalog/rootCatalogAdapter";
@@ -44,6 +45,7 @@ import {
 } from "./remoteServers/eventSocketRegistry";
 import { useRemoteServersStore } from "./remoteServersStore";
 import { remoteConnectionKey } from "./remoteServers/types";
+import { removeConfirmedCatalogThreads } from "./remoteServers/catalog/boundedCatalogController";
 import { pairedRecentHistoryAuthority } from "@/renderer/browser/recentHistoryCache";
 
 /**
@@ -115,6 +117,12 @@ export interface EntityHost {
   ): Promise<void>;
   /** Keeps a thread row (by store id) resident while an intent on it is unconfirmed. */
   pinThread(viewThreadId: string): () => void;
+  /**
+   * Removes thread rows (by store id) whose deletion a successful command on
+   * this host confirmed. They leave this host's catalog with the store row, so
+   * no later catalog pass or earlier read can show them again.
+   */
+  removeConfirmedThreads(viewThreadIds: readonly string[]): void;
   /** Asks the host's catalog for a follow-up pass. */
   refreshCatalog(): void;
   /** Maps a store thread id on this host to the host's own id. */
@@ -224,6 +232,15 @@ function pairedHost(desktopId: string, hostId: string): EntityHost {
     runProjectCommand: (command, ...options) =>
       store().runProjectCommand(desktopId, command, ...options),
     pinThread: pinThreadRow,
+    removeConfirmedThreads: (viewThreadIds) => {
+      removeConfirmedCatalogThreads(
+        desktopId,
+        viewThreadIds.flatMap((viewThreadId) => {
+          const threadId = unprojectRemoteThreadId(desktopId, viewThreadId);
+          return threadId ? [threadId] : [];
+        }),
+      );
+    },
     hostThreadId: (viewThreadId) => unprojectRemoteThreadId(desktopId, viewThreadId),
     projectThreadRow: (hostThreadId) => ({
       threadId: remoteThreadId(desktopId, hostThreadId),
@@ -321,6 +338,9 @@ function managedHost(hostId: string): EntityHost {
       }
     },
     pinThread: pinThreadRow,
+    removeConfirmedThreads: (viewThreadIds) => {
+      removeConfirmedCatalogThreads(MANAGED_ROOT_CATALOG_KEY, viewThreadIds);
+    },
     hostThreadId: (viewThreadId) =>
       isProjectedRemoteEntityId(viewThreadId, "thread") ? undefined : viewThreadId,
     projectThreadRow: (hostThreadId) => ({ threadId: hostThreadId }),

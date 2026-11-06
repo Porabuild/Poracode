@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useCurrentThreadIds } from "@/renderer/hooks/uiSelectors";
 import type { SidebarRow } from "./sidebarProjectRows";
+import { isWorkspaceSwitchSettling } from "./workspaceSwitchSettling";
 
 interface RenderedRow {
   row: SidebarRow;
@@ -30,25 +31,38 @@ export function SidebarDoneRows(props: {
   const openThreadIds = useCurrentThreadIds();
   const [previousRows, setPreviousRows] = useState(rows);
   const [renderedRows, setRenderedRows] = useState<RenderedRow[]>(() =>
-    rows.map((row) => ({ row, visible: true, entering: false, revealing: true })),
+    rows.map((row) => ({
+      row,
+      visible: true,
+      entering: false,
+      revealing: !isWorkspaceSwitchSettling(),
+    })),
   );
 
   if (previousRows !== rows) {
     setPreviousRows(rows);
-    const previousByKey = new Map(renderedRows.map((entry) => [entry.row.key, entry]));
-    const keys = new Set(rows.map((row) => row.key));
-    const hadVisibleRows = renderedRows.some((entry) => entry.visible);
-    const next: RenderedRow[] = rows.map((row) => {
-      const previous = previousByKey.get(row.key);
-      return previous
-        ? { ...previous, row, visible: true }
-        : { row, visible: true, entering: hadVisibleRows, revealing: true };
-    });
-    // Keep outgoing rows in their slots until the closing transition finishes.
-    renderedRows.forEach((entry, index) => {
-      if (!keys.has(entry.row.key)) next.splice(index, 0, { ...entry, visible: false });
-    });
-    setRenderedRows(next);
+    if (isWorkspaceSwitchSettling()) {
+      // Another workspace's threads replace the list wholesale: swap them in
+      // place instead of closing the old rows and revealing the new ones.
+      setRenderedRows(
+        rows.map((row) => ({ row, visible: true, entering: false, revealing: false })),
+      );
+    } else {
+      const previousByKey = new Map(renderedRows.map((entry) => [entry.row.key, entry]));
+      const keys = new Set(rows.map((row) => row.key));
+      const hadVisibleRows = renderedRows.some((entry) => entry.visible);
+      const next: RenderedRow[] = rows.map((row) => {
+        const previous = previousByKey.get(row.key);
+        return previous
+          ? { ...previous, row, visible: true }
+          : { row, visible: true, entering: hadVisibleRows, revealing: true };
+      });
+      // Keep outgoing rows in their slots until the closing transition finishes.
+      renderedRows.forEach((entry, index) => {
+        if (!keys.has(entry.row.key)) next.splice(index, 0, { ...entry, visible: false });
+      });
+      setRenderedRows(next);
+    }
   }
 
   useEffect(() => {
