@@ -19,7 +19,7 @@ import {
   resolveCommandCodePromptErrorReason,
 } from "./acp";
 import { normalizeCommandCodePermissionRequest } from "./acpRequests";
-import { createCommandCodeSessionUpdateTransform } from "./acpUpdates";
+import { attachCommandCodeSubagentSteps, normalizeCommandCodeSessionUpdate } from "./acpUpdates";
 import { commandCodeMcpLaunch } from "./mcp";
 import { commandCodeDetectionSpec, defaultCommandCodeCapabilities } from "./detection";
 import {
@@ -171,7 +171,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
       // must create their own session rather than resume that unwritten ID.
       if (input.presentationMode !== "gui") return undefined;
       await prepareAgentLocationEnvironment(input.projectLocation);
-      return createAcpStructuredSession(
+      const session = createAcpStructuredSession(
         buildCommandCodeAcpCommand(
           input.projectLocation,
           resolveAgentBinaryPath(input.projectLocation, "command-code"),
@@ -181,7 +181,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
           // The harness owns filesystem and terminal permissions itself.
           acpFsTextCapability: false,
           acpTerminalCapability: false,
-          acpSessionUpdateTransform: createCommandCodeSessionUpdateTransform(),
+          acpSessionUpdateTransform: normalizeCommandCodeSessionUpdate,
         },
         {
           resolveMode: resolveCommandCodeAcpMode,
@@ -192,6 +192,8 @@ export function createCommandCodeAdapter(): AgentAdapter {
           behavior: { promptUsageReportsContext: false, strictConfigSelection: true },
         },
       );
+      if (session) attachCommandCodeSubagentSteps(session);
+      return session;
     },
 
     createInitialSessionRef() {
