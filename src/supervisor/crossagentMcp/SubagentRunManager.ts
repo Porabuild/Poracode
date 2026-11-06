@@ -79,6 +79,8 @@ interface RunRecord extends AttemptExecutionState, ContinuableRun {
   plan: PreparedSubagentRun;
   attemptIndex: number;
   attemptSettled: boolean;
+  /** Latest provider error for this attempt; a later failed turn carries no detail. */
+  attemptErrorMessage?: string;
   steering: SteerState | undefined;
   steerGeneration: number;
   attemptResults: SubagentAttemptResult[];
@@ -714,6 +716,7 @@ export class SubagentRunManager {
     const started = new Promise<void>((resolve) => {
       steering.onStarted = resolve;
     });
+    record.turnStarted = false;
     const turn = handle.startTurn!(prompt, config).catch((error: unknown) => {
       // A later correction can interrupt this prompt after delivery returns.
       if (record.steerGeneration === generation) {
@@ -851,6 +854,7 @@ export class SubagentRunManager {
 
     record.attemptIndex = attemptIndex;
     record.attemptSettled = false;
+    delete record.attemptErrorMessage;
     record.steering = undefined;
     record.childThreadId = this.childThreadId(record.parentThreadId, record.runId, attemptIndex);
     record.label = attempt.label;
@@ -923,7 +927,11 @@ export class SubagentRunManager {
       return;
     }
     switch (event.type) {
+      case "error":
+        record.attemptErrorMessage = event.message;
+        return;
       case "turn.started":
+        delete record.attemptErrorMessage;
         record.steerReady = true;
         // A native steer can start a follow-up turn if the original finished
         // during its round-trip. Keep that new turn alive until it completes.
@@ -1009,6 +1017,7 @@ export class SubagentRunManager {
         );
         return;
       case "turn.completed": {
+        record.turnStarted = false;
         // An interrupt-and-restart steer expects the running turn to end as
         // interrupted/cancelled; that is the drain signal, not a failure.
         const expectedInterrupt =
@@ -1019,7 +1028,7 @@ export class SubagentRunManager {
           record,
           attemptIndex,
           ok ? "completed" : "failed",
-          ok ? undefined : `Subagent turn ${event.state}`,
+          ok ? undefined : (record.attemptErrorMessage ?? `Subagent turn ${event.state}`),
         );
         return;
       }

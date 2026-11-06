@@ -709,6 +709,42 @@ describe("Devin ACP negotiation against the live advertised menu", () => {
     ).toMatchObject({ status: "applied", value: "swe-1-7-medium" });
   });
 
+  it("carries an effort-less accepted model's effort on thought_level only", () => {
+    // "adaptive" is accepted verbatim and the catalog encodes no tier for
+    // it: with the thought_level select present the effort rides that
+    // carrier; without it the request is a visible session rejection.
+    const effortless: DevinModelFamily[] = [
+      ...foldedCatalog,
+      {
+        id: "adaptive",
+        label: "Adaptive",
+        variants: [
+          { id: "adaptive", effort: "", thinking: false, fast: false, context: "default" },
+        ],
+      },
+    ];
+    const menuWithAdaptive = (options: ReturnType<typeof liveOption>) =>
+      options.map((option) =>
+        option.id === "model"
+          ? { ...option, options: [...option.options, { value: "adaptive" }] }
+          : option,
+      );
+    expect(
+      resolveDevinAcpModelNegotiation(
+        effortless,
+        { model: "adaptive", effort: "medium" },
+        menuWithAdaptive(liveOptionWithThought()),
+      ),
+    ).toMatchObject({ status: "applied", value: "adaptive" });
+    expect(
+      resolveDevinAcpModelNegotiation(
+        effortless,
+        { model: "adaptive", effort: "medium" },
+        menuWithAdaptive(liveOption()),
+      ),
+    ).toMatchObject({ status: "rejected-by-session", requested: "adaptive", stored: "adaptive" });
+  });
+
   it("keeps opaque Fusion pairs verbatim and refuses to substitute a family variant", () => {
     // A stored pair the menu no longer offers must reject, never swap to a
     // laddered variant of the same Fusion family.
@@ -1011,6 +1047,66 @@ describe("Devin ACP launch resolution", () => {
         /Unsupported model configuration/,
       );
     }
+  });
+
+  it("defers a meaningful effort on an effort-less regular family to the post-open carrier", () => {
+    // An explicit effort is retained for validation against any live select;
+    // the argv cannot encode a tier absent from this catalog family.
+    // The one-shot/Terminal fold stays strict.
+    const adaptiveCatalog = parseDevinModelCatalog(
+      JSON.stringify({
+        families: [
+          {
+            family_label: "Adaptive",
+            slug: "adaptive",
+            variants: [{ model_uid: "adaptive", label: "Adaptive" }],
+          },
+          {
+            family_label: "SWE-2",
+            slug: "swe-2",
+            variants: [
+              { model_uid: "swe-2-high", label: "SWE-2 High" },
+              { model_uid: "swe-2-medium", label: "SWE-2 Medium" },
+            ],
+          },
+        ],
+      }),
+    );
+    for (const effort of ["medium", "max", "default", ""]) {
+      expect(resolveDevinAcpLaunchModel(adaptiveCatalog, { model: "adaptive", effort })).toBe(
+        "adaptive",
+      );
+    }
+    // The composer's inert seeds alongside the defaulted effort are unaffected.
+    expect(
+      resolveDevinAcpLaunchModel(adaptiveCatalog, {
+        model: "adaptive",
+        effort: "medium",
+        contextSize: "",
+        fast: false,
+        thinking: false,
+      }),
+    ).toBe("adaptive");
+    // Controls the family cannot carry still fail before spawn.
+    for (const config of [
+      { model: "adaptive", effort: "medium", thinking: true },
+      { model: "adaptive", effort: "medium", contextSize: "1m" },
+    ]) {
+      expect(() => resolveDevinAcpLaunchModel(adaptiveCatalog, config)).toThrowError(
+        /Unsupported model configuration for Adaptive/,
+      );
+    }
+    // A laddered family keeps the strict fold: a tier its catalog never
+    // encodes is still rejected, and encoded tiers still fold into the id.
+    expect(() =>
+      resolveDevinAcpLaunchModel(adaptiveCatalog, { model: "swe-2-high", effort: "low" }),
+    ).toThrowError(/Unsupported model configuration for SWE-2/);
+    expect(
+      resolveDevinAcpLaunchModel(adaptiveCatalog, { model: "swe-2-high", effort: "medium" }),
+    ).toBe("swe-2-medium");
+    expect(() =>
+      resolveDevinModel({ model: "adaptive", effort: "medium" }, adaptiveCatalog),
+    ).toThrowError(/Unsupported model configuration for Adaptive/);
   });
 
   it("keeps the strict CLI fold for regular families and their mismatches", () => {

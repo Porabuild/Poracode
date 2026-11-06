@@ -198,14 +198,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     args.push(...mcp.args);
 
     const client = PiRpcClient.spawn(
-      input.projectLocation.kind === "windows"
-        ? buildAgentCommand(input.projectLocation, "pi", args, binary, mcp.env)
-        : {
-            command: binary,
-            args,
-            cwd: input.projectLocation.path,
-            ...(mcp.env ? { env: mcp.env } : {}),
-          },
+      buildAgentCommand(input.projectLocation, "pi", args, binary, mcp.env),
     );
     try {
       await client.spawnReady;
@@ -433,6 +426,9 @@ export class PiRpcSession implements StructuredSessionHandle {
       case "message_update":
         this.handleMessageUpdate(event);
         break;
+      case "message_end":
+        this.handleMessageEnd(event);
+        break;
       case "tool_execution_start":
         this.handleToolStart(event);
         break;
@@ -522,6 +518,25 @@ export class PiRpcSession implements StructuredSessionHandle {
         "Pi model request failed.";
       this.turnErrorMessage ??= message;
       this.emit({ type: "error", threadId: this.input.threadId, message });
+    }
+  }
+
+  private handleMessageEnd(event: PiRpcEvent): void {
+    const message = recordOf(event.message);
+    if (message?.role !== "assistant") return;
+    // Auth and other pre-stream failures can arrive only on the final message.
+    // Wait for settlement: a later successful attempt supersedes this error.
+    if (message.stopReason === "error") {
+      this.turnErrorMessage =
+        (typeof message.errorMessage === "string" && message.errorMessage) ||
+        this.turnErrorMessage ||
+        "Pi model request failed.";
+    } else if (
+      message.stopReason === "stop" ||
+      message.stopReason === "length" ||
+      message.stopReason === "toolUse"
+    ) {
+      this.turnErrorMessage = undefined;
     }
   }
 
@@ -816,7 +831,10 @@ export class PiRpcSession implements StructuredSessionHandle {
   private handleExit(): void {
     if (this.disposed) return;
     // Without a Stop, a process that died mid-turn cut that turn off.
-    if (this.currentTurnId) this.finishTurn(this.interruptRequested ? "cancelled" : "failed");
+    if (this.currentTurnId) {
+      if (!this.interruptRequested && this.turnErrorMessage) this.failTurn(this.turnErrorMessage);
+      else this.finishTurn(this.interruptRequested ? "cancelled" : "failed");
+    }
     const stderr = this.client.stderr;
     this.emit({
       type: "session.exited",

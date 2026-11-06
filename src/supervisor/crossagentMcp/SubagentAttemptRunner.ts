@@ -36,6 +36,7 @@ export interface AttemptExecutionState {
   /** Host execution slot for this attempt's child process, if admitted. */
   resourceLease?: HostResourceLease;
   cancelRequested: boolean;
+  /** The provider has reported working or turn.started for the dispatched turn. */
   turnStarted: boolean;
   turnDispatched: boolean;
   /** The initial turn has been acknowledged, so native steering cannot launch a second one. */
@@ -281,18 +282,24 @@ export class SubagentAttemptRunner {
         },
         onUpdate: (update) => {
           if (active() && update.sessionRef) state.sessionRef = update.sessionRef;
-          if (active() && update.status === "working") callbacks.onWorking();
+          if (active() && update.status === "working") {
+            if (state.turnDispatched) state.turnStarted = true;
+            callbacks.onWorking();
+          }
           if (active() && state.turnStarted && update.status === "idle") {
+            state.turnStarted = false;
             callbacks.onSettle("completed");
           }
         },
         // Opening a resumed session can replay history. Only the new turn belongs
         // to this run's result, cursor and synthetic tile.
         onRuntimeEvent: (event) => {
-          if (active() && state.turnDispatched)
+          if (active() && state.turnDispatched) {
+            if (event.type === "turn.started") state.turnStarted = true;
             callbacks.onRuntimeEvent(
               captureRuntimePayloadOrigin(event, adapter.runtimePayloadFormatOwnerKey),
             );
+          }
         },
       });
 
@@ -321,7 +328,6 @@ export class SubagentAttemptRunner {
         callbacks.onSettle("failed", "Subagent session cannot start a turn");
         return;
       }
-      state.turnStarted = true;
       state.turnDispatched = true;
       await handle.startTurn(prompt, config);
       if (active()) state.steerReady = true;

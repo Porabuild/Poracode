@@ -266,10 +266,24 @@ export function resolveDevinModel(config: ThreadConfig, families: DevinModelFami
 }
 
 /**
+ * Catalog families with no id-encoded effort tier, such as Adaptive in
+ * 3000.11.234. Their GUI efforts require an observed live thought_level select;
+ * they must not inherit another model's global ladder.
+ */
+export function isDevinEffortlessRegularFamily(family: DevinModelFamily): boolean {
+  const regular = family.variants.filter((v) => !v.composite);
+  return regular.length > 0 && regular.every((v) => v.effort === "");
+}
+
+/**
  * ACP sends the exact pair ID at launch and negotiates its independent effort
  * after opening. Keep that effort in the config for strict native validation;
  * unsupported context and thinking controls still fail before spawn. Fast is
  * also validated after opening, against the independent native speed select.
+ *
+ * For a regular family with no encoded effort tiers, preserve explicit effort
+ * requests for strict validation against the opened session's live select.
+ * Laddered families still reject tiers their catalog cannot encode before spawn.
  */
 export function resolveDevinAcpLaunchModel(
   families: readonly DevinModelFamily[],
@@ -284,6 +298,10 @@ export function resolveDevinAcpLaunchModel(
   }
   // The live speed selector owns Fast in ACP; do not bake it into argv model IDs.
   const { fast: _fast, ...modelConfig } = config;
+  if (family && !initial?.composite && isDevinEffortlessRegularFamily(family)) {
+    const { effort: _effort, ...effortlessConfig } = modelConfig;
+    return resolveDevinModel(effortlessConfig, [...families]);
+  }
   return resolveDevinModel(modelConfig, [...families]);
 }
 
