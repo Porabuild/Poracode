@@ -26,6 +26,7 @@ export {
   nonDiagnosticErrors,
 } from "./canonicalMapping/result";
 export { mapClaudeSdkMessage, readParentToolUseId } from "./canonicalMapping/dispatch";
+export { settleMissingSubAgentTaskReports } from "./canonicalMapping/taskLifecycle";
 export {
   ClaudeUsageScopeTracker,
   createClaudeUsageSpentEvent,

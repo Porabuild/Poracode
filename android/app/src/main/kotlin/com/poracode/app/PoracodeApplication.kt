@@ -218,8 +218,8 @@ class PoracodeApplication : Application() {
         session.setBrowserMirrorEventSink { generation, raw ->
             browserMirror.deliverSocketFrame(generation, raw)
         }
-        session.setReplaySideEffectSink { outcome ->
-            richChat.handleReplaySideEffect(outcome)
+        session.setReplaySideEffectSink { outcome, sequence ->
+            richChat.handleReplaySideEffect(outcome, sequence)
         }
         session.setHeavyReviewTargetSource { heavyReviewSource.current() }
         projects.githubOperations.setHeavyReviewPresenter(heavyReviewSource)

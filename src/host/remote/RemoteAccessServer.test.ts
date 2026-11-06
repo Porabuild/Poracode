@@ -1871,6 +1871,255 @@ describe("RemoteAccessServer", () => {
     await expect(history()).resolves.toMatchObject({ backgroundTasks: [] });
   });
 
+  it("keeps enriched background tasks through the no-client cache, two live clients, and reconnect drain", async () => {
+    const thread = createTestThread({
+      id: "thread-background-enriched",
+      status: "working",
+      presentationMode: "gui",
+      activeTurnStartedAt: "2026-01-01T00:00:00.000Z",
+      lastTurnStartedAt: "2026-01-01T00:00:00.000Z",
+    });
+    vi.mocked(dbGetThread).mockReturnValue(thread);
+    const server = createTestServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: async () => null as never,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const history = async () => {
+      const response = await fetch(
+        new URL(`/api/threads/thread-background-enriched/history`, info.httpBaseUrl),
+        { headers: { authorization: `Bearer ${token}` } },
+      );
+      expect(response.status).toBe(200);
+      return (await response.json()) as { backgroundTasks?: BackgroundTask[] };
+    };
+    const changed = (tasks: BackgroundTask[]) =>
+      ({
+        type: "thread-runtime-event",
+        threadId: thread.id,
+        event: {
+          type: "background_tasks.changed",
+          threadId: thread.id,
+          tasks,
+        },
+      }) satisfies SupervisorEvent;
+
+    const initialTask: BackgroundTask = {
+      taskId: "task-enriched",
+      kind: "command",
+      category: "command",
+      description: "Run the enriched fixture command",
+      command: "printf 'ENRICHED\\n'",
+      outputAction: {
+        id: "fixture.background.read.v1",
+        payload: { taskId: "task-enriched", token: "owner-token" },
+      },
+    };
+
+    // No live client is attached yet; the host must retain the whole owner
+    // record for the first snapshot and not only replay it on the socket.
+    server.publishSupervisorEvent(changed([initialTask]));
+    const noClientSnapshot = await history();
+    expect(noClientSnapshot.backgroundTasks).toEqual([initialTask]);
+    expect(noClientSnapshot.backgroundTasks?.[0]).toMatchObject({
+      taskId: "task-enriched",
+      category: "command",
+      command: "printf 'ENRICHED\\n'",
+    });
+    expect(noClientSnapshot.backgroundTasks?.[0]?.outputAction?.payload).toEqual({
+      taskId: "task-enriched",
+      token: "owner-token",
+    });
+
+    const openSocket = async (lastSeenSeq?: number) => {
+      const ticket = await issueWebSocketTicket(info, token);
+      const url = new URL("/ws", info.wsBaseUrl);
+      url.searchParams.set("ticket", ticket);
+      if (lastSeenSeq !== undefined) url.searchParams.set("lastSeenSeq", String(lastSeenSeq));
+      const ws = new WebSocket(url);
+      const next = createWsReader(ws);
+      await new Promise<void>((resolve, reject) => {
+        ws.once("open", resolve);
+        ws.once("error", reject);
+      });
+      const ready = await next();
+      return { ws, next, ready } as const;
+    };
+
+    const first = await openSocket();
+    const second = await openSocket();
+    expect(first.ready).toMatchObject({ type: "ready" });
+    expect(second.ready).toMatchObject({ type: "ready" });
+
+    const updatedTask: BackgroundTask = {
+      ...initialTask,
+      kind: "other",
+      category: "monitor",
+      description: "Watch the enriched fixture",
+      command: "printf 'WATCH_ENRICHED\\n'",
+    };
+    server.publishSupervisorEvent(changed([updatedTask]));
+    const firstFrame = (await first.next()) as {
+      seq: number;
+      event: { event: { tasks: BackgroundTask[] } };
+    };
+    const secondFrame = (await second.next()) as {
+      seq: number;
+      event: { event: { tasks: BackgroundTask[] } };
+    };
+    expect(firstFrame.seq).toBe(secondFrame.seq);
+    expect(firstFrame.event.event.tasks).toEqual([updatedTask]);
+    expect(secondFrame.event.event.tasks).toEqual([updatedTask]);
+    expect(JSON.stringify(firstFrame)).not.toContain("Run the enriched fixture command");
+
+    const updatedSnapshot = await history();
+    expect(updatedSnapshot.backgroundTasks).toEqual([updatedTask]);
+    expect(updatedSnapshot.backgroundTasks?.[0]?.outputAction?.payload.token).toBe("owner-token");
+
+    first.ws.close();
+    await waitWsClose(first.ws);
+    server.publishSupervisorEvent(changed([]));
+    const drainFrame = (await second.next()) as {
+      seq: number;
+      event: { event: { tasks: BackgroundTask[] } };
+    };
+    expect(drainFrame.event.event.tasks).toEqual([]);
+    const drainedSnapshot = await history();
+    expect(drainedSnapshot.backgroundTasks).toEqual([]);
+
+    // The disconnected client saw the metadata update at firstFrame.seq, so
+    // its replay must contain only the later authoritative empty level. No
+    // replayed or fresh snapshot may restore the old action descriptor.
+    const reconnected = await openSocket(firstFrame.seq);
+    const replayFrame = (await reconnected.next()) as {
+      seq: number;
+      event: { event: { tasks: BackgroundTask[] } };
+    };
+    expect(replayFrame.seq).toBe(drainFrame.seq);
+    expect(replayFrame.event.event.tasks).toEqual([]);
+    expect(JSON.stringify(replayFrame)).not.toContain("fixture.background.read.v1");
+    const reconnectSnapshot = await history();
+    expect(reconnectSnapshot.backgroundTasks).toEqual([]);
+    expect(JSON.stringify(reconnectSnapshot)).not.toContain("owner-token");
+
+    reconnected.ws.close();
+    second.ws.close();
+  });
+
+  it("invokes a neutral session read action without model-turn or thread-runtime effects", async () => {
+    const actionId = "fixture.neutral.read.v1";
+    const output = { output: "READY\n", totalBytes: 6, truncated: false };
+    const thread = createTestThread({
+      id: "thread-session-action",
+      status: "working",
+      presentationMode: "gui",
+      activeTurnStartedAt: "2026-01-01T00:00:00.000Z",
+      lastTurnStartedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const threadBefore = JSON.parse(JSON.stringify(thread)) as Thread;
+    vi.mocked(dbGetThread).mockReturnValue(thread);
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async (name, payload) => {
+        if (name === "listThreadSessionActions") {
+          return { actions: [{ id: actionId }] } as never;
+        }
+        if (name === "invokeThreadSessionAction") {
+          if ((payload as { threadId?: string }).threadId === "thread-stale") {
+            throw new Error("Session action is unavailable.");
+          }
+          return output as never;
+        }
+        throw new Error(`unexpected supervisor call: ${name}`);
+      },
+    );
+    const server = createTestServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const viewer = await issueAccessToken(info, ["session:read"]);
+    const operator = await issueIndependentAccessToken(server, info, [
+      "session:read",
+      "session:operate",
+    ]);
+    const post = (accessToken: string, procedure: string, payload: unknown) =>
+      fetch(new URL("/api/git/call", info.httpBaseUrl), {
+        method: "POST",
+        headers: {
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+          authorization: `Bearer ${accessToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ procedure, payload }),
+      });
+    const payload = {
+      threadId: thread.id,
+      actionId,
+      payload: { runKey: "one" },
+    };
+
+    const listResponse = await post(viewer, "listThreadSessionActions", { threadId: thread.id });
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toEqual({ result: { actions: [{ id: actionId }] } });
+
+    const viewerInvoke = await post(viewer, "invokeThreadSessionAction", payload);
+    expect(viewerInvoke.status).toBe(403);
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+
+    const malformed = await post(operator, "invokeThreadSessionAction", {
+      threadId: thread.id,
+      payload: { runKey: "one" },
+    });
+    expect(malformed.status).toBe(400);
+    await expect(malformed.json()).resolves.toMatchObject({
+      error: { code: "invalid_request" },
+    });
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+
+    const invoked = await post(operator, "invokeThreadSessionAction", payload);
+    expect(invoked.status).toBe(200);
+    const invokedBody = (await invoked.json()) as { result: Record<string, unknown> };
+    expect(invokedBody).toEqual({ result: output });
+    expect(Object.keys(invokedBody.result).sort()).toEqual(["output", "totalBytes", "truncated"]);
+    expect(callSupervisor).toHaveBeenNthCalledWith(1, "listThreadSessionActions", {
+      threadId: thread.id,
+    });
+    expect(callSupervisor).toHaveBeenNthCalledWith(2, "invokeThreadSessionAction", payload);
+
+    const stale = await post(operator, "invokeThreadSessionAction", {
+      ...payload,
+      threadId: "thread-stale",
+    });
+    expect(stale.status).toBe(500);
+    await expect(stale.json()).resolves.toEqual({
+      error: { code: "internal_error", message: "Internal server error." },
+    });
+    expect(callSupervisor).toHaveBeenNthCalledWith(3, "invokeThreadSessionAction", {
+      ...payload,
+      threadId: "thread-stale",
+    });
+    expect(
+      callSupervisor.mock.calls.every(
+        ([name]) => name === "listThreadSessionActions" || name === "invokeThreadSessionAction",
+      ),
+    ).toBe(true);
+    expect(JSON.parse(JSON.stringify(thread))).toEqual(threadBefore);
+    expect(dbUpsertThread).not.toHaveBeenCalled();
+    expect(dbApplyThreadRuntimeEvents).not.toHaveBeenCalled();
+    expect(dbAppendThreadCompletedTurn).not.toHaveBeenCalled();
+  });
+
   it("builds shell snapshots from aggregated runtime summaries", async () => {
     vi.mocked(dbGetProjects).mockReturnValue([
       createTestProject({

@@ -41,6 +41,11 @@ export function protocolInventoryPath(repoRoot = findRepoRoot()): string {
   return join(repoRoot, "protocol/remote/v3/generated/inventory.json");
 }
 
+/** Harness-owned fixture shared by the background-task procedure handlers and journeys. */
+export function nativeE2EFixturePath(name: string, repoRoot = findRepoRoot()): string {
+  return join(repoRoot, "tests/native-e2e/fixtures", name);
+}
+
 export function detectHeadlessServerEntrypoint(repoRoot = findRepoRoot()): string | null {
   const pkgPath = join(repoRoot, "package.json");
   const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as {

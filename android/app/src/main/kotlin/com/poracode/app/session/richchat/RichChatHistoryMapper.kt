@@ -12,6 +12,7 @@ import com.poracode.app.model.PersistedRuntimeItem
 import com.poracode.app.model.RemoteRuntimeItemsPage
 import com.poracode.app.model.RemoteThreadSnapshot
 import com.poracode.app.model.RemoteThreadTurnsPage
+import com.poracode.app.protocol.RuntimeBackgroundTaskDecoder
 import kotlinx.serialization.json.JsonNull
 
 object RichChatHistoryMapper {
@@ -47,6 +48,17 @@ object RichChatHistoryMapper {
             else -> RichFollowUpQueueDecoder.decodeQueue(rawQueue) ?: invalid("follow-up queue")
         }
         val followUpQueuePresent = value.followUpQueue != null
+        // Reuse the strict protocol decoder: one invalid task rejects the whole
+        // list (Zod parity). Presence is tracked separately (like the queue) so
+        // an absent old-host field preserves retained metadata while an
+        // explicit valid array — including [] — stays authoritative.
+        val backgroundTasksPresent = value.backgroundTasksPresent
+        val backgroundTasks = if (backgroundTasksPresent) {
+            val raw = value.backgroundTasks ?: invalid("background tasks")
+            RuntimeBackgroundTaskDecoder.decode(raw) ?: invalid("background tasks")
+        } else {
+            null
+        }
         return RichChatHistorySnapshot(
             key = key,
             snapshotSeq = value.snapshotSeq,
@@ -58,6 +70,8 @@ object RichChatHistoryMapper {
             followUpQueuePresent = followUpQueuePresent,
             updatedAt = value.updatedAt,
             runtimeNotice = value.runtimeNotice,
+            backgroundTasksPresent = backgroundTasksPresent,
+            backgroundTasks = backgroundTasks,
         )
     }
 

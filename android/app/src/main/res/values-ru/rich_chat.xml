@@ -232,4 +232,23 @@
     <string name="rich_chat_fork_name">Название разговора</string>
     <string name="rich_chat_fork_boundary">Унаследованная история заканчивается здесь</string>
     <string name="rich_chat_fork_source">Ответвление от %1$s</string>
+    <string name="rich_chat_background_tasks">Фоновые задачи</string>
+    <string name="rich_chat_background_task">Фоновая задача</string>
+    <string name="rich_chat_background_task_monitor">Монитор</string>
+    <string name="rich_chat_background_task_tool">Инструмент</string>
+    <string name="rich_chat_background_task_agent">Агент</string>
+    <string name="rich_chat_background_task_other">Прочие</string>
+    <string name="rich_chat_background_task_output">Вывод задачи</string>
+    <string name="rich_chat_background_task_output_unavailable">Вывод недоступен для этой задачи.</string>
+    <string name="rich_chat_background_task_output_read_failed">Не удалось прочитать вывод фоновой задачи.</string>
+    <string name="rich_chat_background_task_output_loading">Загрузка вывода…</string>
+    <string name="rich_chat_background_task_no_output">Вывода пока нет</string>
+    <string name="rich_chat_background_task_output_truncated">Показан только конец вывода (%1$s байт).</string>
+    <string name="rich_chat_background_task_stop">Остановить задачу</string>
+    <string name="rich_chat_background_task_stopping">Остановка задачи…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">Задача ещё не подтвердила остановку. Попробуйте снова.</string>
+    <string name="rich_chat_background_task_running_for">Выполняется %1$s</string>
+    <string name="rich_chat_background_task_last_progress">Последнее обновление %1$s назад</string>
+    <string name="rich_chat_background_task_close">Закрыть сведения о задаче</string>
+    <string name="rich_chat_background_task_report_missing">Задача завершилась без отчёта о выполнении.</string>
 </resources>

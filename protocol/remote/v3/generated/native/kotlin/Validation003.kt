@@ -5,14 +5,6 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-internal val schema_2365fa95161a3294: RemoteSchema by lazy {
-    RemoteSchema(type = "string", format = "uri", unknownPolicy = RemoteUnknownFieldPolicy.STRIP, semanticIds = listOf("forge.host.https"))
-}
-
-internal val schema_236d6f96ed0a17bc: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("native")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_236e9131b013f10b: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("begin")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -23,6 +15,10 @@ internal val schema_236f000609716d3a: RemoteSchema by lazy {
 
 internal val schema_23a1c447c059f0da: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("throughCursor", "version", "watchId"), properties = mapOf("throughCursor" to schema_56aa0e45cbdce0d0, "version" to schema_f8ba039a2f32fad1, "watchId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_23b45e35f743c6ce: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_9262f6553ee2010b, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_23e05d248383ea40: RemoteSchema by lazy {
@@ -119,6 +115,10 @@ internal val schema_2778fa8937ac1709: RemoteSchema by lazy {
 
 internal val schema_27790e6c4216ae5b: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("action", "id"), properties = mapOf("action" to schema_482c9282715722ac, "id" to schema_d855999aed5e6438), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_2784d64db2258376: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("batches", "completedTurns", "contextUsage", "kind", "runtimeResumeCursor", "snapshotSeq", "thread"), properties = mapOf("backgroundTasks" to schema_f5906c75b7204bd5, "batches" to schema_4a5ba059d38b8eac, "completedTurns" to schema_4c20b501501c0ba4, "completedTurnsNextCursor" to schema_df704162f3d15808, "contextUsage" to schema_e47ad2358cf0df53, "followUpQueue" to schema_91dcfb42aac98166, "kind" to schema_e1a91348d83820fb, "runtimeNotice" to schema_1468dfe9a2db9c9d, "runtimeResumeCursor" to schema_36fea325bf1aca70, "runtimeStateCurrent" to schema_feeb8bb50144d96d, "snapshotSeq" to schema_56aa0e45cbdce0d0, "thread" to schema_aae5723e41a44bb6), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_2798cb9d2dca7539: RemoteSchema by lazy {

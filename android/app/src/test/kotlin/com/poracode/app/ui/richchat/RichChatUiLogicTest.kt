@@ -11,6 +11,7 @@ import com.poracode.app.model.PosixProjectLocation
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.ThreadConfig
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
@@ -19,6 +20,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -207,6 +209,76 @@ class RichChatUiLogicTest {
             RichChatUiLogic.sessionActionOwnerKey(null),
         )
     }
+
+    @Test
+    fun missingBackgroundTaskReportIsDetectedDespiteTheTitle() {
+        val item = toolItem(
+            status = "error",
+            result = buildJsonObject {
+                put("error", "The task ended without a completion report.")
+            },
+        )
+        // The generic row text prefers the title, which would hide the error.
+        assertEquals("Agent", RichChatUiLogic.itemText(item))
+        assertTrue(RichChatUiLogic.backgroundTaskReportMissing(item))
+    }
+
+    @Test
+    fun unrelatedToolErrorStaysNormal() {
+        val item = toolItem(
+            status = "error",
+            result = buildJsonObject { put("error", "Provider-specific failure") },
+        )
+        assertFalse(RichChatUiLogic.backgroundTaskReportMissing(item))
+        assertEquals("Agent", RichChatUiLogic.itemText(item))
+    }
+
+    @Test
+    fun lateCompletionAndNullResultKeepTheNormalRowText() {
+        assertFalse(
+            RichChatUiLogic.backgroundTaskReportMissing(
+                toolItem(status = "success", result = JsonPrimitive("done")),
+            ),
+        )
+        assertFalse(
+            RichChatUiLogic.backgroundTaskReportMissing(
+                toolItem(status = "success", result = JsonNull),
+            ),
+        )
+        assertFalse(
+            RichChatUiLogic.backgroundTaskReportMissing(
+                toolItem(status = "error", result = JsonNull),
+            ),
+        )
+    }
+
+    @Test
+    fun partialOutputKeepsTheRawResultBehavior() {
+        val item = toolItem(
+            status = "error",
+            result = buildJsonObject {
+                put("error", "The task ended without a completion report.")
+                put("output", "Partial work")
+            },
+        )
+        assertFalse("an actual output result is never replaced", RichChatUiLogic.backgroundTaskReportMissing(item))
+        assertEquals("Agent", RichChatUiLogic.itemText(item))
+    }
+
+    private fun toolItem(
+        status: String,
+        result: kotlinx.serialization.json.JsonElement = JsonNull,
+    ) = RichRuntimeItem(
+        id = "tool-report-missing",
+        type = RichItemTypes.TOOL_CALL,
+        state = RichItemState.COMPLETED,
+        payload = buildJsonObject {
+            put("title", "Agent")
+            put("name", "Agent")
+            put("status", status)
+            put("result", result)
+        },
+    )
 
     private fun goal(objective: String, status: String, actions: List<String>) = RichRuntimeItem(
         id = "goal-$objective",

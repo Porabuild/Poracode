@@ -218,7 +218,9 @@ internal fun buildSessionControllerGraph(
             sinks.richChatEventSink?.invoke(sequence, event)
         },
         applyGitInterests = { live.webSocket?.setGitInterests(it) },
-        onReplaySideEffects = { outcome -> sinks.replaySideEffectSink?.invoke(outcome) },
+        onReplaySideEffects = { outcome, sequence ->
+            sinks.replaySideEffectSink?.invoke(outcome, sequence)
+        },
         heavyReviewTarget = { sinks.heavyReviewTargetSupplier?.invoke() },
         presentRemoteNotification = { notification, replay ->
             notificationBridge.receive(notification, replay, state(), lifecycleGate.isForeground)

@@ -10,7 +10,8 @@ import kotlinx.serialization.json.doubleOrNull
 
 /**
  * Decodes the `background_tasks.changed` task list, including the optional
- * timing, progress and opaque Stop descriptor. Every entry must pass
+ * timing, progress, category/command metadata and opaque Stop/Output
+ * descriptors. Every entry must pass
  * [RuntimeEventValidators.validateBackgroundTask]; one invalid entry rejects
  * the whole list, so the caller drops the event (Zod parity).
  */
@@ -25,11 +26,14 @@ internal object RuntimeBackgroundTaskDecoder {
             startedAt = (obj["startedAt"] as? JsonPrimitive)?.doubleOrNull,
             lastProgressAt = (obj["lastProgressAt"] as? JsonPrimitive)?.doubleOrNull,
             progress = obj.strictString("progress"),
-            stopAction = (obj["stopAction"] as? JsonObject)?.let(::decodeStopAction),
+            stopAction = (obj["stopAction"] as? JsonObject)?.let(::decodeTaskAction),
+            category = obj.strictString("category"),
+            command = obj.strictString("command"),
+            outputAction = (obj["outputAction"] as? JsonObject)?.let(::decodeTaskAction),
         )
     }
 
-    private fun decodeStopAction(action: JsonObject) = RemoteBackgroundTaskStopAction(
+    private fun decodeTaskAction(action: JsonObject) = RemoteBackgroundTaskStopAction(
         action.strictString("id")!!,
         (action["payload"] as JsonObject).mapValues { (_, value) -> (value as JsonPrimitive).content },
     )

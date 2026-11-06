@@ -237,4 +237,23 @@
     <string name="rich_chat_fork_name">Tên cuộc trò chuyện</string>
     <string name="rich_chat_fork_boundary">Lịch sử kế thừa kết thúc tại đây</string>
     <string name="rich_chat_fork_source">Tạo nhánh từ %1$s</string>
+    <string name="rich_chat_background_tasks">Tác vụ nền</string>
+    <string name="rich_chat_background_task">Tác vụ nền</string>
+    <string name="rich_chat_background_task_monitor">Giám sát</string>
+    <string name="rich_chat_background_task_tool">Công cụ</string>
+    <string name="rich_chat_background_task_agent">Tác nhân</string>
+    <string name="rich_chat_background_task_other">Khác</string>
+    <string name="rich_chat_background_task_output">Đầu ra nhiệm vụ</string>
+    <string name="rich_chat_background_task_output_unavailable">Đầu ra không khả dụng cho tác vụ này.</string>
+    <string name="rich_chat_background_task_output_read_failed">Không thể đọc đầu ra của tác vụ nền.</string>
+    <string name="rich_chat_background_task_output_loading">Đang tải đầu ra…</string>
+    <string name="rich_chat_background_task_no_output">Chưa có đầu ra</string>
+    <string name="rich_chat_background_task_output_truncated">Chỉ hiển thị phần cuối của đầu ra (%1$s byte).</string>
+    <string name="rich_chat_background_task_stop">Dừng tác vụ</string>
+    <string name="rich_chat_background_task_stopping">Đang dừng tác vụ…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">Tác vụ chưa xác nhận đã dừng. Hãy thử lại.</string>
+    <string name="rich_chat_background_task_running_for">Đã chạy được %1$s</string>
+    <string name="rich_chat_background_task_last_progress">Tiến độ gần nhất cách đây %1$s</string>
+    <string name="rich_chat_background_task_close">Đóng chi tiết tác vụ</string>
+    <string name="rich_chat_background_task_report_missing">Tác vụ đã kết thúc mà không có báo cáo hoàn thành.</string>
 </resources>

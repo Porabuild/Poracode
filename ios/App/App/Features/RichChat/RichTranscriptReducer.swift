@@ -89,6 +89,12 @@ enum RichRuntimeEvent: Sendable, Equatable {
   )
   case runtimeTruncated(threadID: String, itemID: String, removedCompletedTurnAnchors: [String])
   case contextUpdated(threadID: String, usage: RichContextUsage)
+  /// Authoritative live background-work roster. Metadata only: it is stored
+  /// beside `RichTranscriptState`, never inside it, so task progress cannot
+  /// invalidate the timeline projection.
+  case backgroundTasksChanged(threadID: String, tasks: [RemoteBackgroundTaskIdentity])
+  /// `session.exited` drains the session-scoped background roster.
+  case sessionExited(threadID: String)
   /// Strictly decoded and sequence-consumed, but deliberately payload-free: the
   /// desktop host usage ledger owns accounting and no native surface reports it.
   case usageSpent(threadID: String)
@@ -103,7 +109,7 @@ enum RichRuntimeEvent: Sendable, Equatable {
       .itemCompleted(let id, _, _), .contentDelta(let id, _, _, _, _),
       .requestOpened(let id, _, _, _), .requestResolved(let id, _, _),
       .contextUpdated(let id, _), .runtimeTruncated(let id, _, _), .usageSpent(let id),
-      .warning(let id):
+      .backgroundTasksChanged(let id, _), .sessionExited(let id), .warning(let id):
       id
     }
   }
@@ -197,6 +203,16 @@ enum RichRuntimeEventDecoder {
     case "context.updated":
       guard let usage = RichContextUsage.decode(object["usage"]) else { break }
       return .contextUpdated(threadID: threadID, usage: usage)
+    case "background_tasks.changed":
+      // Reuse the protocol's strict `backgroundTaskSchema` parser exactly once;
+      // the rich-chat bridge only changes the JSON container type.
+      guard let rawTasks = object["tasks"]?.jsonValue,
+        let tasks = RuntimeEventDecoder.decodeBackgroundTasks(rawTasks)
+      else { break }
+      return .backgroundTasksChanged(threadID: threadID, tasks: tasks)
+    case "session.exited":
+      if let reason = object["reason"], reason.stringValue == nil { break }
+      return .sessionExited(threadID: threadID)
     case "usage.spent":
       guard isValidUsageSpent(object["usage"]) else { break }
       return .usageSpent(threadID: threadID)
@@ -334,10 +350,11 @@ struct RichTranscriptState: Sendable, Equatable {
         itemsByID.removeValue(forKey: removedID)
       }
       orderedItemIDs = Array(orderedItemIDs.prefix(index + 1))
-    case .contextUpdated, .usageSpent, .warning:
-      // No item/transcript mutation by design. Context occupancy is thread-domain
-      // state owned by the transcript controller; `usage.spent` belongs to the
-      // desktop ledger and `warning` never synthesizes a transcript row.
+    case .contextUpdated, .usageSpent, .warning, .backgroundTasksChanged, .sessionExited:
+      // No item/transcript mutation by design. Context occupancy and the live
+      // background roster are thread-domain state owned by the transcript
+      // controller; `usage.spent` belongs to the desktop ledger and `warning`
+      // never synthesizes a transcript row.
       break
     }
   }

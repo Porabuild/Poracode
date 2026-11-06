@@ -1,6 +1,18 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_9e8cac9740f0f3da = RemoteSchema(type: "object", required: Set(["agents", "version"]), properties: ["agents": RemoteSchemas.schema_8e2e8bbf081abcf9, "version": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_9ea58f9bfc61ade7 = RemoteSchema(type: "string", literals: [.string("light"), .string("dark"), .string("system")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_9eaa25e68d8e4cf4 = RemoteSchema(type: "object", required: Set(["threadId", "type", "version", "watchId"]), properties: ["threadId": RemoteSchemas.schema_97d85a5eaee82b97, "type": RemoteSchemas.schema_9f6b436502c63c75, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a, "watchId": RemoteSchemas.schema_8e43cad70cd70de7], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_9ec272a8244847ff = RemoteSchema(type: "object", required: Set(["key", "label"]), properties: ["key": RemoteSchemas.schema_bf0b727f7b1c6d07, "label": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -434,16 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_b305c5dcc2d06cc2 = RemoteSchema(type: "string", pattern: "^gemini:.+", unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_b313ad72a5d78585 = RemoteSchema(type: "object", required: Set(["resourceUri", "sessionId", "toolName", "version"]), properties: ["resourceUri": RemoteSchemas.schema_1d58a09e28f725df, "sessionId": RemoteSchemas.schema_d855999aed5e6438, "toolName": RemoteSchemas.schema_97d85a5eaee82b97, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_b3517b8a1d6beda1 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_42c253d083310cb9, RemoteSchemas.schema_c0d749f1bf59ff1e], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_b3ef93117a9f9f95 = RemoteSchema(type: "string", literals: [.string("portrait"), .string("landscape_left"), .string("portrait_upside_down"), .string("landscape_right")], unknownPolicy: .strip)
 }

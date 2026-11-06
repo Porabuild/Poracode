@@ -112,6 +112,56 @@ enum RichChatStrings {
   static let clearGoal = value("rich_chat_clear_goal", "Clear goal")
   static let save = value("rich_chat_save", "Save")
   static let pendingSteer = value("rich_chat_pending_steer", "Pending steer")
+
+  static let backgroundTasks = value("rich_chat_background_tasks", "Background tasks")
+  static let backgroundTask = value("rich_chat_background_task", "Background task")
+  static let backgroundTaskMonitor = value("rich_chat_background_task_monitor", "Monitor")
+  static let backgroundTaskAgent = value("rich_chat_background_task_agent", "Agent")
+  static let backgroundTaskWorkflow = value("rich_chat_background_task_workflow", "Workflow")
+  static let backgroundTaskOther = value("rich_chat_background_task_other", "Other")
+  static let backgroundTaskOutput = value("rich_chat_background_task_output", "Task output")
+  static let backgroundTaskOutputLoading = value(
+    "rich_chat_background_task_output_loading", "Loading output…"
+  )
+  static let backgroundTaskOutputEmpty = value(
+    "rich_chat_background_task_output_empty", "No output yet"
+  )
+  static let backgroundTaskOutputUnavailable = value(
+    "rich_chat_background_task_output_unavailable", "Output isn’t available for this task."
+  )
+  static let backgroundTaskOutputFailed = value(
+    "rich_chat_background_task_output_failed", "Background task output could not be read."
+  )
+  static let backgroundTaskReportMissing = value(
+    "rich_chat_background_task_report_missing",
+    "The task ended without a completion report."
+  )
+  static let backgroundTaskStop = value("rich_chat_background_task_stop", "Stop task")
+  static let backgroundTaskStopping = value(
+    "rich_chat_background_task_stopping", "Stopping task…"
+  )
+
+  static func backgroundTaskRunningFor(_ elapsed: String) -> String {
+    String(format: value("rich_chat_background_task_running_for", "Running for %@"), elapsed)
+  }
+
+  static func backgroundTaskLastProgress(_ elapsed: String) -> String {
+    String(
+      format: value("rich_chat_background_task_last_progress", "Last progress %@ ago"),
+      elapsed
+    )
+  }
+
+  static func backgroundTaskOutputTruncated(_ bytes: String) -> String {
+    String(
+      format: value(
+        "rich_chat_background_task_output_truncated",
+        "Only the end of the output is shown (%@ bytes)."
+      ),
+      bytes
+    )
+  }
+
   static let plan = messageActionValue("rich.plan", "Plan")
   static let errors = messageActionValue("rich.errors", "Errors")
   static func activityCount(_ count: Int) -> String {

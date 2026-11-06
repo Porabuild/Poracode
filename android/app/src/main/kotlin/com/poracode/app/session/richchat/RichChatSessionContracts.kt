@@ -7,6 +7,7 @@ import com.poracode.app.chat.RichThreadState
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.protocol.BackgroundTask
 import com.poracode.app.transport.richchat.AttachmentUploadBody
 import com.poracode.app.transport.richchat.BinaryRequestPlan
 import com.poracode.app.transport.richchat.RequestResolution
@@ -119,6 +120,19 @@ data class RichChatHistorySnapshot(
     val updatedAt: String,
     /** B1 declared-read notice; null when the wire omitted it, never a clear. */
     val runtimeNotice: com.poracode.app.model.RemoteRuntimeHistoryNotice? = null,
+    /**
+     * True when the wire snapshot carried an explicit `backgroundTasks` array.
+     * Absent means an old host (or a host that omitted the field): the install
+     * preserves the retained same-owner level. An explicit valid array —
+     * including [] — is authoritative and drains when empty.
+     */
+    val backgroundTasksPresent: Boolean = false,
+    /**
+     * Authoritative live background work from the snapshot. Null when
+     * [backgroundTasksPresent] is false; an empty list is a present drain, not
+     * an omission.
+     */
+    val backgroundTasks: List<BackgroundTask>? = null,
 )
 
 data class RichChatHistoryPage(

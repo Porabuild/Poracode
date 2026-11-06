@@ -13,10 +13,6 @@ internal val schema_003a95dd16c24c10: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("true"), JsonPrimitive("false")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_00675d64d428c3d1: RemoteSchema by lazy {
-    RemoteSchema(type = "array", items = schema_7dce940bfe881c07, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_00876431431924e0: RemoteSchema by lazy {
     RemoteSchema(type = "string", minLength = 1, maxLength = 1024, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -105,10 +101,6 @@ internal val schema_034741cb26a53fe4: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("remove")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_0383e88b847628a1: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("events"), properties = mapOf("events" to schema_f4812bd0938d0d6b), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_039b848cf1c1ad6c: RemoteSchema by lazy {
     RemoteSchema(type = "integer", defaultValue = JsonPrimitive(50), minimum = 1.0, maximum = 200.0, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -179,10 +171,6 @@ internal val schema_05ab37f667d37cfc: RemoteSchema by lazy {
 
 internal val schema_05af39c3e918ff5a: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("categories", "categorizedTokens", "estimatedSamples", "estimatedTokens", "estimatedUsd", "observed", "observedSamples", "observedTokens", "tokens", "unpricedTokens"), properties = mapOf("categories" to schema_e70be7a06d8baea6, "categorizedTokens" to schema_56aa0e45cbdce0d0, "estimatedSamples" to schema_56aa0e45cbdce0d0, "estimatedTokens" to schema_56aa0e45cbdce0d0, "estimatedUsd" to schema_f696f11685898ba7, "observed" to schema_c8ef822f0af9edc7, "observedSamples" to schema_56aa0e45cbdce0d0, "observedTokens" to schema_56aa0e45cbdce0d0, "tokens" to schema_56aa0e45cbdce0d0, "unpricedTokens" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_05ebb47168bbfc58: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("history"), properties = mapOf("history" to schema_f4812bd0938d0d6b), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_05feb7407cd8c42f: RemoteSchema by lazy {
@@ -337,6 +325,10 @@ internal val schema_0bd7710eac491f27: RemoteSchema by lazy {
     RemoteSchema(type = "object", properties = mapOf("core" to schema_bf0b727f7b1c6d07, "details" to schema_bf0b727f7b1c6d07, "diff" to schema_bf0b727f7b1c6d07, "files" to schema_bf0b727f7b1c6d07, "reviewThreads" to schema_bf0b727f7b1c6d07), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_0c44cc7b9e1a20e7: RemoteSchema by lazy {
+    RemoteSchema(unionKind = "oneOf", options = listOf(schema_34a31438349deb0f, schema_2784d64db2258376), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_0c5d3d75e4ff2cec: RemoteSchema by lazy {
     RemoteSchema(type = "string", minLength = 1, maxLength = 100, unknownPolicy = RemoteUnknownFieldPolicy.STRIP, semanticIds = listOf("string.trim"), transformIds = listOf("string.trim"))
 }
@@ -447,4 +439,12 @@ internal val schema_114549e732be9b99: RemoteSchema by lazy {
 
 internal val schema_115555b2d2065a65: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("completed"), JsonPrimitive("failed"), JsonPrimitive("interrupted"), JsonPrimitive("cancelled")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_118f67a0fa6bb27d: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("skills-sh"), JsonPrimitive("skills-directory")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_11ada4e73a793b0d: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("pending"), JsonPrimitive("completed"), JsonPrimitive("failed"), JsonPrimitive("ambiguous"), JsonPrimitive("skipped_no_turns"), JsonPrimitive("skipped_missing_checkpoint")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

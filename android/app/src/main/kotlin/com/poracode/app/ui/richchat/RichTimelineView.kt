@@ -306,7 +306,12 @@ private fun RichTimelineItem(
     revertableItemIds: Set<String>,
     onRevertItem: (String) -> Unit,
 ) {
-    val text = RichChatUiLogic.itemText(item)
+    val missingReportText = stringResource(R.string.rich_chat_background_task_report_missing)
+    val text = if (RichChatUiLogic.backgroundTaskReportMissing(item)) {
+        missingReportText
+    } else {
+        RichChatUiLogic.itemText(item)
+    }
     val images = RichChatUiLogic.images(item)
     val label = itemTypeLabel(item.type)
     val description = stringResource(

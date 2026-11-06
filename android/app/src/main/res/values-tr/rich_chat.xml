@@ -237,4 +237,23 @@
     <string name="rich_chat_fork_name">Konuşma adı</string>
     <string name="rich_chat_fork_boundary">Devralınan geçmiş burada sona eriyor</string>
     <string name="rich_chat_fork_source">%1$s konuşmasından dallandırıldı</string>
+    <string name="rich_chat_background_tasks">Arka plan görevleri</string>
+    <string name="rich_chat_background_task">Arka plan görevi</string>
+    <string name="rich_chat_background_task_monitor">İzleyici</string>
+    <string name="rich_chat_background_task_tool">Araç</string>
+    <string name="rich_chat_background_task_agent">Temsilci</string>
+    <string name="rich_chat_background_task_other">Diğer</string>
+    <string name="rich_chat_background_task_output">Görev çıkışı</string>
+    <string name="rich_chat_background_task_output_unavailable">Bu görev için çıktı kullanılamıyor.</string>
+    <string name="rich_chat_background_task_output_read_failed">Arka plan görevinin çıktısı okunamadı.</string>
+    <string name="rich_chat_background_task_output_loading">Çıktı yükleniyor…</string>
+    <string name="rich_chat_background_task_no_output">Henüz çıktı yok</string>
+    <string name="rich_chat_background_task_output_truncated">Çıktının yalnızca sonu gösteriliyor (%1$s bayt).</string>
+    <string name="rich_chat_background_task_stop">Görevi durdur</string>
+    <string name="rich_chat_background_task_stopping">Görev durduruluyor…</string>
+    <string name="rich_chat_background_task_stop_unconfirmed">Görev durduğunu henüz doğrulamadı. Tekrar deneyin.</string>
+    <string name="rich_chat_background_task_running_for">%1$s süredir çalışıyor</string>
+    <string name="rich_chat_background_task_last_progress">Son ilerleme %1$s önce</string>
+    <string name="rich_chat_background_task_close">Görev ayrıntılarını kapat</string>
+    <string name="rich_chat_background_task_report_missing">Görev, tamamlanma raporu olmadan sona erdi.</string>
 </resources>

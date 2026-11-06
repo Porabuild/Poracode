@@ -1677,6 +1677,7 @@ msgstr "Özel bir temel URL duyurun, örn. bir ters proxy veya tünel. Otomatik 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Agent"
 msgstr "Temsilci"
@@ -2715,6 +2716,10 @@ msgstr "Arka plan işlemi yeniden başlatıldı"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Background task"
 msgstr "Arka plan görevi"
+
+#: src/renderer/components/thread/useThreadBackgroundTaskOutput.ts
+msgid "Background task output could not be read."
+msgstr "Arka plan görevinin çıktısı okunamadı."
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
@@ -4431,6 +4436,7 @@ msgstr "{name} ile birleştir ({machines})"
 #~ msgstr "Virgülle ayrılmış sahip/ad girdileri, örneğin acme/website, acme/api. Liste Devin'e girildiği gibi gönderilir."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Command"
 msgstr "Komut"
 
@@ -10822,6 +10828,10 @@ msgstr "Model yükleniyor…"
 msgid "Loading notes…"
 msgstr "Notlar yükleniyor…"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Loading output…"
+msgstr "Çıktı yükleniyor…"
+
 #: src/renderer/components/pdf/PdfViewer.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 #~ msgid "Loading PDF…"
@@ -11914,6 +11924,10 @@ msgstr "Modlar"
 msgid "Modified"
 msgstr "Değiştirildi"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Monitor"
+msgstr "İzleyici"
+
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Monitoring"
 msgstr "İzleme"
@@ -12911,6 +12925,10 @@ msgstr "Hiçbir model bulunamadı"
 msgid "No other agents installed"
 msgstr "Başka aracı yüklü değil"
 
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "No output yet"
+msgstr "Henüz çıktı yok"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "No package plugins installed."
 msgstr "Yüklü eklenti paketi yok."
@@ -12958,8 +12976,8 @@ msgid "No profile with its own isolated login exists yet. Set a profile to \"Own
 msgstr "Henüz kendi yalıtılmış girişine sahip bir profil yok. Önce bir profili \"Kendi yalıtılmış girişi\" olarak ayarlayın ve orada oturum açın; ardından burada görünür."
 
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
-msgid "No progress reported"
-msgstr "İlerleme bildirilmedi"
+#~ msgid "No progress reported"
+#~ msgstr "İlerleme bildirilmedi"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -13427,6 +13445,11 @@ msgstr "Tek kullanımlık eşleştirme belirteci"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Çevrimiçi"
+
+#. placeholder {0}: state.totalBytes.toLocaleString()
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Only the end of the output is shown ({0} bytes)."
+msgstr "Çıktının yalnızca sonu gösteriliyor ({0} bayt)."
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -13988,6 +14011,7 @@ msgstr "Kuruluş (isteğe bağlı)"
 
 #: src/renderer/components/plugins/pluginCategories.ts
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 msgid "Other"
@@ -14031,6 +14055,10 @@ msgstr "Outlook"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Output"
 msgstr "Çıktı"
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Output isn’t available for this task."
+msgstr "Bu görev için çıktı kullanılamıyor."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Over pace — runs out early"
@@ -16758,6 +16786,7 @@ msgstr "Yalnızca bu sunucuda saklanan kullanım."
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 #: src/renderer/components/thread/ThreadHistoryLoadFailureDock.tsx
 #: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
@@ -19818,6 +19847,7 @@ msgid "Task Notification"
 msgstr "Görev bildirimi"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Task output"
 msgstr "Görev çıkışı"
 
@@ -20629,6 +20659,10 @@ msgstr "Alt aracı ayarları Codex 0.145 veya daha yenisini gerektirir. Codex g�
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "hedef sağlayıcı"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The task ended without a completion report."
+msgstr "Görev, tamamlanma raporu olmadan sona erdi."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The task has not confirmed that it stopped. Try again."
@@ -21512,6 +21546,10 @@ msgstr "Devam eden çok fazla uzak istek var. Birazdan yeniden deneyin."
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Too many visuals in this message. Showing source only."
 msgstr "Bu mesajda çok fazla görsel var. Yalnızca kaynak gösteriliyor."
+
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
+msgid "Tool"
+msgstr "Araç"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Tool restrictions cannot be imported"
@@ -23456,6 +23494,7 @@ msgid "Worked for {elapsed}"
 msgstr "{elapsed} boyunca çalıştı"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Workflow"
 msgstr "İş akışı"
 

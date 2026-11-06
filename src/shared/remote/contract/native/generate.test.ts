@@ -90,9 +90,11 @@ describe("remote v3 native binding generator", () => {
         // Host-owned Hex voice transcription adds one typed procedure and schema roots.
         // The optional mediaFileRequest `disposition` attachment literal moves the source hash.
         // Background PR polling adds one read procedure and its typed status result.
+        // Additive background-task category/command display metadata adds one
+        // structural enum and moves the source hash without changing wire versions.
         // Host agent management adds four desktop procedures and their request/result roots;
         // registry listing is an operate-scoped long mutation because it can install/update agents.
-        sourceHash: "sha256:e97b3d29bd03a7c3c1d962723c96f4f361164b14e4fc8a2295e0ec13c496ebee",
+        sourceHash: "sha256:e7ede5602a1b2e0b8db0f907c4c09a8b616d4fef9589861301f66ee78853582e",
         manifestHash: "sha256:9cccf46ae266918a71b1e307b9479046760bfbf0aa96ac952a335b1858a6693f",
         counts: {
           routes: 119,
@@ -103,7 +105,7 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 560,
-          structuralTypes: 1309,
+          structuralTypes: 1310,
           semanticValidators: 25,
           swiftFiles: 79,
           kotlinFiles: 69,

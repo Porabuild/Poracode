@@ -1,5 +1,6 @@
 import { REMOTE_PROCEDURE_RESULT_FIXTURES } from "../../../src/shared/remote/contract/goldens/procedureFixtures.ts";
 import type { RemoteProcedureName } from "../../../src/shared/remote/procedures.ts";
+import type { BackgroundTaskLab } from "./backgroundTaskLab.ts";
 import { loadGeneratedContract } from "./generatedContract.ts";
 import { FIXTURE_PROJECT_ID, FIXTURE_THREAD_ID } from "./labFixtures.ts";
 import { schemaExample } from "./schemaExamples.ts";
@@ -117,6 +118,9 @@ export class LabProcedureWorkspace {
   private checkpointCreated = false;
   private readonly pendingFollowUps = new Set<ConfiguredProcedureName>();
 
+  /** The shared background-task fixture backs the roster/action procedures. */
+  constructor(private readonly backgroundTasks?: BackgroundTaskLab) {}
+
   reset(): void {
     this.fileContent = "# hi";
     this.projectEntries.clear();
@@ -129,6 +133,18 @@ export class LabProcedureWorkspace {
   invoke(name: ConfiguredProcedureName, payload: unknown): unknown {
     const body = payload as Record<string, unknown>;
     switch (name) {
+      case "listThreadSessionActions":
+        return this.backgroundTasks
+          ? { actions: this.backgroundTasks.actions() }
+          : REMOTE_PROCEDURE_RESULT_FIXTURES.listThreadSessionActions;
+      case "invokeThreadSessionAction":
+        return this.backgroundTasks
+          ? this.backgroundTasks.invoke(body)
+          : REMOTE_PROCEDURE_RESULT_FIXTURES.invokeThreadSessionAction;
+      case "readThreadBackgroundTasks":
+        return this.backgroundTasks
+          ? this.backgroundTasks.list()
+          : REMOTE_PROCEDURE_RESULT_FIXTURES.readThreadBackgroundTasks;
       case "writeProjectFile":
         this.pendingFollowUps.add(name);
         this.fileContent = String(body.content);

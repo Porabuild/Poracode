@@ -1,3 +1,4 @@
+import { BACKGROUND_TASK_STAGES, type BackgroundTaskStage } from "./backgroundTaskLab.ts";
 import { isFaultFixtureId } from "./controlFixtures.ts";
 import { LabHttpError } from "./labAuth.ts";
 import { parseOperationKey } from "./coverageTypes.ts";
@@ -16,6 +17,8 @@ const OBSERVABLE_CLIENT_OPERATIONS = [
 ] as const;
 
 const MAX_TIMEOUT_MS = 120_000;
+/** A delayed output reply must stay short enough for a device journey bound. */
+const MAX_OUTPUT_DELAY_MS = 5_000;
 
 export function parseScenarioAction(value: unknown): ScenarioAction {
   if (!isRecord(value) || typeof value.type !== "string") invalidAction();
@@ -54,6 +57,24 @@ export function parseScenarioAction(value: unknown): ScenarioAction {
       return { type: value.type, fixtureId: value.fixtureId, ...(requestId ? { requestId } : {}) };
     case "clear-faults":
       return { type: value.type, ...(requestId ? { requestId } : {}) };
+    case "background-task-stage":
+      if (
+        typeof value.stage !== "string" ||
+        !(BACKGROUND_TASK_STAGES as readonly string[]).includes(value.stage)
+      ) {
+        invalidAction();
+      }
+      return {
+        type: value.type,
+        stage: value.stage as BackgroundTaskStage,
+        ...(requestId ? { requestId } : {}),
+      };
+    case "background-task-output-delay":
+      return {
+        type: value.type,
+        delayMs: boundedDelay(value.delayMs),
+        ...(requestId ? { requestId } : {}),
+      };
     case "await": {
       const condition = parseCondition(value.condition);
       const timeoutMs =
@@ -125,6 +146,12 @@ function positiveInteger(value: unknown, allowZero = false): number {
     invalidAction();
   }
   return value;
+}
+
+function boundedDelay(value: unknown): number {
+  const delay = positiveInteger(value);
+  if (delay > MAX_OUTPUT_DELAY_MS) invalidAction();
+  return delay;
 }
 
 function optionalRequestId(value: unknown): string | undefined {

@@ -1,5 +1,30 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D6_c55a346c73: Codable, Sendable, RemoteModelMetadata {
+  public var itemId: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
+  public var payload: RemoteJSONValue
+  public var threadId: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
+  public var typeValue: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D6U2DType_9189c3f251
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "itemId", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "payload", typeName: "RemoteJSONValue", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "threadId", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "type", typeName: "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D6U2DType_9189c3f251", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case itemId = "itemId"
+    case payload = "payload"
+    case threadId = "threadId"
+    case typeValue = "type"
+  }
+}
+
+public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D7U2DType_ab52710489: String, Codable, Sendable {
+  case `itemU2ECompleted` = "item.completed"
+}
+
 public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D7_1371f7bedc: Codable, Sendable, RemoteModelMetadata {
   public var itemId: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b
   public var payload: RemoteField<RemoteJSONValue> = .missing
@@ -118,7 +143,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9_cdd
   }
 }
 
-public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba: Codable, Sendable {
+public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e: Codable, Sendable {
   case option1(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D1_2778fa8937)
   case option2(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D2_66846085f3)
   case option3(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D3_4244283735)
@@ -129,7 +154,7 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba: Codabl
   case option8(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_996ce1c4e0)
   case option9(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9_cdd89e732d)
   case option10(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10_baf4f355dd)
-  case option11(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D11_7bc7b4d15b)
+  case option11(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D11_7cccbb4b01)
   case option12(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D12_15179deb98)
   case option13(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D13_e011332682)
   case option14(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D14_2a107f95a9)
@@ -137,7 +162,7 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba: Codabl
   case option16(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D16_d42bf49d95)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba)] = []
+    var matches: [(Int, ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("session.started")]), let value = try? container.decode(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D1_2778fa8937.self) {
       matches.append((1, .option1(value)))
     }
@@ -168,7 +193,7 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba: Codabl
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("usage.spent")]), let value = try? container.decode(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10_baf4f355dd.self) {
       matches.append((10, .option10(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("background_tasks.changed")]), let value = try? container.decode(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D11_7bc7b4d15b.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("background_tasks.changed")]), let value = try? container.decode(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D11_7cccbb4b01.self) {
       matches.append((11, .option11(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("request.opened")]), let value = try? container.decode(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D12_15179deb98.self) {
@@ -187,8 +212,8 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba: Codabl
       matches.append((16, .option16(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba" : "Ambiguous union ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e" : "Ambiguous union ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }
@@ -215,11 +240,11 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba: Codabl
   }
 }
 
-public struct ProceduresubagentSubscribeResult_05ebb47168: Codable, Sendable, RemoteModelMetadata {
-  public var history: [ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba]
+public struct ProceduresubagentSubscribeResult_d4ae5f8c2b: Codable, Sendable, RemoteModelMetadata {
+  public var history: [ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "history", typeName: "[ProceduresubagentSubscribeResultU2DHistoryU2DItem_1d3e5368ba]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "history", typeName: "[ProceduresubagentSubscribeResultU2DHistoryU2DItem_9262f6553e]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
@@ -406,37 +431,4 @@ public enum ProcedureupdateAgentBinaryResultU2DStrategy_b82b9e494d: String, Coda
   case `winget` = "winget"
   case `installer` = "installer"
   case `unsupported` = "unsupported"
-}
-
-public struct ProcedureupdateAgentBinaryResult_0d863fe350: Codable, Sendable, RemoteModelMetadata {
-  public var ok: Bool
-  public var output: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
-  public var strategy: RemoteField<ProcedureupdateAgentBinaryResultU2DStrategy_b82b9e494d> = .missing
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "ok", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "output", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "strategy", typeName: "ProcedureupdateAgentBinaryResultU2DStrategy_b82b9e494d", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case ok = "ok"
-    case output = "output"
-    case strategy = "strategy"
-  }
-}
-
-public struct ProcedurewaitMcpServerOauthRequest_e9df8b4f3d: Codable, Sendable, RemoteModelMetadata {
-  public var flowId: String
-  public var projectLocation: RemoteField<ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154> = .missing
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "flowId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case flowId = "flowId"
-    case projectLocation = "projectLocation"
-  }
 }

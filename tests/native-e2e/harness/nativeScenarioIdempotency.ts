@@ -32,6 +32,10 @@ function canonicalAction(action: ScenarioAction): Record<string, unknown> {
       return { type: action.type, operationIds: sortedUniqueCodePoints(action.operationIds) };
     case "activate-fault":
       return { type: action.type, fixtureId: action.fixtureId };
+    case "background-task-stage":
+      return { type: action.type, stage: action.stage };
+    case "background-task-output-delay":
+      return { type: action.type, delayMs: action.delayMs };
     case "await":
       return {
         type: action.type,

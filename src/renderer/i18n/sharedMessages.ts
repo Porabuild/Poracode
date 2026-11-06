@@ -258,6 +258,9 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
   "thread.backgroundTaskStopUnconfirmed": msg({
     message: "The task has not confirmed that it stopped. Try again.",
   }),
+  "thread.backgroundTaskReportMissing": msg({
+    message: "The task ended without a completion report.",
+  }),
   "voice.unavailable": msg({ message: "Live voice is unavailable for this thread." }),
   "voice.alreadyConnected": msg({ message: "A voice conversation is already active." }),
   "voice.subscriptionRequired": msg({
