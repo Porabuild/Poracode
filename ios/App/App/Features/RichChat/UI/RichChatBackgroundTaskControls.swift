@@ -114,7 +114,6 @@ struct RichChatBackgroundTaskRow: View {
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
-    .accessibilityElement(children: .ignore)
     .accessibilityLabel(task.label)
     .accessibilityValue(accessibilityValue)
     .accessibilityIdentifier("background-task-open:\(task.id)")
