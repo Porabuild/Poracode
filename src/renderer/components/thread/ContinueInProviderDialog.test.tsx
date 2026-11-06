@@ -129,6 +129,8 @@ describe("ContinueInProviderDialog handoff flow", () => {
       hiddenModels: {},
       providerConfigs: {},
       providerModelPreferences: {},
+      disabledBuiltInMcpServers: {},
+      disabledBuiltInMcpTools: {},
     } as never);
     useAppStore.setState({
       runtimeItemIdsByThread: {},
@@ -509,7 +511,96 @@ describe("ContinueInProviderDialog handoff flow", () => {
     );
   });
 
-  it("keeps a paired host's chat thread on the context file: its read_thread settings are not this machine's", async () => {
+  it.each([
+    ["switch", false],
+    ["fork", false],
+    ["switch", true],
+    ["fork", true],
+  ] as const)(
+    "uses a paired host's readable history on %s with local read_thread disabled=%s",
+    async (intent, locallyDisabled) => {
+      useSharedSettings.setState({
+        disabledBuiltInMcpServers: locallyDisabled ? { "app-controls": true } : {},
+        disabledBuiltInMcpTools: locallyDisabled ? { "app-controls": ["read_thread"] } : {},
+      });
+      useAppStore.setState({
+        threadMentionToolsAvailableByThreadId: { [thread.id]: true },
+      } as never);
+      const onContinue = renderDialog({
+        thread: {
+          remoteServerId: "handoff-host",
+          remoteId: "host-thread",
+          sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+      });
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: intent === "switch" ? "Switch" : "Fork" }),
+      );
+
+      expect(bridge.extractContext).not.toHaveBeenCalled();
+      expect(onContinue).toHaveBeenCalledExactlyOnceWith(
+        "codex",
+        expect.anything(),
+        "gui",
+        "Continue where the previous provider left off.",
+        undefined,
+        intent,
+        { strategy: "thread-transcript" },
+      );
+    },
+  );
+
+  it.each(["server", "tool"] as const)(
+    "keeps the context fallback when the local host disables the read_thread %s",
+    async (disabled) => {
+      useSharedSettings.setState({
+        disabledBuiltInMcpServers: disabled === "server" ? { "app-controls": true } : {},
+        disabledBuiltInMcpTools: disabled === "tool" ? { "app-controls": ["read_thread"] } : {},
+      });
+      useAppStore.setState({
+        threadMentionToolsAvailableByThreadId: { [thread.id]: true },
+      } as never);
+      const onContinue = renderDialog({
+        thread: {
+          sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+      });
+
+      await pressSwitch();
+
+      expect(onContinue.mock.calls[0]?.[6].strategy).toBe("context-file");
+      expect(bridge.extractContext).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([false, undefined])(
+    "keeps the context fallback when a paired host reports read_thread availability as %s",
+    async (available) => {
+      // Older hosts omit this optional field; they retain the existing fallback.
+      useAppStore.setState({
+        threadMentionToolsAvailableByThreadId:
+          available === undefined ? {} : { [thread.id]: available },
+      } as never);
+      const onContinue = renderDialog({
+        thread: {
+          remoteServerId: "handoff-host",
+          remoteId: "host-thread",
+          sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+      });
+
+      await pressSwitch();
+
+      expect(onContinue.mock.calls[0]?.[6].strategy).toBe("context-file");
+      expect(bridge.extractContext).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("keeps the context fallback when the paired host's target has no MCP support", async () => {
     useAppStore.setState({
       threadMentionToolsAvailableByThreadId: { [thread.id]: true },
     } as never);
@@ -519,7 +610,10 @@ describe("ContinueInProviderDialog handoff flow", () => {
         remoteId: "host-thread",
         sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
       },
-      installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+      installedAgents: [
+        agent("claude", "Claude", "gui"),
+        agent("codex", "Codex", "gui", { mcpScope: { gui: "none" } }),
+      ],
     });
 
     await pressSwitch();

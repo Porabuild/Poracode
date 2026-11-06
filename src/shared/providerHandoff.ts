@@ -34,7 +34,8 @@ export interface ProviderHandoffStrategyInput {
   /**
    * The settings that decide the next launch's MCP snapshot leave the built-in
    * `read_thread` tool callable. Those belong to the host that launches the
-   * session; a caller that can only read another host's settings passes false.
+   * session. A paired client uses that host's resolved session availability
+   * when its current tool settings are not exposed to the client.
    */
   readThreadToolEnabled: boolean;
   /** The thread's last session actually resolved `read_thread` at launch. */
@@ -58,10 +59,11 @@ export interface ProviderHandoffStrategyInput {
  *   context has to travel with the prompt.
  *
  * The transcript route additionally needs `read_thread` to be reachable — per
- * the launching host's settings, which decide the next launch's MCP snapshot,
- * and per the thread's last session, which is the only evidence that the
- * built-in server actually resolves for it. When either says no, the handoff
- * falls back to a context file rather than starting the new provider blind.
+ * the launching host's settings when available (otherwise its resolved
+ * session availability), and per the thread's last session, which is the only
+ * evidence that the built-in server actually resolves for it. When either says
+ * no, the handoff falls back to a context file rather than starting the new
+ * provider blind.
  */
 export function resolveProviderHandoffStrategy(
   input: ProviderHandoffStrategyInput,
