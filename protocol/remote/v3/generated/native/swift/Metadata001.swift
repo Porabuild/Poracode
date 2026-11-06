@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:a9d5d4889436d9076f4914059b283257b6b8172a0301b0d95fe89d91c06e4dfe"
-  public static let manifestHash = "sha256:8eb11d30c196c7662189a1a771e4eab5fecebb2f746a20727f5e81a58e03babd"
+  public static let sourceHash = "sha256:c50fa5aa82cb58b039aa7d73a712da1b79dcc88a5e6192ae2643e8bee9e37f54"
+  public static let manifestHash = "sha256:ed403d7e8e9ec18aa837df221e292fd00c54d0dbd5353890c50dd33aee971ec7"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -281,6 +281,7 @@ public enum RemoteContractMetadata {
     .init(name: "readTerminalSize", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurereadTerminalSizeResult_2d2a48957e"),
     .init(name: "readTerminalSnapshot", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurereadTerminalSnapshotResult_b67f4828f0"),
     .init(name: "readThreadBackgroundTasks", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurereadThreadBackgroundTasksResult_f5906c75b7"),
+    .init(name: "refreshAgentStatuses", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedurerefreshAgentStatusesRequest_0cf7156720", resultType: "ProcedurerefreshAgentStatusesResult_e5e44e3ce8"),
     .init(name: "refreshProviderUsage", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProceduregetProviderUsageRequest_f2b9759b60", resultType: "ProceduregetProviderUsageResult_b0304b9d9d"),
     .init(name: "relocateProject", scope: "projects:manage", owner: "project", resultKind: "json", requestType: "ProcedurerelocateProjectRequest_51fc061b3e", resultType: "ProcedurerelocateProjectResult_c6ca4f58c0"),
     .init(name: "removeQueuedThreadFollowUp", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurepauseThreadFollowUpsRequest_d42717fff2", resultType: "RemoteUnit"),

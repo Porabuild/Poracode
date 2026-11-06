@@ -27,6 +27,7 @@ import {
   agentHookPluginPayloadSchema,
   getAgentHookPluginStatusesPayloadSchema,
   getAgentStatusesPayloadSchema,
+  agentStatusesResponseSchema,
   selectedAgentProbePayloadSchema,
   selectedAgentProbeResultSchema,
   getThreadFollowUpQueuePayloadSchema,
@@ -216,11 +217,16 @@ export const threadProcedures = {
     GetAgentStatusesPayload,
     AgentStatusesResponse,
     "supervisor"
-  >("refreshAgentStatuses", "supervisor", getAgentStatusesPayloadSchema, (wslDistros, scope) =>
-    getAgentStatusesPayloadSchema.parse({
-      wslDistros: wslDistros ?? [],
-      ...(scope ? { scope } : {}),
-    }),
+  >(
+    "refreshAgentStatuses",
+    "supervisor",
+    getAgentStatusesPayloadSchema,
+    (wslDistros, scope) =>
+      getAgentStatusesPayloadSchema.parse({
+        wslDistros: wslDistros ?? [],
+        ...(scope ? { scope } : {}),
+      }),
+    agentStatusesResponseSchema,
   ),
   getAgentHookPluginStatuses: definePayloadProcedure<
     GetAgentHookPluginStatusesPayload,

@@ -96,20 +96,20 @@ describe("remote v3 native binding generator", () => {
         // registry listing is an operate-scoped long mutation because it can install/update agents.
         // The additive remote-forge-activity broadcast event moves both authority
         // hashes and grows only the replayable-event count.
-        sourceHash: "sha256:a9d5d4889436d9076f4914059b283257b6b8172a0301b0d95fe89d91c06e4dfe",
-        manifestHash: "sha256:8eb11d30c196c7662189a1a771e4eab5fecebb2f746a20727f5e81a58e03babd",
+        sourceHash: "sha256:c50fa5aa82cb58b039aa7d73a712da1b79dcc88a5e6192ae2643e8bee9e37f54",
+        manifestHash: "sha256:ed403d7e8e9ec18aa837df221e292fd00c54d0dbd5353890c50dd33aee971ec7",
         counts: {
           routes: 119,
-          procedures: 171,
+          procedures: 172,
           voidProcedureResults: 64,
-          jsonProcedureResults: 107,
+          jsonProcedureResults: 108,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 560,
-          structuralTypes: 1310,
+          schemaRoots: 562,
+          structuralTypes: 1313,
           semanticValidators: 25,
-          swiftFiles: 79,
+          swiftFiles: 81,
           kotlinFiles: 69,
           stateMachines: 5,
         },
@@ -382,7 +382,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(560);
+        expect(adapters).toHaveLength(562);
         expect(
           adapters
             .map((adapter) => adapter.id)
