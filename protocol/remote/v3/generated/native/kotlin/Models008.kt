@@ -430,12 +430,16 @@ data class ProceduregetGitStatusResult_c1d4a9f752(
 }
 
 @Serializable
-data class ProceduregetMcpOauthStatusRequest_c51ef8291e(
-    @SerialName("projectLocation") val projectLocation: RemoteField<ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154> = RemoteField.Missing,
+data class ProceduregetLatestAgentVersionRequestU2DNpmPackage_cb6c8dab73(
+    @SerialName("maxExclusiveMajor") val maxExclusiveMajor: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("minVersion") val minVersion: RemoteField<String> = RemoteField.Missing,
+    @SerialName("name") val name: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("maxExclusiveMajor", "Long", false, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("minVersion", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("name", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

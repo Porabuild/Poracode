@@ -90,21 +90,23 @@ describe("remote v3 native binding generator", () => {
         // Host-owned Hex voice transcription adds one typed procedure and schema roots.
         // The optional mediaFileRequest `disposition` attachment literal moves the source hash.
         // Background PR polling adds one read procedure and its typed status result.
-        sourceHash: "sha256:a28648352642c1ad0f19617b072464b5030a90245a203586acd2989b3b7f6daf",
-        manifestHash: "sha256:112aff22c48994414f73d50d40f0b71e3e2df5ea094325b9affb02084fe5add6",
+        // Host agent management adds four desktop procedures and their request/result roots;
+        // registry listing is an operate-scoped long mutation because it can install/update agents.
+        sourceHash: "sha256:e97b3d29bd03a7c3c1d962723c96f4f361164b14e4fc8a2295e0ec13c496ebee",
+        manifestHash: "sha256:9cccf46ae266918a71b1e307b9479046760bfbf0aa96ac952a335b1858a6693f",
         counts: {
           routes: 119,
-          procedures: 167,
+          procedures: 171,
           voidProcedureResults: 64,
-          jsonProcedureResults: 103,
+          jsonProcedureResults: 107,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 552,
-          structuralTypes: 1286,
+          schemaRoots: 560,
+          structuralTypes: 1309,
           semanticValidators: 25,
-          swiftFiles: 78,
-          kotlinFiles: 68,
+          swiftFiles: 79,
+          kotlinFiles: 69,
           stateMachines: 5,
         },
       });
@@ -376,7 +378,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(552);
+        expect(adapters).toHaveLength(560);
         expect(
           adapters
             .map((adapter) => adapter.id)

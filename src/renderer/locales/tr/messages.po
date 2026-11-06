@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "{0} model"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0} kimlik doğrulaması gerektiriyor."
 
@@ -595,8 +597,8 @@ msgstr "{days} gün önce"
 #~ msgstr "{downloadSize} MB indirme"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel} kimlik doğrulaması gerektiriyor."
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel} kimlik doğrulaması gerektiriyor."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "{label} kullanımı — kullanım panelini aç"
 #~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel} {env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel} {env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1676,7 +1678,6 @@ msgstr "Özel bir temel URL duyurun, örn. bir ters proxy veya tünel. Otomatik 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Temsilci"
 
@@ -4608,8 +4609,8 @@ msgstr "Bu konunun çalıştırılabilmesi için {0} oturum açma işlemini tama
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "{env} için {0} oturum açma işlemini tamamlayın."
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "{env} için {0} oturum açma işlemini tamamlayın."
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6102,7 +6103,6 @@ msgstr "Kalıcı oturumlar, akıl yürütme ayarları ve MCP araçlarıyla DeepS
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -9869,8 +9869,8 @@ msgstr "Kur · {engineSize} MB"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "{env} için {0} yükleyin."
+#~ msgid "Install {0} for {env}."
+#~ msgstr "{env} için {0} yükleyin."
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9921,6 +9921,10 @@ msgstr "Yerel OpenCode eklentilerini yükleyin ve yönetin."
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "Yükle ve yeniden başlat"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "Uzak makinelerde kurulum ve oturum açma henüz kullanılamıyor."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10035,8 +10039,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Önce yerel sağlayıcıları yükleyin; ek protokol aracıları için ACP'yi kullanın."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "{env} üzerine kur"
+#~ msgid "Install on {env}"
+#~ msgstr "{env} üzerine kur"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10104,8 +10108,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "Bu ana makineye Xcode ve bir iOS Simulator çalışma zamanı yükleyin."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılamıyor."
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılamıyor."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -11035,8 +11039,8 @@ msgid "Logout"
 msgstr "Oturumu kapat"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "Oturumu kapat {env}"
+#~ msgid "Logout {env}"
+#~ msgstr "Oturumu kapat {env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11973,8 +11977,8 @@ msgid "More sign-in methods"
 msgstr "Diğer oturum açma yöntemleri"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "Diğer oturum açma yöntemleri {env}"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "Diğer oturum açma yöntemleri {env}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -20860,8 +20864,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "Bu cihazda kullanılabilir kamera yok. Bunun yerine eşleştirme bağlantısını yapıştırın veya kodun bir fotoğrafını seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "bu ortam"
+#~ msgid "this environment"
+#~ msgstr "bu ortam"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -22358,8 +22362,8 @@ msgstr "{0} güncelle"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "{0} güncelle ({env})"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "{0} güncelle ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22481,8 +22485,8 @@ msgstr "{0} için {updateLabel} güncellemesi"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "{0} ({env}) için {updateLabel} güncellemesi"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "{0} ({env}) için {updateLabel} güncellemesi"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22538,8 +22542,8 @@ msgstr "{0} güncelleniyor"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "{0} ({env}) güncelleniyor"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "{0} ({env}) güncelleniyor"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23399,10 +23403,9 @@ msgstr "Terminal panelinin göründüğü yer."
 msgid "Whisper with broad multilingual support."
 msgstr "Geniş çoklu dil desteğine sahip Whisper."
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "{0} içinde çalışacak:"
+msgid "Will run in this environment:"
+msgstr "Bu ortam içinde çalışacak:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx

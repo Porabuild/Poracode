@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "{0} 個のモデル"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0}には認証が必要です。"
 
@@ -595,8 +597,8 @@ msgstr "{days}日前"
 #~ msgstr "{downloadSize} MB のダウンロード"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel}には認証が必要です。"
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel}には認証が必要です。"
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "{label}使用量 — 使用量パネルを開く"
 #~ msgstr "{loginLabel}{0}{env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel}{env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel}{env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1675,7 +1677,6 @@ msgstr "カスタムのベースURLを通知します（例: リバースプロ�
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "エージェント"
 
@@ -4607,8 +4608,8 @@ msgstr "このスレッドを実行する前に、{0}サインインを完了し
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "{env}の{0}サインインを完了します。"
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "{env}の{0}サインインを完了します。"
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6101,7 +6102,6 @@ msgstr "永続セッション、推論設定、MCPツールに対応したDeepSe
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -9868,8 +9868,8 @@ msgstr "インストール · {engineSize} MB"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "{env}の{0}をインストールします。"
+#~ msgid "Install {0} for {env}."
+#~ msgstr "{env}の{0}をインストールします。"
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9920,6 +9920,10 @@ msgstr "OpenCode のネイティブプラグインをインストール・管理
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "インストールして再起動"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "リモートマシンでのインストールとサインインはまだ利用できません。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10034,8 +10038,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "最初にネイティブプロバイダーをインストールします。追加のプロトコル エージェントには ACP を使用します。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "{env} にインストール"
+#~ msgid "Install on {env}"
+#~ msgstr "{env} にインストール"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10103,8 +10107,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "このホストに Xcode と iOS Simulator ランタイムをインストールしてください。"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "リモートマシンでのインストール・更新・サインインはまだ利用できません。"
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "リモートマシンでのインストール・更新・サインインはまだ利用できません。"
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -11034,8 +11038,8 @@ msgid "Logout"
 msgstr "ログアウト"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "ログアウト{env}"
+#~ msgid "Logout {env}"
+#~ msgstr "ログアウト{env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11971,8 +11975,8 @@ msgid "More sign-in methods"
 msgstr "その他のログイン方法"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "{env} のその他のログイン方法"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "{env} のその他のログイン方法"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -20858,8 +20862,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "このデバイスには使用できるカメラがありません。代わりにペアリングリンクを貼り付けるか、コードの写真を選択してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "この環境"
+#~ msgid "this environment"
+#~ msgstr "この環境"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -22356,8 +22360,8 @@ msgstr "{0}を更新"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "{0}を更新（{env}）"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "{0}を更新（{env}）"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22479,8 +22483,8 @@ msgstr "{0}の{updateLabel}への更新"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "{0}({env}) の{updateLabel}への更新"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "{0}({env}) の{updateLabel}への更新"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22536,8 +22540,8 @@ msgstr "{0}を更新しています"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "{0}({env}) を更新しています"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "{0}({env}) を更新しています"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23397,10 +23401,9 @@ msgstr "ターミナルパネルが表示される場所。"
 msgid "Whisper with broad multilingual support."
 msgstr "広範な多言語サポートを備えた Whisper。"
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "{0}で実行されます:"
+msgid "Will run in this environment:"
+msgstr "この環境で実行されます:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx

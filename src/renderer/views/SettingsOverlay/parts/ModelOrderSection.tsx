@@ -16,7 +16,6 @@ import {
 } from "../../../components/providers/settings/useProviderUpdates";
 import { machineIdForStatus, useMachines, useSelectedMachine } from "@/renderer/state/machines";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { isRemoteSession } from "@/renderer/bridge";
 import { effectiveProviderOrder } from "@/shared/machineSettings";
 
 function resolveDisplayedKinds(
@@ -199,12 +198,8 @@ export function ModelOrderSection() {
     if (orderLocked) setProviderOrder(next);
     else setMachineProviderOrder(selectedMachine.id, next);
   };
-  // Update actions run on the local supervisor only. A remote client labels its
-  // bridge host as the local machine, but has no supervisor of its own.
-  const updates = useProviderUpdates(
-    isRemoteMachine || isRemoteSession() ? [] : orderedAgents,
-    selectedMachine.id,
-  );
+  // Update actions run on the selected machine's host.
+  const updates = useProviderUpdates(orderedAgents, selectedMachine);
   const outdatedCount = updates.outdatedKinds.length;
   const updateAllProgress = updates.updateAllProgress;
   const updateAllProgressAriaLabel = updateAllProgress

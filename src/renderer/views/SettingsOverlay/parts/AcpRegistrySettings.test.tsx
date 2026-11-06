@@ -91,8 +91,10 @@ vi.mock("@/renderer/state/appStore", () => {
 });
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
-  useSharedSettings: (selector: (state: typeof settingsState) => unknown) =>
-    selector(settingsState),
+  useSharedSettings: Object.assign(
+    (selector: (state: typeof settingsState) => unknown) => selector(settingsState),
+    { getState: () => settingsState },
+  ),
 }));
 
 vi.mock("@/renderer/bridge", () => ({

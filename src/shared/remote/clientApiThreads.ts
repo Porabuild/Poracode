@@ -7,6 +7,7 @@ import {
   REMOTE_COMMAND_ID_HEADER,
   REMOTE_PROCEDURE_SPECS,
   REMOTE_RUNTIME_HISTORY_NOTICES_DECLARATION,
+  isRemoteAgentUpdateProcedure,
   isRemoteFollowUpQueueProcedure,
   isRemoteProcedure,
   remoteRuntimeGapAcknowledgeResultSchema,
@@ -45,6 +46,7 @@ import {
   omittedResultSchema,
 } from "@/shared/ipc";
 import type { PersistedCompletedTurn, PersistedRuntimeItem } from "@/shared/ipc/schemas";
+import { AGENT_UPDATE_REQUEST_TIMEOUT_MS } from "../agents/updatePolicy";
 import { HISTORY_COMPLETED_TURNS_MAX_LIMIT, HISTORY_ITEMS_MAX_LIMIT } from "./historyReadContract";
 import {
   isRemoteThreadCatalogCommand,
@@ -771,9 +773,11 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         body: { procedure, payload },
         ...(receiptGuardedStart || procedure === "ensureThreadRunning"
           ? { timeoutMs: THREAD_START_REMOTE_REQUEST_TIMEOUT_MS }
-          : "timeout" in spec && spec.timeout === "long"
-            ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
-            : {}),
+          : isRemoteAgentUpdateProcedure(procedure)
+            ? { timeoutMs: AGENT_UPDATE_REQUEST_TIMEOUT_MS }
+            : "timeout" in spec && spec.timeout === "long"
+              ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
+              : {}),
       });
       const resultSchema = ipcProcedureMap[procedure].resultSchema;
       if (!resultSchema) {

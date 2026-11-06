@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:2f0e4ac343291e50bf08d38fc48d1e78d34a97232bf2f26b062d48f3931e0441",
-  "keyCount": 341,
+  "manifestHash": "sha256:04819f9f26d58874804c38b599984c1efcc226fd5e52d0635675d43146c8db07",
+  "keyCount": 345,
   "counts": {
     "route": 119,
-    "procedure": 167,
+    "procedure": 171,
     "ws-client": 11,
     "ws-server": 12,
     "replay": 16,
@@ -249,6 +249,10 @@
     "procedure:getGitStatus": {
       "kind": "procedure",
       "id": "getGitStatus"
+    },
+    "procedure:getLatestAgentVersion": {
+      "kind": "procedure",
+      "id": "getLatestAgentVersion"
     },
     "procedure:getMcpOauthStatus": {
       "kind": "procedure",
@@ -522,6 +526,10 @@
       "kind": "procedure",
       "id": "invokeThreadSessionAction"
     },
+    "procedure:listAcpRegistry": {
+      "kind": "procedure",
+      "id": "listAcpRegistry"
+    },
     "procedure:listFileCheckpoints": {
       "kind": "procedure",
       "id": "listFileCheckpoints"
@@ -661,6 +669,14 @@
     "procedure:subagentUnsubscribe": {
       "kind": "procedure",
       "id": "subagentUnsubscribe"
+    },
+    "procedure:updateAcpRegistryAgent": {
+      "kind": "procedure",
+      "id": "updateAcpRegistryAgent"
+    },
+    "procedure:updateAgentBinary": {
+      "kind": "procedure",
+      "id": "updateAgentBinary"
     },
     "procedure:waitMcpServerOauth": {
       "kind": "procedure",

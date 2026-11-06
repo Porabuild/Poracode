@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "모델 {0}개"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0}에는 인증이 필요합니다."
 
@@ -595,8 +597,8 @@ msgstr "{days}일 전"
 #~ msgstr "{downloadSize}MB 다운로드"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel}에는 인증이 필요합니다."
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel}에는 인증이 필요합니다."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "{label} 사용량 — 사용량 패널 열기"
 #~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel} {env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel} {env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1676,7 +1678,6 @@ msgstr "사용자 정의 기본 URL을 게시합니다(예: 리버스 프록시 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "에이전트"
 
@@ -4608,8 +4609,8 @@ msgstr "이 스레드를 실행하려면 먼저 {0} 로그인을 완료하세요
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "{env}에 대한 {0} 로그인을 완료하세요."
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "{env}에 대한 {0} 로그인을 완료하세요."
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6102,7 +6103,6 @@ msgstr "영구 세션, 추론 설정, MCP 도구를 지원하는 DeepSeek Harnes
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -9869,8 +9869,8 @@ msgstr "설치 · {engineSize} MB"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "{env}에 {0}을(를) 설치합니다."
+#~ msgid "Install {0} for {env}."
+#~ msgstr "{env}에 {0}을(를) 설치합니다."
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9921,6 +9921,10 @@ msgstr "OpenCode 기본 플러그인을 설치하고 관리합니다."
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "설치 후 다시 시작"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "원격 기기에서는 설치와 로그인을 아직 사용할 수 없습니다."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10035,8 +10039,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "기본 공급자를 먼저 설치하십시오. 추가 프로토콜 에이전트에는 ACP를 사용하십시오."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "{env}에 설치"
+#~ msgid "Install on {env}"
+#~ msgstr "{env}에 설치"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10104,8 +10108,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "이 호스트에 Xcode와 iOS Simulator 런타임을 설치하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "원격 기기에서는 설치, 업데이트, 로그인을 아직 사용할 수 없습니다."
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "원격 기기에서는 설치, 업데이트, 로그인을 아직 사용할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -11035,8 +11039,8 @@ msgid "Logout"
 msgstr "로그아웃"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "로그아웃 {env}"
+#~ msgid "Logout {env}"
+#~ msgstr "로그아웃 {env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11973,8 +11977,8 @@ msgid "More sign-in methods"
 msgstr "다른 로그인 방법"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "{env}의 다른 로그인 방법"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "{env}의 다른 로그인 방법"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -20860,8 +20864,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "이 기기에는 사용할 수 있는 카메라가 없습니다. 대신 페어링 링크를 붙여넣거나 코드 사진을 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "이 환경"
+#~ msgid "this environment"
+#~ msgstr "이 환경"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -22358,8 +22362,8 @@ msgstr "{0} 업데이트"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "{0} 업데이트({env})"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "{0} 업데이트({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22481,8 +22485,8 @@ msgstr "{0}에 대한 {updateLabel}(으)로 업데이트"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "{0}({env})에 대한 {updateLabel}(으)로 업데이트"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "{0}({env})에 대한 {updateLabel}(으)로 업데이트"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22538,8 +22542,8 @@ msgstr "{0} 업데이트 중"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "{0}({env}) 업데이트 중"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "{0}({env}) 업데이트 중"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23399,10 +23403,9 @@ msgstr "터미널 패널이 나타나는 위치."
 msgid "Whisper with broad multilingual support."
 msgstr "광범위한 다국어를 지원하는 Whisper."
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "{0}에서 실행됩니다:"
+msgid "Will run in this environment:"
+msgstr "이 환경에서 실행됩니다:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx

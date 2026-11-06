@@ -341,7 +341,9 @@ msgid "{0} models"
 msgstr "{0} modelos"
 
 #. placeholder {0}: agent.name
+#. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{0} needs authentication."
 msgstr "{0} necesita autenticación."
 
@@ -595,8 +597,8 @@ msgstr "hace {days}d"
 #~ msgstr "Descarga de {downloadSize} MB"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{envOrAgentLabel} needs authentication."
-msgstr "{envOrAgentLabel} necesita autenticación."
+#~ msgid "{envOrAgentLabel} needs authentication."
+#~ msgstr "{envOrAgentLabel} necesita autenticación."
 
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{filesCount, plural, one {# file changed} other {# files changed}}"
@@ -704,8 +706,8 @@ msgstr "Uso de {label} — abrir panel de uso"
 #~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {env}"
-msgstr "{loginLabel} {env}"
+#~ msgid "{loginLabel} {env}"
+#~ msgstr "{loginLabel} {env}"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "{loserCount, plural, one {The other candidate and its worktree will be removed.} other {The other # candidates and their worktrees will be removed.}}"
@@ -1676,7 +1678,6 @@ msgstr "Anuncia una URL base personalizada, por ejemplo un proxy inverso o un t�
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Agent"
 msgstr "Agente"
 
@@ -4608,8 +4609,8 @@ msgstr "Completa el inicio de sesión de {0} antes de que este hilo pueda ejecut
 
 #. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Complete {0} sign-in for {env}."
-msgstr "Completa el inicio de sesión de {0} para {env}."
+#~ msgid "Complete {0} sign-in for {env}."
+#~ msgstr "Completa el inicio de sesión de {0} para {env}."
 
 #. placeholder {0}: agentAuth.method.name
 #. placeholder {1}: envVarAuthMethod.name
@@ -6102,7 +6103,6 @@ msgstr "Chat de DeepSeek Harness con sesiones persistentes, controles de razonam
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
@@ -9869,8 +9869,8 @@ msgstr "Instalar · {engineSize} MB"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install {0} for {env}."
-msgstr "Instalar {0} para {env}."
+#~ msgid "Install {0} for {env}."
+#~ msgstr "Instalar {0} para {env}."
 
 #. placeholder {0}: formatAgentList(props.agentStatuses.map((s) => s.label))
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -9921,6 +9921,10 @@ msgstr "Instala y gestiona los plugins nativos de OpenCode."
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
 msgstr "Instalar y reiniciar"
+
+#: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
+msgid "Install and sign-in are not yet available on remote machines."
+msgstr "Instalar e iniciar sesión aún no están disponibles en máquinas remotas."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10035,8 +10039,8 @@ msgid "Install native providers first; use ACP for additional protocol agents."
 msgstr "Instala primero los proveedores nativos; usa ACP para agentes de protocolo adicionales."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Install on {env}"
-msgstr "Instalar en {env}"
+#~ msgid "Install on {env}"
+#~ msgstr "Instalar en {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Install on Windows"
@@ -10104,8 +10108,8 @@ msgid "Install Xcode and an iOS Simulator runtime on this host."
 msgstr "Instala Xcode y un entorno de ejecución del simulador de iOS en este host."
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install, update, and sign-in are not yet available on remote machines."
-msgstr "Instalar, actualizar e iniciar sesión aún no están disponibles en máquinas remotas."
+#~ msgid "Install, update, and sign-in are not yet available on remote machines."
+#~ msgstr "Instalar, actualizar e iniciar sesión aún no están disponibles en máquinas remotas."
 
 #: src/renderer/views/SettingsOverlay/parts/HexEngineDialog.tsx
 #~ msgid "Installation continues when you close this dialog."
@@ -11035,8 +11039,8 @@ msgid "Logout"
 msgstr "Cerrar sesión"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Logout {env}"
-msgstr "Cerrar sesión {env}"
+#~ msgid "Logout {env}"
+#~ msgstr "Cerrar sesión {env}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "longest streak"
@@ -11973,8 +11977,8 @@ msgid "More sign-in methods"
 msgstr "Más métodos de inicio de sesión"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "More sign-in methods {env}"
-msgstr "Más métodos de inicio de sesión {env}"
+#~ msgid "More sign-in methods {env}"
+#~ msgstr "Más métodos de inicio de sesión {env}"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
@@ -20860,8 +20864,8 @@ msgid "This device has no usable camera. Paste the pairing link or pick a photo 
 msgstr "Este dispositivo no tiene una cámara utilizable. Pega el enlace de emparejamiento o elige una foto del código en su lugar."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "this environment"
-msgstr "este entorno"
+#~ msgid "this environment"
+#~ msgstr "este entorno"
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
 msgid "This environment's host identity changed. Re-pair it explicitly from the host."
@@ -22358,8 +22362,8 @@ msgstr "Actualizar {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update {0} ({env})"
-msgstr "Actualizar {0} ({env})"
+#~ msgid "Update {0} ({env})"
+#~ msgstr "Actualizar {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
@@ -22481,8 +22485,8 @@ msgstr "Actualizar a {updateLabel} para {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Update to {updateLabel} for {0} ({env})"
-msgstr "Actualizar a {updateLabel} para {0} ({env})"
+#~ msgid "Update to {updateLabel} for {0} ({env})"
+#~ msgstr "Actualizar a {updateLabel} para {0} ({env})"
 
 #. placeholder {0}: agent.version
 #. placeholder {0}: props.latestRegistryVersion
@@ -22538,8 +22542,8 @@ msgstr "Actualizando {0}"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Updating {0} ({env})"
-msgstr "Actualizando {0} ({env})"
+#~ msgid "Updating {0} ({env})"
+#~ msgstr "Actualizando {0} ({env})"
 
 #. placeholder {0}: agent.label
 #. placeholder {1}: update.targetVersion
@@ -23399,10 +23403,9 @@ msgstr "Dónde aparece el panel del terminal."
 msgid "Whisper with broad multilingual support."
 msgstr "Whisper con amplio soporte multilingüe."
 
-#. placeholder {0}: env || t`this environment`
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Will run in {0}:"
-msgstr "Se ejecutará en {0}:"
+msgid "Will run in this environment:"
+msgstr "Se ejecutará en este entorno:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
