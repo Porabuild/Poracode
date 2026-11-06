@@ -1,6 +1,6 @@
 import type { ThreadCrewBinding, CrewMemberSelection, CrewRole } from "@/shared/crew";
 import { crewRoleMatches } from "@/shared/crew";
-import type { SpawnAgentRequest, SpawnableAgent } from "./types";
+import type { CrewRoleOptionSnapshot, SpawnAgentRequest, SpawnableAgent } from "./types";
 
 export interface ResolvedCrewRoleSpawn {
   args: Record<string, unknown>;
@@ -23,7 +23,9 @@ export function crewListDescription(
     ...(role.selection.contextSize ? { context_size: role.selection.contextSize } : {}),
     parallel: role.parallel ?? 1,
     running: runningRuns.filter((run) => run.role === role.id && run.status === "running").length,
-    available: selectionsForRole(role).some((selection) => selectionIsAvailable(selection, agents)),
+    available: selectionsForRole(role).some(
+      (selection) => selectionUnavailableReason(selection, agents) === undefined,
+    ),
     ...(role.noEdits === true ? { no_edits: true } : {}),
   }));
   const instructions =
@@ -65,23 +67,31 @@ export function resolveCrewRoleSpawn(
     );
   }
   if (selectionDiffers(args, role.selection)) {
-    throw new Error(`role=${role.id} sets provider, model, reasoning and Fast; omit them.`);
+    throw new Error(
+      `role=${role.id} sets provider, model, reasoning, Fast and context length; omit them.`,
+    );
   }
   if (args.fallbacks !== undefined) {
     throw new Error(`role=${role.id} uses the role's own fallbacks; omit fallbacks.`);
   }
 
-  const available = selectionsForRole(role).filter((selection) =>
-    selectionIsAvailable(selection, agents),
-  );
-  const [primary, ...fallbacks] = available;
-  if (!primary) {
+  const configuredOptions = selectionsForRole(role);
+  const spawnable: Array<{ selection: CrewMemberSelection; index: number }> = [];
+  for (const [index, selection] of configuredOptions.entries()) {
+    if (selectionUnavailableReason(selection, agents) === undefined) {
+      spawnable.push({ selection, index });
+    }
+  }
+  const [primaryEntry, ...fallbackEntries] = spawnable;
+  if (!primaryEntry) {
     const crewFirstSuffix =
       crew.policy === "crew-first" ? " Crew first: you may spawn without a role." : "";
     throw new Error(
-      `Role ${role.label} has no available agent right now (${role.selection.agentKind}/${role.selection.model} and its fallbacks are unavailable).${crewFirstSuffix}`,
+      `Role ${role.label} has no available agent right now (${role.selection.agentKind}/${role.selection.model} and its fallbacks are unavailable).${crewFirstSuffix}${unavailableRoleDetails(role, agents)}`,
     );
   }
+  const primary = primaryEntry.selection;
+  const fallbacks = fallbackEntries.map((entry) => entry.selection);
 
   const requestArgs = { ...args };
   delete requestArgs.role;
@@ -113,7 +123,26 @@ export function resolveCrewRoleSpawn(
       ...(role.brief !== undefined ? { brief: role.brief } : {}),
       ...(role.noEdits === true ? { noEdits: true } : {}),
       parallel: role.parallel ?? 1,
+      // Captured before availability filtering so later capability changes
+      // cannot masquerade as configured role edits.
+      selection: snapshotCrewOption(role.selection),
+      ...(role.fallbacks !== undefined
+        ? { fallbacks: role.fallbacks.map(snapshotCrewOption) }
+        : {}),
+      // Keeps duplicate configured options mapped to the attempt that used
+      // them even when an earlier option was unavailable at spawn.
+      optionIndices: [primaryEntry.index, ...fallbackEntries.map((entry) => entry.index)],
     },
+  };
+}
+
+function snapshotCrewOption(selection: CrewMemberSelection): CrewRoleOptionSnapshot {
+  return {
+    provider: selection.agentKind,
+    model: selection.model,
+    ...(selection.contextSize !== undefined ? { contextSize: selection.contextSize } : {}),
+    ...(selection.effort !== undefined ? { effort: selection.effort } : {}),
+    ...(selection.fast !== undefined ? { fast: selection.fast } : {}),
   };
 }
 
@@ -121,17 +150,41 @@ function selectionsForRole(role: CrewRole): CrewMemberSelection[] {
   return [role.selection, ...(role.fallbacks ?? [])];
 }
 
-function selectionIsAvailable(
+function selectionUnavailableReason(
   selection: CrewMemberSelection,
   agents: readonly SpawnableAgent[],
-): boolean {
+): string | undefined {
   const agent = agents.find((candidate) => candidate.provider.value === selection.agentKind);
-  const model = agent?.models.find((candidate) => candidate.value === selection.model);
-  if (!model) return false;
+  if (!agent) return "provider unavailable";
+  const model = agent.models.find((candidate) => candidate.value === selection.model);
+  if (!model) return "model unavailable";
   if (selection.effort !== undefined && !model.reasoning.values.includes(selection.effort)) {
-    return false;
+    const supported = boundedReasoningValues(model.reasoning.values);
+    return supported
+      ? `reasoning "${selection.effort}" is not supported (supported: ${supported})`
+      : `reasoning "${selection.effort}" is not supported (no reasoning controls)`;
   }
-  return selection.fast !== true || model.fast?.available === true;
+  if (selection.fast === true && model.fast?.available !== true) {
+    return "Fast unavailable";
+  }
+  return undefined;
+}
+
+function unavailableRoleDetails(role: CrewRole, agents: readonly SpawnableAgent[]): string {
+  const failures: string[] = [];
+  for (const selection of selectionsForRole(role)) {
+    const reason = selectionUnavailableReason(selection, agents);
+    if (reason !== undefined) {
+      failures.push(`${selection.agentKind}/${selection.model}: ${reason}`);
+    }
+  }
+  return failures.length > 0 ? ` Options: ${failures.join("; ")}.` : "";
+}
+
+function boundedReasoningValues(values: readonly string[]): string {
+  if (values.length === 0) return "";
+  const shown = values.slice(0, 4).join(", ");
+  return values.length > 4 ? `${shown}, +${values.length - 4} more` : shown;
 }
 
 function selectionDiffers(args: Record<string, unknown>, selection: CrewMemberSelection): boolean {
@@ -139,6 +192,7 @@ function selectionDiffers(args: Record<string, unknown>, selection: CrewMemberSe
     (args.provider !== undefined && args.provider !== selection.agentKind) ||
     (args.model !== undefined && args.model !== selection.model) ||
     (args.reasoning !== undefined && args.reasoning !== selection.effort) ||
-    (args.fast !== undefined && args.fast !== (selection.fast === true))
+    (args.fast !== undefined && args.fast !== (selection.fast === true)) ||
+    (args.context_size !== undefined && args.context_size !== selection.contextSize)
   );
 }
