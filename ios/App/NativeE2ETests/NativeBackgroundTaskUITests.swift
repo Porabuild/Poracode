@@ -141,7 +141,11 @@ final class NativeBackgroundTaskUITests: XCTestCase {
       NSPredicate(format: "identifier BEGINSWITH 'background-task-open:'")).firstMatch.exists }
     let historyReads = try await journalCount("route:thread-history")
     XCUIDevice.shared.press(.home)
-    XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10))
+    await fulfillment(of: [XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "state IN %@", [
+        XCUIApplication.State.runningBackground.rawValue,
+        XCUIApplication.State.runningBackgroundSuspended.rawValue,
+      ]), object: app)], timeout: 10)
     try await waitUntil {
       let connections = try await self.connectionCount()
       return connections == 0
