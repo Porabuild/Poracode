@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, ChevronDown, House } from "lucide-react";
-import { Description, Dropdown, Label } from "@heroui/react";
+import { Dropdown, Label } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProject, isHomeProjectId } from "@/shared/homeScope";
@@ -15,7 +15,11 @@ import {
   useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
 import type { ProjectGroupRow } from "@/renderer/state/projectGroups/projectGroups";
-import { useProjectSwitchEntries } from "./projectSwitchGroups";
+import {
+  ProjectEnvironmentIndicator,
+  useProjectEnvironmentMachineLookup,
+} from "@/renderer/components/common/ProjectEnvironment";
+import { type ProjectSwitchEntry, useProjectSwitchEntries } from "./projectSwitchGroups";
 import { ProjectEnvironmentMenu } from "./ProjectEnvironmentMenu";
 import { switchDraftProject } from "./switchDraftProject";
 
@@ -36,6 +40,7 @@ export function ProjectSwitchMenu(props: {
   const entries = useProjectSwitchEntries();
   const allProjects = useAppStore((state) => state.projects);
   const remoteServerFor = useProjectRemoteServerLookup();
+  const machineFor = useProjectEnvironmentMachineLookup();
   const { mobile } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -117,18 +122,17 @@ export function ProjectSwitchMenu(props: {
     });
   }
 
-  function menuItems(list: readonly ProjectGroupRow[]) {
+  function menuItems(list: readonly ProjectSwitchEntry[]) {
     return list.map((entry) => {
       const project = entryProject(entry);
       const isHome = isHomeProject(project);
       const itemLabel = isHome ? HOME_PROJECT_NAME : project.name;
       const remote = remoteServerFor(project);
-      const serverName = soleServerName(entry);
       return (
         <Dropdown.Item key={entry.id} id={entry.id} textValue={itemLabel}>
           <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />
-          <Label>{itemLabel}</Label>
-          {serverName ? <Description>{serverName}</Description> : null}
+          <Label className="min-w-0 flex-1 truncate">{itemLabel}</Label>
+          <ProjectEnvironmentIndicator members={entry.environments} machineFor={machineFor} />
         </Dropdown.Item>
       );
     });
