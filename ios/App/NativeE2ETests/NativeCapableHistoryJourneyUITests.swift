@@ -175,7 +175,11 @@ final class NativeCapableHistoryJourneyUITests: XCTestCase {
     //    marker appears, so the fresh marker below cannot have pre-existed the
     //    renewed connection: it proves post-foreground live delivery.
     XCUIDevice.shared.press(.home)
-    XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10))
+    await fulfillment(of: [XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "state IN %@", [
+        XCUIApplication.State.runningBackground.rawValue,
+        XCUIApplication.State.runningBackgroundSuspended.rawValue,
+      ]), object: app)], timeout: 10)
     try await Task.sleep(for: .seconds(3))
     app.activate()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
