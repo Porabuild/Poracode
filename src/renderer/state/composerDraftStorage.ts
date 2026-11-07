@@ -238,6 +238,7 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
       if (typeof indexedDB === "undefined") write();
       else await serializeClientDraftMetadataWrite(write);
     }
+    if (pending.size === 0) stopTimer();
   }
   function flush() {
     // Do this before the first await: lifecycle events cannot keep an IDB

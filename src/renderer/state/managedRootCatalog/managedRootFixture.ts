@@ -30,6 +30,10 @@ import {
 import { getSqlite } from "@/host/db/connection";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
+  composerDraftStorage,
+  resetComposerDraftStorageForTest,
+} from "@/renderer/state/composerDraftStorage";
+import {
   installElectronClientRuntime,
   isDesktopLoopbackIntakeActive,
   resetClientRuntimeForTest,
@@ -458,4 +462,6 @@ export async function teardownManagedRootFixture(): Promise<void> {
   });
   vi.restoreAllMocks();
   await new Promise((resolve) => setTimeout(resolve, 0));
+  await composerDraftStorage()?.flushRequired();
+  resetComposerDraftStorageForTest();
 }

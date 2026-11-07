@@ -108,6 +108,16 @@ describe("draft checkpoint recovery and conditional retirement", () => {
     expect(second.load("project").p).toEqual(content("conflicting edit"));
   });
 
+  it("autosaves later edits after an explicit checkpoint drains the last pending scope", async () => {
+    const store = instance();
+    await store.checkpoint("project", "p", content("checkpointed"));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    store.save("project", "p", content("later edit"));
+    await vi.waitFor(() => {
+      expect(JSON.parse(localStorage.getItem(name)!).content).toEqual(content("later edit"));
+    });
+  });
+
   it("lets explicit recovery merge a stale writer with the durable winner", async () => {
     await instance().checkpoint("project", "p", content("base"));
     const first = instance();
