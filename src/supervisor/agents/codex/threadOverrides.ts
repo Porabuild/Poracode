@@ -15,9 +15,12 @@ export function buildCodexThreadOverrides(
   options?: {
     projectLocation?: ProjectLocation;
     mcpServers?: readonly ResolvedMcpServer[];
+    nativeMcpNames?: readonly string[];
   },
 ): ThreadConfigOverrides {
-  const mcpConfig = options?.mcpServers ? buildCodexMcp(options.mcpServers).config : {};
+  const mcpConfig = options?.mcpServers
+    ? buildCodexMcp(options.mcpServers, options.nativeMcpNames).config
+    : {};
   const approvalsReviewer = config.approvalPolicy === "never" ? "user" : config.approvalsReviewer;
   return {
     model: config.model,

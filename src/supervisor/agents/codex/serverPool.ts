@@ -78,14 +78,16 @@ function normalizedMcpServer(server: ResolvedMcpServer): ResolvedMcpServer {
 async function poolFingerprint(
   location: ProjectLocation,
   mcpServers: readonly ResolvedMcpServer[],
+  nativeMcpNames: readonly string[],
 ): Promise<string> {
   const normalizedServers = mcpServers.map(normalizedMcpServer);
-  const mcp = buildCodexMcp(normalizedServers);
+  const mcp = buildCodexMcp(normalizedServers, nativeMcpNames);
   return createHash("sha256")
     .update(
       JSON.stringify({
         servers: normalizedServers,
         env: mcp.env,
+        config: mcp.config,
         skillConflictArgs: await buildCodexMcpSkillConflictArgs(location, normalizedServers),
       }),
     )
@@ -104,6 +106,7 @@ export async function codexAppServerPoolKey(
   wslNodePath?: string,
   env?: Record<string, string>,
   agentSettings?: Record<string, boolean | string>,
+  nativeMcpNames: readonly string[] = [],
 ): Promise<string> {
   // A profile's `CODEX_HOME` selects the account the app-server runs as, so
   // profiles must never share a pooled server with each other or the base.
@@ -116,7 +119,7 @@ export async function codexAppServerPoolKey(
     executionRuntimeKey(location),
     wslExecPath ?? "",
     wslNodePath ?? "",
-    await poolFingerprint(location, mcpServers),
+    await poolFingerprint(location, mcpServers, nativeMcpNames),
     envFingerprint,
     // Sub-agent defaults are fixed at spawn, so a changed setting needs a fresh server.
     codexAgentSettingOverrideArgs(agentSettings, isCodexAgentsConfigSupported(location)).join(" "),
@@ -144,6 +147,7 @@ async function spawnAndWire(
   wslExecPath: string | undefined,
   wslNodePath: string | undefined,
   onExit: (appServer: ChildProcess, connection: CodexAppServerConnection) => void,
+  nativeMcpNames: readonly string[],
 ): Promise<ServerSnapshot> {
   const appServer = spawnAppServer(
     await buildCodexAppServerCommand(input.projectLocation, {
@@ -153,6 +157,7 @@ async function spawnAndWire(
       ...(input.env ? { env: input.env } : {}),
       ...(input.agentSettings ? { agentSettings: input.agentSettings } : {}),
       includeMcpConfig: false,
+      nativeMcpNames,
     }),
   );
   spawnedAppServers.add(appServer);
@@ -205,6 +210,7 @@ function flushPendingTeardowns(): void {
 export async function acquireCodexAppServer(
   input: CreateStructuredSessionInput,
   wslExecPath?: string,
+  nativeMcpNames: readonly string[] = [],
 ): Promise<AcquiredCodexAppServer> {
   pendingAcquisitions += 1;
   try {
@@ -220,14 +226,21 @@ export async function acquireCodexAppServer(
       wslNodePath,
       input.env,
       input.agentSettings,
+      nativeMcpNames,
     );
     let entry = pool.get(key);
     if (!entry) {
-      const ready = spawnAndWire(input, wslExecPath, wslNodePath, (appServer, connection) => {
-        spawnedAppServers.delete(appServer);
-        spawnedConnections.delete(connection);
-        if (pool.get(key) === entry) pool.delete(key);
-      });
+      const ready = spawnAndWire(
+        input,
+        wslExecPath,
+        wslNodePath,
+        (appServer, connection) => {
+          spawnedAppServers.delete(appServer);
+          spawnedConnections.delete(connection);
+          if (pool.get(key) === entry) pool.delete(key);
+        },
+        nativeMcpNames,
+      );
       entry = { ready, leases: 0 };
       pool.set(key, entry);
       ready.catch(() => {

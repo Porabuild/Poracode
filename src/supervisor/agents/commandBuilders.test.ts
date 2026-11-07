@@ -21,6 +21,10 @@ vi.mock("./codex/plugin/install", async (importOriginal) => {
   };
 });
 
+// These are argv-shaping fixtures with synthetic Windows/WSL locations, not
+// live Codex installations. Native config discovery has separate coverage.
+vi.mock("./codex/nativeMcp", () => ({ readCodexNativeMcpNames: async () => [] }));
+
 // Skip slow PATH / WSL probes. These tests only exercise argv-shaping logic;
 // resolving the binary against the host or distro PATH is irrelevant and
 // flakes under parallel load when many suites spawn wsl.exe at once.
