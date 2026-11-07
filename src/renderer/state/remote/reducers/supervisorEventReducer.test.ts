@@ -163,13 +163,13 @@ describe("supervisorEventReducer — shared core semantics", () => {
   });
 });
 
-describe("supervisorEventReducer — reset/resume ordering (V5 2.3 divergence)", () => {
+describe("supervisorEventReducer — reset/resume ordering", () => {
   afterEach(() => {
     resetStore();
     vi.clearAllMocks();
   });
 
-  it("local-snapshot flavor: with an overflow recovery in flight, a reset does not resume the queue until the re-read lands", async () => {
+  it("with an overflow recovery in flight, a reset does not resume the queue until the re-read lands", async () => {
     let resolveRecovery: ((recovered: boolean) => void) | null = null;
     let recoveries = 0;
     const reducer = createSupervisorEventReducer({
