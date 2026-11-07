@@ -8,7 +8,10 @@ import {
 } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { storableAttachment, storableAttachments, useAttachments } from "./useAttachments";
 
-const bridge = vi.hoisted(() => ({ saveClipboardImage: vi.fn<() => Promise<string>>() }));
+const bridge = vi.hoisted(() => ({
+  saveClipboardImage: vi.fn<() => Promise<string>>(),
+  readClientDraftFile: undefined as undefined | ((input: { url: string }) => Promise<Uint8Array>),
+}));
 vi.mock("@/renderer/bridge", () => ({ isRemoteSession: () => false, readBridge: () => bridge }));
 
 function pendingFile() {
@@ -31,6 +34,7 @@ describe("client-owned composer attachments", () => {
     createObjectURL.mockClear();
     revokeObjectURL.mockClear();
     bridge.saveClipboardImage.mockClear();
+    bridge.readClientDraftFile = undefined;
     Object.assign(URL, { createObjectURL, revokeObjectURL });
   });
   afterEach(() => {
@@ -273,5 +277,42 @@ describe("client-owned composer attachments", () => {
     });
     unmount();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
+  });
+
+  it("replaces the temporary native preview with the imported image bytes", async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    const read = vi.fn<(input: { url: string }) => Promise<Uint8Array>>().mockResolvedValue(bytes);
+    bridge.readClientDraftFile = read;
+    const create = vi.fn<(blob: Blob) => string>(() => "blob:native-import");
+    const revoke = vi.fn<(url: string) => void>();
+    Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke });
+    const { result, unmount } = renderHook(() => useAttachments());
+    act(() => result.current.addFiles(["/tmp/picked.png"]));
+    await waitFor(() => expect(result.current.isUploading).toBe(false));
+    expect(isClientDraftAsset(result.current.attachments[0]!.path)).toBe(true);
+    expect(result.current.attachments[0]?.previewUrl).toBe("blob:native-import");
+    expect(new Uint8Array(await create.mock.calls[0]![0].arrayBuffer())).toEqual(bytes);
+    expect(read).toHaveBeenCalledWith({ url: "poracode-local://local/tmp/picked.png" });
+    unmount();
+    expect(revoke).toHaveBeenCalledWith("blob:native-import");
+    bridge.readClientDraftFile = undefined;
+  });
+
+  it("does not allocate an image preview URL for an imported non-image file", async () => {
+    bridge.readClientDraftFile = vi
+      .fn<() => Promise<Uint8Array>>()
+      .mockResolvedValue(new Uint8Array([1]));
+    const create = vi.fn<(blob: Blob) => string>(() => "blob:unused");
+    Object.assign(URL, {
+      createObjectURL: create,
+      revokeObjectURL: vi.fn<(url: string) => void>(),
+    });
+    const { result, unmount } = renderHook(() => useAttachments());
+    act(() => result.current.addFiles(["/tmp/notes.txt"]));
+    await waitFor(() => expect(result.current.isUploading).toBe(false));
+    expect(create).not.toHaveBeenCalled();
+    expect(result.current.getDraftAttachments()).toHaveLength(1);
+    unmount();
+    bridge.readClientDraftFile = undefined;
   });
 });

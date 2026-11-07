@@ -370,7 +370,7 @@ export function useAttachments(
   function hydrateClientPreviews(items: readonly Attachment[]) {
     const generation = pasteGenerationRef.current;
     for (const item of items) {
-      if (!isClientDraftAsset(item.path) || item.previewUrl) continue;
+      if (!item.isImage || !isClientDraftAsset(item.path) || item.previewUrl) continue;
       void readDraftAsset(item)
         .then(({ blob }) => {
           if (
