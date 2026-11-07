@@ -45,13 +45,29 @@ export function resolvedChatLinkLabel(title: string | null, href: string): strin
   const cleaned = title?.replace(/\s+/gu, " ").trim();
   const githubItem = parseGitHubWorkItem(href);
   if (cleaned && githubItem) {
-    const { owner, repo, number, kind } = githubItem;
-    const suffix = ` · ${kind === "pull" ? "Pull Request" : "Issue"} #${number} · ${owner}/${repo}`;
-    let titleRoot = cleaned.endsWith(suffix) ? cleaned.slice(0, -suffix.length) : cleaned;
-    titleRoot = titleRoot.replace(/\s+by\s+[^·]+$/u, "").trim();
-    if (titleRoot) return `#${number} · ${titleRoot}`;
+    const titleRoot = gitHubTitleRoot(cleaned);
+    if (titleRoot) return `#${githubItem.number} · ${titleRoot}`;
   }
   return cleaned && cleaned.length >= 5 ? cleaned : fallbackChatLinkLabel(href);
+}
+
+export function shouldResolveChatLinkTitle(label: string, href: string): boolean {
+  const text = label.replace(/\s+/gu, " ").trim();
+  if (text === href) return true;
+  const githubItem = parseGitHubWorkItem(href);
+  if (!githubItem) return false;
+  const { owner, repo, number } = githubItem;
+  const reference = text.toLowerCase().replace(/^(?:pr|pull request|issue)\b\s*/u, "");
+  return [`#${number}`, `${repo}#${number}`, `${owner}/${repo}#${number}`].some(
+    (candidate) => candidate.toLowerCase() === reference,
+  );
+}
+
+function gitHubTitleRoot(title: string): string {
+  const suffix = / · (Pull Request|Issue) #\d+ · [^\s·]+\/[^\s·]+(?: · GitHub)?$/u.exec(title);
+  if (!suffix) return title;
+  const root = title.slice(0, suffix.index);
+  return (suffix[1] === "Pull Request" ? root.replace(/ by \S+$/u, "") : root).trim();
 }
 
 function parseGitHubWorkItem(href: string) {
@@ -62,7 +78,7 @@ function parseGitHubWorkItem(href: string) {
     if (!owner || !repo || (kind !== "pull" && kind !== "issues") || !/^\d+$/u.test(number ?? "")) {
       return null;
     }
-    return { owner, repo, kind, number: number! };
+    return { owner, repo, number: number! };
   } catch {
     return null;
   }
