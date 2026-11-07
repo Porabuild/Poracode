@@ -2,8 +2,8 @@
 // Inherited descriptors preserve every protocol message and capability.
 import spawn from "cross-spawn";
 import type { McpServer } from "@/shared/contracts";
+import { MCP_STDIO_CONFIG_ENV as configKey } from "./mcpToolFilterConfig.ts";
 
-const configKey = "PORACODE_MCP_STDIO_CONFIG";
 const encoded = process.env[configKey];
 if (!encoded) throw new Error("Missing MCP stdio launch configuration");
 const config = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as {

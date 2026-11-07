@@ -14,6 +14,7 @@ const clients: Client[] = [];
 const servers: Server[] = [];
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await Promise.allSettled([
     ...proxies.splice(0).map((proxy) => proxy.close()),
     ...clients.splice(0).map((client) => client.close()),
@@ -102,6 +103,7 @@ async function startProxyThroughMemory(options: {
   onDownstreamClose?: () => void;
   isolateConnectionFailures?: boolean;
   mcpApps?: boolean;
+  omitInvalidSchemaPatterns?: boolean;
 }): Promise<{ proxy: FilterProxy; downstream: Client }> {
   const [proxyUpstream, fixtureSide] = InMemoryTransport.createLinkedPair();
   const [proxyDownstream, clientSide] = InMemoryTransport.createLinkedPair();
@@ -112,6 +114,7 @@ async function startProxyThroughMemory(options: {
     disabledTools: options.disabledTools,
     ...(options.isolateConnectionFailures ? { isolateConnectionFailures: true } : {}),
     ...(options.mcpApps ? { mcpApps: true } : {}),
+    ...(options.omitInvalidSchemaPatterns ? { omitInvalidSchemaPatterns: true } : {}),
     upstreamTransport: proxyUpstream as unknown as Transport,
     downstreamTransport: proxyDownstream as unknown as Transport,
   });
@@ -656,3 +659,87 @@ describe("mcpToolFilterProxy", () => {
     },
   );
 });
+
+it.each([false, true])(
+  "normalizes advertised patterns only when requested: %s",
+  async (normalize) => {
+    const upstream = await startUpstreamFixture();
+    const tool: Tool = {
+      name: "email",
+      inputSchema: { type: "object", properties: { email: { type: "string", pattern: "[" } } },
+      annotations: { readOnlyHint: true },
+      _meta: { fixture: true },
+    };
+    upstream.server.setRequestHandler("tools/list", async () => ({ tools: [tool] }));
+    const { downstream } = await startProxyThroughMemory({
+      upstream,
+      disabledTools: [],
+      omitInvalidSchemaPatterns: normalize,
+    });
+    const listed = await downstream.listTools();
+    expect(listed.tools[0]).toEqual({
+      ...tool,
+      inputSchema: {
+        type: "object",
+        properties: { email: normalize ? { type: "string" } : { type: "string", pattern: "[" } },
+      },
+    });
+    await downstream.callTool({ name: "email", arguments: { email: "literal-value" } });
+    expect(upstream.calls).toEqual([{ name: "email", args: { email: "literal-value" } }]);
+    expect(tool.inputSchema.properties?.email).toEqual({ type: "string", pattern: "[" });
+  },
+);
+
+it.each([false, true])(
+  "preserves selected stdio inheritance without leaking proxy envelopes: %s",
+  async (inheritEnv) => {
+    vi.stubEnv("PORACODE_MCP_ENV_TEST", "inherited");
+    vi.stubEnv("PORACODE_MCP_PRIORITY_TEST", "parent");
+    vi.stubEnv("PORACODE_MCP_FILTER_CONFIG_V2", "private-outer-envelope");
+    const script = String.raw`
+    let buffer = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', chunk => {
+      buffer += chunk;
+      for (;;) {
+        const end = buffer.indexOf('\n'); if (end < 0) break;
+        const line = buffer.slice(0, end); buffer = buffer.slice(end + 1);
+        if (!line.trim()) continue;
+        const m = JSON.parse(line); if (m.id === undefined) continue;
+        const result = m.method === 'initialize' ? { protocolVersion: '2025-11-25', capabilities: {tools:{}}, serverInfo:{name:'env-fixture',version:'1'} } : m.method === 'tools/list' ? {tools:[{name:'env',inputSchema:{type:'object'}}]} : {content:[{type:'text',text:JSON.stringify({ambient:process.env.PORACODE_MCP_ENV_TEST??null,priority:process.env.PORACODE_MCP_PRIORITY_TEST,outer:process.env.PORACODE_MCP_FILTER_CONFIG_V2??null,explicitEnvelope:process.env.PORACODE_MCP_STDIO_CONFIG})}]};
+        process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result})+'\n');
+      }
+    });
+  `;
+    const upstream = createUpstreamTransport(
+      {
+        transport: {
+          type: "stdio",
+          command: process.execPath,
+          args: ["-e", script],
+          env: {
+            PORACODE_MCP_PRIORITY_TEST: "explicit",
+            PORACODE_MCP_STDIO_CONFIG: "explicit-inner-envelope",
+          },
+        },
+      },
+      { inheritEnv },
+    );
+    const client = new Client({ name: "inheritance-test", version: "1" });
+    clients.push(client);
+    await client.connect(upstream);
+    await client.listTools();
+    const result = await client.callTool({ name: "env", arguments: {} });
+    expect(result.content).toEqual([
+      {
+        type: "text",
+        text: JSON.stringify({
+          ambient: inheritEnv ? "inherited" : null,
+          priority: "explicit",
+          outer: null,
+          explicitEnvelope: "explicit-inner-envelope",
+        }),
+      },
+    ]);
+  },
+);

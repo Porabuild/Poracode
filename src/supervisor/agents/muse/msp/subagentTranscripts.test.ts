@@ -4,6 +4,7 @@ import { applyRuntimeEventsToState } from "@/renderer/state/slices/runtimeEventR
 import { createMuseMspItemMapperState } from "./canonicalMapping";
 import { MuseSubagentTranscripts } from "./subagentTranscripts";
 import { MuseSubagentDiscovery } from "./subagentDiscovery";
+import { MspRpcError } from "./protocol";
 
 const readSessionFileText = vi.hoisted(() => vi.fn<() => Promise<string | undefined>>());
 const statSessionPaths = vi.hoisted(() =>
@@ -1013,4 +1014,165 @@ describe("Muse subagent transcripts", () => {
       ),
     ).toHaveLength(1);
   });
+});
+
+it.each(["inProgress", "failed"] as const)(
+  "fills an initially missing native child binding without replacing native status %s",
+  async (status) => {
+    const { manager, request, events } = setup();
+    const native = {
+      itemId: "native-early",
+      kind: "subagent",
+      subagentId: "agent-1",
+      status,
+      ...(status === "failed"
+        ? { result: { text: "Native failure detail", errorKind: "failed" } }
+        : {}),
+    };
+    manager.open("root", history([spawn(), native]));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(request).toHaveBeenCalledWith("session/read", {
+      sessionId: "child-1",
+      excludeItems: false,
+    });
+    expect(manager.owns("child-1")).toBe(true);
+    const subscriptions = request.mock.calls.filter(([method]) => method === "view/subscribe");
+    expect(subscriptions).toEqual(
+      status === "inProgress"
+        ? [["view/subscribe", { sessionId: "child-1", after: "cursor-1" }]]
+        : [],
+    );
+    expect(renderEvents(events)?.["spawn-1"]?.payload).toMatchObject(
+      status === "inProgress"
+        ? { subAgentStatus: "running" }
+        : { subAgentStatus: "failed", result: "Native failure detail" },
+    );
+  },
+);
+
+it("polls readable child snapshots when native subscription rejects the same child as not found", async () => {
+  const { manager, request, events } = setup();
+  let reads = 0;
+  request.mockImplementation(async (method) => {
+    if (method === "view/subscribe")
+      throw new MspRpcError("child not found", { code: -32020, kind: "sessionNotFound" });
+    reads += 1;
+    return history([{ ...message, revision: reads, text: reads === 1 ? "Hello" : "Hello live" }]);
+  });
+  manager.open("root", history([spawn()]));
+  await vi.advanceTimersByTimeAsync(3_000);
+  expect(reads).toBeGreaterThanOrEqual(3);
+  expect(request.mock.calls.filter(([method]) => method === "view/subscribe")).toHaveLength(1);
+  expect(renderEvents(events)?.["spawn-1/child-1/message-1"]?.streams.assistant_text).toBe(
+    "Hello live",
+  );
+  expect(renderEvents(events)?.["spawn-1"]?.payload).toMatchObject({ subAgentStatus: "running" });
+  manager.mapItem(
+    {
+      itemId: "native-1",
+      kind: "subagent",
+      subagentId: "agent-1",
+      childSessionId: "child-1",
+      status: "completed",
+    },
+    "completed",
+  );
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(renderEvents(events)?.["spawn-1"]?.state).toBe("completed");
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("does not apply a retired child's subscription refusal to a new binding", async () => {
+  const { manager, request } = setup();
+  let rejectSubscribe!: (error: Error) => void;
+  request.mockImplementation(async (method, params) => {
+    if (method === "session/read") return history([message]);
+    if (params?.["sessionId"] === "child-1")
+      return new Promise((_, reject) => {
+        rejectSubscribe = reject;
+      });
+    return { viewCursor: "cursor-2" };
+  });
+  manager.open("root", history([spawn()]));
+  await vi.waitFor(() => expect(rejectSubscribe).toBeDefined());
+  manager.mapItem(
+    {
+      itemId: "native-1",
+      kind: "subagent",
+      subagentId: "agent-1",
+      childSessionId: "child-2",
+      status: "inProgress",
+    },
+    "started",
+  );
+  rejectSubscribe(
+    new MspRpcError("old child not found", { code: -32020, kind: "sessionNotFound" }),
+  );
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(request).toHaveBeenCalledWith("view/subscribe", {
+    sessionId: "child-2",
+    after: "cursor-1",
+  });
+});
+
+it("advances an owner-log binding inferred for a native row when the child restarts", async () => {
+  const { manager, request } = setup();
+  const native = {
+    itemId: "native-early",
+    kind: "subagent",
+    subagentId: "agent-1",
+    status: "inProgress",
+  };
+  manager.open("root", history([spawn(), native]));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(manager.owns("child-1")).toBe(true);
+  manager.mapItem({ ...native, status: "completed" }, "completed");
+  await vi.advanceTimersByTimeAsync(0);
+  manager.mapItem(native, "updated");
+  readSessionFileText.mockResolvedValue(binding() + binding("agent-1", "child-2"));
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(manager.owns("child-1")).toBe(false);
+  expect(manager.owns("child-2")).toBe(true);
+  expect(request).toHaveBeenCalledWith("session/read", {
+    sessionId: "child-2",
+    excludeItems: false,
+  });
+});
+
+it("skips unchanged running polls but retains equal-revision text repair and final snapshots", async () => {
+  const { manager, request, events } = setup();
+  let text = "Hello";
+  request.mockImplementation(async (method) => {
+    if (method === "view/subscribe")
+      throw new MspRpcError("child not found", { code: -32020, kind: "sessionNotFound" });
+    return history([{ ...message, text }]);
+  });
+  manager.open("root", history([spawn()]));
+  await vi.advanceTimersByTimeAsync(0);
+  const firstCount = events.length;
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(events.slice(firstCount)).toEqual([]);
+  text = "Hello repaired";
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(renderEvents(events)?.["spawn-1/child-1/message-1"]?.streams.assistant_text).toBe(text);
+  const finalOffset = events.length;
+  manager.mapItem(
+    {
+      itemId: "native-1",
+      kind: "subagent",
+      subagentId: "agent-1",
+      childSessionId: "child-1",
+      status: "completed",
+    },
+    "completed",
+  );
+  await vi.advanceTimersByTimeAsync(0);
+  expect(events.slice(finalOffset)).toContainEqual(
+    expect.objectContaining({
+      type: "content.delta",
+      itemId: "spawn-1/child-1/message-1",
+      replace: true,
+      delta: text,
+    }),
+  );
 });
