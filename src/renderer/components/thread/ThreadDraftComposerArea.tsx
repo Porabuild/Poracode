@@ -345,6 +345,7 @@ export function ThreadDraftComposerArea(props: {
   /** Override mount autofocus without changing the active submit behavior. */
   autoFocus?: boolean;
   pickFiles?: () => Promise<string[] | null>;
+  importFiles?: (files: readonly File[]) => Promise<string[]>;
 
   onConfigChange: (patch: Partial<ThreadConfig>) => void;
   onWorktreeModeChange: (worktreeMode: boolean) => void;
@@ -378,6 +379,7 @@ export function ThreadDraftComposerArea(props: {
   const isBrowserClient = isRemoteSession();
   const projectOnThisMachine = hostRunsOnThisMachine(props.project);
   const hostIsLocalToClient = projectOnThisMachine && !isBrowserClient;
+  const { importFiles } = props;
   const autoFocus = props.autoFocus ?? ((props.paneCount ?? 1) === 1 && !isBrowserClient);
   const isQuickComposer = hasAnyClientBridge() ? isQuickComposerWindow() : false;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
@@ -1645,6 +1647,16 @@ export function ThreadDraftComposerArea(props: {
               onAttachFiles: (paths: string[]) => {
                 cancelDraftVoice();
                 attachments.addFiles(paths);
+              },
+            }
+          : {})}
+        {...(importFiles
+          ? {
+              onImportFiles: (files: File[]) => {
+                cancelDraftVoice();
+                void draftVoice
+                  .trackOperation(async () => attachments.addFiles(await importFiles(files)))
+                  .catch((error: unknown) => toast.danger(friendlyError(error)));
               },
             }
           : {})}

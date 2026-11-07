@@ -53,6 +53,7 @@ export function MobileQuickCompose(props: { projectId: string }) {
           autoFocusComposer={false}
           restoreWorktreeSelectionToken={restoreWorktreeSelectionToken}
           {...(draftEnvironment.pickFiles ? { pickFiles: draftEnvironment.pickFiles } : {})}
+          {...(draftEnvironment.importFiles ? { importFiles: draftEnvironment.importFiles } : {})}
 
           {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
           onProjectChange={(projectId) => {

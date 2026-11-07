@@ -1,4 +1,9 @@
-import { listClientSubmissions } from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import {
+  isClientDraftAsset,
+  listClientSubmissions,
+} from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import { importClientDraftFiles } from "@/renderer/utils/browserFilePicker";
+import * as draftSubmission from "@/renderer/actions/clientDraftSubmission";
 import type { LaunchExperimentInput } from "@/renderer/actions/experimentActions";
 import "@/renderer/testUtils/clientDraftDatabase";
 import {
@@ -1837,6 +1842,54 @@ describe("ThreadDraftView", () => {
     expect(worktreeRow).toBeEmptyDOMElement();
     expect(worktreeRow).toHaveClass("min-h-[1.625rem]");
     expect(screen.queryByRole("button", { name: "Worktree mode" })).not.toBeInTheDocument();
+  });
+
+  it("imports dropped files as client draft assets and launches with them", async () => {
+    const file = new File(["hello"], "notes.txt", { type: "text/plain" });
+    const importFiles =
+      vi.fn<(files: readonly File[]) => Promise<string[]>>(importClientDraftFiles);
+    const materialize = vi
+      .spyOn(draftSubmission, "materializeDraftSegments")
+      .mockImplementationOnce(async (_target, segments) =>
+        segments.map((segment) =>
+          segment.kind === "attachment" && isClientDraftAsset(segment.path)
+            ? { ...segment, path: "/host/attachments/notes.txt" }
+            : segment,
+        ),
+      );
+    const onStart = vi.fn<(input: unknown) => void>();
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexStatus]}
+        importFiles={importFiles}
+        onStart={onStart}
+      />,
+    );
+
+    const props = composerSpy.mock.lastCall?.[0] as { onImportFiles?: (files: File[]) => void };
+    expect(props.onImportFiles).toBeDefined();
+    act(() => props.onImportFiles?.([file]));
+    expect(importFiles).toHaveBeenCalledExactlyOnceWith([file]);
+    const [assetPath] = await importFiles.mock.results[0]!.value;
+    expect(isClientDraftAsset(assetPath!)).toBe(true);
+    await waitFor(() => {
+      const nextProps = composerSpy.mock.lastCall?.[0] as { submitDisabled: boolean };
+      expect(nextProps.submitDisabled).toBe(false);
+    });
+    const submitProps = composerSpy.mock.lastCall?.[0] as { onSubmit: () => void };
+    act(() => submitProps.onSubmit());
+
+    await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+    expect(onStart.mock.calls[0]?.[0]).toMatchObject({
+      segments: [
+        { kind: "attachment", path: "/host/attachments/notes.txt", mimeType: "text/plain" },
+      ],
+    });
+    expect(materialize.mock.calls[0]?.[1]).toEqual([
+      { kind: "attachment", path: assetPath, mimeType: "text/plain" },
+    ]);
+    materialize.mockRestore();
   });
 
   it("restores the selection replaced by a targeted worktree when the inline composer collapses", async () => {

@@ -35,6 +35,7 @@ export type ThreadContentCommonProps = {
   canShowProjectEntryInExplorer?: boolean | undefined;
   checkpointActions?: CheckpointRevertActions | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
+  importFiles?: ((files: readonly File[]) => Promise<string[]>) | undefined;
 };
 
 export function GuiThreadContent(

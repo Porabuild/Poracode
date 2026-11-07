@@ -511,6 +511,70 @@ describe("ThreadComposer", () => {
     },
   );
 
+  it("hands OS files to the import handler instead of resolving local paths", () => {
+    const onAttachFiles = vi.fn<(paths: string[]) => void>();
+    const onImportFiles = vi.fn<(files: File[]) => void>();
+    const { container } = render(
+      <ThreadComposer
+        controls={[]}
+        placeholder="Send a message..."
+        prompt=""
+        submitDisabled
+        submitLabel="Send message"
+        onAttachFiles={onAttachFiles}
+        onImportFiles={onImportFiles}
+        onPromptChange={vi.fn<(value: string) => void>()}
+        onSubmit={vi.fn<() => void>()}
+      />,
+    );
+    const shell = container.querySelector<HTMLElement>(".poracode-composer-shell")!;
+    const file = new File(["hello"], "notes.txt", { type: "text/plain" });
+    const dataTransfer = { types: ["Files"], files: [file], getData: () => "" };
+
+    fireEvent.dragEnter(shell, { dataTransfer });
+    expect(screen.getByText("Drop here to attach")).toBeVisible();
+    fireEvent.drop(shell, { dataTransfer });
+
+    expect(onImportFiles).toHaveBeenCalledExactlyOnceWith([file]);
+    expect(getDroppedFilePaths).not.toHaveBeenCalled();
+    expect(onAttachFiles).not.toHaveBeenCalled();
+  });
+
+  it("accepts OS file drops but ignores project-tree drags with only an import handler", () => {
+    const onImportFiles = vi.fn<(files: File[]) => void>();
+    const { container } = render(
+      <ThreadComposer
+        controls={[]}
+        placeholder="Send a message..."
+        prompt=""
+        submitDisabled
+        submitLabel="Send message"
+        onImportFiles={onImportFiles}
+        onPromptChange={vi.fn<(value: string) => void>()}
+        onSubmit={vi.fn<() => void>()}
+      />,
+    );
+    const shell = container.querySelector<HTMLElement>(".poracode-composer-shell")!;
+    const treeTransfer = {
+      types: ["application/poracode-composer-file"],
+      files: [],
+      getData: () => JSON.stringify({ path: "src/App.tsx", type: "file" }),
+    };
+
+    expect(fireEvent.dragOver(shell, { dataTransfer: treeTransfer })).toBe(true);
+    fireEvent.drop(shell, { dataTransfer: treeTransfer });
+    expect(onImportFiles).not.toHaveBeenCalled();
+
+    const file = new File(["hello"], "notes.txt", { type: "text/plain" });
+    expect(fireEvent.dragOver(shell, { dataTransfer: { types: ["Files"], files: [file] } })).toBe(
+      false,
+    );
+    fireEvent.drop(shell, {
+      dataTransfer: { types: ["Files"], files: [file], getData: () => "" },
+    });
+    expect(onImportFiles).toHaveBeenCalledExactlyOnceWith([file]);
+  });
+
   it("attaches a project-tree file once when dropped inside the panel input", () => {
     const onAttachFiles = vi.fn<(paths: string[]) => void>();
     render(attachmentPanel(onAttachFiles));

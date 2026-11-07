@@ -168,6 +168,7 @@ type ThreadComposerSectionProps = {
   /** Called after a send is accepted, including queued and steered sends. */
   onSubmitSuccess?: (() => void) | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
+  importFiles?: ((files: readonly File[]) => Promise<string[]>) | undefined;
 
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
@@ -297,6 +298,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const isBrowserClient = isRemoteSession();
   const threadOnThisMachine = hostRunsOnThisMachine(thread);
   const hostIsLocalToClient = threadOnThisMachine && !isBrowserClient;
+  const { importFiles } = props;
   const docksPlacement = compactLayout ? requestedDocksPlacement : "right";
   const docksInComposer = docksPlacement === "composer";
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
@@ -1735,6 +1737,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     // Dropped files are paths on this machine; only a host that runs
                     // here can read them.
                     {...(hostIsLocalToClient ? { onAttachFiles: attachments.addFiles } : {})}
+                    {...(importFiles
+                      ? {
+                          onImportFiles: (files: File[]) => {
+                            const originThreadId = thread.id;
+                            void importFiles(files)
+                              .then((paths) => attachPickedFiles(originThreadId, paths))
+                              .catch((error: unknown) => toast.danger(friendlyError(error)));
+                          },
+                        }
+                      : {})}
                     onSubmit={() => {
                       const segments = mentionRef.current?.serializeSegments();
                       submitPrompt(

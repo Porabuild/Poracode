@@ -295,6 +295,7 @@ export function QuickComposerOverlay() {
             paneCount={1}
             composerPlaceholder={t`Ask ${project.name} anything about this workspace`}
             pickFiles={environment.pickFiles ?? (() => readBridge().pickQuickComposerFiles())}
+            {...(environment.importFiles ? { importFiles: environment.importFiles } : {})}
 
             onProjectChange={setSelectedProjectId}
             {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
