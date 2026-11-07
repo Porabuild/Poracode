@@ -49,7 +49,7 @@ import { useTimelineMeasurements } from "./useTimelineMeasurements";
 import { useNewPromptScroll } from "./useNewPromptScroll";
 import { PROMPT_FLOOR_CSS_VAR, usePromptReserveFloor } from "./usePromptReserveFloor";
 import { type HistoryStartReached } from "./underfilledHistory";
-import { useUnderfilledHistory } from "./useUnderfilledHistory";
+import { HISTORY_START_REACHED_THRESHOLD, useUnderfilledHistory } from "./useUnderfilledHistory";
 import {
   useVirtualRowMeasurement,
   type RemeasureVirtualRow,
@@ -183,16 +183,20 @@ export function MessageList({
     onNewPrompt,
     onScrollWrite: onPromptScrollWrite,
   });
-  const { notifyContentHeight, retryUnderfilledHistory, resetUnderfilledHistory } =
-    useUnderfilledHistory({
-      threadId,
-      oldestVisibleEntryId: entries[0]?.id,
-      scrollElementRef,
-      onStartReached,
-      onContentHeightChange: () => {
-        if (!newPromptReady) onContentHeightNotification?.();
-      },
-    });
+  const {
+    handleStartReached,
+    notifyContentHeight,
+    retryUnderfilledHistory,
+    resetUnderfilledHistory,
+  } = useUnderfilledHistory({
+    threadId,
+    oldestVisibleEntryId: entries[0]?.id,
+    scrollElementRef,
+    onStartReached,
+    onContentHeightChange: () => {
+      if (!newPromptReady) onContentHeightNotification?.();
+    },
+  });
   const entriesRef = useRef(entries);
   useLayoutEffect(() => {
     entriesRef.current = entries;
@@ -501,10 +505,8 @@ export function MessageList({
         {...(drawDistance !== undefined ? { drawDistance } : {})}
         {...(onStartReached
           ? {
-              onStartReached: () => {
-                void onStartReached();
-              },
-              onStartReachedThreshold: 0.75,
+              onStartReached: handleStartReached,
+              onStartReachedThreshold: HISTORY_START_REACHED_THRESHOLD,
             }
           : {})}
         recycleItems={false}

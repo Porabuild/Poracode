@@ -248,6 +248,7 @@ describe("MessageList", () => {
       runtimeItemsByIdByThread: {},
       runtimeItemChildrenByParentByThread: {},
       runtimeCompletedTurnsByThread: {},
+      runtimeHydrationStatus: {},
       chatScrollToPromptRequests: {},
       chatPromptAnchorIds: {},
       chatScrollToBottomTokens: {},
@@ -1138,6 +1139,107 @@ describe("MessageList", () => {
     expect(onStartReached).toHaveBeenCalledTimes(3);
     act(() => props.onContentSizeCommit?.({ size: 4000, horizontal: false }));
     expect(onStartReached).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(["top", "near", "away", "failed"] as const)(
+    "handles a paging edge reached while history hydrates when the reader is %s",
+    (outcome) => {
+      useAppStore.getState().setRuntimeHydrationStatus("thread-1", "pending");
+      const onStartReached = vi.fn<() => Promise<boolean>>().mockResolvedValue(true);
+      const view = render(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["cached-tail"])}
+          onStartReached={onStartReached}
+        />,
+      );
+      const scroller = view.container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
+      Object.defineProperties(scroller, {
+        clientHeight: { configurable: true, value: 776 },
+        scrollHeight: { configurable: true, value: 4000 },
+      });
+      act(() => (latestLegendProps.current as MockLegendProps).onStartReached?.());
+      expect(onStartReached).not.toHaveBeenCalled();
+
+      if (outcome === "near") scroller.scrollTop = 500;
+      if (outcome === "away") scroller.scrollTop = 1000;
+      act(() => {
+        useAppStore
+          .getState()
+          .setRuntimeHydrationStatus("thread-1", outcome === "failed" ? "failed" : null);
+      });
+      expect(onStartReached).toHaveBeenCalledTimes(outcome === "top" || outcome === "near" ? 1 : 0);
+    },
+  );
+
+  it.each(["wheel", "keyboard"] as const)(
+    "remembers %s intent at the top while history hydrates",
+    (input) => {
+      useAppStore.getState().setRuntimeHydrationStatus("thread-1", "pending");
+      const onStartReached = vi.fn<() => Promise<boolean>>().mockResolvedValue(true);
+      const view = render(
+        <MessageList
+          threadId="thread-1"
+          entries={makeEntries(["cached-tail"])}
+          onStartReached={onStartReached}
+        />,
+      );
+      const scroller = view.container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
+      Object.defineProperties(scroller, {
+        clientHeight: { configurable: true, value: 776 },
+        scrollHeight: { configurable: true, value: 4000 },
+      });
+      if (input === "wheel") fireEvent.wheel(scroller, { deltaY: -1 });
+      else fireEvent.keyDown(scroller, { key: "Home" });
+      expect(onStartReached).not.toHaveBeenCalled();
+      act(() => {
+        useAppStore.getState().setRuntimeHydrationStatus("thread-1", null);
+      });
+      expect(onStartReached).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("does not duplicate a queued edge when the hydrated transcript is underfilled", () => {
+    useAppStore.getState().setRuntimeHydrationStatus("thread-1", "pending");
+    const onStartReached = vi.fn<() => Promise<boolean>>().mockResolvedValue(true);
+    const view = render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["cached-tail"])}
+        onStartReached={onStartReached}
+      />,
+    );
+    const scroller = view.container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
+    Object.defineProperties(scroller, {
+      clientHeight: { configurable: true, value: 776 },
+      scrollHeight: { configurable: true, value: 776 },
+    });
+    act(() => (latestLegendProps.current as MockLegendProps).onStartReached?.());
+    act(() => {
+      useAppStore.getState().setRuntimeHydrationStatus("thread-1", null);
+    });
+    expect(onStartReached).toHaveBeenCalledOnce();
+  });
+
+  it("keeps normal edge paging available after a history recovery fails", () => {
+    useAppStore.getState().setRuntimeHydrationStatus("thread-1", "failed");
+    const onStartReached = vi.fn<() => Promise<boolean>>().mockResolvedValue(true);
+    const view = render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["retained-tail"])}
+        onStartReached={onStartReached}
+      />,
+    );
+    const scroller = view.container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
+    Object.defineProperties(scroller, {
+      clientHeight: { configurable: true, value: 776 },
+      scrollHeight: { configurable: true, value: 4000 },
+    });
+    act(() => (latestLegendProps.current as MockLegendProps).onStartReached?.());
+    expect(onStartReached).toHaveBeenCalledOnce();
+    fireEvent.wheel(scroller, { deltaY: -1 });
+    expect(onStartReached).toHaveBeenCalledTimes(2);
   });
 
   it.each([false, true])(

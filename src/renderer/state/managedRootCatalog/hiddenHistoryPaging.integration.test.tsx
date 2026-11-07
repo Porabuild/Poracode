@@ -1,4 +1,4 @@
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getSqlite } from "@/host/db/connection";
@@ -14,6 +14,7 @@ import { useUnderfilledHistory } from "@/renderer/components/thread/ChatPane/par
 import {
   activate,
   seedThread,
+  seedRuntimeItems,
   setupManagedRootFixture,
   teardownManagedRootFixture,
   threadRow,
@@ -25,21 +26,25 @@ afterEach(async () => {
   invalidateThreadRuntimeHydration("hidden-history-goal");
   invalidateThreadRuntimeHydration("hidden-history-ordinary");
   invalidateThreadRuntimeHydration("collapsed-history");
+  invalidateThreadRuntimeHydration("pending-history");
+  invalidateThreadRuntimeHydration("failed-recovery-history");
   await teardownManagedRootFixture();
 });
 
 function UnderfilledHistoryReader({
   threadId,
   onStartReached,
+  scrollHeight = 776,
 }: {
   threadId: string;
   onStartReached: () => Promise<boolean>;
+  scrollHeight?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const oldestVisibleEntryId = useAppStore(
     (state) => selectVisibleThreadTimelineEntries(state, threadId)[0]?.id,
   );
-  useUnderfilledHistory({
+  const { handleStartReached } = useUnderfilledHistory({
     threadId,
     oldestVisibleEntryId,
     scrollElementRef: ref,
@@ -53,12 +58,70 @@ function UnderfilledHistoryReader({
         if (element)
           Object.defineProperties(element, {
             clientHeight: { configurable: true, value: 776 },
-            scrollHeight: { configurable: true, value: 776 },
+            scrollHeight: { configurable: true, value: scrollHeight },
           });
       }}
+      onScroll={handleStartReached}
     />
   );
 }
+
+it("loads a queued top edge through the host when hydration completes", async () => {
+  const threadId = "pending-history";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 80);
+  await activate();
+  await hydrateThreadRuntimeItems(threadId);
+  const initialIds = useAppStore.getState().runtimeItemIdsByThread[threadId] ?? [];
+  expect(initialIds.length).toBeGreaterThan(0);
+  expect(initialIds[0]).not.toBe("item-0");
+  useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
+  const onStartReached = vi.fn<() => Promise<boolean>>(() => loadOlderThreadRuntimeItems(threadId));
+  const view = render(
+    <UnderfilledHistoryReader
+      threadId={threadId}
+      onStartReached={onStartReached}
+      scrollHeight={4000}
+    />,
+  );
+  fireEvent.scroll(view.container.firstElementChild!);
+  expect(onStartReached).not.toHaveBeenCalled();
+  act(() => {
+    useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
+  });
+  await vi.waitFor(() =>
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]!.length).toBeGreaterThan(
+      initialIds.length,
+    ),
+  );
+  expect(onStartReached).toHaveBeenCalledOnce();
+}, 60000);
+
+it("loads older host history after a failed recovery keeps the hydrated window", async () => {
+  const threadId = "failed-recovery-history";
+  seedThread(threadId);
+  seedRuntimeItems(threadId, 80);
+  await activate();
+  await hydrateThreadRuntimeItems(threadId);
+  const initialIds = useAppStore.getState().runtimeItemIdsByThread[threadId] ?? [];
+  expect(initialIds[0]).not.toBe("item-0");
+  useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+  const onStartReached = vi.fn<() => Promise<boolean>>(() => loadOlderThreadRuntimeItems(threadId));
+  const view = render(
+    <UnderfilledHistoryReader
+      threadId={threadId}
+      onStartReached={onStartReached}
+      scrollHeight={4000}
+    />,
+  );
+  fireEvent.scroll(view.container.firstElementChild!);
+  await vi.waitFor(() =>
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]!.length).toBeGreaterThan(
+      initialIds.length,
+    ),
+  );
+  expect(onStartReached).toHaveBeenCalledOnce();
+}, 60000);
 
 it.each([false, true])(
   "continues real bounded child-only pages until their parent arrives (sparse goal: %s)",
