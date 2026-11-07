@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Description, Dropdown, Label } from "@heroui/react";
+import { dropdownVariants } from "@heroui/styles";
+import { Button } from "react-aria-components/Button";
 import { useLingui } from "@lingui/react/macro";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import type { MachineDescriptor } from "@/renderer/state/machines";
@@ -82,13 +84,34 @@ export function ProjectEnvironmentMenu(
     <>
       <MachineIcon machine={current.machine} className="size-3.5" />
       <span className="min-w-0 truncate">{currentLabel}</span>
-      <ChevronDown className="size-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+      {environments.length > 2 ? (
+        <ChevronDown className="size-3 shrink-0 opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+      ) : null}
     </>
   );
   // Same type scale and treatment as the project trigger beside it, so the
   // machine reads as a control rather than metadata.
   const triggerClass =
     "group inline-flex min-w-0 max-w-full items-center gap-1 rounded px-1 py-0.5 text-sm leading-tight text-muted/60 outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:bg-[var(--row-hover)]";
+
+  // Match the worktree control: two choices switch directly on every surface.
+  // Use the same React Aria button and styles as Dropdown.Trigger, without
+  // introducing menu semantics or the full-size HeroUI Button defaults.
+  if (environments.length === 2) {
+    const alternative = environments.find((entry) => entry !== current)!;
+    return (
+      <Button
+        aria-label={triggerLabel}
+        isDisabled={!isSelectable(alternative)}
+        className={dropdownVariants().trigger({
+          className: `${triggerClass} disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted/60`,
+        })}
+        onPress={() => select(alternative.project.id)}
+      >
+        {triggerContent}
+      </Button>
+    );
+  }
 
   if (mobile) {
     return (
