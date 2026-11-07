@@ -39,6 +39,7 @@ export function ChatPromptOverlays({
         isEnabled={isEnabled}
         visibleRange={visibleRange}
         onScrollToEntry={onScrollToEntry}
+        onJumpToPrompt={onJumpToPrompt}
       />
       <ChatPromptRail
         threadId={threadId}

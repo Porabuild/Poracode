@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -136,10 +136,12 @@ function OverlaysHost({
   scroller,
   entries,
   onParentRender,
+  onJumpToPrompt = noopJumpToPrompt,
 }: {
   scroller: HTMLDivElement;
   entries: readonly ChatTimelineEntry[];
   onParentRender: () => void;
+  onJumpToPrompt?: (itemId: string) => void;
 }) {
   onParentRender();
   return (
@@ -150,7 +152,7 @@ function OverlaysHost({
       isEnabled
       pendingPromptId={null}
       onScrollToEntry={noopScrollToEntry}
-      onJumpToPrompt={noopJumpToPrompt}
+      onJumpToPrompt={onJumpToPrompt}
     />
   );
 }
@@ -291,6 +293,89 @@ describe("ChatPromptOverlays", () => {
     scrollTo(ROW_HEIGHT + older.length * ROW_HEIGHT);
     expect(stickyButton("Scroll to prompt: First question")).toBeVisible();
     expect(railTick("Second question")).toHaveAttribute("aria-current", "true");
+  });
+
+  it("shows and navigates to the latest indexed prompt when the loaded tail contains only its reply", async () => {
+    const entries: ChatTimelineEntry[] = [
+      { kind: "item", id: "reply-2" },
+      { kind: "item", id: "reply-2b" },
+    ];
+    readThreadPromptIndex.mockResolvedValue({
+      prompts: [
+        { itemId: "prompt-1", position: 0, text: "First question" },
+        { itemId: "prompt-2", position: 5, text: "Second\nquestion" },
+      ],
+      truncated: false,
+    });
+    const { scroller, setEntries } = createScroller();
+    setEntries(entries);
+    setItems([
+      message("reply-2", "assistant_message", "Working on it"),
+      message("reply-2b", "assistant_message", "Final second answer"),
+    ]);
+    const onJumpToPrompt = vi.fn<(itemId: string) => void>();
+    render(
+      <AppProvider>
+        <OverlaysHost
+          scroller={scroller}
+          entries={entries}
+          onParentRender={noopParentRender}
+          onJumpToPrompt={onJumpToPrompt}
+        />
+      </AppProvider>,
+    );
+    await settle();
+
+    const sticky = stickyButton("Scroll to prompt: Second question");
+    expect(sticky).toBeVisible();
+    expect(railTick("Second question")).toHaveAttribute("aria-current", "true");
+    expect(railTick("First question")).not.toHaveAttribute("aria-current");
+    fireEvent.click(sticky!);
+    expect(onJumpToPrompt).toHaveBeenCalledWith("prompt-2");
+  });
+
+  it("follows an unloaded turn until a later loaded prompt enters view", async () => {
+    const entries: ChatTimelineEntry[] = [
+      { kind: "item", id: "reply-1" },
+      { kind: "item", id: "prompt-2" },
+      { kind: "item", id: "reply-2" },
+    ];
+    readThreadPromptIndex.mockResolvedValue({
+      prompts: [
+        { itemId: "prompt-1", position: 0, text: "First question" },
+        { itemId: "prompt-2", position: 5, text: "Second question" },
+      ],
+      truncated: false,
+    });
+    const { scroller, setEntries, scrollTo } = createScroller();
+    scroller.getBoundingClientRect = () => new DOMRect(100, 0, 1000, ROW_HEIGHT);
+    setEntries(entries);
+    renderHost(scroller, entries);
+    await settle();
+
+    expect(stickyButton("Scroll to prompt: First question")).toBeVisible();
+    expect(railTick("First question")).toHaveAttribute("aria-current", "true");
+    scrollTo(ROW_HEIGHT);
+    expect(stickyButton("Scroll to prompt: First question")).toBeUndefined();
+    expect(railTick("Second question")).toHaveAttribute("aria-current", "true");
+    scrollTo(2 * ROW_HEIGHT);
+    expect(stickyButton("Scroll to prompt: Second question")).toBeVisible();
+  });
+
+  it("shows an indexed prompt without a rail, including when its text preview is empty", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => mediaQueryList(query, false));
+    const entries: ChatTimelineEntry[] = [{ kind: "item", id: "reply-1" }];
+    readThreadPromptIndex.mockResolvedValue({
+      prompts: [{ itemId: "prompt-1", position: 0, text: "" }],
+      truncated: false,
+    });
+    const { scroller, setEntries } = createScroller();
+    setEntries(entries);
+    renderHost(scroller, entries);
+    await settle();
+
+    expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Scroll to prompt: Prompt" })).toBeVisible();
   });
 
   it("resolves measured indices directly and remaps ids when the timeline changes", async () => {

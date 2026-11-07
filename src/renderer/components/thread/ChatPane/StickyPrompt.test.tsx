@@ -76,6 +76,7 @@ function renderStickyPrompt(
         scrollElement={scroller}
         isEnabled
         onScrollToEntry={onScrollToEntry}
+        onJumpToPrompt={vi.fn<(itemId: string) => void>()}
         {...props}
       />
     </AppProvider>,
