@@ -653,6 +653,7 @@ export class SpawnPipeline {
           ? { remoteViaStdio: true }
           : {}),
         ...(adapter.mcpRequiresStdioCwdProxy ? { proxyStdioCwd: true } : {}),
+        ...(adapter.mcpRequiresPortableSchemaPatterns ? { omitInvalidSchemaPatterns: true } : {}),
         ...(requestedPresentation === "gui" && adapter.mcpRequiresConnectionFailureIsolation
           ? { isolateConnectionFailures: true }
           : {}),

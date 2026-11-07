@@ -1,16 +1,16 @@
 /**
  * Hand-written TypeScript for the MSP (Muse Session Protocol) wire subset
  * Poracode speaks. Derived from the `muse schema generate-json-schema`
- * export of Muse Code 1.4.6 (1.4.6-R6000.1):
+ * export of Muse Code 1.4.14 (1.4.14-R7309.1):
  *
  *   muse schema generate-json-schema --out DIR   (offline, instant)
  *
  * Pinned bundle: schema version 1, fingerprint
- * `sha256:eae467ab60cb9a5d5af4de616830f065e59375c987fd59269c8cc33ed2a1137f`.
+ * `sha256:c94c3d1f2f51e6424074b9ec43eac3eedcf532d3dcd77351ec1383a87d3049c6`.
  * To regenerate: re-run the export against the installed binary, copy both
  * `msp.schema.json` and `manifest.json` into `msp/fixtures/`, update the
  * version/fingerprint constants below from that manifest, and format the
- * fixtures with `pnpm exec oxfmt msp/fixtures/` (fixtures are format-checked),
+ * fixtures with `bun run fmt msp/fixtures/` (fixtures are format-checked),
  * and run `msp/schemaFixture.test.ts` — it fails on method/enum drift against
  * the names used below. The schema is additive-open by design: the client and
  * mapper must ignore unknown methods, fields, and item kinds.
@@ -24,7 +24,7 @@
  * `initialized` notification; anything earlier is rejected `notInitialized`.
  *
  * Implementation strategy: hand-rolled client, not `@muse-code/sdk`. The
- * official SDK 1.4.6 (MIT, zero-dep) shares this schema, but Poracode-specific
+ * official SDK (MIT, zero-dep) shares the protocol, but Poracode-specific
  * canonical mapping, WSL process custody, and thread lifecycle remain ours.
  * The available community ACP adapters also wrap MSP, adding another process
  * and translation layer without improving native catalog freshness. Useful
@@ -37,7 +37,7 @@
 // Stable launch ids preserve v1 persisted rows; no protocol or storage bump is needed.
 export const MSP_SCHEMA_VERSION = 1;
 export const MSP_SCHEMA_FINGERPRINT =
-  "sha256:eae467ab60cb9a5d5af4de616830f065e59375c987fd59269c8cc33ed2a1137f";
+  "sha256:c94c3d1f2f51e6424074b9ec43eac3eedcf532d3dcd77351ec1383a87d3049c6";
 
 export function assertMspSchemaVersion(version: number): void {
   if (version !== MSP_SCHEMA_VERSION) {

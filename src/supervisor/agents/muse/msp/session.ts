@@ -195,6 +195,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       observerOptions,
       (method, params) => this.subagents.handleNotification(method, params),
       () => this.subagents.onViewDisconnected(),
+      client,
     );
     this.subagents = new MuseSubagentTranscripts(
       input.projectLocation,

@@ -25,6 +25,13 @@ import { isMcpToolVisibleTo, MCP_APP_CLIENT_CAPABILITIES } from "@/shared/mcpApp
 import { McpAppSession } from "./McpAppSession";
 import { materializeMcpAppResult } from "./mcpAppResult";
 import type { BridgeToolResult } from "./toolBridge";
+import { omitInvalidSchemaPatterns } from "./portableSchemaPatterns";
+import {
+  MCP_FILTER_CONFIG_ENV,
+  MCP_FILTER_CONFIG_V1_ENV,
+  MCP_FILTER_CONFIG_V2_ENV,
+  MCP_STDIO_CONFIG_ENV,
+} from "./mcpToolFilterConfig";
 
 export interface FilterProxyOptions {
   serverName: string;
@@ -33,6 +40,7 @@ export interface FilterProxyOptions {
   downstreamTransport: Transport;
   timeoutMs?: number;
   isolateConnectionFailures?: boolean;
+  omitInvalidSchemaPatterns?: boolean;
   /** Enable only when the connection owner supplies an isolated Apps renderer. */
   mcpApps?: boolean;
   onAppResult?(tool: Tool, result: BridgeToolResult): BridgeToolResult;
@@ -45,13 +53,58 @@ export interface FilterProxy {
   close: () => Promise<void>;
 }
 
-export function createUpstreamTransport(server: Pick<McpServer, "transport">): Transport {
+export function mcpStdioEnvironment(
+  explicit: Record<string, string>,
+  inherit: boolean,
+): Record<string, string> {
+  const inherited: Record<string, string> = {};
+  if (inherit) {
+    for (const [key, value] of Object.entries(process.env)) {
+      if (value !== undefined) inherited[key] = value;
+    }
+  }
+  // Preserve native stdio inheritance without exposing the outer helper's
+  // configuration or overriding a nested helper's explicit envelope.
+  for (const key of [
+    MCP_FILTER_CONFIG_ENV,
+    MCP_FILTER_CONFIG_V1_ENV,
+    MCP_FILTER_CONFIG_V2_ENV,
+    MCP_STDIO_CONFIG_ENV,
+  ])
+    delete inherited[key];
+  return { ...inherited, ...explicit };
+}
+
+/** The native owner has already expanded env and applied its reserved values. */
+export function mcpOwnedStdioEnvironment(explicit: Record<string, string>): Record<string, string> {
+  const env = mcpStdioEnvironment({}, true);
+  // Nested helpers still need their own explicit envelope; the outer worker's
+  // envelope was scrubbed above. Ordinary keys must retain the owner's values.
+  for (const key of [
+    MCP_FILTER_CONFIG_ENV,
+    MCP_FILTER_CONFIG_V1_ENV,
+    MCP_FILTER_CONFIG_V2_ENV,
+    MCP_STDIO_CONFIG_ENV,
+  ]) {
+    if (explicit[key] !== undefined) env[key] = explicit[key];
+  }
+  // Electron's worker bootstrap flag belongs to the wrapper, not its server.
+  delete env["ELECTRON_RUN_AS_NODE"];
+  if (explicit["ELECTRON_RUN_AS_NODE"] !== undefined)
+    env["ELECTRON_RUN_AS_NODE"] = explicit["ELECTRON_RUN_AS_NODE"];
+  return env;
+}
+
+export function createUpstreamTransport(
+  server: Pick<McpServer, "transport">,
+  options: { inheritEnv?: boolean } = {},
+): Transport {
   const transport = server.transport;
   if (transport.type === "stdio") {
     return new ClientStdioTransport({
       command: transport.command,
       args: transport.args,
-      env: transport.env,
+      env: mcpStdioEnvironment(transport.env, options.inheritEnv === true),
       ...(transport.cwd ? { cwd: transport.cwd } : {}),
       stderr: "inherit",
     });
@@ -158,7 +211,14 @@ export async function startFilterProxy(options: FilterProxyOptions): Promise<Fil
       await client.close().catch(() => undefined);
       return unavailableTools;
     }
-    return { tools };
+    return {
+      tools: options.omitInvalidSchemaPatterns
+        ? tools.map((tool) => ({
+            ...tool,
+            inputSchema: omitInvalidSchemaPatterns(tool.inputSchema),
+          }))
+        : tools,
+    };
   });
   server.setRequestHandler("tools/call", async (request, extra) => {
     await upstreamReady.promise;
