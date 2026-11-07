@@ -1,4 +1,8 @@
 import "fake-indexeddb/auto";
+import { pickClientDraftFiles } from "@/renderer/utils/browserFilePicker";
+vi.mock("@/renderer/utils/browserFilePicker", () => ({
+  pickClientDraftFiles: vi.fn<() => Promise<string[] | null>>().mockResolvedValue(null),
+}));
 import type { ReactNode } from "react";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -435,7 +439,8 @@ describe("QuickComposerOverlay", () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(upload).toHaveBeenCalledWith("studio", `draft-${HOME_PROJECT_ID}`);
+    expect(pickClientDraftFiles).toHaveBeenCalledWith();
+    expect(upload).not.toHaveBeenCalled();
     expect(bridge.pickQuickComposerFiles).not.toHaveBeenCalled();
     upload.mockRestore();
   });

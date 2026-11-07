@@ -1,5 +1,6 @@
+import "@/renderer/testUtils/clientDraftDatabase";
 import type { ReactNode } from "react";
-import { act, cleanup, fireEvent, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import type { PoracodeBridge } from "@/shared/ipc";
@@ -138,7 +139,7 @@ describe("draft project repair", () => {
 
   it.each([false, true])(
     "preserves typed rich content and attachments across a canonical-only snapshot (split=%s)",
-    (split) => {
+    async (split) => {
       useAppStore.setState({
         view: split
           ? { kind: "thread", panes: ["draft:canonical#first", "draft:duplicate#second"] }
@@ -173,7 +174,7 @@ describe("draft project repair", () => {
       act(() => {
         fireEvent.click(within(repairedPane).getByRole("button", { name: "Send" }));
       });
-      expect(onStart).toHaveBeenCalledOnce();
+      await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
       expect(onStart.mock.calls[0]![0].segments).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ kind: "attachment", path: "C:\\draft-note.txt" }),

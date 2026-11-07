@@ -1139,6 +1139,10 @@ msgstr "놓친 실행을 건너뛰었습니다."
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 msgstr "Poracode Helper가 이 연결을 소유하고 있지만 응답하지 않습니다. 원격 헬퍼를 중지한 후 다시 연결하세요."
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "A previous submission is saved on this device."
+msgstr "이전 전송 내용이 이 기기에 저장되어 있습니다."
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "A profile can carry at most 100 repositories."
 msgstr "프로필 하나에는 최대 100개의 저장소를 담을 수 있습니다."
@@ -5394,7 +5398,9 @@ msgstr "저장소를 복제할 수 없습니다."
 msgid "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
 msgstr "호스트에서 실험 변경 사항을 확인하지 못했습니다. 이미 적용되었을 수 있습니다. 다시 시도하기 전에 실험을 새로고침하세요."
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/actions/threadCommandOutcomeActions.ts
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 msgid "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
 msgstr "호스트에서 이 명령을 확인하지 못했습니다. 이미 적용되었을 수 있으니 다시 시도하기 전에 스레드를 확인하세요."
 
@@ -5467,6 +5473,10 @@ msgstr "플러그인을 관리하지 못했습니다. 패키지 이름, OpenCode
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "단축키를 저장하지 못했습니다."
+
+#: src/renderer/state/composerDrafts/persistenceError.ts
+msgid "Couldn't save this draft on this device. Your content is still in the composer."
+msgstr "이 기기에 초안을 저장하지 못했습니다. 내용은 입력창에 남아 있습니다."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't scan agent skills."
@@ -6812,6 +6822,10 @@ msgstr "오래된 항목 삭제"
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 msgid "Discard recording"
 msgstr "녹음 취소"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Discard saved copy"
+msgstr "저장된 사본 삭제"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -15772,6 +15786,10 @@ msgstr "추론"
 msgid "Reasoning for {memberLabel}"
 msgstr "{memberLabel} 추론"
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "Reattach this file on this device before sending it to another environment."
+msgstr "다른 환경으로 보내기 전에 이 기기에서 파일을 다시 첨부하세요."
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeConfirm.tsx
 msgid "Rebase and merge"
 msgstr "리베이스 후 병합"
@@ -16075,6 +16093,7 @@ msgstr "원격 이름"
 #~ msgid "Remote server"
 #~ msgstr "원격 서버"
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -16713,9 +16732,14 @@ msgstr "반응형"
 msgid "Restart Poracode"
 msgstr "Poracode 다시 시작"
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore"
 msgstr "복원"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Restore a copy"
+msgstr "사본 복원"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore browser"
@@ -20315,6 +20339,11 @@ msgstr "Hex 엔진은 이 호스트 또는 Poracode 버전과 호환되지 않�
 msgid "The history notice could not be read from the server."
 msgstr "서버에서 기록 알림을 읽지 못했습니다."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+#: src/renderer/actions/threadLaunchActions.ts
+msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
+msgstr "호스트가 이 메시지를 수락했지만 로컬 복구 사본 정리에 실패했습니다. 다시 시도하기 전에 스레드를 확인하세요."
+
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "The host has more labels than are listed here."
 msgstr "호스트에 여기에 표시된 것보다 더 많은 라벨이 있습니다."
@@ -20672,6 +20701,10 @@ msgstr "작업이 완료 보고서 없이 종료되었습니다."
 msgid "The task has not confirmed that it stopped. Try again."
 msgstr "작업이 중지되었는지 아직 확인되지 않았습니다. 다시 시도하세요."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "The thread could not be started. Your draft is still saved on this device."
+msgstr "스레드를 시작하지 못했습니다. 초안은 이 기기에 저장되어 있습니다."
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "스레드가 공급자 세션을 유지하므로 다음 메시지는 중단한 지점부터 이어집니다."
@@ -21006,6 +21039,10 @@ msgstr "이 미디어 미리보기를 사용할 수 없습니다."
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "이 메시지는 더 이상 대기열에 없습니다. 편집 중인 내용은 계속 복사할 수 있습니다."
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "This message was staged with the host. A recovery copy is saved on this device."
+msgstr "이 메시지는 호스트에서 전송 대기 중입니다. 복구 사본이 이 기기에 저장되어 있습니다."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
@@ -21382,6 +21419,10 @@ msgstr "대화 이름"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Thread not found"
 msgstr "스레드를 찾을 수 없습니다"
+
+#: src/renderer/actions/threadRuntimeActions.ts
+msgid "Thread not found."
+msgstr "스레드를 찾을 수 없습니다."
 
 #. Popover button: delete the thread but keep the worktree directory
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

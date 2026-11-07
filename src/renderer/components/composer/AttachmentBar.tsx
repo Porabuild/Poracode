@@ -12,6 +12,8 @@ import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/enviro
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
 import { useImageViewportPriority } from "@/renderer/components/common/useImageViewportPriority";
 import { useDownsampledImageSrc } from "@/renderer/components/thread/useDownsampledImageSrc";
+import { useAttachmentImageAuthority } from "@/renderer/components/thread/threadImageAuthority";
+import { isClientDraftAsset } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 
 /**
  * Enabled-MCP indicator, parameterized by a {@link ComposerMcpServerDescriptor}
@@ -134,15 +136,28 @@ function AttachmentImage(props: {
   readonly alt: string;
 }) {
   const { attachment, imageUrlForPath, readiness, className, alt } = props;
-  const usesHostPath = attachment.isImage && attachment.previewUrl === undefined;
-  const activeReadiness = usesHostPath ? readiness : undefined;
+  const sourceAuthority = useAttachmentImageAuthority(attachment.source?.remoteServerId);
+  const usesHostPath =
+    attachment.isImage &&
+    attachment.previewUrl === undefined &&
+    !isClientDraftAsset(attachment.path);
+  const activeReadiness = usesHostPath
+    ? attachment.source
+      ? sourceAuthority.readiness
+      : readiness
+    : undefined;
   const { viewportRef, priority, readRank } = useImageViewportPriority(
     activeReadiness !== undefined,
   );
   const url = useRemoteImagePathUrl(
     usesHostPath ? attachment.path : undefined,
     activeReadiness,
-    activeReadiness ? "" : attachmentImageUrl(attachment, imageUrlForPath),
+    activeReadiness
+      ? ""
+      : attachmentImageUrl(
+          attachment,
+          attachment.source ? sourceAuthority.imageUrlForPath : imageUrlForPath,
+        ),
     priority,
     // A 32px thumbnail never needs the original: the host's downscaled card
     // variant keeps a screenshot-heavy message from pulling full-size bytes.

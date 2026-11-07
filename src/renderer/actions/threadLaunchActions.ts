@@ -1,3 +1,6 @@
+import { RemoteClientError, remoteMutationMayHaveCommitted } from "@/shared/remote/clientErrors";
+import { settleClientSubmission, materializeDraftSegments } from "./clientDraftSubmission";
+import { isClientDraftAsset } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import {
   dropPendingThreadLaunch,
   notePendingThreadLaunch,
@@ -24,7 +27,10 @@ import { friendlyError } from "@/shared/messages";
 import { buildPromptContentBlocks, hasSendablePromptContent } from "@/shared/promptContent";
 import { captureThreadPromptSubmitted, captureThreadStarted } from "@/renderer/analytics/posthog";
 import { readBridge } from "@/renderer/bridge";
-import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
+import type {
+  DraftStartInput,
+  DraftStartOutcome,
+} from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -76,6 +82,20 @@ export async function performInitialThreadLaunch(input: {
   clientContext?: TurnClientContext;
   initialSize: TerminalSize;
 }): Promise<void> {
+  if (
+    input.segments?.some(
+      (segment) => segment.kind === "attachment" && isClientDraftAsset(segment.path),
+    )
+  ) {
+    input = {
+      ...input,
+      segments: await materializeDraftSegments(
+        input.thread,
+        input.segments,
+        entityHost(input.thread)?.hostId ?? input.thread.id,
+      ),
+    };
+  }
   const releasePendingInput =
     input.thread.presentationMode === "gui" &&
     hasSendablePromptContent(input.prompt, input.segments)
@@ -373,7 +393,45 @@ export async function startThreadFromDraft(
   project: Project,
   input: DraftStartInput,
   options: { replacePaneId?: string; preserveActiveGroup?: boolean } = {},
-): Promise<void> {
+): Promise<DraftStartOutcome> {
+  let result: "accepted" | "cancelled";
+  try {
+    result = await startThreadFromDraftPending(project, input, options);
+  } catch (error) {
+    await settleClientSubmission(
+      input.clientSubmissionId,
+      isRemoteCommandOutcomeUncertainError(error) || remoteMutationMayHaveCommitted(error)
+        ? "uncertain"
+        : "failed",
+    ).catch(() => undefined);
+    throw error;
+  }
+  try {
+    await settleClientSubmission(
+      input.clientSubmissionId,
+      result === "accepted" ? "accepted" : "failed",
+    );
+  } catch (error) {
+    // The provider effect is already known. A client storage failure cannot
+    // turn that accepted launch into a new retryable launch episode.
+    await settleClientSubmission(input.clientSubmissionId, "uncertain").catch(() => undefined);
+    throw new RemoteClientError(
+      i18n._(
+        msg`The host accepted this message, but local recovery cleanup failed. Check the thread before retrying.`,
+      ),
+      409,
+      "client_draft_retirement_failed",
+      { cause: error, requestMayHaveCommitted: result === "accepted" },
+    );
+  }
+  return result;
+}
+
+async function startThreadFromDraftPending(
+  project: Project,
+  input: DraftStartInput,
+  options: { replacePaneId?: string; preserveActiveGroup?: boolean } = {},
+): Promise<"accepted" | "cancelled"> {
   const {
     agentKind,
     config,
@@ -439,7 +497,7 @@ export async function startThreadFromDraft(
     : undefined;
   if (pendingThread) {
     try {
-      if (!(await prepareDraftThread(pendingThread, project, prompt, segments))) return;
+      if (!(await prepareDraftThread(pendingThread, project, prompt, segments))) return "cancelled";
     } catch (error) {
       markThreadLaunchFailed(pendingThread.id, error);
       toast.danger(friendlyError(error));
@@ -492,12 +550,12 @@ export async function startThreadFromDraft(
     const preparationRemoval = peekPendingThreadLaunch(pendingThread.id)?.removal;
     if (preparationRemoval && (await preparationRemoval)) {
       await performWorktreeRemoval(project, worktreePath, worktreeBranch);
-      return;
+      return "cancelled";
     }
     const currentThread = store.threads.find((thread) => thread.id === pendingThread.id);
     if (!currentThread) {
       await performWorktreeRemoval(project, worktreePath, worktreeBranch);
-      return;
+      return "cancelled";
     }
     {
       // Launch inline, never via the view-consumed launch queue: a queued
@@ -511,14 +569,14 @@ export async function startThreadFromDraft(
         const removal = peekPendingThreadLaunch(pendingThread.id)?.removal;
         if (removal && (await removal)) {
           await performWorktreeRemoval(project, worktreePath, worktreeBranch);
-          return;
+          return "cancelled";
         }
         const launchThread = useAppStore
           .getState()
           .threads.find((thread) => thread.id === pendingThread.id);
         if (!launchThread) {
           await performWorktreeRemoval(project, worktreePath, worktreeBranch);
-          return;
+          return "cancelled";
         }
         if (launchThread.archived) {
           useAppStore.getState().finishWorktreeProvisioning(pendingThread.id);
@@ -527,7 +585,7 @@ export async function startThreadFromDraft(
             attention: "none",
             canResumeWithConfig: false,
           });
-          return;
+          return "cancelled";
         }
         await performInitialThreadLaunch({
           thread: launchThread,
@@ -540,7 +598,7 @@ export async function startThreadFromDraft(
         });
         if (!useAppStore.getState().threads.some((row) => row.id === pendingThread.id)) {
           await performWorktreeRemoval(project, worktreePath, worktreeBranch);
-          return;
+          return "cancelled";
         }
       } catch (error) {
         // Uncertain: the launch may have committed — keep the optimistic row
@@ -552,14 +610,14 @@ export async function startThreadFromDraft(
           !useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)
         ) {
           await performWorktreeRemoval(project, worktreePath, worktreeBranch);
-          return;
+          return "cancelled";
         }
         markThreadLaunchFailed(pendingThread.id, error);
         throw error;
       }
     }
   } else {
-    await launchDraftThread({
+    const result = await launchDraftThread({
       ...rowIdentity,
       project,
       agentKind,
@@ -573,6 +631,7 @@ export async function startThreadFromDraft(
       isNewWorktree,
       options,
     });
+    if (result === "cancelled") return "cancelled";
   }
 
   if (worktreePath) {
@@ -580,6 +639,7 @@ export async function startThreadFromDraft(
     else void primeWorktreeGitState(project, worktreePath);
     void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
   }
+  return "accepted";
 }
 
 /**
@@ -622,7 +682,8 @@ async function launchDraftThread(launch: ThreadLaunchRequest): Promise<"started"
     }
     throw error;
   }
-  return "started";
+  const remaining = useAppStore.getState().threads.find((row) => row.id === thread.id);
+  return remaining && !remaining.archived ? "started" : "cancelled";
 }
 
 /** Surface a failed launch on the thread row (error item + error status). */

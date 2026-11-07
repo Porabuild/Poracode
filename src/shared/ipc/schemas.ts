@@ -39,6 +39,10 @@ export const quickComposerSubmissionSchema = z.object({
   projectId: z.string().min(1),
   input: z
     .object({
+      // Optional same-bundle window handoff fields. Legacy submissions remain
+      // valid; only the renderer's confirmed launch settles this local outbox.
+      threadId: z.string().min(1).optional(),
+      clientSubmissionId: z.string().min(1).optional(),
       agentKind: agentKindSchema,
       config: threadConfigSchema,
       prompt: z.string(),

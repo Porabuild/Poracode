@@ -63,6 +63,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   copyImageToClipboard: "local-shell: OS clipboard of this machine",
   copyShareImage: "local-shell: OS clipboard share handoff of this machine",
   readLocalImageFile: "local-shell: reads a file from this machine's disk for inline preview",
+  readClientDraftFile:
+    "local-shell: bounded import of this device's files into a client-owned draft",
   openPluginsFolder: "local-shell: reveals a folder in this machine's file manager",
 
   // R1: this machine's file manager and disk probes — meaningless against a
@@ -265,6 +267,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   browserGetState: "local-shell: this desktop window's browser tab strip",
   browserCreateTab:
     "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserPreviewClientPdf:
+    "local-shell: previews client-owned bytes in this device's browser panel",
   browserCloseTab:
     "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
   browserActivateTab:

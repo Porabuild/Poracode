@@ -1139,6 +1139,10 @@ msgstr "Pominięto zaległe uruchomienie."
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 msgstr "Poracode Helper jest właścicielem tego połączenia, ale nie odpowiada. Zatrzymaj zdalny helper i połącz się ponownie."
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "A previous submission is saved on this device."
+msgstr "Poprzednia wysłana treść jest zapisana na tym urządzeniu."
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "A profile can carry at most 100 repositories."
 msgstr "Profil może zawierać najwyżej 100 repozytoriów."
@@ -5394,7 +5398,9 @@ msgstr "Nie udało się sklonować repozytorium."
 msgid "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
 msgstr "Nie udało się potwierdzić zmiany eksperymentu na hoście. Mogła już zostać zastosowana. Załaduj eksperyment ponownie przed kolejną próbą."
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/actions/threadCommandOutcomeActions.ts
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 msgid "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
 msgstr "Host nie mógł potwierdzić tego polecenia. Mogło już zostać zastosowane — sprawdź wątek przed ponowną próbą."
 
@@ -5467,6 +5473,10 @@ msgstr "Nie udało się zarządzać wtyczkami. Sprawdź nazwę pakietu, wersję 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Nie udało się zapisać skrótu."
+
+#: src/renderer/state/composerDrafts/persistenceError.ts
+msgid "Couldn't save this draft on this device. Your content is still in the composer."
+msgstr "Nie udało się zapisać tego szkicu na tym urządzeniu. Treść nadal jest w edytorze."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't scan agent skills."
@@ -6812,6 +6822,10 @@ msgstr "Odrzuć nieaktualne"
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 msgid "Discard recording"
 msgstr "Odrzuć nagranie"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Discard saved copy"
+msgstr "Odrzuć zapisaną kopię"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -15772,6 +15786,10 @@ msgstr "Rozumowanie"
 msgid "Reasoning for {memberLabel}"
 msgstr "Wnioskowanie dla {memberLabel}"
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "Reattach this file on this device before sending it to another environment."
+msgstr "Przed wysłaniem tego pliku do innego środowiska załącz go ponownie na tym urządzeniu."
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeConfirm.tsx
 msgid "Rebase and merge"
 msgstr "Rebase i scal"
@@ -16075,6 +16093,7 @@ msgstr "Zdalna nazwa"
 #~ msgid "Remote server"
 #~ msgstr "Serwer zdalny"
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -16713,9 +16732,14 @@ msgstr "Responsywny"
 msgid "Restart Poracode"
 msgstr "Uruchom Poracode ponownie"
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore"
 msgstr "Przywróć"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Restore a copy"
+msgstr "Przywróć kopię"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore browser"
@@ -20315,6 +20339,11 @@ msgstr "Silnik Hex jest niekompatybilny z tym hostem lub wersją Poracode."
 msgid "The history notice could not be read from the server."
 msgstr "Nie udało się odczytać powiadomienia o historii z serwera."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+#: src/renderer/actions/threadLaunchActions.ts
+msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
+msgstr "Host przyjął tę wiadomość, ale nie udało się usunąć lokalnej kopii odzyskiwania. Sprawdź wątek przed ponowną próbą."
+
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "The host has more labels than are listed here."
 msgstr "Host ma więcej etykiet, niż wyświetlono tutaj."
@@ -20672,6 +20701,10 @@ msgstr "Zadanie zakończyło się bez raportu końcowego."
 msgid "The task has not confirmed that it stopped. Try again."
 msgstr "Zadanie nie potwierdziło zatrzymania. Spróbuj ponownie."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "The thread could not be started. Your draft is still saved on this device."
+msgstr "Nie udało się uruchomić wątku. Szkic jest nadal zapisany na tym urządzeniu."
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "Wątek zachowuje sesję dostawcy, więc Twoja następna wiadomość będzie kontynuacją od miejsca, w którym skończyłeś."
@@ -21006,6 +21039,10 @@ msgstr "Podgląd tego pliku multimedialnego jest niedostępny."
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "Tej wiadomości nie ma już w kolejce. Nadal możesz skopiować edytowany tekst."
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "This message was staged with the host. A recovery copy is saved on this device."
+msgstr "Ta wiadomość oczekuje na wysłanie na hoście. Kopia odzyskiwania jest zapisana na tym urządzeniu."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
@@ -21382,6 +21419,10 @@ msgstr "Nazwa rozmowy"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Thread not found"
 msgstr "Nie znaleziono wątku"
+
+#: src/renderer/actions/threadRuntimeActions.ts
+msgid "Thread not found."
+msgstr "Nie znaleziono wątku."
 
 #. Popover button: delete the thread but keep the worktree directory
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

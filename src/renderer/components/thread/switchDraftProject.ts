@@ -4,6 +4,10 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import { rememberWorkspaceProject } from "@/renderer/state/workspaceStore";
 import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
+import { captureProjectDraft } from "@/renderer/state/mountedProjectDrafts";
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
+import { mergeDraftContent } from "@/renderer/state/projectReferences";
+import { isClientDraftAsset } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 
 export interface SwitchDraftProjectOptions {
   /** When provided, switching replaces this pane id instead of changing the top-level draft view. */
@@ -22,11 +26,35 @@ export function switchDraftProject(
   nextProjectId: string,
   options: SwitchDraftProjectOptions = {},
 ): void {
-  if (nextProjectId === currentProjectId) return;
+  if (currentProjectId === nextProjectId) return;
+  const store = useAppStore.getState();
+  const source = store.projects.find((project) => project.id === currentProjectId);
+  if (!source || !store.projects.some((project) => project.id === nextProjectId)) return;
+  const live = captureProjectDraft(currentProjectId).read();
+  const saved = live ?? store.draftContents[currentProjectId];
+  const origin = source.remoteServerId ? { remoteServerId: source.remoteServerId } : {};
+  const sourceContent =
+    saved && (saved.attachments.length > 0 || flattenSegments(saved.segments).trim().length > 0)
+      ? saved.attachments.every(
+          (attachment) => attachment.source || isClientDraftAsset(attachment.path),
+        )
+        ? saved
+        : {
+            ...saved,
+            attachments: saved.attachments.map((attachment) =>
+              attachment.source || isClientDraftAsset(attachment.path)
+                ? attachment
+                : { ...attachment, source: origin },
+            ),
+          }
+      : undefined;
+  const destination = store.draftContents[nextProjectId];
+  const content =
+    sourceContent && destination ? mergeDraftContent(sourceContent, destination) : sourceContent;
+  if (sourceContent)
+    composerDraftStorage()?.transferIdentity("project", currentProjectId, nextProjectId);
   rememberWorkspaceProject(nextProjectId);
   useProjectGroupStore.getState().markProjectUsed(nextProjectId);
-  const store = useAppStore.getState();
-  const content = store.draftContents[currentProjectId];
   if (content && (content.attachments.length > 0 || flattenSegments(content.segments))) {
     store.saveDraftContent(nextProjectId, content);
     const sourceConfig = store.projects.find(
@@ -54,6 +82,7 @@ export function switchDraftProject(
         }
       }
       store.updateProjectDraftConfig(nextProjectId, config);
+      composerDraftStorage()?.saveSelection("project", nextProjectId, config);
     }
   }
   store.discardDraftContent(currentProjectId);

@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { GitStatusResult, Project, ProjectDraftConfig } from "@/shared/contracts";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { makeDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -12,7 +13,7 @@ import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
-
+import * as hostModule from "@/renderer/state/entityHost";
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
   isRemoteSession: () => false,
@@ -63,6 +64,7 @@ describe("ProjectSwitchMenu", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     composerDraftStorage()?.flush();
   });
 
@@ -175,7 +177,12 @@ describe("ProjectSwitchMenu", () => {
               : [],
         ).toEqual(["c"]);
       });
-      expect(useAppStore.getState().draftContents).toEqual({ c: content });
+      expect(useAppStore.getState().draftContents).toEqual({
+        c: {
+          ...content,
+          attachments: content.attachments.map((attachment) => ({ ...attachment, source: {} })),
+        },
+      });
       expect(
         useAppStore.getState().projects.find((row) => row.id === "c")?.lastDraftConfig,
       ).toEqual({
@@ -704,6 +711,17 @@ describe("ProjectSwitchMenu", () => {
         segments: [],
         attachments: [{ id: "image", path: "C:\\image.png", name: "image.png", isImage: true }],
       };
+      const imageBytes = new Uint8Array([137, 80, 78, 71]);
+      const uploadAttachment = vi.fn<RemoteDesktopClient["uploadAttachment"]>(
+        async () => "/mac/attachments/image.png",
+      );
+      useRemoteServersStore.setState({
+        withClient: async (_key, run) =>
+          run({
+            uploadAttachment,
+            fetchTicketedImageBytes: async () => ({ bytes: imageBytes, contentType: "image/png" }),
+          } as never),
+      });
       useAppStore.setState({
         projects: [
           { ...homeProject, lastDraftConfig: sourceConfig },
@@ -712,6 +730,17 @@ describe("ProjectSwitchMenu", () => {
         view: { kind: "draft", projectId: HOME_PROJECT_ID },
         draftContents: { [HOME_PROJECT_ID]: attachmentContent },
       });
+      const entityHost = hostModule.entityHost;
+      vi.spyOn(hostModule, "entityHost").mockImplementation((entity) =>
+        entity?.id === HOME_PROJECT_ID
+          ? {
+              ...entityHost(macHome)!,
+              kind: "managed",
+              connectionKey: undefined,
+              hostId: HOME_PROJECT_ID,
+            }
+          : entityHost(entity),
+      );
       const snapshots: Array<ReturnType<typeof useAppStore.getState>["draftContents"]> = [];
       const unsubscribe = useAppStore.subscribe((state) => snapshots.push(state.draftContents));
       const onSelectProject = vi.fn<(projectId: string) => void>();
@@ -729,8 +758,16 @@ describe("ProjectSwitchMenu", () => {
       // The embedding surface receives the target, but the shared helper leaves
       // the main view alone.
       expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: HOME_PROJECT_ID });
-      expect(useAppStore.getState().draftContents).toEqual({ [macHome.id]: attachmentContent });
-      const copiedForward = snapshots.find((draft) => draft[macHome.id] === attachmentContent);
+      const copiedContent = {
+        ...attachmentContent,
+        attachments: [{ ...attachmentContent.attachments[0], source: {} }],
+      };
+      expect(useAppStore.getState().draftContents).toEqual({ [macHome.id]: copiedContent });
+      expect(uploadAttachment).not.toHaveBeenCalled();
+      const copiedForward = snapshots.find(
+        (draft) =>
+          draft[macHome.id]?.attachments[0]?.path === attachmentContent.attachments[0]?.path,
+      );
       expect(copiedForward?.[HOME_PROJECT_ID]).toBe(attachmentContent);
 
       const textContent = {

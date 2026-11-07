@@ -46,6 +46,37 @@ describe("useAttachments", () => {
     expect(result.current.attachments).toHaveLength(2);
   });
 
+  it("lets environment switches wait until a paste has its durable path", async () => {
+    let finish!: (path: string) => void;
+    const saveImage = vi.fn<SaveClipboardImage>(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { result } = renderHook(() => useAttachments({ saveClipboardImage: saveImage }));
+    let paste!: Promise<void>;
+    act(() => {
+      paste = result.current.addClipboardImage(
+        new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" }),
+        "draft-project",
+      );
+    });
+    await waitFor(() => expect(saveImage).toHaveBeenCalledOnce());
+    const ready = vi.fn<() => void>();
+    const waiting = result.current.waitForUploads().then(ready);
+    await Promise.resolve();
+    expect(ready).not.toHaveBeenCalled();
+    expect(result.current.getAttachments()).toEqual([]);
+    await act(async () => {
+      finish("/source/clipboard.png");
+      await paste;
+      await waiting;
+    });
+    expect(ready).toHaveBeenCalledOnce();
+    expect(result.current.getAttachments()[0]?.path).toBe("/source/clipboard.png");
+  });
+
   it("uses the remote image saver for pasted images", async () => {
     const saveImage = vi.fn<SaveClipboardImage>(async () =>
       Promise.resolve("/Users/host/.poracode/attachments/draft/image.png"),
@@ -72,6 +103,46 @@ describe("useAttachments", () => {
       },
     ]);
   });
+
+  it.each(["remove", "clear", "restore", "unmount"])(
+    "stops waiting for an obsolete upload after %s",
+    async (action) => {
+      let finish!: (path: string) => void;
+      const saveImage = vi.fn<SaveClipboardImage>(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const { result, unmount } = renderHook(() =>
+        useAttachments({ saveClipboardImage: saveImage }),
+      );
+      let paste!: Promise<void>;
+      act(() => {
+        paste = result.current.addClipboardImage(
+          new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" }),
+          "draft-project",
+        );
+      });
+      await waitFor(() => expect(saveImage).toHaveBeenCalledOnce());
+      const ready = vi.fn<() => void>();
+      const waiting = result.current.waitForUploads().then(ready);
+      act(() => {
+        if (action === "remove") result.current.removeAttachment(result.current.attachments[0]!.id);
+        else if (action === "clear") result.current.clearAll();
+        else if (action === "restore") result.current.restore([]);
+        else unmount();
+      });
+      await act(async () => {
+        await waiting;
+      });
+      expect(ready).toHaveBeenCalledOnce();
+      await act(async () => {
+        finish("/obsolete/image.png");
+        await paste;
+      });
+    },
+  );
 
   it("previews pasted images from a local object URL and revokes it on removal", async () => {
     const saveImage = vi.fn<SaveClipboardImage>(async () =>

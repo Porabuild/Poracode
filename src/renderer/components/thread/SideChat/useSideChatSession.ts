@@ -1,3 +1,5 @@
+import { settleClientSubmission } from "@/renderer/actions/clientDraftSubmission";
+import { remoteMutationMayHaveCommitted } from "@/shared/remote/clientErrors";
 import { captureSideChatTurnContext } from "./sideChatTurnContext";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { DEFAULT_TERMINAL_SIZE, type PromptSegment } from "@/shared/contracts";
@@ -134,7 +136,10 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
       !question.trim()
     )
       return;
-    if (!project) return;
+    if (!project) {
+      await settleClientSubmission(entry.id, "failed").catch(() => undefined);
+      return;
+    }
     inFlight.current = true;
     setStarting(true);
     setLaunchError(undefined);
@@ -142,12 +147,14 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
     try {
       clientContext = await captureSideChatTurnContext(entry.source);
     } catch (error) {
+      await settleClientSubmission(entry.id, "failed").catch(() => undefined);
       setLaunchError(friendlyError(error));
       inFlight.current = false;
       setStarting(false);
       return;
     }
     if (closed.current) {
+      await settleClientSubmission(entry.id, "failed").catch(() => undefined);
       inFlight.current = false;
       setStarting(false);
       return;
@@ -215,6 +222,7 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
       };
       if (closed.current && !(await stillOwned())) {
         useAppStore.getState().deleteThread(thread.id);
+        await settleClientSubmission(entry.id, "failed");
         return;
       }
       await performInitialThreadLaunch({
@@ -225,6 +233,7 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
         ...(launch.segments ? { segments: launch.segments } : {}),
         initialSize: DEFAULT_TERMINAL_SIZE,
       });
+      await settleClientSubmission(entry.id, "accepted");
       if (closed.current) {
         if (!(await stillOwned())) await unloadStoredThread(thread.id);
       } else {
@@ -232,9 +241,14 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
         setThreadId(thread.id);
       }
     } catch (error) {
-      if (!isRemoteCommandOutcomeUncertainError(error)) markThreadLaunchFailed(thread.id, error);
+      const outcomeUncertain =
+        isRemoteCommandOutcomeUncertainError(error) || remoteMutationMayHaveCommitted(error);
+      await settleClientSubmission(entry.id, outcomeUncertain ? "uncertain" : "failed").catch(
+        () => undefined,
+      );
+      if (!outcomeUncertain) markThreadLaunchFailed(thread.id, error);
       setLaunchError(friendlyError(error));
-      setUncertain(isRemoteCommandOutcomeUncertainError(error));
+      setUncertain(outcomeUncertain);
     } finally {
       // Retain a live window's session until the popup itself closes.
       if (closed.current) release();

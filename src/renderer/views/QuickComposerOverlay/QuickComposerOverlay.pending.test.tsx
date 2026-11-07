@@ -1,3 +1,5 @@
+import "@/renderer/testUtils/clientDraftDatabase";
+import { settleClientSubmission } from "@/renderer/actions/clientDraftSubmission";
 import type { ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -142,6 +144,10 @@ describe("quick composer pending intent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fixtureModel.value = "fixture-model";
+    bridge.submitQuickComposer.mockImplementation(async (value) => {
+      const submission = value as { input: { clientSubmissionId?: string } };
+      await settleClientSubmission(submission.input.clientSubmissionId, "accepted");
+    });
     bridge.getAgentStatuses.mockResolvedValue({ windows: [status], wsl: [], fromCache: true });
     useAgentStatusesStore.getState().hydrateFromCache({ windows: [status], wsl: [] });
     useAppStore.setState({
@@ -214,8 +220,13 @@ describe("quick composer pending intent", () => {
       });
 
       await act(async () => {
-        if (outcome === "success") resolve();
-        else reject(new Error("Fixture native handoff refused"));
+        if (outcome === "success") {
+          const value = bridge.submitQuickComposer.mock.calls[0]![0] as {
+            input: { clientSubmissionId: string };
+          };
+          await settleClientSubmission(value.input.clientSubmissionId, "accepted");
+          resolve();
+        } else reject(new Error("Fixture native handoff refused"));
       });
       await waitFor(() => expect(screen.getByTestId("submit-pending")).toHaveTextContent("false"));
       expect(container.querySelector("[inert]")).toBeNull();

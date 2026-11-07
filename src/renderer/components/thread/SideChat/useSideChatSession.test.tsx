@@ -10,7 +10,12 @@ const mocks = vi.hoisted(() => ({
   launch: vi.fn<(...args: unknown[]) => Promise<void>>(),
   create: vi.fn<() => unknown>(),
   bind: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  settle: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  owned: ["child"] as string[],
   threads: [] as Array<Record<string, unknown>>,
+}));
+vi.mock("@/renderer/actions/clientDraftSubmission", () => ({
+  settleClientSubmission: mocks.settle,
 }));
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: {
@@ -29,7 +34,7 @@ vi.mock("@/renderer/state/useThread", () => ({
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({
     bindSideChatThread: mocks.bind,
-    getSideChatThreadIds: async () => ["child"],
+    getSideChatThreadIds: async () => mocks.owned,
   }),
 }));
 vi.mock("@/renderer/state/remoteServersStore", () => ({
@@ -78,6 +83,9 @@ beforeEach(() => {
   setAuxiliaryThreadIds([]);
   useSideChatLaunchState.setState({ threadIds: new Set() });
   mocks.threads = [];
+  mocks.owned = ["child"];
+  mocks.launch.mockReset().mockResolvedValue();
+  mocks.settle.mockResolvedValue();
   mocks.bind.mockResolvedValue();
   mocks.create.mockImplementation(() => {
     const row = {
@@ -211,4 +219,30 @@ it("never creates a new thread over a retained child that is outside the residen
   expect(mocks.create).not.toHaveBeenCalled();
   expect(mocks.launch).not.toHaveBeenCalled();
   hook.unmount();
+});
+
+it("settles a child closed during binding as a definite pre-launch cancellation", async () => {
+  let finish!: () => void;
+  mocks.bind.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const hook = renderHook(() => useSideChatSession({ ...entry, autoStart: false }, "panel"), {
+    wrapper,
+  });
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = hook.result.current.start("retained question");
+    await Promise.resolve();
+  });
+  expect(mocks.bind).toHaveBeenCalledOnce();
+  mocks.owned = [];
+  hook.unmount();
+  await act(async () => {
+    finish();
+    await pending;
+  });
+  expect(mocks.launch).not.toHaveBeenCalled();
+  expect(mocks.settle).toHaveBeenCalledWith(entry.id, "failed");
 });

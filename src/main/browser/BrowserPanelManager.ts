@@ -1,3 +1,4 @@
+import { createClientPdfPreview } from "./clientPdfPreview";
 import { randomUUID } from "node:crypto";
 import { BrowserWindow, shell, type Session } from "electron";
 import {
@@ -153,15 +154,19 @@ export class BrowserPanelManager {
       this.persistTimer = null;
       try {
         const groups = this.tabGroups.serialize();
+        const persistentTabs = this.tabs.filter((tab) => !this.clientPdfFiles.has(tab.tabId));
         const state: PersistedTabsState = {
-          tabs: this.tabs.map((t) => {
+          tabs: persistentTabs.map((t) => {
             const s = this.toInfo(t);
             const groupId = this.tabGroups.groupIdForTab(t.tabId);
             return { url: s.url, title: s.title, ...(groupId ? { groupId } : {}) };
           }),
-          activeIndex: this.activeTabId
-            ? this.tabs.findIndex((t) => t.tabId === this.activeTabId)
-            : null,
+          activeIndex:
+            this.activeTabId && persistentTabs.some((tab) => tab.tabId === this.activeTabId)
+              ? persistentTabs.findIndex((tab) => tab.tabId === this.activeTabId)
+              : persistentTabs.length > 0
+                ? 0
+                : null,
           ...(groups ? { groups } : {}),
         };
         this.state.set(PERSIST_KEY, JSON.stringify(state));
@@ -246,7 +251,15 @@ export class BrowserPanelManager {
     this.loginCoordinator.cancelLoginConfirmations();
     this.downloads?.dispose();
     for (const t of this.tabs) {
-      void t.destroy();
+      const releasePdf = this.clientPdfFiles.get(t.tabId);
+      this.clientPdfFiles.delete(t.tabId);
+      void (async () => {
+        try {
+          await t.destroy();
+        } finally {
+          await releasePdf?.();
+        }
+      })().catch((error: unknown) => console.warn("[browser] client PDF cleanup failed", error));
     }
     this.tabs = [];
     this.internalPages.clear();
@@ -568,6 +581,8 @@ export class BrowserPanelManager {
       agent?: boolean;
       threadId?: string;
       threadTitle?: string;
+      /** Tab-owned device resources must not be persisted as restorable URLs. */
+      releaseResource?: () => Promise<void>;
     } = {},
   ): Promise<BrowserTabInfo> {
     // Creating a tab is agent activity (mounts the headless host). Restore
@@ -583,7 +598,7 @@ export class BrowserPanelManager {
       onUpdate: (snapshot) => {
         const info = this.toInfo(tab, snapshot);
         this.emit({ type: "tab-updated", tab: info });
-        if (!info.loading && !info.internalPage) {
+        if (!info.loading && !info.internalPage && !this.clientPdfFiles.has(tabId)) {
           this.history.record(info.url, info.title, Date.now());
         }
         this.schedulePersist();
@@ -601,6 +616,7 @@ export class BrowserPanelManager {
         this.emit({ type: "find-result", result: { tabId: id, ...result } });
       },
     });
+    if (opts.releaseResource) this.clientPdfFiles.set(tabId, opts.releaseResource);
     this.tabs.push(tab);
     // Agent-created tabs auto-join a group (parity with the external extension)
     // so they're visually distinct from the user's tabs. Tabs carrying a thread
@@ -655,6 +671,18 @@ export class BrowserPanelManager {
     this.schedulePersist();
   }
 
+  private readonly clientPdfFiles = new Map<string, () => Promise<void>>();
+
+  async previewClientPdf(data: Uint8Array): Promise<BrowserTabInfo> {
+    const preview = await createClientPdfPreview(data, (url, releaseResource) =>
+      this.createTab(
+        { url, activate: true, reveal: true },
+        { releaseResource, awaitAttach: false },
+      ),
+    );
+    return preview.tab;
+  }
+
   async closeTab(tabId: string): Promise<void> {
     const idx = this.tabs.findIndex((t) => t.tabId === tabId);
     if (idx < 0) return;
@@ -662,7 +690,13 @@ export class BrowserPanelManager {
     if (!tab) return;
     this.internalPages.delete(tabId);
     this.navigationOwners.delete(tabId);
-    await tab.destroy();
+    const releasePdf = this.clientPdfFiles.get(tabId);
+    this.clientPdfFiles.delete(tabId);
+    try {
+      await tab.destroy();
+    } finally {
+      if (releasePdf) await releasePdf();
+    }
     this.tabGroups.removeTab(tabId);
     if (this.activeTabId === tabId) {
       const next = this.tabs[idx] ?? this.tabs[idx - 1] ?? this.tabs[0];

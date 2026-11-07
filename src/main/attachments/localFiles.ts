@@ -1,4 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { MAX_CLIENT_DRAFT_ASSET_BYTES } from "@/shared/clientDraftAssets";
+import { mkdir, readFile, writeFile, open } from "node:fs/promises";
 import { join, normalize, resolve } from "node:path";
 import { net, protocol } from "electron";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -101,6 +103,40 @@ export async function readLocalImageFile(url: string): Promise<Uint8Array> {
     throw new Error("Invalid local image path");
   }
   return readFile(resolve(filePath));
+}
+
+/** Bounded native import for a client draft; old image reads keep their API. */
+export async function readClientDraftFile(url: string): Promise<Uint8Array> {
+  if (!/^(?:poracode|lightcode)-local:\/\//.test(url))
+    throw new Error("Unsupported local file URL");
+  const path = resolveLocalFileUrlPath(url);
+  if (path.includes("\0")) throw new Error("Invalid local file path");
+  const file = await open(resolve(path), constants.O_RDONLY | constants.O_NONBLOCK);
+  try {
+    const info = await file.stat();
+    if (!info.isFile() || info.size > MAX_CLIENT_DRAFT_ASSET_BYTES)
+      throw new Error("Client draft attachment exceeds the upload size limit.");
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    while (true) {
+      const buffer = new Uint8Array(Math.min(64 * 1024, MAX_CLIENT_DRAFT_ASSET_BYTES + 1 - total));
+      const { bytesRead } = await file.read(buffer);
+      if (bytesRead === 0) break;
+      total += bytesRead;
+      if (total > MAX_CLIENT_DRAFT_ASSET_BYTES)
+        throw new Error("Client draft attachment exceeds the upload size limit.");
+      chunks.push(buffer.subarray(0, bytesRead));
+    }
+    const bytes = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return bytes;
+  } finally {
+    await file.close();
+  }
 }
 
 /**

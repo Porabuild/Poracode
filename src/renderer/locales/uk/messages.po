@@ -1139,6 +1139,10 @@ msgstr "Пропущений запуск не виконано."
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 msgstr "Poracode Helper володіє цим підключенням, але не відповідає. Зупиніть віддалений helper і підключіться знову."
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "A previous submission is saved on this device."
+msgstr "Попереднє надсилання збережено на цьому пристрої."
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "A profile can carry at most 100 repositories."
 msgstr "У профілі може бути не більше 100 репозиторіїв."
@@ -5394,7 +5398,9 @@ msgstr "Не вдалося клонувати репозиторій."
 msgid "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
 msgstr "Не вдалося підтвердити зміну експерименту на хості. Можливо, її вже застосовано. Перезавантажте експеримент перед повторною спробою."
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/actions/threadCommandOutcomeActions.ts
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 msgid "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
 msgstr "Не вдалося підтвердити цю команду на хості. Можливо, її вже застосовано — перевірте тред, перш ніж повторити спробу."
 
@@ -5467,6 +5473,10 @@ msgstr "Не вдалося керувати плагінами. Перевір�
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Не вдалося зберегти комбінацію клавіш."
+
+#: src/renderer/state/composerDrafts/persistenceError.ts
+msgid "Couldn't save this draft on this device. Your content is still in the composer."
+msgstr "Не вдалося зберегти чернетку на цьому пристрої. Вміст залишився в полі введення."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't scan agent skills."
@@ -6812,6 +6822,10 @@ msgstr "Видалити застарілі"
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 msgid "Discard recording"
 msgstr "Видалити цей запис"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Discard saved copy"
+msgstr "Видалити збережену копію"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -15772,6 +15786,10 @@ msgstr "Міркування"
 msgid "Reasoning for {memberLabel}"
 msgstr "Міркування для {memberLabel}"
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "Reattach this file on this device before sending it to another environment."
+msgstr "Заново прикріпіть цей файл на цьому пристрої, перш ніж надсилати його в інше середовище."
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeConfirm.tsx
 msgid "Rebase and merge"
 msgstr "Rebase і злиття"
@@ -16075,6 +16093,7 @@ msgstr "Назва віддаленого репозиторію"
 #~ msgid "Remote server"
 #~ msgstr "Віддалений сервер"
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -16713,9 +16732,14 @@ msgstr "Адаптивний"
 msgid "Restart Poracode"
 msgstr "Перезапустити Poracode"
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore"
 msgstr "Відновити"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Restore a copy"
+msgstr "Відновити копію"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore browser"
@@ -20315,6 +20339,11 @@ msgstr "Рушій Hex несумісний із цим хостом або ве
 msgid "The history notice could not be read from the server."
 msgstr "Не вдалося прочитати сповіщення про історію із сервера."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+#: src/renderer/actions/threadLaunchActions.ts
+msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
+msgstr "Хост прийняв повідомлення, але не вдалося видалити локальну копію для відновлення. Перевірте тред перед повторною спробою."
+
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "The host has more labels than are listed here."
 msgstr "На хості більше міток, ніж показано тут."
@@ -20672,6 +20701,10 @@ msgstr "Завдання завершилося без звіту про вик�
 msgid "The task has not confirmed that it stopped. Try again."
 msgstr "Завдання ще не підтвердило зупинення. Спробуйте ще раз."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "The thread could not be started. Your draft is still saved on this device."
+msgstr "Не вдалося запустити тред. Чернетку досі збережено на цьому пристрої."
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "Тред зберігає сесію провайдера, тож ваше наступне повідомлення продовжить розмову з того місця, де ви зупинилися."
@@ -21006,6 +21039,10 @@ msgstr "Попередній перегляд цього медіафайлу н
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "Цього повідомлення більше немає в черзі. Ви все ще можете скопіювати відредагований текст."
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "This message was staged with the host. A recovery copy is saved on this device."
+msgstr "Повідомлення очікує надсилання на хості. Копію для відновлення збережено на цьому пристрої."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
@@ -21382,6 +21419,10 @@ msgstr "Назва розмови"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Thread not found"
 msgstr "Тред не знайдено"
+
+#: src/renderer/actions/threadRuntimeActions.ts
+msgid "Thread not found."
+msgstr "Тред не знайдено."
 
 #. Popover button: delete the thread but keep the worktree directory
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

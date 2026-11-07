@@ -10,6 +10,23 @@ interface MountedProjectDraft {
 
 const mountedDrafts = new Map<string, Set<MountedProjectDraft>>();
 
+/** Capture current client references without waiting for host I/O. */
+export function captureProjectDraft(projectId: string) {
+  const drafts = [...(mountedDrafts.get(projectId) ?? [])];
+  function read(): DraftContent | null {
+    let content: DraftContent | null = null;
+    for (const draft of drafts) {
+      if (!mountedDrafts.get(projectId)?.has(draft)) continue;
+      const live = draft.read();
+      if (live) content = content ? mergeDraftContent(content, live) : live;
+    }
+    return content;
+  }
+  return {
+    read,
+  };
+}
+
 /** Imperative composers own live text until navigation saves it to the draft store. */
 export function registerMountedProjectDraft(
   projectId: string,

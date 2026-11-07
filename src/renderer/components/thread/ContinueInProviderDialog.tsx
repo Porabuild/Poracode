@@ -239,6 +239,8 @@ export function ContinueInProviderDialog(props: {
   // clips and offsets the fixed-position composer menus.
   const [mentionPortalRoot, setMentionPortalRoot] = useState<HTMLDivElement | null>(null);
   const attachments = useAttachments({
+    clientOwned: true,
+    source: { ...(thread.remoteServerId ? { remoteServerId: thread.remoteServerId } : {}) },
     ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
 

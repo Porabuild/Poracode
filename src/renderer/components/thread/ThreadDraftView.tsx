@@ -1,3 +1,4 @@
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
@@ -76,7 +77,11 @@ import { NewsLine } from "@/renderer/components/newsLine/NewsLine";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
-import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
+import {
+  ThreadDraftComposerArea,
+  type DraftStartInput,
+  type DraftStartResult,
+} from "./ThreadDraftComposerArea";
 import type { SaveClipboardImage } from "../composer/useAttachments";
 import { applyCrewComposerControls } from "@/renderer/components/crew/applyCrewComposerControls";
 import {
@@ -250,15 +255,17 @@ export function ThreadDraftView(props: {
   onClose?: (() => void) | undefined;
   dragHandleRef?: React.RefCallback<Element>;
   onProjectChange?: (projectId: string) => void;
-  onStart: (input: DraftStartInput) => void | Promise<void>;
+  onStart: (input: DraftStartInput) => DraftStartResult | Promise<DraftStartResult>;
 }) {
   const {
     project,
     agentStatuses,
-    lastDraftConfig,
+    lastDraftConfig: suppliedLastDraftConfig,
     onStart,
     headerNeedsTrafficLightPad = false,
   } = props;
+  const lastDraftConfig =
+    composerDraftStorage()?.selection("project", project.id) ?? suppliedLastDraftConfig;
   const implicitMcpServers = useImplicitMcpServers();
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
@@ -451,6 +458,7 @@ export function ThreadDraftView(props: {
   const updateProjectDraftConfigStore = useAppStore((s) => s.updateProjectDraftConfig);
   const updateProjectDraftConfigRef = useRef(
     (projectId: string, nextDraftConfig: ProjectDraftConfig) => {
+      composerDraftStorage()?.saveSelection("project", projectId, nextDraftConfig);
       const rememberedConfig: ProjectDraftConfig =
         nextDraftConfig.mode === "plan" ? { ...nextDraftConfig, mode: "agent" } : nextDraftConfig;
       updateProjectDraftConfigStore(projectId, rememberedConfig);

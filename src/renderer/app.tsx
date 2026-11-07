@@ -1,3 +1,4 @@
+import { installDraftPersistenceNotifications } from "@/renderer/state/composerDrafts/installPersistenceNotifications";
 import { isChatSidebarSurface } from "./clientSurface";
 import { installFeatureUsageTracking } from "@/renderer/state/featureUsageTracking";
 import { toast } from "@heroui/react";
@@ -243,6 +244,7 @@ export function installUpdateStatusSync(
 const runtimeWindowCleanups: Array<() => void> =
   isMainWindow || windowKind === "sideChat"
     ? [
+        installDraftPersistenceNotifications(),
         readBridge().onSupervisorEvent((event, rendererSequence, sequenceSpace) =>
           supervisorReducer.dispatch(event, rendererSequence, {
             ...(sequenceSpace !== undefined ? { sequenceSpace } : {}),
@@ -314,11 +316,20 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             .getState()
             .projects.find((candidate) => candidate.id === submission.projectId);
           if (!project) {
+            const { settleClientSubmission } = await import("./actions/clientDraftSubmission");
+            await settleClientSubmission(submission.input.clientSubmissionId, "failed");
             toast.warning(i18n._(linguiMsg`Add a project to start`));
             return;
           }
           await startThreadFromDraft(project, submission.input, { preserveActiveGroup: false });
-        })().catch(() => undefined);
+        })().catch(async () => {
+          // startThreadFromDraft settles ambiguous/accepted effects itself.
+          // This also releases a handoff refused before that action could run.
+          const { settleClientSubmission } = await import("./actions/clientDraftSubmission");
+          await settleClientSubmission(submission.input.clientSubmissionId, "failed").catch(
+            () => undefined,
+          );
+        });
       }),
       // Only the desktop host owns live local git state and publishes it to
       // paired clients. Installing this in the PWA subscribes to projected

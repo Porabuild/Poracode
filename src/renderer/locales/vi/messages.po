@@ -1139,6 +1139,10 @@ msgstr "Đã bỏ qua lượt chạy bị lỡ."
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 msgstr "Một Poracode Helper đang sở hữu kết nối này nhưng không phản hồi. Hãy dừng helper từ xa rồi kết nối lại."
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "A previous submission is saved on this device."
+msgstr "Một lần gửi trước đã được lưu trên thiết bị này."
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "A profile can carry at most 100 repositories."
 msgstr "Một hồ sơ có thể chứa tối đa 100 kho lưu trữ."
@@ -5394,7 +5398,9 @@ msgstr "Không thể sao chép kho lưu trữ."
 msgid "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
 msgstr "Không thể xác nhận thay đổi của thử nghiệm với máy chủ. Thay đổi có thể đã được áp dụng. Hãy tải lại thử nghiệm trước khi thử lại."
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/actions/threadCommandOutcomeActions.ts
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 msgid "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
 msgstr "Máy chủ không thể xác nhận lệnh này. Lệnh có thể đã được áp dụng — hãy kiểm tra luồng trước khi thử lại."
 
@@ -5467,6 +5473,10 @@ msgstr "Không thể quản lý plugin. Hãy kiểm tra tên gói, phiên bản 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Không thể lưu phím tắt."
+
+#: src/renderer/state/composerDrafts/persistenceError.ts
+msgid "Couldn't save this draft on this device. Your content is still in the composer."
+msgstr "Không thể lưu bản nháp này trên thiết bị. Nội dung của bạn vẫn còn trong trình soạn thảo."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't scan agent skills."
@@ -6812,6 +6822,10 @@ msgstr "Loại bỏ mục đã lỗi thời"
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 msgid "Discard recording"
 msgstr "Hủy ghi âm"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Discard saved copy"
+msgstr "Bỏ bản sao đã lưu"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -15772,6 +15786,10 @@ msgstr "Suy luận"
 msgid "Reasoning for {memberLabel}"
 msgstr "Suy luận cho {memberLabel}"
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "Reattach this file on this device before sending it to another environment."
+msgstr "Hãy đính kèm lại tệp này trên thiết bị trước khi gửi sang môi trường khác."
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeConfirm.tsx
 msgid "Rebase and merge"
 msgstr "Rebase và hợp nhất"
@@ -16075,6 +16093,7 @@ msgstr "Tên từ xa"
 #~ msgid "Remote server"
 #~ msgstr "Máy chủ từ xa"
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -16713,9 +16732,14 @@ msgstr "Đáp ứng"
 msgid "Restart Poracode"
 msgstr "Khởi động lại Poracode"
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore"
 msgstr "Khôi phục"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Restore a copy"
+msgstr "Khôi phục một bản sao"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore browser"
@@ -20315,6 +20339,11 @@ msgstr "Công cụ Hex không tương thích với máy chủ này hoặc phiên
 msgid "The history notice could not be read from the server."
 msgstr "Không thể đọc thông báo lịch sử từ máy chủ."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+#: src/renderer/actions/threadLaunchActions.ts
+msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
+msgstr "Máy chủ đã chấp nhận tin nhắn này nhưng không thể dọn dẹp bản sao khôi phục cục bộ. Hãy kiểm tra cuộc trò chuyện trước khi thử lại."
+
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "The host has more labels than are listed here."
 msgstr "Máy chủ có nhiều nhãn hơn số được liệt kê ở đây."
@@ -20672,6 +20701,10 @@ msgstr "Tác vụ đã kết thúc mà không có báo cáo hoàn thành."
 msgid "The task has not confirmed that it stopped. Try again."
 msgstr "Tác vụ chưa xác nhận đã dừng. Hãy thử lại."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "The thread could not be started. Your draft is still saved on this device."
+msgstr "Không thể bắt đầu cuộc trò chuyện. Bản nháp của bạn vẫn được lưu trên thiết bị này."
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "Luồng giữ nguyên phiên của nhà cung cấp, nên tin nhắn tiếp theo của bạn sẽ tiếp tục từ chỗ bạn dừng lại."
@@ -21006,6 +21039,10 @@ msgstr "Bản xem trước nội dung đa phương tiện này không khả dụ
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "Tin nhắn này không còn trong hàng đợi. Bạn vẫn có thể sao chép nội dung đang chỉnh sửa."
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "This message was staged with the host. A recovery copy is saved on this device."
+msgstr "Tin nhắn này đang chờ gửi trên máy chủ. Một bản sao khôi phục đã được lưu trên thiết bị này."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
@@ -21382,6 +21419,10 @@ msgstr "Tên cuộc trò chuyện"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Thread not found"
 msgstr "Không tìm thấy luồng"
+
+#: src/renderer/actions/threadRuntimeActions.ts
+msgid "Thread not found."
+msgstr "Không tìm thấy cuộc trò chuyện."
 
 #. Popover button: delete the thread but keep the worktree directory
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_CLIENT_DRAFT_ASSET_BYTES } from "@/shared/clientDraftAssets";
 import { definePayloadProcedure, defineNoArgProcedure } from "../core";
 
 export const browserRectSchema = z.object({
@@ -334,6 +335,21 @@ export const browserProcedures = {
     BrowserTabInfo,
     "main-local"
   >("browserCreateTab", "main-local", browserCreateTabPayloadSchema),
+  // A distinct same-bundle device operation: old dispatchers reject the name
+  // before any file write. Public remote and persisted browser formats stay unchanged.
+  browserPreviewClientPdf: definePayloadProcedure<
+    { data: Uint8Array },
+    BrowserTabInfo,
+    "main-local"
+  >(
+    "browserPreviewClientPdf",
+    "main-local",
+    z.object({
+      data: z
+        .instanceof(Uint8Array)
+        .refine((data) => data.byteLength <= MAX_CLIENT_DRAFT_ASSET_BYTES),
+    }),
+  ),
   browserOpenInternalPage: definePayloadProcedure<
     z.infer<typeof browserOpenInternalPagePayloadSchema>,
     BrowserTabInfo,
