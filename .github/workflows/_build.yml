@@ -69,8 +69,19 @@ jobs:
             rust-targets: x86_64-unknown-linux-musl
             electron-cache: "~/.cache/electron"
           - os: macos-15
-            artifact: dist-mac
+            artifact: dist-mac-updater
             platform: mac
+            target: zip
+            app_pattern: Lightcode
+            expected_zips: 2
+            rust-targets: x86_64-apple-darwin,aarch64-apple-darwin
+            electron-cache: "~/Library/Caches/electron"
+          - os: macos-15
+            artifact: dist-mac-dmg
+            platform: mac
+            target: dmg
+            app_pattern: Poracode
+            expected_zips: 0
             rust-targets: x86_64-apple-darwin,aarch64-apple-darwin
             electron-cache: "~/Library/Caches/electron"
 
@@ -224,7 +235,7 @@ jobs:
         if: matrix.platform == 'mac'
         run: |
           bun run prepare:package-assets
-          node scripts/build-desktop-artifact.mjs --platform mac --skip-build
+          node scripts/build-desktop-artifact.mjs --platform mac --target "${{ matrix.target }}" --skip-build
         shell: bash
         env:
           PORACODE_CHANNEL: ${{ inputs.channel }}
@@ -293,9 +304,9 @@ jobs:
             fi
           }
 
-          apps=(release/mac*/Poracode*.app)
-          if [ "${#apps[@]}" -eq 0 ]; then
-            echo "::error::No branded macOS app bundles found under release/mac*."
+          apps=(release/mac*/${{ matrix.app_pattern }}*.app)
+          if [ "${#apps[@]}" -ne 2 ]; then
+            echo "::error::Expected two macOS app bundles for ${{ matrix.target }}, found ${#apps[@]}."
             exit 1
           fi
           for app in "${apps[@]}"; do
@@ -303,10 +314,8 @@ jobs:
           done
 
           zips=(release/Poracode-*.zip)
-          if [ "${#zips[@]}" -eq 2 ]; then
-            :
-          else
-            echo "::error::Expected one updater ZIP per macOS architecture, found ${#zips[@]}."
+          if [ "${#zips[@]}" -ne "${{ matrix.expected_zips }}" ]; then
+            echo "::error::Expected ${{ matrix.expected_zips }} updater ZIPs for ${{ matrix.target }}, found ${#zips[@]}."
             exit 1
           fi
 
@@ -330,6 +339,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload built artifacts
+        if: matrix.target != 'dmg'
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
@@ -342,5 +352,14 @@ jobs:
             release/latest*.yml
             release/nightly*.yml
             release/*.blockmap
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload macOS DMG artifacts
+        if: matrix.target == 'dmg'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: release/Poracode-*.dmg
           if-no-files-found: error
           retention-days: 7
