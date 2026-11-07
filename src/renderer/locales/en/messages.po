@@ -15342,6 +15342,7 @@ msgid "Promoting this profile into the owned data root…"
 msgstr "Promoting this profile into the owned data root…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Prompt"
 msgstr "Prompt"

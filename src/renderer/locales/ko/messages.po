@@ -15333,6 +15333,7 @@ msgid "Promoting this profile into the owned data root…"
 msgstr "이 프로필을 전용 데이터 루트로 이전하는 중…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Prompt"
 msgstr "프롬프트"

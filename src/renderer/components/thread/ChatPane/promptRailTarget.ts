@@ -97,8 +97,9 @@ export function buildRailPrompts(
 
 /**
  * Position of the prompt the last visible row belongs to: the nearest loaded
- * prompt at or above it. Before the first loaded prompt it is that prompt, and
- * before any measurement it is the last one (the transcript opens at the end).
+ * prompt at or above it. Before the first loaded prompt it is the nearest
+ * indexed predecessor, if any. Before measurement it is the last prompt (the
+ * transcript opens at the end).
  */
 export function findActivePromptPosition(
   loadedIndexes: readonly (number | null)[],
@@ -114,7 +115,8 @@ export function findActivePromptPosition(
     if (loadedIndex > lastVisibleIndex) break;
     active = position;
   }
-  return active >= 0 ? active : Math.max(firstLoaded, 0);
+  if (active >= 0) return active;
+  return firstLoaded < 0 ? loadedIndexes.length - 1 : Math.max(firstLoaded - 1, 0);
 }
 
 /**

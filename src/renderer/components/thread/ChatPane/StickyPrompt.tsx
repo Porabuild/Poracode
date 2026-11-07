@@ -1,6 +1,7 @@
 import { Button } from "@heroui/react";
 import { useLayoutEffect, useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
+import { useShallow } from "zustand/react/shallow";
 import type { MessageItemPayload } from "@/shared/contracts";
 import {
   floatingGlassBubbleClass,
@@ -11,15 +12,19 @@ import {
   compactInlinePieces,
   hasChipPiece,
   inlinePiecesFromContent,
+  inlinePiecesFromText,
 } from "@/renderer/components/promptChips/promptInlinePieces";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ChatTimelineEntry } from "./chatPaneSelectors";
 import { buildUserPromptPreview } from "./parts/items/userPromptText";
+import { buildRailPrompts, selectUserPromptIndexes } from "./promptRailTarget";
 import { findStickyPromptIndex, type VisibleRowRange } from "./stickyPromptTarget";
+import { useThreadPromptIndex } from "./useThreadPromptIndex";
 
 const PROMPT_HANDOFF_GAP_PX = 8;
+const NO_PROMPT_INDEXES: number[] = [];
 
 interface StickyPromptProps {
   threadId: string;
@@ -30,6 +35,7 @@ interface StickyPromptProps {
   /** Rows overlapping the transcript viewport, measured once by the overlays. */
   visibleRange: VisibleRowRange | null;
   onScrollToEntry: (index: number) => void;
+  onJumpToPrompt: (itemId: string) => void;
 }
 
 /**
@@ -45,6 +51,7 @@ export function StickyPrompt({
   isEnabled,
   visibleRange,
   onScrollToEntry,
+  onJumpToPrompt,
 }: StickyPromptProps) {
   const { t } = useLingui();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -60,24 +67,56 @@ export function StickyPrompt({
     });
     return promptIndex === null ? null : (entries[promptIndex]?.id ?? null);
   });
+  const firstVisibleIsPrompt = useAppStore((state) => {
+    const entry = firstVisibleIndex === null ? undefined : entries[firstVisibleIndex];
+    return (
+      entry?.kind === "item" &&
+      state.runtimeItemsByIdByThread[threadId]?.[entry.id]?.type === "user_message"
+    );
+  });
+  const needsIndexedPrompt =
+    isEnabled &&
+    !isFindOpen &&
+    firstVisibleIndex !== null &&
+    !firstVisibleIsPrompt &&
+    !promptItemId;
+  const hostPromptIndex = useThreadPromptIndex(threadId, needsIndexedPrompt);
+  const loadedPromptIndexes = useAppStore(
+    useShallow((state) =>
+      needsIndexedPrompt ? selectUserPromptIndexes(state, threadId, entries) : NO_PROMPT_INDEXES,
+    ),
+  );
+  const indexedPrompt =
+    needsIndexedPrompt && hostPromptIndex
+      ? buildRailPrompts(hostPromptIndex, entries, loadedPromptIndexes).findLast(
+          (prompt) => prompt.loadedIndex === null,
+        )
+      : undefined;
+  const stickyItemId = promptItemId ?? indexedPrompt?.id ?? null;
   const promptItem = useAppStore((state) =>
     promptItemId === null ? undefined : state.runtimeItemsByIdByThread[threadId]?.[promptItemId],
   );
   const payload = promptItem
     ? getRuntimeItemPayload<MessageItemPayload>(promptItem, "user_message")
     : undefined;
-  const preview = payload ? buildUserPromptPreview(payload.content) : null;
+  const preview = payload
+    ? buildUserPromptPreview(payload.content)
+    : indexedPrompt
+      ? (buildUserPromptPreview([{ kind: "text", text: indexedPrompt.text }]) ?? t`Prompt`)
+      : null;
   const previewPieces = payload
     ? compactInlinePieces(inlinePiecesFromContent(payload.content))
-    : [];
+    : indexedPrompt
+      ? compactInlinePieces(inlinePiecesFromText(indexedPrompt.text))
+      : [];
 
   useLayoutEffect(() => {
-    if (!scrollElement || promptItemId === null || preview === null || !isEnabled || isFindOpen)
+    if (!scrollElement || stickyItemId === null || preview === null || !isEnabled || isFindOpen)
       return;
     const wrapper = wrapperRef.current;
     const bar = barRef.current;
     if (!wrapper || !bar) return;
-    const promptIndex = entries.findIndex((entry) => entry.id === promptItemId);
+    const promptIndex = entries.findIndex((entry) => entry.id === stickyItemId);
     let observedRows = new Set<HTMLElement>();
     const updatePosition = () => {
       const stickyBottom =
@@ -116,9 +155,9 @@ export function StickyPrompt({
       observer.disconnect();
       if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, [scrollElement, entries, promptItemId, preview, isEnabled, isFindOpen]);
+  }, [scrollElement, entries, stickyItemId, preview, isEnabled, isFindOpen]);
 
-  if (!isEnabled || isFindOpen || promptItemId === null || preview === null) return null;
+  if (!isEnabled || isFindOpen || stickyItemId === null || preview === null) return null;
 
   // The wrapper reserves the same scrollbar gutter as the transcript scroller,
   // so the bar spans exactly the rows' 920px column and covers the text below.
@@ -133,8 +172,9 @@ export function StickyPrompt({
           size="sm"
           aria-label={t`Scroll to prompt: ${preview}`}
           onPress={() => {
-            const index = entries.findIndex((entry) => entry.id === promptItemId);
+            const index = entries.findIndex((entry) => entry.id === stickyItemId);
             if (index >= 0) onScrollToEntry(index);
+            else onJumpToPrompt(stickyItemId);
           }}
           className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} pointer-events-auto h-7 w-full min-w-0 justify-start rounded-full px-3 text-muted transition-colors hover:text-foreground`}
         >

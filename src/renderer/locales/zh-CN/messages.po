@@ -15332,6 +15332,7 @@ msgid "Promoting this profile into the owned data root…"
 msgstr "正在将此个人资料迁移到专属数据根目录…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Prompt"
 msgstr "提示"
