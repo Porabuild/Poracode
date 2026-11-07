@@ -47,6 +47,15 @@ export const revokeRemoteAccessSessionPayloadSchema = z.object({
   sessionId: z.string().min(1),
 });
 
+export const resolveLinkMetadataPayloadSchema = z.object({
+  url: z.string().min(1).max(2048),
+});
+
+export const linkMetadataSchema = z.object({
+  title: z.string().nullable(),
+  description: z.string().nullable(),
+});
+
 export const setRemoteAccessEnabledPayloadSchema = z.object({
   enabled: z.boolean(),
 });
@@ -158,6 +167,11 @@ export const appProcedures = {
     "main-local"
   >("createProjectDirectory", "main-local", createProjectDirectoryPayloadSchema),
   listWslDistros: defineNoArgProcedure<string[], "supervisor">("listWslDistros", "supervisor"),
+  resolveLinkMetadata: definePayloadProcedure<
+    z.infer<typeof resolveLinkMetadataPayloadSchema>,
+    z.infer<typeof linkMetadataSchema>,
+    "supervisor"
+  >("resolveLinkMetadata", "supervisor", resolveLinkMetadataPayloadSchema, linkMetadataSchema),
   openExternal: defineIpcProcedure<[string], string, void, "main-local">(
     "openExternal",
     "main-local",

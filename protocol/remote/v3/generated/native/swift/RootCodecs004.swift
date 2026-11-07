@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let routeU2EEnvironmentU2DAdoptU2DLegacyU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2> = .init(id: "route.environment-adopt-legacy.path", schema: RemoteSchemas.schema_149c9d9dd2191aa3)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EEnvironmentU2DAdoptU2DLegacyU2ERequest: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyRequest_399c72fc19> = .init(id: "route.environment-adopt-legacy.request", schema: RemoteSchemas.schema_399c72fc193f1510)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2EEnvironmentU2DAdoptU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec> = .init(id: "route.environment-adopt-legacy.response", schema: RemoteSchemas.schema_8428abfcec0a8b32)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EPushU2DUnregisterU2EResponse: RemoteRootCodec<RoutepushU2DRegisterResponse_9633843f8b> = .init(id: "route.push-unregister.response", schema: RemoteSchemas.schema_9633843f8b51827f)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2ERequestU2DResolveU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.request-resolve.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2ERequestU2DResolveU2ERequest: RemoteRootCodec<RouterequestU2DResolveRequest_3df8195e90> = .init(id: "route.request-resolve.request", schema: RemoteSchemas.schema_3df8195e9076bb2b)
 }

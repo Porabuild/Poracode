@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let routeU2ERequestU2DResolveU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.request-resolve.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2ERequestU2DResolveU2ERequest: RemoteRootCodec<RouterequestU2DResolveRequest_3df8195e90> = .init(id: "route.request-resolve.request", schema: RemoteSchemas.schema_3df8195e9076bb2b)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2ERequestU2DResolveU2EResponse: RemoteRootCodec<RoutedeviceU2DDetachResponse_badd682f35> = .init(id: "route.request-resolve.response", schema: RemoteSchemas.schema_badd682f3501e022)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let websocketU2EServerU2EReady: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D2_dade9637ae> = .init(id: "websocket.server.ready", schema: RemoteSchemas.schema_dade9637aede6170)
-}
-
-public extension RemoteRootCodecs {
-  static let websocketU2EServerU2EResyncU2DRequired: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D4_a633f9a256> = .init(id: "websocket.server.resync-required", schema: RemoteSchemas.schema_a633f9a256d1d0c9)
-}
-
-public extension RemoteRootCodecs {
-  static let websocketU2EServerU2ETerminalU2DOutput: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D9_95d0adeb5b> = .init(id: "websocket.server.terminal-output", schema: RemoteSchemas.schema_95d0adeb5b1f4c44)
 }

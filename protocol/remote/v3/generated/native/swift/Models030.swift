@@ -1,5 +1,25 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D8U2DDecision_ff4e0a6efa: String, Codable, Sendable {
+  case `grant` = "grant"
+  case `revoke` = "revoke"
+}
+
+public enum RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D8U2DPermission_f6dd22a2a9: String, Codable, Sendable {
+  case `camera` = "camera"
+  case `microphone` = "microphone"
+  case `photos` = "photos"
+  case `contacts` = "contacts"
+  case `calendar` = "calendar"
+  case `location` = "location"
+  case `notifications` = "notifications"
+  case `motion` = "motion"
+}
+
+public enum RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D8U2DType_592634b895: String, Codable, Sendable {
+  case `permission` = "permission"
+}
+
 public struct RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D8_861b7e521a: Codable, Sendable, RemoteModelMetadata {
   public var applicationId: String
   public var decision: RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D8U2DDecision_ff4e0a6efa
@@ -398,50 +418,5 @@ public struct RoutedeviceU2DAttachResponseU2DDevice_4b43828b17: Codable, Sendabl
     case name = "name"
     case platform = "platform"
     case state = "state"
-  }
-}
-
-public struct RoutedeviceU2DAttachResponse_11e04e93bd: Codable, Sendable, RemoteModelMetadata {
-  public var access: RoutedeviceU2DAttachRequestU2DAccess_9ca4aec6d4
-  public var agentAccess: RoutedeviceU2DAttachRequestU2DAgentAccess_e6bc2fd97b
-  public var device: RoutedeviceU2DAttachResponseU2DDevice_4b43828b17
-  public var expiresAt: Double
-  public var generation: String
-  public var id: String
-  public var threadId: String
-  public var version: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "access", typeName: "RoutedeviceU2DAttachRequestU2DAccess_9ca4aec6d4", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "agentAccess", typeName: "RoutedeviceU2DAttachRequestU2DAgentAccess_e6bc2fd97b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "device", typeName: "RoutedeviceU2DAttachResponseU2DDevice_4b43828b17", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "expiresAt", typeName: "Double", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "generation", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
-    .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
-    .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "version", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case access = "access"
-    case agentAccess = "agentAccess"
-    case device = "device"
-    case expiresAt = "expiresAt"
-    case generation = "generation"
-    case id = "id"
-    case threadId = "threadId"
-    case version = "version"
-  }
-}
-
-public struct RoutedeviceU2DDetachResponse_badd682f35: Codable, Sendable, RemoteModelMetadata {
-  public var ok: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DRolesU2DItemU2DNoEdits_d2dd3595e1
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "ok", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DRolesU2DItemU2DNoEdits_d2dd3595e1", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case ok = "ok"
   }
 }

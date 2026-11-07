@@ -5,6 +5,18 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_d4ae5f8c2be25c3f: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("history"), properties = mapOf("history" to schema_23b45e35f743c6ce), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_d4db039cbac5831c: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("prompt", "threadId"), properties = mapOf("prompt" to schema_bf0b727f7b1c6d07, "segments" to schema_4392338ffc80bed7, "threadId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_d4e60a4c33cd4bbd: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("ai")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_d50d16380040f1f2: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("commands", "kind"), properties = mapOf("commands" to schema_174f77d24d01fc57, "kind" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -435,16 +447,4 @@ internal val schema_e80087031872d26b: RemoteSchema by lazy {
 
 internal val schema_e82ae39cda9f878d: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_f9e7f90793023053, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_e841af2cbd75708d: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("toggle")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_e847e321fbb6435b: RemoteSchema by lazy {
-    RemoteSchema(type = "string", maxLength = 120, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_e8ae3938f73bbe3d: RemoteSchema by lazy {
-    RemoteSchema(type = "string", maxLength = 16000, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

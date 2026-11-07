@@ -6,6 +6,24 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class RoutebrowserU2DCommandRequestU2DOptionU2D2U2DKind_3df0ab0b4e {
+    @SerialName("close-tab") CLOSEU2DTAB,
+}
+
+@Serializable
+data class RoutebrowserU2DCommandRequestU2DOptionU2D2_51f2acb99e(
+    @SerialName("kind") val kind: RoutebrowserU2DCommandRequestU2DOptionU2D2U2DKind_3df0ab0b4e,
+    @SerialName("tabId") val tabId: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "RoutebrowserU2DCommandRequestU2DOptionU2D2U2DKind_3df0ab0b4e", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("tabId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 enum class RoutebrowserU2DCommandRequestU2DOptionU2D3U2DKind_c39ba2db20 {
     @SerialName("activate-tab") ACTIVATEU2DTAB,
 }
@@ -428,20 +446,4 @@ data class RoutedeviceU2DActionRequestU2DOptionU2D4_83384e1a09(
 @Serializable
 enum class RoutedeviceU2DActionRequestU2DOptionU2D5U2DKind_60fc988aef {
     @SerialName("start") START,
-}
-
-@Serializable
-data class RoutedeviceU2DActionRequestU2DOptionU2D5_a36830c34a(
-    @SerialName("kind") val kind: RoutedeviceU2DActionRequestU2DOptionU2D5U2DKind_60fc988aef,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.REJECT, listOf(
-            RemoteFieldDescriptor("kind", "RoutedeviceU2DActionRequestU2DOptionU2D5U2DKind_60fc988aef", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D10U2DType_bd9ee7d624 {
-    @SerialName("launchApp") LAUNCHAPP,
 }

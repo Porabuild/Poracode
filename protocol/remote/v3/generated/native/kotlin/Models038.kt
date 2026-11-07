@@ -6,6 +6,52 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RoutethreadU2DCommandRequestU2DOptionU2D14_a93ba7bf23(
+    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D14U2DKind_c7bfc39efc,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D14U2DKind_c7bfc39efc", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DCommandRequestU2DOptionU2D15_370ff0ec0a(
+    @SerialName("kind") val kind: RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DCommandRequestU2DOptionU2D16_2062bc5ac9(
+    @SerialName("kind") val kind: RouteprojectU2DCommandRequestU2DOptionU2D7U2DKind_701d7d6274,
+    @SerialName("placement") val placement: RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e,
+    @SerialName("projectId") val projectId: String,
+    @SerialName("targetThreadId") val targetThreadId: String,
+    @SerialName("threadIds") val threadIds: List<String>,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "RouteprojectU2DCommandRequestU2DOptionU2D7U2DKind_701d7d6274", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("placement", "RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("targetThreadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("threadIds", "List<String>", true, false, null, null, null, null, 1, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RoutethreadU2DCommandRequestU2DOptionU2D17U2DKind_8e7b4d097a {
+    @SerialName("reorder-flat") REORDERU2DFLAT,
+}
+
+@Serializable
 data class RoutethreadU2DCommandRequestU2DOptionU2D17_efd9410c75(
     @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D17U2DKind_8e7b4d097a,
     @SerialName("placement") val placement: RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e,
@@ -394,30 +440,5 @@ data class RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a(
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("action", "RoutethreadU2DGoalRequestU2DOptionU2D2U2DAction_2d862d697d", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
-    }
-}
-
-@Serializable(with = RoutethreadU2DGoalRequest_54c8350637.Serializer::class)
-sealed interface RoutethreadU2DGoalRequest_54c8350637 {
-    data class Option1(val value: RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491) : RoutethreadU2DGoalRequest_54c8350637
-    data class Option2(val value: RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a) : RoutethreadU2DGoalRequest_54c8350637
-    object Serializer : KSerializer<RoutethreadU2DGoalRequest_54c8350637> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DGoalRequest_54c8350637")
-        override fun deserialize(decoder: Decoder): RoutethreadU2DGoalRequest_54c8350637 {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DGoalRequest_54c8350637 supports JSON only")
-            val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DGoalRequest_54c8350637>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("edit")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("pause"), JsonPrimitive("resume"), JsonPrimitive("clear")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a>(element)) }
-            return RemoteUnionCodec.single("RoutethreadU2DGoalRequest_54c8350637", matches)
-        }
-        override fun serialize(encoder: Encoder, value: RoutethreadU2DGoalRequest_54c8350637) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DGoalRequest_54c8350637 supports JSON only")
-            val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a>(value.value)
-            }
-            jsonEncoder.encodeJsonElement(element)
-        }
     }
 }

@@ -1,6 +1,18 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_fc3e1f61a45e621e = RemoteSchema(type: "object", required: Set(["kind"]), properties: ["kind": RemoteSchemas.schema_da78bdce10e9cf0f], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_fc49e8b0b6ac2911 = RemoteSchema(type: "object", required: Set(["agentKind", "threadId", "worktreeBranch", "worktreeOwnerToken", "worktreeState"]), properties: ["agentKind": RemoteSchemas.schema_36fea325bf1aca70, "agentLabel": RemoteSchemas.schema_36fea325bf1aca70, "effort": RemoteSchemas.schema_36fea325bf1aca70, "fast": RemoteSchemas.schema_feeb8bb50144d96d, "model": RemoteSchemas.schema_36fea325bf1aca70, "threadId": RemoteSchemas.schema_36fea325bf1aca70, "worktreeBranch": RemoteSchemas.schema_36fea325bf1aca70, "worktreeOwnerToken": RemoteSchemas.schema_8e43cad70cd70de7, "worktreePath": RemoteSchemas.schema_36fea325bf1aca70, "worktreeState": RemoteSchemas.schema_a8b4490d4a4f6745], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_fc779c522d442c13 = RemoteSchema(type: "string", literals: [.string("target")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_fc9d6f4c2617a24d = RemoteSchema(type: "object", additionalSchema: RemoteSchemas.schema_5d401c152e12e715, propertyNames: RemoteSchemas.schema_bf0b727f7b1c6d07, unknownPolicy: .strip)
 }
 

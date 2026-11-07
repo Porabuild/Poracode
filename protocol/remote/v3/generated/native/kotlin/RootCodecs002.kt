@@ -305,6 +305,12 @@ val RemoteRootCodecs.procedureU2ERenameProjectEntryU2ERequest: RemoteRootCodec<P
 val RemoteRootCodecs.procedureU2EReorderQueuedThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurereorderQueuedThreadFollowUpRequest_59599d21a2>
     get() = RemoteRootCodec("procedure.reorderQueuedThreadFollowUp.request", serializer<ProcedurereorderQueuedThreadFollowUpRequest_59599d21a2>(), schema_59599d21a24ed95c)
 
+val RemoteRootCodecs.procedureU2EResolveLinkMetadataU2ERequest: RemoteRootCodec<ProcedureresolveLinkMetadataRequest_3732eed893>
+    get() = RemoteRootCodec("procedure.resolveLinkMetadata.request", serializer<ProcedureresolveLinkMetadataRequest_3732eed893>(), schema_3732eed893106b96)
+
+val RemoteRootCodecs.procedureU2EResolveLinkMetadataU2EResult: RemoteRootCodec<ProcedureresolveLinkMetadataResult_4563be6a1e>
+    get() = RemoteRootCodec("procedure.resolveLinkMetadata.result", serializer<ProcedureresolveLinkMetadataResult_4563be6a1e>(), schema_4563be6a1eff8ba8)
+
 val RemoteRootCodecs.procedureU2ERestoreFileCheckpointU2ERequest: RemoteRootCodec<ProcedurecreateFileCheckpointRequest_412fb1bbf4>
     get() = RemoteRootCodec("procedure.restoreFileCheckpoint.request", serializer<ProcedurecreateFileCheckpointRequest_412fb1bbf4>(), schema_412fb1bbf466cf98)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.routeU2ECatalogU2DMembershipU2EResponse: RemoteRootCodec<Ro
 
 val RemoteRootCodecs.routeU2EConversationU2DSearchU2EQuery: RemoteRootCodec<RouteconversationU2DSearchQuery_07b9b9802d>
     get() = RemoteRootCodec("route.conversation-search.query", serializer<RouteconversationU2DSearchQuery_07b9b9802d>(), schema_07b9b9802d46bf6b)
-
-val RemoteRootCodecs.routeU2EConversationU2DSearchU2EResponse: RemoteRootCodec<RouteconversationU2DSearchResponse_ca8d08ed24>
-    get() = RemoteRootCodec("route.conversation-search.response", serializer<RouteconversationU2DSearchResponse_ca8d08ed24>(), schema_ca8d08ed24dcae50)
-
-val RemoteRootCodecs.routeU2EDeviceU2DActionU2EPath: RemoteRootCodec<RoutedeviceU2DActionPath_eef64882a7>
-    get() = RemoteRootCodec("route.device-action.path", serializer<RoutedeviceU2DActionPath_eef64882a7>(), schema_eef64882a7b017fb)

@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link, Surface, toast, Tooltip } from "@heroui/react";
+import { Surface, toast, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
@@ -26,7 +26,6 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
-import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { formatMessageTimestamp } from "@/renderer/utils/formatTime";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { openThread } from "@/renderer/actions/threadActions";
@@ -39,6 +38,7 @@ import { selectUserMessageSentAt } from "../../chatPaneSelectors";
 import { openUserMessageActions } from "../../userMessageActions";
 import { CheckpointRevertButton, type CheckpointRevertRequest } from "../CheckpointRevertControls";
 import { chatPromptSurfaceClass } from "./chatMessageSurface";
+import { ChatExternalLink } from "./ChatExternalLink";
 import { CopyTextButton } from "./CopyTextButton";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import {
@@ -458,18 +458,9 @@ function renderUserMessageUrls(text: string, keyPrefix: string): ReactNode[] {
       );
     }
     nodes.push(
-      <Link
-        key={`${keyPrefix}-url-${match.index}`}
-        href={href}
-        rel="noreferrer noopener"
-        className="text-[length:inherit] text-foreground no-underline hover:underline hover:decoration-1 underline-offset-2 [display:inline] [width:auto] [overflow-wrap:anywhere] [word-break:break-word]"
-        onClick={(event) => {
-          event.preventDefault();
-          openExternalWithFeedback(href);
-        }}
-      >
+      <ChatExternalLink key={`${keyPrefix}-url-${match.index}`} href={href} resolveTitle>
         {href}
-      </Link>,
+      </ChatExternalLink>,
     );
     cursor = match.index + href.length;
   }

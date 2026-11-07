@@ -6,6 +6,21 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class RoutedeviceU2DAttachResponseU2DDeviceU2DControlsU2DActionsU2DItem_a76106fec0 {
+    @SerialName("read") READ,
+    @SerialName("appearance") APPEARANCE,
+    @SerialName("textSize") TEXTSIZE,
+    @SerialName("orientation") ORIENTATION,
+    @SerialName("reduceMotion") REDUCEMOTION,
+    @SerialName("network") NETWORK,
+    @SerialName("location") LOCATION,
+    @SerialName("permission") PERMISSION,
+    @SerialName("openUrl") OPENURL,
+    @SerialName("launchApp") LAUNCHAPP,
+    @SerialName("powerOff") POWEROFF,
+}
+
+@Serializable
 data class RoutedeviceU2DAttachResponseU2DDeviceU2DControls_edaad5a427(
     @SerialName("actions") val actions: List<RoutedeviceU2DAttachResponseU2DDeviceU2DControlsU2DActionsU2DItem_a76106fec0>,
     @SerialName("bootId") val bootId: String,
@@ -430,17 +445,6 @@ data class RoutedeviceU2DPreviewU2DWebsocketU2DTicketResponse_ddfb574eab(
             RemoteFieldDescriptor("expiresAt", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("ticket", "String", true, false, null, null, null, null, null, null, "^dwp1_[A-Za-z0-9_-]{43}$", null, listOf()),
             RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2(
-    @SerialName("environmentId") val environmentId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("environmentId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

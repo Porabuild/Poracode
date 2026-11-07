@@ -6,6 +6,17 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2(
+    @SerialName("environmentId") val environmentId: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("environmentId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class RouteenvironmentU2DAdoptU2DLegacyRequest_399c72fc19(
     @SerialName("expectedRevision") val expectedRevision: Long,
     @SerialName("legacyConnectionId") val legacyConnectionId: String,
@@ -419,30 +430,3 @@ enum class RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f {
 }
 
 typealias RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e = Double
-
-@Serializable
-data class RouteenvironmentU2DLegacyResponse_d205867a89(
-    @SerialName("appVersion") val appVersion: String,
-    @SerialName("auth") val auth: RouteenvironmentU2DLegacyResponseU2DAuth_2a8bc62fab,
-    @SerialName("capabilities") val capabilities: RemoteField<RouteenvironmentU2DLegacyResponseU2DCapabilities_ea00d31cd8> = RemoteField.Missing,
-    @SerialName("desktopId") val desktopId: String,
-    @SerialName("endpoints") val endpoints: RouteenvironmentU2DLegacyResponseU2DEndpoints_17c2b8a253,
-    @SerialName("hostMode") val hostMode: RemoteField<RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d> = RemoteField.Missing,
-    @SerialName("label") val label: String,
-    @SerialName("platform") val platform: RemoteField<RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f> = RemoteField.Missing,
-    @SerialName("protocolVersion") val protocolVersion: RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("appVersion", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("auth", "RouteenvironmentU2DLegacyResponseU2DAuth_2a8bc62fab", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("capabilities", "RouteenvironmentU2DLegacyResponseU2DCapabilities_ea00d31cd8", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("desktopId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("endpoints", "RouteenvironmentU2DLegacyResponseU2DEndpoints_17c2b8a253", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("hostMode", "RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("label", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("platform", "RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("protocolVersion", "RouteenvironmentU2DLegacyResponseU2DProtocolVersion_8d7cbafc0e", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}

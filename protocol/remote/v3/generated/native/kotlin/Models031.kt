@@ -6,6 +6,31 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RouteprU2DWatchU2DUpsertRequest_39a57fc9a7(
+    @SerialName("agentKind") val agentKind: RemoteField<String> = RemoteField.Missing,
+    @SerialName("autoMerge") val autoMerge: Boolean,
+    @SerialName("config") val config: RemoteField<RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DConfig_f69100925f> = RemoteField.Missing,
+    @SerialName("headBranch") val headBranch: String,
+    @SerialName("prNumber") val prNumber: Long,
+    @SerialName("projectId") val projectId: String,
+    @SerialName("watchEnabled") val watchEnabled: Boolean,
+    @SerialName("worktreePath") val worktreePath: RemoteField<String> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("agentKind", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("autoMerge", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("config", "RouteautomationsU2DSnapshotResponseU2DSchedulesU2DItemU2DConfig_f69100925f", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("headBranch", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("prNumber", "Long", true, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("watchEnabled", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("worktreePath", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf("pr-watch.agent-required-when-enabled"))
+    }
+}
+
+@Serializable
 data class RouteprocedureU2DCallRequest_d566f2fb6a(
     @SerialName("payload") val payload: JsonElement,
     @SerialName("procedure") val procedure: String,
@@ -396,50 +421,6 @@ data class RouteprofileU2DTokenU2DStatsResponseU2DAccountsU2DItem_c30da54b85(
             RemoteFieldDescriptor("percent", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("provider", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("tokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RouteprofileU2DTokenU2DStatsResponseU2DCostsU2DAccountsU2DItemU2DTotals_05af39c3e9(
-    @SerialName("categories") val categories: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DUsageU2DTokens_e70be7a06d,
-    @SerialName("categorizedTokens") val categorizedTokens: Long,
-    @SerialName("estimatedSamples") val estimatedSamples: Long,
-    @SerialName("estimatedTokens") val estimatedTokens: Long,
-    @SerialName("estimatedUsd") val estimatedUsd: Double,
-    @SerialName("observed") val observed: List<ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DUsageU2DCost_ad6bb2de51>,
-    @SerialName("observedSamples") val observedSamples: Long,
-    @SerialName("observedTokens") val observedTokens: Long,
-    @SerialName("tokens") val tokens: Long,
-    @SerialName("unpricedTokens") val unpricedTokens: Long,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("categories", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DUsageU2DTokens_e70be7a06d", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("categorizedTokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("estimatedSamples", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("estimatedTokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("estimatedUsd", "Double", true, false, 0.0, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("observed", "List<ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DUsageU2DCost_ad6bb2de51>", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("observedSamples", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("observedTokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("tokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("unpricedTokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RouteprofileU2DTokenU2DStatsResponseU2DCostsU2DAccountsU2DItem_9751de90fd(
-    @SerialName("key") val key: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-    @SerialName("label") val label: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-    @SerialName("totals") val totals: RouteprofileU2DTokenU2DStatsResponseU2DCostsU2DAccountsU2DItemU2DTotals_05af39c3e9,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("key", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("label", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("totals", "RouteprofileU2DTokenU2DStatsResponseU2DCostsU2DAccountsU2DItemU2DTotals_05af39c3e9", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

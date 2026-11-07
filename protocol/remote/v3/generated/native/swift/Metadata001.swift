@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:c50fa5aa82cb58b039aa7d73a712da1b79dcc88a5e6192ae2643e8bee9e37f54"
-  public static let manifestHash = "sha256:ed403d7e8e9ec18aa837df221e292fd00c54d0dbd5353890c50dd33aee971ec7"
+  public static let sourceHash = "sha256:6e81a07533a9bcfb95d957f102c80ef5aa09cb865c22f2c92d5badd9ac635689"
+  public static let manifestHash = "sha256:22e1e6fd15ebca31dc60f10dbb9308f35695f13fcbfd2e7d2c95fc34cd36094b"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -287,6 +287,7 @@ public enum RemoteContractMetadata {
     .init(name: "removeQueuedThreadFollowUp", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurepauseThreadFollowUpsRequest_d42717fff2", resultType: "RemoteUnit"),
     .init(name: "renameProjectEntry", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedurerenameProjectEntryRequest_4a22ffc9b4", resultType: "RemoteUnit"),
     .init(name: "reorderQueuedThreadFollowUp", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurereorderQueuedThreadFollowUpRequest_59599d21a2", resultType: "RemoteUnit"),
+    .init(name: "resolveLinkMetadata", scope: "session:read", owner: "desktop", resultKind: "json", requestType: "ProcedureresolveLinkMetadataRequest_3732eed893", resultType: "ProcedureresolveLinkMetadataResult_4563be6a1e"),
     .init(name: "restoreFileCheckpoint", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurecreateFileCheckpointRequest_412fb1bbf4", resultType: "RemoteUnit"),
     .init(name: "restoreToRevertAnchor", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurerestoreToRevertAnchorRequest_46790b9541", resultType: "RemoteUnit"),
     .init(name: "resumeThreadFollowUps", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "RemoteUnit"),

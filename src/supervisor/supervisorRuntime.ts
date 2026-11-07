@@ -119,6 +119,7 @@ import { PluginRegistry, resolvePluginMcpServers } from "./plugins";
 import { PluginCatalogService } from "./plugins/PluginCatalogService";
 import { PluginAccountService } from "./plugins/PluginAccountService";
 import { captureExperimentResponseSnapshot } from "./experimentResponseSnapshot";
+import { resolveLinkMetadata as resolveChatLinkMetadata } from "./linkMetadata";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
 
@@ -747,6 +748,16 @@ export class SupervisorRuntime {
    * other consumer; this never starts work and never forces a file read when
    * the cache is warm.
    */
+  resolveLinkMetadata(url: string) {
+    const settings = this.sharedSettingsCache.readFresh();
+    const pluginServers = resolvePluginMcpServers(
+      this.pluginRegistry.listPlugins(),
+      settings.installedPlugins,
+      { pluginDataRoot: this.pluginDataDir, hostPlatform: process.platform },
+    ).servers;
+    return resolveChatLinkMetadata(url, { mcpServers: settings.mcpServers, pluginServers });
+  }
+
   getResourceAdmissionStatus(): HostResourceAdmissionStatus {
     const resolved = this.sharedSettingsCache.readHostResourceAdmission();
     this.logHostResourceAdmissionResolution(resolved);

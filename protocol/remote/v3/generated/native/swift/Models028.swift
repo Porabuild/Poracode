@@ -1,5 +1,54 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct RoutebrowserU2DCommandRequestU2DOptionU2D3_483d5aa44f: Codable, Sendable, RemoteModelMetadata {
+  public var kind: RoutebrowserU2DCommandRequestU2DOptionU2D3U2DKind_c39ba2db20
+  public var tabId: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "kind", typeName: "RoutebrowserU2DCommandRequestU2DOptionU2D3U2DKind_c39ba2db20", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "tabId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case kind = "kind"
+    case tabId = "tabId"
+  }
+}
+
+public enum RoutebrowserU2DCommandRequestU2DOptionU2D4U2DKind_ed1865d937: String, Codable, Sendable {
+  case `moveU2DTab` = "move-tab"
+}
+
+public enum RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e: String, Codable, Sendable {
+  case `before` = "before"
+  case `after` = "after"
+}
+
+public struct RoutebrowserU2DCommandRequestU2DOptionU2D4_875b3bd940: Codable, Sendable, RemoteModelMetadata {
+  public var kind: RoutebrowserU2DCommandRequestU2DOptionU2D4U2DKind_ed1865d937
+  public var position: RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e
+  public var tabId: String
+  public var targetTabId: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "kind", typeName: "RoutebrowserU2DCommandRequestU2DOptionU2D4U2DKind_ed1865d937", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "position", typeName: "RoutebrowserU2DCommandRequestU2DOptionU2D4U2DPosition_3512bd687e", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "tabId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "targetTabId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case kind = "kind"
+    case position = "position"
+    case tabId = "tabId"
+    case targetTabId = "targetTabId"
+  }
+}
+
+public enum RoutebrowserU2DCommandRequestU2DOptionU2D5U2DKind_9063020a6c: String, Codable, Sendable {
+  case `navigate` = "navigate"
+}
+
 public struct RoutebrowserU2DCommandRequestU2DOptionU2D5_290453f28a: Codable, Sendable, RemoteModelMetadata {
   public var kind: RoutebrowserU2DCommandRequestU2DOptionU2D5U2DKind_9063020a6c
   public var tabId: String
@@ -375,57 +424,4 @@ public struct RoutedeviceU2DActionRequestU2DOptionU2D1_6ddf4b7dc1: Codable, Send
 
 public enum RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0: String, Codable, Sendable {
   case `swipe` = "swipe"
-}
-
-public struct RoutedeviceU2DActionRequestU2DOptionU2D2_2c6061a21f: Codable, Sendable, RemoteModelMetadata {
-  public var durationMs: Int64
-  public var endX: Double
-  public var endY: Double
-  public var frameId: String
-  public var kind: RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0
-  public var x: Double
-  public var y: Double
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "durationMs", typeName: "Int64", required: true, nullable: false, minimum: 100, maximum: 2000, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "endX", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "endY", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "frameId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
-    .init(wireName: "kind", typeName: "RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "x", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "y", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case durationMs = "durationMs"
-    case endX = "endX"
-    case endY = "endY"
-    case frameId = "frameId"
-    case kind = "kind"
-    case x = "x"
-    case y = "y"
-  }
-  public init(from decoder: Decoder) throws {
-    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
-    let known = Set(Self.fields.map(\.wireName))
-    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.durationMs = try container.decode(Int64.self, forKey: .durationMs)
-    self.endX = try container.decode(Double.self, forKey: .endX)
-    self.endY = try container.decode(Double.self, forKey: .endY)
-    self.frameId = try container.decode(String.self, forKey: .frameId)
-    self.kind = try container.decode(RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0.self, forKey: .kind)
-    self.x = try container.decode(Double.self, forKey: .x)
-    self.y = try container.decode(Double.self, forKey: .y)
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(durationMs, forKey: .durationMs)
-    try container.encode(endX, forKey: .endX)
-    try container.encode(endY, forKey: .endY)
-    try container.encode(frameId, forKey: .frameId)
-    try container.encode(kind, forKey: .kind)
-    try container.encode(x, forKey: .x)
-    try container.encode(y, forKey: .y)
-  }
 }

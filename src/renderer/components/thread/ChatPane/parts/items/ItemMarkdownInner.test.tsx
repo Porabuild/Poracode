@@ -1120,6 +1120,22 @@ describe("ItemMarkdownInner", () => {
     expect(container.querySelector("ul.poracode-chat-file-list")).toBeNull();
   });
 
+  it("shows a destination favicon before external markdown links without a hostname suffix", () => {
+    render(
+      <AppProvider>
+        <ItemMarkdownInner text={"Open [docs](https://example.test/docs)."} />
+      </AppProvider>,
+    );
+
+    const link = screen.getByRole("link", { name: /docs/ });
+    const favicon = link.querySelector("img");
+    expect(link.firstElementChild).toContainElement(favicon);
+    expect(favicon).toHaveAttribute("src", "https://example.test/favicon.ico");
+    expect(link).toHaveTextContent("docs");
+    expect(link).not.toHaveTextContent("example.test");
+    expect(link.querySelector(".lucide-external-link")).not.toBeInTheDocument();
+  });
+
   it("reports failed markdown link opens", async () => {
     const openExternal = vi
       .fn<(href: string) => Promise<void>>()

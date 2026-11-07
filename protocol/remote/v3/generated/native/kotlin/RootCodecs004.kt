@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EPushU2DRegisterU2ERequest: RemoteRootCodec<RoutepushU2DRegisterRequest_98c9ef3e40>
+    get() = RemoteRootCodec("route.push-register.request", serializer<RoutepushU2DRegisterRequest_98c9ef3e40>(), schema_98c9ef3e406d69bf)
+
+val RemoteRootCodecs.routeU2EPushU2DRegisterU2EResponse: RemoteRootCodec<RoutepushU2DRegisterResponse_9633843f8b>
+    get() = RemoteRootCodec("route.push-register.response", serializer<RoutepushU2DRegisterResponse_9633843f8b>(), schema_9633843f8b51827f)
+
 val RemoteRootCodecs.routeU2EPushU2DUnregisterU2ERequest: RemoteRootCodec<RoutepushU2DUnregisterRequest_8f934fd77b>
     get() = RemoteRootCodec("route.push-unregister.request", serializer<RoutepushU2DUnregisterRequest_8f934fd77b>(), schema_8f934fd77b3e45dd)
 
