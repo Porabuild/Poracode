@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Description, Dropdown, Label } from "@heroui/react";
 import { dropdownVariants } from "@heroui/styles";
-import { Button } from "react-aria-components/Button";
+import { Button } from "react-aria-components";
 import { useLingui } from "@lingui/react/macro";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import type { MachineDescriptor } from "@/renderer/state/machines";
