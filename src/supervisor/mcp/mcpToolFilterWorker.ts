@@ -4,7 +4,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import {
   createUpstreamTransport,
-  mcpStdioEnvironment,
+  mcpOwnedStdioEnvironment,
   startFilterProxy,
 } from "./mcpToolFilterProxy";
 import { readMcpToolFilterConfig } from "./mcpToolFilterConfig";
@@ -24,7 +24,7 @@ async function main(): Promise<void> {
       ? createFramedMcpChild({
           command: source.command,
           args: source.args,
-          env: mcpStdioEnvironment(source.env, true),
+          env: mcpOwnedStdioEnvironment(source.env),
           ...(source.cwd ? { cwd: source.cwd } : {}),
           framing: () => downstreamTransport.framing,
         })

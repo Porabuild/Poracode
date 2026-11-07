@@ -6,7 +6,12 @@ import { Server } from "@modelcontextprotocol/server";
 import type { Tool, Transport } from "@modelcontextprotocol/server";
 import { createServer } from "node:http";
 import { PassThrough } from "node:stream";
-import { createUpstreamTransport, startFilterProxy, type FilterProxy } from "./mcpToolFilterProxy";
+import {
+  createUpstreamTransport,
+  mcpOwnedStdioEnvironment,
+  startFilterProxy,
+  type FilterProxy,
+} from "./mcpToolFilterProxy";
 import { MCP_APP_EXTENSION, MCP_APP_MIME_TYPE, readMcpAppResource } from "@/shared/mcpAppResources";
 
 const proxies: FilterProxy[] = [];
@@ -743,3 +748,21 @@ it.each([false, true])(
     ]);
   },
 );
+
+it("keeps owner-resolved values instead of reapplying literal stdio configuration", () => {
+  vi.stubEnv("NATIVE_SESSION_ID", "assigned-by-owner");
+  vi.stubEnv("MCP_EXPANDED_VALUE", "/expanded/value");
+  vi.stubEnv("ELECTRON_RUN_AS_NODE", "1");
+  vi.stubEnv("PORACODE_MCP_FILTER_CONFIG_V2", "outer-envelope");
+  const env = mcpOwnedStdioEnvironment({
+    NATIVE_SESSION_ID: "configured-must-not-win",
+    MCP_EXPANDED_VALUE: "${HOME}",
+    PORACODE_MCP_STDIO_CONFIG: "nested-envelope",
+  });
+  expect(env.NATIVE_SESSION_ID).toBe("assigned-by-owner");
+  expect(env.MCP_EXPANDED_VALUE).toBe("/expanded/value");
+  expect(env.ELECTRON_RUN_AS_NODE).toBeUndefined();
+  expect(env.PORACODE_MCP_FILTER_CONFIG_V2).toBeUndefined();
+  expect(env.PORACODE_MCP_STDIO_CONFIG).toBe("nested-envelope");
+  expect(mcpOwnedStdioEnvironment({ ELECTRON_RUN_AS_NODE: "0" }).ELECTRON_RUN_AS_NODE).toBe("0");
+});

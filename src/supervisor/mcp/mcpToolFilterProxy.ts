@@ -75,6 +75,26 @@ export function mcpStdioEnvironment(
   return { ...inherited, ...explicit };
 }
 
+/** The native owner has already expanded env and applied its reserved values. */
+export function mcpOwnedStdioEnvironment(explicit: Record<string, string>): Record<string, string> {
+  const env = mcpStdioEnvironment({}, true);
+  // Nested helpers still need their own explicit envelope; the outer worker's
+  // envelope was scrubbed above. Ordinary keys must retain the owner's values.
+  for (const key of [
+    MCP_FILTER_CONFIG_ENV,
+    MCP_FILTER_CONFIG_V1_ENV,
+    MCP_FILTER_CONFIG_V2_ENV,
+    MCP_STDIO_CONFIG_ENV,
+  ]) {
+    if (explicit[key] !== undefined) env[key] = explicit[key];
+  }
+  // Electron's worker bootstrap flag belongs to the wrapper, not its server.
+  delete env["ELECTRON_RUN_AS_NODE"];
+  if (explicit["ELECTRON_RUN_AS_NODE"] !== undefined)
+    env["ELECTRON_RUN_AS_NODE"] = explicit["ELECTRON_RUN_AS_NODE"];
+  return env;
+}
+
 export function createUpstreamTransport(
   server: Pick<McpServer, "transport">,
   options: { inheritEnv?: boolean } = {},

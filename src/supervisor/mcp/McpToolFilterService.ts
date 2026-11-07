@@ -112,7 +112,17 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
             ? `${workerDirectory}/${workerName(server)}`
             : join(workerDirectory, workerName(server)),
         ],
-        env: { ...baseEnv, ...env },
+        // Let the native connection owner expand values and apply its reserved
+        // environment policy before a schema-only wrapper starts the server.
+        env: {
+          ...(options.omitInvalidSchemaPatterns &&
+          !requiresFiltering(server, options) &&
+          server.transport.type === "stdio"
+            ? server.transport.env
+            : {}),
+          ...baseEnv,
+          ...env,
+        },
         ...(location.kind === "wsl" ? { cwd: location.linuxPath } : { cwd: location.path }),
       },
     };

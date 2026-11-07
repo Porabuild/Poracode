@@ -150,6 +150,11 @@ it.each([false, true])(
     if (wrapped!.transport.type !== "stdio") throw Error("expected stdio");
     const config = readMcpToolFilterConfig(wrapped!.transport.env);
     expect(config.schemaOnly).toBe(filtered ? undefined : true);
+    for (const [key, value] of Object.entries(
+      server.transport.type === "stdio" ? server.transport.env : {},
+    )) {
+      expect(wrapped!.transport.env[key]).toBe(filtered ? undefined : value);
+    }
     expect(config.server.transport).toEqual(server.transport);
   },
 );
