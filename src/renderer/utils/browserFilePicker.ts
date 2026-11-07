@@ -11,14 +11,12 @@ export interface BrowserFilePickerOptions {
 /** Delay after the window regains focus before a picker with no files counts as cancelled. */
 export const PICKER_CANCEL_FALLBACK_MS = 1000;
 
-export async function pickAndUploadBrowserFiles(
-  options: BrowserFilePickerOptions,
-): Promise<string[] | null> {
+async function pickBrowserFiles(filters?: BrowserFilePickerOptions["filters"]): Promise<File[]> {
   const input = document.createElement("input");
   input.type = "file";
   input.multiple = true;
   input.hidden = true;
-  const extensions = options.filters?.flatMap((filter) => filter.extensions) ?? [];
+  const extensions = filters?.flatMap((filter) => filter.extensions) ?? [];
   if (extensions.length > 0) {
     input.accept = extensions.map((extension) => `.${extension.replace(/^\./, "")}`).join(",");
   }
@@ -49,6 +47,13 @@ export async function pickAndUploadBrowserFiles(
     document.body.append(input);
     input.click();
   });
+  return files;
+}
+
+export async function pickAndUploadBrowserFiles(
+  options: BrowserFilePickerOptions,
+): Promise<string[] | null> {
+  const files = await pickBrowserFiles(options.filters);
   if (files.length === 0) return null;
 
   return Promise.all(
@@ -59,5 +64,29 @@ export async function pickAndUploadBrowserFiles(
         data: new Uint8Array(await file.arrayBuffer()),
       }),
     ),
+  );
+}
+
+/** A composer picker imports bytes on this client; host selection is unrelated. */
+export async function pickClientDraftFiles(): Promise<string[] | null> {
+  const files = await pickBrowserFiles();
+  if (files.length === 0) return null;
+  return importClientDraftFiles(files);
+}
+
+/** Imports picked or dropped files into client draft storage and returns their asset references. */
+export async function importClientDraftFiles(files: readonly File[]): Promise<string[]> {
+  const { stageClientDraftAsset } =
+    await import("@/renderer/state/composerDrafts/clientDraftDatabase");
+  const { clientDraftPersistenceError } =
+    await import("@/renderer/state/composerDrafts/persistenceError");
+  return Promise.all(
+    files.map(async (file) => {
+      const asset = stageClientDraftAsset(file, file.name);
+      await asset.saved.catch((error: unknown) => {
+        throw clientDraftPersistenceError(error);
+      });
+      return asset.path;
+    }),
   );
 }

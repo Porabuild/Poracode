@@ -287,6 +287,12 @@ export function ThreadComposer(props: {
   onPromptChange: (value: string) => void;
   onSubmit: () => void;
   onAttachFiles?: (paths: string[]) => void;
+  /**
+   * Receives OS files dropped on the composer when the owning host cannot read
+   * this machine's paths. Takes precedence over `onAttachFiles` for OS drops;
+   * project-tree drags still go to `onAttachFiles`.
+   */
+  onImportFiles?: (files: File[]) => void;
   attachmentDropScope?: "composer" | "panel";
   onStop?: (() => void) | undefined;
   controls: ComposerControl[];
@@ -319,6 +325,7 @@ export function ThreadComposer(props: {
     onPromptChange,
     onSubmit,
     onAttachFiles,
+    onImportFiles,
     attachmentDropScope = "composer",
     onStop,
     controls,
@@ -988,18 +995,24 @@ export function ThreadComposer(props: {
     );
   };
 
-  const canAttachFiles = onAttachFiles !== undefined;
+  const canAttachPaths = onAttachFiles !== undefined;
+  const canImportFiles = onImportFiles !== undefined;
   const attachDroppedFiles = useEffectEvent((paths: string[]) => onAttachFiles?.(paths));
+  const importDroppedFiles = useEffectEvent((files: File[]) => onImportFiles?.(files));
 
   useEffect(() => {
     const shell = shellRef.current;
-    if (!shell || !canAttachFiles || toolbarOnly) return;
+    if (!shell || (!canAttachPaths && !canImportFiles) || toolbarOnly) return;
     const target =
       (attachmentDropScope === "panel"
         ? shell.closest<HTMLElement>("[data-poracode-attachment-drop-target]")
         : null) ?? shell;
     let dragDepth = 0;
 
+    const hasAttachmentDragData = (dataTransfer: DataTransfer) =>
+      Array.from(dataTransfer.types).some(
+        (type) => type === "Files" || (canAttachPaths && type === COMPOSER_FILE_DRAG_TYPE),
+      );
     const reset = () => {
       dragDepth = 0;
       setAttachmentDropTarget(null);
@@ -1024,7 +1037,18 @@ export function ThreadComposer(props: {
       if (!event.dataTransfer || !hasAttachmentDragData(event.dataTransfer)) return;
       event.preventDefault();
       reset();
-      const paths = resolveAttachmentDropPaths(event.dataTransfer);
+      const projectFilePath = resolveProjectFileDropPath(event.dataTransfer);
+      if (projectFilePath !== undefined) {
+        if (projectFilePath) attachDroppedFiles([projectFilePath]);
+        return;
+      }
+      const files = Array.from(event.dataTransfer.files);
+      if (files.length === 0) return;
+      if (canImportFiles) {
+        importDroppedFiles(files);
+        return;
+      }
+      const paths = readBridge().getDroppedFilePaths(files);
       if (paths.length > 0) attachDroppedFiles(paths);
     };
 
@@ -1043,25 +1067,18 @@ export function ThreadComposer(props: {
       window.removeEventListener("blur", reset);
       reset();
     };
-  }, [attachmentDropScope, canAttachFiles, toolbarOnly]);
+  }, [attachmentDropScope, canAttachPaths, canImportFiles, toolbarOnly]);
 
-  function hasAttachmentDragData(dataTransfer: DataTransfer) {
-    return Array.from(dataTransfer.types).some(
-      (type) => type === "Files" || type === COMPOSER_FILE_DRAG_TYPE,
-    );
-  }
-
-  function resolveAttachmentDropPaths(dataTransfer: DataTransfer): string[] {
+  /** `undefined` when the drop is not a project-tree drag; `""` when its payload is unusable. */
+  function resolveProjectFileDropPath(dataTransfer: DataTransfer): string | undefined {
     const payload = dataTransfer.getData(COMPOSER_FILE_DRAG_TYPE);
-    if (payload) {
-      try {
-        const parsed = JSON.parse(payload) as { path?: unknown; type?: unknown };
-        return typeof parsed.path === "string" && parsed.type === "file" ? [parsed.path] : [];
-      } catch {
-        return [];
-      }
+    if (!payload) return undefined;
+    try {
+      const parsed = JSON.parse(payload) as { path?: unknown; type?: unknown };
+      return typeof parsed.path === "string" && parsed.type === "file" ? parsed.path : "";
+    } catch {
+      return "";
     }
-    return readBridge().getDroppedFilePaths(Array.from(dataTransfer.files));
   }
 
   const toolbar = (

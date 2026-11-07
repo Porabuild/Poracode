@@ -1139,6 +1139,10 @@ msgstr "Kaçırılan çalıştırma atlandı."
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 msgstr "Bu bağlantıya bir Poracode Helper sahip ancak yanıt vermiyor. Uzak helper'ı durdurun ve yeniden bağlanın."
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "A previous submission is saved on this device."
+msgstr "Önceki bir gönderim bu cihazda kayıtlı."
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "A profile can carry at most 100 repositories."
 msgstr "Bir profil en fazla 100 depo içerebilir."
@@ -5394,7 +5398,9 @@ msgstr "Depo klonlanamadı."
 msgid "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
 msgstr "Deney değişikliği ana makinede doğrulanamadı. Değişiklik zaten uygulanmış olabilir. Yeniden denemeden önce deneyi yeniden yükleyin."
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/actions/threadCommandOutcomeActions.ts
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 msgid "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
 msgstr "Ana makine bu komutu doğrulayamadı. Zaten uygulanmış olabilir — yeniden denemeden önce konuyu kontrol edin."
 
@@ -5467,6 +5473,10 @@ msgstr "Eklentiler yönetilemedi. Paket adını, OpenCode sürümünü ve ağ ba
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Kısayol kaydedilemedi."
+
+#: src/renderer/state/composerDrafts/persistenceError.ts
+msgid "Couldn't save this draft on this device. Your content is still in the composer."
+msgstr "Bu taslak bu cihaza kaydedilemedi. İçeriğiniz hâlâ düzenleyicide."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't scan agent skills."
@@ -6812,6 +6822,10 @@ msgstr "Güncel olmayanları at"
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 msgid "Discard recording"
 msgstr "Kaydı sil"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Discard saved copy"
+msgstr "Kayıtlı kopyayı sil"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -15772,6 +15786,10 @@ msgstr "Akıl yürütme"
 msgid "Reasoning for {memberLabel}"
 msgstr "{memberLabel} için akıl yürütme"
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "Reattach this file on this device before sending it to another environment."
+msgstr "Bu dosyayı başka bir ortama göndermeden önce bu cihazda yeniden ekleyin."
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeConfirm.tsx
 msgid "Rebase and merge"
 msgstr "Rebase ve birleştir"
@@ -16075,6 +16093,7 @@ msgstr "Uzak ad"
 #~ msgid "Remote server"
 #~ msgstr "Uzak sunucu"
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -16713,9 +16732,14 @@ msgstr "Duyarlı"
 msgid "Restart Poracode"
 msgstr "Poracode'u yeniden başlat"
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore"
 msgstr "Geri yükle"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Restore a copy"
+msgstr "Bir kopyayı geri yükle"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore browser"
@@ -20315,6 +20339,10 @@ msgstr "Hex motoru bu ana bilgisayarla veya Poracode sürümüyle uyumlu değil.
 msgid "The history notice could not be read from the server."
 msgstr "Geçmiş bildirimi sunucudan okunamadı."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
+msgstr "Ana makine bu mesajı kabul etti, ancak yerel kurtarma kopyası temizlenemedi. Yeniden denemeden önce konuşmayı kontrol edin."
+
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "The host has more labels than are listed here."
 msgstr "Ana makinede burada listelenenden daha fazla etiket var."
@@ -20672,6 +20700,10 @@ msgstr "Görev, tamamlanma raporu olmadan sona erdi."
 msgid "The task has not confirmed that it stopped. Try again."
 msgstr "Görev durduğunu henüz doğrulamadı. Tekrar deneyin."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "The thread could not be started. Your draft is still saved on this device."
+msgstr "Konuşma başlatılamadı. Taslağınız bu cihazda kayıtlı kalmaya devam ediyor."
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "Konu sağlayıcı oturumunu korur; böylece bir sonraki mesajınız kaldığınız yerden devam eder."
@@ -21006,6 +21038,10 @@ msgstr "Bu medya önizlemesi kullanılamıyor."
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "Bu mesaj artık kuyrukta değil. Düzenlediğiniz metni hâlâ kopyalayabilirsiniz."
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "This message was staged with the host. A recovery copy is saved on this device."
+msgstr "Bu mesaj ana makinede gönderilmeyi bekliyor. Bu cihazda bir kurtarma kopyası kayıtlı."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
@@ -21382,6 +21418,10 @@ msgstr "Konuşma adı"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Thread not found"
 msgstr "Konu bulunamadı"
+
+#: src/renderer/actions/threadRuntimeActions.ts
+msgid "Thread not found."
+msgstr "Konuşma bulunamadı."
 
 #. Popover button: delete the thread but keep the worktree directory
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

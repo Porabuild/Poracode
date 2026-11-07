@@ -1,3 +1,7 @@
+import {
+  acceptClientSubmissionById,
+  waitForClientSubmission,
+} from "@/renderer/actions/clientDraftSubmission";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -10,7 +14,10 @@ import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
 import { PixelLoader } from "@/renderer/components/common";
 import { ProjectSwitchMenu } from "@/renderer/components/thread/ProjectSwitchMenu";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
-import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
+import type {
+  DraftStartInput,
+  DraftStartOutcome,
+} from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import {
   applyAgentStatusSupervisorEvent,
@@ -198,16 +205,22 @@ export function QuickComposerOverlay() {
   useLayoutEffect(() => {
     dismissRef.current = dismiss;
   });
-  const startThread = async (input: DraftStartInput) => {
-    if (!project) return;
+  const startThread = async (input: DraftStartInput): Promise<DraftStartOutcome> => {
+    if (!project) return "cancelled";
     const lifecycle = lifecycleRef.current;
     const generation = lifecycle.showGeneration;
     setPendingForm({ project, agentStatuses: projectAgentStatuses });
     transitionPhase("sending");
     try {
       await readBridge().submitQuickComposer({ projectId: project.id, input });
+      if (input.clientSubmissionId) {
+        await waitForClientSubmission(input.clientSubmissionId);
+        await acceptClientSubmissionById(input.clientSubmissionId, () =>
+          useAppStore.getState().clearDraftContent(project.id),
+        );
+      }
       await new Promise((resolve) => setTimeout(resolve, 220));
-      if (!lifecycle.mounted) return;
+      if (!lifecycle.mounted) return "accepted";
       // Keep the submitted form mounted and inert until acknowledgement. Clear
       // it before re-enabling input, even if a newer show is already visible.
       setComposerRevision((revision) => revision + 1);
@@ -218,15 +231,15 @@ export function QuickComposerOverlay() {
           .dismissQuickComposer()
           .catch((error: unknown) => console.warn(error));
       }
+      return "accepted";
     } catch (error) {
       if (lifecycle.mounted) {
         setPendingForm(null);
         if (lifecycle.showGeneration === generation) transitionPhase("idle");
       }
-      // The shared composer catch swallows non-voice submission errors, so
-      // this is the only surface for a refused handoff — show it exactly once
-      // while the restored draft is still recoverable.
-      toast.danger(friendlyError(error));
+      // The client-draft composer reports its own failures. Older callers
+      // without a local outbox still need this surface to report a refusal.
+      if (!input.clientSubmissionId) toast.danger(friendlyError(error));
       throw error;
     }
   };
@@ -282,9 +295,8 @@ export function QuickComposerOverlay() {
             paneCount={1}
             composerPlaceholder={t`Ask ${project.name} anything about this workspace`}
             pickFiles={environment.pickFiles ?? (() => readBridge().pickQuickComposerFiles())}
-            {...(environment.saveClipboardImage
-              ? { saveClipboardImage: environment.saveClipboardImage }
-              : {})}
+            {...(environment.importFiles ? { importFiles: environment.importFiles } : {})}
+
             onProjectChange={setSelectedProjectId}
             {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
             onStart={startThread}

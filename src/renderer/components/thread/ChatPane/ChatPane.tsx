@@ -528,17 +528,16 @@ export function ChatPane(props: ChatPaneProps) {
                 ) : null
               }
               footer={
-                liveStatus ? (
-                  // With a bubble row the status rides it and the row's end
-                  // inset already reserves that band, so the tail keeps only
-                  // the completed turn's fork row while reconnecting.
-                  statusSlot && !tailForkAction ? null : (
-                    <div className="group/checkpoint">
-                      {statusSlot ? null : <ChatTailStatus>{liveStatus}</ChatTailStatus>}
-                      {tailForkAction}
-                    </div>
-                  )
-                ) : !isHydrating && showTailLoader && tailTurn ? (
+                // With a bubble row the live status rides it and the row's end
+                // inset already reserves that band, so a reconnecting tail
+                // keeps the completed turn's footer instead of dropping it and
+                // pushing the transcript when it returns.
+                liveStatus && !statusSlot ? (
+                  <div className="group/checkpoint">
+                    <ChatTailStatus>{liveStatus}</ChatTailStatus>
+                    {tailForkAction}
+                  </div>
+                ) : !isHydrating && completedTurnCanRenderInTail && tailTurn ? (
                   <div className="group/checkpoint">
                     <ChatTurnElapsedFooter
                       turn={tailTurn}

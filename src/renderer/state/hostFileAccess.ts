@@ -1,23 +1,21 @@
 import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
 import { entityHost } from "./entityHost";
-import { useRemoteServersStore } from "./remoteServersStore";
+import { importClientDraftFiles, pickClientDraftFiles } from "@/renderer/utils/browserFilePicker";
+import { stageClientDraftAsset } from "./composerDrafts/clientDraftDatabase";
+import { clientDraftPersistenceError } from "./composerDrafts/persistenceError";
+import { isRemoteSession } from "@/renderer/bridge";
 
 /**
- * How a composer hands this machine's files to the host that owns a thread or
- * draft project.
- *
- * A host that runs on this machine reads this machine's paths directly, so the
- * native file dialog and the local clipboard save are already right and every
- * field is absent. A host on another machine cannot read those paths: picked
- * files and pasted images are uploaded into its own attachment directory, and
- * revealing one of its project paths in this machine's file manager is
- * meaningless. That single difference is `EntityHost.runsOnThisMachine`; both
- * kinds of host resolve through this one function.
+ * Client-side import for composers targeting another machine. Draft files stay
+ * on the client until submission; native pickers import their selected paths
+ * through useAttachments instead.
  */
 export interface HostFileAccess {
-  /** Picks files and returns paths the host can read. */
+  /** Picks files and returns durable client asset references. */
   readonly pickFiles?: () => Promise<string[] | null>;
-  /** Stores a pasted or captured image where the host can read it. */
+  /** Imports dropped files and returns durable client asset references. */
+  readonly importFiles?: (files: readonly File[]) => Promise<string[]>;
+  /** Imports a pasted or captured image into client storage. */
   readonly saveClipboardImage?: SaveClipboardImage;
   /** False when "reveal in file manager" would open the wrong machine. */
   readonly canShowProjectEntryInExplorer?: false;
@@ -25,28 +23,24 @@ export interface HostFileAccess {
 
 const NATIVE_FILE_ACCESS: HostFileAccess = {};
 
-/**
- * `scope` names what the attachments belong to: an existing thread, or the
- * draft of a project that has no thread yet (the host keeps those under the
- * project's draft directory).
- */
-export function resolveHostFileAccess(
-  entity: Parameters<typeof entityHost>[0],
-  scope: "thread" | "draft",
-): HostFileAccess {
+export function resolveHostFileAccess(entity: Parameters<typeof entityHost>[0]): HostFileAccess {
   const host = entityHost(entity);
-  if (!host || host.runsOnThisMachine || host.connectionKey === undefined) {
+  if (!isRemoteSession() && (!host || host.runsOnThisMachine || host.connectionKey === undefined)) {
     return NATIVE_FILE_ACCESS;
   }
-  const connectionKey = host.connectionKey;
-  const attachmentThreadId = scope === "draft" ? `draft-${host.hostId}` : host.hostId;
   return {
-    pickFiles: () =>
-      useRemoteServersStore.getState().pickAndUploadFiles(connectionKey, attachmentThreadId),
-    saveClipboardImage: (input) =>
-      useRemoteServersStore
-        .getState()
-        .saveClipboardImage(connectionKey, { ...input, threadId: attachmentThreadId }),
+    pickFiles: pickClientDraftFiles,
+    importFiles: importClientDraftFiles,
+    saveClipboardImage: async (input) => {
+      const asset = stageClientDraftAsset(
+        new Blob([Uint8Array.from(input.data)], { type: `image/${input.extension}` }),
+        `clipboard.${input.extension}`,
+      );
+      await asset.saved.catch((error: unknown) => {
+        throw clientDraftPersistenceError(error);
+      });
+      return asset.path;
+    },
     canShowProjectEntryInExplorer: false,
   };
 }

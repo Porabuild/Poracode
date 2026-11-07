@@ -36,24 +36,21 @@ import type { RuntimeEvent, Thread } from "@/shared/contracts";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 
 /**
- * THE one `SupervisorEvent` reducer (V5 plan 2.3 / T3).
+ * THE one `SupervisorEvent` reducer (V5 plan 2.3 / T3), for every host.
  *
- * Desktop (`app.tsx`) and remote clients (`state/remote/sync.ts`) used to run
- * two hand-maintained copies of this state machine over the same event union.
- * They diverged on selector-cache invalidation and on reset/resume ordering.
- * This module is the single implementation; each flavor injects:
+ * The desktop's own host (`app.tsx`) and paired hosts (`state/remote/sync.ts`)
+ * run this one state machine over the same event union; each composition
+ * injects:
  *
- * - a RECOVERY STRATEGY — how authoritative state is re-installed when the
- *     bounded runtime queue overflows, and how a `thread-reset` orders the
- *     resume:
- *     - local snapshot (`localSnapshotRecovery.ts`): the desktop re-reads the
- *       backend-persisted runtime history and resumes only once it lands;
- *     - HTTP snapshot (remote): the caller re-fetches snapshots from the host
- *       for overflow, and a reset — having no snapshot to await — resumes the
- *       queue immediately so fresh deltas are not blocked behind recovery.
- * - persistence/surface hooks — the fan-outs only one flavor owns (Electron
- *     terminal scrollback + dev shells, provider usage, agent-status bulk
- *     discovery; remote launch-config normalization and mobile side effects).
+ * - a RECOVERY STRATEGY (`hostHistoryRecovery.ts`) — how authoritative state
+ *     is re-installed when the bounded runtime queue overflows, a
+ *     `thread-reset` arrives or a connection resumes: the thread's history is
+ *     re-read from its owning host and the queue resumes only once that read
+ *     has landed;
+ * - persistence/surface hooks — the fan-outs only one composition owns
+ *     (desktop terminal scrollback + dev shells, provider usage, agent-status
+ *     bulk discovery; paired launch-config normalization and mobile side
+ *     effects).
  *
  * The core owns everything shared: the bounded runtime event queue, the
  * frame-paced flush scheduling, overflow lifecycle (in-flight/invalidated

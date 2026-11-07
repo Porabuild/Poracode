@@ -1,3 +1,6 @@
+import { RemoteClientError } from "@/shared/remote/clientErrors";
+import { DraftRecoveryNotice } from "@/renderer/components/composer/DraftRecoveryNotice";
+import { mergeDraftContent, composerSeedQueue } from "@/renderer/state/projectReferences";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { toast } from "@heroui/react";
 import { Download, Monitor, Settings2, Webhook, X } from "lucide-react";
@@ -37,6 +40,10 @@ import {
 import { ComposerVoiceInput } from "@/renderer/components/composer/ComposerVoiceInput";
 import { LiveVoiceButton } from "@/renderer/components/composer/LiveVoiceControls";
 import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
+import {
+  captureTurnClientContext,
+  useTurnClientContextCapture,
+} from "@/renderer/components/composer/turnClientContext";
 import { composerCustomMcpItems } from "@/renderer/components/composer/composerCustomMcpServers";
 import {
   composerMcpServers,
@@ -59,12 +66,7 @@ import {
 } from "@/renderer/components/composer/MentionInput";
 import { useThreadMentionItems } from "@/renderer/components/composer/useThreadMentionItems";
 import { useCrewMentionItems } from "@/renderer/components/crew/useCrewMentionItems";
-import {
-  storableAttachment,
-  storableAttachments,
-  useAttachments,
-  type SaveClipboardImage,
-} from "@/renderer/components/composer/useAttachments";
+import { storableAttachment, useAttachments } from "@/renderer/components/composer/useAttachments";
 import type { VoiceInputHandle } from "@/renderer/components/composer/VoiceInputButton";
 import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
@@ -87,8 +89,20 @@ import {
 } from "@/renderer/components/experiment/ExperimentDraftTargets";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
+import {
+  preserveDraftSubmission,
+  materializeDraftSegments,
+  dispatchDraftSubmission,
+  acceptDraftSubmission,
+  type DraftSubmission,
+} from "@/renderer/actions/clientDraftSubmission";
+import {
+  readClientSubmission,
+  updateClientSubmission,
+  claimClientSubmission,
+} from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { registerMountedProjectDraft } from "@/renderer/state/mountedProjectDrafts";
-import { composerSeedQueue } from "@/renderer/state/projectReferences";
+
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -129,9 +143,13 @@ const EMPTY_BRANCHES: GitBranchInfo[] = [];
 // Optional fields admit explicit `undefined` so wire shapes with
 // `prop?: T | undefined` (e.g. the zod-parsed quick-composer submission)
 // pass through without field-by-field copying.
+export type DraftStartOutcome = "accepted" | "cancelled";
+export type DraftStartResult = DraftStartOutcome | void;
 export type DraftStartInput = {
   /** Optional caller-owned identity for features that attach after launch. */
-  threadId?: string;
+  threadId?: string | undefined;
+  /** Client-only outbox identity; stripped before provider/host dispatch. */
+  clientSubmissionId?: string | undefined;
   agentKind: AgentStatus["kind"];
   config: ThreadConfig;
   prompt: string;
@@ -327,16 +345,18 @@ export function ThreadDraftComposerArea(props: {
   /** Override mount autofocus without changing the active submit behavior. */
   autoFocus?: boolean;
   pickFiles?: () => Promise<string[] | null>;
-  saveClipboardImage?: SaveClipboardImage;
+  importFiles?: (files: readonly File[]) => Promise<string[]>;
+
   onConfigChange: (patch: Partial<ThreadConfig>) => void;
   onWorktreeModeChange: (worktreeMode: boolean) => void;
   onSwitchBranch: (branch: string, createNew: boolean) => void;
   onRememberPresentationMode: () => void;
-  onStart: (input: DraftStartInput) => void | Promise<void>;
+  onStart: (input: DraftStartInput) => DraftStartResult | Promise<DraftStartResult>;
 }) {
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const implicitMcpServers = useImplicitMcpServers();
+  const captureClientContext = useTurnClientContextCapture();
   const promptRef = useRef("");
   const [hasContent, setHasContent] = useState(false);
   // Set to true while an agent-binary update is running for this project's env.
@@ -345,6 +365,8 @@ export function ThreadDraftComposerArea(props: {
   // either binary, which is a confusing state to debug.
   const [agentUpdating, setAgentUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionInFlightRef = useRef(false);
+  const restoringDraftRef = useRef(true);
   const [experimentMode, setExperimentMode] = useState(false);
   const [experimentCandidates, setExperimentCandidates] = useState<ExperimentDraftCandidate[]>([]);
   const [experimentBaseBranch, setExperimentBaseBranch] = useState<string | null>(null);
@@ -357,6 +379,7 @@ export function ThreadDraftComposerArea(props: {
   const isBrowserClient = isRemoteSession();
   const projectOnThisMachine = hostRunsOnThisMachine(props.project);
   const hostIsLocalToClient = projectOnThisMachine && !isBrowserClient;
+  const { importFiles } = props;
   const autoFocus = props.autoFocus ?? ((props.paneCount ?? 1) === 1 && !isBrowserClient);
   const isQuickComposer = hasAnyClientBridge() ? isQuickComposerWindow() : false;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
@@ -370,7 +393,10 @@ export function ThreadDraftComposerArea(props: {
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const attachments = useAttachments({
-    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
+    onDraftChange: () => checkpointDraft(),
+    source: {
+      ...(props.project.remoteServerId ? { remoteServerId: props.project.remoteServerId } : {}),
+    },
   });
   // Remote-project attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
@@ -383,6 +409,7 @@ export function ThreadDraftComposerArea(props: {
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
   const fallbackInboxKey = `draft:${props.project.id}`;
   const projectId = props.project.id;
+
   const pendingPickedAttachments = useBrowserAttachInbox((s) =>
     inboxKey ? s.itemsByThread[inboxKey] : undefined,
   );
@@ -440,15 +467,13 @@ export function ThreadDraftComposerArea(props: {
   const saveDraftContent = useAppStore((s) => s.saveDraftContent);
   const clearDraftContent = useAppStore((s) => s.clearDraftContent);
   const latestSegmentsRef = useRef<PromptSegment[]>([]);
-  const attachmentsRef = useRef(attachments.attachments);
-  attachmentsRef.current = attachments.attachments;
   const mountedDraftActionsRef = useRef({
-    getAttachments: attachments.getAttachments,
+    getAttachments: attachments.getDraftAttachments,
     restoreAttachments: attachments.restore,
     saveDraftContent,
   });
   mountedDraftActionsRef.current = {
-    getAttachments: attachments.getAttachments,
+    getAttachments: attachments.getDraftAttachments,
     restoreAttachments: attachments.restore,
     saveDraftContent,
   };
@@ -842,7 +867,6 @@ export function ThreadDraftComposerArea(props: {
 
   function resetDraftRefs() {
     latestSegmentsRef.current = [];
-    attachmentsRef.current = [];
   }
 
   function setFallbackPrompt(value: string) {
@@ -882,13 +906,16 @@ export function ThreadDraftComposerArea(props: {
   function handleFallbackPromptChange(value: string) {
     cancelDraftVoice();
     setFallbackPrompt(value);
+    latestSegmentsRef.current = value ? [{ kind: "text", content: value }] : [];
+    checkpointDraft();
   }
 
-  function submitSegments(
+  async function submitSegments(
     allSegments: PromptSegment[],
     fallbackPrompt = "",
     voiceThreadId?: string,
   ) {
+    if (submissionInFlightRef.current) return;
     if (attachments.hasPendingUploads()) return;
     if (!voiceThreadId) cancelDraftVoice();
     if (hostUpdateRestarting) return;
@@ -963,15 +990,17 @@ export function ThreadDraftComposerArea(props: {
     // exact copy of what the user submitted.
     const submittedDraftSegments =
       mentionRef.current?.serializeSegments() ?? latestSegmentsRef.current;
-    resetDraftRefs();
-    submittedRef.current = true;
-    clearDraftContent(props.project.id);
+    const submittedContent = {
+      segments: submittedDraftSegments,
+      attachments: attachments.getDraftAttachments(),
+    };
+    const clientContextCapture = captureTurnClientContext(captureClientContext);
     setIsSubmitting(true);
     const useWorktree = branchSelection?.isWorktree ?? props.worktreeMode;
     if (props.supportsModePicker) {
       props.onRememberPresentationMode();
     }
-    const startResult = props.onStart({
+    const launchInput: DraftStartInput = {
       ...(voiceThreadId ? { threadId: voiceThreadId } : {}),
       agentKind: props.selectedAgent.kind,
       config: props.config,
@@ -993,24 +1022,74 @@ export function ThreadDraftComposerArea(props: {
               ...(shouldTransferUncommitted ? { worktreeTransferUncommitted: true } : {}),
             }
         : {}),
-    });
-    // On success the draft pane unmounts (replaced by the launched thread), so
-    // this state never matters. On failure (e.g. worktree creation errored) the
-    // pane stays mounted — re-enable the composer instead of leaving it stuck on
-    // the launch spinner with the user's prompt trapped behind it. `onStart` may
-    // return void or a promise; Promise.resolve normalizes both.
-    return Promise.resolve(startResult).catch((error: unknown) => {
+    };
+    submissionInFlightRef.current = true;
+    let submission: DraftSubmission | undefined;
+    try {
+      if (!voiceThreadId) {
+        submission = await preserveDraftSubmission({
+          kind: "project",
+          ownerId: props.project.id,
+          target: props.project,
+          content: submittedContent,
+          segments: currentSegments,
+          intent: "launch",
+          configuration: launchInput,
+        });
+        launchInput.threadId = submission.id;
+        launchInput.clientSubmissionId = submission.id;
+      }
+      const captured = await clientContextCapture;
+      if ("error" in captured) throw captured.error;
+      if (captured.context) launchInput.clientContext = captured.context;
+      if (submission) {
+        const wireSegments = await materializeDraftSegments(
+          props.project,
+          submission.segments,
+          `draft-${submission.id}`,
+          submission.isTargetCurrent,
+        );
+        if (wireSegments.length > 0) launchInput.segments = wireSegments;
+        else delete launchInput.segments;
+      }
+      submittedRef.current = true;
+      const launch = () => Promise.resolve(props.onStart(launchInput));
+      if (submission) {
+        const outcome = await dispatchDraftSubmission(submission, launch);
+        const record = await readClientSubmission(submission.id);
+        if (outcome === "accepted" || record?.state === "accepted") {
+          if (record)
+            await acceptDraftSubmission(submission, () => clearDraftContent(props.project.id));
+        } else {
+          await updateClientSubmission(
+            submission.id,
+            outcome === "cancelled" ? "failed" : "uncertain",
+          );
+          submittedRef.current = false;
+          setIsSubmitting(false);
+        }
+      } else await launch();
+    } catch (error) {
+      if (error instanceof RemoteClientError && error.code === "client_draft_retirement_failed") {
+        setIsSubmitting(false);
+        toast.danger(friendlyError(error));
+        return;
+      }
+      if (
+        submission &&
+        (await readClientSubmission(submission.id).catch(() => undefined))?.state === "prepared"
+      )
+        await updateClientSubmission(submission.id, "failed").catch(() => undefined);
       submittedRef.current = false;
-      // Restore the checkpoint from the editor after a failed launch. If the
-      // parent unmounted this composer while the launch was in flight (e.g. a
-      // connection gate), the ref is gone; fall back to the captured editor
-      // segments, never the attachment-bearing wire payload.
+      // Do not overwrite text entered while attachment preparation was running.
       latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? submittedDraftSegments;
-      attachmentsRef.current = attachments.attachments;
       checkpointDraft();
       setIsSubmitting(false);
+      toast.danger(friendlyError(error));
       if (voiceThreadId) throw error;
-    });
+    } finally {
+      submissionInFlightRef.current = false;
+    }
   }
 
   function resolveExperimentInput(allSegments: PromptSegment[], fallbackPrompt = "") {
@@ -1050,28 +1129,72 @@ export function ThreadDraftComposerArea(props: {
   async function runExperiment(allSegments: PromptSegment[], fallbackPrompt = "") {
     const input = resolveExperimentInput(allSegments, fallbackPrompt);
     const baseBranch = experimentBaseBranch ?? experimentDefaultBase;
-    if (!input || !baseBranch || experimentCandidates.length < 2 || isSubmitting) return;
-    setIsSubmitting(true);
-    const experimentId = await launchExperiment({
-      projectId: props.project.id,
-      baseBranch,
-      prompt: input.prompt,
-      segments: input.segments,
-      candidates: experimentCandidates.map(
-        ({ id: _id, icon: _icon, modelLabel: _modelLabel, ...candidate }) => candidate,
-      ),
-    });
-    if (experimentId) {
-      submittedRef.current = true;
-      clearDraftContent(props.project.id);
+    if (!input || !baseBranch || experimentCandidates.length < 2 || submissionInFlightRef.current)
       return;
+    const content = {
+      segments: mentionRef.current?.serializeSegments() ?? latestSegmentsRef.current,
+      attachments: attachments.getDraftAttachments(),
+    };
+    const candidates = experimentCandidates.map(
+      ({ id: _id, icon: _icon, modelLabel: _label, ...candidate }) => candidate,
+    );
+    submissionInFlightRef.current = true;
+    setIsSubmitting(true);
+    let submission: DraftSubmission | undefined;
+    let dispatched = false;
+    let accepted = false;
+    try {
+      submission = await preserveDraftSubmission({
+        kind: "project",
+        ownerId: props.project.id,
+        target: props.project,
+        content,
+        segments: input.segments,
+        intent: "experiment",
+        configuration: { baseBranch, candidates },
+      });
+      const captured = submission;
+      await launchExperiment({
+        projectId: props.project.id,
+        baseBranch,
+        prompt: input.prompt,
+        segments: input.segments,
+        candidates,
+        prepareSegments: async () => {
+          const segments = await materializeDraftSegments(
+            props.project,
+            captured.segments,
+            `draft-${captured.id}`,
+            captured.isTargetCurrent,
+          );
+          await claimClientSubmission(captured.id);
+          dispatched = true;
+          submittedRef.current = true;
+          return segments;
+        },
+        onAccepted: async () => {
+          accepted = true;
+          await acceptDraftSubmission(captured, () => clearDraftContent(props.project.id));
+        },
+      });
+      if (!accepted) await updateClientSubmission(captured.id, dispatched ? "uncertain" : "failed");
+    } catch (error) {
+      if (submission && !accepted)
+        await updateClientSubmission(submission.id, dispatched ? "uncertain" : "failed").catch(
+          () => undefined,
+        );
+      toast.danger(friendlyError(error));
+    } finally {
+      submissionInFlightRef.current = false;
+      if (!accepted) submittedRef.current = false;
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   }
 
   useLayoutEffect(() => {
     const saved = initialDraftRef.current;
     if (!saved) {
+      restoringDraftRef.current = false;
       return;
     }
     if (saved.segments.length > 0) {
@@ -1081,6 +1204,8 @@ export function ThreadDraftComposerArea(props: {
     if (saved.attachments.length > 0) {
       attachments.restore(saved.attachments);
     }
+    restoringDraftRef.current = false;
+    checkpointDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time mount restore
   }, []);
 
@@ -1195,19 +1320,16 @@ export function ThreadDraftComposerArea(props: {
   ]);
 
   function checkpointDraft() {
-    if (submittedRef.current) return;
+    // Restoring text and attachments is one operation, not two user edits.
+    // Intermediate checkpoints would change the revision of an unconfirmed send.
+    if (restoringDraftRef.current) return;
     const content = {
       segments: latestSegmentsRef.current,
-      attachments: storableAttachments(attachmentsRef.current),
+      attachments: attachments.getDraftAttachments(),
     };
     if (isDraftContentNonEmpty(content)) saveDraftContent(props.project.id, content);
-    else clearDraftContent(props.project.id);
+    else if (!submittedRef.current) clearDraftContent(props.project.id);
   }
-
-  useEffect(() => {
-    checkpointDraft();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- text is checkpointed by onTextChange; attachments update after commit
-  }, [attachments.attachments]);
 
   useEffect(() => {
     const pid = props.project.id;
@@ -1224,7 +1346,6 @@ export function ThreadDraftComposerArea(props: {
         mentionRef.current?.restoreFromSegments(content.segments);
         latestSegmentsRef.current = content.segments;
         mountedDraftActionsRef.current.restoreAttachments(content.attachments);
-        attachmentsRef.current = content.attachments;
       },
       transfer: () => {
         transferred = true;
@@ -1239,7 +1360,7 @@ export function ThreadDraftComposerArea(props: {
       // this composer's live session and are revoked when it unmounts.
       const content = {
         segments: latestSegmentsRef.current,
-        attachments: storableAttachments(attachmentsRef.current),
+        attachments: mountedDraftActionsRef.current.getAttachments(),
       };
       if (isDraftContentNonEmpty(content)) {
         mountedDraftActionsRef.current.saveDraftContent(pid, content);
@@ -1270,6 +1391,26 @@ export function ThreadDraftComposerArea(props: {
 
   return (
     <>
+      <DraftRecoveryNotice
+        kind="project"
+        ownerId={props.project.id}
+        pending={isSubmitting}
+        onRestore={(saved, replace) => {
+          const restored = replace
+            ? saved
+            : mergeDraftContent(
+                {
+                  segments: mentionRef.current?.serializeSegments() ?? latestSegmentsRef.current,
+                  attachments: attachments.getDraftAttachments(),
+                },
+                saved,
+              );
+          mentionRef.current?.restoreFromSegments(restored.segments);
+          latestSegmentsRef.current = restored.segments;
+          attachments.restore(restored.attachments);
+          saveDraftContent(props.project.id, restored);
+        }}
+      />
       <ThreadComposer
         attachmentDropScope={props.presentationMode === "gui" ? "panel" : "composer"}
         autoFocus={autoFocus} // eslint-disable-line jsx-a11y/no-autofocus -- caller controls whether this surface should take focus on mount
@@ -1346,9 +1487,14 @@ export function ThreadDraftComposerArea(props: {
               const imageAttachments = attachments.attachments.filter((a) => a.isImage);
               const idx = imageAttachments.findIndex((a) => a.id === att.id);
               if (idx >= 0)
-                openAttachmentLightbox(imageAttachments, idx, attachmentImageUrlForPath);
+                openAttachmentLightbox(
+                  imageAttachments,
+                  idx,
+                  attachmentImageUrlForPath,
+                  remoteImageReadiness,
+                );
             }}
-            onPreviewPdf={(att) => openPdfPreview(att.path)}
+            onPreviewPdf={(att) => openPdfPreview(att)}
             {...(attachmentImageUrlForPath ? { imageUrlForPath: attachmentImageUrlForPath } : {})}
             remoteImageReadiness={remoteImageReadiness}
             leading={
@@ -1410,9 +1556,7 @@ export function ThreadDraftComposerArea(props: {
             onPasteImage={(file: File) => {
               cancelDraftVoice();
               void draftVoice
-                .trackOperation(() =>
-                  attachments.addClipboardImage(file, `draft:${props.project.id}`),
-                )
+                .trackOperation(() => attachments.addClipboardImage(file))
                 .catch((error: unknown) => toast.danger(friendlyError(error)));
             }}
             onSubmit={(segments) => {
@@ -1508,6 +1652,16 @@ export function ThreadDraftComposerArea(props: {
               onAttachFiles: (paths: string[]) => {
                 cancelDraftVoice();
                 attachments.addFiles(paths);
+              },
+            }
+          : {})}
+        {...(importFiles
+          ? {
+              onImportFiles: (files: File[]) => {
+                cancelDraftVoice();
+                void draftVoice
+                  .trackOperation(async () => attachments.addFiles(await importFiles(files)))
+                  .catch((error: unknown) => toast.danger(friendlyError(error)));
               },
             }
           : {})}

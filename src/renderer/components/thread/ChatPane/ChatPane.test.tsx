@@ -3385,6 +3385,7 @@ describe("ChatPane", () => {
       expect(
         within(slot).getByText("Resuming session…").closest("[data-chat-status-bubble]"),
       ).not.toBeNull();
+      expect(within(container).getByText("Worked for 1m 15s")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
       expect(within(container).queryByText(/Resuming session/)).toBeNull();
 
@@ -3395,6 +3396,32 @@ describe("ChatPane", () => {
       expect(slot).toBeEmptyDOMElement();
       expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+    });
+
+    it("keeps the completed turn's duration in the transcript while resuming", () => {
+      const thread = {
+        ...makeThread(),
+        status: "idle" as const,
+        activeTurnStartedAt: undefined,
+        lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+        lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+      };
+      useAppStore.setState({
+        threads: [thread],
+        connectingThreadIds: { [thread.id]: "connection-1" },
+      });
+
+      const { container } = renderChatPane(thread);
+
+      expect(within(slot).getByText("Resuming session…")).toBeInTheDocument();
+      expect(within(container).getAllByText("Worked for 1m 15s")).toHaveLength(1);
+
+      act(() => {
+        useAppStore.getState().finishThreadConnecting(thread.id, "connection-1");
+      });
+
+      expect(slot).toBeEmptyDOMElement();
+      expect(within(container).getAllByText("Worked for 1m 15s")).toHaveLength(1);
     });
   });
 });

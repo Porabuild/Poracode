@@ -1,3 +1,4 @@
+import * as clientDraftSubmission from "./actions/clientDraftSubmission";
 import {
   __resetRemoteServersStoreForTest,
   useRemoteServersStore,
@@ -1227,6 +1228,30 @@ describe("App", () => {
     });
 
     expect(runWorktreeSetupScript).not.toHaveBeenCalled();
+  });
+
+  it("settles a Quick Composer handoff refused before launch when its project disappeared", async () => {
+    useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
+    const settle = vi
+      .spyOn(clientDraftSubmission, "settleClientSubmission")
+      .mockResolvedValue(undefined);
+    useAppStore.setState({ projects: [] });
+    render(<App />);
+    const listener = quickComposerSubmitListeners.at(-1)!;
+    act(() =>
+      listener({
+        projectId: "deleted-project",
+        input: {
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          prompt: "retained draft",
+          clientSubmissionId: "receipt",
+        },
+      }),
+    );
+    await waitFor(() => expect(settle).toHaveBeenCalledWith("receipt", "failed"));
+    expect(bridge.startThread).not.toHaveBeenCalled();
+    settle.mockRestore();
   });
 
   it("creates and launches the thread submitted by the quick composer", async () => {

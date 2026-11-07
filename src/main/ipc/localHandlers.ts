@@ -12,6 +12,7 @@ import type { BrowserPanelManager } from "../browser";
 import { openMicrophoneSettings } from "../browser/permissions";
 import {
   readLocalImageFile,
+  readClientDraftFile,
   resolveProjectFsPath,
   saveClipboardImageFile,
   saveHandoffContextFile,
@@ -202,6 +203,7 @@ export function createLocalIpcHandlers(
       return true;
     },
     readLocalImageFile: async ({ url }) => readLocalImageFile(url),
+    readClientDraftFile: ({ url }) => readClientDraftFile(url),
     createProjectDirectory: (payload) => createProjectDirectory(payload),
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);
@@ -410,6 +412,8 @@ export function createLocalIpcHandlers(
         ...(payload.activate !== undefined ? { activate: payload.activate } : {}),
         ...(payload.reveal !== undefined ? { reveal: payload.reveal } : {}),
       }),
+    browserPreviewClientPdf: ({ data }) =>
+      requireBrowserPanel(options.getBrowserPanelManager).previewClientPdf(data),
     browserOpenInternalPage: ({ page }) =>
       requireBrowserPanel(options.getBrowserPanelManager).openInternalPage(page),
     browserCloseTab: ({ tabId }) =>

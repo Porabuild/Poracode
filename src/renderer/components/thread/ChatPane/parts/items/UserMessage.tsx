@@ -288,9 +288,15 @@ export const UserMessage = memo(function UserMessage({
                 }
                 const imageAttachments = attachments.filter((a) => a.isImage);
                 const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                if (idx >= 0) openAttachmentLightbox(imageAttachments, idx, imageUrlForPath);
+                if (idx >= 0)
+                  openAttachmentLightbox(
+                    imageAttachments,
+                    idx,
+                    imageUrlForPath,
+                    hostHeldAttachmentImages ? actions?.remoteImageReadiness : undefined,
+                  );
               }}
-              onPreviewPdf={(att) => openPdfPreview(att.path)}
+              onPreviewPdf={(att) => openPdfPreview(att)}
             />
           </div>
         ) : null}

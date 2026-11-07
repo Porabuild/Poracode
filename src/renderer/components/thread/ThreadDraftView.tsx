@@ -1,3 +1,4 @@
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
@@ -76,8 +77,11 @@ import { NewsLine } from "@/renderer/components/newsLine/NewsLine";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
-import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
-import type { SaveClipboardImage } from "../composer/useAttachments";
+import {
+  ThreadDraftComposerArea,
+  type DraftStartInput,
+  type DraftStartResult,
+} from "./ThreadDraftComposerArea";
 import { applyCrewComposerControls } from "@/renderer/components/crew/applyCrewComposerControls";
 import {
   CREW_ROLE_TEMPLATE_DESCRIPTORS,
@@ -231,7 +235,8 @@ export function ThreadDraftView(props: {
    */
   submissionPending?: boolean;
   pickFiles?: () => Promise<string[] | null>;
-  saveClipboardImage?: SaveClipboardImage;
+  importFiles?: (files: readonly File[]) => Promise<string[]>;
+
   paneAlign?: "left" | "center" | "right";
   showCloseButton?: boolean;
   isDragging?: boolean;
@@ -250,15 +255,17 @@ export function ThreadDraftView(props: {
   onClose?: (() => void) | undefined;
   dragHandleRef?: React.RefCallback<Element>;
   onProjectChange?: (projectId: string) => void;
-  onStart: (input: DraftStartInput) => void | Promise<void>;
+  onStart: (input: DraftStartInput) => DraftStartResult | Promise<DraftStartResult>;
 }) {
   const {
     project,
     agentStatuses,
-    lastDraftConfig,
+    lastDraftConfig: suppliedLastDraftConfig,
     onStart,
     headerNeedsTrafficLightPad = false,
   } = props;
+  const lastDraftConfig =
+    composerDraftStorage()?.selection("project", project.id) ?? suppliedLastDraftConfig;
   const implicitMcpServers = useImplicitMcpServers();
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
@@ -467,6 +474,7 @@ export function ThreadDraftView(props: {
   >({});
   const initialLastDraftConfigRef = useRef(lastDraftConfig);
   const hasLocalConfigEditRef = useRef(false);
+  const pendingClientSelectionRef = useRef<AgentStatus["kind"] | undefined>(undefined);
   const hasLocalContextEditRef = useRef(false);
   effectiveAgentKindRef.current = effectiveAgentKind;
   // Spread is required: the effects below mutate `providerConfigsRef.current[kind]`
@@ -513,11 +521,14 @@ export function ThreadDraftView(props: {
     nextDraftConfig: ProjectDraftConfig,
     crew: ThreadCrewBinding | null | undefined = draftCrew,
     explicitlyCleared = draftCrewExplicitlyCleared,
+    persistClientSelection = false,
   ) {
-    updateProjectDraftConfig(
-      project.id,
-      projectDraftWithCrew(nextDraftConfig, crew, explicitlyCleared),
-    );
+    const selection = projectDraftWithCrew(nextDraftConfig, crew, explicitlyCleared);
+    if (persistClientSelection) {
+      composerDraftStorage()?.saveSelection("project", project.id, selection);
+      pendingClientSelectionRef.current = undefined;
+    }
+    updateProjectDraftConfig(project.id, selection);
   }
 
   // The one commit for a complete draft selection: component state, the
@@ -528,6 +539,7 @@ export function ThreadDraftView(props: {
     kind: AgentStatus["kind"],
     config: ProviderDraftConfig,
     crewOverride?: ThreadCrewBinding | null,
+    persistClientSelection = true,
   ) {
     const crew = crewOverride === undefined ? draftCrew : crewOverride;
     const explicitlyCleared =
@@ -544,6 +556,7 @@ export function ThreadDraftView(props: {
       { ...providerConfig, agentKind: kind, worktreeMode: effectiveWorktreeMode },
       crew,
       explicitlyCleared,
+      persistClientSelection,
     );
   }
 
@@ -562,6 +575,7 @@ export function ThreadDraftView(props: {
         },
         binding,
         explicitlyCleared,
+        true,
       );
     }
   }
@@ -626,7 +640,8 @@ export function ThreadDraftView(props: {
       return;
     }
 
-    if (lastAppliedAgentKindRef.current === effectiveAgentKind) {
+    const explicitSelection = pendingClientSelectionRef.current === effectiveAgentKind;
+    if (lastAppliedAgentKindRef.current === effectiveAgentKind && !explicitSelection) {
       return;
     }
     // An empty catalog resolves the model to "". Committing that sets
@@ -636,21 +651,27 @@ export function ThreadDraftView(props: {
       return;
     }
 
-    const saved = resolveSavedProviderDraftConfig(
-      effectiveAgentKind,
-      lastDraftConfig,
-      isHomeScope ? {} : providerConfigsRef.current,
-      providerModelPreferencesRef.current,
-      // Surface-aware restoration: a saved family member keeps its own
-      // carriers; unscoped per-model preferences are never replayed onto it.
-      selectedAgentForConfig.capabilities,
-    );
+    const saved =
+      explicitSelection && lastAppliedAgentKindRef.current === effectiveAgentKind
+        ? draftConfig
+        : resolveSavedProviderDraftConfig(
+            effectiveAgentKind,
+            lastDraftConfig,
+            isHomeScope ? {} : providerConfigsRef.current,
+            providerModelPreferencesRef.current,
+            // Surface-aware restoration: a saved family member keeps its own
+            // carriers; unscoped per-model preferences are never replayed onto it.
+            selectedAgentForConfig.capabilities,
+          );
     // Persist per-provider config app-wide, last-used provider per project.
     commitDraftConfigRef.current(
       effectiveAgentKind,
       resolveProviderDraftConfig(selectedAgentForConfig, saved),
+      undefined,
+      explicitSelection,
     );
   }, [
+    draftConfig,
     effectiveAgentKind,
     selectedAgentForConfig,
     project.id,
@@ -1153,6 +1174,7 @@ export function ThreadDraftView(props: {
       // Probe gap: resolving substitutes model "" and commitDraftConfig latches
       // lastApplied, so the saved model never returns. Keep the edit local.
       setDraftConfig((current) => ({ ...current, ...patch }));
+      pendingClientSelectionRef.current = selectedAgentForConfig.kind;
       return;
     }
     // A family member's own carrier presence is exact; ordinary models keep
@@ -1699,6 +1721,7 @@ export function ThreadDraftView(props: {
       if (!fallback) return;
       if (commitTransition(fallback)) return;
       retargetPresentation(next);
+      pendingClientSelectionRef.current = fallback.kind;
       setAgentKind(fallback.kind);
       return;
     }
@@ -1846,7 +1869,8 @@ export function ThreadDraftView(props: {
               ? { autoFocus: props.autoFocusComposer }
               : {})}
             {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
-            {...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {})}
+            {...(props.importFiles ? { importFiles: props.importFiles } : {})}
+
             onConfigChange={onConfigPatch}
             onWorktreeModeChange={setWorktreeMode}
             onSwitchBranch={handleSwitchBranch}

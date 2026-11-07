@@ -126,7 +126,11 @@ final class NativeJourneyUITests: XCTestCase {
     attachScreenshot("03-live-and-interrupted")
 
     XCUIDevice.shared.press(.home)
-    XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10))
+    await fulfillment(of: [XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "state IN %@", [
+        XCUIApplication.State.runningBackground.rawValue,
+        XCUIApplication.State.runningBackgroundSuspended.rawValue,
+      ]), object: app)], timeout: 10)
     try await waitForConnectionCount(0)
     _ = try await scenarioAction(["type": "activate-fault", "fixtureId": "sequence-gap"])
     _ = try await control(path: "/v1/frames/event-thread-state", method: "POST")

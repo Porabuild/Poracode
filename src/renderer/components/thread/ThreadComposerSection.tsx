@@ -1,4 +1,10 @@
 import {
+  isClientDraftAsset,
+  retainClientDraftAsset,
+} from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import { DraftRecoveryNotice } from "@/renderer/components/composer/DraftRecoveryNotice";
+import { mergeDraftContent } from "@/renderer/state/projectReferences";
+import {
   useEffect,
   useEffectEvent,
   useId,
@@ -55,13 +61,7 @@ import {
 } from "../composer/MentionInput";
 import { useThreadMentionItems } from "../composer/useThreadMentionItems";
 import { useCrewMentionItems } from "../crew/useCrewMentionItems";
-import {
-  attachmentsFromPaths,
-  storableAttachment,
-  storableAttachments,
-  useAttachments,
-  type SaveClipboardImage,
-} from "../composer/useAttachments";
+import { attachmentsFromPaths, useAttachments } from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
 import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
@@ -168,7 +168,8 @@ type ThreadComposerSectionProps = {
   /** Called after a send is accepted, including queued and steered sends. */
   onSubmitSuccess?: (() => void) | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
-  saveClipboardImage?: SaveClipboardImage | undefined;
+  importFiles?: ((files: readonly File[]) => Promise<string[]>) | undefined;
+
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
   /** Compact only: space the floating dock covers above the pane bottom. */
@@ -297,6 +298,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const isBrowserClient = isRemoteSession();
   const threadOnThisMachine = hostRunsOnThisMachine(thread);
   const hostIsLocalToClient = threadOnThisMachine && !isBrowserClient;
+  const { importFiles } = props;
   const docksPlacement = compactLayout ? requestedDocksPlacement : "right";
   const docksInComposer = docksPlacement === "composer";
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
@@ -320,7 +322,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }, [thread.id, thread.status]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const attachments = useAttachments({
-    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
+    onDraftChange: () => checkpointDraft(),
+    source: { ...(thread.remoteServerId ? { remoteServerId: thread.remoteServerId } : {}) },
   });
   // Remote-thread attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
@@ -334,10 +337,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const clearThreadDraftContent = useAppStore((s) => s.clearThreadDraftContent);
   // The MentionInput owns the live editor DOM; mirror its latest serialized
   // segments here for draft checkpoints without reading a detached editor.
-  // Attachments are synced every render below.
+  // Attachment changes checkpoint directly from the hook's live reference.
   const latestSegmentsRef = useRef<PromptSegment[]>([]);
-  const attachmentsRef = useRef(attachments.attachments);
-  attachmentsRef.current = attachments.attachments;
   // True only while a real submit is in flight. Terminal/CLI threads clear the
   // composer *after* the send resolves (the synchronous pre-send clear below is
   // GUI-only), so skip checkpoints while the old text awaits acknowledgement.
@@ -969,7 +970,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   ) {
     if (attachments.hasPendingUploads()) return;
     const composerSession = composerSessionRef.current;
-    submitComposerPrompt(segments, {
+    void submitComposerPrompt(segments, {
       thread,
       resumesInterruptedTurn,
       agentStatus: effectiveAgentStatus,
@@ -1055,13 +1056,24 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     const composer = mentionRef.current;
     if (!composer || !revertedContent) return;
     const draft = revertedPromptToDraft(revertedContent, availableCommands);
-    const previousAttachments = attachments.getAttachments().map(storableAttachment);
+    const previousAttachments = attachments.getDraftAttachments();
+    const historyAssets = [
+      ...new Set(
+        [...previousAttachments, ...draft.attachments]
+          .map((attachment) => attachment.path)
+          .filter(isClientDraftAsset),
+      ),
+    ];
+    const historyLeases = historyAssets.map(retainClientDraftAsset);
     // Undoable, so Ctrl+Z brings back whatever the user had typed and attached
     // before the revert.
     composer.restoreFromSegments(draft.segments, {
       undoable: {
         undo: () => attachments.swap(draft.attachments, previousAttachments),
         redo: () => attachments.swap(previousAttachments, draft.attachments),
+        dispose: () => {
+          for (const release of historyLeases.splice(0)) release();
+        },
       },
     });
     latestSegmentsRef.current = draft.segments;
@@ -1103,6 +1115,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       attachments.restore(saved.attachments);
     }
     restoredThreadIdRef.current = thread.id;
+    checkpointDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset/restore is keyed to the active thread and editor mount; attachment/editor methods are read from this render
   }, [editorMounted, thread.id]);
 
@@ -1147,27 +1160,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }, [compactLayout, collapseTerminalComposerSetting]);
 
   function checkpointDraft() {
-    if (restoredThreadIdRef.current !== thread.id || submittedRef.current) return;
+    if (restoredThreadIdRef.current !== thread.id) return;
     const content = {
       segments: latestSegmentsRef.current,
-      attachments: storableAttachments(attachmentsRef.current),
+      attachments: attachments.getDraftAttachments(),
     };
     if (isDraftContentNonEmpty(content)) saveThreadDraftContent(thread.id, content);
-    else clearThreadDraftContent(thread.id);
+    else if (!submittedRef.current) clearThreadDraftContent(thread.id);
   }
-
-  useEffect(() => {
-    // A thread switch clears/restores attachments in a layout effect. Wait for
-    // that commit before reading their live refs; never checkpoint the old pane.
-    let active = true;
-    queueMicrotask(() => {
-      if (active && composerSessionRef.current.threadId === thread.id) checkpointDraft();
-    });
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- checkpoint reads live refs for this composer session
-  }, [thread.id, attachments.attachments]);
 
   useEffect(() => {
     if (isComposerCollapsed) {
@@ -1347,6 +1347,28 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         : "opacity 200ms cubic-bezier(0.16,1,0.3,1)",
                   }}
                 >
+                  <DraftRecoveryNotice
+                    kind="thread"
+                    ownerId={thread.id}
+                    pending={isSubmitting}
+                    onRestore={(saved, replace) => {
+                      const restored = replace
+                        ? saved
+                        : mergeDraftContent(
+                            {
+                              segments:
+                                mentionRef.current?.serializeSegments() ??
+                                latestSegmentsRef.current,
+                              attachments: attachments.getDraftAttachments(),
+                            },
+                            saved,
+                          );
+                      mentionRef.current?.restoreFromSegments(restored.segments);
+                      latestSegmentsRef.current = restored.segments;
+                      attachments.restore(restored.attachments);
+                      saveThreadDraftContent(thread.id, restored);
+                    }}
+                  />
                   <ThreadComposer
                     attachmentDropScope={usesTerminalPresentation ? "composer" : "panel"}
                     autoFocus={shouldAutoFocusComposer} // eslint-disable-line jsx-a11y/no-autofocus -- Electron is always desktop; the PWA enables this only for desktop-like input
@@ -1434,10 +1456,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               imageAttachments,
                               idx,
                               attachmentImageUrlForPath,
+                              remoteImageReadiness,
                             );
                           }
                         }}
-                        onPreviewPdf={(att) => openPdfPreview(att.path)}
+                        onPreviewPdf={(att) => openPdfPreview(att)}
                         {...(attachmentImageUrlForPath
                           ? { imageUrlForPath: attachmentImageUrlForPath }
                           : {})}
@@ -1492,7 +1515,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         onSubmit={submitPrompt}
                         onPasteImage={(file: File) => {
                           void attachments
-                            .addClipboardImage(file, thread.id)
+                            .addClipboardImage(file)
                             .catch((error: unknown) => toast.danger(friendlyError(error)));
                         }}
                         onInterceptKey={(e) => {
@@ -1715,6 +1738,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     // Dropped files are paths on this machine; only a host that runs
                     // here can read them.
                     {...(hostIsLocalToClient ? { onAttachFiles: attachments.addFiles } : {})}
+                    {...(importFiles
+                      ? {
+                          onImportFiles: (files: File[]) => {
+                            const originThreadId = thread.id;
+                            void importFiles(files)
+                              .then((paths) => attachPickedFiles(originThreadId, paths))
+                              .catch((error: unknown) => toast.danger(friendlyError(error)));
+                          },
+                        }
+                      : {})}
                     onSubmit={() => {
                       const segments = mentionRef.current?.serializeSegments();
                       submitPrompt(

@@ -21,7 +21,6 @@ import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActio
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import type { TerminalPaneHandle } from "./TerminalPane";
 import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
-import type { SaveClipboardImage } from "../composer/useAttachments";
 import { ContinueInProviderDialog, type ContinueIntent } from "./ContinueInProviderDialog";
 import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
 import { useContinueInProviderStore } from "@/renderer/state/continueInProviderStore";
@@ -103,7 +102,7 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.onOpenProjectRelativePath === next.onOpenProjectRelativePath &&
     prev.checkpointActions === next.checkpointActions &&
     prev.pickFiles === next.pickFiles &&
-    prev.saveClipboardImage === next.saveClipboardImage
+    prev.importFiles === next.importFiles
   );
 }
 
@@ -163,7 +162,7 @@ export type ThreadViewProps = {
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   checkpointActions?: CheckpointRevertActions | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
-  saveClipboardImage?: SaveClipboardImage | undefined;
+  importFiles?: ((files: readonly File[]) => Promise<string[]>) | undefined;
 };
 
 export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
@@ -199,7 +198,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     onOpenProjectRelativePath,
     checkpointActions,
     pickFiles,
-    saveClipboardImage,
+    importFiles,
   } = props;
   const { t } = useLingui();
   const terminalPaneRef = useRef<TerminalPaneHandle>(null);
@@ -554,7 +553,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 hidden={hidden}
                 {...(onSubmitInput ? { onSubmitInput } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
-                {...(saveClipboardImage ? { saveClipboardImage } : {})}
+                {...(importFiles ? { importFiles } : {})}
               />
             ) : (
               <GuiThreadContent
@@ -570,7 +569,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 {...(onOpenProjectRelativePath ? { onOpenProjectRelativePath } : {})}
                 {...(checkpointActions ? { checkpointActions } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
-                {...(saveClipboardImage ? { saveClipboardImage } : {})}
+                {...(importFiles ? { importFiles } : {})}
               />
             )}
           </div>
@@ -583,7 +582,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
           projectLocation={projectLocation}
           installedAgents={installedAgents}
           {...(pickFiles ? { pickFiles } : {})}
-          {...(saveClipboardImage ? { saveClipboardImage } : {})}
+
           {...(() => {
             const cfg = useAppStore
               .getState()

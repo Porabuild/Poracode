@@ -126,9 +126,12 @@ import { isRemoteProcedure } from "../remote/procedures";
 // uninstall). Older peers reject unknown names before any effect, existing
 // names and payloads are unchanged, and none enters the remote allowlist, so
 // hop 19 stays compatible.
+// Client draft imports/PDF previews add two same-bundle main-local names.
+// Older dispatchers reject those names before I/O; public remote contracts and
+// all existing payloads remain valid, so the hop stays unchanged.
 // Link metadata adds a read-only supervisor name. Older peers reject the unknown
 // name and clients keep their local labels, so hop 19 stays compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:b5a595e27bdd0082e8edcc00499bab812b4bf1992fa1a4e3e2123e4f59aa0cfb`;
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:2830589d2a8db497cb5adf4f469aae95325831990aecbafd32038a0e0d81274d`;
 
 describe("IPC procedure map versioning", () => {
   it("routes Hex voice through the supervisor as an additive procedure", () => {
@@ -314,6 +317,13 @@ describe("IPC procedure map versioning", () => {
         prNumber: 12,
       }).success,
     ).toBe(false);
+  });
+
+  it("keeps device-local draft reads and PDF staging out of the public remote allowlist", () => {
+    for (const name of ["readClientDraftFile", "browserPreviewClientPdf"] as const) {
+      expect(isRemoteProcedure(name)).toBe(false);
+      expect(ipcProcedureMap[name].transport).toBe("main-local");
+    }
   });
 
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {

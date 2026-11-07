@@ -1,3 +1,7 @@
+import "@/renderer/testUtils/clientDraftDatabase";
+import { waitFor } from "@testing-library/react";
+import { listClientSubmissions } from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import { settleClientSubmission } from "@/renderer/actions/clientDraftSubmission";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { submitComposerPrompt, type ComposerSubmitContext } from "./threadComposerSubmit";
@@ -25,6 +29,7 @@ vi.mock("@/renderer/bridge", () => ({ readBridge: () => ({ queueThreadFollowUp: 
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: {
     getState: () => ({
+      threadDraftContents: {},
       clearThreadDraftContent: mocks.clearDraft,
       saveThreadDraftContent: mocks.saveDraft,
       requestChatScrollToPrompt: vi.fn<() => void>(),
@@ -40,7 +45,7 @@ const thread = {
   status: "working",
 } as Thread;
 function context(): ComposerSubmitContext {
-  return {
+  const ctx: ComposerSubmitContext = {
     thread,
     agentStatus: undefined,
     presentationMode: "gui",
@@ -55,6 +60,8 @@ function context(): ComposerSubmitContext {
     attachments: {
       attachments: [],
       getAttachments: () => [],
+      getDraftAttachments: () => [],
+      hasPendingUploads: () => false,
       toSegments: () => [],
       clearAll: vi.fn<() => void>(),
       restore: vi.fn<() => void>(),
@@ -75,8 +82,16 @@ function context(): ComposerSubmitContext {
     setIsSubmitting: vi.fn<() => void>(),
     requestOpenControl: vi.fn<() => void>(),
   };
+  ctx.attachments.getDraftAttachments = () => ctx.attachments.getAttachments();
+  return ctx;
 }
-beforeEach(() => mocks.open.mockReset().mockResolvedValue(true));
+beforeEach(() =>
+  mocks.open.mockReset().mockImplementation(async (...args) => {
+    const options = args[3] as { clientSubmissionId?: string } | undefined;
+    await settleClientSubmission(options?.clientSubmissionId, "accepted");
+    return true;
+  }),
+);
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("side questions leave the parent runtime untouched", () => {
@@ -84,7 +99,7 @@ describe("side questions leave the parent runtime untouched", () => {
     const ctx = context();
     const attachment = { id: "file", path: "/fixture/note.txt", name: "note.txt", isImage: false };
     ctx.attachments.getAttachments = () => [attachment];
-    submitComposerPrompt([{ kind: "text", content: "/btw" }], ctx);
+    await submitComposerPrompt([{ kind: "text", content: "/btw" }], ctx);
     await settled();
     expect(mocks.open).toHaveBeenCalledWith("parent");
     expect(ctx.attachments.clearAll).not.toHaveBeenCalled();
@@ -95,7 +110,7 @@ describe("side questions leave the parent runtime untouched", () => {
   });
   it("opens an empty side composer for bare /btw without sending or steering", async () => {
     const ctx = context();
-    submitComposerPrompt([{ kind: "text", content: "/btw" }], ctx);
+    await submitComposerPrompt([{ kind: "text", content: "/btw" }], ctx);
     await settled();
     expect(mocks.open).toHaveBeenCalledWith("parent");
     expect(mocks.submit).not.toHaveBeenCalled();
@@ -103,9 +118,11 @@ describe("side questions leave the parent runtime untouched", () => {
   });
   it("routes before denial, queue, steer and ordinary input", async () => {
     const ctx = context();
-    submitComposerPrompt([{ kind: "text", content: "/btw why?" }], ctx);
+    await submitComposerPrompt([{ kind: "text", content: "/btw why?" }], ctx);
     await settled();
-    expect(mocks.open).toHaveBeenCalledWith("parent", "why?", [{ kind: "text", content: "why?" }]);
+    expect(mocks.open).toHaveBeenCalledWith("parent", "why?", [{ kind: "text", content: "why?" }], {
+      clientSubmissionId: expect.any(String),
+    });
     expect(mocks.deny).not.toHaveBeenCalled();
     expect(mocks.queue).not.toHaveBeenCalled();
     expect(mocks.steer).not.toHaveBeenCalled();
@@ -125,7 +142,7 @@ describe("side questions leave the parent runtime untouched", () => {
       scope: "project",
       path: "/fixture/SKILL.md",
     } as const;
-    submitComposerPrompt([{ kind: "text", content: "/btw explain " }, skill], ctx);
+    await submitComposerPrompt([{ kind: "text", content: "/btw explain " }, skill], ctx);
     await settled();
     expect(mocks.open.mock.calls[0]?.[2]).toEqual([
       { kind: "attachment", path: "/fixture/diagram.png", mimeType: "image/png" },
@@ -138,7 +155,7 @@ describe("side questions leave the parent runtime untouched", () => {
   it("does not clear the parent composer when the window cannot open", async () => {
     mocks.open.mockResolvedValue(false);
     const ctx = context();
-    submitComposerPrompt([{ kind: "text", content: "/btw question" }], ctx);
+    await submitComposerPrompt([{ kind: "text", content: "/btw question" }], ctx);
     await settled();
     expect(ctx.mentionRef.current!.clear).not.toHaveBeenCalled();
     expect(mocks.clearDraft).not.toHaveBeenCalled();
@@ -151,10 +168,13 @@ describe("side questions leave the parent runtime untouched", () => {
       }),
     );
     const ctx = context();
-    submitComposerPrompt([{ kind: "text", content: "/btw question" }], ctx);
+    const pending = submitComposerPrompt([{ kind: "text", content: "/btw question" }], ctx);
+    await waitFor(() => expect(mocks.open).toHaveBeenCalled());
     ctx.latestSegmentsRef.current = [{ kind: "text", content: "next main question" }];
+    const options = mocks.open.mock.calls[0]?.[3] as { clientSubmissionId: string };
+    await settleClientSubmission(options.clientSubmissionId, "accepted");
     resolveOpen(true);
-    await settled();
+    await pending;
     expect(ctx.mentionRef.current!.clear).not.toHaveBeenCalled();
     expect(ctx.attachments.clearAll).not.toHaveBeenCalled();
   });
@@ -169,7 +189,7 @@ describe("per-message side conversation context", () => {
         conversationSnapshot: { text: "new parent answer" },
       }),
     );
-    submitComposerPrompt([{ kind: "text", content: "follow-up question" }], ctx);
+    await submitComposerPrompt([{ kind: "text", content: "follow-up question" }], ctx);
     await settled();
     expect(mocks.queue).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -179,13 +199,30 @@ describe("per-message side conversation context", () => {
     );
     expect(mocks.queue.mock.calls[0]?.[0]).not.toHaveProperty("contextSummary");
   });
+  it("keeps a locally rejected context capture retryable after preservation finishes", async () => {
+    const ctx = context();
+    ctx.activeRuntimeRequest = undefined;
+    ctx.captureClientContext = async () => {
+      throw new Error("context unavailable");
+    };
+    const segments = [{ kind: "text" as const, content: "retry after context recovers" }];
+    await submitComposerPrompt(segments, ctx);
+    expect(mocks.queue).not.toHaveBeenCalled();
+    expect(await listClientSubmissions()).toEqual([expect.objectContaining({ state: "failed" })]);
+    ctx.captureClientContext = async () => ({
+      conversationSnapshot: { text: "context recovered" },
+    });
+    await submitComposerPrompt(segments, ctx);
+    expect(mocks.queue).toHaveBeenCalledOnce();
+  });
+
   it("retains the draft and does not send when required context rejects", async () => {
     const ctx = context();
     ctx.followUpBehavior = "steer";
     ctx.captureClientContext = async () => {
       throw new Error("latest context unavailable");
     };
-    submitComposerPrompt([{ kind: "text", content: "follow-up question" }], ctx);
+    await submitComposerPrompt([{ kind: "text", content: "follow-up question" }], ctx);
     await settled();
     expect(mocks.queue).not.toHaveBeenCalled();
     expect(mocks.submit).not.toHaveBeenCalled();

@@ -6,9 +6,9 @@ import type { PendingPickerAttachment } from "@/renderer/state/browserPanelStore
 import { resolveHostFileAccess } from "@/renderer/state/hostFileAccess";
 
 /**
- * Moves a captured picker image to where the owning host can read it. A host
- * that runs on this machine reads the captured path as is; another host gets
- * the bytes uploaded to its attachment directory.
+ * Imports a captured image on the client when its target host is elsewhere.
+ * Device-local captures keep their readable path; Send materializes client
+ * assets on the captured destination, independently of later selection.
  */
 export async function materializePickerAttachment(
   threadId: string,
@@ -19,7 +19,7 @@ export async function materializePickerAttachment(
   const owner = isDraft
     ? app.projects.find((candidate) => candidate.id === parseDraftProjectId(threadId))
     : app.threads.find((candidate) => candidate.id === threadId);
-  const { saveClipboardImage } = resolveHostFileAccess(owner, isDraft ? "draft" : "thread");
+  const { saveClipboardImage } = resolveHostFileAccess(owner);
   if (!saveClipboardImage) return attachment;
 
   const data = new Uint8Array(

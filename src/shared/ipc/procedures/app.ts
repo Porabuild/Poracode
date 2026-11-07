@@ -161,6 +161,12 @@ export const appProcedures = {
     Uint8Array,
     "main-local"
   >("readLocalImageFile", "main-local", readLocalImageFilePayloadSchema),
+  // Distinct bounded device read; older dispatchers reject this name before I/O.
+  readClientDraftFile: definePayloadProcedure<
+    z.infer<typeof readLocalImageFilePayloadSchema>,
+    Uint8Array,
+    "main-local"
+  >("readClientDraftFile", "main-local", readLocalImageFilePayloadSchema),
   createProjectDirectory: definePayloadProcedure<
     z.infer<typeof createProjectDirectoryPayloadSchema>,
     CreateProjectDirectoryResult,

@@ -17,3 +17,14 @@ export const TurnClientContextSource = createContext<TurnClientContextCapture | 
 export function useTurnClientContextCapture(): TurnClientContextCapture | undefined {
   return useContext(TurnClientContextSource);
 }
+
+/** Observe rejection immediately while independent draft persistence is pending. */
+export async function captureTurnClientContext(
+  capture?: TurnClientContextCapture,
+): Promise<{ context: TurnClientContext | undefined } | { error: unknown }> {
+  try {
+    return { context: await capture?.() };
+  } catch (error) {
+    return { error };
+  }
+}

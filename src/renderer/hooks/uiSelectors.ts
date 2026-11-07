@@ -1,5 +1,4 @@
 import { useShallow } from "zustand/shallow";
-import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
 import { parseDraftProjectId } from "@/shared/paneId";
 import type {
   AgentStatus,
@@ -363,7 +362,7 @@ export function useDraftEnvironment(project: Project | undefined): {
   agentStatuses: AgentStatus[];
   isDetectingAgents: boolean;
   pickFiles?: () => Promise<string[] | null>;
-  saveClipboardImage?: SaveClipboardImage;
+  importFiles?: (files: readonly File[]) => Promise<string[]>;
 } {
   const remoteServerId = remoteOwner(project)?.desktopId;
   // The managed host's draft lists every agent so an uninstalled one can be
@@ -373,7 +372,7 @@ export function useDraftEnvironment(project: Project | undefined): {
     installedOnly: remoteServerId !== undefined,
   });
   const isDetectingAgents = useHostAgentsDetecting(remoteServerId, project?.location);
-  const fileAccess = resolveHostFileAccess(project, "draft");
+  const fileAccess = resolveHostFileAccess(project);
 
   return {
     agentStatuses,
@@ -381,7 +380,7 @@ export function useDraftEnvironment(project: Project | undefined): {
     // Files picked or pasted into a draft land where the owning host can read
     // them (see `resolveHostFileAccess`); a host on this machine needs nothing.
     ...(fileAccess.pickFiles ? { pickFiles: fileAccess.pickFiles } : {}),
-    ...(fileAccess.saveClipboardImage ? { saveClipboardImage: fileAccess.saveClipboardImage } : {}),
+    ...(fileAccess.importFiles ? { importFiles: fileAccess.importFiles } : {}),
   };
 }
 

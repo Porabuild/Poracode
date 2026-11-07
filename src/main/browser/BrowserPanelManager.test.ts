@@ -518,6 +518,77 @@ describe("BrowserPanelManager", () => {
     }
   });
 
+  it("persists normal navigation in a tab that previously displayed a temporary PDF", async () => {
+    const { BrowserPanelManager } = await import("./BrowserPanelManager");
+    const store = { get: () => null, set: vi.fn<(key: string, value: string) => void>() };
+    const manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0",
+      store,
+    );
+    vi.useFakeTimers();
+    try {
+      const tab = await manager.createTab(
+        { url: "file:///tmp/client-preview.pdf" },
+        { awaitAttach: false, releaseResource: async () => {} },
+      );
+      await manager.navigate(tab.tabId, "file:///tmp/client-preview.pdf#page=2");
+      await vi.advanceTimersByTimeAsync(750);
+      const persisted = () =>
+        JSON.parse(
+          store.set.mock.calls.findLast(([key]) => key === "browser-panel-tabs-v1")![1],
+        ) as { tabs: Array<{ url: string }> };
+      expect(persisted().tabs).toEqual([]);
+      expect(manager.recentHistory(10)).toEqual([]);
+
+      await manager.navigate(tab.tabId, "https://example.test/after-preview");
+      await vi.advanceTimersByTimeAsync(750);
+      expect(persisted().tabs).toEqual([
+        expect.objectContaining({ url: "https://example.test/after-preview" }),
+      ]);
+      expect(manager.recentHistory(10)).toEqual([
+        expect.objectContaining({ url: "https://example.test/after-preview" }),
+      ]);
+    } finally {
+      manager.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("publishes tab closure and retries failed PDF cleanup during disposal", async () => {
+    const { BrowserPanelManager } = await import("./BrowserPanelManager");
+    const manager = new BrowserPanelManager(
+      { settingsPath: "settings.json" } as never,
+      "Mozilla/5.0",
+      stateStore,
+    );
+    const release = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("EPERM"))
+      .mockResolvedValue(undefined);
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const retained = await manager.createTab(
+        { url: "https://example.test/" },
+        { awaitAttach: false },
+      );
+      const preview = await manager.createTab(
+        { url: "file:///tmp/client-preview.pdf" },
+        { awaitAttach: false, releaseResource: release },
+      );
+      await expect(manager.closeTab(preview.tabId)).resolves.toBeUndefined();
+      expect(manager.snapshot()).toMatchObject({
+        activeTabId: retained.tabId,
+        tabs: [expect.objectContaining({ tabId: retained.tabId })],
+      });
+      manager.dispose();
+      await vi.waitFor(() => expect(release).toHaveBeenCalledTimes(2));
+    } finally {
+      manager.dispose();
+      warning.mockRestore();
+    }
+  });
+
   it("wires the shared browser session into browser data services", async () => {
     const { BrowserPanelManager } = await import("./BrowserPanelManager");
     const session = createBrowserSession();

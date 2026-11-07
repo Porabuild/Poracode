@@ -402,7 +402,9 @@ describe("submitThreadInput resume wiring", () => {
     );
     mocks.appState.threads = [];
 
-    await expect(submitThreadInput("thread-1", "hello", segments)).resolves.toBeUndefined();
+    await expect(submitThreadInput("thread-1", "hello", segments)).rejects.toThrow(
+      "Thread not found.",
+    );
 
     expect(mocks.performInitialThreadLaunch).not.toHaveBeenCalled();
   });

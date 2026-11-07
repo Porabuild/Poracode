@@ -22,17 +22,22 @@ function masters() {
 async function cycle(kill = false) {
   const command = windows ? process.env.ComSpec : "/bin/sh";
   const args = windows
-    ? ["/d", "/q", kill ? "/k" : "/c", "echo pty-lifecycle-ok"]
-    : ["-c", "printf pty-lifecycle-ok" + (kill ? "; exec sleep 30" : "")];
+    ? ["/d", "/q", "/k", "echo pty-lifecycle-ok"]
+    : ["-c", "printf pty-lifecycle-ok; read -r line"];
   const terminal = spawn(command, args, options);
   try {
     // The supervisor's Windows broker publishes this PID immediately after spawn.
     assert.ok(terminal.pid > 0, "PTY must expose its child PID before returning");
     let output = "";
+    let ready = false;
     const exited = new Promise((resolve) => terminal.onExit(resolve));
     terminal.onData((data) => {
       output += data;
-      if (kill && output.includes("pty-lifecycle-ok")) terminal.kill();
+      if (!ready && output.includes("pty-lifecycle-ok")) {
+        ready = true;
+        if (kill) terminal.kill();
+        else terminal.write(windows ? "exit\r" : "\n");
+      }
     });
     terminal.resize(100, 32);
     const event = await exited;

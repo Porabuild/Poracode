@@ -43,7 +43,10 @@ import {
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import { LiveStreamCapacityAlert } from "@/renderer/components/thread/LiveStreamCapacityAlert";
-import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
+import type {
+  DraftStartInput,
+  DraftStartResult,
+} from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import { HomeView } from "@/renderer/views/HomeView";
 import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
@@ -420,7 +423,7 @@ export function AppContent() {
 function DraftViewContent(props: {
   project: Project;
   lastDraftConfig?: Project["lastDraftConfig"];
-  onStart: (input: DraftStartInput) => void | Promise<void>;
+  onStart: (input: DraftStartInput) => DraftStartResult | Promise<DraftStartResult>;
 }) {
   const { project, lastDraftConfig, onStart } = props;
   const draftEnvironment = useDraftEnvironment(project);
@@ -430,9 +433,8 @@ function DraftViewContent(props: {
       agentStatuses={draftEnvironment.agentStatuses}
       isDetectingAgents={draftEnvironment.isDetectingAgents}
       {...(draftEnvironment.pickFiles ? { pickFiles: draftEnvironment.pickFiles } : {})}
-      {...(draftEnvironment.saveClipboardImage
-        ? { saveClipboardImage: draftEnvironment.saveClipboardImage }
-        : {})}
+      {...(draftEnvironment.importFiles ? { importFiles: draftEnvironment.importFiles } : {})}
+
       {...(lastDraftConfig ? { lastDraftConfig } : {})}
       onStart={onStart}
     />

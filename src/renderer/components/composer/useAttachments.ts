@@ -1,9 +1,16 @@
+import { readDraftAsset } from "@/renderer/state/composerDrafts/readDraftAsset";
+import { clientDraftPersistenceError } from "@/renderer/state/composerDrafts/persistenceError";
 import { useEffect, useRef, useState } from "react";
-import { readBridge } from "@/renderer/bridge";
-import { readManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import type { PromptSegment } from "@/shared/contracts";
 import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
 import { fileNameFromPath, isImagePath, mimeForPath, toLocalFileUrl } from "@/shared/promptContent";
+import {
+  isClientDraftAsset,
+  stageClientDraftAsset,
+  retainClientDraftAsset,
+  queueClientDraftAssetReclamation,
+} from "@/renderer/state/composerDrafts/clientDraftDatabase";
 
 export interface Attachment {
   id: string;
@@ -11,6 +18,8 @@ export interface Attachment {
   name: string;
   mimeType?: string;
   isImage: boolean;
+  /** The original authority of a legacy host-held path; independent of destination selection. */
+  source?: { remoteServerId?: string | undefined; path?: string | undefined };
   /** Optional CSS selector when this attachment was produced by the browser element picker. */
   selector?: string;
   /** Optional source page URL for picker attachments. */
@@ -37,7 +46,7 @@ export function attachmentImageUrl(
 ): string {
   return (
     attachment.previewUrl ??
-    imageUrlForPath?.(attachment.path) ??
+    (isClientDraftAsset(attachment.path) ? "" : imageUrlForPath?.(attachment.path)) ??
     resolveLocalImageDisplayUrl(toLocalFileUrl(attachment.path))
   );
 }
@@ -50,19 +59,23 @@ export function attachmentImageUrl(
  * blob.
  */
 export function storableAttachment(attachment: Attachment): Attachment {
-  if (attachment.previewUrl === undefined) return attachment;
-  const { previewUrl: _previewUrl, ...rest } = attachment;
+  if (attachment.previewUrl === undefined && attachment.uploading === undefined) return attachment;
+  const { previewUrl: _previewUrl, uploading: _uploading, ...rest } = attachment;
   return rest;
 }
 
 export function storableAttachments(attachments: readonly Attachment[]): Attachment[] {
-  return attachments.filter((attachment) => !attachment.uploading).map(storableAttachment);
+  return attachments
+    .filter((attachment) => !attachment.uploading || isClientDraftAsset(attachment.path))
+    .map(storableAttachment);
 }
 
 /** Attachment records for already-saved files (picker results, drops, drafts). */
 export function attachmentsFromPaths(paths: readonly string[]): Attachment[] {
   return paths.map((path): Attachment => {
-    const name = fileNameFromPath(path);
+    const name = isClientDraftAsset(path)
+      ? decodeURIComponent(fileNameFromPath(path))
+      : fileNameFromPath(path);
     const mimeType = mimeForPath(name);
     return {
       id: crypto.randomUUID(),
@@ -80,9 +93,16 @@ export type SaveClipboardImage = (input: {
   extension: string;
 }) => Promise<string>;
 
-export function useAttachments(options: { saveClipboardImage?: SaveClipboardImage } = {}) {
+export function useAttachments(
+  options: {
+    source?: Attachment["source"];
+    /** Checkpoint immediately, including an attachment added just before navigation. */
+    onDraftChange?: () => void;
+  } = {},
+) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const attachmentsRef = useRef<Attachment[]>([]);
+  const assetLeasesRef = useRef(new Map<string, () => void>());
   // Object URLs belong to this live composer. Track ownership separately from
   // React state so a pending paste can still be released if the component goes
   // away before its state update commits.
@@ -94,8 +114,23 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
   ) {
     const next =
       typeof nextOrUpdater === "function" ? nextOrUpdater(attachmentsRef.current) : nextOrUpdater;
+    const retainedPaths = new Set(
+      next
+        .filter((attachment) => isClientDraftAsset(attachment.path))
+        .map((attachment) => attachment.path),
+    );
+    for (const [path, release] of assetLeasesRef.current)
+      if (!retainedPaths.has(path)) {
+        release();
+        queueClientDraftAssetReclamation([path]);
+        assetLeasesRef.current.delete(path);
+      }
+    for (const path of retainedPaths)
+      if (!assetLeasesRef.current.has(path))
+        assetLeasesRef.current.set(path, retainClientDraftAsset(path));
     attachmentsRef.current = next;
     setAttachments(next);
+    options.onDraftChange?.();
   }
 
   function releasePreviewUrl(previewUrl: string) {
@@ -113,7 +148,10 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
     // The set object itself is never reassigned (only mutated), so capturing
     // the reference still observes every URL owned at unmount time.
     const ownedPreviewUrls = ownedPreviewUrlsRef.current;
+    const assetLeases = assetLeasesRef.current;
     return () => {
+      for (const release of assetLeases.values()) release();
+      assetLeases.clear();
       pasteGenerationRef.current += 1;
       // jsdom (tests) has no object-URL support. Inlined (rather than calling
       // releaseAllPreviewUrls) so the cleanup reads refs only and takes no
@@ -126,14 +164,68 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
   }, []);
 
   function addFiles(paths: string[]) {
-    const newAttachments = attachmentsFromPaths(paths);
+    const generation = pasteGenerationRef.current;
+    const newAttachments = attachmentsFromPaths(paths).map((attachment): Attachment => {
+      if (isClientDraftAsset(attachment.path)) return attachment;
+      const source = options.source ?? {};
+      if (
+        source.remoteServerId ||
+        isRemoteSession() ||
+        typeof readBridge()?.readClientDraftFile !== "function"
+      )
+        return { ...attachment, source };
+      const originalPath = attachment.path;
+      const mimeType = attachment.mimeType ?? "application/octet-stream";
+      const imported = stageClientDraftAsset(async () => {
+        const data = await readBridge().readClientDraftFile({ url: toLocalFileUrl(originalPath) });
+        return new Blob([Uint8Array.from(data)], { type: mimeType });
+      }, attachment.name);
+      void imported.saved
+        .then(() => {
+          if (pasteGenerationRef.current !== generation) return;
+          updateAttachments((previous) =>
+            previous.map((item) => {
+              if (item.id !== attachment.id) return item;
+              const { uploading: _uploading, previewUrl: _previewUrl, ...ready } = item;
+              return ready;
+            }),
+          );
+          hydrateClientPreviews(attachmentsRef.current);
+        })
+        .catch((error: unknown) => {
+          if (pasteGenerationRef.current === generation)
+            updateAttachments((previous) =>
+              previous.map((item) => {
+                if (item.id !== attachment.id) return item;
+                const { uploading: _uploading, ...ready } = item;
+                // Keep the reserved client reference and original native path;
+                // readDraftAsset can retry the bounded import on explicit Send.
+                return ready;
+              }),
+            );
+          console.error("[poracode] failed to import selected draft file", error);
+        });
+      return {
+        ...attachment,
+        path: imported.path,
+        source: { ...source, path: originalPath },
+        uploading: true,
+        ...(attachment.isImage
+          ? { previewUrl: resolveLocalImageDisplayUrl(toLocalFileUrl(originalPath)) }
+          : {}),
+      };
+    });
     updateAttachments((prev) => [...prev, ...newAttachments]);
+    hydrateClientPreviews(newAttachments);
   }
 
-  async function addClipboardImage(file: File, threadId: string) {
+  function addClipboardImage(file: File) {
+    return uploadClipboardImage(file, crypto.randomUUID());
+  }
+
+  async function uploadClipboardImage(file: File, id: string) {
     const pasteGeneration = pasteGenerationRef.current;
     const ext = file.type.split("/")[1]?.replace("svg+xml", "svg") ?? "png";
-    const id = crypto.randomUUID();
     const previewUrl = URL.createObjectURL(file);
     ownedPreviewUrlsRef.current.add(previewUrl);
     const usedNumbers = new Set(
@@ -143,52 +235,42 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
     );
     let n = 1;
     while (usedNumbers.has(n)) n++;
+    const name = `Image ${n}.${ext}`;
+    const local = stageClientDraftAsset(file, name);
     updateAttachments((prev) => [
       ...prev,
       {
         id,
-        path: "",
-        name: `Image ${n}.${ext}`,
+        path: local.path,
+        name,
         mimeType: file.type,
         isImage: true,
         previewUrl,
         uploading: true,
       },
     ]);
-    const imageSession = options.saveClipboardImage ? null : readManagedLoopbackImageSession();
     try {
-      const buffer = await file.arrayBuffer();
+      await local.saved;
       if (pasteGeneration !== pasteGenerationRef.current) return;
-      const path = await (options.saveClipboardImage ?? readBridge().saveClipboardImage)({
-        threadId,
-        data: new Uint8Array(buffer),
-        extension: ext,
-      });
-      if (pasteGeneration !== pasteGenerationRef.current) return;
-      if (imageSession && readManagedLoopbackImageSession() === imageSession) {
-        await imageSession.admitUploadedImage(path, {
-          bytes: new Uint8Array(buffer),
-          contentType: file.type,
-        });
-        if (pasteGeneration !== pasteGenerationRef.current) return;
-      }
-      updateAttachments((prev) => {
-        if (pasteGeneration !== pasteGenerationRef.current) {
-          releasePreviewUrl(previewUrl);
-          return prev;
-        }
-        return prev.map((attachment) => {
+      updateAttachments((previous) =>
+        previous.map((attachment) => {
           if (attachment.id !== id) return attachment;
           const { uploading: _uploading, ...ready } = attachment;
-          return { ...ready, path };
-        });
-      });
+          return ready;
+        }),
+      );
     } catch (error) {
       if (pasteGeneration === pasteGenerationRef.current) {
-        releasePreviewUrl(previewUrl);
-        updateAttachments((prev) => prev.filter((attachment) => attachment.id !== id));
+        // Preserve the preview and reserved path for a controlled retry.
+        updateAttachments((previous) =>
+          previous.map((attachment) => {
+            if (attachment.id !== id) return attachment;
+            const { uploading: _uploading, ...ready } = attachment;
+            return ready;
+          }),
+        );
       }
-      throw error;
+      throw clientDraftPersistenceError(error);
     }
   }
 
@@ -207,10 +289,12 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
         name: input.name,
         mimeType: input.mimeType,
         isImage: isImagePath(input.name, input.mimeType),
+        ...(options.source && !isClientDraftAsset(input.path) ? { source: options.source } : {}),
         selector: input.selector,
         sourceUrl: input.sourceUrl,
       },
     ]);
+    hydrateClientPreviews(attachmentsRef.current);
   }
 
   function removeAttachment(id: string) {
@@ -242,6 +326,34 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
     // composer instance, which may already have revoked it — restored
     // attachments render from the durable `path` instead.
     updateAttachments(storableAttachments(saved));
+    hydrateClientPreviews(storableAttachments(saved));
+  }
+
+  function hydrateClientPreviews(items: readonly Attachment[]) {
+    const generation = pasteGenerationRef.current;
+    for (const item of items) {
+      if (!item.isImage || !isClientDraftAsset(item.path) || item.previewUrl) continue;
+      void readDraftAsset(item)
+        .then(({ blob }) => {
+          if (
+            generation !== pasteGenerationRef.current ||
+            !attachmentsRef.current.some(
+              (attachment) => attachment.id === item.id && !attachment.previewUrl,
+            )
+          )
+            return;
+          const previewUrl = URL.createObjectURL(blob);
+          ownedPreviewUrlsRef.current.add(previewUrl);
+          updateAttachments((previous) =>
+            previous.map((attachment) =>
+              attachment.id === item.id ? { ...attachment, previewUrl } : attachment,
+            ),
+          );
+        })
+        .catch((error: unknown) =>
+          console.error("[poracode] failed to restore draft attachment", error),
+        );
+    }
   }
 
   /**
@@ -260,11 +372,13 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
       ...prev.filter((attachment) => !removeIds.has(attachment.id)),
       ...storableAttachments(add),
     ]);
+    hydrateClientPreviews(add);
   }
 
   return {
     attachments,
     getAttachments: () => attachmentsRef.current.filter((attachment) => !attachment.uploading),
+    getDraftAttachments: () => storableAttachments(attachmentsRef.current),
     isUploading: attachments.some((attachment) => attachment.uploading),
     hasPendingUploads: () => attachmentsRef.current.some((attachment) => attachment.uploading),
     addFiles,

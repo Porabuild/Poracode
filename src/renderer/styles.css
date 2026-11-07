@@ -4997,6 +4997,10 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   min-width: 0;
 }
 
+.poracode-mention-input .poracode-slash-chip {
+  margin-block: -0.25em;
+}
+
 /* Cursor + hover/active + transition only on the clickable message chip; the
    composer chip is an inert contentEditable decoration and must not advertise
    a click. */

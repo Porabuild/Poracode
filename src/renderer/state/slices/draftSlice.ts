@@ -82,7 +82,7 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
     });
   },
   discardDraftContent: (projectId) => {
-    composerDraftStorage()?.remove("project", projectId);
+    composerDraftStorage()?.remove("project", projectId, true);
     set((state) => {
       const { [projectId]: _draft, ...draftContents } = state.draftContents;
       return {
