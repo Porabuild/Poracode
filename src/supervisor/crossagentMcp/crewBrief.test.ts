@@ -241,7 +241,7 @@ describe("crew composition lines", () => {
     const binding = shaped({ reviewer: { noEdits: true, parallel: 2 }, sidekick: {} });
     expect(crewChangedBriefText({ ...binding, name: "Review board" })).toBe(
       [
-        '[crew] The user changed this thread\'s crew. It is now "Review board" (Crew only). Crew only: spawns without a role are refused.',
+        '[crew] The user changed this thread\'s crew. It is now "Review board" (Crew only). Crew only: use roles for automatic delegation. When the user explicitly requests other agents or models, omit role and pass user_requested=true with the requested selection; no crew change or additional confirmation is needed.',
         "Roles:",
         "- reviewer (reviewer, up to 2 at once): codex/gpt-6-luna. Told not to edit files.",
         "- sidekick (sidekick): codex/gpt-6-luna.",

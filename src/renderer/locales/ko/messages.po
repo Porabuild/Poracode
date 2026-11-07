@@ -5703,8 +5703,12 @@ msgid "Crew only"
 msgstr "Crew만"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
-msgid "Crew only: work goes only to this crew"
-msgstr "크루 전용: 작업을 이 크루에만 할당"
+msgid "Crew only: automatic delegation uses this crew; you can request other agents"
+msgstr "크루만: 자동 위임은 이 크루를 사용하며, 다른 에이전트를 요청할 수 있습니다"
+
+#: src/renderer/components/crew/CrewRosterPanel.tsx
+#~ msgid "Crew only: work goes only to this crew"
+#~ msgstr "크루 전용: 작업을 이 크루에만 할당"
 
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Crew policy"

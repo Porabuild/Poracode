@@ -142,6 +142,42 @@ describe("CrossagentMcpIngress", () => {
     });
   }
 
+  it("honors explicit reviewer requests on an existing crew through the MCP connection", async () => {
+    crews.set("thread-1", {
+      version: 1,
+      policy: "crew-only",
+      roles: [
+        { id: "sidekick", label: "Sidekick", selection: { agentKind: "claude", model: "sonnet" } },
+      ],
+    });
+    const args = { provider: "codex", model: "gpt-5.5", reasoning: "high", prompt: "Review" };
+    const refused = await (
+      await rpc("tools/call", { name: "spawn_agent", arguments: args })
+    ).json();
+    expect(refused.result.isError).toBe(true);
+    expect(spawned).toHaveLength(0);
+    const allowed = await (
+      await rpc("tools/call", {
+        name: "spawn_agent",
+        arguments: { ...args, user_requested: true },
+      })
+    ).json();
+    expect(allowed.result.isError).not.toBe(true);
+    expect(spawned).toHaveLength(1);
+    expect(spawned[0]).toMatchObject({
+      parentThreadId: "thread-1",
+      agent: "codex",
+      model: "gpt-5.5",
+      effort: "high",
+    });
+    expect(spawned[0]?.crewRole).toBeUndefined();
+    // The exception is scoped to the call, not a persistent policy change.
+    const again = await (await rpc("tools/call", { name: "spawn_agent", arguments: args })).json();
+    expect(again.result.isError).toBe(true);
+    expect(spawned).toHaveLength(1);
+    expect(crews.get("thread-1")?.policy).toBe("crew-only");
+  });
+
   it("mints a per-thread token and a /mcp endpoint url", () => {
     expect(mcpUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp$/);
     expect(token).toHaveLength(64);
@@ -351,7 +387,7 @@ describe("CrossagentMcpIngress", () => {
         (tool) => tool.name === name,
       )?.description;
     const note =
-      "This thread has a crew (Crew only): pass role=<id> (builder); spawns without a role are refused.";
+      "This thread has a crew: pass role=<id> (builder). Crew only: use roles for automatic delegation. When the user explicitly requests other agents or models, omit role and pass user_requested=true with the requested selection; no crew change or additional confirmation is needed.";
     expect(descriptionOf("spawn_agent")).toContain(note);
     expect(descriptionOf("run_workflow")).toContain(note);
     expect(descriptionOf("list_agents")).not.toContain(note);

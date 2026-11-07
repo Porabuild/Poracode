@@ -5703,8 +5703,12 @@ msgid "Crew only"
 msgstr "Nur Crew"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
-msgid "Crew only: work goes only to this crew"
-msgstr "Nur Crew: Aufgaben gehen nur an diese Crew"
+msgid "Crew only: automatic delegation uses this crew; you can request other agents"
+msgstr "Nur Crew: Die automatische Delegierung nutzt diese Crew; du kannst andere Agenten anfordern"
+
+#: src/renderer/components/crew/CrewRosterPanel.tsx
+#~ msgid "Crew only: work goes only to this crew"
+#~ msgstr "Nur Crew: Aufgaben gehen nur an diese Crew"
 
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "Crew policy"

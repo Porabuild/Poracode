@@ -129,7 +129,7 @@ it("enforces crew policy through the older spawn_agents alias", async () => {
   );
   expect(result.isError).toBe(true);
   expect(result.content[0]?.text).toBe(
-    "This thread's crew is Crew only: spawn with role=<id> (builder).",
+    "This thread's crew is Crew only: spawn with role=<id> (builder) for automatic delegation. If the user explicitly requested other agents or models, omit role and pass user_requested=true with their requested selection.",
   );
   expect(spawnMany).not.toHaveBeenCalled();
 });
@@ -443,21 +443,35 @@ it("counts already-running role runs before accepting another", async () => {
   await flush();
 });
 
-it("does not add a role preamble when the request has no crew role", async () => {
-  const h = makeHarness();
-  const noRoleCrew = roleCrew();
-  noRoleCrew.policy = "crew-first";
-  const result = await dispatchTool(
-    "spawn_agent",
-    { provider: "codex", model: "gpt-5.5", prompt: "Inspect", background: true },
-    context(h.manager, noRoleCrew),
-  );
-  expect(result.isError).not.toBe(true);
-  await vi.waitFor(() => expect(h.handles[0]?.startTurns).toHaveLength(1));
-  expect(h.handles[0]!.startTurns[0]!.prompt).not.toContain("Crew role:");
-  h.handles[0]!.completeTurn("completed");
-  await flush();
-});
+it.each(["crew-first", "crew-only"] as const)(
+  "launches a user-requested reviewer outside a v1 %s crew without a role preamble",
+  async (policy) => {
+    const h = makeHarness();
+    const crew = roleCrew();
+    crew.policy = policy;
+    crew.roles[0]!.selection.model = "crew-model";
+    const result = await dispatchTool(
+      "spawn_agent",
+      {
+        provider: "codex",
+        model: "gpt-5.5",
+        reasoning: "high",
+        ...(policy === "crew-only" ? { user_requested: true } : {}),
+        prompt: "Inspect",
+        background: true,
+      },
+      context(h.manager, crew),
+    );
+    expect(result.isError).not.toBe(true);
+    await vi.waitFor(() => expect(h.handles[0]?.startTurns).toHaveLength(1));
+    expect(h.handles[0]!.startTurns[0]!.prompt).not.toContain("Crew role:");
+    expect(h.inputs[0]!.config).toMatchObject({ model: "gpt-5.5", effort: "high" });
+    expect(h.manager.listRuns(PARENT)[0]?.role).toBeUndefined();
+    expect(crew.policy).toBe(policy);
+    h.handles[0]!.completeTurn("completed");
+    await flush();
+  },
+);
 
 it("continues a role's helper session unless the lead asks for a fresh one", async () => {
   const spawn = vi.fn<(parentThreadId: string, request: SpawnAgentRequest) => { runId: string }>(

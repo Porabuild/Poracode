@@ -81,6 +81,7 @@ export async function dispatchWorkflow(
       "fast",
       "permissions",
       "role",
+      "user_requested",
       ...(args.role !== undefined ? ["fallbacks"] : []),
     ].flatMap((key) => (args[key] !== undefined ? [[key, args[key]]] : [])),
   );
