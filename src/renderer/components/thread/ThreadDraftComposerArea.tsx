@@ -1485,7 +1485,12 @@ export function ThreadDraftComposerArea(props: {
               const imageAttachments = attachments.attachments.filter((a) => a.isImage);
               const idx = imageAttachments.findIndex((a) => a.id === att.id);
               if (idx >= 0)
-                openAttachmentLightbox(imageAttachments, idx, attachmentImageUrlForPath);
+                openAttachmentLightbox(
+                  imageAttachments,
+                  idx,
+                  attachmentImageUrlForPath,
+                  remoteImageReadiness,
+                );
             }}
             onPreviewPdf={(att) => openPdfPreview(att)}
             {...(attachmentImageUrlForPath ? { imageUrlForPath: attachmentImageUrlForPath } : {})}
