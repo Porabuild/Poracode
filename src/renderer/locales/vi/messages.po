@@ -21045,8 +21045,8 @@ msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "Tin nhắn này không còn trong hàng đợi. Bạn vẫn có thể sao chép nội dung đang chỉnh sửa."
 
 #: src/renderer/components/composer/DraftRecoveryNotice.tsx
-msgid "This message was staged with the host. A recovery copy is saved on this device."
-msgstr "Tin nhắn này đang chờ gửi trên máy chủ. Một bản sao khôi phục đã được lưu trên thiết bị này."
+#~ msgid "This message was staged with the host. A recovery copy is saved on this device."
+#~ msgstr "Tin nhắn này đang chờ gửi trên máy chủ. Một bản sao khôi phục đã được lưu trên thiết bị này."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."

@@ -3150,6 +3150,30 @@ describe("ThreadComposerSection", () => {
     expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
   });
 
+  it.each(["steer", "queue"] as const)(
+    "retires the recovery copy once the host accepts a %s",
+    async (behavior) => {
+      useSharedSettings.setState({ followUpBehavior: behavior });
+      const deliver =
+        behavior === "steer" ? bridgeMock.setPendingSteer : bridgeMock.queueThreadFollowUp;
+      let inFlight: unknown;
+      deliver.mockImplementationOnce(async () => {
+        inFlight = await listClientSubmissions();
+      });
+      renderComposer({ thread: { ...guiThread, status: "working", attention: "working" } });
+      typeComposerText(screen.getByRole("textbox"), "handled by the host");
+      fireEvent.click(screen.getByText("send"));
+      await waitFor(() =>
+        expect(deliver).toHaveBeenCalledWith(
+          expect.objectContaining({ prompt: "handled by the host" }),
+        ),
+      );
+      await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+      expect(inFlight).toEqual([expect.objectContaining({ state: "dispatching" })]);
+      expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
+    },
+  );
+
   it.each([
     { isComposing: true, keyCode: 13 },
     { isComposing: false, keyCode: 229 },

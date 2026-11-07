@@ -99,7 +99,18 @@ describe("submission recovery", () => {
     set.mockRestore();
   });
 
-  it.each(["dispatching", "uncertain", "staged"] as const)(
+  it("does not ask about a receipt that an earlier build kept as staged", async () => {
+    await saved("staged");
+    const listed = vi.spyOn(clientDraftDatabase, "listClientSubmissionsForDraft");
+    render(<DraftRecoveryNotice kind="thread" ownerId="t" pending={false} onRestore={() => {}} />);
+    await waitFor(() => expect(listed).toHaveBeenCalled());
+    await act(async () => {
+      await listed.mock.results[0]?.value;
+    });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it.each(["dispatching", "uncertain"] as const)(
     "makes %s work visible without replaying or deleting it on restore",
     async (state) => {
       const record = await saved(state);

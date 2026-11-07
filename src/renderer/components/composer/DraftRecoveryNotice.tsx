@@ -52,7 +52,6 @@ export function DraftRecoveryNotice(props: {
                 (candidate.state === "failed" ||
                   candidate.state === "uncertain" ||
                   candidate.state === "prepared" ||
-                  candidate.state === "staged" ||
                   candidate.state === "dispatching"),
             ),
           );
@@ -71,8 +70,7 @@ export function DraftRecoveryNotice(props: {
   const identity = composerDraftStorage()?.currentIdentity(props.kind, props.ownerId);
   if (!record || props.pending || (record.scope !== scope && record.draftId !== identity?.draftId))
     return null;
-  const uncertain =
-    record.state === "uncertain" || record.state === "dispatching" || record.state === "staged";
+  const uncertain = record.state === "uncertain" || record.state === "dispatching";
   const operationKey = JSON.stringify([scope, record.id, record.revision, record.fingerprint]);
   const busy = busyKey === operationKey;
   const finish = async (restore: boolean) => {
@@ -120,11 +118,7 @@ export function DraftRecoveryNotice(props: {
   return (
     <div role="status" className="flex items-center gap-2 px-2 py-1 text-xs text-muted">
       <span className="min-w-0 flex-1">
-        {record.state === "staged" ? (
-          <Trans>
-            This message was staged with the host. A recovery copy is saved on this device.
-          </Trans>
-        ) : uncertain ? (
+        {uncertain ? (
           <Trans>
             Couldn't confirm this command with the host. It may still have been applied — check the
             thread before trying again.

@@ -90,6 +90,16 @@ describe("client-owned draft bytes and submissions", () => {
     expect((await listClientSubmissions())[0]?.state).toBe("accepted");
   });
 
+  it("resolves without discarding a submission another window already retired", async () => {
+    const asset = stageClientDraftAsset(new Blob(["asset"]), "a.bin");
+    const record = submission(asset.path);
+    await preserveClientSubmission(record);
+    await updateClientSubmission(record.id, "accepted");
+    expect(await discardClientSubmission(record.id)).toBe(true);
+    expect(await discardClientSubmission(record.id)).toBe(false);
+    expect(await discardClientSubmission(record.id, true, record)).toBe(false);
+  });
+
   it("retains bytes for editors and unsettled submissions, then reclaims unowned bytes", async () => {
     const asset = stageClientDraftAsset(new Blob(["asset"]), "a.bin");
     await asset.saved;

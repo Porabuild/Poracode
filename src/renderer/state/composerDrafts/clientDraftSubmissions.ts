@@ -141,6 +141,22 @@ export async function listAcceptedClientSubmissions(): Promise<ClientDraftSubmis
   });
 }
 
+/**
+ * Earlier format-1 builds kept host-acknowledged queue/steer receipts as "staged"
+ * recovery copies. A receipt now retires its copy, so startup settles them as
+ * accepted instead of bumping the format; nothing writes "staged" anymore.
+ */
+export async function acceptStagedClientSubmissions(): Promise<void> {
+  await transact<void>(["submissions"], "readwrite", (tx) => {
+    const store = tx.objectStore("submissions");
+    const request = store.index("state").getAll("staged");
+    request.onsuccess = () => {
+      for (const record of request.result as ClientDraftSubmission[])
+        if (record.formatVersion === FORMAT_VERSION) store.put({ ...record, state: "accepted" });
+    };
+  });
+}
+
 export async function updateClientSubmission(
   id: string,
   state: ClientDraftSubmission["state"],
@@ -203,14 +219,14 @@ export async function discardClientSubmission(
     request.onsuccess = () => {
       const record = request.result as ClientDraftSubmission | undefined;
       if (
-        record &&
-        expected &&
-        (record.revision !== expected.revision || record.fingerprint !== expected.fingerprint)
+        !record ||
+        (expected &&
+          (record.revision !== expected.revision || record.fingerprint !== expected.fingerprint))
       ) {
         done(false);
         return;
       }
-      if (!record || record.formatVersion !== FORMAT_VERSION) {
+      if (record.formatVersion !== FORMAT_VERSION) {
         tx.abort();
         return;
       }
