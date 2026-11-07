@@ -8,7 +8,8 @@ import {
   isClientDraftAsset,
 } from "./composerDrafts/clientDraftDatabase";
 import { pickClientDraftFiles } from "@/renderer/utils/browserFilePicker";
-vi.mock("@/renderer/utils/browserFilePicker", () => ({
+vi.mock("@/renderer/utils/browserFilePicker", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/utils/browserFilePicker")>()),
   pickClientDraftFiles: vi.fn<() => Promise<string[] | null>>(),
 }));
 import { useRemoteServersStore } from "./remoteServersStore";
@@ -65,5 +66,19 @@ describe("resolveHostFileAccess", () => {
     expect(image.mimeType).toBe("image/png");
     expect(new Uint8Array(await image.blob.arrayBuffer())).toEqual(data);
     expect(saveClipboardImage).not.toHaveBeenCalled();
+  });
+
+  it("imports dropped files into client storage instead of uploading them", async () => {
+    hosts.current = host({ kind: "paired", connectionKey: "d1", hostId: "t1" });
+    const access = resolveHostFileAccess({ id: "row" });
+    const dropped = new File(["dropped bytes"], "notes.txt", { type: "text/plain" });
+
+    const [path] = (await access.importFiles?.([dropped])) ?? [];
+
+    expect(path && isClientDraftAsset(path)).toBe(true);
+    const stored = await readClientDraftAsset(path!);
+    expect(stored.mimeType).toBe("text/plain");
+    expect(await stored.blob.text()).toBe("dropped bytes");
+    expect(pickAndUploadFiles).not.toHaveBeenCalled();
   });
 });

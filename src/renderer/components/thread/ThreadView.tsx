@@ -101,7 +101,8 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.onSubmitInput === next.onSubmitInput &&
     prev.onOpenProjectRelativePath === next.onOpenProjectRelativePath &&
     prev.checkpointActions === next.checkpointActions &&
-    prev.pickFiles === next.pickFiles
+    prev.pickFiles === next.pickFiles &&
+    prev.importFiles === next.importFiles
   );
 }
 
@@ -161,6 +162,7 @@ export type ThreadViewProps = {
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   checkpointActions?: CheckpointRevertActions | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
+  importFiles?: ((files: readonly File[]) => Promise<string[]>) | undefined;
 };
 
 export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
@@ -196,6 +198,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     onOpenProjectRelativePath,
     checkpointActions,
     pickFiles,
+    importFiles,
   } = props;
   const { t } = useLingui();
   const terminalPaneRef = useRef<TerminalPaneHandle>(null);
@@ -550,6 +553,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 hidden={hidden}
                 {...(onSubmitInput ? { onSubmitInput } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
+                {...(importFiles ? { importFiles } : {})}
               />
             ) : (
               <GuiThreadContent
@@ -565,6 +569,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 {...(onOpenProjectRelativePath ? { onOpenProjectRelativePath } : {})}
                 {...(checkpointActions ? { checkpointActions } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
+                {...(importFiles ? { importFiles } : {})}
               />
             )}
           </div>

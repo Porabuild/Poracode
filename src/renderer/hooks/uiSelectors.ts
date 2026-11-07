@@ -362,6 +362,7 @@ export function useDraftEnvironment(project: Project | undefined): {
   agentStatuses: AgentStatus[];
   isDetectingAgents: boolean;
   pickFiles?: () => Promise<string[] | null>;
+  importFiles?: (files: readonly File[]) => Promise<string[]>;
 } {
   const remoteServerId = remoteOwner(project)?.desktopId;
   // The managed host's draft lists every agent so an uninstalled one can be
@@ -379,6 +380,7 @@ export function useDraftEnvironment(project: Project | undefined): {
     // Files picked or pasted into a draft land where the owning host can read
     // them (see `resolveHostFileAccess`); a host on this machine needs nothing.
     ...(fileAccess.pickFiles ? { pickFiles: fileAccess.pickFiles } : {}),
+    ...(fileAccess.importFiles ? { importFiles: fileAccess.importFiles } : {}),
   };
 }
 

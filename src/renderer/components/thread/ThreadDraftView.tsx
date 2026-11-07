@@ -235,6 +235,7 @@ export function ThreadDraftView(props: {
    */
   submissionPending?: boolean;
   pickFiles?: () => Promise<string[] | null>;
+  importFiles?: (files: readonly File[]) => Promise<string[]>;
 
   paneAlign?: "left" | "center" | "right";
   showCloseButton?: boolean;
@@ -1868,6 +1869,7 @@ export function ThreadDraftView(props: {
               ? { autoFocus: props.autoFocusComposer }
               : {})}
             {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
+            {...(props.importFiles ? { importFiles: props.importFiles } : {})}
 
             onConfigChange={onConfigPatch}
             onWorktreeModeChange={setWorktreeMode}

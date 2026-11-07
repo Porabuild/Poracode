@@ -35,6 +35,7 @@ export function ChatSidebarDraft(props: { projectId: string }) {
       submitOnEnter
       {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
       {...(environment.pickFiles ? { pickFiles: environment.pickFiles } : {})}
+      {...(environment.importFiles ? { importFiles: environment.importFiles } : {})}
 
       onStart={(input) => startThreadFromDraft(project, input, { preserveActiveGroup: false })}
     />

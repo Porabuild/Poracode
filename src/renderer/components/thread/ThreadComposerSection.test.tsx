@@ -159,6 +159,7 @@ vi.mock("./ThreadComposer", () => ({
     leadingControls?: ReactNode | (() => ReactNode);
     afterControls?: ReactNode | (() => ReactNode);
     onAttachFiles?: (paths: string[]) => void;
+    onImportFiles?: (files: File[]) => void;
     onStop?: () => void;
     onSubmit: () => void;
     submitDisabled?: boolean;
@@ -187,6 +188,16 @@ vi.mock("./ThreadComposer", () => ({
             .join(",") ?? ""}
         </output>
         <output data-testid="attach-files-enabled">{props.onAttachFiles ? "yes" : "no"}</output>
+        {props.onImportFiles ? (
+          <button
+            type="button"
+            onClick={() =>
+              props.onImportFiles?.([new File(["dropped"], "dropped.txt", { type: "text/plain" })])
+            }
+          >
+            drop-files
+          </button>
+        ) : null}
         {props.resume ? (
           <button type="button" onClick={props.resume.onPress}>
             {props.resume.label}
@@ -675,6 +686,7 @@ describe("ThreadComposerSection", () => {
     onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     pickFiles?: () => Promise<string[] | null>;
+    importFiles?: (files: readonly File[]) => Promise<string[]>;
     onComposerInsetChange?: (inset: number) => void;
   }) {
     const thread = opts?.thread ?? guiThread;
@@ -703,6 +715,7 @@ describe("ThreadComposerSection", () => {
           : {})}
 
         {...(opts?.pickFiles ? { pickFiles: opts.pickFiles } : {})}
+        {...(opts?.importFiles ? { importFiles: opts.importFiles } : {})}
         {...(opts?.onComposerInsetChange
           ? { onComposerInsetChange: opts.onComposerInsetChange }
           : {})}
@@ -720,6 +733,7 @@ describe("ThreadComposerSection", () => {
     onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     pickFiles?: () => Promise<string[] | null>;
+    importFiles?: (files: readonly File[]) => Promise<string[]>;
     onComposerInsetChange?: (inset: number) => void;
   }) {
     const onSubmitInput =
@@ -2249,6 +2263,29 @@ describe("ThreadComposerSection", () => {
       startPick();
       await finishPick(resolvers[0]);
       expect(screen.getByText("private-A.txt")).toBeInTheDocument();
+    });
+
+    it("imports dropped files into the thread they were dropped on", async () => {
+      const resolvers: Array<(paths: string[]) => void> = [];
+      const importFiles = vi.fn<(files: readonly File[]) => Promise<string[]>>(
+        () =>
+          new Promise((resolve) => {
+            resolvers.push(resolve);
+          }),
+      );
+      const { rerender } = renderComposer({ importFiles });
+      fireEvent.click(screen.getByText("drop-files"));
+      expect(importFiles.mock.calls[0]?.[0].map((file) => file.name)).toEqual(["dropped.txt"]);
+      rerender(composerElement({ thread: secondGuiThread, importFiles }));
+      await act(async () => {
+        resolvers[0]?.(["C:\\attachments\\thread-gui-idle\\dropped.txt"]);
+        await Promise.resolve();
+      });
+
+      expect(screen.queryByText("dropped.txt")).toBeNull();
+      expect(
+        useAppStore.getState().threadDraftContents[guiThread.id]?.attachments.map((a) => a.name),
+      ).toEqual(["dropped.txt"]);
     });
 
     it("keeps an upload that finishes after switching threads out of the new thread", async () => {

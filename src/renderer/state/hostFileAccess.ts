@@ -1,6 +1,6 @@
 import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
 import { entityHost } from "./entityHost";
-import { pickClientDraftFiles } from "@/renderer/utils/browserFilePicker";
+import { importClientDraftFiles, pickClientDraftFiles } from "@/renderer/utils/browserFilePicker";
 import { stageClientDraftAsset } from "./composerDrafts/clientDraftDatabase";
 import { clientDraftPersistenceError } from "./composerDrafts/persistenceError";
 import { isRemoteSession } from "@/renderer/bridge";
@@ -13,6 +13,8 @@ import { isRemoteSession } from "@/renderer/bridge";
 export interface HostFileAccess {
   /** Picks files and returns durable client asset references. */
   readonly pickFiles?: () => Promise<string[] | null>;
+  /** Imports dropped files and returns durable client asset references. */
+  readonly importFiles?: (files: readonly File[]) => Promise<string[]>;
   /** Imports a pasted or captured image into client storage. */
   readonly saveClipboardImage?: SaveClipboardImage;
   /** False when "reveal in file manager" would open the wrong machine. */
@@ -28,6 +30,7 @@ export function resolveHostFileAccess(entity: Parameters<typeof entityHost>[0]):
   }
   return {
     pickFiles: pickClientDraftFiles,
+    importFiles: importClientDraftFiles,
     saveClipboardImage: async (input) => {
       const asset = stageClientDraftAsset(
         new Blob([Uint8Array.from(input.data)], { type: `image/${input.extension}` }),

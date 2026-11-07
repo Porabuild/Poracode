@@ -1,7 +1,10 @@
 import "fake-indexeddb/auto";
-import { pickClientDraftFiles } from "@/renderer/utils/browserFilePicker";
+import { importClientDraftFiles, pickClientDraftFiles } from "@/renderer/utils/browserFilePicker";
 vi.mock("@/renderer/utils/browserFilePicker", () => ({
   pickClientDraftFiles: vi.fn<() => Promise<string[] | null>>().mockResolvedValue(null),
+  importClientDraftFiles: vi
+    .fn<(files: readonly File[]) => Promise<string[]>>()
+    .mockResolvedValue([]),
 }));
 import type { ReactNode } from "react";
 import { act, fireEvent, screen } from "@testing-library/react";
@@ -90,11 +93,17 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
     project: { id: string; name: string };
     agentStatuses: Array<{ kind: string }>;
     pickFiles?: () => Promise<string[] | null>;
+    importFiles?: (files: readonly File[]) => Promise<string[]>;
     onProjectChange?: (projectId: string) => void;
     onStart: (input: unknown) => void | Promise<void>;
   }) => (
     <div>
       <span>{props.project.name}</span>
+      {props.importFiles ? (
+        <button type="button" onClick={() => void props.importFiles?.([])}>
+          Drop files fixture
+        </button>
+      ) : null}
       <output data-testid="agent-statuses">
         {props.agentStatuses.map((status) => status.kind).join(",")}
       </output>
@@ -439,6 +448,8 @@ describe("QuickComposerOverlay", () => {
     expect(pickClientDraftFiles).toHaveBeenCalledWith();
     expect(upload).not.toHaveBeenCalled();
     expect(bridge.pickQuickComposerFiles).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Drop files fixture" }));
+    expect(importClientDraftFiles).toHaveBeenCalledWith([]);
     upload.mockRestore();
   });
 
@@ -549,6 +560,7 @@ describe("QuickComposerOverlay", () => {
     });
     expect(bridge.pickQuickComposerFiles).toHaveBeenCalledOnce();
     expect(pickClientDraftFiles).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Drop files fixture" })).toBeNull();
   });
 
   it("does not refresh Git for a mirrored Home", () => {

@@ -71,6 +71,11 @@ export async function pickAndUploadBrowserFiles(
 export async function pickClientDraftFiles(): Promise<string[] | null> {
   const files = await pickBrowserFiles();
   if (files.length === 0) return null;
+  return importClientDraftFiles(files);
+}
+
+/** Imports picked or dropped files into client draft storage and returns their asset references. */
+export async function importClientDraftFiles(files: readonly File[]): Promise<string[]> {
   const { stageClientDraftAsset } =
     await import("@/renderer/state/composerDrafts/clientDraftDatabase");
   const { clientDraftPersistenceError } =
