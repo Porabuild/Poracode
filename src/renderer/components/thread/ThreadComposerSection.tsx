@@ -1456,6 +1456,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               imageAttachments,
                               idx,
                               attachmentImageUrlForPath,
+                              remoteImageReadiness,
                             );
                           }
                         }}

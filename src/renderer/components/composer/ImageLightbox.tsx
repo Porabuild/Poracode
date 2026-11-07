@@ -1,6 +1,8 @@
 import { isClientDraftAsset } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { readDraftAsset } from "@/renderer/state/composerDrafts/readDraftAsset";
 import { resolveThreadImageAuthority } from "../thread/threadImageAuthority";
+import { galleryImageResource } from "../thread/ChatPane/parts/items/threadGalleryImageReadiness";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 import { memo, useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
@@ -136,23 +138,36 @@ export function openAttachmentLightbox(
   attachments: readonly Attachment[],
   initialIndex: number,
   imageUrlForPath?: (path: string) => string,
+  remoteImageReadiness?: RemoteImageReadiness,
 ): void {
-  const describe = (attachment: Attachment): LightboxImage => ({
-    src: attachmentImageUrl(
+  const describe = (attachment: Attachment): LightboxImage => {
+    const authority = attachment.source
+      ? resolveThreadImageAuthority({
+          id: "attachment-preview",
+          ...(attachment.source.remoteServerId
+            ? { remoteServerId: attachment.source.remoteServerId }
+            : {}),
+        })
+      : undefined;
+    const readiness = attachment.source
+      ? authority?.kind === "managed"
+        ? undefined
+        : authority?.readiness
+      : remoteImageReadiness;
+    const src = attachmentImageUrl(
       attachment,
-      attachment.source
-        ? resolveThreadImageAuthority({
-            id: "attachment-preview",
-            ...(attachment.source.remoteServerId
-              ? { remoteServerId: attachment.source.remoteServerId }
-              : {}),
-          }).localImageUrl
-        : imageUrlForPath,
-    ),
-    alt: attachment.name,
-    fileName: attachment.name,
-    ...(attachment.mimeType ? { mime: attachment.mimeType } : {}),
-  });
+      readiness?.resolvePath ?? authority?.localImageUrl ?? imageUrlForPath,
+    );
+    return {
+      src,
+      ...(!attachment.previewUrl && readiness && (!src || src.startsWith("blob:"))
+        ? { resource: galleryImageResource(readiness, attachment.path) }
+        : {}),
+      alt: attachment.name,
+      fileName: attachment.name,
+      ...(attachment.mimeType ? { mime: attachment.mimeType } : {}),
+    };
+  };
   if (!attachments.some((attachment) => isClientDraftAsset(attachment.path))) {
     openImageLightbox(attachments.map(describe), initialIndex);
     return;

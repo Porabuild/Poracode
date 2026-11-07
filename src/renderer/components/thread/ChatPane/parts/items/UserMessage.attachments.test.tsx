@@ -4,7 +4,12 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const remote = vi.hoisted(() => ({ session: false }));
 const lightbox = vi.hoisted(() => ({
   open: vi.fn<
-    (attachments: Attachment[], index: number, imageUrlForPath?: (path: string) => string) => void
+    (
+      attachments: Attachment[],
+      index: number,
+      imageUrlForPath?: (path: string) => string,
+      readiness?: RemoteImageReadiness,
+    ) => void
   >(),
 }));
 
@@ -146,6 +151,8 @@ it("keeps a host-held attachment on the image cache instead of the local file pr
   const [requestedPath, priority] = readiness.requestPath.mock.calls[0] ?? [];
   expect(requestedPath).toBe(imagePath);
   expect(priority).toMatch(/^(foreground|background)$/);
+  fireEvent.click(screen.getByRole("button", { name: "Preview screenshot.png" }));
+  expect(lightbox.open.mock.calls[0]?.[3]).toBe(readiness);
 });
 
 it("keeps a browser session without a remote id on the image cache", () => {
@@ -158,4 +165,6 @@ it("keeps a browser session without a remote id on the image cache", () => {
     "poracode-local:",
   );
   expect(readiness.requestPath).toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Preview screenshot.png" }));
+  expect(lightbox.open.mock.calls[0]?.[3]).toBe(readiness);
 });

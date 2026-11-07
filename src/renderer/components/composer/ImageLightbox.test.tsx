@@ -3,6 +3,12 @@ import { toast } from "@heroui/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import {
+  RemoteEnvironmentImageCache,
+  type RemoteEnvironmentImageBytes,
+  type RemoteEnvironmentImageCacheOptions,
+} from "@/shared/remote/clientEnvironmentImages";
+import { createCacheImageReadiness } from "@/renderer/state/cacheImageReadiness";
+import {
   ImageLightboxHost,
   ImageLightboxView,
   openAttachmentLightbox,
@@ -680,6 +686,86 @@ describe("lightbox gestural zoom", () => {
 });
 
 describe("image preview toolbar", () => {
+  it("loads and subscribes to only the selected remote attachment's original", async () => {
+    let finish: (value: RemoteEnvironmentImageBytes) => void = () => {};
+    const fetchBytes = vi.fn<RemoteEnvironmentImageCacheOptions["fetchBytes"]>(
+      () =>
+        new Promise<RemoteEnvironmentImageBytes>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const revokeObjectUrl = vi.fn<(url: string) => void>();
+    const cache = new RemoteEnvironmentImageCache({
+      fetchBytes,
+      createObjectUrl: () => "blob:original",
+      revokeObjectUrl,
+    });
+    const readiness = createCacheImageReadiness(cache);
+    const attachments = ["first", "second"].map((name) => ({
+      id: name,
+      path: `/attachments/${name}.png`,
+      name: `${name}.png`,
+      isImage: true,
+    }));
+    const view = render(<ImageLightboxHost />);
+    try {
+      act(() =>
+        openAttachmentLightbox(attachments, 1, (path) => cache.localImageUrl(path), readiness),
+      );
+      expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+      await waitFor(() => expect(fetchBytes).toHaveBeenCalledTimes(1));
+      expect(fetchBytes.mock.calls[0]?.[0]).toContain(encodeURIComponent(attachments[1]!.path));
+      await act(async () => finish({ bytes: png, contentType: "image/png" }));
+      expect(screen.getByRole("img", { name: "second.png" })).toHaveAttribute(
+        "src",
+        "blob:original",
+      );
+      expect(screen.queryByRole("status")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Previous image" }));
+      expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+      await waitFor(() => expect(fetchBytes).toHaveBeenCalledTimes(2));
+      expect(fetchBytes.mock.calls[1]?.[0]).toContain(encodeURIComponent(attachments[0]!.path));
+    } finally {
+      view.unmount();
+      cache.dispose();
+    }
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:original");
+  });
+
+  it("keeps pasted bytes visible without requesting the remote original", () => {
+    const cache = new RemoteEnvironmentImageCache({
+      fetchBytes: vi.fn<() => Promise<never>>(),
+      createObjectUrl: vi.fn<() => string>(),
+      revokeObjectUrl: vi.fn<(url: string) => void>(),
+    });
+    const readiness = createCacheImageReadiness(cache);
+    const request = vi.spyOn(readiness, "requestPath");
+    const view = render(<ImageLightboxHost />);
+    try {
+      act(() =>
+        openAttachmentLightbox(
+          [
+            {
+              id: "pasted",
+              path: "/attachments/pasted.png",
+              name: "pasted.png",
+              isImage: true,
+              previewUrl: "blob:pasted",
+            },
+          ],
+          0,
+          readiness.resolvePath,
+          readiness,
+        ),
+      );
+      expect(screen.getByRole("img", { name: "pasted.png" })).toHaveAttribute("src", "blob:pasted");
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      cache.dispose();
+    }
+  });
+
   it("keeps a pasted attachment's original filename and format behind its blob URL", async () => {
     const webp = new Uint8Array([82, 73, 70, 70]);
     vi.stubGlobal(
