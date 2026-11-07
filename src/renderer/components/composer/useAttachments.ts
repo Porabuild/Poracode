@@ -2,7 +2,6 @@ import { readDraftAsset } from "@/renderer/state/composerDrafts/readDraftAsset";
 import { clientDraftPersistenceError } from "@/renderer/state/composerDrafts/persistenceError";
 import { useEffect, useRef, useState } from "react";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
-import { readManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
 import type { PromptSegment } from "@/shared/contracts";
 import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
 import { fileNameFromPath, isImagePath, mimeForPath, toLocalFileUrl } from "@/shared/promptContent";
@@ -96,8 +95,6 @@ export type SaveClipboardImage = (input: {
 
 export function useAttachments(
   options: {
-    saveClipboardImage?: SaveClipboardImage;
-    clientOwned?: boolean;
     source?: Attachment["source"];
     /** Checkpoint immediately, including an attachment added just before navigation. */
     onDraftChange?: () => void;
@@ -199,7 +196,6 @@ export function useAttachments(
       if (isClientDraftAsset(attachment.path)) return attachment;
       const source = options.source ?? {};
       if (
-        !options.clientOwned ||
         source.remoteServerId ||
         isRemoteSession() ||
         typeof readBridge()?.readClientDraftFile !== "function"
@@ -251,9 +247,9 @@ export function useAttachments(
     hydrateClientPreviews(newAttachments);
   }
 
-  function addClipboardImage(file: File, threadId: string) {
+  function addClipboardImage(file: File) {
     const id = crypto.randomUUID();
-    return trackImport(id, uploadClipboardImage(file, threadId, id));
+    return trackImport(id, uploadClipboardImage(file, id));
   }
 
   async function waitForUploads() {
@@ -262,7 +258,7 @@ export function useAttachments(
     }
   }
 
-  async function uploadClipboardImage(file: File, threadId: string, id: string) {
+  async function uploadClipboardImage(file: File, id: string) {
     const pasteGeneration = pasteGenerationRef.current;
     const ext = file.type.split("/")[1]?.replace("svg+xml", "svg") ?? "png";
     const previewUrl = URL.createObjectURL(file);
@@ -275,12 +271,12 @@ export function useAttachments(
     let n = 1;
     while (usedNumbers.has(n)) n++;
     const name = `Image ${n}.${ext}`;
-    const local = options.clientOwned ? stageClientDraftAsset(file, name) : undefined;
+    const local = stageClientDraftAsset(file, name);
     updateAttachments((prev) => [
       ...prev,
       {
         id,
-        path: local?.path ?? "",
+        path: local.path,
         name,
         mimeType: file.type,
         isImage: true,
@@ -288,64 +284,28 @@ export function useAttachments(
         uploading: true,
       },
     ]);
-    const imageSession = options.saveClipboardImage ? null : readManagedLoopbackImageSession();
     try {
-      if (local) {
-        await local.saved;
-        if (pasteGeneration !== pasteGenerationRef.current) return;
-        updateAttachments((prev) =>
-          prev.map((attachment) => {
+      await local.saved;
+      if (pasteGeneration !== pasteGenerationRef.current) return;
+      updateAttachments((previous) =>
+        previous.map((attachment) => {
+          if (attachment.id !== id) return attachment;
+          const { uploading: _uploading, ...ready } = attachment;
+          return ready;
+        }),
+      );
+    } catch (error) {
+      if (pasteGeneration === pasteGenerationRef.current) {
+        // Preserve the preview and reserved path for a controlled retry.
+        updateAttachments((previous) =>
+          previous.map((attachment) => {
             if (attachment.id !== id) return attachment;
             const { uploading: _uploading, ...ready } = attachment;
             return ready;
           }),
         );
-        return;
       }
-      const buffer = await file.arrayBuffer();
-      if (pasteGeneration !== pasteGenerationRef.current) return;
-      const path = await (options.saveClipboardImage ?? readBridge().saveClipboardImage)({
-        threadId,
-        data: new Uint8Array(buffer),
-        extension: ext,
-      });
-      if (pasteGeneration !== pasteGenerationRef.current) return;
-      if (imageSession && readManagedLoopbackImageSession() === imageSession) {
-        await imageSession.admitUploadedImage(path, {
-          bytes: new Uint8Array(buffer),
-          contentType: file.type,
-        });
-        if (pasteGeneration !== pasteGenerationRef.current) return;
-      }
-      updateAttachments((prev) => {
-        if (pasteGeneration !== pasteGenerationRef.current) {
-          releasePreviewUrl(previewUrl);
-          return prev;
-        }
-        return prev.map((attachment) => {
-          if (attachment.id !== id) return attachment;
-          const { uploading: _uploading, ...ready } = attachment;
-          return { ...ready, path };
-        });
-      });
-    } catch (error) {
-      if (pasteGeneration === pasteGenerationRef.current) {
-        if (local) {
-          // The bytes remain in the live preview and staging map. Keep them
-          // visible; a failed durable write must never masquerade as a removal.
-          updateAttachments((previous) =>
-            previous.map((attachment) => {
-              if (attachment.id !== id) return attachment;
-              const { uploading: _uploading, ...ready } = attachment;
-              return ready;
-            }),
-          );
-          throw clientDraftPersistenceError(error);
-        }
-        releasePreviewUrl(previewUrl);
-        updateAttachments((prev) => prev.filter((attachment) => attachment.id !== id));
-      }
-      throw error;
+      throw clientDraftPersistenceError(error);
     }
   }
 

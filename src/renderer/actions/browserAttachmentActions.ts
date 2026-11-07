@@ -19,7 +19,7 @@ export async function materializePickerAttachment(
   const owner = isDraft
     ? app.projects.find((candidate) => candidate.id === parseDraftProjectId(threadId))
     : app.threads.find((candidate) => candidate.id === threadId);
-  const { saveClipboardImage } = resolveHostFileAccess(owner, isDraft ? "draft" : "thread");
+  const { saveClipboardImage } = resolveHostFileAccess(owner);
   if (!saveClipboardImage) return attachment;
 
   const data = new Uint8Array(

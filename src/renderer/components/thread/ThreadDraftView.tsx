@@ -82,7 +82,6 @@ import {
   type DraftStartInput,
   type DraftStartResult,
 } from "./ThreadDraftComposerArea";
-import type { SaveClipboardImage } from "../composer/useAttachments";
 import { applyCrewComposerControls } from "@/renderer/components/crew/applyCrewComposerControls";
 import {
   CREW_ROLE_TEMPLATE_DESCRIPTORS,
@@ -236,7 +235,7 @@ export function ThreadDraftView(props: {
    */
   submissionPending?: boolean;
   pickFiles?: () => Promise<string[] | null>;
-  saveClipboardImage?: SaveClipboardImage;
+
   paneAlign?: "left" | "center" | "right";
   showCloseButton?: boolean;
   isDragging?: boolean;
@@ -1854,7 +1853,7 @@ export function ThreadDraftView(props: {
               ? { autoFocus: props.autoFocusComposer }
               : {})}
             {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
-            {...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {})}
+
             onConfigChange={onConfigPatch}
             onWorktreeModeChange={setWorktreeMode}
             onSwitchBranch={handleSwitchBranch}

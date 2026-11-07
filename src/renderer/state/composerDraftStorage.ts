@@ -9,14 +9,17 @@ import {
   isClientDraftAsset,
   registerClientDraftWindow,
   protectClientDraftReferences,
+  type ClientDraftSubmission,
 } from "./composerDrafts/clientDraftDatabase";
 import type { DraftContent } from "./slices/types";
 import { mergeDraftContent } from "./projectReferences";
+import { registerClientDraftCloseFlusher } from "./composerDrafts/clientDraftWindows";
 import {
   CLIENT_DRAFT_JOURNAL_PREFIX,
   readClientDraftJournals,
   writeClientDraftJournal,
   removeClientDraftJournal,
+  type ClientDraftJournal,
 } from "./composerDrafts/clientDraftJournal";
 
 // V2 can contain client asset references. A v1 reader would mistake them for
@@ -52,20 +55,47 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
   const legacyKey = (name: string) => LEGACY_PREFIX + name.slice(PREFIX.length);
   const migrationKey = (name: string) =>
     "poracode-composer-draft-migration-v2:" + name.slice(PREFIX.length);
-  const assetPaths = (record: StoredRecord | null | undefined) =>
-    record
+  const assetPaths = (content: DraftContent | undefined) =>
+    content
       ? [
-          ...record.content.attachments.map((attachment) => attachment.path),
-          ...record.content.segments.flatMap((segment) =>
+          ...content.attachments.map((attachment) => attachment.path),
+          ...content.segments.flatMap((segment) =>
             segment.kind === "attachment" ? [segment.path] : [],
           ),
         ].filter(isClientDraftAsset)
       : [];
+  function journalIndex(entries: readonly ClientDraftJournal[]) {
+    const index = new Map<string, ClientDraftJournal[]>();
+    for (const entry of entries) {
+      const group = index.get(entry.name) ?? [];
+      group.push(entry);
+      index.set(entry.name, group);
+    }
+    return index;
+  }
+  function recoverySubmission(
+    name: string,
+    record: StoredRecord,
+    id: string,
+  ): ClientDraftSubmission {
+    const [kind, ownerId] = JSON.parse(name.slice(PREFIX.length)) as [DraftKind, string];
+    return {
+      formatVersion: 1,
+      id,
+      draftId: record.draftId,
+      scope: JSON.stringify([kind, ownerId]),
+      revision: record.revision,
+      target: "local-checkpoint",
+      fingerprint: JSON.stringify(record.content),
+      state: "failed",
+      content: { checkpoint: { ...record, kind, ownerId }, recoveryContent: record.content },
+      assets: assetPaths(record.content),
+    };
+  }
 
   function stopTimer() {
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
-    lifecycle.removeEventListener("pagehide", flush);
     lifecycle.document.removeEventListener("visibilitychange", onVisibilityChange);
   }
   function report(error: unknown) {
@@ -73,7 +103,11 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
     if (!reported) lifecycle.dispatchEvent(new Event("poracode:composer-draft-save-failed"));
     reported = true;
   }
-  function readRecord(kind: DraftKind, id: string): StoredRecord | undefined {
+  function readRecord(
+    kind: DraftKind,
+    id: string,
+    indexedJournals?: ReadonlyMap<string, readonly ClientDraftJournal[]>,
+  ): StoredRecord | undefined {
     const name = key(kind, id);
     if (pending.has(name)) return pending.get(name) ?? undefined;
     if (records.has(name)) return records.get(name) ?? undefined;
@@ -81,7 +115,9 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
     observed.set(name, raw);
     // A pagehide journal can outlive the asynchronous writer. Adopt only an
     // exact base match; concurrent edits with another base remain recoverable.
-    const journals = readClientDraftJournals(storage).filter((entry) => entry.name === name);
+    const journals = indexedJournals
+      ? (indexedJournals.get(name) ?? [])
+      : readClientDraftJournals(storage).filter((entry) => entry.name === name);
     for (const entry of journals) {
       if (entry.base !== raw) continue;
       if (entry.record === null) {
@@ -125,15 +161,16 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
     backup?: (record: import("./composerDrafts/clientDraftDatabase").ClientDraftSubmission) => void,
   ) {
     stopTimer();
+    const indexedJournals = journalIndex(readClientDraftJournals(storage));
     let failure: unknown;
     for (const [name, record] of pending) {
       try {
         const raw = storage.getItem(name);
         if (raw !== (observed.get(name) ?? null))
           throw new Error("Composer draft changed in another window.");
-        if (raw && !recordSchema.safeParse(JSON.parse(raw)).success)
-          throw new Error("Unsupported composer draft version.");
-        const previous = raw ? recordSchema.parse(JSON.parse(raw)) : undefined;
+        const parsed = raw ? recordSchema.safeParse(JSON.parse(raw)) : undefined;
+        if (parsed && !parsed.success) throw new Error("Unsupported composer draft version.");
+        const previous = parsed?.success ? parsed.data : undefined;
         if (record) {
           const encoded = JSON.stringify(record);
           storage.setItem(name, encoded);
@@ -143,7 +180,7 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
           observed.set(name, null);
         }
         pending.delete(name);
-        for (const entry of readClientDraftJournals(storage))
+        for (const entry of indexedJournals.get(name) ?? [])
           if (
             entry.name === name &&
             entry.base === raw &&
@@ -157,26 +194,16 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
           (legacy !== undefined ? legacyStoragePayloadFingerprint(legacy) : undefined);
         if (fingerprint !== undefined) storage.setItem(migrationKey(name), fingerprint);
         legacyObserved.delete(name);
-        const retained = new Set(assetPaths(record));
+        const retained = new Set(assetPaths(record?.content));
         queueClientDraftAssetReclamation(
-          assetPaths(previous).filter((path) => !retained.has(path)),
+          assetPaths(previous?.content).filter((path) => !retained.has(path)),
         );
       } catch (error) {
         failure ??= error;
         if (record && record.revision > 0 && backup) {
-          const [kind, ownerId] = JSON.parse(name.slice(PREFIX.length)) as [DraftKind, string];
-          backup({
-            formatVersion: 1,
-            id: `checkpoint-conflict:${writerId}:${record.draftId}`,
-            draftId: record.draftId,
-            scope: JSON.stringify([kind, ownerId]),
-            revision: record.revision,
-            target: "local-checkpoint",
-            fingerprint: JSON.stringify(record.content),
-            state: "failed",
-            content: { checkpoint: { ...record, kind, ownerId }, recoveryContent: record.content },
-            assets: assetPaths(record),
-          });
+          backup(
+            recoverySubmission(name, record, `checkpoint-conflict:${writerId}:${record.draftId}`),
+          );
         }
       }
     }
@@ -222,16 +249,18 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
   function schedule() {
     if (timer !== undefined) return;
     timer = setTimeout(flush, 250);
-    lifecycle.addEventListener("pagehide", flush);
     lifecycle.document.addEventListener("visibilitychange", onVisibilityChange);
   }
   function onVisibilityChange() {
     if (lifecycle.document.visibilityState === "hidden") flush();
   }
+  const unregisterCloseFlusher = registerClientDraftCloseFlusher(flush);
   function load(kind: DraftKind): Record<string, DraftContent> {
     const drafts: Record<string, DraftContent> = {};
     const ids = new Set<string>();
     try {
+      const journals = readClientDraftJournals(storage);
+      const indexedJournals = journalIndex(journals);
       for (let index = 0; index < storage.length; index++) {
         const name = storage.key(index);
         const prefix = name?.startsWith(PREFIX)
@@ -257,7 +286,7 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
         const [recordKind, id] = JSON.parse(name.slice(PREFIX.length)) as [DraftKind, string];
         if (recordKind === kind) ids.add(id);
       }
-      for (const entry of readClientDraftJournals(storage)) {
+      for (const entry of journals) {
         try {
           const [recordKind, id] = JSON.parse(entry.name.slice(PREFIX.length)) as [
             DraftKind,
@@ -271,7 +300,7 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
       }
       for (const id of ids) {
         try {
-          const record = readRecord(kind, id);
+          const record = readRecord(kind, id, indexedJournals);
           if (record)
             Object.defineProperty(drafts, id, {
               value: record.content,
@@ -314,7 +343,7 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
     };
     records.set(name, record);
     pending.set(name, record);
-    protectClientDraftReferences(assetPaths(record));
+    protectClientDraftReferences(assetPaths(record?.content));
     schedule();
   }
   function remove(kind: DraftKind, id: string, discardSelection = false) {
@@ -380,16 +409,7 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
         /* unknown records disable reclamation at the caller */
       }
     }
-    return new Set(
-      drafts
-        .flatMap((draft) => [
-          ...draft.attachments.map((attachment) => attachment.path),
-          ...draft.segments.flatMap((segment) =>
-            segment.kind === "attachment" ? [segment.path] : [],
-          ),
-        ])
-        .filter(isClientDraftAsset),
-    );
+    return new Set(drafts.flatMap(assetPaths));
   }
   const api = {
     load,
@@ -436,23 +456,7 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
             restored.push(entry);
             continue;
           }
-          const [kind, ownerId] = JSON.parse(entry.name.slice(PREFIX.length)) as [
-            DraftKind,
-            string,
-          ];
-          const record = parsed.data;
-          backup({
-            formatVersion: 1,
-            id: "journal:" + entry.key,
-            draftId: record.draftId,
-            scope: JSON.stringify([kind, ownerId]),
-            revision: record.revision,
-            target: "local-checkpoint",
-            fingerprint: JSON.stringify(record.content),
-            state: "failed",
-            content: { checkpoint: { ...record, kind, ownerId }, recoveryContent: record.content },
-            assets: assetPaths(record),
-          });
+          backup(recoverySubmission(entry.name, parsed.data, "journal:" + entry.key));
           restored.push(entry);
         }
       });
@@ -494,7 +498,10 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
       });
       await flushRequired();
     },
-    dispose: stopTimer,
+    dispose() {
+      stopTimer();
+      unregisterCloseFlusher();
+    },
     async checkpoint(
       kind: DraftKind,
       ownerId: string,

@@ -90,7 +90,6 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
     project: { id: string; name: string };
     agentStatuses: Array<{ kind: string }>;
     pickFiles?: () => Promise<string[] | null>;
-    saveClipboardImage?: unknown;
     onProjectChange?: (projectId: string) => void;
     onStart: (input: unknown) => void | Promise<void>;
   }) => (
@@ -99,7 +98,6 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
       <output data-testid="agent-statuses">
         {props.agentStatuses.map((status) => status.kind).join(",")}
       </output>
-      {props.saveClipboardImage ? <output data-testid="has-clipboard-save">true</output> : null}
       <div data-composer-input-anchor="">
         <div role="textbox" contentEditable aria-label="Composer input" />
       </div>
@@ -433,7 +431,6 @@ describe("QuickComposerOverlay", () => {
     });
     expect(screen.getByText("Studio Home")).toBeInTheDocument();
     expect(screen.getByTestId("agent-statuses")).toHaveTextContent("remote-codex");
-    expect(screen.getByTestId("has-clipboard-save")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Pick files fixture" }));
     await act(async () => {
@@ -551,7 +548,7 @@ describe("QuickComposerOverlay", () => {
       await Promise.resolve();
     });
     expect(bridge.pickQuickComposerFiles).toHaveBeenCalledOnce();
-    expect(screen.queryByTestId("has-clipboard-save")).not.toBeInTheDocument();
+    expect(pickClientDraftFiles).not.toHaveBeenCalled();
   });
 
   it("does not refresh Git for a mirrored Home", () => {

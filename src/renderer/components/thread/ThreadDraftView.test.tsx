@@ -1,3 +1,5 @@
+import { listClientSubmissions } from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import type { LaunchExperimentInput } from "@/renderer/actions/experimentActions";
 import "@/renderer/testUtils/clientDraftDatabase";
 import {
   Children,
@@ -1424,6 +1426,79 @@ describe("ThreadDraftView", () => {
             ]),
           }),
         ),
+      );
+    },
+  );
+
+  it.each(["accepted", "partial", "cancelled", "newer"] as const)(
+    "preserves experiment draft lifecycle through client hooks (%s)",
+    async (outcome) => {
+      useGitStore.setState({
+        statuses: {
+          [project.id]: {
+            isRepo: true,
+            branch: "main",
+            tracking: "origin/main",
+            hasRemote: true,
+            remoteInfo: null,
+            ahead: 0,
+            behind: 0,
+            staged: [],
+            unstaged: [],
+            totalInsertions: 0,
+            totalDeletions: 0,
+          },
+        },
+      });
+      launchExperimentMock.mockImplementation(async (value) => {
+        const input = value as LaunchExperimentInput;
+        if (outcome === "cancelled") return null;
+        await input.prepareSegments!();
+        if (outcome === "newer")
+          useAppStore.getState().saveDraftContent(project.id, {
+            segments: [{ kind: "text", content: "Newer draft" }],
+            attachments: [],
+          });
+        if (outcome === "accepted" || outcome === "newer") await input.onAccepted!("experiment-1");
+        return "experiment-1";
+      });
+      render(
+        <ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />,
+      );
+      const initial = composerSpy.mock.lastCall?.[0] as {
+        afterControls: ReactElement<{ experiment?: { onToggle(enabled: boolean): void } }>;
+      };
+      act(() => initial.afterControls.props.experiment?.onToggle(true));
+      for (let index = 0; index < 2; index++) {
+        const composer = composerSpy.mock.lastCall?.[0] as { fixedContent: ReactNode };
+        const targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+        if (!targets) throw new Error("Expected experiment targets");
+        act(targets.props.onAdd as () => void);
+      }
+      const composer = composerSpy.mock.lastCall?.[0] as { inputContent: ReactElement };
+      const editorView = render(composer.inputContent);
+      const editor = editorView.container.querySelector<HTMLElement>('[contenteditable="true"]')!;
+      act(() => {
+        editor.textContent = "Submitted experiment";
+        fireEvent.input(editor);
+      });
+      fireEvent.click(screen.getByText("submit"));
+      await waitFor(() => expect(launchExperimentMock).toHaveBeenCalledOnce());
+      const pendingRecord = expect.objectContaining({
+        state: outcome === "partial" ? "uncertain" : "failed",
+      });
+      const expectedRecords =
+        outcome === "partial" || outcome === "cancelled" ? [pendingRecord] : [];
+      await waitFor(async () => expect(await listClientSubmissions()).toEqual(expectedRecords));
+      expect(useAppStore.getState().draftContents[project.id]?.segments).toEqual(
+        outcome === "accepted"
+          ? undefined
+          : [
+              {
+                kind: "text",
+                content: outcome === "newer" ? "Newer draft" : "Submitted experiment",
+              },
+            ],
       );
     },
   );

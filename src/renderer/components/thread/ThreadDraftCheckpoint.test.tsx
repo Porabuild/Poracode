@@ -1,7 +1,12 @@
+import {
+  TurnClientContextSource,
+  type TurnClientContextCapture,
+} from "@/renderer/components/composer/turnClientContext";
+import * as draftSubmission from "@/renderer/actions/clientDraftSubmission";
 import "@/renderer/testUtils/clientDraftDatabase";
 import "@/renderer/components/providers/bootstrap";
-import type { ReactNode } from "react";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import type { ReactNode, ComponentProps } from "react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -65,25 +70,30 @@ const draft = {
     { id: "file", name: "notes.txt", path: "/notes.txt", isImage: false, mimeType: "text/plain" },
   ],
 };
-function form(onStart = vi.fn<() => Promise<void>>()) {
+function form(
+  onStart: ComponentProps<typeof ThreadDraftComposerArea>["onStart"] = vi.fn<() => Promise<void>>(),
+  capture?: TurnClientContextCapture,
+) {
   return render(
-    <ThreadDraftComposerArea
-      project={project}
-      selectedAgent={agent}
-      config={{ model: "test" }}
-      controls={[]}
-      compact={false}
-      paneCount={1}
-      gitBranch={undefined}
-      worktreeMode={false}
-      supportsModePicker={false}
-      presentationMode="gui"
-      onConfigChange={() => {}}
-      onWorktreeModeChange={() => {}}
-      onSwitchBranch={() => {}}
-      onRememberPresentationMode={() => {}}
-      onStart={onStart}
-    />,
+    <TurnClientContextSource value={capture}>
+      <ThreadDraftComposerArea
+        project={project}
+        selectedAgent={agent}
+        config={{ model: "test" }}
+        controls={[]}
+        compact={false}
+        paneCount={1}
+        gitBranch={undefined}
+        worktreeMode={false}
+        supportsModePicker={false}
+        presentationMode="gui"
+        onConfigChange={() => {}}
+        onWorktreeModeChange={() => {}}
+        onSwitchBranch={() => {}}
+        onRememberPresentationMode={() => {}}
+        onStart={onStart}
+      />
+    </TurnClientContextSource>,
   );
 }
 beforeEach(async () => {
@@ -138,6 +148,71 @@ it("refuses another dispatch of an unchanged uncertain draft after reopening", a
     expect(onStart).toHaveBeenCalledOnce();
     expect(await listClientSubmissions()).toHaveLength(1);
     second.unmount();
+  } finally {
+    report.mockRestore();
+  }
+});
+
+it("captures browser focus before attachment preparation and keeps it out of recovery storage", async () => {
+  let activeTab = 4;
+  const capture = vi.fn<TurnClientContextCapture>(async () => ({
+    browserFocus: { activeTab: { tabId: activeTab, title: "Page" } },
+  }));
+  let finish!: () => void;
+  const materialize = vi.spyOn(draftSubmission, "materializeDraftSegments").mockImplementationOnce(
+    (_target, segments) =>
+      new Promise((resolve) => {
+        finish = () => resolve([...segments]);
+      }),
+  );
+  const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
+  try {
+    const onStart = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(
+        new RemoteClientError("Unknown delivery", 409, "command_outcome_uncertain"),
+      );
+    const view = form(onStart, capture);
+    fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+    expect(capture).toHaveBeenCalledOnce();
+    activeTab = 8;
+    await waitFor(() => expect(materialize).toHaveBeenCalledOnce());
+    await act(async () => finish());
+    await waitFor(() =>
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientContext: { browserFocus: { activeTab: { tabId: 4, title: "Page" } } },
+        }),
+      ),
+    );
+    const records = await listClientSubmissions();
+    expect(records[0]?.content).toEqual(
+      expect.objectContaining({
+        configuration: expect.not.objectContaining({ clientContext: expect.anything() }),
+      }),
+    );
+    expect(records[0]?.fingerprint).not.toContain("browserFocus");
+    view.unmount();
+  } finally {
+    materialize.mockRestore();
+    report.mockRestore();
+  }
+});
+
+it("retains the draft when required submit-time context rejects", async () => {
+  const capture = vi
+    .fn<TurnClientContextCapture>()
+    .mockRejectedValue(new Error("context unavailable"));
+  const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
+  try {
+    const onStart = vi.fn<() => Promise<void>>();
+    const view = form(onStart, capture);
+    fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+    await waitFor(() => expect(report).toHaveBeenCalledWith("context unavailable"));
+    expect(onStart).not.toHaveBeenCalled();
+    expect(useAppStore.getState().draftContents[project.id]).toEqual(draft);
+    expect(await listClientSubmissions()).toEqual([expect.objectContaining({ state: "failed" })]);
+    view.unmount();
   } finally {
     report.mockRestore();
   }

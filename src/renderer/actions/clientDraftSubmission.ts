@@ -1,7 +1,7 @@
 import { readDraftAsset } from "@/renderer/state/composerDrafts/readDraftAsset";
 import { clientDraftPersistenceError } from "@/renderer/state/composerDrafts/persistenceError";
 import { getRemoteBridgeClient } from "@/renderer/browser/remoteBridge";
-import { RemoteClientError, remoteMutationMayHaveCommitted } from "@/shared/remote/clientErrors";
+import { RemoteClientError } from "@/shared/remote/clientErrors";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { Project, PromptSegment, Thread } from "@/shared/contracts";
@@ -24,6 +24,7 @@ import {
   updateClientSubmission,
   discardClientSubmission,
   queueClientDraftAssetReclamation,
+  subscribeClientDraftSubmissions,
   type ClientDraftSubmission,
 } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { isRemoteCommandOutcomeUncertainError } from "./threadCommandOutcomeActions";
@@ -292,13 +293,23 @@ export async function dispatchDraftSubmission<T>(
     if (!submission.isTargetCurrent()) throw new Error(i18n._(msg`Remote server not found.`));
     return await run();
   } catch (error) {
-    const uncertain =
-      isRemoteCommandOutcomeUncertainError(error) || remoteMutationMayHaveCommitted(error);
+    const uncertain = isRemoteCommandOutcomeUncertainError(error);
     await updateClientSubmission(submission.id, uncertain ? "uncertain" : "failed").catch(
       () => undefined,
     );
     throw error;
   }
+}
+
+export function clientDraftRetirementError(cause: unknown, requestMayHaveCommitted = true) {
+  return new RemoteClientError(
+    i18n._(
+      msg`The host accepted this message, but local recovery cleanup failed. Check the thread before retrying.`,
+    ),
+    409,
+    "client_draft_retirement_failed",
+    { cause, requestMayHaveCommitted },
+  );
 }
 
 export async function acceptDraftSubmission(
@@ -314,14 +325,7 @@ export async function acceptDraftSubmission(
     if (record) queueClientDraftAssetReclamation(record.assets);
     return acknowledged;
   } catch (error) {
-    throw new RemoteClientError(
-      i18n._(
-        msg`The host accepted this message, but local recovery cleanup failed. Check the thread before retrying.`,
-      ),
-      409,
-      "client_draft_retirement_failed",
-      { cause: error, requestMayHaveCommitted: true },
-    );
+    throw clientDraftRetirementError(error);
   }
 }
 
@@ -347,14 +351,7 @@ export async function settleClientSubmission(
     await updateClientSubmission(id, state);
   } catch (error) {
     if (state !== "accepted") throw error;
-    throw new RemoteClientError(
-      i18n._(
-        msg`The host accepted this message, but local recovery cleanup failed. Check the thread before retrying.`,
-      ),
-      409,
-      "client_draft_retirement_failed",
-      { cause: error, requestMayHaveCommitted: true },
-    );
+    throw clientDraftRetirementError(error);
   }
 }
 
@@ -369,18 +366,55 @@ export async function waitForClientSubmission(id: string): Promise<void> {
       "command_outcome_uncertain",
       { ...(cause !== undefined ? { cause } : {}), requestMayHaveCommitted: true },
     );
-  const deadline = Date.now() + 10 * 60_000;
-  while (Date.now() < deadline) {
-    const record = await readClientSubmission(id).catch((error: unknown) => {
-      throw uncertain(error);
-    });
-    if (record?.state === "accepted") return;
-    if (!record || record.state === "uncertain") throw uncertain();
-    if (record.state === "failed")
-      throw new Error(
-        i18n._(msg`The thread could not be started. Your draft is still saved on this device.`),
-      );
-    await new Promise<void>((resolve) => setTimeout(resolve, 100));
-  }
-  throw uncertain();
+  return new Promise<void>((resolve, reject) => {
+    let finished = false;
+    let reading = false;
+    let refreshPending = false;
+    const finish = (error?: Error) => {
+      if (finished) return;
+      finished = true;
+      unsubscribe();
+      clearTimeout(deadline);
+      clearInterval(fallback);
+      if (error) reject(error);
+      else resolve();
+    };
+    const refresh = () => {
+      if (finished) return;
+      if (reading) {
+        refreshPending = true;
+        return;
+      }
+      reading = true;
+      void readClientSubmission(id)
+        .then(
+          (record) => {
+            if (record?.state === "accepted") finish();
+            else if (!record || record.state === "uncertain") finish(uncertain());
+            else if (record.state === "failed")
+              finish(
+                new Error(
+                  i18n._(
+                    msg`The thread could not be started. Your draft is still saved on this device.`,
+                  ),
+                ),
+              );
+          },
+          (error) => finish(uncertain(error)),
+        )
+        .finally(() => {
+          reading = false;
+          if (refreshPending) {
+            refreshPending = false;
+            refresh();
+          }
+        });
+    };
+    // Subscribe before reading so a receipt racing with the first read is observed.
+    const unsubscribe = subscribeClientDraftSubmissions(refresh);
+    const deadline = setTimeout(() => finish(uncertain()), 10 * 60_000);
+    // Notifications are advisory: older or restricted clients may not broadcast.
+    const fallback = setInterval(refresh, 1000);
+    refresh();
+  });
 }

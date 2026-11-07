@@ -20340,7 +20340,6 @@ msgid "The history notice could not be read from the server."
 msgstr "서버에서 기록 알림을 읽지 못했습니다."
 
 #: src/renderer/actions/clientDraftSubmission.ts
-#: src/renderer/actions/threadLaunchActions.ts
 msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
 msgstr "호스트가 이 메시지를 수락했지만 로컬 복구 사본 정리에 실패했습니다. 다시 시도하기 전에 스레드를 확인하세요."
 

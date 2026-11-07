@@ -433,9 +433,7 @@ function DraftViewContent(props: {
       agentStatuses={draftEnvironment.agentStatuses}
       isDetectingAgents={draftEnvironment.isDetectingAgents}
       {...(draftEnvironment.pickFiles ? { pickFiles: draftEnvironment.pickFiles } : {})}
-      {...(draftEnvironment.saveClipboardImage
-        ? { saveClipboardImage: draftEnvironment.saveClipboardImage }
-        : {})}
+
       {...(lastDraftConfig ? { lastDraftConfig } : {})}
       onStart={onStart}
     />

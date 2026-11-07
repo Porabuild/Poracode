@@ -78,7 +78,7 @@ export function ProjectSwitchMenu(props: {
     // Members are already the workspace's reachable rows.
     const target = pickGroupMember(entry.members, () => true);
     if (!target) return;
-    void switchDraftProject(currentProjectId, target.id, { paneId, onSelectProject });
+    switchDraftProject(currentProjectId, target.id, { paneId, onSelectProject });
   }
 
   /** Label for an entry: the current row's own name, else the anchor's. */

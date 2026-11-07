@@ -295,9 +295,7 @@ export function QuickComposerOverlay() {
             paneCount={1}
             composerPlaceholder={t`Ask ${project.name} anything about this workspace`}
             pickFiles={environment.pickFiles ?? (() => readBridge().pickQuickComposerFiles())}
-            {...(environment.saveClipboardImage
-              ? { saveClipboardImage: environment.saveClipboardImage }
-              : {})}
+
             onProjectChange={setSelectedProjectId}
             {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
             onStart={startThread}

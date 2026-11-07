@@ -75,7 +75,7 @@ import {
 } from "./threadSlashCommands";
 import { slashCommandDisplayId } from "./slashCommandMatching";
 import { composerMcpConfig } from "../composer/carryOverMcpConfig";
-import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
+import { useAttachments } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import {
@@ -145,7 +145,7 @@ export function ContinueInProviderDialog(props: {
   /** Thread-owner-aware file picker; remote panes pass one that uploads to the host. */
   pickFiles?: (() => Promise<string[] | null>) | undefined;
   /** Thread-owner-aware clipboard saver; remote panes upload pasted images to the host. */
-  saveClipboardImage?: SaveClipboardImage | undefined;
+
   onClose: () => void;
   onContinue: (
     targetAgentKind: string,
@@ -239,9 +239,7 @@ export function ContinueInProviderDialog(props: {
   // clips and offsets the fixed-position composer menus.
   const [mentionPortalRoot, setMentionPortalRoot] = useState<HTMLDivElement | null>(null);
   const attachments = useAttachments({
-    clientOwned: true,
     source: { ...(thread.remoteServerId ? { remoteServerId: thread.remoteServerId } : {}) },
-    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
 
   const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
@@ -1092,7 +1090,7 @@ export function ContinueInProviderDialog(props: {
                           onTextChange={() => undefined}
                           onPasteImage={(file) => {
                             void attachments
-                              .addClipboardImage(file, `handoff:${thread.id}`)
+                              .addClipboardImage(file)
                               .catch((error: unknown) => toast.danger(friendlyError(error)));
                           }}
                           onInterceptKey={(e) => {

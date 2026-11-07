@@ -42,34 +42,28 @@ describe("resolveHostFileAccess", () => {
     ["the host runs on this machine", host({ kind: "managed", runsOnThisMachine: true })],
   ])("leaves native dialogs and local saves alone when %s", (_case, owner) => {
     hosts.current = owner;
-    expect(resolveHostFileAccess({ id: "row" }, "thread")).toEqual({});
+    expect(resolveHostFileAccess({ id: "row" })).toEqual({});
   });
 
-  it.each(["thread", "draft"] as const)(
-    "keeps %s attachments on the client until submission",
-    async (scope) => {
-      hosts.current = host({ kind: "paired", connectionKey: "d1", hostId: "t1" });
-      const file = stageClientDraftAsset(
-        new Blob(["picked file"], { type: "text/plain" }),
-        "a.txt",
-      );
-      await file.saved;
-      vi.mocked(pickClientDraftFiles).mockResolvedValueOnce([file.path]);
-      const access = resolveHostFileAccess({ id: "row" }, scope);
-      expect(access.canShowProjectEntryInExplorer).toBe(false);
-      await expect(access.pickFiles?.()).resolves.toEqual([file.path]);
-      expect(pickAndUploadFiles).not.toHaveBeenCalled();
-      const data = new Uint8Array([1, 2, 255]);
-      const path = await access.saveClipboardImage!({
-        threadId: "view-id",
-        data,
-        extension: "png",
-      });
-      expect(isClientDraftAsset(path)).toBe(true);
-      const image = await readClientDraftAsset(path);
-      expect(image.mimeType).toBe("image/png");
-      expect(new Uint8Array(await image.blob.arrayBuffer())).toEqual(data);
-      expect(saveClipboardImage).not.toHaveBeenCalled();
-    },
-  );
+  it("keeps attachments on the client until submission", async () => {
+    hosts.current = host({ kind: "paired", connectionKey: "d1", hostId: "t1" });
+    const file = stageClientDraftAsset(new Blob(["picked file"], { type: "text/plain" }), "a.txt");
+    await file.saved;
+    vi.mocked(pickClientDraftFiles).mockResolvedValueOnce([file.path]);
+    const access = resolveHostFileAccess({ id: "row" });
+    expect(access.canShowProjectEntryInExplorer).toBe(false);
+    await expect(access.pickFiles?.()).resolves.toEqual([file.path]);
+    expect(pickAndUploadFiles).not.toHaveBeenCalled();
+    const data = new Uint8Array([1, 2, 255]);
+    const path = await access.saveClipboardImage!({
+      threadId: "view-id",
+      data,
+      extension: "png",
+    });
+    expect(isClientDraftAsset(path)).toBe(true);
+    const image = await readClientDraftAsset(path);
+    expect(image.mimeType).toBe("image/png");
+    expect(new Uint8Array(await image.blob.arrayBuffer())).toEqual(data);
+    expect(saveClipboardImage).not.toHaveBeenCalled();
+  });
 });

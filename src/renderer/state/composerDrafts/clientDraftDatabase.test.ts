@@ -171,3 +171,24 @@ describe("client-owned draft bytes and submissions", () => {
     expect(await listClientSubmissions()).toEqual([]);
   });
 });
+
+it("commits receipts when the browser denies BroadcastChannel", async () => {
+  const original = globalThis.BroadcastChannel;
+  vi.stubGlobal(
+    "BroadcastChannel",
+    class {
+      constructor() {
+        throw new Error("channel denied");
+      }
+    },
+  );
+  try {
+    const asset = stageClientDraftAsset(new Blob(["bytes"]), "file.txt");
+    const record = submission(asset.path);
+    await preserveClientSubmission(record);
+    await updateClientSubmission(record.id, "accepted");
+    expect(await listClientSubmissions()).toEqual([expect.objectContaining({ state: "accepted" })]);
+  } finally {
+    vi.stubGlobal("BroadcastChannel", original);
+  }
+});

@@ -40,6 +40,10 @@ import {
 import { ComposerVoiceInput } from "@/renderer/components/composer/ComposerVoiceInput";
 import { LiveVoiceButton } from "@/renderer/components/composer/LiveVoiceControls";
 import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
+import {
+  captureTurnClientContext,
+  useTurnClientContextCapture,
+} from "@/renderer/components/composer/turnClientContext";
 import { composerCustomMcpItems } from "@/renderer/components/composer/composerCustomMcpServers";
 import {
   composerMcpServers,
@@ -62,11 +66,7 @@ import {
 } from "@/renderer/components/composer/MentionInput";
 import { useThreadMentionItems } from "@/renderer/components/composer/useThreadMentionItems";
 import { useCrewMentionItems } from "@/renderer/components/crew/useCrewMentionItems";
-import {
-  storableAttachment,
-  useAttachments,
-  type SaveClipboardImage,
-} from "@/renderer/components/composer/useAttachments";
+import { storableAttachment, useAttachments } from "@/renderer/components/composer/useAttachments";
 import type { VoiceInputHandle } from "@/renderer/components/composer/VoiceInputButton";
 import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
@@ -345,7 +345,7 @@ export function ThreadDraftComposerArea(props: {
   /** Override mount autofocus without changing the active submit behavior. */
   autoFocus?: boolean;
   pickFiles?: () => Promise<string[] | null>;
-  saveClipboardImage?: SaveClipboardImage;
+
   onConfigChange: (patch: Partial<ThreadConfig>) => void;
   onWorktreeModeChange: (worktreeMode: boolean) => void;
   onSwitchBranch: (branch: string, createNew: boolean) => void;
@@ -355,6 +355,7 @@ export function ThreadDraftComposerArea(props: {
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const implicitMcpServers = useImplicitMcpServers();
+  const captureClientContext = useTurnClientContextCapture();
   const promptRef = useRef("");
   const [hasContent, setHasContent] = useState(false);
   // Set to true while an agent-binary update is running for this project's env.
@@ -390,12 +391,10 @@ export function ThreadDraftComposerArea(props: {
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const attachments = useAttachments({
-    clientOwned: true,
     onDraftChange: () => checkpointDraft(),
     source: {
       ...(props.project.remoteServerId ? { remoteServerId: props.project.remoteServerId } : {}),
     },
-    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
   // Remote-project attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
@@ -993,6 +992,7 @@ export function ThreadDraftComposerArea(props: {
       segments: submittedDraftSegments,
       attachments: attachments.getDraftAttachments(),
     };
+    const clientContextCapture = captureTurnClientContext(captureClientContext);
     setIsSubmitting(true);
     const useWorktree = branchSelection?.isWorktree ?? props.worktreeMode;
     if (props.supportsModePicker) {
@@ -1036,6 +1036,11 @@ export function ThreadDraftComposerArea(props: {
         });
         launchInput.threadId = submission.id;
         launchInput.clientSubmissionId = submission.id;
+      }
+      const captured = await clientContextCapture;
+      if ("error" in captured) throw captured.error;
+      if (captured.context) launchInput.clientContext = captured.context;
+      if (submission) {
         const wireSegments = await materializeDraftSegments(
           props.project,
           submission.segments,
@@ -1544,9 +1549,7 @@ export function ThreadDraftComposerArea(props: {
             onPasteImage={(file: File) => {
               cancelDraftVoice();
               void draftVoice
-                .trackOperation(() =>
-                  attachments.addClipboardImage(file, `draft:${props.project.id}`),
-                )
+                .trackOperation(() => attachments.addClipboardImage(file))
                 .catch((error: unknown) => toast.danger(friendlyError(error)));
             }}
             onSubmit={(segments) => {

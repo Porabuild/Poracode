@@ -1,5 +1,8 @@
-import { RemoteClientError, remoteMutationMayHaveCommitted } from "@/shared/remote/clientErrors";
-import { settleClientSubmission, materializeDraftSegments } from "./clientDraftSubmission";
+import {
+  settleClientSubmission,
+  materializeDraftSegments,
+  clientDraftRetirementError,
+} from "./clientDraftSubmission";
 import { isClientDraftAsset } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import {
   dropPendingThreadLaunch,
@@ -400,9 +403,7 @@ export async function startThreadFromDraft(
   } catch (error) {
     await settleClientSubmission(
       input.clientSubmissionId,
-      isRemoteCommandOutcomeUncertainError(error) || remoteMutationMayHaveCommitted(error)
-        ? "uncertain"
-        : "failed",
+      isRemoteCommandOutcomeUncertainError(error) ? "uncertain" : "failed",
     ).catch(() => undefined);
     throw error;
   }
@@ -415,14 +416,7 @@ export async function startThreadFromDraft(
     // The provider effect is already known. A client storage failure cannot
     // turn that accepted launch into a new retryable launch episode.
     await settleClientSubmission(input.clientSubmissionId, "uncertain").catch(() => undefined);
-    throw new RemoteClientError(
-      i18n._(
-        msg`The host accepted this message, but local recovery cleanup failed. Check the thread before retrying.`,
-      ),
-      409,
-      "client_draft_retirement_failed",
-      { cause: error, requestMayHaveCommitted: result === "accepted" },
-    );
+    throw clientDraftRetirementError(error, result === "accepted");
   }
   return result;
 }

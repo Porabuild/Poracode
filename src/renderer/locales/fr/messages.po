@@ -20339,7 +20339,6 @@ msgid "The history notice could not be read from the server."
 msgstr "L'avis d'historique n'a pas pu être lu depuis le serveur."
 
 #: src/renderer/actions/clientDraftSubmission.ts
-#: src/renderer/actions/threadLaunchActions.ts
 msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
 msgstr "L’hôte a accepté ce message, mais le nettoyage de la copie de récupération locale a échoué. Vérifiez le fil de discussion avant de réessayer."
 

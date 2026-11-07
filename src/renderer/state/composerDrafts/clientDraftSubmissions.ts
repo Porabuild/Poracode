@@ -165,14 +165,23 @@ function emitChange() {
 }
 function channel() {
   if (!changes && typeof BroadcastChannel !== "undefined" && typeof window !== "undefined") {
-    changes = new BroadcastChannel("poracode-client-draft-submissions-v1");
-    changes.onmessage = emitChange;
+    try {
+      changes = new BroadcastChannel("poracode-client-draft-submissions-v1");
+      changes.onmessage = emitChange;
+    } catch {
+      /* Local state and polling work without cross-window notifications. */
+    }
   }
   return changes;
 }
 export function notifyClientDraftSubmissions() {
   emitChange();
-  channel()?.postMessage("changed");
+  try {
+    channel()?.postMessage("changed");
+  } catch {
+    changes?.close();
+    changes = undefined;
+  }
 }
 export function subscribeClientDraftSubmissions(listener: () => void) {
   changeListeners.add(listener);

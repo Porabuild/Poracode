@@ -1,5 +1,4 @@
 import { settleClientSubmission } from "@/renderer/actions/clientDraftSubmission";
-import { remoteMutationMayHaveCommitted } from "@/shared/remote/clientErrors";
 import { captureSideChatTurnContext } from "./sideChatTurnContext";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { DEFAULT_TERMINAL_SIZE, type PromptSegment } from "@/shared/contracts";
@@ -241,8 +240,7 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
         setThreadId(thread.id);
       }
     } catch (error) {
-      const outcomeUncertain =
-        isRemoteCommandOutcomeUncertainError(error) || remoteMutationMayHaveCommitted(error);
+      const outcomeUncertain = isRemoteCommandOutcomeUncertainError(error);
       await settleClientSubmission(entry.id, outcomeUncertain ? "uncertain" : "failed").catch(
         () => undefined,
       );

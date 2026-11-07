@@ -77,7 +77,7 @@ export function ProjectEnvironmentMenu(
   function select(projectIdToOpen: string) {
     const target = environments.find((entry) => entry.project.id === projectIdToOpen);
     if (!target || !isSelectable(target) || projectIdToOpen === currentProjectId) return;
-    void switchDraftProject(currentProjectId, projectIdToOpen, props);
+    switchDraftProject(currentProjectId, projectIdToOpen, props);
   }
 
   const triggerContent = (

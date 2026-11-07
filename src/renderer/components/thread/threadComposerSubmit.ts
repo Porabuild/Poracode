@@ -1,4 +1,4 @@
-import { remoteMutationMayHaveCommitted } from "@/shared/remote/clientErrors";
+import { captureTurnClientContext } from "@/renderer/components/composer/turnClientContext";
 import {
   preserveDraftSubmission,
   materializeDraftSegments,
@@ -297,13 +297,7 @@ export function submitComposerPrompt(
   // Capture now, before approval denial or focus waits: the context belongs
   // to the moment the user sent this message.
   // Observe a capture rejection immediately, even while focus/approval awaits.
-  const clientContextCapture = (async () => {
-    try {
-      return { context: await ctx.captureClientContext?.() };
-    } catch (error) {
-      return { error };
-    }
-  })();
+  const clientContextCapture = captureTurnClientContext(ctx.captureClientContext);
   let clearedBeforeSendSettled = false;
   ctx.setIsSubmitting(true);
   let submission: DraftSubmission | undefined;
@@ -493,7 +487,7 @@ export function submitComposerPrompt(
           segments: submittedInputSegments,
           attachments: submittedAttachments.map(storableAttachment),
         });
-      if (isRemoteCommandOutcomeUncertainError(error) || remoteMutationMayHaveCommitted(error)) {
+      if (isRemoteCommandOutcomeUncertainError(error)) {
         // The command may have committed: the send action already reconciled
         // once and showed the localized uncertainty explanation. Keep the
         // optimistic paint and the saved draft, but do not restore the

@@ -674,7 +674,6 @@ describe("ThreadComposerSection", () => {
     onDismissError?: (sourceItemId: string) => void;
     onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
-    saveClipboardImage?: SaveClipboardImage;
     pickFiles?: () => Promise<string[] | null>;
     onComposerInsetChange?: (inset: number) => void;
   }) {
@@ -702,7 +701,7 @@ describe("ThreadComposerSection", () => {
         {...(opts?.onOpenProjectRelativePath
           ? { onOpenProjectRelativePath: opts.onOpenProjectRelativePath }
           : {})}
-        {...(opts?.saveClipboardImage ? { saveClipboardImage: opts.saveClipboardImage } : {})}
+
         {...(opts?.pickFiles ? { pickFiles: opts.pickFiles } : {})}
         {...(opts?.onComposerInsetChange
           ? { onComposerInsetChange: opts.onComposerInsetChange }
@@ -720,7 +719,6 @@ describe("ThreadComposerSection", () => {
     onDismissError?: (sourceItemId: string) => void;
     onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
-    saveClipboardImage?: SaveClipboardImage;
     pickFiles?: () => Promise<string[] | null>;
     onComposerInsetChange?: (inset: number) => void;
   }) {
@@ -2141,11 +2139,8 @@ describe("ThreadComposerSection", () => {
     const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
     const revokeObjectURL = vi.fn<(url: string) => void>();
     Object.assign(URL, { createObjectURL, revokeObjectURL });
-    const saveClipboardImage = vi.fn<SaveClipboardImage>(() =>
-      Promise.resolve("C:\\attachments\\thread-gui-idle\\image-1.png"),
-    );
     try {
-      const { rerender } = renderComposer({ saveClipboardImage });
+      const { rerender } = renderComposer({});
       const input = screen.getByRole("textbox");
       pasteImageFile(
         input,
@@ -2160,7 +2155,7 @@ describe("ThreadComposerSection", () => {
       // Switch to another thread: the composer shell stays mounted, saves the
       // draft, then clears the attachments (revoking the object URL) for the
       // next thread.
-      rerender(composerElement({ thread: secondGuiThread, saveClipboardImage }));
+      rerender(composerElement({ thread: secondGuiThread }));
 
       const savedDraft = useAppStore.getState().threadDraftContents[guiThread.id];
       expect(savedDraft?.attachments).toHaveLength(1);
@@ -2171,7 +2166,7 @@ describe("ThreadComposerSection", () => {
 
       // Switching back restores the attachment; its preview renders from the
       // durable saved file instead of the revoked object URL.
-      rerender(composerElement({ saveClipboardImage }));
+      rerender(composerElement({}));
       await waitFor(() => {
         expect(screen.getByAltText("Image 1.png")).toHaveAttribute("src", "blob:app/pasted-1");
       });
@@ -2822,14 +2817,11 @@ describe("ThreadComposerSection", () => {
     const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
     const revokeObjectURL = vi.fn<(url: string) => void>();
     Object.assign(URL, { createObjectURL, revokeObjectURL });
-    const saveClipboardImage = vi.fn<SaveClipboardImage>(() =>
-      Promise.resolve("C:\\attachments\\thread-gui-idle\\image-1.png"),
-    );
     const onSubmitInput = vi
       .fn<(prompt: string, segments?: unknown) => Promise<void>>()
       .mockRejectedValue(new Error("send failed"));
     try {
-      renderComposer({ onSubmitInput, saveClipboardImage });
+      renderComposer({ onSubmitInput });
       const input = screen.getByRole("textbox");
       pasteImageFile(
         input,
@@ -2860,9 +2852,6 @@ describe("ThreadComposerSection", () => {
     const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
     const revokeObjectURL = vi.fn<(url: string) => void>();
     Object.assign(URL, { createObjectURL, revokeObjectURL });
-    const saveClipboardImage = vi.fn<SaveClipboardImage>(() =>
-      Promise.resolve("C:\\attachments\\thread-gui-idle\\image-1.png"),
-    );
     let rejectSubmit: ((error: Error) => void) | undefined;
     const onSubmitInput = vi.fn<(prompt: string, segments?: unknown) => Promise<void>>(
       () =>
@@ -2871,7 +2860,7 @@ describe("ThreadComposerSection", () => {
         }),
     );
     try {
-      const { rerender } = renderComposer({ onSubmitInput, saveClipboardImage });
+      const { rerender } = renderComposer({ onSubmitInput });
       const input = screen.getByRole("textbox");
       pasteImageFile(
         input,
@@ -2885,7 +2874,7 @@ describe("ThreadComposerSection", () => {
       fireEvent.click(screen.getByText("send"));
       await waitFor(() => expect(onSubmitInput).toHaveBeenCalled());
 
-      rerender(composerElement({ thread: secondGuiThread, onSubmitInput, saveClipboardImage }));
+      rerender(composerElement({ thread: secondGuiThread, onSubmitInput }));
       await act(async () => {
         rejectSubmit?.(new Error("send failed"));
         await Promise.resolve();

@@ -250,9 +250,8 @@ export async function scanClientDraftAssetBacklog(): Promise<void> {
 
 const activeReclamations = new Set<{ transaction: IDBTransaction; paths: ReadonlySet<string> }>();
 export function protectClientDraftReferences(paths: readonly string[]) {
-  const retained = new Set(paths);
   for (const operation of activeReclamations)
-    if (paths.some((path) => operation.paths.has(path)) && retained.size > 0) {
+    if (paths.some((path) => operation.paths.has(path))) {
       try {
         operation.transaction.abort();
       } catch {

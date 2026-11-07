@@ -1468,7 +1468,6 @@ describe("ThreadSlashCommands", () => {
       );
       fireEvent.keyDown(editor, { key: "Enter" });
       await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
-      await waitFor(() => expect(onStart).toHaveBeenCalled());
       const submitted = onStart.mock.calls[0]?.[0] as {
         prompt: string;
         segments: PromptSegment[];

@@ -146,3 +146,61 @@ describe("draft checkpoint recovery and conditional retirement", () => {
     expect(localStorage.getItem(name)).toBe(future);
   });
 });
+
+it("indexes close journals once per bulk load and write", async () => {
+  class CountingStorage implements Storage {
+    values = new Map<string, string>();
+    keyVisits = 0;
+    get length() {
+      return this.values.size;
+    }
+    clear() {
+      this.values.clear();
+    }
+    getItem(key: string) {
+      return this.values.get(key) ?? null;
+    }
+    key(index: number) {
+      this.keyVisits++;
+      return [...this.values.keys()][index] ?? null;
+    }
+    removeItem(key: string) {
+      this.values.delete(key);
+    }
+    setItem(key: string, value: string) {
+      this.values.set(key, value);
+    }
+  }
+  const storage = new CountingStorage();
+  const count = 20;
+  for (let index = 0; index < count; index++)
+    storage.setItem(
+      "poracode-composer-draft-v2:" + JSON.stringify(["project", String(index)]),
+      JSON.stringify({
+        formatVersion: 2,
+        draftId: `draft-${index}`,
+        revision: 1,
+        content: content("before"),
+      }),
+    );
+  const store = createComposerDraftStorage(storage, window);
+  stores.push(store);
+  expect(Object.keys(store.load("project"))).toHaveLength(count);
+  expect(storage.keyVisits).toBeLessThanOrEqual(2 * count);
+  storage.keyVisits = 0;
+  for (let index = 0; index < count; index++)
+    store.save("project", String(index), content("after"));
+  await store.flushRequired();
+  expect(storage.keyVisits).toBeLessThanOrEqual(count);
+});
+
+it("retains both attachment-bar and attachment-segment asset references", () => {
+  const store = instance();
+  const segment = "poracode-draft-asset:segment/a.png";
+  const bar = "poracode-draft-asset:bar/b.png";
+  store.save("project", "p", {
+    segments: [{ kind: "attachment", path: segment }],
+    attachments: [{ id: "bar", name: "b.png", path: bar, isImage: true }],
+  });
+  expect(store.referencedAssets()).toEqual(new Set([segment, bar]));
+});

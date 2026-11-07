@@ -159,13 +159,19 @@ export function openAttachmentLightbox(
   }
   const generation = ++attachmentOpenGeneration;
   const urls: string[] = [];
+  let disposed = false;
   const release = () => {
+    disposed = true;
     for (const url of urls.splice(0)) URL.revokeObjectURL(url);
   };
   void Promise.all(
     attachments.map(async (attachment): Promise<LightboxImage> => {
       if (!isClientDraftAsset(attachment.path)) return describe(attachment);
       const { blob } = await readDraftAsset(attachment);
+      if (disposed || attachmentOpenGeneration !== generation) {
+        release();
+        throw new DOMException("Attachment preview closed", "AbortError");
+      }
       const src = URL.createObjectURL(blob);
       urls.push(src);
       return {
@@ -178,7 +184,7 @@ export function openAttachmentLightbox(
     }),
   )
     .then((images) => {
-      if (attachmentOpenGeneration !== generation) {
+      if (disposed || attachmentOpenGeneration !== generation) {
         release();
         return;
       }
@@ -186,6 +192,7 @@ export function openAttachmentLightbox(
     })
     .catch((error: unknown) => {
       release();
+      if (error instanceof DOMException && error.name === "AbortError") return;
       console.error("[poracode] draft image preview failed", error);
     });
 }

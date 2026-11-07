@@ -20339,7 +20339,6 @@ msgid "The history notice could not be read from the server."
 msgstr "无法从服务器读取历史记录通知。"
 
 #: src/renderer/actions/clientDraftSubmission.ts
-#: src/renderer/actions/threadLaunchActions.ts
 msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
 msgstr "主机已接受此消息，但未能清理本地恢复副本。请检查会话后再重试。"
 

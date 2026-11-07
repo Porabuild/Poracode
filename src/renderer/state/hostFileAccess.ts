@@ -21,13 +21,7 @@ export interface HostFileAccess {
 
 const NATIVE_FILE_ACCESS: HostFileAccess = {};
 
-/**
- * Scope remains part of the caller contract; neither scope contacts the host.
- */
-export function resolveHostFileAccess(
-  entity: Parameters<typeof entityHost>[0],
-  _scope: "thread" | "draft",
-): HostFileAccess {
+export function resolveHostFileAccess(entity: Parameters<typeof entityHost>[0]): HostFileAccess {
   const host = entityHost(entity);
   if (!isRemoteSession() && (!host || host.runsOnThisMachine || host.connectionKey === undefined)) {
     return NATIVE_FILE_ACCESS;

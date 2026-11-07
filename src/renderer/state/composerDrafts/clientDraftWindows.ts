@@ -9,6 +9,7 @@ let registration: Promise<void> | undefined;
 let lifetime: Promise<unknown> | undefined;
 let release: (() => void) | undefined;
 const listeners = new Set<() => void>();
+const closeFlushers = new Set<() => void>();
 const locks = () => (globalThis.navigator as Navigator | undefined)?.locks;
 
 function mark(value: string) {
@@ -23,11 +24,11 @@ function mark(value: string) {
 
 export function registerClientDraftWindow() {
   if (registered || registration || typeof window === "undefined") return;
+  // Publish custody before an async lock request or asset write can yield.
+  mark("active");
+  if (!registered) return;
   const manager = locks();
-  if (!manager?.request) {
-    mark("active");
-    return;
-  }
+  if (!manager?.request) return;
   const incarnation = generation;
   registration = new Promise<void>((ready) => {
     lifetime = manager
@@ -107,6 +108,13 @@ export function onClientDraftWindowReady(listener: () => void) {
   listeners.add(listener);
 }
 
+export function registerClientDraftCloseFlusher(flush: () => void): () => void {
+  closeFlushers.add(flush);
+  return () => {
+    closeFlushers.delete(flush);
+  };
+}
+
 async function retireWindow() {
   generation++;
   try {
@@ -124,6 +132,9 @@ async function retireWindow() {
 }
 if (typeof window !== "undefined")
   window.addEventListener("pagehide", (event) => {
+    // Native events can run microtasks between listeners. Checkpoint and retire
+    // in one callback so released custody always follows the durable references.
+    for (const flush of closeFlushers) flush();
     if (!event.persisted) void retireWindow();
   });
 export const resetClientDraftWindowForTest = retireWindow;

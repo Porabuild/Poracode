@@ -20340,7 +20340,6 @@ msgid "The history notice could not be read from the server."
 msgstr "Не вдалося прочитати сповіщення про історію із сервера."
 
 #: src/renderer/actions/clientDraftSubmission.ts
-#: src/renderer/actions/threadLaunchActions.ts
 msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
 msgstr "Хост прийняв повідомлення, але не вдалося видалити локальну копію для відновлення. Перевірте тред перед повторною спробою."
 

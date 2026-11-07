@@ -61,11 +61,7 @@ import {
 } from "../composer/MentionInput";
 import { useThreadMentionItems } from "../composer/useThreadMentionItems";
 import { useCrewMentionItems } from "../crew/useCrewMentionItems";
-import {
-  attachmentsFromPaths,
-  useAttachments,
-  type SaveClipboardImage,
-} from "../composer/useAttachments";
+import { attachmentsFromPaths, useAttachments } from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
 import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
@@ -172,7 +168,7 @@ type ThreadComposerSectionProps = {
   /** Called after a send is accepted, including queued and steered sends. */
   onSubmitSuccess?: (() => void) | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
-  saveClipboardImage?: SaveClipboardImage | undefined;
+
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
   /** Compact only: space the floating dock covers above the pane bottom. */
@@ -324,10 +320,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }, [thread.id, thread.status]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const attachments = useAttachments({
-    clientOwned: true,
     onDraftChange: () => checkpointDraft(),
     source: { ...(thread.remoteServerId ? { remoteServerId: thread.remoteServerId } : {}) },
-    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
   // Remote-thread attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
@@ -1518,7 +1512,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         onSubmit={submitPrompt}
                         onPasteImage={(file: File) => {
                           void attachments
-                            .addClipboardImage(file, thread.id)
+                            .addClipboardImage(file)
                             .catch((error: unknown) => toast.danger(friendlyError(error)));
                         }}
                         onInterceptKey={(e) => {
