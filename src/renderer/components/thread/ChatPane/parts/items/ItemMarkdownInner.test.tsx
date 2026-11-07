@@ -1136,6 +1136,19 @@ describe("ItemMarkdownInner", () => {
     expect(link.querySelector(".lucide-external-link")).not.toBeInTheDocument();
   });
 
+  it("resolves titles for links labeled only with their GitHub reference", async () => {
+    const pr = "https://github.com/acme/repo/pull/42";
+    render(
+      <AppProvider>
+        <ItemMarkdownInner text={`PR [#42](${pr}) landed; see [the fix](${pr}).`} />
+      </AppProvider>,
+    );
+    await act(async () => {});
+
+    expect(screen.getByRole("link", { name: "#42 · acme/repo" })).toHaveAttribute("href", pr);
+    expect(screen.getByRole("link", { name: "the fix" })).toHaveAttribute("href", pr);
+  });
+
   it("reports failed markdown link opens", async () => {
     const openExternal = vi
       .fn<(href: string) => Promise<void>>()

@@ -27,6 +27,7 @@ import { getProjectFsPath } from "@/shared/wsl";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { ChatExternalLink } from "./ChatExternalLink";
+import { shouldResolveChatLinkTitle } from "./chatLinkLabel";
 import { CodeBlock } from "./CodeBlock";
 import { CopyTextButton } from "./CopyTextButton";
 import { MarkdownImage } from "./MarkdownImage";
@@ -558,7 +559,7 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
     return (
       <ChatExternalLink
         href={href}
-        resolveTitle={flattenMdChildren(props.children).trim() === href}
+        resolveTitle={shouldResolveChatLinkTitle(flattenMdChildren(props.children), href)}
       >
         {props.children}
       </ChatExternalLink>

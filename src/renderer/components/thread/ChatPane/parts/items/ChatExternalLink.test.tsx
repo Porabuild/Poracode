@@ -18,20 +18,22 @@ describe("ChatExternalLink", () => {
     resolveLinkMetadata.mockReset().mockResolvedValue({ title: null, description: null });
   });
 
-  it("puts the destination favicon before a named link without a badge or hostname", () => {
+  it("renders a named link as an inline chip led by the destination favicon", () => {
     const { container } = render(
       <ChatExternalLink href="https://www.example.test/docs">Documentation</ChatExternalLink>,
     );
 
     const link = screen.getByRole("link", { name: "Documentation" });
     const favicon = container.querySelector("img");
+    expect(link).toHaveClass("poracode-inline-path-chip");
+    expect(link.firstElementChild).toHaveClass("poracode-inline-path-chip__icon");
     expect(link.firstElementChild).toContainElement(favicon);
+    expect(link.lastElementChild).toHaveClass("poracode-inline-path-chip__name");
+    expect(link.lastElementChild).toHaveTextContent("Documentation");
     expect(favicon).toHaveAttribute("src", "https://www.example.test/favicon.ico");
     expect(favicon).toHaveAttribute("referrerPolicy", "no-referrer");
     expect(favicon).toHaveClass("bg-transparent");
     expect(favicon?.getAttribute("style")).toContain("drop-shadow");
-    expect(link).not.toHaveClass("poracode-inline-path-chip");
-    expect(link).not.toHaveClass("border");
     expect(link).not.toHaveTextContent("www.example.test");
     expect(container.querySelector(".lucide-external-link")).not.toBeInTheDocument();
   });
@@ -56,6 +58,24 @@ describe("ChatExternalLink", () => {
     fireEvent.pointerEnter(link.parentElement!, { pointerType: "mouse" });
     expect(await screen.findByText("A concise page description")).toBeInTheDocument();
     expect(screen.getByText(href)).toBeInTheDocument();
+  });
+
+  it("shows a GitHub pull request title after its number", async () => {
+    const href = "https://github.com/acme/repo/pull/42";
+    resolveLinkMetadata.mockResolvedValue({
+      title: "Add link chips by dev · Pull Request #42 · acme/repo",
+      description: null,
+    });
+    render(
+      <ChatExternalLink href={href} resolveTitle>
+        #42
+      </ChatExternalLink>,
+    );
+
+    expect(await screen.findByRole("link", { name: "#42 · Add link chips" })).toHaveAttribute(
+      "href",
+      href,
+    );
   });
 
   it("uses the theme-colored GitHub mark instead of the dark site favicon", () => {
