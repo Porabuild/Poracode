@@ -2097,7 +2097,10 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     expect(screen.getByText("goal").parentElement).toHaveClass("poracode-slash-chip");
-    expect(screen.getByRole("link", { name: url })).toHaveAttribute("href", url);
+    expect(screen.getByRole("link", { name: "Tanstack virtual chat" })).toHaveAttribute(
+      "href",
+      url,
+    );
   });
 
   it("renders ACP skill commands with their short display name", async () => {
@@ -2146,7 +2149,7 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    fireEvent.click(screen.getByRole("link", { name: url }));
+    fireEvent.click(screen.getByRole("link", { name: "Tanstack virtual chat" }));
 
     await waitFor(() => {
       expect(toastDangerSpy).toHaveBeenCalledWith("open failed");

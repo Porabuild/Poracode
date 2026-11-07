@@ -5155,6 +5155,26 @@
         }
       },
       {
+        "id": "resolveLinkMetadata",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Link metadata previews are available to shared chat renderers; native clients do not invoke this host-side metadata read."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Link metadata previews are available to shared chat renderers; native clients do not invoke this host-side metadata read."
+          }
+        }
+      },
+      {
         "id": "listImportableSessions",
         "batch": "projects",
         "ios": {

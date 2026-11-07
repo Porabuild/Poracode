@@ -59,7 +59,7 @@ const UI_DISPOSITIONS = [
 
 const EXPECTED_COUNTS = {
   httpRoutes: 119,
-  procedures: 172,
+  procedures: 173,
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 12,
@@ -281,6 +281,7 @@ const PLANNED_ABSENCE_TOKENS: Record<
       "hexVoice",
       "getProviderUsage",
       "refreshProviderUsage",
+      "resolveLinkMetadata",
       "listImportableSessions",
       "getLatestAgentVersion",
       "refreshAgentStatuses",
