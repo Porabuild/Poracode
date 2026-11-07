@@ -1,3 +1,9 @@
+import "@/renderer/testUtils/clientDraftDatabase";
+import {
+  isClientDraftAsset,
+  readClientDraftAsset,
+  listClientSubmissions,
+} from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { keyDownAt } from "@/renderer/testUtils/keyboard";
 import {
   composerDraftStorage,
@@ -54,6 +60,9 @@ import { registerTerminalInputQueue, TerminalInputQueue } from "../terminal/term
 const bridgeMock = vi.hoisted(() => ({
   isRemoteSession: vi.fn<() => boolean>(() => false),
   isCompactClientSurface: vi.fn<() => boolean>(() => false),
+  saveClipboardImage: vi
+    .fn<SaveClipboardImage>()
+    .mockResolvedValue("C:\\attachments\\submitted.png"),
   clearPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -119,6 +128,7 @@ vi.mock("../../bridge", () => ({
   isCompactClientSurface: bridgeMock.isCompactClientSurface,
   readBridge: () => ({
     pickFiles: vi.fn<() => Promise<string[] | undefined>>().mockResolvedValue(undefined),
+    saveClipboardImage: bridgeMock.saveClipboardImage,
     clearPendingSteer: bridgeMock.clearPendingSteer,
     interruptThread: bridgeMock.interruptThread,
     setPendingSteer: bridgeMock.setPendingSteer,
@@ -664,7 +674,6 @@ describe("ThreadComposerSection", () => {
     onDismissError?: (sourceItemId: string) => void;
     onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
-    saveClipboardImage?: SaveClipboardImage;
     pickFiles?: () => Promise<string[] | null>;
     onComposerInsetChange?: (inset: number) => void;
   }) {
@@ -692,7 +701,7 @@ describe("ThreadComposerSection", () => {
         {...(opts?.onOpenProjectRelativePath
           ? { onOpenProjectRelativePath: opts.onOpenProjectRelativePath }
           : {})}
-        {...(opts?.saveClipboardImage ? { saveClipboardImage: opts.saveClipboardImage } : {})}
+
         {...(opts?.pickFiles ? { pickFiles: opts.pickFiles } : {})}
         {...(opts?.onComposerInsetChange
           ? { onComposerInsetChange: opts.onComposerInsetChange }
@@ -710,7 +719,6 @@ describe("ThreadComposerSection", () => {
     onDismissError?: (sourceItemId: string) => void;
     onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
-    saveClipboardImage?: SaveClipboardImage;
     pickFiles?: () => Promise<string[] | null>;
     onComposerInsetChange?: (inset: number) => void;
   }) {
@@ -834,7 +842,7 @@ describe("ThreadComposerSection", () => {
       expect(input).toHaveAttribute("contenteditable", "true");
       expect(send).toHaveAttribute("data-submit-disabled", "true");
       typeComposerText(input, "resume this thread");
-      expect(send).toHaveAttribute("data-submit-disabled", "false");
+      await waitFor(() => expect(send).toHaveAttribute("data-submit-disabled", "false"));
       fireEvent.click(send);
 
       await waitFor(() =>
@@ -905,7 +913,7 @@ describe("ThreadComposerSection", () => {
       expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
 
       await act(async () => finishSubmit());
-      expect(send).toHaveAttribute("data-submit-disabled", "false");
+      await waitFor(() => expect(send).toHaveAttribute("data-submit-disabled", "false"));
       fireEvent.click(send);
       await waitFor(() => expect(runtimeActions.submitThreadInput).toHaveBeenCalledTimes(2));
       expect(runtimeActions.submitThreadInput).toHaveBeenNthCalledWith(
@@ -2131,11 +2139,8 @@ describe("ThreadComposerSection", () => {
     const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
     const revokeObjectURL = vi.fn<(url: string) => void>();
     Object.assign(URL, { createObjectURL, revokeObjectURL });
-    const saveClipboardImage = vi.fn<SaveClipboardImage>(() =>
-      Promise.resolve("C:\\attachments\\thread-gui-idle\\image-1.png"),
-    );
     try {
-      const { rerender } = renderComposer({ saveClipboardImage });
+      const { rerender } = renderComposer({});
       const input = screen.getByRole("textbox");
       pasteImageFile(
         input,
@@ -2150,7 +2155,7 @@ describe("ThreadComposerSection", () => {
       // Switch to another thread: the composer shell stays mounted, saves the
       // draft, then clears the attachments (revoking the object URL) for the
       // next thread.
-      rerender(composerElement({ thread: secondGuiThread, saveClipboardImage }));
+      rerender(composerElement({ thread: secondGuiThread }));
 
       const savedDraft = useAppStore.getState().threadDraftContents[guiThread.id];
       expect(savedDraft?.attachments).toHaveLength(1);
@@ -2161,12 +2166,9 @@ describe("ThreadComposerSection", () => {
 
       // Switching back restores the attachment; its preview renders from the
       // durable saved file instead of the revoked object URL.
-      rerender(composerElement({ saveClipboardImage }));
+      rerender(composerElement({}));
       await waitFor(() => {
-        expect(screen.getByAltText("Image 1.png")).toHaveAttribute(
-          "src",
-          "poracode-local://local/C:/attachments/thread-gui-idle/image-1.png?thumb=32",
-        );
+        expect(screen.getByAltText("Image 1.png")).toHaveAttribute("src", "blob:app/pasted-1");
       });
       expect(screen.getByRole("textbox")).toHaveTextContent("unsent note");
     } finally {
@@ -2175,38 +2177,37 @@ describe("ThreadComposerSection", () => {
     }
   });
 
-  it("does not attach a pasted image that resolves after switching threads", async () => {
-    // jsdom does not implement object URLs.
-    const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
+  it("preserves a pending client import with the origin draft when switching threads", async () => {
+    const createObjectURL = vi.fn<() => string>(() => "blob:app/pasted-1");
     const revokeObjectURL = vi.fn<(url: string) => void>();
     Object.assign(URL, { createObjectURL, revokeObjectURL });
-    let resolveSave: ((path: string) => void) | undefined;
-    const saveClipboardImage = vi.fn<SaveClipboardImage>(
+    let finishRead!: (value: ArrayBuffer) => void;
+    const file = new File([new Uint8Array([1, 255])], "clipboard.png", { type: "image/png" });
+    vi.spyOn(file, "arrayBuffer").mockImplementationOnce(
       () =>
-        new Promise<string>((resolve) => {
-          resolveSave = resolve;
+        new Promise((resolve) => {
+          finishRead = resolve;
         }),
     );
     try {
-      const { rerender } = renderComposer({ saveClipboardImage });
-      pasteImageFile(
-        screen.getByRole("textbox"),
-        new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" }),
-      );
-      await waitFor(() => expect(saveClipboardImage).toHaveBeenCalled());
-
-      expect(screen.getByAltText("Image 1.png")).toHaveAttribute("src", "blob:app/pasted-1");
-
-      rerender(composerElement({ thread: secondGuiThread, saveClipboardImage }));
-      await act(async () => {
-        resolveSave?.("C:\\attachments\\thread-gui-idle\\image-1.png");
-        await Promise.resolve();
-        await Promise.resolve();
-      });
-
-      expect(createObjectURL).toHaveBeenCalledOnce();
-      expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
+      const { rerender } = renderComposer();
+      pasteImageFile(screen.getByRole("textbox"), file);
+      await waitFor(() => expect(finishRead).toBeTypeOf("function"));
+      rerender(composerElement({ thread: secondGuiThread }));
+      const draft = useAppStore.getState().threadDraftContents[guiThread.id];
+      expect(draft?.attachments).toHaveLength(1);
+      const path = draft!.attachments[0]!.path;
+      expect(isClientDraftAsset(path)).toBe(true);
+      await act(async () => finishRead(new Uint8Array([1, 255]).buffer));
       expect(screen.queryByAltText("Image 1.png")).toBeNull();
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
+      const asset = await readClientDraftAsset(path);
+      expect(new Uint8Array(await asset.blob.arrayBuffer())).toEqual(new Uint8Array([1, 255]));
+      await composerDraftStorage()?.flushRequired();
+      expect(
+        createComposerDraftStorage(localStorage, window).load("thread")[guiThread.id]
+          ?.attachments[0]?.path,
+      ).toBe(path);
     } finally {
       Reflect.deleteProperty(URL, "createObjectURL");
       Reflect.deleteProperty(URL, "revokeObjectURL");
@@ -2327,7 +2328,7 @@ describe("ThreadComposerSection", () => {
       expect(screen.queryByText("private-A.txt")).toBeNull();
       expect(screen.queryByText("private-B.txt")).toBeNull();
 
-      composerDraftStorage()?.flush();
+      await composerDraftStorage()?.flushRequired();
       const reloadedDrafts = createComposerDraftStorage(localStorage, window).load("thread");
       expect(reloadedDrafts[guiThread.id]).toEqual(savedDraft);
       expect(reloadedDrafts[secondGuiThread.id]).toEqual(activeDraft);
@@ -2664,7 +2665,7 @@ describe("ThreadComposerSection", () => {
     });
   });
 
-  it("does not re-save an in-flight terminal send as a stale draft when navigating away", async () => {
+  it("retires an in-flight terminal draft only after acceptance, including after unmount", async () => {
     // Terminal threads clear the composer only after the send resolves, so the
     // checkpoint must skip saving while a submit is in flight.
     let resolveSubmit: (() => void) | undefined;
@@ -2691,9 +2692,14 @@ describe("ThreadComposerSection", () => {
       ]);
     });
 
-    // Send is still pending — navigating away must not stash the sent text.
+    // Keep the captured draft and outbox until the host acknowledges it.
+    expect(await listClientSubmissions()).toEqual([
+      expect.objectContaining({ state: "dispatching" }),
+    ]);
     unmount();
-    expect(useAppStore.getState().threadDraftContents[terminalThread.id]).toBeUndefined();
+    expect(useAppStore.getState().threadDraftContents[terminalThread.id]?.segments).toEqual([
+      { kind: "text", content: "terminal message" },
+    ]);
 
     await act(async () => {
       resolveSubmit?.();
@@ -2734,7 +2740,7 @@ describe("ThreadComposerSection", () => {
     ]);
   });
 
-  it("clears the GUI ACP composer as soon as a direct send starts", async () => {
+  it("clears the GUI ACP composer after preserving the direct send", async () => {
     let resolveSubmit: (() => void) | undefined;
     const onSubmitInput = vi.fn<(prompt: string, segments?: unknown) => Promise<void>>(
       () =>
@@ -2771,7 +2777,11 @@ describe("ThreadComposerSection", () => {
     fireEvent.input(input);
     fireEvent.click(screen.getByText("send"));
 
-    expect(input.textContent).toBe("");
+    expect(input.textContent).toBe("slow send");
+    await waitFor(() => expect(input.textContent).toBe(""));
+    expect(await listClientSubmissions()).toEqual([
+      expect.objectContaining({ state: "dispatching" }),
+    ]);
     await waitFor(() => {
       expect(onSubmitInput).toHaveBeenCalledWith("slow send", [
         { kind: "text", content: "slow send" },
@@ -2807,14 +2817,11 @@ describe("ThreadComposerSection", () => {
     const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
     const revokeObjectURL = vi.fn<(url: string) => void>();
     Object.assign(URL, { createObjectURL, revokeObjectURL });
-    const saveClipboardImage = vi.fn<SaveClipboardImage>(() =>
-      Promise.resolve("C:\\attachments\\thread-gui-idle\\image-1.png"),
-    );
     const onSubmitInput = vi
       .fn<(prompt: string, segments?: unknown) => Promise<void>>()
       .mockRejectedValue(new Error("send failed"));
     try {
-      renderComposer({ onSubmitInput, saveClipboardImage });
+      renderComposer({ onSubmitInput });
       const input = screen.getByRole("textbox");
       pasteImageFile(
         input,
@@ -2822,7 +2829,9 @@ describe("ThreadComposerSection", () => {
       );
       await screen.findByAltText("Image 1.png");
       typeComposerText(input, "with a note");
-
+      await waitFor(() =>
+        expect(screen.getByText("send")).toHaveAttribute("data-submit-disabled", "false"),
+      );
       fireEvent.click(screen.getByText("send"));
 
       await waitFor(() => {
@@ -2831,10 +2840,7 @@ describe("ThreadComposerSection", () => {
       // The pre-send clear revoked the pasted bytes' object URL, so the
       // restored attachment must render from the durable saved file.
       expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
-      expect(screen.getByAltText("Image 1.png")).toHaveAttribute(
-        "src",
-        "poracode-local://local/C:/attachments/thread-gui-idle/image-1.png?thumb=32",
-      );
+      expect(await screen.findByAltText("Image 1.png")).toHaveAttribute("src", "blob:app/pasted-1");
     } finally {
       Reflect.deleteProperty(URL, "createObjectURL");
       Reflect.deleteProperty(URL, "revokeObjectURL");
@@ -2846,9 +2852,6 @@ describe("ThreadComposerSection", () => {
     const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/pasted-1");
     const revokeObjectURL = vi.fn<(url: string) => void>();
     Object.assign(URL, { createObjectURL, revokeObjectURL });
-    const saveClipboardImage = vi.fn<SaveClipboardImage>(() =>
-      Promise.resolve("C:\\attachments\\thread-gui-idle\\image-1.png"),
-    );
     let rejectSubmit: ((error: Error) => void) | undefined;
     const onSubmitInput = vi.fn<(prompt: string, segments?: unknown) => Promise<void>>(
       () =>
@@ -2857,7 +2860,7 @@ describe("ThreadComposerSection", () => {
         }),
     );
     try {
-      const { rerender } = renderComposer({ onSubmitInput, saveClipboardImage });
+      const { rerender } = renderComposer({ onSubmitInput });
       const input = screen.getByRole("textbox");
       pasteImageFile(
         input,
@@ -2865,10 +2868,13 @@ describe("ThreadComposerSection", () => {
       );
       await screen.findByAltText("Image 1.png");
       typeComposerText(input, "with a note");
+      await waitFor(() =>
+        expect(screen.getByText("send")).toHaveAttribute("data-submit-disabled", "false"),
+      );
       fireEvent.click(screen.getByText("send"));
       await waitFor(() => expect(onSubmitInput).toHaveBeenCalled());
 
-      rerender(composerElement({ thread: secondGuiThread, onSubmitInput, saveClipboardImage }));
+      rerender(composerElement({ thread: secondGuiThread, onSubmitInput }));
       await act(async () => {
         rejectSubmit?.(new Error("send failed"));
         await Promise.resolve();
@@ -2878,9 +2884,7 @@ describe("ThreadComposerSection", () => {
       const savedDraft = useAppStore.getState().threadDraftContents[guiThread.id];
       expect(savedDraft?.attachments).toHaveLength(1);
       expect(savedDraft?.attachments[0]).not.toHaveProperty("previewUrl");
-      expect(savedDraft?.attachments[0]?.path).toBe(
-        "C:\\attachments\\thread-gui-idle\\image-1.png",
-      );
+      expect(isClientDraftAsset(savedDraft!.attachments[0]!.path)).toBe(true);
       composerDraftStorage()?.flush();
       expect(composerDraftStorage()?.load("thread")[guiThread.id]).toEqual(savedDraft);
     } finally {
@@ -3448,11 +3452,15 @@ describe("ThreadComposerSection", () => {
     renderComposer({ thread: { ...guiThread, status: "inactive" }, onSubmitInput });
     typeComposerText(screen.getByRole("textbox"), "do not duplicate this follow up");
     fireEvent.click(screen.getByText("send"));
-    await waitFor(() => {
-      expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
-        { kind: "text", content: "do not duplicate this follow up" },
-      ]);
-    });
+    await waitFor(() => expect(onSubmitInput).toHaveBeenCalledTimes(1));
+    await waitFor(async () =>
+      expect(await listClientSubmissions()).toEqual([
+        expect.objectContaining({ state: "uncertain" }),
+      ]),
+    );
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "do not duplicate this follow up" },
+    ]);
     expect(screen.getByRole("textbox")).not.toHaveTextContent("do not duplicate this follow up");
     fireEvent.click(screen.getByText("send"));
     await act(async () => Promise.resolve());

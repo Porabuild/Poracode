@@ -1,3 +1,6 @@
+import { listClientSubmissions } from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import type { LaunchExperimentInput } from "@/renderer/actions/experimentActions";
+import "@/renderer/testUtils/clientDraftDatabase";
 import {
   Children,
   isValidElement,
@@ -19,6 +22,8 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
+
 import { liveVoice } from "@/renderer/speech/liveVoice";
 
 const { composerSpy, launchExperimentMock, newsLineMounts } = vi.hoisted(() => ({
@@ -550,13 +555,149 @@ describe("ThreadDraftView", () => {
       newsLineEnabled: true,
       sharedSettingsHydrated: true,
     });
-    useAppStore.setState({ pendingDraftWorktreeSelections: {}, draftVisit: 0 });
+    useAppStore.setState({
+      pendingDraftWorktreeSelections: {},
+      draftVisit: 0,
+      draftContents: {},
+      draftContentDiscardRequests: {},
+    });
     useRemoteServersStore.setState({
       servers: [],
       runtime: {},
       hostUpdates: {},
       hostUpdateRestarts: {},
     });
+  });
+
+  it("does not advance a client checkpoint during passive configuration reconciliation", async () => {
+    const storage = composerDraftStorage()!;
+    const checkpoint = await storage.checkpoint("project", project.id, {
+      segments: [{ kind: "text", content: "Foreground draft" }],
+      attachments: [],
+    });
+    const save = vi.spyOn(storage, "saveSelection");
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+    await storage.flushRequired();
+    expect(save).not.toHaveBeenCalled();
+    expect(storage.currentIdentity("project", project.id)).toEqual({
+      draftId: checkpoint.draftId,
+      revision: checkpoint.revision,
+    });
+    save.mockRestore();
+  });
+
+  it("persists an explicit selection without turning a later catalog correction into another edit", async () => {
+    const storage = composerDraftStorage()!;
+    const save = vi.spyOn(storage, "saveSelection");
+    const view = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() =>
+      expect(controls().some((control) => control.kind === "provider-model")).toBe(true),
+    );
+    const picker = controls().find((control) => control.kind === "provider-model");
+    if (picker?.kind !== "provider-model") throw new Error("Missing model picker");
+    act(() => picker.onChange({ agentKind: "codex", model: "gpt-5.4" }));
+    expect(storage.selection("project", project.id)?.model).toBe("gpt-5.4");
+    save.mockClear();
+    view.rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[
+          {
+            ...dualModeCodexStatus,
+            capabilities: {
+              ...dualModeCodexStatus.capabilities,
+              models: [{ id: "new-model", label: "New model" }],
+            },
+          },
+        ]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(controls().find((control) => control.kind === "provider-model")?.currentModel).toBe(
+        "new-model",
+      ),
+    );
+    expect(save).not.toHaveBeenCalled();
+    expect(storage.selection("project", project.id)?.model).toBe("gpt-5.4");
+    save.mockRestore();
+  });
+
+  it("does not revive a superseded deferred edit during passive provider fallback", async () => {
+    const storage = composerDraftStorage()!;
+    const save = vi.spyOn(storage, "saveSelection");
+    const empty = {
+      ...dualModeCodexStatus,
+      capabilities: { ...dualModeCodexStatus.capabilities, models: [] },
+    };
+    const view = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus, claudeStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() =>
+      expect(
+        controls().find((control) => control.kind === "provider-model")?.currentAgentKind,
+      ).toBe("codex"),
+    );
+    view.rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[empty, claudeStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const plan = controls().find(
+      (control) => control.kind === "toggle" && control.label === "Work",
+    );
+    if (plan?.kind !== "toggle") throw new Error("Missing Plan control");
+    act(() => plan.onChange?.(true));
+    const picker = controls().find((control) => control.kind === "provider-model");
+    if (picker?.kind !== "provider-model") throw new Error("Missing model picker");
+    act(() =>
+      picker.onChange({ agentKind: "claude", model: claudeStatus.capabilities.models[0]!.id }),
+    );
+    await waitFor(() =>
+      expect(
+        controls().find((control) => control.kind === "provider-model")?.currentAgentKind,
+      ).toBe("claude"),
+    );
+    save.mockClear();
+    view.rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(
+        controls().find((control) => control.kind === "provider-model")?.currentAgentKind,
+      ).toBe("codex"),
+    );
+    expect(save).not.toHaveBeenCalled();
+    save.mockRestore();
   });
 
   it("remounts the news line when a draft is opened again", async () => {
@@ -924,15 +1065,17 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "origin/main",
-        worktreeIsNewBranch: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "origin/main",
+          worktreeIsNewBranch: true,
+        }),
+      );
+    });
   });
 
-  it("defaults a new worktree to the tracking branch when the local branch is behind", () => {
+  it("defaults a new worktree to the tracking branch when the local branch is behind", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useGitStore.setState({
       statuses: {
@@ -960,15 +1103,17 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "origin/main",
-        worktreeIsNewBranch: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "origin/main",
+          worktreeIsNewBranch: true,
+        }),
+      );
+    });
   });
 
-  it("defaults a new worktree to the project default branch, not the current checkout", () => {
+  it("defaults a new worktree to the project default branch, not the current checkout", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useGitStore.setState({
       statuses: {
@@ -1013,12 +1158,14 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "origin/main",
-        worktreeIsNewBranch: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "origin/main",
+          worktreeIsNewBranch: true,
+        }),
+      );
+    });
   });
 
   it("keeps the uncommitted-changes worktree option after selecting a tracking branch", async () => {
@@ -1056,65 +1203,74 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "main",
-        worktreeIsNewBranch: true,
-        worktreeTransferUncommitted: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "main",
+          worktreeIsNewBranch: true,
+          worktreeTransferUncommitted: true,
+        }),
+      );
+    });
   });
 
   it.each([
     { pin: "develop", expected: "origin/develop" },
     { pin: "gone-branch", expected: "origin/main" },
-  ])("defaults a new worktree to the pinned base $pin when it exists", ({ pin, expected }) => {
-    const onStart = vi.fn<(input: unknown) => void>();
-    useGitStore.setState({
-      statuses: {
-        [project.id]: {
-          isRepo: true,
-          branch: "feature",
-          tracking: "origin/feature",
-          hasRemote: true,
-          remoteInfo: null,
-          ahead: 0,
-          behind: 0,
-          staged: [],
-          unstaged: [],
-          totalInsertions: 0,
-          totalDeletions: 0,
+  ])(
+    "defaults a new worktree to the pinned base $pin when it exists",
+    async ({ pin, expected }) => {
+      const onStart = vi.fn<(input: unknown) => void>();
+      useGitStore.setState({
+        statuses: {
+          [project.id]: {
+            isRepo: true,
+            branch: "feature",
+            tracking: "origin/feature",
+            hasRemote: true,
+            remoteInfo: null,
+            ahead: 0,
+            behind: 0,
+            staged: [],
+            unstaged: [],
+            totalInsertions: 0,
+            totalDeletions: 0,
+          },
         },
-      },
-      branches: {
-        [project.id]: {
-          current: "feature",
-          defaultBranch: "origin/main",
-          branches: [
-            { name: "feature", current: true, commit: "a", isRemote: false },
-            { name: "develop", current: false, commit: "b", isRemote: false },
-            { name: "develop", current: false, commit: "b", isRemote: true, remote: "origin" },
-            { name: "main", current: false, commit: "c", isRemote: true, remote: "origin" },
-          ],
+        branches: {
+          [project.id]: {
+            current: "feature",
+            defaultBranch: "origin/main",
+            branches: [
+              { name: "feature", current: true, commit: "a", isRemote: false },
+              { name: "develop", current: false, commit: "b", isRemote: false },
+              { name: "develop", current: false, commit: "b", isRemote: true, remote: "origin" },
+              { name: "main", current: false, commit: "c", isRemote: true, remote: "origin" },
+            ],
+          },
         },
-      },
-    });
+      });
 
-    render(
-      <ThreadDraftView
-        project={{ ...project, worktreeBaseBranch: pin }}
-        agentStatuses={[codexStatus]}
-        onStart={onStart}
-      />,
-    );
+      render(
+        <ThreadDraftView
+          project={{ ...project, worktreeBaseBranch: pin }}
+          agentStatuses={[codexStatus]}
+          onStart={onStart}
+        />,
+      );
 
-    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
-    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(expected);
+      fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+      expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(expected);
 
-    fireEvent.click(screen.getByText("set-prompt"));
-    fireEvent.click(screen.getByText("submit"));
-    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ worktreeBaseBranch: expected }));
-  });
+      fireEvent.click(screen.getByText("set-prompt"));
+      fireEvent.click(screen.getByText("submit"));
+      await waitFor(() => {
+        expect(onStart).toHaveBeenCalledWith(
+          expect.objectContaining({ worktreeBaseBranch: expected }),
+        );
+      });
+    },
+  );
 
   it("sets a branch from the picker as the project's default worktree base and selects it", async () => {
     const previousProjects = useAppStore.getState().projects;
@@ -1219,12 +1375,14 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "perf/dev-server",
-        worktreeTransferUncommitted: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "perf/dev-server",
+          worktreeTransferUncommitted: true,
+        }),
+      );
+    });
   });
 
   it("keeps the local checkout after selecting the branch in worktree + changes", async () => {
@@ -1274,13 +1432,15 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "main",
-        worktreeIsNewBranch: true,
-        worktreeTransferUncommitted: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "main",
+          worktreeIsNewBranch: true,
+          worktreeTransferUncommitted: true,
+        }),
+      );
+    });
   });
 
   it("keeps experiments on the local checkout instead of the project default branch", () => {
@@ -1398,6 +1558,79 @@ describe("ThreadDraftView", () => {
             ]),
           }),
         ),
+      );
+    },
+  );
+
+  it.each(["accepted", "partial", "cancelled", "newer"] as const)(
+    "preserves experiment draft lifecycle through client hooks (%s)",
+    async (outcome) => {
+      useGitStore.setState({
+        statuses: {
+          [project.id]: {
+            isRepo: true,
+            branch: "main",
+            tracking: "origin/main",
+            hasRemote: true,
+            remoteInfo: null,
+            ahead: 0,
+            behind: 0,
+            staged: [],
+            unstaged: [],
+            totalInsertions: 0,
+            totalDeletions: 0,
+          },
+        },
+      });
+      launchExperimentMock.mockImplementation(async (value) => {
+        const input = value as LaunchExperimentInput;
+        if (outcome === "cancelled") return null;
+        await input.prepareSegments!();
+        if (outcome === "newer")
+          useAppStore.getState().saveDraftContent(project.id, {
+            segments: [{ kind: "text", content: "Newer draft" }],
+            attachments: [],
+          });
+        if (outcome === "accepted" || outcome === "newer") await input.onAccepted!("experiment-1");
+        return "experiment-1";
+      });
+      render(
+        <ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />,
+      );
+      const initial = composerSpy.mock.lastCall?.[0] as {
+        afterControls: ReactElement<{ experiment?: { onToggle(enabled: boolean): void } }>;
+      };
+      act(() => initial.afterControls.props.experiment?.onToggle(true));
+      for (let index = 0; index < 2; index++) {
+        const composer = composerSpy.mock.lastCall?.[0] as { fixedContent: ReactNode };
+        const targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+        if (!targets) throw new Error("Expected experiment targets");
+        act(targets.props.onAdd as () => void);
+      }
+      const composer = composerSpy.mock.lastCall?.[0] as { inputContent: ReactElement };
+      const editorView = render(composer.inputContent);
+      const editor = editorView.container.querySelector<HTMLElement>('[contenteditable="true"]')!;
+      act(() => {
+        editor.textContent = "Submitted experiment";
+        fireEvent.input(editor);
+      });
+      fireEvent.click(screen.getByText("submit"));
+      await waitFor(() => expect(launchExperimentMock).toHaveBeenCalledOnce());
+      const pendingRecord = expect.objectContaining({
+        state: outcome === "partial" ? "uncertain" : "failed",
+      });
+      const expectedRecords =
+        outcome === "partial" || outcome === "cancelled" ? [pendingRecord] : [];
+      await waitFor(async () => expect(await listClientSubmissions()).toEqual(expectedRecords));
+      expect(useAppStore.getState().draftContents[project.id]?.segments).toEqual(
+        outcome === "accepted"
+          ? undefined
+          : [
+              {
+                kind: "text",
+                content: outcome === "newer" ? "Newer draft" : "Submitted experiment",
+              },
+            ],
       );
     },
   );
@@ -1721,7 +1954,9 @@ describe("ThreadDraftView", () => {
     const nextProps = composerSpy.mock.lastCall?.[0] as { onSubmit: () => void };
     act(() => nextProps.onSubmit());
 
-    expect(onStart).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledOnce();
+    });
     expect(onStart.mock.calls[0]?.[0]).toMatchObject({
       segments: [
         { kind: "attachment", path: "C:\\draft-note.txt", mimeType: "text/plain" },
@@ -1732,7 +1967,9 @@ describe("ThreadDraftView", () => {
 
     permission.resolve(stream);
     await waitFor(() => expect(track.stop).toHaveBeenCalledOnce());
-    expect(onStart).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledOnce();
+    });
   });
 
   it("cancels deferred draft voice when an attachment is added", async () => {
@@ -2433,18 +2670,22 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith({
-      agentKind: "codex",
-      config: {
-        model: "gpt-5.4",
-        effort: "high",
-        mode: "agent",
-        approvalPolicy: "on-request",
-        approvalsReviewer: "auto_review",
-        sandboxMode: "workspace-write",
-      },
-      presentationMode: "gui",
-      prompt: "hello world",
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith({
+        threadId: expect.any(String),
+        clientSubmissionId: expect.any(String),
+        agentKind: "codex",
+        config: {
+          model: "gpt-5.4",
+          effort: "high",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "auto_review",
+          sandboxMode: "workspace-write",
+        },
+        presentationMode: "gui",
+        prompt: "hello world",
+      });
     });
   });
 
@@ -2500,11 +2741,13 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        config: expect.objectContaining({ contextSize: "400k", effort: "xhigh" }),
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({ contextSize: "400k", effort: "xhigh" }),
+        }),
+      );
+    });
   });
 
   it("keeps an explicit Codex context choice made before settings hydrate", async () => {
@@ -2558,11 +2801,13 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        config: expect.objectContaining({ contextSize: "1m" }),
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({ contextSize: "1m" }),
+        }),
+      );
+    });
   });
 
   it("launches with a per-draft workflow mode without saving it as a default", async () => {
@@ -2606,11 +2851,13 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        config: expect.objectContaining({ model: "composer-2", workflows: true }),
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({ model: "composer-2", workflows: true }),
+        }),
+      );
+    });
   });
 
   it("turns the draft workflow mode off when the model changes", async () => {
@@ -2695,11 +2942,13 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        config: expect.objectContaining({ fast: false }),
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({ fast: false }),
+        }),
+      );
+    });
   });
 
   it("keeps a globally disabled built-in out of the composer and launch config", async () => {
@@ -2726,7 +2975,9 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledTimes(1);
+    });
     expect((onStart.mock.lastCall![0] as { config: object }).config).not.toHaveProperty(
       "browserMcp",
     );
@@ -2766,18 +3017,22 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith({
-      agentKind: "codex",
-      config: {
-        model: "gpt-5.4",
-        effort: "high",
-        mode: "agent",
-        approvalPolicy: "on-request",
-        approvalsReviewer: "user",
-        sandboxMode: "workspace-write",
-      },
-      presentationMode: "gui",
-      prompt: "hello world",
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith({
+        threadId: expect.any(String),
+        clientSubmissionId: expect.any(String),
+        agentKind: "codex",
+        config: {
+          model: "gpt-5.4",
+          effort: "high",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "user",
+          sandboxMode: "workspace-write",
+        },
+        presentationMode: "gui",
+        prompt: "hello world",
+      });
     });
   });
 
@@ -2800,7 +3055,9 @@ describe("ThreadDraftView", () => {
       fireEvent.click(screen.getByText("submit"));
     });
 
-    expect(onStart).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledTimes(1);
+    });
 
     // Once the rejection settles the composer is interactive again rather than
     // frozen on the launch spinner with the prompt trapped behind it.
@@ -2850,18 +3107,22 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith({
-      agentKind: "codex",
-      config: {
-        model: "gpt-5.4",
-        effort: "high",
-        mode: "agent",
-        approvalPolicy: "on-request",
-        approvalsReviewer: "auto_review",
-        sandboxMode: "workspace-write",
-      },
-      presentationMode: "gui",
-      prompt: "hello world",
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith({
+        threadId: expect.any(String),
+        clientSubmissionId: expect.any(String),
+        agentKind: "codex",
+        config: {
+          model: "gpt-5.4",
+          effort: "high",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "auto_review",
+          sandboxMode: "workspace-write",
+        },
+        presentationMode: "gui",
+        prompt: "hello world",
+      });
     });
   });
 
@@ -2890,15 +3151,19 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith({
-      agentKind: "acp-generic:example-agent",
-      config: {
-        model: "model-a",
-        mode: "agent",
-        approvalPolicy: "never",
-      },
-      presentationMode: "gui",
-      prompt: "hello world",
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith({
+        threadId: expect.any(String),
+        clientSubmissionId: expect.any(String),
+        agentKind: "acp-generic:example-agent",
+        config: {
+          model: "model-a",
+          mode: "agent",
+          approvalPolicy: "never",
+        },
+        presentationMode: "gui",
+        prompt: "hello world",
+      });
     });
   });
 
@@ -3912,6 +4177,7 @@ describe("ThreadDraftView model family drafts", () => {
 
       fireEvent.click(screen.getByText("set-prompt"));
       fireEvent.click(screen.getByText("submit"));
+      await waitFor(() => expect(onStart).toHaveBeenCalled());
       const launched = (
         onStart.mock.lastCall?.[0] as { config: Record<string, unknown> } | undefined
       )?.config;
@@ -3988,6 +4254,7 @@ describe("ThreadDraftView model family drafts", () => {
 
       fireEvent.click(screen.getByText("set-prompt"));
       fireEvent.click(screen.getByText("submit"));
+      await waitFor(() => expect(onStart).toHaveBeenCalled());
       const [launch] = onStart.mock.lastCall ?? [];
       const launched = (launch as { config: ThreadConfig }).config;
       expect(launched).toMatchObject({ ...tuple, selectionBinding: binding });

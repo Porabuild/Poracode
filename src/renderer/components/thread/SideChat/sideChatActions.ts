@@ -45,7 +45,7 @@ export async function openSideChat(
   sourceThreadId: string,
   prompt = "",
   segments?: PromptSegment[],
-  options?: { autoStart?: boolean },
+  options?: { autoStart?: boolean; clientSubmissionId?: string },
 ): Promise<boolean> {
   const existing = opening.get(sourceThreadId);
   if (existing) return false;
@@ -62,7 +62,7 @@ async function performOpen(
   sourceThreadId: string,
   prompt: string,
   segments?: PromptSegment[],
-  options?: { autoStart?: boolean },
+  options?: { autoStart?: boolean; clientSubmissionId?: string },
 ): Promise<boolean> {
   const source = useAppStore.getState().threads.find((thread) => thread.id === sourceThreadId);
   const open = readBridge().openSideChatPanel;
@@ -84,6 +84,7 @@ async function performOpen(
   const title = i18n._(msg`Side chat: ${source.title}`);
   const snapshot = structuredClone(source);
   await open({
+    ...(options?.clientSubmissionId ? { id: options.clientSubmissionId } : {}),
     source: snapshot,
     title,
     context: null,

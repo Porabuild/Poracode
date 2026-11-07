@@ -119,10 +119,10 @@ describe("appStore runtime config sync", () => {
           attachments: [],
         });
       }
-      composerDraftStorage()?.flush();
+      await composerDraftStorage()?.flushRequired();
       expect(writes.mock.calls.filter(([name]) => name === "poracode-app-v2")).toHaveLength(0);
       expect(
-        writes.mock.calls.filter(([name]) => name.startsWith("poracode-composer-draft-v1:")),
+        writes.mock.calls.filter(([name]) => name.startsWith("poracode-composer-draft-v2:")),
       ).toHaveLength(1);
       // Draft-only changes never re-commit the full app metadata.
       await new Promise((resolve) => setTimeout(resolve, 0));

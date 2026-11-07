@@ -27,7 +27,11 @@ export interface UndoHistory<T> {
   redo(): T | null;
 }
 
-export function createUndoHistory<T>(options: { initial: T; now?: () => number }): UndoHistory<T> {
+export function createUndoHistory<T>(options: {
+  initial: T;
+  now?: () => number;
+  onDiscard?: (state: T, retained: readonly T[]) => void;
+}): UndoHistory<T> {
   const now = options.now ?? Date.now;
   let states: T[] = [options.initial];
   let index = 0;
@@ -46,20 +50,26 @@ export function createUndoHistory<T>(options: { initial: T; now?: () => number }
         index > 0 &&
         time - lastRecordAt < MERGE_WINDOW_MS;
       if (!merge) index += 1;
-      states.splice(index, states.length, state);
+      const discarded = states.splice(index, states.length, state);
+      for (const previous of discarded) options.onDiscard?.(previous, states);
       if (states.length > MAX_UNDO_STEPS + 1) {
-        states.shift();
+        const previous = states.shift()!;
+        options.onDiscard?.(previous, states);
         index -= 1;
       }
       lastGroup = group ?? null;
       lastRecordAt = time;
     },
     replaceCurrent(state) {
+      const previous = states[index]!;
       states[index] = state;
+      options.onDiscard?.(previous, states);
       lastGroup = null;
     },
     reset(state) {
+      const discarded = states;
       states = [state];
+      for (const previous of discarded) options.onDiscard?.(previous, states);
       index = 0;
       lastGroup = null;
     },

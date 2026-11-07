@@ -73,9 +73,8 @@ export function ThreadPane(props: {
 
   const isDragging = useIsDraggingPane(props.threadId);
   const dropIndicator = usePaneDropIndicatorState(props.threadId);
-  // Picked files and pasted images must land where the owning host can read
-  // them; the agent runs there and cannot read a path saved on this machine.
-  const fileAccess = resolveHostFileAccess(thread, "thread");
+  // Import picked files on this client; explicit submission uploads to the owner.
+  const { saveClipboardImage: _captureAdapter, ...fileAccess } = resolveHostFileAccess(thread);
   if (!thread) return null;
   if (!project) return null;
   if (experiment && !thread.worktreePath) {

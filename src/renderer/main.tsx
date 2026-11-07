@@ -205,7 +205,10 @@ const localeBootstrapPromise = bootstrapAppLocaleFromCache().then(() => {
 });
 
 void Promise.all([appModulePromise, providerBootstrapPromise, localeBootstrapPromise])
-  .then(([{ App }]) => {
+  .then(async ([{ App }]) => {
+    const { initializeClientDraftRecovery } =
+      await import("./state/composerDrafts/initializeRecovery");
+    await initializeClientDraftRecovery();
     logRendererBootstrap("rendering React app");
     reactRoot?.render(
       <RendererErrorBoundary captureCaughtErrors={false}>

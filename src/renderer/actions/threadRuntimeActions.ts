@@ -1,4 +1,6 @@
 import { withThreadConfigSubmission } from "./threadConfigSubmission";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 import type {
   ProjectLocation,
   PromptSegment,
@@ -279,7 +281,7 @@ export async function submitThreadInput(
   } = {},
 ): Promise<void> {
   const resolved = resolveThreadProjectLocation(threadId);
-  if (!resolved) return;
+  if (!resolved) throw new Error(i18n._(msg`Thread not found.`));
   const { thread, projectLocation } = resolved;
   await performThreadInputSubmit({
     thread,
@@ -294,7 +296,8 @@ export async function submitThreadInput(
       // Abort if the thread or project disappeared (or changed ownership)
       // between send and resume — relaunching a deleted row would recreate it.
       const latest = resolveThreadProjectLocation(threadId);
-      if (!latest || hostRunsOnThisMachine(latest.thread) !== hostRunsOnThisMachine(thread)) return;
+      if (!latest || hostRunsOnThisMachine(latest.thread) !== hostRunsOnThisMachine(thread))
+        throw new Error(i18n._(msg`Thread not found.`));
       await performInitialThreadLaunch({
         thread: latest.thread,
         projectLocation: latest.projectLocation,

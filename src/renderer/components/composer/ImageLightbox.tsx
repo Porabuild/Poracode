@@ -1,3 +1,6 @@
+import { isClientDraftAsset } from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import { readDraftAsset } from "@/renderer/state/composerDrafts/readDraftAsset";
+import { resolveThreadImageAuthority } from "../thread/threadImageAuthority";
 import { memo, useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
@@ -42,10 +45,12 @@ type LightboxState = {
    * {@link updateImageLightboxFromThread} as pending host-held blobs resolve.
    */
   liveThreadId: string | null;
+  dispose?: () => void;
 };
 
 let lightboxState: LightboxState | null = null;
 let lightboxNonce = 0;
+let attachmentOpenGeneration = 0;
 const lightboxListeners = new Set<() => void>();
 
 export function imageLightboxRevision(): number {
@@ -70,14 +75,17 @@ function getLightboxSnapshot(): LightboxState | null {
 export function openImageLightbox(
   images: readonly LightboxImage[],
   initialIndex: number,
-  options?: { readonly liveThreadId?: string },
+  options?: { readonly liveThreadId?: string; readonly onClose?: () => void },
 ): void {
   if (images.length === 0) return;
+  attachmentOpenGeneration++;
+  lightboxState?.dispose?.();
   lightboxState = {
     images: [...images],
     initialIndex: Math.min(Math.max(0, initialIndex), images.length - 1),
     nonce: ++lightboxNonce,
     liveThreadId: options?.liveThreadId ?? null,
+    ...(options?.onClose ? { dispose: options.onClose } : {}),
   };
   emitLightboxChange();
 }
@@ -129,19 +137,70 @@ export function openAttachmentLightbox(
   initialIndex: number,
   imageUrlForPath?: (path: string) => string,
 ): void {
-  openImageLightbox(
-    attachments.map((img) => ({
-      src: attachmentImageUrl(img, imageUrlForPath),
-      alt: img.name,
-      fileName: img.name,
-      ...(img.mimeType ? { mime: img.mimeType } : {}),
-    })),
-    initialIndex,
-  );
+  const describe = (attachment: Attachment): LightboxImage => ({
+    src: attachmentImageUrl(
+      attachment,
+      attachment.source
+        ? resolveThreadImageAuthority({
+            id: "attachment-preview",
+            ...(attachment.source.remoteServerId
+              ? { remoteServerId: attachment.source.remoteServerId }
+              : {}),
+          }).localImageUrl
+        : imageUrlForPath,
+    ),
+    alt: attachment.name,
+    fileName: attachment.name,
+    ...(attachment.mimeType ? { mime: attachment.mimeType } : {}),
+  });
+  if (!attachments.some((attachment) => isClientDraftAsset(attachment.path))) {
+    openImageLightbox(attachments.map(describe), initialIndex);
+    return;
+  }
+  const generation = ++attachmentOpenGeneration;
+  const urls: string[] = [];
+  let disposed = false;
+  const release = () => {
+    disposed = true;
+    for (const url of urls.splice(0)) URL.revokeObjectURL(url);
+  };
+  void Promise.all(
+    attachments.map(async (attachment): Promise<LightboxImage> => {
+      if (!isClientDraftAsset(attachment.path)) return describe(attachment);
+      const { blob } = await readDraftAsset(attachment);
+      if (disposed || attachmentOpenGeneration !== generation) {
+        release();
+        throw new DOMException("Attachment preview closed", "AbortError");
+      }
+      const src = URL.createObjectURL(blob);
+      urls.push(src);
+      return {
+        src,
+        alt: attachment.name,
+        fileName: attachment.name,
+        mime: blob.type,
+        readBytes: async () => new Uint8Array(await blob.arrayBuffer()),
+      };
+    }),
+  )
+    .then((images) => {
+      if (disposed || attachmentOpenGeneration !== generation) {
+        release();
+        return;
+      }
+      openImageLightbox(images, initialIndex, { onClose: release });
+    })
+    .catch((error: unknown) => {
+      release();
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      console.error("[poracode] draft image preview failed", error);
+    });
 }
 
 export function closeImageLightbox(): void {
+  attachmentOpenGeneration++;
   if (lightboxState === null) return;
+  lightboxState.dispose?.();
   lightboxNonce++;
   lightboxState = null;
   emitLightboxChange();

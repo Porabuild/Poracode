@@ -23,16 +23,13 @@ import {
 } from "./clientEnvironments.testSupport";
 import type { RemoteEnvironmentClient as RemoteEnvironmentClientType } from "./clientEnvironments";
 
-/** Reaches the private byte fetcher to assert the typed repair outcome. */
+/** Direct image actions must preserve the cache's typed authority outcomes. */
 function fetchImageBytesForTest(
   client: RemoteEnvironmentClientType,
   requestPath: string,
   signal: AbortSignal,
 ): Promise<unknown> {
-  const internals = client as unknown as {
-    fetchImageBytes: (path: string, abort: AbortSignal) => Promise<unknown>;
-  };
-  return internals.fetchImageBytes(requestPath, signal);
+  return client.fetchTicketedImageBytes(requestPath, signal);
 }
 
 function buildClient(
@@ -69,6 +66,36 @@ function buildClient(
 }
 
 describe("RemoteEnvironmentClient image auth recovery", () => {
+  it("routes direct image reads through both environment authorities", async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    const harness = buildClient([() => bytesResponse(bytes)]);
+    expect(
+      await harness.client.fetchTicketedImageBytes(
+        "/api/files/image?path=%2Ftmp%2Fclipboard.png",
+        new AbortController().signal,
+      ),
+    ).toEqual({ bytes, contentType: "image/png" });
+    expect(harness.requests[0]?.url.pathname).toBe(
+      `/api/environments/${TEST_ENVIRONMENT_ID}/proxy/api/files/image`,
+    );
+    expect(harness.requests[0]?.headers[ENVIRONMENT_AUTHORIZATION_HEADER]).toBe(
+      "Bearer parent-access",
+    );
+    expect(harness.requests[0]?.headers.authorization).toBe("Bearer child-access");
+  });
+
+  it.each([
+    "https://other.test/api/files/image?path=x",
+    "/api/settings?path=x",
+    "/api/files/image",
+  ])("refuses unowned direct image request %s before sending credentials", async (path) => {
+    const harness = buildClient([]);
+    await expect(
+      harness.client.fetchTicketedImageBytes(path, new AbortController().signal),
+    ).rejects.toMatchObject({ code: "invalid_path" });
+    expect(harness.requests).toEqual([]);
+  });
+
   it("refreshes the parent once and replays on a marker-proven parent 401", async () => {
     const harness = buildClient([
       () =>

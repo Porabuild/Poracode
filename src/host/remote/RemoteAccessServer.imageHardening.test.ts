@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RemoteAccessServer, type RemoteAccessServerOptions } from "./RemoteAccessServer";
+import { RemoteDesktopClient } from "@/shared/remote/client";
 
 const dbGetThreadRuntimeItemCommitted = vi.fn<(...args: unknown[]) => unknown>();
 const dbGetThreadRuntimeItem = vi.fn<(...args: unknown[]) => Promise<unknown>>(async (...args) =>
@@ -67,6 +68,27 @@ const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x08]);
 const SVG_TEXT = `<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><rect width="4" height="4"/></svg>`;
 
 describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => {
+  it("lets image transfers read bytes without granting project management access", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-image-transfer-scope-"));
+    tempDirs.push(dir);
+    const path = join(dir, "clipboard.png");
+    writeFileSync(path, PNG_BYTES);
+    const info = await createServer().start();
+    const client = new RemoteDesktopClient(info.httpBaseUrl, await issueToken(info));
+    await expect(
+      client.createMediaSource({
+        access: "external",
+        projectLocation: { kind: "posix", path: dir },
+        path,
+      }),
+    ).rejects.toMatchObject({ status: 403, code: "missing_scope" });
+    const image = await client.fetchTicketedImageBytes(
+      `/api/files/image?${new URLSearchParams({ path })}`,
+      new AbortController().signal,
+    );
+    expect(Buffer.from(image.bytes)).toEqual(PNG_BYTES);
+  });
+
   it("serves /api/files/image with CSP sandbox, nosniff, and a fixed inline filename", async () => {
     const dir = mkdtempSync(join(tmpdir(), "poracode-remote-image-headers-"));
     tempDirs.push(dir);

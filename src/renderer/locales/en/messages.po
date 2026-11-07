@@ -1144,6 +1144,10 @@ msgstr "A missed run was skipped."
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 msgstr "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "A previous submission is saved on this device."
+msgstr "A previous submission is saved on this device."
+
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 msgid "A profile can carry at most 100 repositories."
 msgstr "A profile can carry at most 100 repositories."
@@ -5403,7 +5407,9 @@ msgstr "Couldn't clone the repository."
 msgid "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
 msgstr "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/actions/threadCommandOutcomeActions.ts
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 msgid "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
 msgstr "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
 
@@ -5476,6 +5482,10 @@ msgstr "Couldn't manage plugins. Check the package name, OpenCode version, and n
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Couldn't save the shortcut."
 msgstr "Couldn't save the shortcut."
+
+#: src/renderer/state/composerDrafts/persistenceError.ts
+msgid "Couldn't save this draft on this device. Your content is still in the composer."
+msgstr "Couldn't save this draft on this device. Your content is still in the composer."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Couldn't scan agent skills."
@@ -6821,6 +6831,10 @@ msgstr "Discard outdated"
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
 msgid "Discard recording"
 msgstr "Discard recording"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Discard saved copy"
+msgstr "Discard saved copy"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
@@ -15781,6 +15795,10 @@ msgstr "Reasoning"
 msgid "Reasoning for {memberLabel}"
 msgstr "Reasoning for {memberLabel}"
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "Reattach this file on this device before sending it to another environment."
+msgstr "Reattach this file on this device before sending it to another environment."
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeConfirm.tsx
 msgid "Rebase and merge"
 msgstr "Rebase and merge"
@@ -16084,6 +16102,7 @@ msgstr "Remote name"
 #~ msgid "Remote server"
 #~ msgstr "Remote server"
 
+#: src/renderer/actions/clientDraftSubmission.ts
 #: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -16722,9 +16741,14 @@ msgstr "Responsive"
 msgid "Restart Poracode"
 msgstr "Restart Poracode"
 
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore"
 msgstr "Restore"
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "Restore a copy"
+msgstr "Restore a copy"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Restore browser"
@@ -20324,6 +20348,10 @@ msgstr "The Hex engine is incompatible with this host or Poracode version."
 msgid "The history notice could not be read from the server."
 msgstr "The history notice could not be read from the server."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
+msgstr "The host accepted this message, but local recovery cleanup failed. Check the thread before retrying."
+
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 msgid "The host has more labels than are listed here."
 msgstr "The host has more labels than are listed here."
@@ -20681,6 +20709,10 @@ msgstr "The task ended without a completion report."
 msgid "The task has not confirmed that it stopped. Try again."
 msgstr "The task has not confirmed that it stopped. Try again."
 
+#: src/renderer/actions/clientDraftSubmission.ts
+msgid "The thread could not be started. Your draft is still saved on this device."
+msgstr "The thread could not be started. Your draft is still saved on this device."
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "The thread keeps its provider session, so your next message continues where you left off."
@@ -21015,6 +21047,10 @@ msgstr "This media preview is unavailable."
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "This message is no longer queued. Your edit is still available to copy."
+
+#: src/renderer/components/composer/DraftRecoveryNotice.tsx
+msgid "This message was staged with the host. A recovery copy is saved on this device."
+msgstr "This message was staged with the host. A recovery copy is saved on this device."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
@@ -21391,6 +21427,10 @@ msgstr "Thread name"
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 msgid "Thread not found"
 msgstr "Thread not found"
+
+#: src/renderer/actions/threadRuntimeActions.ts
+msgid "Thread not found."
+msgstr "Thread not found."
 
 #. Popover button: delete the thread but keep the worktree directory
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx

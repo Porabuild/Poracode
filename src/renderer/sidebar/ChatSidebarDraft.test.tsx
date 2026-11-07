@@ -53,7 +53,7 @@ beforeEach(() => {
 });
 
 describe("ChatSidebarDraft", () => {
-  it("captures browser focus when the first message is sent and launches with it", async () => {
+  it("forwards the captured first-message context without recapturing it", async () => {
     const clientContext = { browserFocus: { activeTab: { tabId: 4, title: "Page" } } };
     const capture = vi.fn<TurnClientContextCapture>(async () => clientContext);
     render(
@@ -63,9 +63,9 @@ describe("ChatSidebarDraft", () => {
     );
     expect(capture).not.toHaveBeenCalled();
 
-    await mocks.onStart!(input);
+    await mocks.onStart!({ ...input, clientContext });
 
-    expect(capture).toHaveBeenCalledTimes(1);
+    expect(capture).not.toHaveBeenCalled();
     expect(mocks.startThreadFromDraft).toHaveBeenCalledWith(
       mocks.project,
       { ...input, clientContext },

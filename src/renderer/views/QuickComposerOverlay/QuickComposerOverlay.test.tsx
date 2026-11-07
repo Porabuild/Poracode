@@ -1,4 +1,8 @@
 import "fake-indexeddb/auto";
+import { pickClientDraftFiles } from "@/renderer/utils/browserFilePicker";
+vi.mock("@/renderer/utils/browserFilePicker", () => ({
+  pickClientDraftFiles: vi.fn<() => Promise<string[] | null>>().mockResolvedValue(null),
+}));
 import type { ReactNode } from "react";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -86,7 +90,6 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
     project: { id: string; name: string };
     agentStatuses: Array<{ kind: string }>;
     pickFiles?: () => Promise<string[] | null>;
-    saveClipboardImage?: unknown;
     onProjectChange?: (projectId: string) => void;
     onStart: (input: unknown) => void | Promise<void>;
   }) => (
@@ -95,7 +98,6 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
       <output data-testid="agent-statuses">
         {props.agentStatuses.map((status) => status.kind).join(",")}
       </output>
-      {props.saveClipboardImage ? <output data-testid="has-clipboard-save">true</output> : null}
       <div data-composer-input-anchor="">
         <div role="textbox" contentEditable aria-label="Composer input" />
       </div>
@@ -429,13 +431,13 @@ describe("QuickComposerOverlay", () => {
     });
     expect(screen.getByText("Studio Home")).toBeInTheDocument();
     expect(screen.getByTestId("agent-statuses")).toHaveTextContent("remote-codex");
-    expect(screen.getByTestId("has-clipboard-save")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Pick files fixture" }));
     await act(async () => {
       await Promise.resolve();
     });
-    expect(upload).toHaveBeenCalledWith("studio", `draft-${HOME_PROJECT_ID}`);
+    expect(pickClientDraftFiles).toHaveBeenCalledWith();
+    expect(upload).not.toHaveBeenCalled();
     expect(bridge.pickQuickComposerFiles).not.toHaveBeenCalled();
     upload.mockRestore();
   });
@@ -546,7 +548,7 @@ describe("QuickComposerOverlay", () => {
       await Promise.resolve();
     });
     expect(bridge.pickQuickComposerFiles).toHaveBeenCalledOnce();
-    expect(screen.queryByTestId("has-clipboard-save")).not.toBeInTheDocument();
+    expect(pickClientDraftFiles).not.toHaveBeenCalled();
   });
 
   it("does not refresh Git for a mirrored Home", () => {
