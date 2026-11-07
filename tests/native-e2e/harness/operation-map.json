@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:58c27ed5a199c273ec5a17bb1da030559e3d7f2f47593072b29986ddd2049010",
-  "keyCount": 347,
+  "manifestHash": "sha256:ca651779b027e7fd464f3ba0645f482eca5520ccd80563974983cdd0813a84ae",
+  "keyCount": 348,
   "counts": {
     "route": 119,
-    "procedure": 172,
+    "procedure": 173,
     "ws-client": 11,
     "ws-server": 12,
     "replay": 17,
@@ -621,6 +621,10 @@
     "procedure:reorderQueuedThreadFollowUp": {
       "kind": "procedure",
       "id": "reorderQueuedThreadFollowUp"
+    },
+    "procedure:resolveLinkMetadata": {
+      "kind": "procedure",
+      "id": "resolveLinkMetadata"
     },
     "procedure:restoreFileCheckpoint": {
       "kind": "procedure",

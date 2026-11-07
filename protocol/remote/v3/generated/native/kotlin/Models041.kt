@@ -6,6 +6,41 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class RoutetokenU2DExchangeRequestU2DScopesU2DItem_8f483f0889 {
+    @SerialName("session:read") SESSIONU3AREAD,
+    @SerialName("session:operate") SESSIONU3AOPERATE,
+    @SerialName("terminal:read") TERMINALU3AREAD,
+    @SerialName("terminal:operate") TERMINALU3AOPERATE,
+    @SerialName("requests:resolve") REQUESTSU3ARESOLVE,
+    @SerialName("projects:manage") PROJECTSU3AMANAGE,
+    @SerialName("ports:forward") PORTSU3AFORWARD,
+}
+
+@Serializable
+data class RoutetokenU2DExchangeRequest_39bc2baf33(
+    @SerialName("client") val client: RemoteField<RoutetokenU2DExchangeRequestU2DClient_6969170275> = RemoteField.Missing,
+    @SerialName("credential") val credential: RemoteField<String> = RemoteField.Missing,
+    @SerialName("grantType") val grantType: RoutetokenU2DExchangeRequestU2DGrantType_20b56c9f22,
+    @SerialName("refreshToken") val refreshToken: RemoteField<String> = RemoteField.Missing,
+    @SerialName("scopes") val scopes: RemoteField<List<RoutetokenU2DExchangeRequestU2DScopesU2DItem_8f483f0889>> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("client", "RoutetokenU2DExchangeRequestU2DClient_6969170275", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("credential", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("grantType", "RoutetokenU2DExchangeRequestU2DGrantType_20b56c9f22", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("refreshToken", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("scopes", "List<RoutetokenU2DExchangeRequestU2DScopesU2DItem_8f483f0889>", false, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RoutetokenU2DExchangeResponseU2DTokenType_7c8fd050dd {
+    @SerialName("Bearer") BEARER,
+}
+
+@Serializable
 data class RoutetokenU2DExchangeResponse_22f14841c0(
     @SerialName("accessToken") val accessToken: String,
     @SerialName("expiresAt") val expiresAt: String,
@@ -411,29 +446,4 @@ data class WebSocketClientMessageU2DOptionU2D7U2DCursorSync_3975ceeb37(
             RemoteFieldDescriptor("watchId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable
-enum class WebSocketClientMessageU2DOptionU2D7U2DType_c64b38404f {
-    @SerialName("terminal-watch") TERMINALU2DWATCH,
-}
-
-@Serializable
-data class WebSocketClientMessageU2DOptionU2D7_838adcbcaf(
-    @SerialName("cursorSync") val cursorSync: RemoteField<WebSocketClientMessageU2DOptionU2D7U2DCursorSync_3975ceeb37> = RemoteField.Missing,
-    @SerialName("id") val id: String,
-    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D7U2DType_c64b38404f,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("cursorSync", "WebSocketClientMessageU2DOptionU2D7U2DCursorSync_3975ceeb37", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D7U2DType_c64b38404f", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketClientMessageU2DOptionU2D8U2DType_af6b6f72d4 {
-    @SerialName("terminal-unwatch") TERMINALU2DUNWATCH,
 }

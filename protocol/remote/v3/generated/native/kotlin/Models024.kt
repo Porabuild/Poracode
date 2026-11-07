@@ -6,6 +6,22 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RoutedeviceU2DActionRequestU2DOptionU2D5_a36830c34a(
+    @SerialName("kind") val kind: RoutedeviceU2DActionRequestU2DOptionU2D5U2DKind_60fc988aef,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.REJECT, listOf(
+            RemoteFieldDescriptor("kind", "RoutedeviceU2DActionRequestU2DOptionU2D5U2DKind_60fc988aef", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D10U2DType_bd9ee7d624 {
+    @SerialName("launchApp") LAUNCHAPP,
+}
+
+@Serializable
 data class RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D10_14f3c332d5(
     @SerialName("applicationId") val applicationId: String,
     @SerialName("type") val type: RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D10U2DType_bd9ee7d624,
@@ -420,19 +436,4 @@ data class RoutedeviceU2DAttachRequest_77bd08fa0d(
             RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable
-enum class RoutedeviceU2DAttachResponseU2DDeviceU2DControlsU2DActionsU2DItem_a76106fec0 {
-    @SerialName("read") READ,
-    @SerialName("appearance") APPEARANCE,
-    @SerialName("textSize") TEXTSIZE,
-    @SerialName("orientation") ORIENTATION,
-    @SerialName("reduceMotion") REDUCEMOTION,
-    @SerialName("network") NETWORK,
-    @SerialName("location") LOCATION,
-    @SerialName("permission") PERMISSION,
-    @SerialName("openUrl") OPENURL,
-    @SerialName("launchApp") LAUNCHAPP,
-    @SerialName("powerOff") POWEROFF,
 }

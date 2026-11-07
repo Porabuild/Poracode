@@ -97,6 +97,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EResolveLinkMetadataU2ERequest: RemoteRootCodec<ProcedureresolveLinkMetadataRequest_3732eed893> = .init(id: "procedure.resolveLinkMetadata.request", schema: RemoteSchemas.schema_3732eed893106b96)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EResolveLinkMetadataU2EResult: RemoteRootCodec<ProcedureresolveLinkMetadataResult_4563be6a1e> = .init(id: "procedure.resolveLinkMetadata.result", schema: RemoteSchemas.schema_4563be6a1eff8ba8)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2ERestoreFileCheckpointU2ERequest: RemoteRootCodec<ProcedurecreateFileCheckpointRequest_412fb1bbf4> = .init(id: "procedure.restoreFileCheckpoint.request", schema: RemoteSchemas.schema_412fb1bbf466cf98)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EDeviceU2DPreviewU2DWebsocketU2DTicketU2EResponse: RemoteRootCodec<RoutedeviceU2DPreviewU2DWebsocketU2DTicketResponse_ddfb574eab> = .init(id: "route.device-preview-websocket-ticket.response", schema: RemoteSchemas.schema_ddfb574eab47db7e)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DAdoptU2DLegacyU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2> = .init(id: "route.environment-adopt-legacy.path", schema: RemoteSchemas.schema_149c9d9dd2191aa3)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DAdoptU2DLegacyU2ERequest: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyRequest_399c72fc19> = .init(id: "route.environment-adopt-legacy.request", schema: RemoteSchemas.schema_399c72fc193f1510)
 }

@@ -1,5 +1,58 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct RoutedeviceU2DActionRequestU2DOptionU2D2_2c6061a21f: Codable, Sendable, RemoteModelMetadata {
+  public var durationMs: Int64
+  public var endX: Double
+  public var endY: Double
+  public var frameId: String
+  public var kind: RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0
+  public var x: Double
+  public var y: Double
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .reject
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "durationMs", typeName: "Int64", required: true, nullable: false, minimum: 100, maximum: 2000, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "endX", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "endY", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "frameId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
+    .init(wireName: "kind", typeName: "RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "x", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "y", typeName: "Double", required: true, nullable: false, minimum: 0, maximum: 1, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case durationMs = "durationMs"
+    case endX = "endX"
+    case endY = "endY"
+    case frameId = "frameId"
+    case kind = "kind"
+    case x = "x"
+    case y = "y"
+  }
+  public init(from decoder: Decoder) throws {
+    let all = try decoder.container(keyedBy: RemoteCodingKey.self).allKeys.map(\.stringValue)
+    let known = Set(Self.fields.map(\.wireName))
+    guard all.allSatisfy(known.contains) else { throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown field in strict object")) }
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.durationMs = try container.decode(Int64.self, forKey: .durationMs)
+    self.endX = try container.decode(Double.self, forKey: .endX)
+    self.endY = try container.decode(Double.self, forKey: .endY)
+    self.frameId = try container.decode(String.self, forKey: .frameId)
+    self.kind = try container.decode(RoutedeviceU2DActionRequestU2DOptionU2D2U2DKind_0cdfc047b0.self, forKey: .kind)
+    self.x = try container.decode(Double.self, forKey: .x)
+    self.y = try container.decode(Double.self, forKey: .y)
+  }
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(durationMs, forKey: .durationMs)
+    try container.encode(endX, forKey: .endX)
+    try container.encode(endY, forKey: .endY)
+    try container.encode(frameId, forKey: .frameId)
+    try container.encode(kind, forKey: .kind)
+    try container.encode(x, forKey: .x)
+    try container.encode(y, forKey: .y)
+  }
+}
+
 public struct RoutedeviceU2DActionRequestU2DOptionU2D3_8c04d0a06a: Codable, Sendable, RemoteModelMetadata {
   public var kind: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D4U2DContentU2DItemU2DType_3ad514880d
   public var text: String
@@ -394,24 +447,4 @@ public struct RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D7_df
     try container.encode(longitude, forKey: .longitude)
     try container.encode(typeValue, forKey: .typeValue)
   }
-}
-
-public enum RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D8U2DDecision_ff4e0a6efa: String, Codable, Sendable {
-  case `grant` = "grant"
-  case `revoke` = "revoke"
-}
-
-public enum RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D8U2DPermission_f6dd22a2a9: String, Codable, Sendable {
-  case `camera` = "camera"
-  case `microphone` = "microphone"
-  case `photos` = "photos"
-  case `contacts` = "contacts"
-  case `calendar` = "calendar"
-  case `location` = "location"
-  case `notifications` = "notifications"
-  case `motion` = "motion"
-}
-
-public enum RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D8U2DType_592634b895: String, Codable, Sendable {
-  case `permission` = "permission"
 }

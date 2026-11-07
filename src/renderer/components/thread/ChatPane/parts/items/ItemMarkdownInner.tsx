@@ -1,6 +1,4 @@
-import { Link } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ExternalLink } from "lucide-react";
 import type { ProjectLocation } from "@/shared/contracts";
 import {
   Children,
@@ -19,7 +17,6 @@ import {
   type UrlTransform,
 } from "streamdown";
 import remarkGfm from "remark-gfm";
-import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import {
   resolveMarkdownImageUrl,
   rewriteMarkdownLocalImageUrls,
@@ -29,6 +26,7 @@ import { isChatDownloadSource } from "@/shared/chatFile";
 import { getProjectFsPath } from "@/shared/wsl";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
+import { ChatExternalLink } from "./ChatExternalLink";
 import { CodeBlock } from "./CodeBlock";
 import { CopyTextButton } from "./CopyTextButton";
 import { MarkdownImage } from "./MarkdownImage";
@@ -558,21 +556,12 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
 
   if (/^(https?|mailto):/i.test(href)) {
     return (
-      <Link
+      <ChatExternalLink
         href={href}
-        rel="noreferrer noopener"
-        className="text-[length:inherit] text-foreground no-underline hover:underline hover:decoration-1 underline-offset-2 [display:inline] [width:auto] [overflow-wrap:anywhere] [word-break:break-word]"
-        onClick={(event) => {
-          event.preventDefault();
-          openExternalWithFeedback(href);
-        }}
+        resolveTitle={flattenMdChildren(props.children).trim() === href}
       >
         {props.children}
-        <ExternalLink
-          className="ml-[0.2em] inline-block size-[0.85em] align-[-0.1em]"
-          aria-hidden
-        />
-      </Link>
+      </ChatExternalLink>
     );
   }
   if (actions?.projectLocation) {

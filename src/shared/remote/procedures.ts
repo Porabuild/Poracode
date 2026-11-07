@@ -60,6 +60,7 @@ export const REMOTE_PROCEDURE_SPECS = {
   // Host-owned usage: collection and credentials stay on the addressed host.
   getProviderUsage: read("desktop"),
   refreshProviderUsage: operate("desktop"),
+  resolveLinkMetadata: read("desktop"),
   // Host CLI transcripts: paths and first prompts, so project-management scope.
   listImportableSessions: manageProjects("desktop"),
   // Host agent management: version probes are reads, while registry listing and

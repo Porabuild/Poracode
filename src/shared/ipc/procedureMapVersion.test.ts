@@ -129,7 +129,9 @@ import { isRemoteProcedure } from "../remote/procedures";
 // Client draft imports/PDF previews add two same-bundle main-local names.
 // Older dispatchers reject those names before I/O; public remote contracts and
 // all existing payloads remain valid, so the hop stays unchanged.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:833e5cc510ecbc8053c9eb8c3aa3f50a849541826ceea2ab7de5b5759dd907a2`;
+// Link metadata adds a read-only supervisor name. Older peers reject the unknown
+// name and clients keep their local labels, so hop 19 stays compatible.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:2830589d2a8db497cb5adf4f469aae95325831990aecbafd32038a0e0d81274d`;
 
 describe("IPC procedure map versioning", () => {
   it("routes Hex voice through the supervisor as an additive procedure", () => {

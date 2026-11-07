@@ -1332,6 +1332,11 @@
       "scope": "session:operate"
     },
     {
+      "name": "resolveLinkMetadata",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
       "name": "listImportableSessions",
       "owner": "desktop",
       "scope": "projects:manage"

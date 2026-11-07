@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:c50fa5aa82cb58b039aa7d73a712da1b79dcc88a5e6192ae2643e8bee9e37f54"
-    const val manifestHash = "sha256:ed403d7e8e9ec18aa837df221e292fd00c54d0dbd5353890c50dd33aee971ec7"
+    const val sourceHash = "sha256:6e81a07533a9bcfb95d957f102c80ef5aa09cb865c22f2c92d5badd9ac635689"
+    const val manifestHash = "sha256:22e1e6fd15ebca31dc60f10dbb9308f35695f13fcbfd2e7d2c95fc34cd36094b"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -292,6 +292,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("removeQueuedThreadFollowUp", "session:operate", "thread", "omitted", "ProcedurepauseThreadFollowUpsRequest_d42717fff2", "RemoteUnit"),
         RemoteProcedureDescriptor("renameProjectEntry", "session:operate", "projectLocation", "omitted", "ProcedurerenameProjectEntryRequest_4a22ffc9b4", "RemoteUnit"),
         RemoteProcedureDescriptor("reorderQueuedThreadFollowUp", "session:operate", "thread", "omitted", "ProcedurereorderQueuedThreadFollowUpRequest_59599d21a2", "RemoteUnit"),
+        RemoteProcedureDescriptor("resolveLinkMetadata", "session:read", "desktop", "json", "ProcedureresolveLinkMetadataRequest_3732eed893", "ProcedureresolveLinkMetadataResult_4563be6a1e"),
         RemoteProcedureDescriptor("restoreFileCheckpoint", "session:operate", "thread", "omitted", "ProcedurecreateFileCheckpointRequest_412fb1bbf4", "RemoteUnit"),
         RemoteProcedureDescriptor("restoreToRevertAnchor", "session:operate", "thread", "omitted", "ProcedurerestoreToRevertAnchorRequest_46790b9541", "RemoteUnit"),
         RemoteProcedureDescriptor("resumeThreadFollowUps", "session:operate", "thread", "omitted", "ProcedurecancelExtractContextRequest_09b78d9c1d", "RemoteUnit"),

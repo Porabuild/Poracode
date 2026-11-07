@@ -1,10 +1,9 @@
-import { Link } from "@heroui/react";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import { useSmoothStreamedText } from "@/renderer/hooks/useSmoothStreamedText";
-import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
+import { ChatExternalLink } from "./ChatExternalLink";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { tokenizePlainText } from "./plainTextTokens";
@@ -137,18 +136,9 @@ function PlainText({
         if (node.kind === "text") return <span key={i}>{node.value}</span>;
         if (node.kind === "url") {
           return (
-            <Link
-              key={i}
-              href={node.href}
-              rel="noreferrer noopener"
-              className="[display:inline] [width:auto] [overflow-wrap:anywhere] [word-break:break-word]"
-              onClick={(event) => {
-                event.preventDefault();
-                openExternalWithFeedback(node.href);
-              }}
-            >
+            <ChatExternalLink key={i} href={node.href} resolveTitle>
               {node.href}
-            </Link>
+            </ChatExternalLink>
           );
         }
         if (node.kind === "file") {
