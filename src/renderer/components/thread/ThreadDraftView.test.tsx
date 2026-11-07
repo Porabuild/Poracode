@@ -22,6 +22,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 
 import { liveVoice } from "@/renderer/speech/liveVoice";
 
@@ -566,6 +567,137 @@ describe("ThreadDraftView", () => {
       hostUpdates: {},
       hostUpdateRestarts: {},
     });
+  });
+
+  it("does not advance a client checkpoint during passive configuration reconciliation", async () => {
+    const storage = composerDraftStorage()!;
+    const checkpoint = await storage.checkpoint("project", project.id, {
+      segments: [{ kind: "text", content: "Foreground draft" }],
+      attachments: [],
+    });
+    const save = vi.spyOn(storage, "saveSelection");
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+    await storage.flushRequired();
+    expect(save).not.toHaveBeenCalled();
+    expect(storage.currentIdentity("project", project.id)).toEqual({
+      draftId: checkpoint.draftId,
+      revision: checkpoint.revision,
+    });
+    save.mockRestore();
+  });
+
+  it("persists an explicit selection without turning a later catalog correction into another edit", async () => {
+    const storage = composerDraftStorage()!;
+    const save = vi.spyOn(storage, "saveSelection");
+    const view = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() =>
+      expect(controls().some((control) => control.kind === "provider-model")).toBe(true),
+    );
+    const picker = controls().find((control) => control.kind === "provider-model");
+    if (picker?.kind !== "provider-model") throw new Error("Missing model picker");
+    act(() => picker.onChange({ agentKind: "codex", model: "gpt-5.4" }));
+    expect(storage.selection("project", project.id)?.model).toBe("gpt-5.4");
+    save.mockClear();
+    view.rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[
+          {
+            ...dualModeCodexStatus,
+            capabilities: {
+              ...dualModeCodexStatus.capabilities,
+              models: [{ id: "new-model", label: "New model" }],
+            },
+          },
+        ]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(controls().find((control) => control.kind === "provider-model")?.currentModel).toBe(
+        "new-model",
+      ),
+    );
+    expect(save).not.toHaveBeenCalled();
+    expect(storage.selection("project", project.id)?.model).toBe("gpt-5.4");
+    save.mockRestore();
+  });
+
+  it("does not revive a superseded deferred edit during passive provider fallback", async () => {
+    const storage = composerDraftStorage()!;
+    const save = vi.spyOn(storage, "saveSelection");
+    const empty = {
+      ...dualModeCodexStatus,
+      capabilities: { ...dualModeCodexStatus.capabilities, models: [] },
+    };
+    const view = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus, claudeStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() =>
+      expect(
+        controls().find((control) => control.kind === "provider-model")?.currentAgentKind,
+      ).toBe("codex"),
+    );
+    view.rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[empty, claudeStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const plan = controls().find(
+      (control) => control.kind === "toggle" && control.label === "Work",
+    );
+    if (plan?.kind !== "toggle") throw new Error("Missing Plan control");
+    act(() => plan.onChange?.(true));
+    const picker = controls().find((control) => control.kind === "provider-model");
+    if (picker?.kind !== "provider-model") throw new Error("Missing model picker");
+    act(() =>
+      picker.onChange({ agentKind: "claude", model: claudeStatus.capabilities.models[0]!.id }),
+    );
+    await waitFor(() =>
+      expect(
+        controls().find((control) => control.kind === "provider-model")?.currentAgentKind,
+      ).toBe("claude"),
+    );
+    save.mockClear();
+    view.rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(
+        controls().find((control) => control.kind === "provider-model")?.currentAgentKind,
+      ).toBe("codex"),
+    );
+    expect(save).not.toHaveBeenCalled();
+    save.mockRestore();
   });
 
   it("remounts the news line when a draft is opened again", async () => {

@@ -189,6 +189,29 @@ describe("client-owned draft bytes and submissions", () => {
     ).toEqual(future);
   });
 
+  it("keeps bytes when another window opens during the asset lookup", async () => {
+    const asset = stageClientDraftAsset(new Blob(["retained bytes"]), "window.bin");
+    await asset.saved;
+    const foreignWindow = "poracode-client-draft-window-v1:opened-during-lookup";
+    const originalGet = FakeIDBObjectStore.prototype.get;
+    const lookup = vi.spyOn(FakeIDBObjectStore.prototype, "get").mockImplementationOnce(function (
+      this: IDBObjectStore,
+      key,
+    ) {
+      const request = originalGet.call(this, key);
+      if (this.name === "assets" && key === asset.path)
+        localStorage.setItem(foreignWindow, "active");
+      return request;
+    });
+    try {
+      expect(await reclaimClientDraftAssets([asset.path], new Set())).toEqual([]);
+      expect(await (await readClientDraftAsset(asset.path)).blob.text()).toBe("retained bytes");
+    } finally {
+      lookup.mockRestore();
+      localStorage.removeItem(foreignWindow);
+    }
+  });
+
   it("keeps a pending import when a late asset lease aborts reclamation", async () => {
     let finish!: (blob: Blob) => void;
     const asset = stageClientDraftAsset(

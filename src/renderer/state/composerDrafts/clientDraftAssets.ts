@@ -159,7 +159,11 @@ export async function reclaimClientDraftAssets(
           const assets = tx.objectStore("assets");
           const asset = assets.get(path);
           asset.onsuccess = () => {
-            if (asset.result && asset.result.formatVersion !== FORMAT_VERSION) return;
+            if (
+              !ownsOnlyActiveWindow() ||
+              (asset.result && asset.result.formatVersion !== FORMAT_VERSION)
+            )
+              return;
             assets.delete(path);
             const pending = staged.get(path);
             retireAfterCommit.push(() => {
