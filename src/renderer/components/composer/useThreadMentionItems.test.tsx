@@ -99,11 +99,13 @@ describe("useThreadMentionItems", () => {
       useThreadMentionItems({ kind: "project", projectId: "project-1" }, "new"),
     );
 
-    expect(hook.result.current.map((item) => item.threadId)).toEqual(["old"]);
+    expect(hook.result.current.map((item) => item.threadId)).toEqual(["old", "other-project"]);
+    expect(hook.result.current[0]?.projectName).toBeUndefined();
+    expect(hook.result.current[1]?.projectName).toBe("Project project-2");
     hook.unmount();
   });
 
-  it("hides Home threads partitioned into another workspace in project scope", () => {
+  it("deprioritizes Home threads partitioned into another workspace in project scope", () => {
     useSharedSettings.setState({
       workspaces: [
         {
@@ -117,9 +119,10 @@ describe("useThreadMentionItems", () => {
     });
     useWorkspaceStore.getState().setActiveWorkspaceId("ws-active");
     useAppStore.setState({
+      projects: [makeProject(HOME_PROJECT_ID)],
       threads: [
         makeThread({ id: "home-visible", projectId: HOME_PROJECT_ID }),
-        makeThread({ id: "home-hidden", projectId: HOME_PROJECT_ID, workspaceId: "ws-other" }),
+        makeThread({ id: "home-other", projectId: HOME_PROJECT_ID, workspaceId: "ws-other" }),
       ],
     });
 
@@ -127,9 +130,89 @@ describe("useThreadMentionItems", () => {
       useThreadMentionItems({ kind: "project", projectId: HOME_PROJECT_ID }),
     );
 
-    expect(hook.result.current.map((item) => item.threadId)).toEqual(["home-visible"]);
+    expect(hook.result.current.map((item) => item.threadId)).toEqual([
+      "home-visible",
+      "home-other",
+    ]);
+    expect(hook.result.current.every((item) => item.projectName === undefined)).toBe(true);
     hook.unmount();
   });
+
+  it.each(["project", "workspace"] as const)(
+    "includes other workspaces after local matches in %s scope and updates workspace priority",
+    (kind) => {
+      useSharedSettings.setState({
+        workspaces: [
+          { id: "ws-active", name: "Active", icon: "briefcase", createdAt: "2026-08-01" },
+          { id: "ws-other", name: "Other", icon: "rocket", createdAt: "2026-08-01" },
+        ],
+      });
+      useWorkspaceStore.getState().setActiveWorkspaceId("ws-active");
+      useAppStore.setState({
+        projects: [
+          { ...makeProject("project-1"), workspaceId: "ws-active" },
+          { ...makeProject("project-2"), workspaceId: "ws-active" },
+          { ...makeProject("project-3"), workspaceId: "ws-other" },
+          makeProject(HOME_PROJECT_ID),
+        ],
+        threads: [
+          makeThread({ id: "same-project", updatedAt: "2026-08-01" }),
+          makeThread({ id: "same-workspace", projectId: "project-2", updatedAt: "2026-08-02" }),
+          makeThread({
+            id: "other-workspace",
+            projectId: "project-3",
+            worktreePath: "/worktrees/other",
+            worktreeBranch: "feature/other",
+            updatedAt: "2026-08-30",
+          }),
+          makeThread({
+            id: "home-other-workspace",
+            projectId: HOME_PROJECT_ID,
+            workspaceId: "ws-other",
+            updatedAt: "2026-08-31",
+          }),
+          makeThread({ id: "archived-other", projectId: "project-3", archived: true }),
+          makeThread({ id: "orphan", projectId: "missing-project" }),
+        ],
+      });
+      const hook = renderHook(() =>
+        useThreadMentionItems(kind === "project" ? { kind, projectId: "project-1" } : { kind }),
+      );
+      expect(hook.result.current.map((item) => item.threadId)).toEqual([
+        ...(kind === "project"
+          ? ["same-project", "same-workspace"]
+          : ["same-workspace", "same-project"]),
+        "other-workspace",
+        "home-other-workspace",
+      ]);
+      expect(hook.result.current.find((item) => item.threadId === "other-workspace")).toMatchObject(
+        {
+          projectName: "Project project-3",
+          worktreeName: "feature/other",
+        },
+      );
+
+      act(() => useWorkspaceStore.getState().setActiveWorkspaceId("ws-other"));
+      expect(hook.result.current.map((item) => item.threadId)).toEqual([
+        ...(kind === "project" ? ["same-project"] : []),
+        "other-workspace",
+        "home-other-workspace",
+        "same-workspace",
+        ...(kind === "workspace" ? ["same-project"] : []),
+      ]);
+      act(() => {
+        useAppStore.setState((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === "project-3" ? { ...project, name: "Renamed project" } : project,
+          ),
+        }));
+      });
+      expect(
+        hook.result.current.find((item) => item.threadId === "other-workspace")?.projectName,
+      ).toBe("Renamed project");
+      hook.unmount();
+    },
+  );
 
   it("offers no mentions when the app-controls server or its read_thread tool is disabled", () => {
     useAppStore.setState({
