@@ -462,6 +462,36 @@ void test("the arm64 node-pty cross-build stages the installed node-addon-api si
   }
 });
 
+void test("macOS updater and DMG packaging run as independent release legs", async () => {
+  const build = await readWorkflow("_build.yml");
+  const macLegs = build.jobs.build.strategy.matrix.include.filter(
+    (entry) => entry.platform === "mac",
+  );
+  assert.deepEqual(macLegs.map((entry) => entry.artifact).sort(), [
+    "dist-mac-dmg",
+    "dist-mac-updater",
+  ]);
+  for (const entry of macLegs) {
+    assert.ok(["zip", "dmg"].includes(entry.target));
+    assert.ok(entry.app_pattern);
+    assert.equal(entry.expected_zips, entry.target === "zip" ? 2 : 0);
+  }
+  const steps = build.jobs.build.steps;
+  const packageStep = steps.find((step) => step.name === "Package macOS");
+  assert.match(packageStep.run, /--target "\$\{\{ matrix\.target \}\}"/u);
+  const verifyStep = steps.find(
+    (step) => step.name === "Verify macOS app bundles and updater ZIPs",
+  );
+  assert.match(verifyStep.run, /matrix\.app_pattern/u);
+  assert.match(verifyStep.run, /matrix\.expected_zips/u);
+  const upload = steps.find((step) => step.name === "Upload built artifacts");
+  assert.equal(upload.if, "matrix.target != 'dmg'");
+  const dmgUpload = steps.find((step) => step.name === "Upload macOS DMG artifacts");
+  assert.equal(dmgUpload.if, "matrix.target == 'dmg'");
+  assert.match(dmgUpload.with.path, /Poracode-\*\.dmg/u);
+  assert.doesNotMatch(dmgUpload.with.path, /latest\*\.yml|nightly\*\.yml/u);
+});
+
 void test("desktop packaging ships the SSH worker and the preassembled archive", async () => {
   const build = await readWorkflow("_build.yml");
   const archiveStep = build.jobs.build.steps.find(
