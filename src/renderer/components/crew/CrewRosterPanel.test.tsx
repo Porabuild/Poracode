@@ -117,7 +117,7 @@ describe("CrewRosterPanel", () => {
     renderWithI18n(<CrewRosterPanel model={model} />);
 
     const policy = screen.getByRole("button", {
-      name: "Crew only: work goes only to this crew",
+      name: "Crew only: automatic delegation uses this crew; you can request other agents",
     });
     fireEvent.click(policy);
     expect(model.onBindingChange).toHaveBeenCalledWith(

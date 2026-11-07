@@ -55,7 +55,7 @@ describe("crew role descriptions", () => {
         name: "Ship crew",
         policy: "crew-only",
         instructions:
-          "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: spawns without a role are refused.",
+          "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: use roles for automatic delegation. When the user explicitly requests other agents or models, omit role and pass user_requested=true with the requested selection; no crew change or additional confirmation is needed.",
         roles: [
           {
             role: "builder",
@@ -135,9 +135,35 @@ describe("crew role resolution", () => {
 
   it("requires a role in crew-only mode and leaves crew-first unroled calls available", () => {
     expect(() => resolveCrewRoleSpawn({}, crew, roster)).toThrow(
-      "This thread's crew is Crew only: spawn with role=<id> (builder).",
+      "This thread's crew is Crew only: spawn with role=<id> (builder) for automatic delegation. If the user explicitly requested other agents or models, omit role and pass user_requested=true with their requested selection.",
     );
     expect(resolveCrewRoleSpawn({}, { ...crew, policy: "crew-first" }, roster)).toBeUndefined();
+  });
+
+  it("honors explicit user requests on existing v1 crews without changing role routing", () => {
+    expect(crew.version).toBe(1);
+    expect(
+      resolveCrewRoleSpawn(
+        { user_requested: true, provider: "claude", model: "sonnet-5" },
+        crew,
+        roster,
+      ),
+    ).toBeUndefined();
+    for (const user_requested of [undefined, false, "true", 1]) {
+      expect(() =>
+        resolveCrewRoleSpawn({ user_requested, provider: "claude" }, crew, roster),
+      ).toThrow("for automatic delegation");
+    }
+    expect(() =>
+      resolveCrewRoleSpawn(
+        { user_requested: true, role: "builder", model: "sonnet-5" },
+        crew,
+        roster,
+      ),
+    ).toThrow("role=builder sets provider");
+    expect(() =>
+      resolveCrewRoleSpawn({ user_requested: true, role: "missing" }, crew, roster),
+    ).toThrow("Unknown crew role");
   });
 
   it("promotes the first available fallback and retains the rest in order", () => {

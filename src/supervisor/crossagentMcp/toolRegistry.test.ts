@@ -425,7 +425,7 @@ describe("provider discovery", () => {
         name: "Ship crew",
         policy: "crew-only",
         instructions:
-          "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: spawns without a role are refused.",
+          "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: use roles for automatic delegation. When the user explicitly requests other agents or models, omit role and pass user_requested=true with the requested selection; no crew change or additional confirmation is needed.",
         roles: [
           {
             role: "builder",
@@ -499,7 +499,7 @@ describe("provider discovery", () => {
       "role=builder uses the role's own fallbacks; omit fallbacks.",
     );
     expect(await failure({ prompt: "work" }, baseCrew)).toBe(
-      "This thread's crew is Crew only: spawn with role=<id> (builder).",
+      "This thread's crew is Crew only: spawn with role=<id> (builder) for automatic delegation. If the user explicitly requested other agents or models, omit role and pass user_requested=true with their requested selection.",
     );
   });
 
@@ -657,20 +657,24 @@ describe("subagent tool registration", () => {
     expect(byName.get("wait_for_agent")!.inputSchema).not.toHaveProperty("oneOf");
     expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
       type: "object",
-      properties: expect.objectContaining({
+      properties: {
         prompt: expect.anything(),
+        user_requested: { type: "boolean" },
+        tasks: { items: { properties: { user_requested: { type: "boolean" } } } },
         role: {
           type: "string",
           description:
             "Crew role id from list_agents (for example `sidekick`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
         },
-        tasks: expect.anything(),
-      }),
+      },
     });
     expect(byName.get("run_workflow")!.inputSchema).toMatchObject({
       properties: {
         role: expect.anything(),
-        tasks: { items: { properties: { role: expect.anything() } } },
+        user_requested: { type: "boolean" },
+        tasks: {
+          items: { properties: { role: expect.anything(), user_requested: { type: "boolean" } } },
+        },
       },
     });
     expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
@@ -828,7 +832,7 @@ describe("subagent tool registration", () => {
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
     expect(byName.get("spawn_agent")!.description).toContain("never spawn before it");
     expect(byName.get("spawn_agent")!.description).toContain(
-      "root provider/model/reasoning/fast/permissions are batch defaults",
+      "root provider/model/reasoning/fast/permissions/role/user_requested are batch defaults",
     );
   });
 
