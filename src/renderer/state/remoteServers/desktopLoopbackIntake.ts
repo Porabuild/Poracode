@@ -2,6 +2,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 import {
   isUnauthorizedRemoteSocketClose,
+  REMOTE_ACCESS_SESSION_EXPIRED_REASON,
   REMOTE_LOCAL_SOCKET_POLICY,
 } from "@/shared/remote/socketPolicy";
 import {
@@ -12,22 +13,37 @@ import {
   type LoopbackRequestContext,
 } from "./desktopLoopbackAuth";
 import {
-  DesktopLoopbackFrameDrain,
-  type DesktopLoopbackDecodePort,
-  type DesktopLoopbackDrainUnavailableReason,
-} from "./desktopLoopbackFrameDrain";
-import { routeDesktopLoopbackFrame, type DesktopLoopbackFramePorts } from "./desktopLoopbackFrames";
-import { createManagedItemInterestTracker, sameItemInterests } from "./desktopLoopbackInterests";
+  HostEventDrain,
+  type HostEventDrainUnavailableReason,
+} from "@/renderer/hostTransport/hostEventDrain";
+import type { DesktopFrameDecodeResult } from "@/renderer/state/remote/engine/decode";
+import {
+  routeDesktopLoopbackFrame,
+  type DesktopLoopbackFramePorts,
+  type DesktopLoopbackFrame,
+} from "./desktopLoopbackFrames";
+import { createItemInterestTracker, sameItemInterests } from "./desktopLoopbackInterests";
 import { DesktopLoopbackLiveness } from "./desktopLoopbackLiveness";
+import { SessionRenewal } from "./sessionRenewal";
 import {
   createDomDesktopLoopbackSocket,
   type DesktopLoopbackSocket,
 } from "./desktopLoopbackSocket";
-import { getManagedLoopbackEngine } from "@/renderer/state/remote/engine";
-import { withRuntimeHistoryNoticesDeclaration } from "@/renderer/state/remote/historyNoticeCapability";
-import { withBoundedCatalogChangesDeclaration } from "@/renderer/state/remote/boundedCatalogChangesCapability";
+import {
+  getManagedLoopbackEngine,
+  type ClientEngineWorkerMode,
+} from "@/renderer/state/remote/engine";
+import { remoteWebSocketUrl } from "@/shared/remote/clientApiWorkspace";
+import { declareEventSocketCapabilities } from "./eventSocketUpgrade";
 
 export type { DesktopLoopbackSocket } from "./desktopLoopbackSocket";
+
+export interface DesktopLoopbackDecodePort {
+  decodeDesktopFrame(raw: string): Promise<DesktopFrameDecodeResult>;
+  renew(): void;
+  dispose(): void;
+  readonly workerMode: ClientEngineWorkerMode;
+}
 
 /**
  * Desktop loopback event intake (V5 plan 2.5): the managed desktop renderer's
@@ -121,6 +137,14 @@ export interface DesktopLoopbackIntakeDeps {
    */
   readonly onRecoveryExhausted?: () => void;
   /**
+   * Renews the session with the retained refresh token through the shared
+   * client refresh, which reports the rotation back through `applyTokens`.
+   * Resolves false when the host refused the grant; rejects on transport-class
+   * failures, which the proactive timer retries briefly and the local ladder
+   * retries otherwise (never re-pairing on the first attempt).
+   */
+  readonly renewSession?: () => Promise<boolean>;
+  /**
    * boundedCatalogChanges v1 declaration input for the upgrade: true only when
    * the bounded catalog consumer for this endpoint is installed and the live
    * host was verified (by its own descriptor) to advertise the capability. The
@@ -196,6 +220,10 @@ const LOCAL_RECOVERY_MAX_ATTEMPTS = 5;
 const DECODE_RETRY_BASE_MS = 5_000;
 const DECODE_RETRY_MAX_MS = 30_000;
 
+/** Minimum spacing between bearer-refused escalations (see
+ * {@link DesktopLoopbackIntake.noteBearerRefused}). */
+const BEARER_REFUSED_ESCALATION_INTERVAL_MS = 10_000;
+
 /** Lane keys are unique per intake: one managed leg per window in the real app,
  * but tests (and any future multi-leg composition) may run two intakes against
  * the same engine in one process. A fixed key would let the second intake
@@ -253,11 +281,11 @@ export class DesktopLoopbackIntake {
   private lastReportedItemInterestOverflow = 0;
   /** A1: remembers the previous declared/admitted sets so a thread re-admitted
    * after the wire cap dropped it is rebuilt, not silently resumed. */
-  private readonly interestTracker = createManagedItemInterestTracker();
+  private readonly interestTracker = createItemInterestTracker();
   /** A3: the private loopback decode seam (off-thread when the platform has a
    * Worker) plus its ordered bounded drain. */
   private readonly decodePort: DesktopLoopbackDecodePort;
-  private readonly drain: DesktopLoopbackFrameDrain;
+  private readonly drain: HostEventDrain<DesktopLoopbackFrame>;
   private readonly decodeRetryBaseMs: number;
   /** Bounded reduced-state reconnect cadence (no transport escalation). */
   private decodeRetryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -266,6 +294,13 @@ export class DesktopLoopbackIntake {
    * exchange so managed `call-*` requests can ride the same leg. */
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  /** Proactive renewal of the retained bearer (the same scheduler every host session uses). */
+  private readonly renewal = new SessionRenewal(
+    () => this.deps.renewSession?.() ?? Promise.resolve(false),
+    "loopback",
+  );
+  /** Last bearer-refused escalation time; bounds the force-reconnect cadence. */
+  private lastBearerRefusedEscalationAtMs = 0;
   /** Whether the CURRENT socket's upgrade carried the bounded-catalog-changes
    * declaration (read by the wiring to re-open on a capability change). */
   private declaredBoundedCatalogChanges = false;
@@ -297,8 +332,15 @@ export class DesktopLoopbackIntake {
         key: `managed-loopback:${nextManagedLoopbackLaneId++}`,
       });
     this.decodeRetryBaseMs = deps.decodeRetryDelayMs ?? DECODE_RETRY_BASE_MS;
-    this.drain = new DesktopLoopbackFrameDrain({
-      decode: this.decodePort,
+    this.drain = new HostEventDrain({
+      decode: {
+        decodeFrame: (raw) =>
+          this.decodePort
+            .decodeDesktopFrame(raw)
+            .then((result) => (result.ok ? result.frame : null)),
+        renew: () => this.decodePort.renew(),
+        dispose: () => this.decodePort.dispose(),
+      },
       onFrame: (frame) => {
         // A routed frame proves the decode lane works: the reduced-state
         // backoff starts over only then, never merely because a socket opened.
@@ -332,6 +374,28 @@ export class DesktopLoopbackIntake {
   }
 
   /**
+   * A routed request ended 401 with the client's own refresh exhausted (see
+   * {@link RemoteTokenLifecycle.onUnauthorized}). The socket can stay open in
+   * exactly that state — the host only reaps it at the session's deadline —
+   * so without this the leg would serve host 401s to the UI forever while
+   * looking healthy. Force the socket closed: the close path renews the same
+   * session with the refresh token, re-pairs when the grant is dead, and the
+   * exhausted launch credential escalates to a fresh bootstrap. Rate-limited:
+   * one re-proof per interval is the recovery, not a reconnect loop.
+   */
+  noteBearerRefused(): void {
+    if (this.disposed || !this.active) return;
+    const now = Date.now();
+    if (now - this.lastBearerRefusedEscalationAtMs < BEARER_REFUSED_ESCALATION_INTERVAL_MS) return;
+    this.lastBearerRefusedEscalationAtMs = now;
+    console.warn(
+      "[loopback] bearer refused with refresh exhausted; re-proving the leg (renew → re-pair → re-bootstrap)",
+    );
+    const socket = this.socket;
+    if (socket) this.forceReconnect(socket);
+  }
+
+  /**
    * Re-open the current socket so its upgrade re-evaluates the declaration
    * inputs (a descriptor verdict arrived or changed for this endpoint). The
    * owner calls this only to DROP a declaration a fresh post-open descriptor
@@ -356,14 +420,16 @@ export class DesktopLoopbackIntake {
   }
 
   /** Installs a token refresh rotation result (the loopback HTTP client's
-   * lifecycle reports rotations back into this intake). */
+   * lifecycle reports rotations back into this intake). A reported access
+   * deadline also (re)arms the proactive renewal. */
   applyTokens(tokens: {
     readonly accessToken: string;
     readonly refreshToken?: string | null;
+    readonly accessTokenExpiresAt?: string;
   }): void {
     this.accessToken = tokens.accessToken;
-    if (tokens.refreshToken === undefined) return;
-    this.refreshToken = tokens.refreshToken;
+    if (tokens.refreshToken !== undefined) this.refreshToken = tokens.refreshToken;
+    if (this.deps.renewSession) this.renewal.schedule(tokens.accessTokenExpiresAt);
   }
 
   /** Tears down the leg: aborts in-flight credential work, stops every timer,
@@ -376,6 +442,7 @@ export class DesktopLoopbackIntake {
     this.requestAbort = null;
     this.unsubscribeItemInterests?.();
     this.unsubscribeItemInterests = null;
+    this.renewal.dispose();
     this.clearDecodeRetry();
     this.drain.dispose();
     this.liveness.dispose();
@@ -437,8 +504,32 @@ export class DesktopLoopbackIntake {
         } catch (error) {
           if (isLoopbackCredentialExhaustedError(error)) throw error;
           if (!isLoopbackTicketUnauthorizedError(error)) throw error;
-          // The retained bearer was refused (expired/rotated): fall through to
-          // a fresh pairing exchange, exactly as the pre-A4 path did.
+          // The retained bearer was refused (expired/rotated). Renew this same
+          // session with its refresh token before re-pairing: the bootstrap
+          // credential is single-use, and every exchange registers another
+          // host session.
+          if (this.deps.renewSession && (await this.deps.renewSession())) {
+            if (!this.canContinue()) return false;
+            if (this.accessToken) {
+              try {
+                return await this.openWithTicket(base, this.accessToken, controller);
+              } catch (retryError) {
+                if (isLoopbackCredentialExhaustedError(retryError)) throw retryError;
+                if (!isLoopbackTicketUnauthorizedError(retryError)) throw retryError;
+                // The renewal reported success (a rotation, or the "already
+                // rotated" short-circuit) yet the host still refuses the
+                // bearer: the grant is unrecoverable and retrying it would
+                // loop 401s forever. Fall through to a fresh pairing
+                // exchange — a spent credential then escalates to a fresh
+                // bootstrap, which is the only exit from a dead session.
+                console.warn(
+                  "[loopback] bearer still refused after a reported renewal; falling through to re-pair",
+                );
+              }
+            }
+          }
+          // No renewal port, or the host refused the grant: fall through to a
+          // fresh pairing exchange, exactly as the pre-A4 path did.
         }
       }
       const tokens = await exchangePairingCredential(
@@ -512,33 +603,27 @@ export class DesktopLoopbackIntake {
     // Live-only join: no replay cursors. Recovery rebuilds subscribed threads
     // through the transport (the proven relay semantics) instead of replaying
     // into the desktop reducer.
-    const wsUrl = new URL("/ws", base.replace(/^http/, "ws"));
-    wsUrl.searchParams.set("ticket", ticket);
-    wsUrl.searchParams.set("desktopInternal", "1");
-    // B1: the managed root's transcript reads now ride the bounded HTTP
-    // history/items/turns routes and can carry/render the durable notice
-    // (B4 F6), so this leg declares `notices=v1` on the FIRST upgrade. The
-    // declaration is asserted at socket open, before any read: a capable
-    // connection is what keeps live post-gap content flowing instead of being
-    // emptied by the host's notice gate.
-    // boundedCatalogChanges follows its authenticated descriptor preflight:
-    // the declaration is asserted only for an endpoint whose descriptor was
-    // read on this leg before the ticket mint (the preflight above), so a host
-    // that predates the signal form never receives it and the FIRST upgrade of
-    // a capable host already carries it.
+    // The leg declares its capabilities on the FIRST upgrade, as every host's
+    // connection does. boundedCatalogChanges follows its authenticated
+    // descriptor preflight: it is asserted only for an endpoint whose
+    // descriptor was read on this leg before the ticket mint, so a host that
+    // predates the signal form never receives it. `desktopInternal=1` opts into
+    // the desktop-only event families; A1: an explicit (possibly empty)
+    // interest array on the initial upgrade (absence means "older client, send
+    // everything"; the bound is enforced before writing).
+    const initialItemInterests = this.snapshotItemInterests();
     const declaredUrl = new URL(
-      withBoundedCatalogChangesDeclaration(
-        withRuntimeHistoryNoticesDeclaration(wsUrl.toString()),
-        this.deps.declaresBoundedCatalogChanges?.(this.deps.endpoint) === true,
+      declareEventSocketCapabilities(
+        remoteWebSocketUrl(base, ticket, undefined, { threadItemInterests: initialItemInterests }),
+        {
+          boundedCatalogChanges:
+            this.deps.declaresBoundedCatalogChanges?.(this.deps.endpoint) === true,
+        },
       ),
     );
+    declaredUrl.searchParams.set("desktopInternal", "1");
     this.declaredBoundedCatalogChanges = declaredUrl.searchParams.has("catalogChanges");
     this.open = false;
-    // A1: an explicit (possibly empty) interest array on the initial upgrade.
-    // Absence means "older client, send everything"; a malformed array also
-    // parses as absent server-side, so the bound is enforced before writing.
-    const initialItemInterests = this.snapshotItemInterests();
-    declaredUrl.searchParams.set("threadItemInterests", JSON.stringify(initialItemInterests));
     const socket = this.socketFactory(declaredUrl.toString());
     this.socket = socket;
     this.sentItemInterests = initialItemInterests;
@@ -583,6 +668,7 @@ export class DesktopLoopbackIntake {
     };
     socket.onmessage = (event) => {
       if (!isCurrent()) return;
+      this.liveness.noteActivity();
       this.drain.push(String(event.data));
     };
     socket.onclose = (event) => {
@@ -598,7 +684,20 @@ export class DesktopLoopbackIntake {
   ): void {
     if (this.socket !== socket) return;
     this.teardownSocket(socket);
+    // The host closes at the session's access deadline. This window renews the
+    // SAME session with its refresh token, so this is a transport event, not
+    // credential exhaustion (re-pairing would register another host session).
+    if (event?.reason === REMOTE_ACCESS_SESSION_EXPIRED_REASON) {
+      console.warn(
+        `[loopback] socket closed at the session deadline (code ${event.code ?? "?"}); renewing on reconnect`,
+      );
+      this.liveness.noteTransportFailure();
+      return;
+    }
     if (isUnauthorizedRemoteSocketClose(event?.code ?? 0, event?.reason ?? "")) {
+      console.warn(
+        `[loopback] socket closed unauthorized (code ${event?.code ?? 0}); the credential is exhausted`,
+      );
       this.noteCredentialExhausted();
       return;
     }
@@ -635,7 +734,7 @@ export class DesktopLoopbackIntake {
    * an immediate close/reconnect loop, and never a bootstrap escalation that
    * cannot repair a worker outage.
    */
-  private noteDecodeUnavailable(_reason: DesktopLoopbackDrainUnavailableReason): void {
+  private noteDecodeUnavailable(_reason: HostEventDrainUnavailableReason): void {
     if (this.disposed) return;
     const socket = this.socket;
     if (socket) {
@@ -738,6 +837,7 @@ export class DesktopLoopbackIntake {
   private noteCredentialExhausted(): void {
     if (this.credentialExhaustionNotified) return;
     this.credentialExhaustionNotified = true;
+    console.warn("[loopback] pairing credential exhausted; requesting a fresh bootstrap");
     if (this.deps.onCredentialExhausted) {
       this.deps.onCredentialExhausted();
       return;

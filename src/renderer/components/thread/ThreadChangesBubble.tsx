@@ -12,10 +12,8 @@ import {
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { DiffStat } from "@/renderer/components/common";
 import {
-  floatingGlassActiveClass,
-  floatingGlassBubbleActiveClass,
-  floatingGlassBubbleClass,
-  floatingGlassSurfaceClass,
+  floatingBubbleActiveClass,
+  floatingBubblePillClass,
 } from "@/renderer/components/layout/floatingGlass";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { resolvePrKey } from "@/renderer/state/gitSelectors";
@@ -130,9 +128,9 @@ export function ThreadChangesBubble(props: {
       aria-pressed={isOpen}
       /* Sized to a 28px pill — same height as the scroll-to-bottom circle and the
          rail's icon buttons, so the floating chrome shares one scale. */
-      className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} flex h-7 items-center gap-1.5 rounded-full text-xs font-medium transition-colors ${
+      className={`${floatingBubblePillClass} ${
         hasChanges || hasVisiblePr ? "px-3" : "w-7 justify-center px-0"
-      } ${isOpen ? `${floatingGlassActiveClass} ${floatingGlassBubbleActiveClass}` : ""}`}
+      } ${isOpen ? floatingBubbleActiveClass : ""}`}
       onClick={() => {
         if (isOpen) {
           closeAllPanels();

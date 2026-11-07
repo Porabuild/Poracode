@@ -165,4 +165,10 @@ export interface UsageProviderDescriptor {
   /** A cookie-backed provider also accepts a pasted API key. */
   apiKeyFallback?: boolean;
   windowIds: UsageWindowId[];
+  /** Slower default polling and escalating cooldowns for aggressively throttled APIs.
+   * Explicit per-provider intervals override the default; cooldowns guard manual refreshes too. */
+  refreshPolicy?: {
+    defaultIntervalMinutes: number;
+    rateLimitBackoffMs: readonly number[];
+  };
 }

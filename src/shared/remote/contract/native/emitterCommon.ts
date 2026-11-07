@@ -4,6 +4,9 @@ import { structuralSchemaHash } from "./schemaGraph";
 import type { JsonSchema, NativeBindingIr, NativeSchemaGraph, NativeTypeNode } from "./types";
 
 export const NATIVE_SEMANTIC_VALIDATOR_IDS = [
+  "forge.host.https",
+  "forge.watch.scope-identity",
+  "forge.edit.fields",
   "git.add-worktree.frozen-source",
   "git.delete-branch.remote-cannot-have-owner",
   "git.remove-worktree.owner-requires-branch",

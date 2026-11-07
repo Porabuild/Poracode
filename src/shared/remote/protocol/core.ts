@@ -25,9 +25,28 @@ import { gitStatePatchSchema } from "../../gitState";
 // Optional background-task timing/progress and opaque Stop actions remain additive
 // within v14: old readers ignore them; old hosts omit them and keep tasks read-only.
 // Task kinds, session actions, persisted data and compatibility ranges are unchanged.
+// Optional review source/capability metadata and new forge procedure names are additive:
+// old native readers ignore metadata; old hosts reject scoped operations before effects.
+// Scoped watch writes use a distinct route and require v1 public source authority.
+// An old watch remains readable but paused until explicitly re-armed; unknown scope
+// versions are refused without replacing persisted bytes (host schema 64).
 // Optional usage.spent tokens/cost and ProfileTokenStats.costs are additive:
 // prior Zod and generated native readers strip unknown object fields. Old hosts
 // omit them; the Costs tab reports unavailable. No discriminator meaning changes.
+// Fork v1 is capability-negotiated before its new command is sent; lineage is
+// optional and old thread rows remain valid. Older hosts never receive the kind.
+// Optional thread tool overrides remain additive: absent maps keep old defaults,
+// and the host retains durable choices when older clients omit them on mutation.
+// Optional thread.interruptedTurn is additive: old readers ignore it and old hosts
+// omit it, so no resume button shows. Only the host writes it (schema 70).
+// Optional thread-state.turnStopRequested is host persistence input; older event
+// readers ignore it. The private stored "stopped" value is never a Thread marker.
+// The optional mediaFileRequest.disposition:"attachment" download option stays
+// additive within v14: old clients never send it, an old host strips or rejects
+// the field and keeps answering nonmedia with typed unsupported_media_type, and
+// no request/response discriminator meaning changes, so no version bump.
+// GitHub polling adds an opt-in read procedure and optional project status.
+// Old snapshots stay valid; native Git state entries preserve unknown fields.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
@@ -381,6 +400,10 @@ export const remoteEnvironmentCapabilitiesSchema = z.object({
   threadHistoryResume: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Provider-only conversation snapshots in per-turn client context. */
   conversationSnapshots: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
+  /** Independent completed-turn snapshots with durable first-prompt context. */
+  threadForks: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
+  /** Host transcript listing and the `import-session` thread command. */
+  sessionImport: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
   pushRouting: remotePushRoutingCapabilitySchema.optional(),
   browserForward: remoteBrowserForwardCapabilitySchema.optional(),
@@ -637,6 +660,9 @@ export const remoteAccessTokenResultSchema = z.object({
   refreshToken: z.string().min(1).optional(),
   /** Absolute ISO expiry of `refreshToken` when it is present. */
   refreshTokenExpiresAt: z.string().min(1).optional(),
+  // The created access-session id; lets a re-pairing client revoke its own
+  // previous session exactly (TUI session.json). Older hosts omit it.
+  sessionId: z.string().min(1).optional(),
 });
 export type RemoteAccessTokenResult = z.infer<typeof remoteAccessTokenResultSchema>;
 

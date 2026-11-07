@@ -118,7 +118,7 @@ struct ThreadDetailTitleView: View {
   }
 
   private var statusLabel: String {
-    ThreadLifecycleStrings.status(resolvedStatus)
+    ThreadLifecycleStrings.status(resolvedStatus, hasSessionRef: thread.sessionRef != nil)
   }
 
   private var resolvedStatus: String {

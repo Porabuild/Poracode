@@ -9,6 +9,25 @@ protocol RichChatRawHTTPExecuting: Sendable {
   ) async throws -> Data
 
   func fetchImage(path: String, queryItems: [URLQueryItem]) async throws -> RichChatBinaryPayload
+
+  /// Streams an attachment download into a unique private directory.
+  func downloadFile(
+    path: String,
+    queryItems: [URLQueryItem],
+    suggestedName: String
+  ) async throws -> RichChatFileDownload
+}
+
+extension RichChatRawHTTPExecuting {
+  /// Default for mocks and transports without a download seam: fail closed,
+  /// never fabricate a file.
+  func downloadFile(
+    path _: String,
+    queryItems _: [URLQueryItem],
+    suggestedName _: String
+  ) async throws -> RichChatFileDownload {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
 }
 
 /// Bounded raw-body transport for the two wire kinds `RemoteAPIClient.requestData` does not own.
@@ -89,6 +108,75 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
       throw RichChatTransportFailure.invalidResponse
     }
     return RichChatBinaryPayload(data: data, mimeType: mimeType)
+  }
+
+  /// Authenticated attachment download streamed to disk via the download
+  /// session — never buffered in memory. Requires 200 + `attachment`
+  /// disposition + `application/octet-stream`; redirects, error pages and
+  /// old inline-host responses fail closed and the partial is removed.
+  func downloadFile(
+    path: String,
+    queryItems: [URLQueryItem],
+    suggestedName: String
+  ) async throws -> RichChatFileDownload {
+    try Task.checkCancellation()
+    let request = try await makeRequest(path: path, queryItems: queryItems, method: "GET")
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("poracode-chat-\(UUID().uuidString)", isDirectory: true)
+    do {
+      let (temporaryURL, response): (URL, URLResponse)
+      do {
+        (temporaryURL, response) = try await session.download(for: request)
+      } catch is CancellationError {
+        throw CancellationError()
+      } catch let error as URLError where error.code == .cancelled && Task.isCancelled {
+        throw CancellationError()
+      } catch {
+        throw RemoteClientError(message: "Network request failed.", status: 0, code: "network")
+      }
+      // Own the URLSession temp file from the moment it exists; a
+      // successful move makes this remove a no-op.
+      defer { try? FileManager.default.removeItem(at: temporaryURL) }
+      try Task.checkCancellation()
+      guard let http = response as? HTTPURLResponse else {
+        throw RemoteClientError(
+          message: "Remote request failed.", status: 0, code: "request_failed")
+      }
+      guard http.statusCode == 200 else {
+        // Map status without buffering an arbitrarily large error file -
+        // bounded like any other JSON route read.
+        let data = (try? FileHandle(forReadingFrom: temporaryURL))
+          .flatMap { handle in
+            let bounded = try? handle.read(upToCount: 16 * 1024)
+            try? handle.close()
+            return bounded
+          } ?? Data()
+        try validateStatus(http, data: data)
+        throw RemoteClientError(
+          message: "Remote request failed.",
+          status: http.statusCode, code: "request_failed")
+      }
+      guard
+        RichChatFilePolicy.isAttachmentResponse(
+          contentDisposition: http.value(forHTTPHeaderField: "Content-Disposition"),
+          contentType: http.value(forHTTPHeaderField: "Content-Type")
+        )
+      else {
+        throw RichChatTransportFailure.invalidResponse
+      }
+      let fileName = RichChatFilePolicy.sanitizedFileName(suggestedName)
+      let destination = directory.appendingPathComponent(fileName, isDirectory: false)
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      try FileManager.default.moveItem(at: temporaryURL, to: destination)
+      let size =
+        (try? FileManager.default.attributesOfItem(atPath: destination.path))?[.size]
+        as? Int64 ?? 0
+      return RichChatFileDownload(
+        directory: directory, fileURL: destination, fileName: fileName, sizeBytes: size)
+    } catch {
+      try? FileManager.default.removeItem(at: directory)
+      throw error
+    }
   }
 
   private func makeRequest(

@@ -76,6 +76,23 @@ class GithubOperationsControllerTest {
     }
 
     @Test
+    fun actionsFailureDoesNotDiscardPullRequestsFromAnotherForge() = runTest {
+        val rows = buildJsonObject { put("pullRequests", "gitlab rows") }
+        val gateway = FakeGithubGateway(readHandler = { _, _, request ->
+            when (request.procedure) {
+                GithubProcedure.ListWorkflows, GithubProcedure.ListWorkflowRuns -> error("GitHub Actions unavailable")
+                GithubProcedure.ListPullRequests -> rows
+                else -> buildJsonObject { put("available", true) }
+            }
+        })
+        val controller = GithubOperationsController(MutableStateFlow(lease()), gateway)
+        val target = target()
+        assertTrue(controller.refresh(target) is ProjectOperationResult.Success)
+        assertTrue(controller.refreshActions(target) is ProjectOperationResult.Failed)
+        assertEquals(rows, controller.state.value.entries[target.identity]?.pullRequests)
+    }
+
+    @Test
     fun offlineAndMissingScopeGateUiControllerBeforeGateway() = runTest {
         val gateway = FakeGithubGateway()
         val target = target()

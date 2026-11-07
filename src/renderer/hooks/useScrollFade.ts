@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import type { CSSProperties, MutableRefObject, RefObject } from "react";
 
 const FADE_MASK_GRADIENT =
@@ -20,6 +20,13 @@ interface ScrollFadeOptions {
   contentRef?: RefObject<HTMLElement | null>;
   /** Max fade height in px (applied to both top and bottom). Defaults to 32. */
   maxFadePx?: number;
+  /**
+   * Scroll offset at which a row sits exactly flush with the top edge, or null
+   * when there is none. At or past that offset the top fade grows from zero
+   * with the distance scrolled, so content parked flush at the top is not
+   * dimmed; above it the fade is unchanged. Optional.
+   */
+  getTopFlushScrollTop?: (el: HTMLElement) => number | null;
 }
 
 interface ScrollFadeHandles<T extends HTMLElement> {
@@ -46,10 +53,11 @@ interface ScrollFadeHandles<T extends HTMLElement> {
 export function useScrollFade<T extends HTMLElement = HTMLDivElement>(
   options?: ScrollFadeOptions,
 ): ScrollFadeHandles<T> {
-  const { contentRef, maxFadePx = DEFAULT_MAX_FADE_PX } = options ?? {};
+  const { contentRef, maxFadePx = DEFAULT_MAX_FADE_PX, getTopFlushScrollTop } = options ?? {};
   const scrollRef = useRef<T | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
   const [scrollEl, setScrollEl] = useState<T | null>(null);
+  const readTopFlushScrollTop = useEffectEvent((el: T) => getTopFlushScrollTop?.(el) ?? null);
 
   // Stable identity: an inline closure would cycle the ref null→element on
   // every parent re-render, dropping the virtualizer's scroll element.
@@ -68,7 +76,9 @@ export function useScrollFade<T extends HTMLElement = HTMLDivElement>(
       const { scrollTop, scrollHeight, clientHeight } = el;
       // Quantize to whole pixels so sub-pixel virtualizer churn does not keep
       // rewriting identical-looking fade masks during thread-open measure.
-      const topFade = Math.min(maxFadePx, Math.round(scrollTop));
+      const flushTop = readTopFlushScrollTop(el);
+      const fadeOrigin = flushTop !== null && scrollTop >= flushTop - 1 ? flushTop : 0;
+      const topFade = Math.min(maxFadePx, Math.max(0, Math.round(scrollTop - fadeOrigin)));
       const bottomFade = Math.min(
         maxFadePx,
         Math.max(0, Math.round(scrollHeight - scrollTop - clientHeight)),

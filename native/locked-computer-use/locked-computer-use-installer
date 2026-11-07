@@ -1,0 +1,581 @@
+#!/bin/bash
+# Poracode Locked Computer Use installer.
+#
+#   locked-computer-use-installer install --user <uid>   (root)
+#   locked-computer-use-installer uninstall              (root)
+#   locked-computer-use-installer status                 (any user; JSON on stdout)
+#
+# Exit codes: 0 ok, 2 usage, 3 unsupported_rule, 4 verification_failed
+# (rolled back), 5 not_root, 6 not_installed.
+#
+# Safety model (see README.md):
+#   * Only `system.login.screensaver` is changed, and only from the stock
+#     `use-login-window-ui` class rule. `system.login.console`, other rights,
+#     and other bundles in SecurityAgentPlugins are never touched.
+#   * The screensaver rule is changed only after a pre-flight proves the
+#     plug-in loads and denies. Any later failure restores the backup.
+#   * Our right and bundle are removed only once the screensaver rule no longer
+#     references them, so a failed restore can never leave a dangling mechanism.
+#
+# Tests set PORACODE_LCU_TEST_ROOT (path prefix) and PORACODE_LCU_TEST_BIN
+# (fake security/codesign/chown). Test mode skips root checks and is refused
+# when actually running as root.
+
+set -euo pipefail
+umask 022
+
+readonly EXIT_USAGE=2
+readonly EXIT_UNSUPPORTED_RULE=3
+readonly EXIT_VERIFICATION_FAILED=4
+readonly EXIT_NOT_ROOT=5
+readonly EXIT_NOT_INSTALLED=6
+
+readonly RIGHT_NAME="com.poracode.locked-computer-use.unlock"
+readonly SCREENSAVER_RIGHT="system.login.screensaver"
+readonly MECHANISM="PoracodeLockedUse:allow,privileged"
+readonly RIGHT_COMMENT="Poracode Locked Computer Use: allows a screen unlock only when the signed Poracode helper holds a pending single-use approval for an active Computer Use turn."
+readonly STOCK_RULE_JSON='["use-login-window-ui"]'
+readonly OUR_RULE_JSON='["com.poracode.locked-computer-use.unlock","use-login-window-ui"]'
+readonly MECHANISMS_JSON='["PoracodeLockedUse:allow,privileged"]'
+readonly BUNDLE_NAME="PoracodeLockedUse.bundle"
+readonly EXECUTABLE_NAME="PoracodeLockedUse"
+readonly PREFLIGHT_TIMEOUT_TENTHS=150
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly SCRIPT_DIR
+readonly SOURCE_BUNDLE="$SCRIPT_DIR/$BUNDLE_NAME"
+
+TEST_MODE=0
+ROOT_PREFIX=""
+if [[ -n "${PORACODE_LCU_TEST_ROOT:-}" ]]; then
+  if [[ "$(id -u)" -eq 0 ]]; then
+    printf 'locked-computer-use-installer: error: usage: test overrides are refused when running as root\n' >&2
+    exit "$EXIT_USAGE"
+  fi
+  if [[ "$PORACODE_LCU_TEST_ROOT" != /* || ! -d "$PORACODE_LCU_TEST_ROOT" ]]; then
+    printf 'locked-computer-use-installer: error: usage: PORACODE_LCU_TEST_ROOT must be an existing absolute directory\n' >&2
+    exit "$EXIT_USAGE"
+  fi
+  if [[ -z "${PORACODE_LCU_TEST_BIN:-}" || ! -d "$PORACODE_LCU_TEST_BIN" ]]; then
+    printf 'locked-computer-use-installer: error: usage: PORACODE_LCU_TEST_BIN must be set in test mode\n' >&2
+    exit "$EXIT_USAGE"
+  fi
+  TEST_MODE=1
+  ROOT_PREFIX="$PORACODE_LCU_TEST_ROOT"
+  SECURITY="$PORACODE_LCU_TEST_BIN/security"
+  CODESIGN="$PORACODE_LCU_TEST_BIN/codesign"
+  CHOWN="$PORACODE_LCU_TEST_BIN/chown"
+else
+  export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+  SECURITY="/usr/bin/security"
+  CODESIGN="/usr/bin/codesign"
+  CHOWN="/usr/sbin/chown"
+fi
+readonly TEST_MODE ROOT_PREFIX SECURITY CODESIGN CHOWN
+readonly PLUTIL="/usr/bin/plutil"
+
+readonly PLUGINS_DIR="$ROOT_PREFIX/Library/Security/SecurityAgentPlugins"
+readonly BUNDLE_DEST="$PLUGINS_DIR/$BUNDLE_NAME"
+readonly PORACODE_SUPPORT_PARENT="$ROOT_PREFIX/Library/Application Support/Poracode"
+readonly SUPPORT_DIR="$PORACODE_SUPPORT_PARENT/LockedComputerUse"
+readonly AUDIT_LOG="$ROOT_PREFIX/Library/Logs/Poracode/locked-computer-use.log"
+readonly BACKUP_DIR="$SUPPORT_DIR/backups"
+readonly ORIGINAL_BACKUP="$BACKUP_DIR/original.plist"
+readonly STATE_FILE="$SUPPORT_DIR/state.json"
+readonly RUN_DIR="$SUPPORT_DIR/run"
+
+WORK_DIR=""
+ROLLBACK_ARMED=0
+
+log() { printf 'locked-computer-use-installer: %s\n' "$*" >&2; }
+
+fail() {
+  local code="$1" token="$2"
+  shift 2
+  log "error: $token${*:+: $*}"
+  exit "$code"
+}
+
+usage() {
+  cat >&2 <<'EOF'
+usage: locked-computer-use-installer install --user <uid>
+       locked-computer-use-installer uninstall
+       locked-computer-use-installer status
+EOF
+  exit "$EXIT_USAGE"
+}
+
+cleanup() {
+  local status=$?
+  trap - EXIT
+  # Rollback is best effort and must run to completion.
+  set +e
+  if [[ "$ROLLBACK_ARMED" -eq 1 && "$status" -ne 0 ]]; then
+    ROLLBACK_ARMED=0
+    log "unexpected failure (exit $status); rolling back"
+    rollback
+    status="$EXIT_VERIFICATION_FAILED"
+  fi
+  if [[ -n "$WORK_DIR" && -d "$WORK_DIR" ]]; then rm -rf "$WORK_DIR"; fi
+  exit "$status"
+}
+
+make_work_dir() {
+  WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/poracode-lcu.XXXXXX")"
+}
+
+require_root() {
+  if [[ "$TEST_MODE" -eq 0 && "$(id -u)" -ne 0 ]]; then
+    fail "$EXIT_NOT_ROOT" not_root "run as root"
+  fi
+}
+
+require_macos() {
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    fail "$EXIT_USAGE" usage "macOS only"
+  fi
+}
+
+# Refuse downgrade writes before touching rules, bundles, or backups.
+require_supported_state() {
+  if [[ -e "$STATE_FILE" ]] && [[ "$(plist_raw "$STATE_FILE" schemaVersion)" != "1" ]]; then
+    fail "$EXIT_UNSUPPORTED_RULE" unsupported_rule "unsupported installer state; preserving it"
+  fi
+}
+
+# --- authorization database helpers -----------------------------------------
+
+read_right() { "$SECURITY" authorizationdb read "$1" >"$2" 2>/dev/null; }
+
+plist_json() { "$PLUTIL" -extract "$2" json -o - "$1" 2>/dev/null | tr -d ' \t\r\n' || true; }
+
+plist_raw() { "$PLUTIL" -extract "$2" raw -o - "$1" 2>/dev/null || true; }
+
+plist_has_key() { "$PLUTIL" -extract "$2" xml1 -o - "$1" >/dev/null 2>&1; }
+
+plist_kofn_is_one() {
+  local value
+  value="$("$PLUTIL" -extract k-of-n xml1 -o - "$1" 2>/dev/null || true)"
+  [[ "$value" == *"<integer>1</integer>"* ]]
+}
+
+# Prints stock | ours | other for a screensaver rule plist.
+classify_rule() {
+  local file="$1" class rule
+  class="$(plist_raw "$file" class)"
+  rule="$(plist_json "$file" rule)"
+  if [[ "$class" == "rule" && "$rule" == "$STOCK_RULE_JSON" ]]; then
+    echo stock
+  elif [[ "$class" == "rule" && "$rule" == "$OUR_RULE_JSON" ]] && plist_kofn_is_one "$file"; then
+    echo ours
+  else
+    echo other
+  fi
+}
+
+rule_references_ours() {
+  [[ "$(plist_json "$1" rule)" == *"\"$RIGHT_NAME\""* ]]
+}
+
+right_is_ours() {
+  local file="$1"
+  [[ "$(plist_raw "$file" class)" == "evaluate-mechanisms" &&
+    "$(plist_json "$file" mechanisms)" == "$MECHANISMS_JSON" ]]
+}
+
+right_present() {
+  read_right "$RIGHT_NAME" "$WORK_DIR/right.present.plist"
+}
+
+write_our_right() {
+  local file="$WORK_DIR/right.plist"
+  cat >"$file" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>class</key>
+	<string>evaluate-mechanisms</string>
+	<key>comment</key>
+	<string>$RIGHT_COMMENT</string>
+	<key>mechanisms</key>
+	<array>
+		<string>$MECHANISM</string>
+	</array>
+	<key>shared</key>
+	<false/>
+	<key>tries</key>
+	<integer>1</integer>
+</dict>
+</plist>
+EOF
+  "$PLUTIL" -lint -s "$file" >/dev/null || return 1
+  "$SECURITY" authorizationdb write "$RIGHT_NAME" <"$file" >/dev/null 2>&1 || return 1
+  local readback="$WORK_DIR/right.readback.plist"
+  read_right "$RIGHT_NAME" "$readback" && right_is_ours "$readback"
+}
+
+remove_our_right() {
+  if right_present; then
+    "$SECURITY" authorizationdb remove "$RIGHT_NAME" >/dev/null 2>&1 || return 1
+    ! right_present
+  fi
+}
+
+audit_line_count() {
+  if [[ -f "$AUDIT_LOG" ]]; then wc -l <"$AUDIT_LOG" | tr -d ' '; else echo 0; fi
+}
+
+# Evaluates our right alone: the plug-in must load and deny
+# (errAuthorizationDenied, -60005) within the timeout, and prove it ran by
+# appending a deny line to its audit log. A plug-in that fails to load is also
+# reported as a denial, so the exit status alone is not proof.
+preflight() {
+  local output="$WORK_DIR/preflight.out" pid waited=0 status=0 lines_before
+  lines_before="$(audit_line_count)"
+  "$SECURITY" authorize -u "$RIGHT_NAME" >"$output" 2>&1 &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    if [[ "$waited" -ge "$PREFLIGHT_TIMEOUT_TENTHS" ]]; then
+      kill "$pid" 2>/dev/null || true
+      wait "$pid" 2>/dev/null || true
+      log "pre-flight timed out"
+      return 1
+    fi
+    sleep 0.1
+    waited=$((waited + 1))
+  done
+  wait "$pid" || status=$?
+  if [[ "$status" -ne 0 ]] && grep -q -- '-60005' "$output"; then
+    if [[ "$(audit_line_count)" -gt "$lines_before" ]] && tail -n 1 "$AUDIT_LOG" | grep -q ' outcome=deny '; then
+      return 0
+    fi
+    log "pre-flight denied but the plug-in wrote no audit line (it may not have loaded)"
+    return 1
+  fi
+  log "pre-flight did not return a plug-in denial: $(tr -d '\n' <"$output" | cut -c1-120)"
+  return 1
+}
+
+# Compare all policy fields, excluding authorizationdb-owned timestamps.
+rules_equal() {
+  local left="$WORK_DIR/compare.left.plist" right="$WORK_DIR/compare.right.plist"
+  cp "$1" "$left" && cp "$2" "$right" || return 1
+  local file key
+  for file in "$left" "$right"; do
+    for key in created modified; do
+      if plist_has_key "$file" "$key"; then "$PLUTIL" -remove "$key" "$file" >/dev/null || return 1; fi
+    done
+    "$PLUTIL" -convert json -r "$file" >/dev/null || return 1
+  done
+  cmp -s "$left" "$right"
+}
+
+# Only undo the policy transform we installed, never a later MDM edit.
+installed_rule_matches_backup() {
+  local current="$1" expected="$WORK_DIR/expected.installed.plist"
+  [[ "$(classify_rule "$current")" == "ours" ]] || return 1
+  [[ -f "$ORIGINAL_BACKUP" ]] || return 0
+  cp "$ORIGINAL_BACKUP" "$expected" || return 1
+  "$PLUTIL" -insert rule.0 -string "$RIGHT_NAME" "$expected" >/dev/null || return 1
+  "$PLUTIL" -replace k-of-n -integer 1 "$expected" >/dev/null || return 1
+  rules_equal "$current" "$expected"
+}
+
+# Restores the screensaver rule from `source` and verifies the read-back rule.
+restore_screensaver_from() {
+  local source="$1" readback="$WORK_DIR/screensaver.restored.plist"
+  "$SECURITY" authorizationdb write "$SCREENSAVER_RIGHT" <"$source" >/dev/null 2>&1 || return 1
+  read_right "$SCREENSAVER_RIGHT" "$readback" || return 1
+  rules_equal "$readback" "$source"
+}
+
+# Undoes our transform on a copy of the current rule. Used only when the
+# original backup is missing.
+inverse_of_installed_rule() {
+  local current="$1" output="$2"
+  [[ "$(classify_rule "$current")" == "ours" ]] || return 1
+  cp "$current" "$output" || return 1
+  "$PLUTIL" -remove rule.0 "$output" >/dev/null || return 1
+  "$PLUTIL" -remove k-of-n "$output" >/dev/null || return 1
+  [[ "$(classify_rule "$output")" == "stock" ]]
+}
+
+# --- filesystem helpers ------------------------------------------------------
+
+ensure_root_dir() {
+  local path="$1" mode="$2"
+  if [[ -L "$path" ]]; then fail "$EXIT_VERIFICATION_FAILED" verification_failed "$path is a symlink"; fi
+  mkdir -p "$path"
+  "$CHOWN" root:wheel "$path"
+  chmod "$mode" "$path"
+}
+
+install_bundle() {
+  local staging="$PLUGINS_DIR/.$BUNDLE_NAME.installing"
+  if [[ ! -d "$PLUGINS_DIR" ]]; then
+    mkdir -p "$PLUGINS_DIR" || return 1
+    "$CHOWN" root:wheel "$PLUGINS_DIR" || return 1
+    chmod 0755 "$PLUGINS_DIR" || return 1
+  fi
+  rm -rf "$staging" || return 1
+  cp -R "$SOURCE_BUNDLE" "$staging" || return 1
+  # A plug-in bundle never needs symlinks; refuse them rather than follow one.
+  if [[ -n "$(find "$staging" -type l | head -n 1)" ]]; then
+    rm -rf "$staging"
+    return 1
+  fi
+  "$CHOWN" -R root:wheel "$staging" || return 1
+  find "$staging" -type d -exec chmod 0755 {} + || return 1
+  find "$staging" -type f -exec chmod 0644 {} + || return 1
+  chmod 0755 "$staging/Contents/MacOS/$EXECUTABLE_NAME" || return 1
+  rm -rf "$BUNDLE_DEST" || return 1
+  mv "$staging" "$BUNDLE_DEST" || return 1
+  "$CODESIGN" --verify --strict "$BUNDLE_DEST" >/dev/null 2>&1
+}
+
+bundle_version() {
+  local version
+  version="$(plist_raw "$1/Contents/Info.plist" CFBundleShortVersionString)"
+  if [[ "$version" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then echo "$version"; fi
+}
+
+write_state() {
+  local uid="$1" version="$2" users="" existing="" installed_at
+  installed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  if [[ -f "$STATE_FILE" ]]; then
+    existing="$(grep -o '"users":\[[0-9, ]*\]' "$STATE_FILE" | grep -o '[0-9][0-9]*' || true)"
+  fi
+  users="$(printf '%s\n%s\n' "$existing" "$uid" | grep -E '^[0-9]+$' | sort -n -u | paste -sd, -)"
+  local temporary="$STATE_FILE.tmp.$$"
+  printf '{"schemaVersion":1,"pluginVersion":"%s","installedAt":"%s","backup":"original.plist","users":[%s]}\n' \
+    "$version" "$installed_at" "$users" >"$temporary"
+  "$CHOWN" root:wheel "$temporary"
+  chmod 0644 "$temporary"
+  mv -f "$temporary" "$STATE_FILE"
+}
+
+ensure_user_run_dir() {
+  local uid="$1" path="$RUN_DIR/$1"
+  ensure_root_dir "$RUN_DIR" 0755
+  if [[ -L "$path" || (-e "$path" && ! -d "$path") ]]; then rm -f "$path"; fi
+  mkdir -p "$path"
+  "$CHOWN" "$uid" "$path"
+  chmod 0700 "$path"
+}
+
+# --- rollback ----------------------------------------------------------------
+
+# Returns the system to "not installed". The right and bundle are removed only
+# when the screensaver rule no longer references our right.
+rollback() {
+  local current="$WORK_DIR/rollback.current.plist" inverse="$WORK_DIR/rollback.inverse.plist"
+  if ! read_right "$SCREENSAVER_RIGHT" "$current"; then
+    log "rollback: cannot read $SCREENSAVER_RIGHT; leaving the plug-in in place (it denies). See README recovery."
+    return 0
+  fi
+  if rule_references_ours "$current"; then
+    if ! installed_rule_matches_backup "$current"; then
+      log "rollback: unlock policy changed; preserving it and the plug-in for IT recovery"
+      return 0
+    fi
+    local restored=1
+    if [[ -f "$ORIGINAL_BACKUP" ]]; then
+      restore_screensaver_from "$ORIGINAL_BACKUP" || restored=0
+    elif inverse_of_installed_rule "$current" "$inverse"; then
+      restore_screensaver_from "$inverse" || restored=0
+    else
+      restored=0
+    fi
+    if [[ "$restored" -eq 0 ]]; then
+      log "rollback: could not restore $SCREENSAVER_RIGHT; leaving the plug-in in place (it denies). See README recovery."
+      return 0
+    fi
+  fi
+  remove_our_right || log "rollback: could not remove $RIGHT_NAME"
+  rm -rf "$BUNDLE_DEST" "$PLUGINS_DIR/.$BUNDLE_NAME.installing"
+  rm -rf "$RUN_DIR"
+  rm -f "$STATE_FILE"
+}
+
+fail_and_roll_back() {
+  log "error: verification_failed: $*"
+  ROLLBACK_ARMED=0
+  set +e
+  rollback
+  exit "$EXIT_VERIFICATION_FAILED"
+}
+
+# --- commands ----------------------------------------------------------------
+
+cmd_install() {
+  local uid=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --user)
+        [[ $# -ge 2 ]] || usage
+        uid="$2"
+        shift 2
+        ;;
+      *) usage ;;
+    esac
+  done
+  [[ "$uid" =~ ^[1-9][0-9]{0,9}$ ]] || usage
+  require_root
+  require_macos
+  make_work_dir
+  require_supported_state
+
+  [[ -f "$SOURCE_BUNDLE/Contents/MacOS/$EXECUTABLE_NAME" ]] ||
+    fail "$EXIT_VERIFICATION_FAILED" verification_failed "bundle missing at $SOURCE_BUNDLE"
+  "$CODESIGN" --verify --strict "$SOURCE_BUNDLE" >/dev/null 2>&1 ||
+    fail "$EXIT_VERIFICATION_FAILED" verification_failed "bundle signature is invalid"
+  local version
+  version="$(bundle_version "$SOURCE_BUNDLE")"
+  [[ -n "$version" ]] || fail "$EXIT_VERIFICATION_FAILED" verification_failed "bundle version unreadable"
+
+  local current="$WORK_DIR/screensaver.current.plist" kind
+  read_right "$SCREENSAVER_RIGHT" "$current" ||
+    fail "$EXIT_VERIFICATION_FAILED" verification_failed "cannot read $SCREENSAVER_RIGHT"
+  kind="$(classify_rule "$current")"
+  case "$kind" in
+    stock) ;;
+    ours)
+      installed_rule_matches_backup "$current" ||
+        fail "$EXIT_UNSUPPORTED_RULE" unsupported_rule "unlock policy changed since installation"
+      [[ -f "$ORIGINAL_BACKUP" ]] ||
+        fail "$EXIT_UNSUPPORTED_RULE" unsupported_rule "installed rule found without $ORIGINAL_BACKUP; run uninstall first"
+      ;;
+    *) fail "$EXIT_UNSUPPORTED_RULE" unsupported_rule "$SCREENSAVER_RIGHT is not the stock use-login-window-ui rule" ;;
+  esac
+
+  if [[ ! -d "$PORACODE_SUPPORT_PARENT" ]]; then ensure_root_dir "$PORACODE_SUPPORT_PARENT" 0755; fi
+  ensure_root_dir "$SUPPORT_DIR" 0755
+  ensure_root_dir "$BACKUP_DIR" 0755
+  if [[ "$kind" == "stock" ]]; then
+    # Exact read output before this install. original.plist is replaced only
+    # while not installed, so it always holds the pre-install rule.
+    local stamp backup
+    stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    backup="$BACKUP_DIR/$SCREENSAVER_RIGHT.$stamp.plist"
+    [[ ! -e "$backup" ]] || backup="$BACKUP_DIR/$SCREENSAVER_RIGHT.$stamp.$$.plist"
+    cp "$current" "$backup"
+    "$CHOWN" root:wheel "$backup"
+    chmod 0600 "$backup"
+    cp "$backup" "$ORIGINAL_BACKUP.tmp.$$"
+    "$CHOWN" root:wheel "$ORIGINAL_BACKUP.tmp.$$"
+    chmod 0600 "$ORIGINAL_BACKUP.tmp.$$"
+    mv -f "$ORIGINAL_BACKUP.tmp.$$" "$ORIGINAL_BACKUP"
+  fi
+
+  ROLLBACK_ARMED=1
+  install_bundle || fail_and_roll_back "installed bundle failed signature verification"
+  write_our_right || fail_and_roll_back "could not write or read back $RIGHT_NAME"
+  preflight || fail_and_roll_back "pre-flight evaluation of $RIGHT_NAME did not deny"
+
+  local latest="$WORK_DIR/screensaver.latest.plist"
+  read_right "$SCREENSAVER_RIGHT" "$latest" && rules_equal "$current" "$latest" ||
+    fail_and_roll_back "unlock policy changed during installation"
+  if [[ "$kind" == "stock" ]]; then
+    local combined="$WORK_DIR/screensaver.combined.plist"
+    cp "$current" "$combined"
+    "$PLUTIL" -insert rule.0 -string "$RIGHT_NAME" "$combined" >/dev/null
+    "$PLUTIL" -replace k-of-n -integer 1 "$combined" >/dev/null
+    [[ "$(classify_rule "$combined")" == "ours" ]] || fail_and_roll_back "could not build the combined rule"
+    "$SECURITY" authorizationdb write "$SCREENSAVER_RIGHT" <"$combined" >/dev/null 2>&1 ||
+      fail_and_roll_back "could not write $SCREENSAVER_RIGHT"
+  fi
+
+  local readback="$WORK_DIR/screensaver.readback.plist"
+  read_right "$SCREENSAVER_RIGHT" "$readback" || fail_and_roll_back "cannot read back $SCREENSAVER_RIGHT"
+  [[ "$(classify_rule "$readback")" == "ours" ]] || fail_and_roll_back "$SCREENSAVER_RIGHT read-back mismatch"
+
+  write_state "$uid" "$version"
+  ensure_user_run_dir "$uid"
+  ROLLBACK_ARMED=0
+  log "installed plug-in $version for uid $uid"
+}
+
+cmd_uninstall() {
+  [[ $# -eq 0 ]] || usage
+  require_root
+  require_macos
+  make_work_dir
+  require_supported_state
+
+  local current="$WORK_DIR/screensaver.current.plist"
+  read_right "$SCREENSAVER_RIGHT" "$current" ||
+    fail "$EXIT_VERIFICATION_FAILED" verification_failed "cannot read $SCREENSAVER_RIGHT"
+  local references=0 has_right=0
+  if rule_references_ours "$current"; then references=1; fi
+  if right_present; then has_right=1; fi
+  if [[ "$references" -eq 0 && "$has_right" -eq 0 && ! -e "$BUNDLE_DEST" && ! -e "$STATE_FILE" &&
+    ! -e "$RUN_DIR" ]]; then
+    fail "$EXIT_NOT_INSTALLED" not_installed "nothing to uninstall"
+  fi
+
+  if [[ "$references" -eq 1 ]]; then
+    installed_rule_matches_backup "$current" ||
+      fail "$EXIT_UNSUPPORTED_RULE" unsupported_rule "unlock policy changed since installation; preserving it"
+    local source="$ORIGINAL_BACKUP"
+    if [[ ! -f "$source" ]]; then
+      source="$WORK_DIR/screensaver.inverse.plist"
+      inverse_of_installed_rule "$current" "$source" ||
+        fail "$EXIT_VERIFICATION_FAILED" verification_failed "no backup and the current rule is not our form; see README recovery"
+      log "original backup missing; restoring the rule without our entry"
+    fi
+    restore_screensaver_from "$source" ||
+      fail "$EXIT_VERIFICATION_FAILED" verification_failed "restored $SCREENSAVER_RIGHT does not match the backup; plug-in left in place (it denies). See README recovery."
+  fi
+
+  remove_our_right ||
+    fail "$EXIT_VERIFICATION_FAILED" verification_failed "could not remove $RIGHT_NAME"
+  rm -rf "$BUNDLE_DEST" "$PLUGINS_DIR/.$BUNDLE_NAME.installing"
+  rm -rf "$RUN_DIR"
+  rm -f "$STATE_FILE"
+  log "uninstalled; backups kept in $BACKUP_DIR"
+}
+
+cmd_status() {
+  [[ $# -eq 0 ]] || usage
+  require_macos
+  make_work_dir
+
+  local bundle_installed=false right_installed=false rule_installed=false original=false
+  local version="" version_json=null
+  if [[ -f "$BUNDLE_DEST/Contents/MacOS/$EXECUTABLE_NAME" && -f "$BUNDLE_DEST/Contents/Info.plist" ]]; then
+    bundle_installed=true
+    version="$(bundle_version "$BUNDLE_DEST")"
+    if [[ -n "$version" ]]; then version_json="\"$version\""; fi
+  fi
+  local right="$WORK_DIR/status.right.plist" rule="$WORK_DIR/status.rule.plist"
+  if read_right "$RIGHT_NAME" "$right" && right_is_ours "$right"; then right_installed=true; fi
+  if read_right "$SCREENSAVER_RIGHT" "$rule" && [[ "$(classify_rule "$rule")" == "ours" ]]; then
+    rule_installed=true
+  fi
+  if [[ -f "$ORIGINAL_BACKUP" ]]; then original=true; fi
+  local installed=false
+  if [[ "$bundle_installed" == true && "$right_installed" == true && "$rule_installed" == true ]]; then
+    installed=true
+  fi
+  local bundled_version bundled_json=null
+  bundled_version="$(bundle_version "$SOURCE_BUNDLE")"
+  if [[ -n "$bundled_version" ]]; then bundled_json="\"$bundled_version\""; fi
+  printf '{"installed":%s,"ruleInstalled":%s,"bundleInstalled":%s,"rightInstalled":%s,"originalBackup":%s,"pluginVersion":%s,"bundledPluginVersion":%s}\n' \
+    "$installed" "$rule_installed" "$bundle_installed" "$right_installed" "$original" "$version_json" "$bundled_json"
+}
+
+main() {
+  trap cleanup EXIT
+  [[ $# -ge 1 ]] || usage
+  local command="$1"
+  shift
+  case "$command" in
+    install) cmd_install "$@" ;;
+    uninstall) cmd_uninstall "$@" ;;
+    status) cmd_status "$@" ;;
+    *) usage ;;
+  esac
+}
+
+main "$@"

@@ -15,9 +15,12 @@ import type {
   ThreadFollowUpQueueState,
   ThreadStatus,
   ThreadStatusSource,
+  ThreadTurnInterruption,
   UsageLoginConfirmationRequest,
   UsageLoginDeviceCode,
   UsageSnapshot,
+  ProjectLocation,
+  GithubPollingProblem,
 } from "../contracts";
 import type {
   BrowserDownloadInfo,
@@ -298,6 +301,8 @@ export type SupervisorEvent =
   | {
       type: "thread-state";
       threadId: string;
+      /** Host-private acknowledgment of provider admission for fork context. */
+      initialInstructionsApplied?: true;
       status: ThreadStatus;
       attention: ThreadAttention;
       /**
@@ -323,6 +328,10 @@ export type SupervisorEvent =
       slashCommands?: AgentSlashCommand[];
       /** Current session controls; null retires them, absence leaves older-host state alone. */
       sessionConfigOptions?: SessionConfigOptions | null;
+      /** Resumable cut-off turn; null clears it, absence leaves older-host state alone. */
+      interruptedTurn?: ThreadTurnInterruption | null;
+      /** Persist explicit Stop even while provider cancellation is still pending. */
+      turnStopRequested?: boolean;
       forceCloseActiveTurn?: boolean;
       threadStatusSource?: ThreadStatusSource;
     }
@@ -355,6 +364,11 @@ export type SupervisorEvent =
   | { type: "provider-usage"; snapshot: UsageSnapshot }
   | { type: "provider-usage-all"; snapshots: UsageSnapshot[] }
   | { type: "git-changed"; projectId: string }
+  | {
+      type: "github-polling-status";
+      projectLocation: ProjectLocation;
+      problem: GithubPollingProblem | null;
+    }
   | { type: "project-tree-changed"; projectId: string }
   | { type: "lsp-message"; sessionId: string; message: unknown }
   | {

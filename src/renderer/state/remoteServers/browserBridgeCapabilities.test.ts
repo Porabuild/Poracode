@@ -8,7 +8,11 @@ import {
   UNKNOWN_HOST_CAPABILITIES,
 } from "@/renderer/clientRuntime";
 import type { RemoteServersState } from "./types";
-import { __resetBrowserBridgeForTest, syncDesktopBrowserBridgeClient } from "./browserBridge";
+import {
+  __resetBrowserBridgeForTest,
+  selectBrowserBridgeClientServer,
+  syncDesktopBrowserBridgeClient,
+} from "./browserBridge";
 
 vi.mock("@/renderer/browser/remoteBridge", () => ({ setRemoteBridgeClient: vi.fn<() => void>() }));
 vi.mock("@/renderer/browser/remoteSettingsSync", () => ({
@@ -66,4 +70,27 @@ it("negotiates only the selected remote owner and clears stale capabilities on f
     })),
   });
   expect(readClientRuntime().hostCapabilities).toEqual(UNKNOWN_HOST_CAPABILITIES);
+});
+
+it("restores a stored v1 owner preference", () => {
+  const current = state();
+  window.localStorage.setItem(
+    "poracode.browser.review-owner.v1",
+    JSON.stringify([1, "second", "second", "http://second.test/"]),
+  );
+  expect(selectBrowserBridgeClientServer(current)?.desktopId).toBe("second");
+  // An owner whose endpoint changed is not adopted.
+  window.localStorage.setItem(
+    "poracode.browser.review-owner.v1",
+    JSON.stringify([1, "second", "second", "http://moved.test/"]),
+  );
+  expect(selectBrowserBridgeClientServer(current)?.desktopId).toBe("first");
+});
+
+it("never rewrites an owner preference written by a future version", () => {
+  const future = JSON.stringify([2, "second", "second", "http://second.test/", { extra: true }]);
+  window.localStorage.setItem("poracode.browser.review-owner.v1", future);
+  expect(selectBrowserBridgeClientServer(state())?.desktopId).toBe("first");
+  syncDesktopBrowserBridgeClient(state());
+  expect(window.localStorage.getItem("poracode.browser.review-owner.v1")).toBe(future);
 });

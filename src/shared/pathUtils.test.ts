@@ -1,5 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { getBasename, isSameFolderPath, splitPath } from "./pathUtils";
+import { getBasename, isSameFolderPath, normalizeWindowsDrivePath, splitPath } from "./pathUtils";
+
+describe("normalizeWindowsDrivePath", () => {
+  it.each([
+    ["/E:/work/report.md", "E:/work/report.md"],
+    [String.raw`/c:\My Files\report.md`, String.raw`c:\My Files\report.md`],
+    ["/E:/", "E:/"],
+    ["E:/work/report.md", "E:/work/report.md"],
+    ["/home/me/report.md", "/home/me/report.md"],
+    ["//server/share/report.md", "//server/share/report.md"],
+    [String.raw`\\server\share\report.md`, String.raw`\\server\share\report.md`],
+    ["src/report.md", "src/report.md"],
+    ["/E:report.md", "/E:report.md"],
+  ])("normalizes %s to %s", (path, expected) => {
+    expect(normalizeWindowsDrivePath(path)).toBe(expected);
+  });
+});
 
 describe("isSameFolderPath", () => {
   it("ignores a trailing separator and the separator style", () => {

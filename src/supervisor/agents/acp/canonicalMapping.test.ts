@@ -26,6 +26,317 @@ function note(update: SessionNotification["update"]): SessionNotification {
 }
 
 describe("mapAcpSessionUpdate", () => {
+  it("keeps video resources alongside command-resolved output without an explicit terminal reference", () => {
+    const state = createAcpMapperState("video-command-thread");
+    state.resolveTerminalOutputByCommand = () => "recording finished\n";
+    const resource = {
+      type: "resource_link",
+      uri: "file:///tmp/demo.mp4",
+      mimeType: "video/mp4",
+      name: "Demo",
+    };
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "record",
+        title: "Record demo",
+        kind: "execute",
+        status: "completed",
+        rawInput: { command: "record demo" },
+        content: [{ type: "content", content: resource }],
+      } as SessionNotification["update"]),
+      state,
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          result: { content: [resource, { type: "text", text: "recording finished\n" }] },
+        }),
+      }),
+    );
+  });
+
+  it.each(["tool_call", "tool_call_update"] as const)(
+    "preserves array-valued video rawOutput on %s",
+    (sessionUpdate) => {
+      const state = createAcpMapperState("video-array-thread");
+      if (sessionUpdate === "tool_call_update")
+        mapAcpSessionUpdate(
+          note({
+            sessionUpdate: "tool_call",
+            toolCallId: "record",
+            title: "Record demo",
+            kind: "other",
+            status: "in_progress",
+          }),
+          state,
+        );
+      const resource = {
+        type: "resource_link",
+        uri: "file:///tmp/demo.mp4",
+        mimeType: "video/mp4",
+        name: "Demo",
+      };
+      const events = mapAcpSessionUpdate(
+        note({
+          sessionUpdate,
+          toolCallId: "record",
+          title: "Record demo",
+          kind: "other",
+          status: "completed",
+          rawOutput: [resource],
+        } as SessionNotification["update"]),
+        state,
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          payload: expect.objectContaining({ result: { content: [resource] } }),
+        }),
+      );
+    },
+  );
+  it.each(["tool_call", "tool_call_update"] as const)(
+    "preserves terminal output alongside video resources on %s",
+    (sessionUpdate) => {
+      const state = createAcpMapperState("video-terminal-thread");
+      state.resolveTerminalOutput = () => "recording finished\n";
+      if (sessionUpdate === "tool_call_update")
+        mapAcpSessionUpdate(
+          note({
+            sessionUpdate: "tool_call",
+            toolCallId: "video",
+            title: "Record video",
+            kind: "execute",
+            status: "in_progress",
+          }),
+          state,
+        );
+      const events = mapAcpSessionUpdate(
+        note({
+          sessionUpdate,
+          toolCallId: "video",
+          title: "Record video",
+          kind: "execute",
+          status: "completed",
+          content: [
+            { type: "terminal", terminalId: "recording-terminal" },
+            {
+              type: "content",
+              content: {
+                type: "resource_link",
+                uri: "file:///tmp/demo.mp4",
+                mimeType: "video/mp4",
+                name: "Demo",
+              },
+            },
+          ],
+        } as SessionNotification["update"]),
+        state,
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            result: {
+              content: [
+                expect.objectContaining({ type: "resource_link" }),
+                { type: "text", text: "recording finished\n" },
+              ],
+            },
+          }),
+        }),
+      );
+    },
+  );
+  it("retains video resource URIs and MIME types in assistant file blocks", () => {
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: {
+          type: "resource_link",
+          uri: "file:///C:/clips/my%20demo.mp4",
+          name: "Demo",
+          mimeType: "video/mp4",
+        },
+      }),
+      createAcpMapperState("video-thread"),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        payload: {
+          content: [
+            {
+              kind: "file",
+              path: "file:///C:/clips/my%20demo.mp4",
+              name: "Demo",
+              mimeType: "video/mp4",
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it.each(["tool_call", "tool_call_update"] as const)(
+    "preserves standard video resources on %s",
+    (sessionUpdate) => {
+      const state = createAcpMapperState("video-thread");
+      if (sessionUpdate === "tool_call_update")
+        mapAcpSessionUpdate(
+          note({
+            sessionUpdate: "tool_call",
+            toolCallId: "video",
+            title: "record_demo",
+            kind: "other",
+            status: "in_progress",
+          }),
+          state,
+        );
+      const resource = {
+        type: "resource_link",
+        uri: "file:///tmp/demo.webm",
+        name: "Demo",
+        mimeType: "video/webm",
+      };
+      const events = mapAcpSessionUpdate(
+        note({
+          sessionUpdate,
+          toolCallId: "video",
+          title: "record_demo",
+          kind: "other",
+          status: "completed",
+          content: [{ type: "content", content: resource }],
+        } as SessionNotification["update"]),
+        state,
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          payload: expect.objectContaining({ status: "success", result: { content: [resource] } }),
+        }),
+      );
+    },
+  );
+
+  it("preserves standard MCP App resources from both opening and terminal updates", () => {
+    const content = [
+      {
+        type: "content",
+        content: {
+          type: "resource",
+          resource: {
+            uri: "ui://fixture/chart",
+            mimeType: "text/html;profile=mcp-app",
+            text: "<h1>Chart</h1>",
+          },
+        },
+      },
+    ];
+    const state = createAcpMapperState("app-thread");
+    for (const update of [
+      {
+        sessionUpdate: "tool_call",
+        toolCallId: "app-call",
+        title: "chart",
+        kind: "other",
+        status: "in_progress",
+        content,
+      },
+      { sessionUpdate: "tool_call_update", toolCallId: "app-call", status: "completed", content },
+    ]) {
+      const events = mapAcpSessionUpdate(note(update as SessionNotification["update"]), state);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          payload: expect.objectContaining({ result: { content: [content[0]!.content] } }),
+        }),
+      );
+    }
+  });
+
+  it("preserves an MCP App rawOutput on an already completed opening notification", () => {
+    const rawOutput = {
+      content: [
+        {
+          type: "resource",
+          resource: {
+            uri: "ui://fixture/chart",
+            mimeType: "text/html;profile=mcp-app",
+            text: "<h1>Chart</h1>",
+          },
+        },
+      ],
+      structuredContent: { value: 42 },
+      _meta: { selection: "region" },
+    };
+    const events = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "chart",
+        title: "chart",
+        kind: "other",
+        status: "completed",
+        rawOutput,
+      } as SessionNotification["update"]),
+      createAcpMapperState("app-raw-thread"),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        payload: expect.objectContaining({ result: rawOutput, status: "success" }),
+      }),
+    );
+  });
+
+  it.each(["tool_call", "tool_call_update"] as const)(
+    "retains MCP structured data and metadata with separate resource content on %s",
+    (sessionUpdate) => {
+      const state = createAcpMapperState("app-data-thread");
+      if (sessionUpdate === "tool_call_update") {
+        mapAcpSessionUpdate(
+          note({
+            sessionUpdate: "tool_call",
+            toolCallId: "chart",
+            title: "chart",
+            kind: "other",
+            status: "in_progress",
+          } as SessionNotification["update"]),
+          state,
+        );
+      }
+      const resource = {
+        type: "resource",
+        resource: {
+          uri: "ui://fixture/chart",
+          mimeType: "text/html;profile=mcp-app",
+          text: "<h1>Chart</h1>",
+        },
+      };
+      const rawOutput = {
+        content: [{ type: "text", text: "Chart ready" }],
+        structuredContent: { value: 42 },
+        _meta: { selection: "region" },
+      };
+      const events = mapAcpSessionUpdate(
+        note({
+          sessionUpdate,
+          toolCallId: "chart",
+          title: "chart",
+          kind: "other",
+          status: "completed",
+          content: [{ type: "content", content: resource }],
+          rawOutput,
+        } as SessionNotification["update"]),
+        state,
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            result: { ...rawOutput, content: [...rawOutput.content, resource] },
+          }),
+        }),
+      );
+    },
+  );
+
   it("closes only the current content owner at a declared message boundary", () => {
     const state = createAcpMapperState("boundary-thread");
     state.openAssistantItemId = "root-before";
@@ -136,6 +447,48 @@ describe("mapAcpSessionUpdate", () => {
       payload: { status: "failed" },
     });
     expect(state.goalItemId).toBeUndefined();
+  });
+
+  it("preserves an explicitly empty lastReason to clear a stale summary", () => {
+    const state = createAcpMapperState("t-goal-reason");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "" },
+        _meta: {
+          [PORACODE_ACP_GOAL_META_KEY]: {
+            action: "set",
+            objective: "Wait for input",
+            status: "paused",
+            lastReason: "Waiting for a file",
+          },
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+
+    const itemId = state.goalItemId!;
+    const updated = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "" },
+        _meta: {
+          [PORACODE_ACP_GOAL_META_KEY]: {
+            action: "updated",
+            objective: "Wait for input",
+            status: "paused",
+            lastReason: "",
+          },
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+
+    expect(updated[0]).toMatchObject({
+      type: "item.updated",
+      itemId,
+      payload: { lastReason: "" },
+    });
   });
 
   it("clears an active canonical ACP goal item", () => {

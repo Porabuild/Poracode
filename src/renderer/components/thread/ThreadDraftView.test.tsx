@@ -10,6 +10,8 @@ import { toast } from "@heroui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Project, ThreadConfig } from "@/shared/contracts";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
+import type { SavedCrew, ThreadCrewBinding } from "@/shared/crew";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { selectionBindingMatches } from "@/shared/selectionBinding";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -19,10 +21,26 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { liveVoice } from "@/renderer/speech/liveVoice";
 
-const { composerSpy, launchExperimentMock } = vi.hoisted(() => ({
+const { composerSpy, launchExperimentMock, newsLineMounts } = vi.hoisted(() => ({
   composerSpy: vi.fn<(props: unknown) => void>(),
   launchExperimentMock: vi.fn<(input: unknown) => Promise<string | null>>(),
+  newsLineMounts: { count: 0 },
 }));
+
+vi.mock("@/renderer/components/newsLine/NewsLine", async () => {
+  const React = await import("react");
+  return {
+    NewsLine: () => {
+      // Stable for the lifetime of one mount, so a re-render keeps the id while
+      // a key change (a new draft visit) produces a new one.
+      const [mountId] = React.useState(() => {
+        newsLineMounts.count += 1;
+        return newsLineMounts.count;
+      });
+      return <div data-testid="news-line" data-mount={mountId} />;
+    },
+  };
+});
 
 vi.mock("./ThreadComposer", () => ({
   ThreadComposer: (props: {
@@ -508,6 +526,7 @@ describe("ThreadDraftView", () => {
     composerSpy.mockClear();
     launchExperimentMock.mockReset();
     launchExperimentMock.mockResolvedValue("experiment-1");
+    newsLineMounts.count = 0;
     delete (window as unknown as { poracode?: unknown }).poracode;
     useAgentStatusesStore.setState({
       agentStatuses: [],
@@ -521,21 +540,46 @@ describe("ThreadDraftView", () => {
     useSharedSettings.setState({
       providerConfigs: {},
       providerModelPreferences: {},
+      crews: [],
       agentSettings: {},
       hiddenModels: {},
       disabledAgents: [],
       lastPresentationModeByAgent: {},
       enabledMcpServers: {},
       disabledBuiltInMcpServers: {},
+      newsLineEnabled: true,
       sharedSettingsHydrated: true,
     });
-    useAppStore.setState({ pendingDraftWorktreeSelections: {} });
+    useAppStore.setState({ pendingDraftWorktreeSelections: {}, draftVisit: 0 });
     useRemoteServersStore.setState({
       servers: [],
       runtime: {},
       hostUpdates: {},
       hostUpdateRestarts: {},
     });
+  });
+
+  it("remounts the news line when a draft is opened again", async () => {
+    const previousProjects = useAppStore.getState().projects;
+    useAppStore.setState({ projects: [project] });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId("news-line")).toBeInTheDocument());
+    const firstMount = screen.getByTestId("news-line").getAttribute("data-mount");
+
+    act(() => {
+      useAppStore.getState().openDraft(project.id);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("news-line").getAttribute("data-mount")).not.toBe(firstMount),
+    );
+    useAppStore.setState({ projects: previousProjects });
   });
 
   it("launches an explicitly selected Plan without remembering it for the next thread", async () => {
@@ -703,6 +747,69 @@ describe("ThreadDraftView", () => {
     expect(composer.submitDisabled).toBe(true);
   });
 
+  it("copies the draft Crew into each experiment candidate config", () => {
+    const crew = {
+      version: 1 as const,
+      crewId: "crew-experiment",
+      name: "Build crew",
+      policy: "crew-first" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "claude", model: "opus" },
+          parallel: 2,
+        },
+      ],
+    };
+    const draftProject = {
+      ...project,
+      lastDraftConfig: { agentKind: "codex", model: "gpt-5.4", crew },
+    };
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+    });
+    render(
+      <ThreadDraftView
+        project={draftProject}
+        lastDraftConfig={draftProject.lastDraftConfig}
+        agentStatuses={[codexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const initialComposer = composerSpy.mock.lastCall?.[0] as {
+      afterControls: ReactElement<{ experiment?: { onToggle: (enabled: boolean) => void } }>;
+    };
+    act(() => initialComposer.afterControls.props.experiment?.onToggle(true));
+    const composer = composerSpy.mock.lastCall?.[0] as { fixedContent: ReactNode };
+    const targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+    if (!targets) throw new Error("Expected experiment targets");
+    act(targets.props.onAdd as () => void);
+    const updatedComposer = composerSpy.mock.lastCall?.[0] as { fixedContent: ReactNode };
+    const updatedTargets = findElementByTypeName(
+      updatedComposer.fixedContent,
+      "ExperimentDraftTargets",
+    );
+    const candidateProps = updatedTargets?.props as
+      | { candidates: Array<{ config: ThreadConfig }> }
+      | undefined;
+    expect(candidateProps?.candidates?.[0]?.config.crew).toEqual(crew);
+  });
+
   it("renders the quick-composer surface with new-thread project and worktree controls", () => {
     useGitStore.setState({
       statuses: {
@@ -861,6 +968,59 @@ describe("ThreadDraftView", () => {
     );
   });
 
+  it("defaults a new worktree to the project default branch, not the current checkout", () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "perf/dev-server",
+          tracking: "origin/perf/dev-server",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "perf/dev-server",
+          defaultBranch: "origin/main",
+          branches: [
+            { name: "perf/dev-server", current: true, commit: "a", isRemote: false },
+            {
+              name: "perf/dev-server",
+              current: false,
+              commit: "a",
+              isRemote: true,
+              remote: "origin",
+            },
+            { name: "main", current: false, commit: "b", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeBaseBranch: "origin/main",
+        worktreeIsNewBranch: true,
+      }),
+    );
+  });
+
   it("keeps the uncommitted-changes worktree option after selecting a tracking branch", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useGitStore.setState({
@@ -900,6 +1060,168 @@ describe("ThreadDraftView", () => {
       expect.objectContaining({
         worktreeBaseBranch: "main",
         worktreeIsNewBranch: true,
+        worktreeTransferUncommitted: true,
+      }),
+    );
+  });
+
+  it.each([
+    { pin: "develop", expected: "origin/develop" },
+    { pin: "gone-branch", expected: "origin/main" },
+  ])("defaults a new worktree to the pinned base $pin when it exists", ({ pin, expected }) => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "feature",
+          tracking: "origin/feature",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "feature",
+          defaultBranch: "origin/main",
+          branches: [
+            { name: "feature", current: true, commit: "a", isRemote: false },
+            { name: "develop", current: false, commit: "b", isRemote: false },
+            { name: "develop", current: false, commit: "b", isRemote: true, remote: "origin" },
+            { name: "main", current: false, commit: "c", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    render(
+      <ThreadDraftView
+        project={{ ...project, worktreeBaseBranch: pin }}
+        agentStatuses={[codexStatus]}
+        onStart={onStart}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(expected);
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ worktreeBaseBranch: expected }));
+  });
+
+  it("sets a branch from the picker as the project's default worktree base and selects it", async () => {
+    const previousProjects = useAppStore.getState().projects;
+    useAppStore.setState({ projects: [project] });
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "main",
+          tracking: "origin/main",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "main",
+          defaultBranch: "origin/main",
+          branches: [
+            { name: "main", current: true, commit: "a", isRemote: false },
+            { name: "develop", current: false, commit: "b", isRemote: false },
+            { name: "main", current: false, commit: "a", isRemote: true, remote: "origin" },
+            { name: "develop", current: false, commit: "b", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    try {
+      render(<StoreBackedThreadDraftView onStart={() => {}} />);
+      fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+
+      fireEvent.click(screen.getByRole("button", { name: "Select branch" }));
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Use develop as default worktree base" }),
+      );
+      expect(useAppStore.getState().projects[0]?.worktreeBaseBranch).toBe("develop");
+      // The picker stays open after setting the default, which hides the trigger from the a11y tree.
+      expect(screen.getByRole("button", { name: "Select branch", hidden: true })).toHaveTextContent(
+        "origin/develop",
+      );
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Use develop as default worktree base" }),
+      );
+      expect(useAppStore.getState().projects[0]).not.toHaveProperty("worktreeBaseBranch");
+    } finally {
+      useAppStore.setState({ projects: previousProjects });
+    }
+  });
+
+  it("keeps worktree + changes available after a dirty feature branch defaults to the project branch", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "perf/dev-server",
+          tracking: "origin/perf/dev-server",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [
+            { path: "src/file.ts", status: "M", staged: false, insertions: 1, deletions: 0 },
+          ],
+          totalInsertions: 1,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "perf/dev-server",
+          defaultBranch: "origin/main",
+          branches: [
+            { name: "perf/dev-server", current: true, commit: "a", isRemote: false },
+            { name: "main", current: false, commit: "b", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={onStart} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Run in a separate worktree/ }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    fireEvent.click(await screen.findByRole("option", { name: /Worktree \+ changes/ }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(
+      "perf/dev-server",
+    );
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeBaseBranch: "perf/dev-server",
         worktreeTransferUncommitted: true,
       }),
     );
@@ -959,6 +1281,46 @@ describe("ThreadDraftView", () => {
         worktreeTransferUncommitted: true,
       }),
     );
+  });
+
+  it("keeps experiments on the local checkout instead of the project default branch", () => {
+    useGitStore.setState({
+      statuses: {
+        [project.id]: {
+          isRepo: true,
+          branch: "feat",
+          tracking: "",
+          hasRemote: true,
+          remoteInfo: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          unstaged: [],
+          totalInsertions: 0,
+          totalDeletions: 0,
+        },
+      },
+      branches: {
+        [project.id]: {
+          current: "feat",
+          defaultBranch: "origin/main",
+          branches: [
+            { name: "feat", current: true, commit: "a", isRemote: false },
+            { name: "main", current: false, commit: "b", isRemote: true, remote: "origin" },
+          ],
+        },
+      },
+    });
+    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+
+    const composer = composerSpy.mock.lastCall?.[0] as {
+      afterControls: ReactElement<{ experiment?: { onToggle: (enabled: boolean) => void } }>;
+    };
+    act(() => composer.afterControls.props.experiment?.onToggle(true));
+    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("feat");
   });
 
   it.each([false, true])(
@@ -1549,6 +1911,140 @@ describe("ThreadDraftView", () => {
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
   });
 
+  it.each(["terminal", "gui"] as const)(
+    "shows fetched commands in a remote %s draft before a thread exists",
+    async (presentationMode) => {
+      const commands = [{ id: "goal", label: "goal", description: "Set a goal" }];
+      const catalog = deferred<{ kind: string; commands: typeof commands }>();
+      const agentSlashCommands = vi.fn<RemoteDesktopClient["agentSlashCommands"]>(
+        () => catalog.promise,
+      );
+      const client = {
+        setTokenLifecycle: () => {},
+        agentSlashCommands,
+      } as unknown as RemoteDesktopClient;
+      const previousFactory = useRemoteServersStore.getState().clientFactory;
+      useRemoteServersStore.setState({
+        clientFactory: () => client,
+        servers: [
+          {
+            desktopId: "desktop-1",
+            label: "Remote",
+            endpoint: `http://draft-command-ui-${presentationMode}.test/`,
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: {
+          "desktop-1": {
+            status: "online",
+            projects: [],
+            threads: [],
+            agentStatuses: {
+              windows: [
+                {
+                  ...claudeStatus,
+                  capabilities: {
+                    ...claudeStatus.capabilities,
+                    presentationModes: ["terminal", "gui"],
+                  },
+                },
+              ],
+              wsl: [],
+              updatedAt: "now",
+            },
+          },
+        },
+      });
+      useSharedSettings.setState({ lastPresentationModeByAgent: { claude: presentationMode } });
+      function RemoteDraft() {
+        const statuses = useRemoteServersStore(
+          (state) => state.runtime["desktop-1"]!.agentStatuses!.windows,
+        );
+        return (
+          <ThreadDraftView project={remoteProject} agentStatuses={statuses} onStart={() => {}} />
+        );
+      }
+      const view = render(<RemoteDraft />);
+      let panel: ReturnType<typeof render> | undefined;
+      try {
+        await waitFor(() => expect(agentSlashCommands).toHaveBeenCalledWith("claude"));
+        act(() => {
+          const props = composerSpy.mock.lastCall![0] as {
+            inputContent: ReactElement<{ onSlashCommandChange: (query: string) => void }>;
+          };
+          props.inputContent.props.onSlashCommandChange("g");
+        });
+        expect(
+          useRemoteServersStore.getState().runtime["desktop-1"]?.agentStatuses?.windows[0]
+            ?.capabilities.slashCommands,
+        ).toBeUndefined();
+        await act(async () => catalog.resolve({ kind: "claude", commands }));
+        await waitFor(() => {
+          const props = composerSpy.mock.lastCall![0] as {
+            inputContent: ReactElement<{ commandListId?: string }>;
+          };
+          expect(props.inputContent.props.commandListId).toBeDefined();
+        });
+        // This suite stubs the composer shell; render its real command-panel slot.
+        panel = render(
+          (composerSpy.mock.lastCall![0] as { fixedContent: ReactElement }).fixedContent,
+        );
+        expect(screen.getByRole("option", { name: /goal/ })).toBeInTheDocument();
+        expect(useRemoteServersStore.getState().openThread).toBeNull();
+      } finally {
+        panel?.unmount();
+        view.unmount();
+        useRemoteServersStore.setState({ clientFactory: previousFactory });
+      }
+    },
+  );
+
+  it("loads commands for the selected remote provider and retries after reconnect", async () => {
+    const load = vi
+      .spyOn(useRemoteServersStore.getState(), "loadAgentSlashCommands")
+      .mockResolvedValue(undefined);
+    const view = render(
+      <ThreadDraftView project={project} agentStatuses={[claudeStatus]} onStart={() => {}} />,
+    );
+    expect(load).not.toHaveBeenCalled();
+    act(() => {
+      useRemoteServersStore.setState({
+        servers: [
+          {
+            desktopId: "desktop-1",
+            label: "Remote",
+            endpoint: "http://remote/",
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+      });
+    });
+    view.rerender(
+      <ThreadDraftView project={remoteProject} agentStatuses={[claudeStatus]} onStart={() => {}} />,
+    );
+    await waitFor(() => expect(load).toHaveBeenCalledWith("desktop-1", "claude"));
+    view.rerender(
+      <ThreadDraftView project={remoteProject} agentStatuses={[geminiStatus]} onStart={() => {}} />,
+    );
+    await waitFor(() => expect(load).toHaveBeenLastCalledWith("desktop-1", "gemini"));
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+      });
+    });
+    expect(load).toHaveBeenCalledTimes(2);
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+      });
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(3));
+    load.mockRestore();
+  });
+
   it("shows the remote connection error instead of the missing-agent message", () => {
     useRemoteServersStore.setState({
       servers: [
@@ -1660,9 +2156,72 @@ describe("ThreadDraftView", () => {
 
     render(<ThreadDraftView project={remoteProject} agentStatuses={[]} onStart={() => {}} />);
 
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByText("Connecting to host…")).toBeInTheDocument();
     expect(screen.queryByText("Connection error")).not.toBeInTheDocument();
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
+    expect(composerSpy).not.toHaveBeenCalled();
+  });
+
+  it.each(["offline", "error", "connecting"] as const)(
+    "keeps a pending submission's composer mounted while the remote host is %s",
+    (status) => {
+      useRemoteServersStore.setState({
+        servers: [
+          {
+            desktopId: "desktop-1",
+            label: "Remote Mac",
+            endpoint: "http://remote/",
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: {
+          "desktop-1": { status, projects: [], threads: [] },
+        },
+      });
+
+      render(
+        <ThreadDraftView
+          project={remoteProject}
+          agentStatuses={[codexStatus]}
+          submissionPending
+          onStart={() => {}}
+        />,
+      );
+
+      expect(composerSpy).toHaveBeenCalled();
+      expect(screen.queryByText("Connecting to host…")).not.toBeInTheDocument();
+      expect(screen.queryByText("Connection error")).not.toBeInTheDocument();
+    },
+  );
+
+  it("still blocks a draft on an offline host when no submission is pending", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Remote Mac",
+          endpoint: "http://remote/",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "offline", projects: [], threads: [] },
+      },
+    });
+
+    render(
+      <ThreadDraftView
+        project={remoteProject}
+        agentStatuses={[codexStatus]}
+        submissionPending={false}
+        onStart={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Connection error")).toBeInTheDocument();
+    expect(composerSpy).not.toHaveBeenCalled();
   });
 
   it("keeps the remote composer visible and disables submit during a host update restart", () => {
@@ -1688,7 +2247,7 @@ describe("ThreadDraftView", () => {
       <ThreadDraftView project={remoteProject} agentStatuses={[codexStatus]} onStart={onStart} />,
     );
 
-    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Connecting to host…")).not.toBeInTheDocument();
     const composer = composerSpy.mock.lastCall?.[0] as { submitDisabled?: boolean };
     expect(composer.submitDisabled).toBe(true);
     fireEvent.click(screen.getByText("set-prompt"));
@@ -1866,7 +2425,7 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentAgentKind).toBe("codex");
       expect(providerModel?.currentModel).toBe("gpt-5.4");
       const effortContext = props.controls.find((c) => c.kind === "effort-context");
-      expect(effortContext?.effortValue).toBe("xhigh");
+      expect(effortContext?.effortValue).toBe("high");
       const permission = props.controls.find((control) => control.value === "auto-review");
       expect(permission?.options?.some((option) => option.label === "Auto-review")).toBe(true);
     });
@@ -1878,7 +2437,7 @@ describe("ThreadDraftView", () => {
       agentKind: "codex",
       config: {
         model: "gpt-5.4",
-        effort: "xhigh",
+        effort: "high",
         mode: "agent",
         approvalPolicy: "on-request",
         approvalsReviewer: "auto_review",
@@ -2006,6 +2565,98 @@ describe("ThreadDraftView", () => {
     );
   });
 
+  it("launches with a per-draft workflow mode without saving it as a default", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const workflowStatus: AgentStatus = {
+      ...cursorStatus,
+      capabilities: { ...cursorStatus.capabilities, workflowModels: ["composer-2"] },
+    };
+
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[workflowStatus]}
+        lastDraftConfig={{
+          agentKind: "cursor",
+          model: "composer-2",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "default",
+          sandboxMode: "",
+          worktreeMode: false,
+        }}
+        onStart={onStart}
+      />,
+    );
+
+    type WorkflowControl = {
+      kind?: string;
+      workflows?: { label: string; value: boolean; onChange: (value: boolean) => void };
+    };
+    const workflowsControl = () =>
+      (
+        composerSpy.mock.lastCall?.[0] as { controls: WorkflowControl[] } | undefined
+      )?.controls.find((control) => control.kind === "effort-context")?.workflows;
+    await waitFor(() => expect(workflowsControl()).toMatchObject({ value: false }));
+    act(() => workflowsControl()?.onChange(true));
+    await waitFor(() => expect(workflowsControl()?.value).toBe(true));
+    expect(useSharedSettings.getState().providerConfigs.cursor).not.toHaveProperty("workflows");
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ model: "composer-2", workflows: true }),
+      }),
+    );
+  });
+
+  it("turns the draft workflow mode off when the model changes", async () => {
+    const workflowStatus: AgentStatus = {
+      ...cursorStatus,
+      capabilities: { ...cursorStatus.capabilities, workflowModels: ["composer-2", "gpt-5.5"] },
+    };
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[workflowStatus]}
+        lastDraftConfig={{
+          agentKind: "cursor",
+          model: "composer-2",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "default",
+          sandboxMode: "",
+          worktreeMode: false,
+        }}
+        onStart={vi.fn<(input: unknown) => void>()}
+      />,
+    );
+
+    type DraftControl = {
+      kind?: string;
+      onChange?: (next: { agentKind: string; model: string }) => void;
+      workflows?: { value: boolean; onChange: (value: boolean) => void };
+    };
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: DraftControl[] } | undefined)?.controls ?? [];
+    const workflowsControl = () =>
+      controls().find((control) => control.kind === "effort-context")?.workflows;
+    await waitFor(() => expect(workflowsControl()).toMatchObject({ value: false }));
+    act(() => workflowsControl()?.onChange(true));
+    await waitFor(() => expect(workflowsControl()?.value).toBe(true));
+
+    act(() => {
+      controls()
+        .find((control) => control.kind === "provider-model")
+        ?.onChange?.({ agentKind: "cursor", model: "gpt-5.5" });
+    });
+    await waitFor(() => expect(workflowsControl()).toMatchObject({ value: false }));
+  });
+
   it("submits an explicit Fast-off selection in the launch config", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useSharedSettings.setState({
@@ -2119,7 +2770,7 @@ describe("ThreadDraftView", () => {
       agentKind: "codex",
       config: {
         model: "gpt-5.4",
-        effort: "xhigh",
+        effort: "high",
         mode: "agent",
         approvalPolicy: "on-request",
         approvalsReviewer: "user",
@@ -2203,7 +2854,7 @@ describe("ThreadDraftView", () => {
       agentKind: "codex",
       config: {
         model: "gpt-5.4",
-        effort: "xhigh",
+        effort: "high",
         mode: "agent",
         approvalPolicy: "on-request",
         approvalsReviewer: "auto_review",
@@ -2478,7 +3129,7 @@ describe("ThreadDraftView", () => {
         controls: Array<{ kind?: string; effortValue?: string; currentModel?: string }>;
       };
       const effortContext = props.controls.find((c) => c.kind === "effort-context");
-      expect(effortContext?.effortValue).toBe("xhigh");
+      expect(effortContext?.effortValue).toBe("high");
     });
 
     act(() => {
@@ -3972,5 +4623,308 @@ describe("ThreadDraftView model family drafts", () => {
       }),
     );
     expect(persistedDraft()?.model).toBe("f-alpha-x-high");
+  });
+
+  it("restores a saved Crew into the draft payload and clears it on an ordinary model pick", async () => {
+    const savedCrew: SavedCrew = {
+      id: "crew-night",
+      name: "Night shift",
+      lead: { agentKind: "codex", model: "gpt-5.4", effort: "high", fast: false },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          brief: "Implements changes and runs tests",
+          selection: { agentKind: "codex", model: "gpt-5.4-mini", effort: "low" },
+        },
+      ],
+      policy: "crew-only",
+      updatedAt: 1,
+    };
+    const storedCrew: ThreadCrewBinding = {
+      version: 1,
+      crewId: savedCrew.id,
+      name: "Old name",
+      policy: "crew-first",
+      roles: [
+        {
+          id: "reviewer",
+          label: "Reviewer",
+          selection: { agentKind: "codex", model: "gpt-5.4-mini" },
+        },
+      ],
+    };
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "high",
+      mode: "agent" as const,
+      crew: storedCrew,
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+    });
+    const onStart = vi.fn<(input: unknown) => void>();
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={onStart}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => {
+      expect(controls().find((control) => control.kind === "crew")).toBeDefined();
+    });
+    const crewControl = controls().find((control) => control.kind === "crew");
+    expect(crewControl?.kind === "crew" && crewControl.model.binding).toMatchObject({
+      crewId: savedCrew.id,
+      name: savedCrew.name,
+      roles: [{ id: "builder", label: "Builder" }],
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(onStart.mock.calls.at(-1)?.[0]).toMatchObject({
+      config: { crew: { crewId: savedCrew.id, name: savedCrew.name } },
+    });
+  });
+
+  it("clears the Crew binding in the persisted draft on an ordinary model pick", async () => {
+    const savedCrew: SavedCrew = {
+      id: "crew-pick",
+      name: "Night shift",
+      lead: { agentKind: "codex", model: "gpt-5.4", effort: "high", fast: false },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.4-mini", effort: "low" },
+        },
+      ],
+      policy: "crew-only",
+      updatedAt: 1,
+    };
+    const binding: ThreadCrewBinding = {
+      version: 1,
+      crewId: savedCrew.id,
+      name: savedCrew.name,
+      policy: savedCrew.policy,
+      roles: savedCrew.roles,
+    };
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "high",
+      mode: "agent" as const,
+      crew: binding,
+    };
+    useAppStore.setState({ projects: [{ ...project, lastDraftConfig }] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+    });
+    render(
+      <ThreadDraftView
+        project={{ ...project, lastDraftConfig }}
+        agentStatuses={[dualModeCodexStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() => expect(controls().some((control) => control.kind === "crew")).toBe(true));
+    const modelControl = controls().find((control) => control.kind === "provider-model");
+    if (modelControl?.kind !== "provider-model") throw new Error("Missing provider model control");
+    act(() => modelControl.onChange({ agentKind: "codex", model: "gpt-5.4-mini" }));
+    await waitFor(() => {
+      expect(controls().some((control) => control.kind === "crew")).toBe(false);
+      expect(useAppStore.getState().projects[0]?.lastDraftConfig?.model).toBe("gpt-5.4-mini");
+      expect(useAppStore.getState().projects[0]?.lastDraftConfig?.crew).toBeNull();
+    });
+  });
+
+  it("switches to a saved Crew lead provider and applies explicit effort and Fast overrides", async () => {
+    const claudeGuiStatus: AgentStatus = {
+      kind: "claude",
+      label: "Claude",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {
+        models: [{ id: "opus-5.5", label: "Opus 5.5" }],
+        efforts: ["low", "high"],
+        modelEfforts: { "opus-5.5": ["low", "high"] },
+        modes: ["agent"],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "server",
+        presentationMode: "gui",
+        presentationModes: ["gui"],
+        mcpScope: { gui: "launch", terminal: "none" },
+        settingDefs: [],
+      },
+    };
+    const codexGuiStatus: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "none" },
+      },
+    };
+    const savedCrew: SavedCrew = {
+      id: "crew-provider-switch",
+      name: "Night shift",
+      lead: { agentKind: "claude", model: "opus-5.5", effort: "high", fast: false },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.4" },
+        },
+      ],
+      policy: "crew-only",
+      updatedAt: 1,
+    };
+    const lastDraftConfig = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      effort: "low",
+      fast: true,
+      mode: "agent" as const,
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui", claude: "gui" },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexGuiStatus, claudeGuiStatus]}
+        lastDraftConfig={lastDraftConfig}
+        onStart={() => {}}
+      />,
+    );
+    const modelControl = () =>
+      (
+        composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined
+      )?.controls.find((control) => control.kind === "provider-model");
+    await waitFor(() => expect(modelControl()?.kind).toBe("provider-model"));
+    const control = modelControl();
+    if (control?.kind !== "provider-model" || !control.crewSection) {
+      throw new Error("Missing Poracode picker section");
+    }
+    act(() => control.crewSection!.onSelect({ crewId: savedCrew.id }));
+    await waitFor(() => {
+      expect(useAppStore.getState().projects[0]?.lastDraftConfig).toMatchObject({
+        agentKind: "claude",
+        model: "opus-5.5",
+        effort: "high",
+        fast: false,
+        crew: { crewId: savedCrew.id },
+      });
+    });
+  });
+
+  it.each([
+    { terminalScope: "launch" as const, offered: true },
+    { terminalScope: "none" as const, offered: false },
+  ])(
+    "offers crews in CLI presentation only when the lead has a terminal Crossagents path ($terminalScope)",
+    async ({ terminalScope, offered }) => {
+      const terminalCodexStatus: AgentStatus = {
+        ...dualModeCodexStatus,
+        capabilities: {
+          ...dualModeCodexStatus.capabilities,
+          mcpScope: { gui: "launch", terminal: terminalScope },
+        },
+      };
+      useAppStore.setState({ projects: [project] });
+      useSharedSettings.setState({ crews: [], lastPresentationModeByAgent: { codex: "terminal" } });
+      render(
+        <ThreadDraftView
+          project={project}
+          agentStatuses={[terminalCodexStatus]}
+          lastDraftConfig={{ agentKind: "codex", model: "gpt-5.4", mode: "agent" as const }}
+          onStart={() => {}}
+        />,
+      );
+      const modelControl = () =>
+        (
+          composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined
+        )?.controls.find((control) => control.kind === "provider-model");
+      await waitFor(() => expect(modelControl()?.kind).toBe("provider-model"));
+      const control = modelControl();
+      expect(control?.kind === "provider-model" && control.crewSection !== undefined).toBe(offered);
+    },
+  );
+
+  it("names the current draft lead when a saved Crew model is unavailable", async () => {
+    const warningSpy = vi
+      .spyOn(toast, "warning")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.warning>);
+    const codexGuiStatus: AgentStatus = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        mcpScope: { gui: "launch", terminal: "none" },
+      },
+    };
+    const savedCrew: SavedCrew = {
+      id: "crew-unavailable",
+      name: "Night shift",
+      lead: { agentKind: "codex", model: "missing-model", effort: "high" },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.4-mini" },
+        },
+      ],
+      policy: "crew-only",
+      updatedAt: 1,
+    };
+    useAppStore.setState({ projects: [project] });
+    useSharedSettings.setState({
+      crews: [savedCrew],
+      lastPresentationModeByAgent: { codex: "gui" },
+    });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexGuiStatus]}
+        lastDraftConfig={{
+          agentKind: "codex",
+          model: "gpt-5.4",
+          effort: "high",
+          mode: "agent",
+        }}
+        onStart={() => {}}
+      />,
+    );
+    const modelControl = () =>
+      (
+        composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined
+      )?.controls.find((control) => control.kind === "provider-model");
+    await waitFor(() => expect(modelControl()?.kind).toBe("provider-model"));
+    const control = modelControl();
+    if (control?.kind !== "provider-model" || !control.crewSection) {
+      throw new Error("Missing Poracode picker section");
+    }
+    act(() => control.crewSection!.onSelect({ crewId: savedCrew.id }));
+    await waitFor(() => {
+      expect(warningSpy).toHaveBeenCalledWith("Codex isn't available, so 5.4 stays the lead.");
+    });
+    warningSpy.mockRestore();
   });
 });

@@ -61,4 +61,23 @@ describe("Pi MCP extension", () => {
       piMcpToolResult({ isError: true, content: [{ type: "text", text: "failed" }] }),
     ).toThrow("failed");
   });
+
+  it("retains app HTML in host details without sending the source to the model", () => {
+    const result = {
+      content: [
+        { type: "text" as const, text: "Chart ready" },
+        {
+          type: "resource" as const,
+          resource: {
+            uri: "ui://fixture/chart",
+            mimeType: "text/html;profile=mcp-app",
+            text: "<script>privateSource()</script>",
+          },
+        },
+      ],
+    };
+    const mapped = piMcpToolResult(result);
+    expect(mapped.content).toEqual([{ type: "text", text: "Chart ready" }]);
+    expect(mapped.details).toBe(result);
+  });
 });

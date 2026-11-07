@@ -6,7 +6,7 @@
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import net from "node:net";
-import { appendFileSync, mkdirSync, openSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { chmod, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -65,7 +65,7 @@ function createLineRedactor(write, onLine) {
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const cliPath = join(repoRoot, "tests/native-e2e/harness/cli.ts");
-const tsRegisterPath = join(repoRoot, "scripts/remote-v3-ts-register.mjs");
+const tsRegisterPath = new URL("./remote-v3-ts-register.mjs", import.meta.url).href;
 
 function main() {
   const requestedMode = process.argv[2];
@@ -94,7 +94,6 @@ function main() {
   const child = spawn(
     process.execPath,
     [
-      "--experimental-transform-types",
       "--import",
       tsRegisterPath,
       "--no-warnings=ExperimentalWarning",
@@ -488,7 +487,6 @@ async function runIosUIJourney({ registerShutdown }) {
   const harness = spawn(
     process.execPath,
     [
-      "--experimental-transform-types",
       "--import",
       tsRegisterPath,
       "--no-warnings=ExperimentalWarning",
@@ -708,16 +706,32 @@ async function runIosUIJourney({ registerShutdown }) {
       process.env,
       uiCapability,
     );
-    const response = await fetch(new URL("/v1/scenario/state", controlUrl), {
-      headers: { authorization: `Harness ${uiCapability}` },
-    });
-    if (response.ok) {
-      await writeFile(observedPath, `${JSON.stringify(await response.json(), null, 2)}\n`, {
-        mode: 0o600,
+    // Attachment export happens immediately after the runner returns and
+    // before the status is enforced, so a failed UI test still yields its
+    // screenshots. The result bundle stays the authoritative artifact for the
+    // case where this Xcode's xcresulttool does not support the export flags.
+    const attachmentsPath = await exportIosAttachments(resultBundle, uiRoot);
+    try {
+      const response = await fetch(new URL("/v1/scenario/state", controlUrl), {
+        headers: { authorization: `Harness ${uiCapability}` },
       });
+      if (response.ok) {
+        await writeFile(observedPath, `${JSON.stringify(await response.json(), null, 2)}\n`, {
+          mode: 0o600,
+        });
+      }
+    } catch (error) {
+      process.stderr.write(
+        `native iOS operation journal unavailable after the journey: ${
+          error instanceof Error ? error.message : String(error)
+        }\n`,
+      );
     }
     process.stderr.write(`native iOS result bundle: ${resultBundle}\n`);
     process.stderr.write(`native iOS operation journal: ${observedPath}\n`);
+    if (attachmentsPath) {
+      process.stderr.write(`native iOS XCTest attachments: ${attachmentsPath}\n`);
+    }
     if (status !== 0) throw new Error(`native iOS UI journey failed (${String(status)})`);
   } finally {
     if (forwarders) await forwarders.close().catch(() => {});
@@ -741,6 +755,38 @@ async function pruneIosUIRunDirs(nativeE2ERoot) {
   const entries = await readdir(nativeE2ERoot).catch(() => []);
   for (const name of selectPrunableIosRunDirs(entries)) {
     await rm(join(nativeE2ERoot, name), { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/**
+ * Exports XCTest screenshots from the run's result bundle into the uploaded
+ * per-run directory. Best-effort by design: a missing bundle (build failure),
+ * an older Xcode without `xcresulttool export attachments`, or an empty
+ * attachment set must never mask the original UI test status. The result
+ * bundle itself remains uploaded for the unsupported-CLI case.
+ */
+async function exportIosAttachments(resultBundle, uiRoot) {
+  if (!existsSync(resultBundle)) return null;
+  const outputPath = join(uiRoot, "attachments");
+  await mkdir(outputPath, { recursive: true, mode: 0o700 });
+  try {
+    await runBuffered("xcrun", [
+      "xcresulttool",
+      "export",
+      "attachments",
+      "--path",
+      resultBundle,
+      "--output-path",
+      outputPath,
+    ]);
+    return outputPath;
+  } catch (error) {
+    process.stderr.write(
+      `native iOS XCTest attachment export failed (result bundle kept): ${
+        error instanceof Error ? error.message : String(error)
+      }\n`,
+    );
+    return null;
   }
 }
 
@@ -779,6 +825,7 @@ function iosOnlyTestingFlags() {
     : [
         "-only-testing:NativeE2ETests/NativeJourneyUITests/testRealNativeRemoteJourney",
         "-only-testing:NativeE2ETests/NativeFamilyJourneyUITests",
+        "-only-testing:NativeE2ETests/NativeBackgroundTaskUITests/testBackgroundTaskDetailsJourney",
       ];
 }
 
@@ -814,7 +861,6 @@ async function runAndroidRealJourney({ registerShutdown }) {
   const harness = spawn(
     process.execPath,
     [
-      "--experimental-transform-types",
       "--import",
       tsRegisterPath,
       "--no-warnings=ExperimentalWarning",

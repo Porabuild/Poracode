@@ -25,15 +25,15 @@ export interface OperationMapDocument {
 }
 
 const EXPECTED_COUNTS = {
-  route: 116,
-  procedure: 130,
-  "ws-client": 9,
-  "ws-server": 11,
-  replay: 16,
+  route: 119,
+  procedure: 172,
+  "ws-client": 11,
+  "ws-server": 12,
+  replay: 17,
   runtime: 16,
 } as const;
 
-export const EXPECTED_OPERATION_KEY_COUNT = 298;
+export const EXPECTED_OPERATION_KEY_COUNT = 347;
 
 interface ProtocolInventoryHeader {
   readonly sourceHash: string;

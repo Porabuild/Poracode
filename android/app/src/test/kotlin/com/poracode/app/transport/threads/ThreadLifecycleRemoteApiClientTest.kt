@@ -10,9 +10,11 @@ import com.poracode.app.protocol.ProtocolConstants
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -101,5 +103,37 @@ class ThreadLifecycleRemoteApiClientTest {
             ),
         )
         assertEquals("thread/unicode-λ", threadId)
+    }
+
+    @Test
+    fun onlyRuntimeStartsExtendTheCallAndReadDeadlines() = runTest {
+        val timeouts = mutableListOf<Pair<Int, Long>>()
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            timeouts += chain.readTimeoutMillis() to chain.call().timeout().timeoutNanos()
+            chain.proceed(chain.request())
+        }.build()
+        val api = ThreadLifecycleRemoteApiClient(server.url("/").toString(), "access-token", http)
+        server.enqueue(MockResponse().setBody("{\"threadId\":\"t1\"}"))
+        api.startExisting(
+            ExistingThreadStartRequest(
+                threadId = "t1",
+                projectLocation = PosixProjectLocation("/repo"),
+                agentKind = "test-agent",
+                config = ThreadConfig(),
+                initialSize = ThreadTerminalSize(80, 24),
+                commandId = ThreadCommandId("start"),
+            ),
+        )
+        server.enqueue(MockResponse().setBody("{\"ok\":true}"))
+        api.command(ThreadLifecycleCommand.Start(
+            threadId = "t1", projectId = "p1", agentKind = "test-agent",
+            config = ThreadConfig(), prompt = "", commandId = ThreadCommandId("relaunch"),
+        ))
+        server.enqueue(MockResponse().setBody("{\"ok\":true}"))
+        api.command(ThreadLifecycleCommand.Rename("t1", "Title"))
+        assertEquals(listOf(600_000, 600_000, http.readTimeoutMillis), timeouts.map { it.first })
+        assertEquals(listOf(600_000_000_000L, 600_000_000_000L, 0L), timeouts.map { it.second })
+        assertTrue(timeouts.last().first < 600_000)
+        assertEquals(3, server.requestCount)
     }
 }

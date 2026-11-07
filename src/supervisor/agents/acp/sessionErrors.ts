@@ -1,5 +1,5 @@
 import { RequestError } from "@agentclientprotocol/sdk";
-import type { RuntimeEvent } from "@/shared/contracts";
+import type { RuntimeErrorReason, RuntimeEvent } from "@/shared/contracts";
 import {
   createContextUsageEvent,
   readNonNegativeInteger,
@@ -163,6 +163,47 @@ export function resolveAcpPromptRpcErrorMessage(error: unknown): string {
     if (detail) return detail;
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+const ACP_AUTH_REQUIRED_ERROR = RequestError.authRequired();
+
+/** The ACP-standard `auth_required` JSON-RPC error (code -32000). */
+export function isAcpAuthRequiredError(error: unknown): boolean {
+  if (error instanceof RequestError) {
+    return (
+      error.code === ACP_AUTH_REQUIRED_ERROR.code &&
+      error.message.startsWith(ACP_AUTH_REQUIRED_ERROR.message)
+    );
+  }
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const candidate = error as { code: unknown; message?: unknown };
+    return (
+      candidate.code === ACP_AUTH_REQUIRED_ERROR.code &&
+      typeof candidate.message === "string" &&
+      candidate.message.startsWith(ACP_AUTH_REQUIRED_ERROR.message)
+    );
+  }
+  return false;
+}
+
+/**
+ * Provider hook that names the shared cause of a rejected `session/prompt` from
+ * the agent's structured JSON-RPC error (its `code` or `data`), for agents that
+ * do not use the ACP-standard `auth_required` error for their own sign-in.
+ */
+export type AcpPromptErrorReasonResolver = (error: unknown) => RuntimeErrorReason | undefined;
+
+/**
+ * Why a `session/prompt` failed, when the error says so structurally: the
+ * ACP-standard `auth_required` error for every agent, then the provider's own
+ * resolver.
+ */
+export function resolveAcpPromptErrorReason(
+  error: unknown,
+  resolver?: AcpPromptErrorReasonResolver,
+): RuntimeErrorReason | undefined {
+  if (isAcpAuthRequiredError(error)) return "auth_required";
+  return resolver?.(error);
 }
 
 /**

@@ -14,7 +14,7 @@ interface NativeTimingResult {
 function runNativeReact(mode: string, environment = "development"): NativeTimingResult {
   const fixture = resolve(process.cwd(), "tests/fixtures/reactDevelopmentTimingRetention.mjs");
   return JSON.parse(
-    execFileSync(process.execPath, ["--experimental-transform-types", fixture, mode], {
+    execFileSync(process.execPath, [fixture, mode], {
       env: { ...process.env, NODE_ENV: environment, NODE_NO_WARNINGS: "1" },
       encoding: "utf8",
       timeout: 10_000,

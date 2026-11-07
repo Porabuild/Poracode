@@ -2,14 +2,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClientEngineWorkerMode } from "@/renderer/state/remote/engine";
 import type { DesktopFrameDecodeResult } from "@/renderer/state/remote/engine/decode";
 import {
-  DesktopLoopbackFrameDrain,
-  type DesktopLoopbackDecodePort,
-  type DesktopLoopbackDrainUnavailableReason,
-} from "./desktopLoopbackFrameDrain";
+  HostEventDrain,
+  type HostEventDrainOptions,
+  type HostEventDrainUnavailableReason,
+} from "@/renderer/hostTransport/hostEventDrain";
 import type { DesktopLoopbackFrame } from "./desktopLoopbackFrames";
 import { parseDesktopLoopbackFrame } from "./desktopLoopbackFrames";
 import {
   DesktopLoopbackIntake,
+  type DesktopLoopbackDecodePort,
   type DesktopLoopbackIntakeDeps,
   type DesktopLoopbackSocket,
 } from "./desktopLoopbackIntake";
@@ -76,12 +77,17 @@ const terminalFrame = (id: string) => JSON.stringify({ type: "terminal-output", 
 
 function makeDrain(
   port: DesktopLoopbackDecodePort,
-  overrides: Partial<ConstructorParameters<typeof DesktopLoopbackFrameDrain>[0]> = {},
+  overrides: Partial<HostEventDrainOptions<DesktopLoopbackFrame>> = {},
 ) {
   const frames: DesktopLoopbackFrame[] = [];
-  const unavailable: DesktopLoopbackDrainUnavailableReason[] = [];
-  const drain = new DesktopLoopbackFrameDrain({
-    decode: port,
+  const unavailable: HostEventDrainUnavailableReason[] = [];
+  const drain = new HostEventDrain({
+    decode: {
+      decodeFrame: (raw) =>
+        port.decodeDesktopFrame(raw).then((result) => (result.ok ? result.frame : null)),
+      renew: () => port.renew(),
+      dispose: () => port.dispose(),
+    },
     onFrame: (frame) => frames.push(frame),
     onUnavailable: (reason) => unavailable.push(reason),
     ...overrides,
@@ -89,7 +95,7 @@ function makeDrain(
   return { drain, frames, unavailable };
 }
 
-describe("DesktopLoopbackFrameDrain (A3 ordered bounded managed decode)", () => {
+describe("HostEventDrain with managed desktop frames", () => {
   it("routes terminal and event frames in push order even when decode completes out of order", async () => {
     const port = new FakeDecodePort();
     const pending = new Map<string, Deferred>();
@@ -293,9 +299,7 @@ describe("DesktopLoopbackFrameDrain (A3 ordered bounded managed decode)", () => 
     const { drain, frames, unavailable } = makeDrain(port);
     drain.push(eventFrame(1));
     pending.reject(new Error("worker gone"));
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(unavailable).toEqual(["worker"]);
+    await vi.waitFor(() => expect(unavailable).toEqual(["worker"]));
     // Unavailability fences this generation and renews the decode port;
     // actual reclamation of the port's posted work is the engine's
     // response/termination boundary, not this call.

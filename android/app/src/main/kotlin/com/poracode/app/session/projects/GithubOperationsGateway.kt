@@ -15,6 +15,12 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonObject
+import com.poracode.app.protocol.forge.ForgeReviewOperation
+
+interface ForgeReviewGateway {
+    suspend fun callForge(lease: ProjectHostLease, target: ProjectWorkspaceTarget, operation: ForgeReviewOperation, payload: JsonObject): JsonElement
+}
 
 interface GithubOperationsGateway {
     suspend fun read(
@@ -34,7 +40,34 @@ interface GithubOperationsGateway {
 class GeneratedGithubOperationsGateway(
     private val session: StateFlow<ProjectHostLease?>,
     private val provider: ProjectWorkspaceRemoteGatewayProvider,
-) : GithubOperationsGateway {
+) : GithubOperationsGateway, ForgeReviewGateway {
+    override suspend fun callForge(
+        lease: ProjectHostLease,
+        target: ProjectWorkspaceTarget,
+        operation: ForgeReviewOperation,
+        payload: JsonObject,
+    ): JsonElement {
+        requireCurrent(lease, target, payload, operation.scope, "projectLocation")
+        val remote = resolve(lease)
+        requireCurrent(lease, target, payload, operation.scope, "projectLocation")
+        val result = try {
+            remote.forgeReviewCall(operation, payload)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: GitRequestValidationException) {
+            throw ProjectGatewayException(400, "invalid_request", false, error)
+        } catch (error: UnsupportedOperationException) {
+            throw ProjectGatewayException(400, "unsupported_operation", false, error)
+        } catch (error: RemoteClientException) {
+            if (operation.isMutation && error.isAmbiguousGithubFailure())
+                throw ProjectGatewayException(error.status, "ambiguous_outcome", true, error)
+            throw error.asGithubFailure()
+        } catch (error: Exception) {
+            throw ProjectGatewayException(0, "network", operation.isMutation, error)
+        }
+        requireCurrent(lease, target, payload, operation.scope, "projectLocation")
+        return result
+    }
     override suspend fun read(
         lease: ProjectHostLease,
         target: ProjectWorkspaceTarget,
@@ -121,6 +154,14 @@ class GeneratedGithubOperationsGateway(
         lease: ProjectHostLease,
         target: ProjectWorkspaceTarget,
         request: GithubOperationRequest,
+    ) = requireCurrent(lease, target, request.payload, request.procedure.scope, request.procedure.owner.wireName)
+
+    private fun requireCurrent(
+        lease: ProjectHostLease,
+        target: ProjectWorkspaceTarget,
+        payload: JsonObject,
+        scope: String,
+        owner: String,
     ) {
         if (target.identity.connectionId != lease.connectionId) {
             throw ProjectGatewayException(400, "invalid_project_identity", false)
@@ -131,14 +172,14 @@ class GeneratedGithubOperationsGateway(
         }
         if (!current.online) throw ProjectGatewayException(0, "offline", false)
         if (!current.ready) throw ProjectGatewayException(409, "session_not_ready", false)
-        if (request.procedure.scope !in current.scopes) {
+        if (scope !in current.scopes) {
             throw ProjectGatewayException(403, "missing_scope", false)
         }
         val expected = RemoteJson.encodeToJsonElement(
             com.poracode.app.model.ProjectLocation.serializer(),
             target.location,
         )
-        if (request.payload[request.procedure.owner.wireName] != expected) {
+        if (payload[owner] != expected) {
             throw ProjectGatewayException(400, "invalid_project_owner", false)
         }
     }

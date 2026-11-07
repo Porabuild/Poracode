@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import { parseProjectPathRef } from "./parseProjectPathRef";
+import { parseChatPathRef, parseProjectPathRef } from "./parseProjectPathRef";
 
 describe("parseProjectPathRef", () => {
   it("recognizes a file path with extension", () => {
@@ -41,6 +41,28 @@ describe("parseProjectPathRef", () => {
     expect(parseProjectPathRef("https://example.com/foo")).toBeNull();
     expect(parseProjectPathRef("hello")).toBeNull();
   });
+
+  it.each([
+    "/var/...",
+    "/private/var/...",
+    "/var/.../report.ts:12",
+    "src/…/report.ts",
+    "src/..../report.ts",
+    "src/…/",
+  ])("leaves abbreviated paths as text: %s", (path) => {
+    expect(parseProjectPathRef(path)).toBeNull();
+  });
+
+  it.each(["src/.", "src/.."])("recognizes dot directories as folders: %s", (path) => {
+    expect(parseProjectPathRef(path)).toEqual({ kind: "folder", path });
+  });
+
+  it.each(["src/.env", "src/.gitignore", "src/../main.ts", "./src/main.ts"])(
+    "still recognizes concrete dotfile and relative paths: %s",
+    (path) => {
+      expect(parseProjectPathRef(path)).toEqual({ kind: "file", path });
+    },
+  );
 
   describe("with rootNames validation", () => {
     const rootNames = new Set(["src", "package.json", "scripts"]);
@@ -110,5 +132,32 @@ describe("parseProjectPathRef", () => {
         path: "/plan",
       });
     });
+  });
+});
+
+describe("parseChatPathRef", () => {
+  it.each(["10/month", "and/or", "24/7", "/plan", "src/foo/bar", "src/foo/"])(
+    "without root names, leaves prose folders as text: %s",
+    (token) => {
+      expect(parseChatPathRef(token, undefined)).toBeNull();
+    },
+  );
+
+  it("without root names, still recognizes files", () => {
+    expect(parseChatPathRef("src/main.ts:12", undefined)).toEqual({
+      kind: "file",
+      path: "src/main.ts",
+      line: 12,
+    });
+    expect(parseChatPathRef("README.md", undefined)).toEqual({
+      kind: "file",
+      path: "README.md",
+    });
+  });
+
+  it("with root names, keeps verified folders and rejects unverified ones", () => {
+    const rootNames = new Set(["src"]);
+    expect(parseChatPathRef("src/foo", rootNames)).toEqual({ kind: "folder", path: "src/foo" });
+    expect(parseChatPathRef("10/month", rootNames)).toBeNull();
   });
 });

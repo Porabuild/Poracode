@@ -18,7 +18,7 @@ import {
   noteThreadHistoryRecoveryNeeded,
   readThreadHistoryNotice,
 } from "@/renderer/state/remote/historyNoticeStore";
-import { createLocalSnapshotRecovery } from "@/renderer/state/remote/reducers/localSnapshotRecovery";
+import { createHostHistoryRecovery } from "@/renderer/state/remote/reducers/hostHistoryRecovery";
 import {
   createSupervisorEventReducer,
   type SupervisorEventReducer,
@@ -26,6 +26,7 @@ import {
 import {
   hydrateThreadRuntimeItemsForInterest,
   installRuntimeHistoryRecovery,
+  retryThreadRuntimeItems,
 } from "@/renderer/state/runtimeInterestHydration";
 import {
   activate,
@@ -45,6 +46,150 @@ import {
 beforeEach(setupManagedRootFixture);
 afterEach(teardownManagedRootFixture);
 
+it.each([
+  ["reset", "retry"],
+  ["overflow", "retry"],
+  ["reset", "reopen"],
+  ["overflow", "reopen"],
+] as const)(
+  "keeps loaded history through a failed %s recovery and replaces it on %s",
+  async (trigger, action) => {
+    const threadId = `history-retained-${trigger}-${action}`;
+    seedThread(threadId);
+    seedRuntimeItems(threadId, 2);
+    await activate({ preloadProcedures: { dbSetState: () => null } });
+    retainThreadRuntimeItems(threadId);
+    await hydrateThreadRuntimeItems(threadId);
+    const loadedIds = useAppStore.getState().runtimeItemIdsByThread[threadId];
+    const client = readManagedLoopbackActivation()!.client;
+    const held = Promise.withResolvers<void>();
+    const read = vi.spyOn(client, "boundedThreadHistory").mockImplementationOnce(async () => {
+      await held.promise;
+      throw new Error("History temporarily unavailable");
+    });
+    let reducer: SupervisorEventReducer;
+    const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
+    reducer = createSupervisorEventReducer({
+      recovery: recovery.strategy,
+      onSequencedEvent: recovery.noteSequencedSupervisorEvent,
+      queueLimits: { maxEvents: 1 },
+    });
+    const uninstall = installRuntimeHistoryRecovery(reducer.recoverRuntimeHistory);
+    useAppStore.getState().applyRuntimeEvent(threadId, {
+      type: "request.opened",
+      threadId,
+      requestId: "expired-approval",
+      requestType: "tool_user_input",
+      payload: { summary: "Expired question" },
+    });
+    const emptyProjections: string[] = [];
+    const unsubscribe = useAppStore.subscribe((state) => {
+      if (!state.runtimeItemIdsByThread[threadId]?.length) emptyProjections.push("empty");
+    });
+    try {
+      if (trigger === "reset") reducer.dispatch({ type: "thread-reset", threadId });
+      else
+        reducer.dispatch({
+          type: "thread-runtime-events",
+          threadId,
+          events: [0, 1].map((index) => ({
+            type: "item.started",
+            threadId,
+            itemId: `overflow-${index}`,
+            itemType: "assistant_message",
+          })),
+        });
+      await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBe(loadedIds);
+      expect(
+        useAppStore
+          .getState()
+          .runtimeRequestsByThread[threadId]?.map((request) => request.requestId) ?? [],
+      ).toEqual(trigger === "reset" ? [] : ["expired-approval"]);
+      reducer.dispatch({
+        type: "thread-runtime-event",
+        threadId,
+        event: {
+          type: "request.opened",
+          threadId,
+          requestId: "new-approval",
+          requestType: "tool_user_input",
+          payload: { summary: "New question" },
+        },
+      });
+      reducer.dispatch(
+        {
+          type: "thread-runtime-event",
+          threadId,
+          event: {
+            type: "item.started",
+            threadId,
+            itemId: "queued-during-recovery",
+            itemType: "assistant_message",
+          },
+        },
+        7,
+        { sequenceSpace: "loopback" },
+      );
+      reducer.flushSync(threadId);
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBe(loadedIds);
+      expect(emptyProjections).toEqual([]);
+      held.resolve();
+      await vi.waitFor(() =>
+        expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe("failed"),
+      );
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toBe(loadedIds);
+      getSqlite()
+        .prepare("DELETE FROM thread_runtime_items WHERE thread_id = ? AND item_id = 'item-1'")
+        .run(threadId);
+      if (action === "retry") retryThreadRuntimeItems(threadId);
+      else void hydrateThreadRuntimeItemsForInterest(threadId, true);
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
+        expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0"]);
+      });
+      reducer.flushSync(threadId);
+      // This delta was delivered after the host's snapshot prefix and has not
+      // been persisted by the fixture, so recovery must retain it.
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+        "item-0",
+        "queued-during-recovery",
+      ]);
+      // The re-read began after every request the client held, and its host
+      // reports nothing awaiting the user: that newer snapshot settles them.
+      expect(useAppStore.getState().runtimeRequestsByThread[threadId] ?? []).toEqual([]);
+      reducer.dispatch(
+        {
+          type: "thread-runtime-event",
+          threadId,
+          event: {
+            type: "item.started",
+            threadId,
+            itemId: "live-after-retry",
+            itemType: "assistant_message",
+          },
+        },
+        8,
+        { sequenceSpace: "loopback" },
+      );
+      reducer.flushSync(threadId);
+      expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
+        "item-0",
+        "queued-during-recovery",
+        "live-after-retry",
+      ]);
+    } finally {
+      held.resolve();
+      unsubscribe();
+      uninstall();
+      read.mockRestore();
+      releaseThreadRuntimeItems(threadId);
+      reducer.clear();
+    }
+  },
+  60_000,
+);
+
 it("recovers on a new connection while the retired reader is waiting to retry", async () => {
   const threadId = "history-retry-reconnect";
   seedThread(threadId);
@@ -55,7 +200,7 @@ it("recovers on a new connection while the retired reader is waiting to retry", 
     .spyOn(previous.client, "boundedThreadHistory")
     .mockRejectedValueOnce(new TypeError("Failed to fetch"));
   let reducer: SupervisorEventReducer;
-  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
   reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
   const unsubscribe = readBridge().onSupervisorEvent((event) => reducer.dispatch(event));
   const interest = retainRendererEventInterest("runtime", threadId);
@@ -332,7 +477,7 @@ it.each([false, true])(
         return result;
       });
     let reducer: SupervisorEventReducer;
-    const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+    const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
     reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
     const discard = vi.spyOn(reducer.arbitration, "discardThroughSequence");
     recovery.noteSequencedSupervisorEvent(
@@ -365,7 +510,8 @@ it.each([false, true])(
       await vi.waitFor(() => {
         expect(hasHydratedThreadRuntimeItems(threadId)).toBe(true);
         expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0"]);
-        expect(discard).toHaveBeenCalledWith(threadId, 7, "loopback");
+        // Eviction drops the cursor; only that path still needs legacy arbitration.
+        expect(discard).toHaveBeenCalledExactlyOnceWith(threadId, oversized ? 7 : 0, "loopback");
       });
       expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
     } finally {

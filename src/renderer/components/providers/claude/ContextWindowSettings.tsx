@@ -7,7 +7,11 @@ import {
 import { ProviderContextWindowSettings } from "../settings/ProviderContextWindowSettings";
 
 // Mirror the provider's native presets and Claude Code's accepted window range.
-export const CLAUDE_DEFAULT_WINDOWS = ["1m", "400k"].map((id) => parseContextWindowInput(id)!);
+// The default mirrors the supervisor's CLAUDE_DEFAULT_CONTEXT_SIZE.
+const CLAUDE_DEFAULT_WINDOW_ID = "400k";
+export const CLAUDE_DEFAULT_WINDOWS = [CLAUDE_DEFAULT_WINDOW_ID, "1m"].map((id) =>
+  parseContextWindowInput(id)!,
+);
 
 export function parseClaudeWindowInput(raw: string) {
   const window = parseContextWindowInput(raw);
@@ -20,7 +24,7 @@ export function resolveClaudeWindows(stored?: Record<string, boolean | string>) 
     CLAUDE_DEFAULT_WINDOWS,
     parseClaudeWindowInput,
   );
-  return orderContextWindows(windows, "1m");
+  return orderContextWindows(windows, CLAUDE_DEFAULT_WINDOW_ID);
 }
 
 export function ClaudeContextWindowSettings(props: { agentKind: string; wslDistros: string[] }) {

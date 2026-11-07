@@ -2,6 +2,7 @@ import {
   nativeBindingEnv,
   sqliteAvailable,
   testThread,
+  removeReviewScopeFixtureSchema,
   removeCostSchemaForDowngrade,
   removeConversationSearchFixtureSchema,
 } from "./runtimeItems.testFixtures";
@@ -19,12 +20,16 @@ import {
   dbGetThreadContextUsage,
   dbGetLatestThreadRuntimeAnchorItemId,
   dbGetThreadConversationItemsPage,
+  dbGetThreadPromptIndex,
+  dbReadThreadPromptIndex,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbReplaceThreadRuntimeItems,
   dbTruncateThreadRuntimeAfter,
 } from "./runtimeItems";
 import { HEAD_CHARS, TAIL_CHARS } from "./runtimeStreamCap";
+import { inlineVisualSearchText, splitInlineVisuals } from "@/shared/inlineVisuals";
+import { readMcpAppResource, MCP_APP_MIME_TYPE } from "@/shared/mcpAppResources";
 
 describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => {
   let dir: string;
@@ -51,6 +56,92 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+  });
+
+  it("reopens native/HTML source and MCP resources under their original item IDs without a new schema", async () => {
+    const html = '<input id="amount" value="42"><script>window.ready=true</script>';
+    const text = `Compare plans\n\`\`\`poracode-html-v1 Savings calculator\n${html}\n\`\`\``;
+    const nativeSource = '{"blocks":[{"type":"outputs","items":[{"label":"Total","value":42}]}]}';
+    const nativeText = `Result\n\`\`\`poracode-visual-v1 Native total\n${nativeSource}\n\`\`\``;
+    const result = {
+      content: [
+        {
+          type: "resource",
+          resource: { uri: "ui://fixture/chart", mimeType: MCP_APP_MIME_TYPE, text: html },
+        },
+      ],
+      structuredContent: { value: 42 },
+      _meta: { selected: "north" },
+    };
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "legacy",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Existing reply" },
+      },
+      {
+        id: "visual-message",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: text },
+      },
+      {
+        id: "visual-tool",
+        type: "mcp_tool_call",
+        state: "completed",
+        streams: {},
+        payload: { name: "chart", title: "Revenue chart", status: "success", result },
+      },
+      {
+        id: "native-message",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: nativeText },
+        payload: { content: [{ kind: "text", text: nativeText }] },
+      },
+    ]);
+    await dbFlushThreadRuntimeWrites("thread-1");
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+    const items = await dbGetThreadRuntimeItems("thread-1");
+    expect(items.map((item) => item.id)).toEqual([
+      "legacy",
+      "visual-message",
+      "visual-tool",
+      "native-message",
+    ]);
+    expect(items[0]?.streams.assistant_text).toBe("Existing reply");
+    expect(items[1]?.streams.assistant_text).toBe(text);
+    expect(splitInlineVisuals(items[1]!.streams.assistant_text!)[1]).toMatchObject({
+      html: `${html}\n`,
+      complete: true,
+    });
+    expect(inlineVisualSearchText(items[1]!.streams.assistant_text!)).toBe(
+      "Compare plans\n\nSavings calculator\n",
+    );
+    expect(readMcpAppResource((items[2]!.payload as { result: unknown }).result)?.text).toBe(html);
+    expect(items[2]?.payload).toEqual({
+      name: "chart",
+      title: "Revenue chart",
+      status: "success",
+      result,
+    });
+    expect(items[3]?.streams.assistant_text).toBe(nativeText);
+    expect(items[3]?.payload).toEqual({ content: [{ kind: "text", text: nativeText }] });
+    expect(splitInlineVisuals(items[3]!.streams.assistant_text!)[1]).toMatchObject({
+      kind: "native",
+      version: 1,
+      title: "Native total",
+      source: `${nativeSource}\n`,
+      complete: true,
+    });
+    expect(inlineVisualSearchText(items[3]!.streams.assistant_text!)).toBe(
+      "Result\n\nNative total\n",
+    );
+    expect(
+      getSqlite().prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
+    ).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
   });
 
   it("replaces pre-snapshot chunked streams and preserves other streams", async () => {
@@ -610,6 +701,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("adds the parent lookup index when upgrading schema v37", async () => {
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
@@ -631,6 +723,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("repairs a missing parent lookup column when upgrading a drifted schema v37", async () => {
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
@@ -665,6 +758,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
   });
 
   it("repairs the parent lookup index from the prerelease Antigravity schema v40", async () => {
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     getSqlite().exec(`
@@ -1026,5 +1120,96 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
     expect((await dbGetLatestThreadGoalItem("thread-1"))?.id).toBe("goal-new");
+  });
+
+  it("lists every top-level prompt in order with a truncated first text block", async () => {
+    const userMessage = (id: string, content: unknown[], parentItemId?: string) => ({
+      id,
+      type: "user_message" as const,
+      state: "completed" as const,
+      payload: { content },
+      streams: {},
+      ...(parentItemId ? { parentItemId } : {}),
+    });
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      userMessage("first", [{ kind: "text", text: "First question" }]),
+      { id: "reply", type: "assistant_message", state: "completed", streams: {} },
+      userMessage("with-image", [
+        { kind: "image", name: "shot.png" },
+        { kind: "text", text: "x".repeat(500) },
+      ]),
+      userMessage("sub-agent-prompt", [{ kind: "text", text: "child" }], "tool-1"),
+      userMessage("image-only", [{ kind: "image", name: "only.png" }]),
+    ]);
+
+    const index = await dbGetThreadPromptIndex("thread-1");
+    expect(index.truncated).toBe(false);
+    expect(index.prompts.map((prompt) => prompt.itemId)).toEqual([
+      "first",
+      "with-image",
+      "image-only",
+    ]);
+    expect(index.prompts[0]?.text).toBe("First question");
+    expect(index.prompts[1]?.text).toBe("x".repeat(300));
+    expect(index.prompts[2]?.text).toBe("");
+    const positions = index.prompts.map((prompt) => prompt.position);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  });
+
+  it("keeps the newest prompts in order and reports when older ones were left out", async () => {
+    await dbReplaceThreadRuntimeItems(
+      "thread-1",
+      Array.from({ length: 5 }, (_, index) => ({
+        id: `prompt-${index}`,
+        type: "user_message" as const,
+        state: "completed" as const,
+        payload: { content: [{ kind: "text", text: `Prompt ${index}` }] },
+        streams: {},
+      })),
+    );
+
+    const index = dbReadThreadPromptIndex("thread-1", 3);
+    expect(index.truncated).toBe(true);
+    expect(index.prompts.map((prompt) => prompt.itemId)).toEqual([
+      "prompt-2",
+      "prompt-3",
+      "prompt-4",
+    ]);
+    expect(dbReadThreadPromptIndex("thread-1", 5).truncated).toBe(false);
+  });
+
+  it("yields an empty preview, not a failed read, for content that is not an array of blocks", async () => {
+    const prompt = (id: string, payload: unknown) => ({
+      id,
+      type: "user_message" as const,
+      state: "completed" as const,
+      payload,
+      streams: {},
+    });
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      prompt("string-content", { content: "hello" }),
+      prompt("string-blocks", { content: ["hello"] }),
+      prompt("object-content", { content: { a: { kind: "text", text: "nested" } } }),
+      prompt("null-content", { content: null }),
+      prompt("second-block", {
+        content: [
+          { kind: "image", name: "a.png" },
+          { kind: "text", text: "after the image" },
+        ],
+      }),
+    ]);
+
+    const index = await dbGetThreadPromptIndex("thread-1");
+    expect(index.prompts.map((entry) => [entry.itemId, entry.text])).toEqual([
+      ["string-content", ""],
+      ["string-blocks", ""],
+      ["object-content", ""],
+      ["null-content", ""],
+      ["second-block", "after the image"],
+    ]);
+  });
+
+  it("returns an empty index for a thread without prompts", async () => {
+    expect(await dbGetThreadPromptIndex("thread-1")).toEqual({ prompts: [], truncated: false });
   });
 });

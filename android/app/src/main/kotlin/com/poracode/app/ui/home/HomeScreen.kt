@@ -127,8 +127,11 @@ internal fun HomeScreen(
                     RichChatThreadScreen(
                         userHiddenModels = userHiddenModels,
                         runtime = richChat,
+                        forksSupported = 1 in state.liveThreadForkVersions,
+                        onOpenThread = onOpenThread,
                         threadLifecycleController = threadRuntime.controller,
                         thread = openThread(state),
+                        catalogThread = state.openCatalogThread(),
                         agentStatus = openAgentStatus(state),
                         projectLocation = openProjectLocation(state),
                         mentionThreads = state.snapshot?.threads.orEmpty(),
@@ -157,8 +160,11 @@ internal fun HomeScreen(
                 RichChatThreadScreen(
                     userHiddenModels = userHiddenModels,
                     runtime = richChat,
+                    forksSupported = 1 in state.liveThreadForkVersions,
+                    onOpenThread = onOpenThread,
                     threadLifecycleController = threadRuntime.controller,
                     thread = openThread(state),
+                    catalogThread = state.openCatalogThread(),
                     agentStatus = openAgentStatus(state),
                     projectLocation = openProjectLocation(state),
                     mentionThreads = state.snapshot?.threads.orEmpty(),
@@ -229,6 +235,16 @@ private fun openThread(state: AppSession.UiState): RemoteThread? {
     val id = state.openThreadId ?: return null
     return state.threadSnapshot?.thread?.takeIf { it.id == id }
         ?: state.snapshot?.threads?.firstOrNull { it.id == id }
+}
+
+/**
+ * The open thread's live catalog row. A delivered `thread-state` folds into it
+ * at once ([com.poracode.app.session.catalog.CatalogStore]); the history-read
+ * row [openThread] prefers waits for the next metadata refresh.
+ */
+internal fun AppSession.UiState.openCatalogThread(): RemoteThread? {
+    val id = openThreadId ?: return null
+    return snapshot?.threads?.firstOrNull { it.id == id }
 }
 
 private fun openAgentStatus(state: AppSession.UiState) = openThread(state)?.let { thread ->

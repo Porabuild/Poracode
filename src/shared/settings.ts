@@ -26,6 +26,7 @@ import {
   mcpServerListSchema,
   installedPluginsSchema,
   normalizeBuiltInMcpDisabledTools,
+  normalizeBuiltInMcpServerDisabled,
   workspaceListSchema,
 } from "./contracts";
 import {
@@ -47,6 +48,13 @@ import {
   LEGACY_ANTIGRAVITY_ACP_KIND,
   normalizePersistedAntigravityModelSelection,
 } from "./agents/antigravity";
+import {
+  MAX_SAVED_CREWS,
+  normalizeCrewRoles,
+  savedCrewSchema,
+  type CrewMemberSelection,
+  type SavedCrew,
+} from "./crew";
 
 export const WINDOWS_SHELL_AUTO = "auto";
 export const WINDOWS_SHELL_ARGUMENTS_MAX = 8_192;
@@ -63,6 +71,8 @@ const modelPickerEntrySchema = z.object({
   agentKind: z.string().min(1),
   modelId: z.string().min(1),
   presentationMode: threadPresentationModeSchema.default("terminal"),
+  // Optional history metadata: legacy entries retain their existing list order.
+  lastUsedAt: z.number().int().nonnegative().optional(),
 });
 
 export const agentSelectionUsageEntrySchema = z.object({
@@ -191,6 +201,9 @@ export const audioTranscriptionModelSchema = z.preprocess(
 );
 export type AudioTranscriptionModel = z.infer<typeof audioTranscriptionModelSchema>;
 
+export const audioTranscriptionBackendSchema = z.enum(["transformers", "hex"]);
+export type AudioTranscriptionBackend = z.infer<typeof audioTranscriptionBackendSchema>;
+
 const audioSettingsSchema = z.object({
   /** Show the composer microphone button. */
   showVoiceInputButton: z.boolean().default(true),
@@ -200,6 +213,10 @@ const audioSettingsSchema = z.object({
   transcriptionLanguage: z.string().default("en"),
   /** Model used for local composer dictation. */
   transcriptionModel: audioTranscriptionModelSchema.default("tiny"),
+  /** Native Hex or the built-in Transformers.js voice backend. */
+  transcriptionBackend: audioTranscriptionBackendSchema.default("transformers"),
+  /** Native Hex model selected for voice input. */
+  hexModel: z.string().min(1).default("parakeet_v3"),
   /** Prefer WebGPU acceleration for local speech-to-text when available. */
   useWebGpu: z.boolean().default(true),
 });
@@ -266,15 +283,55 @@ const sidebarShortcutIdSchema = z.union([
 export type SidebarShortcutId = z.infer<typeof sidebarShortcutIdSchema>;
 
 export const THREAD_DOCK_KINDS = [
+  "vision",
   "goal",
   "plan",
   "agents",
   "backgroundTasks",
   "images",
+  "info",
   "context",
   "usage",
 ] as const;
 export type ThreadDockKind = (typeof THREAD_DOCK_KINDS)[number];
+
+/**
+ * Conditions under which the desktop host keeps the system or screen awake.
+ * Shared by `preventSleepWhen` and `preventScreenLockWhen`; an empty list means
+ * never. "working" covers any working thread (Computer Use threads included),
+ * "computer-use" an enabled or active Computer Use session on this host,
+ * "remote-access" enabled remote access, and "always" any time Poracode runs.
+ */
+export const KEEP_AWAKE_CONDITIONS = [
+  "working",
+  "computer-use",
+  "remote-access",
+  "always",
+] as const;
+export type KeepAwakeCondition = (typeof KEEP_AWAKE_CONDITIONS)[number];
+
+/** Removes duplicates and orders conditions canonically; "always" subsumes the rest. */
+export function normalizeKeepAwakeConditions(
+  conditions: readonly KeepAwakeCondition[],
+): KeepAwakeCondition[] {
+  if (conditions.includes("always")) return ["always"];
+  return KEEP_AWAKE_CONDITIONS.filter((condition) => conditions.includes(condition));
+}
+
+/**
+ * The pre-multiselect `preventSleep` enum. It is no longer a schema field, but
+ * files written by older releases still carry it, so it seeds
+ * `preventSleepWhen` once (its scopes were cumulative).
+ */
+const legacyPreventSleepSchema = z.enum(["while-working", "while-remote-access", "always"]);
+const LEGACY_PREVENT_SLEEP_CONDITIONS: Record<
+  z.infer<typeof legacyPreventSleepSchema>,
+  readonly KeepAwakeCondition[]
+> = {
+  "while-working": ["working"],
+  "while-remote-access": ["working", "remote-access"],
+  always: ["always"],
+};
 
 export function normalizeSidebarShortcutOrder(
   order: readonly SidebarShortcutId[],
@@ -288,6 +345,12 @@ export function normalizeSidebarShortcutOrder(
 
 export function normalizeThreadDocksOrder(order: readonly ThreadDockKind[]): ThreadDockKind[] {
   const normalized = [...new Set(order)];
+  // Compatibility: orders saved before the unversioned "info" dock existed
+  // stay valid; insert it beside the old combined "context" section instead
+  // of appending it at the end. No settings version bump needed.
+  if (!normalized.includes("info") && normalized.includes("context")) {
+    normalized.splice(normalized.indexOf("context"), 0, "info");
+  }
   for (const kind of THREAD_DOCK_KINDS) {
     if (!normalized.includes(kind)) normalized.push(kind);
   }
@@ -479,12 +542,17 @@ export const sharedSettingsSchema = z.object({
   /** Base font size for the dev terminal panel. Auto-shrinks in narrow/short panes. */
   terminalPanelFontSize: z.number().int().min(8).max(20),
   /**
-   * When to prevent the OS from sleeping while Poracode is running.
-   * - "while-working": only while a thread is actively working
-   * - "while-remote-access": while remote access is enabled or a thread is working
-   * - "always": keep the machine awake whenever the app is running
+   * Conditions under which the desktop host prevents system sleep (the display
+   * may still turn off). Any matching condition applies; empty means never.
+   * Replaces the legacy `preventSleep` enum, which older releases still read.
    */
-  preventSleep: z.enum(["while-working", "while-remote-access", "always"]),
+  preventSleepWhen: z.array(z.enum(KEEP_AWAKE_CONDITIONS)),
+  /**
+   * Conditions under which the desktop host keeps the display awake, which
+   * also stops idle display sleep from triggering the OS idle screen lock.
+   * Manual lock, lid close, and enforced lock policies still apply.
+   */
+  preventScreenLockWhen: z.array(z.enum(KEEP_AWAKE_CONDITIONS)),
   /** Register Poracode to launch automatically when the user signs in to Windows. */
   launchAtStartup: z.boolean(),
   /** Keep the main window hidden when Poracode is launched automatically at sign-in. */
@@ -497,7 +565,10 @@ export const sharedSettingsSchema = z.object({
   closeToTray: z.boolean(),
   /** Enable the desktop's remote access server for paired mobile/browser clients. */
   remoteAccessEnabled: z.boolean(),
-  /** Explicit opt-in to LAN listening; older settings remain loopback-only. */
+  /**
+   * Retired: the desktop listens on the LAN whenever remote access is enabled, so
+   * this no longer gates anything. Kept so older settings files stay valid.
+   */
   remoteAccessLanEnabled: z.boolean(),
   /**
    * Advertise a Tailscale MagicDNS HTTPS URL for remote access. When enabled and
@@ -535,6 +606,16 @@ export const sharedSettingsSchema = z.object({
    * and an in-app translucent fallback elsewhere. Default on.
    */
   sidebarTranslucency: z.boolean(),
+  /** Show the rotating news line below the full-page new-thread composer. */
+  newsLineEnabled: z.boolean(),
+  /** Include personal activity highlights (streaks, prompts, usage limits) in the news line. */
+  newsLineActivity: z.boolean(),
+  /**
+   * Community promotions the user opened or closed. Each id hides that
+   * promotion on every surface. Kept as plain strings so ids written by a
+   * newer app survive normalization instead of resetting the whole list.
+   */
+  dismissedPromotions: z.array(z.string().min(1).max(64)).max(32),
   /**
    * Per-appearance override for the translucent sidebar's frosting: the alpha
    * (0–100) of the `--sidebar-glass-tint` content-background mix. Higher is more
@@ -548,6 +629,17 @@ export const sharedSettingsSchema = z.object({
   }),
   /** Automatically show the terminal panel when running commands or creating worktrees. */
   autoShowTerminalPanel: z.boolean(),
+  /**
+   * Locked Computer Use (macOS): the user's intent to let an active Computer
+   * Use turn unlock this Mac behind an opaque guard. Installation status is
+   * derived from the system, never stored here, and turning this on does not
+   * install anything by itself: the desktop's local install call does. Not in
+   * the remote-editable subset, and agents cannot write it through
+   * app-controls.
+   */
+  computerUseLockedUse: z.boolean(),
+  // Additive opt-in: older settings files normalize to false.
+  computerUseLockedUseDimDisplay: z.boolean(),
   /**
    * Where git worktrees are created: under a global root (`global`) or nested in
    * each project at `<project>/.poracode/worktrees` (`project-relative`).
@@ -646,11 +738,13 @@ export const sharedSettingsSchema = z.object({
    * Which one is *active* is not stored here but per-window (see the renderer's
    * `workspaceStore`), so switching in one window leaves the others alone.
    *
-   * Not part of `remoteSettingsSchema`, so paired browser clients receive no
-   * workspace list and therefore show every project — add it to that allowlist if
-   * workspaces should scope remote sessions too.
+   * Not part of `remoteSettingsSchema`: browser clients keep their own list.
+   * Shell snapshots carry each workspace's id and name instead, so a browser
+   * client can place a host project in its same-named workspace.
    */
   workspaces: workspaceListSchema,
+  /** Additive field: older settings files omit it and normalize to an empty list. */
+  crews: z.array(savedCrewSchema).max(MAX_SAVED_CREWS).default([]),
   /** User-starred (provider, presentation, model) entries surfaced at the top of the model picker. */
   favoriteModels: z.array(modelPickerEntrySchema),
   /**
@@ -750,9 +844,6 @@ export const sharedSettingsSchema = z.object({
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
-/** When to prevent the OS from sleeping while Poracode is running. */
-export type PreventSleep = SharedSettings["preventSleep"];
-
 /** Browser element-picker delivery target for terminal-native (CLI) threads. */
 export type CliPickerTarget = SharedSettings["cliPickerTarget"];
 
@@ -830,7 +921,10 @@ export const defaultSharedSettings: SharedSettings = {
   agentTerminalFontSize: 12,
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
-  preventSleep: "while-remote-access",
+  // Matches the legacy "while-remote-access" default.
+  preventSleepWhen: ["working", "remote-access"],
+  // Never by default so the display can still turn off (see #922).
+  preventScreenLockWhen: [],
   launchAtStartup: true,
   startMinimized: true,
   closeToTray: true,
@@ -845,8 +939,13 @@ export const defaultSharedSettings: SharedSettings = {
   sidebarHiddenShortcuts: ["githubActions"],
   sidebarShortcutOrder: [...SIDEBAR_SHORTCUT_IDS],
   sidebarTranslucency: true,
+  newsLineEnabled: true,
+  newsLineActivity: true,
+  dismissedPromotions: [],
   sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
+  computerUseLockedUse: false,
+  computerUseLockedUseDimDisplay: false,
   worktreeStorageMode: "global",
   worktreeBasePath: "",
   wslWorktreeBasePath: "",
@@ -870,6 +969,7 @@ export const defaultSharedSettings: SharedSettings = {
   remotePushEnabled: true,
   remotePushRedactContent: false,
   workspaces: [],
+  crews: [],
   favoriteModels: [],
   recentModels: [],
   agentSelectionUsage: [],
@@ -896,6 +996,8 @@ export const defaultSharedSettings: SharedSettings = {
     microphoneDeviceId: "",
     transcriptionLanguage: "en",
     transcriptionModel: "tiny",
+    transcriptionBackend: "transformers",
+    hexModel: "parakeet_v3",
     useWebGpu: true,
   },
   usage: {
@@ -1053,7 +1155,29 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
         ? { ...primary, fallbacks: migratedFallbacks }
         : primary;
     }),
+    crews: mapSavedCrewSelections(settings.crews, migrateCrewQwenSelection),
   };
+}
+
+function migrateCrewQwenSelection(selection: CrewMemberSelection): CrewMemberSelection {
+  return selection.agentKind === "qwen" && selection.model === QWEN_RETIRED_PREVIEW_MODEL_ID
+    ? { ...selection, model: QWEN_DEFAULT_MODEL_ID }
+    : selection;
+}
+
+function mapSavedCrewSelections(
+  crews: readonly SavedCrew[],
+  mapSelection: (selection: CrewMemberSelection) => CrewMemberSelection,
+): SavedCrew[] {
+  return crews.map((crew) => ({
+    ...crew,
+    lead: mapSelection(crew.lead),
+    roles: crew.roles.map((role) => ({
+      ...role,
+      selection: mapSelection(role.selection),
+      ...(role.fallbacks ? { fallbacks: role.fallbacks.map(mapSelection) } : {}),
+    })),
+  }));
 }
 
 function moveRecordKey<T>(
@@ -1142,6 +1266,17 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
       settings.agentSelectionUsage,
       settings.crossagentSelectionUsage,
     ].some((entries) => entries.some((entry) => entry.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND)) ||
+    settings.crews.some(
+      (crew) =>
+        crew.lead.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND ||
+        crew.roles.some(
+          (role) =>
+            role.selection.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND ||
+            role.fallbacks?.some(
+              (fallback) => fallback.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND,
+            ) === true,
+        ),
+    ) ||
     settings.crossagentRoutingOverrides.some(
       (entry) =>
         entry.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND ||
@@ -1186,6 +1321,20 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
   };
   const migrateProvider = (provider: string) =>
     provider === LEGACY_ANTIGRAVITY_ACP_KIND ? "antigravity" : provider;
+  const migrateCrewSelection = (selection: CrewMemberSelection): CrewMemberSelection => {
+    if (selection.agentKind !== LEGACY_ANTIGRAVITY_ACP_KIND) return selection;
+    const normalized = normalizePersistedAntigravityModelSelection(
+      selection.model,
+      selection.effort,
+      true,
+    );
+    return {
+      ...selection,
+      agentKind: "antigravity",
+      model: normalized.model,
+      ...(normalized.effort ? { effort: normalized.effort } : {}),
+    };
+  };
   const uniqueStrings = (values: string[]) => [...new Set(values.map(migrateProvider))];
   // The legacy kind was the ACP chat provider on its own. Rewriting a disable
   // or crossagents pause onto "antigravity" would hide the provider's whole
@@ -1319,6 +1468,7 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
             ? { fallbacks: entry.fallbacks.map((fallback) => migrateEntry(fallback)) }
             : {}),
         })),
+        crews: mapSavedCrewSelections(settings.crews, migrateCrewSelection),
         commitGenProvider: migrateProvider(settings.commitGenProvider),
         titleGenProvider: migrateProvider(settings.titleGenProvider),
         conflictResolverProvider: migrateProvider(settings.conflictResolverProvider),
@@ -1410,6 +1560,20 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
           modelId: normalized.model,
           ...(normalized.effort ? { effort: normalized.effort } : {}),
         } as T);
+  };
+  const normalizeCrewSelection = (selection: CrewMemberSelection): CrewMemberSelection => {
+    if (selection.agentKind !== "antigravity") return selection;
+    const normalized = normalizePersistedAntigravityModelSelection(
+      selection.model,
+      selection.effort,
+    );
+    return normalized.model === selection.model
+      ? selection
+      : {
+          ...selection,
+          model: normalized.model,
+          ...(normalized.effort ? { effort: normalized.effort } : {}),
+        };
   };
   const normalizeUtilityModel = (
     provider: string,
@@ -1552,6 +1716,7 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
         ? { ...primary, fallbacks: primary.fallbacks.map(normalizeFallback) }
         : primary;
     }),
+    crews: mapSavedCrewSelections(migrated.crews, normalizeCrewSelection),
     commitGenModel: commitGen.model,
     commitGenEffort: commitGen.effort,
     titleGenModel: titleGen.model,
@@ -1592,6 +1757,7 @@ export const ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS = [
   "agentSelectionUsage",
   "crossagentSelectionUsage",
   "crossagentRoutingOverrides",
+  "crews",
   "commitGenProvider",
   "titleGenProvider",
   "conflictResolverProvider",
@@ -1629,6 +1795,22 @@ function normalizeMachineSettings(value: unknown): SharedSettings["machineSettin
   return result;
 }
 
+function normalizeSavedCrews(value: unknown): SavedCrew[] {
+  if (!Array.isArray(value)) return [];
+  const crews: SavedCrew[] = [];
+  const ids = new Set<string>();
+  for (const entry of value) {
+    const parsed = savedCrewSchema.safeParse(entry);
+    if (!parsed.success || ids.has(parsed.data.id)) continue;
+    const roles = normalizeCrewRoles(parsed.data.roles);
+    if (roles.length === 0) continue;
+    ids.add(parsed.data.id);
+    crews.push({ ...parsed.data, roles });
+    if (crews.length === MAX_SAVED_CREWS) break;
+  }
+  return crews;
+}
+
 function normalizeSharedSettingsStateImpl(value: unknown): {
   settings: SharedSettings;
   acpAliasMigrated: boolean;
@@ -1642,9 +1824,42 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
   const parsed = settingsUnknownRecordSchema.safeParse(migratedValue);
   if (!parsed.success) return { settings: normalized, acpAliasMigrated: false };
   return migrateSharedSettingsValues(
-    { ...normalized, machineSettings: normalizeMachineSettings(parsed.data.machineSettings) },
+    {
+      ...normalized,
+      machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
+      crews: normalizeSavedCrews(parsed.data.crews),
+    },
     parsed.data,
   );
+}
+
+/**
+ * No SETTINGS_DOCUMENT_VERSION bump: `preventSleepWhen` and
+ * `preventScreenLockWhen` are additive, and older readers ignore and preserve
+ * them as unknown fields. A valid stored value
+ * always wins. Otherwise it is seeded from the legacy `preventSleep` enum,
+ * then from the older two sleep booleans. The legacy `preventSleep` key is
+ * neither rewritten nor removed: an older app that reads a newer file keeps
+ * the user's last pre-upgrade choice, which stays valid in its schema
+ * (an array in that field would make the older document reader refuse it).
+ */
+function migratePreventSleepWhen(
+  normalized: SharedSettings,
+  source: Record<string, unknown>,
+): KeepAwakeCondition[] {
+  // Stored lists round-trip as written (the settings CAS compares written and
+  // parsed list lengths); clients normalize before writing.
+  if (sharedSettingsSchema.shape.preventSleepWhen.safeParse(source.preventSleepWhen).success)
+    return normalized.preventSleepWhen;
+  const legacy = legacyPreventSleepSchema.safeParse(source.preventSleep);
+  if (legacy.success) return [...LEGACY_PREVENT_SLEEP_CONDITIONS[legacy.data]];
+  if ("preventSleepWhileWorking" in source || "remoteAccessPreventSleep" in source)
+    return [
+      ...LEGACY_PREVENT_SLEEP_CONDITIONS[
+        source.remoteAccessPreventSleep === true ? "while-remote-access" : "while-working"
+      ],
+    ];
+  return normalized.preventSleepWhen;
 }
 
 /** Applies existing migrations to validated values; object spreads retain private future fields. */
@@ -1657,19 +1872,7 @@ export function migrateSharedSettingsValues(
     source.prAutoMergeDefault === true ? "merge" : source.prWatchDefault === true ? "fix" : "off";
   // The removed computerUseKeepAwake field is ignored by schema normalization;
   // older files remain valid and computer use follows the shared sleep policy.
-  // Unversioned settings file: migrate the two legacy sleep booleans into
-  // the single `preventSleep` enum. An explicit valid value always wins.
-  const hasPreventSleep = sharedSettingsSchema.shape.preventSleep.safeParse(
-    source.preventSleep,
-  ).success;
-  const hasLegacyPreventSleepKeys =
-    "preventSleepWhileWorking" in source || "remoteAccessPreventSleep" in source;
-  const migratedPreventSleep =
-    !hasPreventSleep && hasLegacyPreventSleepKeys
-      ? source.remoteAccessPreventSleep === true
-        ? ("while-remote-access" as const)
-        : ("while-working" as const)
-      : normalized.preventSleep;
+  const preventSleepWhen = migratePreventSleepWhen(normalized, source);
   const usage = settingsUnknownRecordSchema.safeParse(source.usage);
   const disabledProviders = usage.success
     ? settingsStringListSchema.safeParse(usage.data.disabledProviders)
@@ -1680,6 +1883,11 @@ export function migrateSharedSettingsValues(
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
       // Older orders remain valid; normalization appends newly supported sections.
       threadDocksOrder: normalizeThreadDocksOrder(normalized.threadDocksOrder),
+      // Keep the wire schema compatible with saved settings from before the
+      // always-on Poracode policy; normalize at both host and client loads.
+      disabledBuiltInMcpServers: normalizeBuiltInMcpServerDisabled(
+        normalized.disabledBuiltInMcpServers,
+      ),
       // Legacy `chrome_`-prefixed tool names are normalized once here at the
       // load boundary so the Zod schema (and the remote-v3 wire derived from
       // it) can stay transform-free.
@@ -1687,7 +1895,7 @@ export function migrateSharedSettingsValues(
       prAutomationDefault: hasAutomationMode
         ? normalized.prAutomationDefault
         : legacyAutomationMode,
-      preventSleep: migratedPreventSleep,
+      preventSleepWhen,
       usage: {
         ...normalized.usage,
         disabledProviders: disabledProviders?.success ? disabledProviders.data : [],

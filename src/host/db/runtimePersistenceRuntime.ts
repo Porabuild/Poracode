@@ -221,6 +221,7 @@ export function isRuntimeDurableGapReserveLatched(): boolean {
 export function resetRuntimePersistenceForTests(): void {
   runtimePersistenceController.resetForNewConnection();
   runtimePersistenceController.resetDurableGapForTests();
+  runtimePersistenceController.setCapacityReliefForTests(true);
   // Force the next operation to re-bind (and read the epoch row) even when the
   // suite reuses the same SQLite handle.
   lastConnection = undefined;

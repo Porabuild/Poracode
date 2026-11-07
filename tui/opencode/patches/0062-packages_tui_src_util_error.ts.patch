@@ -1,0 +1,15 @@
+diff --git a/packages/tui/src/util/error.ts b/packages/tui/src/util/error.ts
+index 33dff7b..8781548 100644
+--- a/packages/tui/src/util/error.ts
++++ b/packages/tui/src/util/error.ts
+@@ -24,8 +24,8 @@ export function cliErrorMessage(input: unknown): string | undefined {
+     return [
+       `Model not found: ${field(model, "providerID")}/${field(model, "modelID")}`,
+       ...(suggestions.length ? ["Did you mean: " + suggestions.join(", ")] : []),
+-      "Try: `opencode models` to list available models",
+-      "Or check your config (opencode.json) provider/model names",
++      "Use the model picker to choose an available model",
++      "Check the provider and model settings in your Poracode host",
+     ].join("\n")
+   }
+ 

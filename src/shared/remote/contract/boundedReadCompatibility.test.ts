@@ -109,6 +109,21 @@ describe("B4 bounded-read contract compatibility", () => {
     expect(items.reads).toBe("bounded-v1");
   });
 
+  it("decodes deferBodies=file_change and rejects any other value", () => {
+    const query = { projection: "details-v1", deferBodies: "file_change" };
+    expect(decodedThreadHistoryQuerySchema.parse(query)).toEqual(query);
+    expect(decodedThreadHistoryItemsQuerySchema.parse({ ...query, limit: 5 })).toEqual({
+      ...query,
+      limit: 5,
+    });
+    expect(() => decodedThreadHistoryQuerySchema.parse({ ...query, deferBodies: "all" })).toThrow(
+      /file_change/,
+    );
+    expect(() => decodedThreadHistoryItemsQuerySchema.parse({ ...query, deferBodies: "" })).toThrow(
+      /file_change/,
+    );
+  });
+
   it("accepts the legacy query shapes of every widened route", () => {
     expect(decodedThreadListQuerySchema.parse({ limit: 100 })).toEqual({ limit: 100 });
     expect(decodedShellSnapshotQuerySchema.parse({ threadLimit: 100 })).toEqual({
@@ -118,6 +133,13 @@ describe("B4 bounded-read contract compatibility", () => {
     expect(decodedThreadHistoryQuerySchema.parse({ runtimePage: "1" })).toEqual({
       runtimePage: "1",
     });
+    // A reader from before `deferBodies` sends neither it nor a different projection.
+    expect(decodedThreadHistoryQuerySchema.parse({ projection: "details-v1" })).toEqual({
+      projection: "details-v1",
+    });
+    expect(
+      decodedThreadHistoryItemsQuerySchema.parse({ projection: "details-v1", limit: 5 }),
+    ).toEqual({ projection: "details-v1", limit: 5 });
     // Declared clients may omit the limit; the host applies the bounded default.
     expect(decodedThreadListQuerySchema.parse({ reads: "bounded-v1" })).toEqual({
       reads: "bounded-v1",

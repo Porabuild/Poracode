@@ -5,6 +5,7 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
 import { setAuxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 const mocks = vi.hoisted(() => ({
   launch: vi.fn<(...args: unknown[]) => Promise<void>>(),
   create: vi.fn<() => unknown>(),
@@ -32,10 +33,11 @@ vi.mock("@/renderer/bridge", () => ({
   }),
 }));
 vi.mock("@/renderer/state/remoteServersStore", () => ({
-  useRemoteServersStore: { getState: () => ({ launchRemoteThread: mocks.launch }) },
+  useRemoteServersStore: { getState: () => ({}) },
 }));
+// Side chats launch through the same action as every thread, on any host.
 vi.mock("@/renderer/actions/threadLaunchActions", () => ({
-  performInitialThreadLaunch: vi.fn<() => void>(),
+  performInitialThreadLaunch: mocks.launch,
   markThreadLaunchFailed: vi.fn<() => void>(),
 }));
 vi.mock("@/renderer/actions/threadActions", () => ({
@@ -72,6 +74,7 @@ const entry = {
 } as SideChatBootstrap;
 beforeEach(() => {
   vi.clearAllMocks();
+  useComposerInputInbox.setState({ itemsByComposer: {} });
   setAuxiliaryThreadIds([]);
   useSideChatLaunchState.setState({ threadIds: new Set() });
   mocks.threads = [];
@@ -117,7 +120,7 @@ it("keeps an explicitly selected Plan mode on the same side-chat draft", () => {
   hook.unmount();
 });
 
-it("keeps a hidden panel's pending remote launch owned and prevents remount from duplicating it", async () => {
+it("keeps a hidden panel's pending launch in flight and prevents remount from duplicating it", async () => {
   let finish!: () => void;
   mocks.launch.mockImplementation(
     () =>
@@ -132,10 +135,12 @@ it("keeps a hidden panel's pending remote launch owned and prevents remount from
     await Promise.resolve();
   });
   expect(mocks.launch).toHaveBeenCalledTimes(1);
-  const options = mocks.launch.mock.calls[0]?.[1] as { isPendingLaunchOwned: () => boolean };
+  // The launch carries the paired host's thread identity.
+  expect(mocks.launch).toHaveBeenCalledWith(
+    expect.objectContaining({ thread: expect.objectContaining({ id: "child" }) }),
+  );
   setAuxiliaryThreadIds(["child"]);
   first.unmount();
-  expect(options.isPendingLaunchOwned()).toBe(true);
   const restored = renderHook(
     () => useSideChatSession({ ...entry, existingThreadId: "child", prompt: "question" }, "panel"),
     { wrapper },
@@ -147,7 +152,6 @@ it("keeps a hidden panel's pending remote launch owned and prevents remount from
   expect(mocks.launch).toHaveBeenCalledTimes(1);
   expect(mocks.create).toHaveBeenCalledTimes(1);
   setAuxiliaryThreadIds([]);
-  expect(options.isPendingLaunchOwned()).toBe(false);
   await act(async () => {
     finish();
     await pending;
@@ -174,6 +178,25 @@ it("never submits typed draft updates or restored unsent text automatically", ()
   expect(mocks.launch).not.toHaveBeenCalled();
   restored.unmount();
 });
+
+it.each(["panel", "window"] as const)(
+  "appends selected text to a live %s draft without submitting",
+  (surface) => {
+    const hook = renderHook(() => useSideChatSession({ ...entry, autoStart: false }, surface), {
+      wrapper,
+    });
+    act(() => hook.result.current.setPrompt("unsent draft"));
+    act(() =>
+      useComposerInputInbox
+        .getState()
+        .enqueue("side-chat:entry", [{ kind: "text", content: "quote" }]),
+    );
+    expect(hook.result.current.prompt).toBe("unsent draft\n\nquote");
+    expect(useComposerInputInbox.getState().itemsByComposer["side-chat:entry"]).toBeUndefined();
+    expect(mocks.launch).not.toHaveBeenCalled();
+    hook.unmount();
+  },
+);
 
 it("never creates a new thread over a retained child that is outside the resident catalog", async () => {
   const hook = renderHook(

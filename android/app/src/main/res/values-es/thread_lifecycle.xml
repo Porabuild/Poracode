@@ -24,4 +24,6 @@
     <string name="archived_threads_title">Hilos archivados</string>
     <string name="archived_threads_description">Restaura o elimina definitivamente los hilos que archivaste.</string>
     <string name="archived_threads_empty">No hay hilos archivados</string>
+    <string name="thread_status_starting_agent">Iniciando agente…</string>
+    <string name="thread_status_resuming">Reanudando sesión…</string>
 </resources>

@@ -18,11 +18,23 @@ import {
   type ProjectRemoteServerInfo,
 } from "@/renderer/components/common/ProjectRemoteServer";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import {
+  ProjectEnvironmentGlyphs,
+  type ProjectEnvironmentMachine,
+  useProjectEnvironmentMachineLookup,
+} from "@/renderer/components/common/ProjectEnvironment";
+import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
+import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
+import {
+  pickGroupMember,
+  useProjectGroupIndex,
+} from "@/renderer/state/projectGroups/useProjectGroups";
+import { groupProjectRows } from "@/renderer/state/projectGroups/projectGroups";
 
 export function HomeView() {
   const { t } = useLingui();
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
-  const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
+  const homeProjects = useAppStore(useShallow((state) => state.projects.filter(isHomeProject)));
   const configuredWorkspaces = useSharedSettings((state) => state.workspaces);
   const projects = useAppStore(
     useShallow((state) =>
@@ -32,12 +44,20 @@ export function HomeView() {
   const [filterProjectId, setFilterProjectId] = useState<string | null>(null);
   const remoteServerFor = useProjectRemoteServerLookup();
   const openDraft = useAppStore((state) => state.openDraft);
+  const groupIndex = useProjectGroupIndex();
+  const machineFor = useProjectEnvironmentMachineLookup();
+  const isReachable = useReachableProjectFilter();
 
-  const projectOptions = homeScopeEnabled && homeProject ? [homeProject, ...projects] : projects;
-  const activeFilter =
-    filterProjectId !== null && projectOptions.some((project) => project.id === filterProjectId)
-      ? filterProjectId
-      : null;
+  const projectOptions = homeScopeEnabled ? [...homeProjects, ...projects] : projects;
+  // The filter remembers a member project id, so it survives regrouping (an
+  // origin loading or a manual separate) as long as that project is listed.
+  const activeRow =
+    filterProjectId !== null
+      ? groupProjectRows(projectOptions, groupIndex).find((row) =>
+          row.members.some((member) => member.id === filterProjectId),
+        )
+      : undefined;
+  const activeFilter = activeRow ? new Set(activeRow.members.map((member) => member.id)) : null;
 
   const knownWorkspaceIds = new Set(configuredWorkspaces.map((workspace) => workspace.id));
   const projectGroups = configuredWorkspaces
@@ -60,26 +80,35 @@ export function HomeView() {
             !thread.archived &&
             (homeScopeEnabled || !isHomeProjectId(thread.projectId)) &&
             isThreadInActiveWorkspace(thread) &&
-            (activeFilter === null || thread.projectId === activeFilter),
+            (activeFilter === null || activeFilter.has(thread.projectId)),
         )
         .toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt));
       return activeFilter === null ? sorted.slice(0, 8) : sorted;
     }),
   );
   const projectRows = (groupProjects: readonly Project[]) =>
-    groupProjects.map((project) => (
-      <ProjectRow
-        key={project.id}
-        project={project}
-        remote={remoteServerFor(project)}
-        selected={activeFilter === project.id}
-        onSelect={() =>
-          setFilterProjectId((current) => (current === project.id ? null : project.id))
-        }
-        onNewThread={() => openDraft(project.id)}
-        newThreadLabel={t`New thread in ${project.name}`}
-      />
-    ));
+    groupProjectRows(groupProjects, groupIndex).map((row) => {
+      const project = row.members[0]!;
+      const selected =
+        filterProjectId !== null && row.members.some((member) => member.id === filterProjectId);
+      return (
+        <ProjectRow
+          key={row.id}
+          project={project}
+          members={row.members}
+          machineFor={machineFor}
+          remote={remoteServerFor(project)}
+          selected={selected}
+          onSelect={() => setFilterProjectId(selected ? null : row.id)}
+          onNewThread={() => {
+            const target = pickGroupMember(row.members, isReachable) ?? project;
+            useProjectGroupStore.getState().markProjectUsed(target.id);
+            openDraft(target.id);
+          }}
+          newThreadLabel={t`New thread in ${project.name}`}
+        />
+      );
+    });
 
   return (
     <div className="h-full overflow-y-auto">
@@ -91,20 +120,7 @@ export function HomeView() {
                 <Trans>Projects</Trans>
               </h2>
               <div className="flex flex-col">
-                {homeScopeEnabled && homeProject ? (
-                  <ProjectRow
-                    project={homeProject}
-                    remote={remoteServerFor(homeProject)}
-                    selected={activeFilter === homeProject.id}
-                    onSelect={() =>
-                      setFilterProjectId((current) =>
-                        current === homeProject.id ? null : homeProject.id,
-                      )
-                    }
-                    onNewThread={() => openDraft(homeProject.id)}
-                    newThreadLabel={t`New thread in ${homeProject.name}`}
-                  />
-                ) : null}
+                {homeScopeEnabled ? projectRows(homeProjects) : null}
                 {configuredWorkspaces.length > 0
                   ? projectGroups.map((group) => (
                       <ProjectGroup
@@ -133,9 +149,9 @@ export function HomeView() {
               {recentThreads.length > 0 ? (
                 <div className="flex flex-col gap-1">
                   {recentThreads.map((thread) => {
-                    const project = isHomeProjectId(thread.projectId)
-                      ? homeProject
-                      : projects.find((p) => p.id === thread.projectId);
+                    const project = (
+                      isHomeProjectId(thread.projectId) ? homeProjects : projects
+                    ).find((p) => p.id === thread.projectId);
                     return (
                       <button
                         key={thread.id}
@@ -192,6 +208,9 @@ function ProjectGroup(props: { name: string; icon?: ReactNode; children: ReactNo
 
 function ProjectRow(props: {
   project: Project;
+  /** Every environment row of this project listed here; more than one shows machine glyphs. */
+  members: readonly Project[];
+  machineFor: (project: Project) => ProjectEnvironmentMachine | undefined;
   remote: ProjectRemoteServerInfo;
   selected: boolean;
   onSelect: () => void;
@@ -215,12 +234,16 @@ function ProjectRow(props: {
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
           {isHomeProject(project) ? <Trans>Home</Trans> : project.name}
         </span>
-        <span className="flex shrink-0 items-center gap-1 text-[11px]">
-          <ProjectRemoteServerChip info={remote} size="xs" />
-          {project.location.kind === "wsl" ? (
-            <TuxIcon className="h-2.5 w-auto shrink-0 text-muted/60" />
-          ) : null}
-        </span>
+        {props.members.length > 1 ? (
+          <ProjectEnvironmentGlyphs members={props.members} machineFor={props.machineFor} />
+        ) : (
+          <span className="flex shrink-0 items-center gap-1 text-[11px]">
+            <ProjectRemoteServerChip info={remote} size="xs" />
+            {project.location.kind === "wsl" ? (
+              <TuxIcon className="h-2.5 w-auto shrink-0 text-muted/60" />
+            ) : null}
+          </span>
+        )}
       </button>
       <button
         aria-label={props.newThreadLabel}

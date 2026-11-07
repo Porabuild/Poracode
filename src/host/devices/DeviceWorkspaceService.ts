@@ -3,7 +3,7 @@ import {
   DEVICE_WORKSPACE_AGENT_KEY_ENV,
   verifyDeviceThreadProof,
 } from "@/shared/deviceWorkspaceAgentProof";
-import sharp from "sharp";
+import { loadSharp } from "../attachments/loadSharp";
 import {
   DEVICE_FRAME_MAX_BYTES,
   DEVICE_LEASE_TTL_MS,
@@ -373,6 +373,7 @@ export class DeviceWorkspaceService {
       lease,
       async (activeSignal) => {
         const capture = await this.driver.capture(lease.session.device.id, activeSignal);
+        const sharp = await loadSharp();
         const image = sharp(capture.png, { limitInputPixels: 32_000_000 });
         const meta = await image.metadata();
         if (!meta.width || !meta.height)
@@ -489,7 +490,7 @@ export class DeviceWorkspaceService {
               "Capture a fresh frame before sending coordinates.",
             );
           const current = await this.driver.capture(lease.session.device.id, activeSignal);
-          const meta = await sharp(current.png).metadata();
+          const meta = await (await loadSharp())(current.png).metadata();
           if (meta.width !== geometry.sourceWidth || meta.height !== geometry.sourceHeight)
             throw new DeviceWorkspaceError(
               "stale_frame",

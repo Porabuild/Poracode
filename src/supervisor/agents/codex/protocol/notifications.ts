@@ -1,6 +1,7 @@
 import type {
   AccountRateLimitsUpdatedNotification,
   AgentMessageDeltaNotification,
+  CodexErrorInfo,
   CommandExecutionOutputDeltaNotification,
   ConfigWarningNotification,
   DeprecationNoticeNotification,
@@ -36,6 +37,7 @@ import type {
 } from "@poracode/codex-protocol";
 
 export type {
+  CodexErrorInfo,
   ErrorNotification,
   ThreadGoalStatus,
   ThreadStatus,

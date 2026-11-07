@@ -46,6 +46,13 @@ export interface RemoteProjectCommandDeps {
   beginProjectRemoval(projectId: string): () => void;
   removeProjectExperiments(project: Project): Promise<void>;
   hasRunningProjectThread(projectId: string): boolean;
+  /**
+   * Re-points the host runtime at a moved project folder: repairs its linked
+   * worktrees (which also proves the folder is a git repository), drops
+   * path-keyed caches, and re-watches it. Rejects without side effects on the
+   * catalog row when the folder is not usable.
+   */
+  relocateProjectRuntime(projectId: string, location: ProjectLocation): Promise<void>;
   /** Thread ids belonging to a project, closed best-effort before removal. */
   listProjectThreadIds(projectId: string): readonly string[];
   upsertProject(project: Project, sortOrder: number): void;
@@ -135,7 +142,9 @@ export interface RemoteProjectCommandOptions {
 /** Folder name from an absolute path, used when the client omits a project name. */
 function nameFromPath(path: string): string {
   const trimmed = path.replace(/[\\/]+$/, "");
-  return basename(trimmed) || trimmed;
+  const name = basename(trimmed) || trimmed;
+  // Roots and OS-valid folder names may not be valid portable display labels.
+  return validateProjectName(name) ? "Project" : name;
 }
 
 /**
@@ -272,6 +281,29 @@ function makeProject(
   return { id: randomUUID(), name, location, createdAt, ...(workspaceId ? { workspaceId } : {}) };
 }
 
+type ProjectRegistrationDeps = Pick<
+  RemoteProjectCommandDeps,
+  "platform" | "findProjectByLocation" | "upsertProject" | "updateProject" | "getProjects" | "now"
+>;
+
+export function registerExistingProjectDirectory(
+  command: Extract<RemoteProjectCommand, { kind: "add-existing" }>,
+  deps: ProjectRegistrationDeps,
+  options: RemoteProjectCommandOptions = {},
+): RemoteProjectCommandApplication {
+  assertValidProjectPath(command.path, deps.platform);
+  const name = command.name?.trim() || nameFromPath(command.path);
+  assertValidName(name);
+  return register(
+    deps,
+    deriveLocationFromPath(command.path, deps.platform),
+    name,
+    Boolean(command.name?.trim()),
+    command.workspaceId,
+    options,
+  );
+}
+
 /**
  * Applies a remote project command against the DB (and, for clone, the
  * supervisor). New projects sort to the top via a descending-timestamp
@@ -287,18 +319,7 @@ export async function applyRemoteProjectCommand(
   const bounded = options.resultMode === "bounded";
   switch (command.kind) {
     case "add-existing": {
-      assertValidProjectPath(command.path, deps.platform);
-      const name = command.name?.trim() || nameFromPath(command.path);
-      assertValidName(name);
-      const location = deriveLocationFromPath(command.path, deps.platform);
-      return register(
-        deps,
-        location,
-        name,
-        Boolean(command.name?.trim()),
-        command.workspaceId,
-        options,
-      );
+      return registerExistingProjectDirectory(command, deps, options);
     }
     case "create": {
       assertValidProjectPath(command.parentPath, deps.platform);
@@ -406,6 +427,9 @@ export async function applyRemoteProjectCommand(
         assertRelocatable(project);
         const updated = relocate(project);
         assertUniqueLocation(project, updated.location);
+        // A runtime repair that refuses (a folder that is not a repository) is
+        // a definite failure: the effect boundary is the row write after it.
+        await deps.relocateProjectRuntime(project.id, updated.location);
         options.onEffectBoundary?.();
         deps.updateProject(updated);
         return boundedResult({ ok: true, project: updated });
@@ -418,6 +442,7 @@ export async function applyRemoteProjectCommand(
       assertRelocatable(project);
       const updated = relocate(project);
       assertUniqueLocation(project, updated.location);
+      await deps.relocateProjectRuntime(project.id, updated.location);
       options.onEffectBoundary?.();
       deps.updateProject(updated);
       return completeResult({
@@ -526,6 +551,9 @@ function applyProjectPatch(
     "worktreeLocation",
     "mcpServers",
     "ghAccount",
+    "worktreeBaseBranch",
+    "pinnedBranches",
+    "pluginOverrides",
   ] as const) {
     if (patch[key] !== null) continue;
     const { [key]: _, ...rest } = updated;
@@ -551,7 +579,7 @@ function boundedProjectApplication(
 }
 
 function register(
-  deps: RemoteProjectCommandDeps,
+  deps: ProjectRegistrationDeps,
   location: ProjectLocation,
   name: string,
   nameOverride: boolean,

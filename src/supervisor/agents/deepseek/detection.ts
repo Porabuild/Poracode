@@ -77,8 +77,6 @@ export function buildDeepSeekProbeCapabilities(
   };
 }
 
-const installNext = { binary: "npm", args: ["install", "-g", "@deepseek-ai/dsh@next"] };
-
 export const deepSeekDetectionSpec: DetectionSpec = {
   kind: "deepseek",
   label: "DeepSeek Harness",
@@ -86,13 +84,7 @@ export const deepSeekDetectionSpec: DetectionSpec = {
   versionArgs: ["--version"],
   loginCommand: "dsh web --port 0",
   capabilities: deepSeekDefaultCapabilities,
-  // The npm resolver always installs @latest, which currently predates ACP
-  // persistence/config options. Use the existing installer/version-URL seam
-  // to keep installs, updates, and their previews on the next release channel.
-  update: {
-    installer: { posix: installNext, windows: installNext },
-    latestVersionUrls: ["https://registry.npmjs.org/%40deepseek-ai%2Fdsh/next"],
-  },
+  update: { npm: "@deepseek-ai/dsh" },
   authProbes: [probeDeepSeekAuth],
   async capabilitiesProbe(ctx) {
     if (!ctx.executablePath) return undefined;

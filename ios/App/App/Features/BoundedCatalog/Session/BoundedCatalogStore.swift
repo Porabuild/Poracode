@@ -172,6 +172,25 @@ struct BoundedCatalogStore {
     if let options = object["sessionConfigOptions"] {
       row.sessionConfigOptions = options.isNull ? nil : options
     }
+    // Live provider session, folded like the host's `persistThreadStateEvent`:
+    // a stated reference naming another provider session or execution identity
+    // replaces the row's; an absent, null, unreadable or unchanged one keeps it.
+    // A resume relaunch resumes this reference, so a dropped one would reopen
+    // an older conversation.
+    if let stated = Self.sessionRef(object["sessionRef"]),
+      stated.providerSessionID != row.sessionRef?.providerSessionID
+        || stated.executionIdentity != row.sessionRef?.executionIdentity
+    {
+      row.sessionRef = stated
+    }
+    // Resumable cut-off turn, folded like the host's `persistThreadStateEvent`:
+    // a stated value wins and `null` (Stop) clears it; otherwise a starting
+    // turn retires it. Absence (older host) leaves the row alone.
+    if let marker = object["interruptedTurn"] {
+      row.interruptedTurn = marker.stringValue
+    } else if status == "working" && previousStatus != "working" {
+      row.interruptedTurn = nil
+    }
     // Host rule (`persistThreadStateEvent`): `updatedAt` advances exactly when
     // the transition enters `working` from a non-working status — including
     // `needs_approval`/`needs_reply`, which are live but not `working`.
@@ -253,6 +272,17 @@ struct BoundedCatalogStore {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     return formatter.string(from: Date())
+  }
+
+  /// A readable `thread-state` session reference, or nil when it is absent,
+  /// null or malformed (the host's schema requires both ids to be non-empty).
+  static func sessionRef(_ value: JSONValue?) -> RemoteSessionRef? {
+    guard let value, case .object = value,
+      let data = try? JSONDecoding.encoder.encode(value),
+      let ref = try? JSONDecoding.decode(RemoteSessionRef.self, from: data),
+      !ref.providerSessionID.isEmpty, !ref.discoveredAt.isEmpty
+    else { return nil }
+    return ref
   }
 }
 

@@ -63,6 +63,8 @@ class SessionPool {
      * history to a listener that discards it (WS7 finding 6).
      */
     private val lastSeenSeqByKey = linkedMapOf<SessionPoolKey, Int>()
+    /** Event-stream epoch each cached cursor is bound to (absent while unbound). */
+    private val lastSeenEpochByKey = linkedMapOf<SessionPoolKey, String>()
     private var selected: SessionPoolKey? = SessionPoolKey.Legacy
     private var secondary: SessionPoolKey? = null
     private var backgroundGated = false
@@ -137,12 +139,23 @@ class SessionPool {
     /** Last seq a socket for [key] had applied, or null when never tracked. */
     fun cachedLastSeenSeq(key: SessionPoolKey): Int? = lastSeenSeqByKey[key]
 
-    /** Caller holds the monitor: records the socket's applied cursor before it
-     * stops or suspends, so a later socket can resume instead of replaying. */
+    /** Epoch [cachedLastSeenSeq] is bound to, or null while unbound. */
+    fun cachedLastSeenEpoch(key: SessionPoolKey): String? = lastSeenEpochByKey[key]
+
+    @Synchronized
+    fun cachedAppliedCursor(key: SessionPoolKey): Pair<Int?, String?> =
+        lastSeenSeqByKey[key] to lastSeenEpochByKey[key]
+
+    /** Caller holds the monitor: records the socket's applied cursor (and the
+     * epoch it is bound to) before it stops or suspends, so a later socket can
+     * resume instead of replaying. */
     private fun captureAppliedSeqLocked(key: SessionPoolKey, socket: RemoteEventSocket?) {
-        val seq = socket?.appliedSeq() ?: return
+        val (seq, epoch) = socket?.appliedCursor() ?: return
+        if (seq == null) return
         lastSeenSeqByKey.remove(key)
         lastSeenSeqByKey[key] = seq
+        lastSeenEpochByKey.remove(key)
+        if (epoch != null) lastSeenEpochByKey[key] = epoch
     }
 
     @Synchronized

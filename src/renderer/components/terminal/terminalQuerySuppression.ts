@@ -21,7 +21,7 @@ import type { Terminal } from "@xterm/xterm";
  * replay chunk even enters the write buffer.
  *
  * Sequence families whose built-in chain can emit onData in the installed
- * xterm stack (@xterm/xterm 6.1.0-beta.303 InputHandler/CoreBrowserTerminal
+ * xterm stack (InputHandler/CoreBrowserTerminal
  * plus the ImageAddon and ClipboardAddon this surface loads):
  *
  * | Family        | Sequence                 | Reply                        | Emitted by |
@@ -40,15 +40,18 @@ import type { Terminal } from "@xterm/xterm";
  * | DECRQSS       | `DCS $ q Pt ST`          | `DCS P1$rPt ST`              | core |
  * | Color report  | `OSC 4/10/11/12 ; …; ?`  | `OSC n;rgb:…ST` — SET slots are state and preserved | core |
  * | Clipboard     | `OSC 52 ; Pc ; Pd`       | read: `OSC 52;Pc;base64 ST`; write: external action | ClipboardAddon |
+ * | Program status | `OSC 7501 ; …`          | query: `OSC 7501;? ST`; reports: current activity | ProgramStatusAddon |
  *
  * `CSI ? l` is marked alongside `? h` for symmetry; DECRST 1004 does not
  * report today.
  *
- * OSC 52 is the one family swallowed whole during replay (`true`): the
+ * OSC 52 is swallowed whole during replay (`true`): the
  * ClipboardAddon answers reads asynchronously — after the synchronous scope
  * has cleared, so it cannot be scoped — and a historical clipboard write is an
  * external action, not rendered terminal state, and must not overwrite the
- * user's clipboard. Live OSC 52 is untouched.
+ * user's clipboard. OSC 7501 is also swallowed: historical records must not
+ * appear as current program activity or answer feature queries. Live reports
+ * and queries are untouched.
  */
 
 export interface QueryReplySuppression {
@@ -112,7 +115,9 @@ export function installQueryReplySuppression(
     terminal.parser.registerOscHandler(10, markAndPassThrough),
     terminal.parser.registerOscHandler(11, markAndPassThrough),
     terminal.parser.registerOscHandler(12, markAndPassThrough),
+    terminal.parser.registerApcHandler({ final: "G" }, markAndPassThrough),
     terminal.parser.registerOscHandler(52, swallowDuringReplay),
+    terminal.parser.registerOscHandler(7501, swallowDuringReplay),
   ];
 
   return {

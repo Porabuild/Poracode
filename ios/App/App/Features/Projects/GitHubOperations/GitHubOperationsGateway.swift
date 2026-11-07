@@ -11,6 +11,7 @@ struct GitHubControllerContext: Equatable, Sendable {
   var isOnline = true
   var isReady = true
   var isForeground = true
+  var cacheEndpoint: String? = nil
 
   var isConsistent: Bool { lease.isConsistent }
   var isUsable: Bool { isConsistent && isOnline && isReady && isForeground }

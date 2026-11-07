@@ -18,6 +18,7 @@ import { execServer } from "../lib/launcher.mjs";
 import { PoracodeLauncherError } from "../lib/errors.mjs";
 import {
   forwardedSignals,
+  isServeInvocation,
   runServerStop,
   signalExitCode,
   windowsHardKillDeadlineMs,
@@ -30,6 +31,13 @@ import {
 } from "../lib/target.mjs";
 
 const tempDirs = [];
+void test("only an explicit standalone run flag owns the child profile drain", () => {
+  assert.equal(isServeInvocation(["run", "--standalone", "Explain"]), true);
+  assert.equal(isServeInvocation(["run", "--session", "thread", "--standalone", "Continue"]), true);
+  assert.equal(isServeInvocation(["run", "Explain"]), false);
+  assert.equal(isServeInvocation(["run", "--", "--standalone"]), false);
+  assert.equal(isServeInvocation(["run", "--standalone", "--help"]), false);
+});
 after(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
@@ -217,6 +225,7 @@ void test("lock and quarantine identity: a renamed directory keeps its ino/dev",
 });
 
 class FakeChild extends EventEmitter {
+  pid = 4242;
   killed = [];
   kill(signal) {
     this.killed.push(signal ?? "hard");
@@ -284,6 +293,7 @@ void test("win32: SIGTERM/SIGBREAK/SIGHUP request a graceful stop, then hard-kil
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(stops.length, 1, signal);
     assert.match(stops[0].entry, /server\.cjs$/u);
+    assert.equal(stops[0].expectedPid, child.pid);
     assert.deepEqual(child.killed, [], "no immediate TerminateProcess");
     assert.equal(clock.scheduled.length, 1);
     assert.equal(clock.scheduled[0].ms, 2000 + 5000, "drain deadline plus margin");
@@ -304,6 +314,8 @@ void test("win32: non-serve subcommands never ask the running owner to stop", as
     ["stop"],
     ["pair"],
     ["--version"],
+    ["setup", "--no-start"],
+    ["setup", "--help"],
   ];
   for (const args of subcommands) {
     for (const signal of ["SIGTERM", "SIGBREAK", "SIGHUP"]) {
@@ -320,7 +332,14 @@ void test("win32: non-serve subcommands never ask the running owner to stop", as
 });
 
 void test("win32: serve invocations (default, serve, leading flag) request a graceful stop", async () => {
-  for (const args of [[], ["serve"], ["serve", "--port", "1"], ["--port", "1"]]) {
+  for (const args of [
+    [],
+    ["serve"],
+    ["serve", "--port", "1"],
+    ["--port", "1"],
+    ["setup"],
+    ["setup", "--start"],
+  ]) {
     const { child, proc, stops, result } = launch("win32", { args });
     proc.emit("SIGTERM");
     await new Promise((resolve) => setImmediate(resolve));
@@ -332,10 +351,11 @@ void test("win32: serve invocations (default, serve, leading flag) request a gra
 });
 
 void test("win32: a graceful child exit cancels the hard-kill and keeps its exit code", async () => {
-  const { child, proc, clock, result } = launch("win32");
+  const { child, proc, clock, stops, result } = launch("win32");
   proc.emit("SIGTERM");
   child.emit("exit", 0, null);
   assert.equal(await result, 0);
+  assert.deepEqual(stops, [], "an exited child must not queue a profile stop");
   assert.equal(clock.scheduled[0].cleared, true);
   assert.equal(proc.listenerCount("SIGTERM"), 0, "handlers are removed on exit");
 });
@@ -390,6 +410,7 @@ void test("runServerStop runs `node <entry> stop` and reports the exit code", as
     env: { A: "1" },
     timeoutMs: 1000,
     execPath: "C:\\node\\node.exe",
+    expectedPid: 4242,
     spawnImpl: (command, args, options) => {
       calls.push({ command, args, options });
       return child;
@@ -398,7 +419,7 @@ void test("runServerStop runs `node <entry> stop` and reports the exit code", as
   child.emit("exit", 0);
   assert.equal(await promise, 0);
   assert.equal(calls[0].command, "C:\\node\\node.exe");
-  assert.deepEqual(calls[0].args, ["C:\\rt\\lib\\server.cjs", "stop"]);
+  assert.deepEqual(calls[0].args, ["C:\\rt\\lib\\server.cjs", "stop", "--if-pid", "4242"]);
   assert.equal(calls[0].options.windowsHide, true);
 });
 
@@ -408,6 +429,7 @@ void test("runServerStop never rejects when the stop process cannot start", asyn
       entry: "x",
       env: {},
       timeoutMs: 10,
+      expectedPid: 4242,
       spawnImpl: () => {
         throw new Error("spawn failed");
       },
@@ -415,7 +437,51 @@ void test("runServerStop never rejects when the stop process cannot start", asyn
     null,
   );
   const child = new FakeChild();
-  const promise = runServerStop({ entry: "x", env: {}, timeoutMs: 10, spawnImpl: () => child });
+  const promise = runServerStop({
+    entry: "x",
+    env: {},
+    timeoutMs: 10,
+    expectedPid: 4242,
+    spawnImpl: () => child,
+  });
   child.emit("error", new Error("ENOENT"));
   assert.equal(await promise, null);
+});
+
+void test("runServerStop refuses missing or invalid child identity without spawning", async () => {
+  for (const expectedPid of [undefined, 0, -1, 1.2, NaN]) {
+    let spawned = false;
+    assert.equal(
+      await runServerStop({
+        entry: "x",
+        env: {},
+        timeoutMs: 10,
+        expectedPid,
+        spawnImpl: () => {
+          spawned = true;
+          return new FakeChild();
+        },
+      }),
+      null,
+    );
+    assert.equal(spawned, false);
+  }
+});
+
+void test("runServerStop never retries an older parser's refusal with an unqualified stop", async () => {
+  const calls = [];
+  const child = new FakeChild();
+  const result = runServerStop({
+    entry: "server.cjs",
+    env: {},
+    timeoutMs: 1000,
+    expectedPid: 4242,
+    spawnImpl: (_command, args) => {
+      calls.push(args);
+      return child;
+    },
+  });
+  child.emit("exit", 1);
+  assert.equal(await result, 1);
+  assert.deepEqual(calls, [["server.cjs", "stop", "--if-pid", "4242"]]);
 });

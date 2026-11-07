@@ -278,6 +278,11 @@ class GeneratedRichChatSessionGateway(
         }
     }
 
+    override suspend fun controlMcpApp(lease: RichChatHostLease, threadId: String, payload: JsonObject): JsonObject =
+        invokeThreadProcedure(lease, threadId, payload, RichChatCapability.Operate, true) {
+            rich.controlMcpApp(payload)
+        }
+
     override suspend fun invokeSessionAction(
         lease: RichChatHostLease,
         threadId: String,
@@ -332,6 +337,30 @@ class GeneratedRichChatSessionGateway(
     ): RemoteBinaryResponse = invoke(lease, RichChatCapability.Read, false) {
         val executor = binary ?: unavailable("binary_transport")
         executor.execute(rich.runtimeImageRequest(threadId, itemId, path))
+    }
+
+    override suspend fun downloadRichFile(
+        lease: RichChatHostLease,
+        request: com.poracode.app.chat.RichChatFileAccess,
+        projectLocation: com.poracode.app.model.ProjectLocation,
+        suggestedName: String,
+        destinationDirectory: java.io.File,
+    ): com.poracode.app.transport.richchat.RichChatDownloadedFile {
+        // The post-operation lease check inside invoke() can throw AFTER the
+        // transfer completed; capture the result so a discarded download never
+        // leaks its private directory.
+        var completed: com.poracode.app.transport.richchat.RichChatDownloadedFile? = null
+        try {
+            return invoke(lease, RichChatCapability.Read, false) {
+                val transport = files ?: unavailable("file_transport")
+                transport
+                    .downloadRichFile(request, projectLocation, suggestedName, destinationDirectory)
+                    .also { completed = it }
+            }
+        } catch (error: Throwable) {
+            completed?.directory?.deleteRecursively()
+            throw error
+        }
     }
 
     override suspend fun startTerminal(lease: RichChatHostLease, input: TerminalStartInput) =
@@ -462,12 +491,6 @@ class GeneratedRichChatSessionGateway(
             throw RichChatGatewayException(403, "missing_scope", false)
         }
     }
-
-    private fun invalidResponse(mutation: Boolean = false): Nothing = throw RichChatGatewayException(
-        500,
-        "invalid_response",
-        mutation,
-    )
 
     private fun unavailable(code: String): Nothing = throw RichChatGatewayException(501, code, false)
 }

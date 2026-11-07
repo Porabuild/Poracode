@@ -8,10 +8,6 @@ vi.mock("@/renderer/components/thread/TerminalPane", () => ({
   ),
 }));
 
-vi.mock("@/renderer/components/thread/useRemoteTerminalTransport", () => ({
-  useRemoteTerminalTransport: () => undefined,
-}));
-
 import { AgentTerminalHost } from "./AgentTerminalHost";
 
 describe("AgentTerminalHost", () => {

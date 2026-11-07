@@ -1,6 +1,8 @@
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
+import { classifySupervisorIpcFailure } from "@/supervisor/diagnostics/sentry";
 import {
   createCodexAdapter,
   deriveCodexStructuredState,
@@ -2025,6 +2027,48 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it.each([undefined, "", "auto_review"])(
+    "clears auto-review on full-access turns and steers with saved reviewer %j",
+    async (approvalsReviewer) => {
+      const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+      const structuredSession = makeStructuredSession(requests);
+      await structuredSession.startTurn("review", {
+        model: "gpt-5.4",
+        approvalPolicy: "on-request",
+        approvalsReviewer: "auto_review",
+        sandboxMode: "workspace-write",
+      });
+      const config = {
+        model: "gpt-5.4",
+        approvalPolicy: "never",
+        sandboxMode: "danger-full-access",
+        ...(approvalsReviewer !== undefined ? { approvalsReviewer } : {}),
+      };
+
+      await structuredSession.startTurn("full access", config);
+      dispatchNotification(structuredSession, {
+        jsonrpc: "2.0",
+        method: "turn/started",
+        params: {
+          threadId: "provider-thread",
+          turn: { id: "turn-live", threadId: "provider-thread" },
+        },
+      });
+      await structuredSession.steerTurn("continue", config);
+
+      expect(requests[0]?.params.approvalsReviewer).toBe("auto_review");
+      for (const method of ["turn/start", "thread/settings/update"]) {
+        expect(
+          requests.slice(1).find((request) => request.method === method)?.params,
+        ).toMatchObject({
+          approvalPolicy: "never",
+          approvalsReviewer: "user",
+          sandboxPolicy: { type: "dangerFullAccess" },
+        });
+      }
+    },
+  );
+
   it("forces serviceTier each turn: null when Fast is off (incl. the first turn), 'fast' when on", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
@@ -2194,6 +2238,7 @@ describe("CodexStructuredSession", () => {
           effort: "medium",
           summary: "auto",
           approvalPolicy: "never",
+          approvalsReviewer: "user",
           sandboxPolicy: { type: "workspaceWrite" },
           collaborationMode: expect.objectContaining({
             mode: "default",
@@ -3161,15 +3206,60 @@ describe("CodexStructuredSession", () => {
       },
     };
 
-    await expect(
-      (session as unknown as CodexStructuredSession).openThread(
+    const error = await (session as unknown as CodexStructuredSession)
+      .openThread(
         { model: "gpt-5.4" },
         { providerSessionId: "01a0", discoveredAt: "2026-05-10T12:00:00.000Z" },
-      ),
-    ).rejects.toThrow(/open in another Codex app/u);
+      )
+      .catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(DiagnosticError);
+    expect(error).toMatchObject({
+      message: expect.stringMatching(/open in another Codex app/u),
+      diagnostic: {
+        failureClass: "expected-operational",
+        domain: "codex.acp",
+        errorClass: "session-in-use",
+      },
+    });
+    expect(classifySupervisorIpcFailure(error, "startThread")).toMatchObject({
+      failureClass: "expected-operational",
+      treatment: "drop",
+      domain: "codex.acp",
+      errorClass: "session-in-use",
+    });
     // Unlike a missing thread, a held lock must not fall back to a fresh thread:
     // that would silently start the conversation over.
     expect(requests).toEqual(["thread/resume"]);
+  });
+
+  it("keeps an unrelated Codex resume failure reportable", async () => {
+    const session = createSessionShell();
+    session["threadId"] = "local-thread";
+    session["remoteThreadId"] = undefined;
+    session["launchOptions"] = {};
+    session["activated"] = true;
+    session["isDisposed"] = false;
+    session["resumeActiveStatusSuppressionUntil"] = new Map();
+    const cause = new Error("unexpected resume failure");
+    session["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string) => {
+        if (method === "thread/resume") throw cause;
+        return {};
+      },
+    };
+
+    const error = await (session as unknown as CodexStructuredSession)
+      .openThread(
+        { model: "gpt-5.4" },
+        { providerSessionId: "01a0", discoveredAt: "2026-05-10T12:00:00.000Z" },
+      )
+      .catch((failure: unknown) => failure);
+    expect(error).toBe(cause);
+    expect(classifySupervisorIpcFailure(error, "startThread")).toMatchObject({
+      failureClass: "unknown",
+      treatment: "capture",
+    });
   });
 
   it("does not surface resume-time active status as new work", async () => {

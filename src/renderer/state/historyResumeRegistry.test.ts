@@ -10,12 +10,7 @@ import {
   noteRendererEventInterestWireCoverage,
   __resetRendererEventInterestsForTest,
 } from "./rendererEventInterests";
-import {
-  rememberRemoteServerThreadItemInterests,
-  setRemoteServerThreadItemInterests,
-  forgetRemoteServerThreadItemInterests,
-  __resetEventSocketRegistryForTest,
-} from "./remoteServers/eventSocketRegistry";
+import { __resetEventSocketRegistryForTest } from "./remoteServers/eventSocketRegistry";
 import { remoteThreadId } from "./remoteProjection";
 
 afterEach(() => {
@@ -71,15 +66,13 @@ it("keeps a snapshot read honest about controls delivered beyond its pinned pref
   });
 });
 
-it.each(["set", "remember", "forget"] as const)(
-  "tracks a remote projected thread's coverage gap through %s",
-  (method) => {
-    const id = remoteThreadId("host", "thread");
-    rememberRemoteServerThreadItemInterests("host", ["thread"]);
-    beginHistorySnapshotRead(id, "remote-authority").finish("cursor", 10);
-    if (method === "set") setRemoteServerThreadItemInterests("host", []);
-    else if (method === "remember") rememberRemoteServerThreadItemInterests("host", []);
-    else forgetRemoteServerThreadItemInterests("host");
-    expect(readHistoryResume(id, "remote-authority")?.coverageLost).toBe(true);
-  },
-);
+it.each([
+  ["drops the thread", [] as string[]],
+  ["goes down", null],
+] as const)("marks a paired thread's coverage gap when its host wire %s", (_label, next) => {
+  const id = remoteThreadId("host", "thread");
+  noteRendererEventInterestWireCoverage([id], "paired:host");
+  beginHistorySnapshotRead(id, "remote-authority").finish("cursor", 10);
+  noteRendererEventInterestWireCoverage(next, "paired:host");
+  expect(readHistoryResume(id, "remote-authority")?.coverageLost).toBe(true);
+});

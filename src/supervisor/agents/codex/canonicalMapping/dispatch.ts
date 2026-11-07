@@ -28,6 +28,7 @@ import {
   type CodexItemPayload,
   extractMessageText,
   readCodexErrorMessage,
+  readCodexErrorReason,
   readCodexPlanSteps,
   readItem,
   readItemId,
@@ -148,7 +149,13 @@ export function mapCodexNotification(
     const turnState = readTurnState(method, params);
     const errorMessage = turnState === "failed" ? readCodexErrorMessage(params) : undefined;
     if (errorMessage) {
-      events.push({ type: "error", threadId, message: errorMessage });
+      const reason = readCodexErrorReason(params);
+      events.push({
+        type: "error",
+        threadId,
+        message: errorMessage,
+        ...(reason ? { reason } : {}),
+      });
     }
     events.push({
       type: "turn.completed",
@@ -176,9 +183,11 @@ export function mapCodexNotification(
   // `thread/error` is legacy-only; current app-server errors use `error`.
   if (method === "thread/error" || method === "error") {
     const message = readCodexErrorMessage(params) ?? "Codex thread error";
-    return method === "error" && params?.willRetry === true
-      ? [{ type: "warning", threadId, message }]
-      : [{ type: "error", threadId, message }];
+    if (method === "error" && params?.willRetry === true) {
+      return [{ type: "warning", threadId, message }];
+    }
+    const reason = readCodexErrorReason(params);
+    return [{ type: "error", threadId, message, ...(reason ? { reason } : {}) }];
   }
 
   if (isCodexAdvisoryNotification(method)) {

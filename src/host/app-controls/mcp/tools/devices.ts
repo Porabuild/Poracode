@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { deviceActionSchema } from "@/shared/deviceWorkspace";
+import { callerPluginOverrides } from "./pluginOverrides";
 import type { AppControlsToolContext, ToolDomain } from "./types";
 
 function service(ctx: AppControlsToolContext) {
@@ -8,8 +9,11 @@ function service(ctx: AppControlsToolContext) {
   const { deviceWorkspace: devices } = ctx;
   const threadId = ctx.identity.threadId;
   const authorize = () => {
-    if (ctx.settings.read().installedPlugins?.devices?.enabled === false)
-      throw new Error("The Devices plugin is disabled. Enable it in Plugins to use device tools.");
+    const override = callerPluginOverrides(ctx)?.devices;
+    if ((override ?? ctx.settings.read().installedPlugins?.devices?.enabled) === false)
+      throw new Error(
+        "The Devices plugin is disabled for this thread. Enable it in Plugins (or in this project's Plugins settings) to use device tools.",
+      );
     if (!ctx.getThread(threadId)) throw new Error("The owning thread is unavailable.");
     devices.authorizeAgent(threadId, ctx.identity.deviceProof);
   };
@@ -41,7 +45,7 @@ export const deviceTools: ToolDomain = {
       name: "control_device",
       description:
         "Start or send tap/swipe/text/hardware-key input to this thread's attached control-mode device while the Devices plugin is enabled. No separate agent-consent prompt, host-desktop input, shell commands, device shutdown, arbitrary targets, or permission elevation. For coordinates capture a fresh screenshot first; on a stale-frame error capture again. ADB text accepts printable ASCII; iOS has no Back key.",
-      inputSchema: z.toJSONSchema(deviceActionSchema),
+      inputSchema: { ...z.toJSONSchema(deviceActionSchema), type: "object" },
     },
   ],
   handlers: {

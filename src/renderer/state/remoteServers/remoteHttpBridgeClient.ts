@@ -449,6 +449,12 @@ export class RemoteHttpBridgeClient {
   private mapBridgeError(message: RemoteHttpBridgePortDownstreamMessage): Error {
     if (message.kind !== "error") return unreachableError(new Error("Remote request failed."));
     if (message.code === "cancelled") return cancelledError();
+    if (message.code === "overloaded") {
+      return new RemoteClientError(message.message, 429, "overloaded", {
+        requestPhase: "presend",
+        requestMayHaveCommitted: false,
+      });
+    }
     if (message.code === "certificate_fingerprint_mismatch")
       return remoteCertificateMismatchError();
     return unreachableError(new Error(message.message));

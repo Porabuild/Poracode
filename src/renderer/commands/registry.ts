@@ -2,6 +2,7 @@ import { withThreadConfigSubmission } from "@/renderer/actions/threadConfigSubmi
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
+import { threadCrewBinding } from "@/shared/crew";
 import { parseDraftProjectId } from "@/shared/paneId";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { isMarkdownFile } from "@/shared/pathUtils";
@@ -635,6 +636,17 @@ function toggleStarCurrent(): void {
   if (!draft?.agentKind || !draft.model) return;
 
   const settings = useSharedSettings.getState();
+  const crewId = threadCrewBinding(draft)?.crewId;
+  const crew = settings.crews.find((entry) => entry.id === crewId);
+  if (crew) {
+    settings.setCrewFavorite(crew.id, !crew.favorite);
+    toast.success(
+      crew.favorite
+        ? i18n._(msg`Crew removed from favorites`)
+        : i18n._(msg`Crew added to favorites`),
+    );
+    return;
+  }
   const fallbackMode = settings.lastPresentationModeByAgent[draft.agentKind] ?? "terminal";
   const nowFavorite = settings.toggleFavoriteModelAnyMode(
     draft.agentKind,

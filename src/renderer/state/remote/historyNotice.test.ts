@@ -22,6 +22,12 @@ import {
 } from "./historyNoticeStore";
 import { acknowledgeThreadHistoryNotice, requestThreadHistoryGap } from "./historyNoticeActions";
 
+const rehydrate = vi.hoisted(() => vi.fn<(threadId: string) => Promise<boolean>>(async () => true));
+vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/state/chatRuntimePersister")>()),
+  rehydrateThreadRuntimeItemsAfterReset: rehydrate,
+}));
+
 const CONNECTION = "connection-1";
 const REMOTE_ID = "rt-1";
 const VIEW_ID = remoteThreadId(CONNECTION, REMOTE_ID);
@@ -240,8 +246,9 @@ describe("history notice recovery", () => {
     const entry = readThreadHistoryNotice(VIEW_ID);
     expect(entry?.gap).toBeNull();
     expect(entry?.notice).toEqual(applied);
-    // The acknowledged prefix is re-read once; no mutation is resent.
-    expect(useRemoteServersStore.getState().openRemoteThread).toHaveBeenCalledTimes(1);
+    // The acknowledged prefix is re-read once through the shared history read;
+    // no mutation is resent.
+    expect(rehydrate).toHaveBeenCalledExactlyOnceWith(VIEW_ID);
   });
 
   it("updates the descriptor on a stale outcome and never auto-acknowledges the replacement", async () => {

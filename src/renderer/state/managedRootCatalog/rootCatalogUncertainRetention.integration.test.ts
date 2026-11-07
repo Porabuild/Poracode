@@ -1,3 +1,11 @@
+import {
+  dropPendingThreadLaunch,
+  notePendingThreadLaunch,
+  peekPendingThreadLaunch,
+  pinnedThreadRowIds,
+  retainPendingThreadLaunch,
+  retainedUncertainLaunchThreadIds,
+} from "@/renderer/state/threadLaunchIntents";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
 import type { StartRemoteNewThreadInput } from "@/shared/remote/client";
@@ -6,14 +14,6 @@ import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActio
 import { deleteThread } from "@/renderer/actions/threadActions";
 import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 import { runHostOriginatedManagedRootMutation } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import {
-  dropPendingManagedRootLaunch,
-  notePendingManagedRootLaunch,
-  peekPendingManagedRootLaunch,
-  pinnedManagedRootThreadIds,
-  retainPendingManagedRootLaunch,
-  retainedUncertainManagedRootThreadIds,
-} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { removeRootCatalogThreads } from "@/renderer/state/managedRootCatalog/rootCatalogRows";
 import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import {
@@ -164,19 +164,19 @@ describe("retained uncertain root launch identity", () => {
   it("mirrors only entries whose uncertain episode is still retained", () => {
     // A fresh marker (armed by createThread, or a definite-failure re-arm)
     // carries no replay body: it is not an uncertain episode.
-    notePendingManagedRootLaunch("t-fresh", false);
-    expect(retainedUncertainManagedRootThreadIds().has("t-fresh")).toBe(false);
+    notePendingThreadLaunch("t-fresh", false);
+    expect(retainedUncertainLaunchThreadIds().has("t-fresh")).toBe(false);
 
-    retainPendingManagedRootLaunch("t-fresh", {
+    retainPendingThreadLaunch("t-fresh", {
       isNewWorktree: false,
       commandId: "command-1",
       replay: replayBody("t-fresh"),
     });
-    expect(retainedUncertainManagedRootThreadIds()).toContain("t-fresh");
+    expect(retainedUncertainLaunchThreadIds()).toContain("t-fresh");
 
     // Either lifecycle end (authoritative drop or row removal) releases it.
-    dropPendingManagedRootLaunch("t-fresh");
-    expect(retainedUncertainManagedRootThreadIds()).not.toContain("t-fresh");
+    dropPendingThreadLaunch("t-fresh");
+    expect(retainedUncertainLaunchThreadIds()).not.toContain("t-fresh");
   });
 
   it("keeps the same command id and body after navigation and catalog passes when the host row is absent", async () => {
@@ -194,13 +194,13 @@ describe("retained uncertain root launch identity", () => {
       // reconcile read answered "absent" — evidence only, never a verdict.
       expect(hostThreadRow(row.id)).toBeUndefined();
 
-      const retained = peekPendingManagedRootLaunch(row.id);
+      const retained = peekPendingThreadLaunch(row.id);
       expect(retained?.commandId).toBe(injection.commandIds[0]);
       expect(retained?.replay?.threadId).toBe(row.id);
       expect(retained?.replay?.prompt).toBe(UNCERTAIN_PROMPT);
       // No call-scoped pin, pane, provisioning mark, or queued launch
       // outlives the launch action — the retained operation itself must.
-      expect(pinnedManagedRootThreadIds().has(row.id)).toBe(false);
+      expect(pinnedThreadRowIds().has(row.id)).toBe(false);
       expect(useAppStore.getState().provisioningWorktreeThreadIds[row.id]).toBeUndefined();
       expect(useAppStore.getState().pendingThreadLaunches[row.id]).toBeUndefined();
 
@@ -210,7 +210,7 @@ describe("retained uncertain root launch identity", () => {
       await runDeletionPass();
 
       expect(threadRow(row.id)).toBeDefined();
-      const survived = peekPendingManagedRootLaunch(row.id);
+      const survived = peekPendingThreadLaunch(row.id);
       expect(survived?.commandId).toBe(injection.commandIds[0]);
       expect(survived?.replay).toEqual(retained?.replay);
       expect(hostThreadRow(row.id)).toBeUndefined();
@@ -228,15 +228,15 @@ describe("retained uncertain root launch identity", () => {
       const first = await attemptLaunch(row.id);
       expect(first).toMatchObject({ ok: false, uncertain: true });
       await runDeletionPass();
-      expect(peekPendingManagedRootLaunch(row.id)?.commandId).toBe(injection.commandIds[0]);
+      expect(peekPendingThreadLaunch(row.id)?.commandId).toBe(injection.commandIds[0]);
 
       // The removal path (the gate's removeThreadRows callback, and the same
       // removal the explicit delete flow converges through) is not blocked by
       // the protection: removing the row retires the retained operation.
       removeRootCatalogThreads([row.id]);
       expect(threadRow(row.id)).toBeUndefined();
-      expect(peekPendingManagedRootLaunch(row.id)).toBeUndefined();
-      expect(retainedUncertainManagedRootThreadIds()).not.toContain(row.id);
+      expect(peekPendingThreadLaunch(row.id)).toBeUndefined();
+      expect(retainedUncertainLaunchThreadIds()).not.toContain(row.id);
     } finally {
       injection.restore();
     }
@@ -248,12 +248,12 @@ describe("retained uncertain root launch identity", () => {
     const injection = injectUncertainStart();
     try {
       expect(await attemptLaunch(row.id)).toMatchObject({ ok: false, uncertain: true });
-      expect(peekPendingManagedRootLaunch(row.id)?.replay).toBeDefined();
+      expect(peekPendingThreadLaunch(row.id)?.replay).toBeDefined();
       injection.restore();
 
       deleteThread(row.id);
       await vi.waitFor(() => expect(threadRow(row.id)).toBeUndefined());
-      expect(peekPendingManagedRootLaunch(row.id)).toBeUndefined();
+      expect(peekPendingThreadLaunch(row.id)).toBeUndefined();
     } finally {
       injection.restore();
     }
@@ -266,14 +266,14 @@ describe("retained uncertain root launch identity", () => {
     let deleteInjection: { restore(): void } | undefined;
     try {
       expect(await attemptLaunch(row.id)).toMatchObject({ ok: false, uncertain: true });
-      const retained = peekPendingManagedRootLaunch(row.id);
+      const retained = peekPendingThreadLaunch(row.id);
       startInjection.restore();
       deleteInjection = injectUncertainDelete();
 
       deleteThread(row.id);
       await new Promise((resolve) => setTimeout(resolve, 100));
       expect(threadRow(row.id)).toBeDefined();
-      expect(peekPendingManagedRootLaunch(row.id)).toEqual(retained);
+      expect(peekPendingThreadLaunch(row.id)).toEqual(retained);
     } finally {
       deleteInjection?.restore();
       startInjection.restore();
@@ -286,13 +286,13 @@ describe("retained uncertain root launch identity", () => {
     const injection = injectUncertainStart();
     try {
       expect(await attemptLaunch(row.id)).toMatchObject({ ok: false, uncertain: true });
-      expect(peekPendingManagedRootLaunch(row.id)?.replay).toBeDefined();
+      expect(peekPendingThreadLaunch(row.id)?.replay).toBeDefined();
       const dispatchesBeforeDelete = injection.commandIds.length;
 
       runHostOriginatedManagedRootMutation(() => deleteThread(row.id));
 
       expect(threadRow(row.id)).toBeUndefined();
-      expect(peekPendingManagedRootLaunch(row.id)).toBeUndefined();
+      expect(peekPendingThreadLaunch(row.id)).toBeUndefined();
       expect(injection.commandIds).toHaveLength(dispatchesBeforeDelete);
     } finally {
       injection.restore();
@@ -307,7 +307,7 @@ describe("retained uncertain root launch identity", () => {
       useAppStore.setState({ view: { kind: "home" } });
       const first = await attemptLaunch(row.id);
       expect(first).toMatchObject({ ok: false, uncertain: true });
-      const retained = peekPendingManagedRootLaunch(row.id);
+      const retained = peekPendingThreadLaunch(row.id);
       expect(retained?.replay?.threadId).toBe(row.id);
 
       // The explicit retry: the host is reachable again, so the SAME command
@@ -318,8 +318,8 @@ describe("retained uncertain root launch identity", () => {
       expect(retry).toMatchObject({ ok: true });
       expect(injection.commandIds).toHaveLength(1);
       expect(hostThreadRow(row.id)).toBeDefined();
-      expect(peekPendingManagedRootLaunch(row.id)).toBeUndefined();
-      expect(retainedUncertainManagedRootThreadIds()).not.toContain(row.id);
+      expect(peekPendingThreadLaunch(row.id)).toBeUndefined();
+      expect(retainedUncertainLaunchThreadIds()).not.toContain(row.id);
     } finally {
       injection.restore();
     }
@@ -330,8 +330,8 @@ describe("retained uncertain root launch identity", () => {
     const row = createLaunchRow();
     // The create-intent marker is fresh (no replay body): nothing was sent,
     // so the row is ordinary abandoned optimistic state, never protected.
-    expect(peekPendingManagedRootLaunch(row.id)?.replay).toBeUndefined();
-    expect(retainedUncertainManagedRootThreadIds()).not.toContain(row.id);
+    expect(peekPendingThreadLaunch(row.id)?.replay).toBeUndefined();
+    expect(retainedUncertainLaunchThreadIds()).not.toContain(row.id);
 
     useAppStore.setState({ view: { kind: "home" } });
     refreshManagedRootCatalogSoon();
@@ -341,7 +341,7 @@ describe("retained uncertain root launch identity", () => {
       },
       { timeout: 15_000 },
     );
-    expect(peekPendingManagedRootLaunch(row.id)).toBeUndefined();
+    expect(peekPendingThreadLaunch(row.id)).toBeUndefined();
     expect(hostThreadRow(row.id)).toBeUndefined();
   }, 45_000);
 });

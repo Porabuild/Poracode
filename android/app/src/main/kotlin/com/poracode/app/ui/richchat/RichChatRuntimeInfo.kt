@@ -111,11 +111,17 @@ internal object RichChatRuntimeInfo {
             val title = arguments?.string("description")?.trim()
                 ?: payload.string("title")?.trim()
                 ?: name
+            val role = payload.string("subAgentType")?.trim()
+            val displayTitle = if (kind == RichDelegatedAgentKind.Crossagent && !role.isNullOrEmpty()) {
+                "$role: ${title.ifEmpty { name }}"
+            } else {
+                title.ifEmpty { name }
+            }
             val reported = (payload["progress"] as? JsonObject)?.long("stepCount")
             RichDelegatedAgentPresentation(
                 id = item.id,
                 kind = kind,
-                title = title.ifEmpty { name },
+                title = displayTitle,
                 activityCount = reported?.coerceAtLeast(0)?.coerceAtMost(Int.MAX_VALUE.toLong())?.toInt()
                     ?: childCounts.getOrDefault(item.id, 0),
             )

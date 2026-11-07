@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
-import type { PrMergeMethod, ProjectLocation } from "@/shared/contracts";
+import type { PrData, PrMergeMethod, ProjectLocation } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -9,6 +9,12 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { refreshSinglePr } from "@/renderer/state/gitRefresh";
 import { syncMergedPrBase } from "@/renderer/state/prMergeBaseSync";
+import {
+  reviewClient,
+  reviewSourceIdentity,
+  scopedReviewClient,
+  scopedReviewSource,
+} from "@/renderer/utils/forgeReviews";
 
 const ADMIN_BYPASS_RX = /--admin|base branch policy|not mergeable/i;
 
@@ -25,7 +31,7 @@ export interface UsePrWriteActionsArgs {
 }
 
 /** Which PR write action is currently in flight, so only its button shows a spinner. */
-export type PrWriteAction = "merge" | "close" | "ready" | "update";
+export type PrWriteAction = "merge" | "close" | "reopen" | "ready" | "draft" | "update" | "edit";
 
 export interface UsePrWriteActionsResult {
   prLoading: boolean;
@@ -35,23 +41,50 @@ export interface UsePrWriteActionsResult {
   handleMergePr: (method: PrMergeMethod, admin?: boolean) => Promise<void>;
   handleClosePr: () => Promise<void>;
   handleMarkPrReady: () => Promise<void>;
+  handleReopenPr: () => Promise<void>;
+  /** Returns an open review to draft; only offered where the host can. */
+  handleConvertPrToDraft: () => Promise<void>;
   handleUpdatePrBranch: (rebase?: boolean) => Promise<void>;
+  /**
+   * Persist a title and/or description when the source host allows editing. The
+   * live review is re-read first and every field not being edited keeps its live
+   * value, so an edit never rewrites text it did not touch. When `expectedBody` is
+   * given and the live description differs, nothing is written and `false` returns.
+   */
+  handleEditPr: (input: {
+    title?: string;
+    body?: string;
+    expectedBody?: string;
+  }) => Promise<boolean>;
   /** Refetch this PR's data + details on demand (e.g. the PR block refresh icon). */
   handleRefreshPr: () => Promise<void>;
 }
 
 /**
- * Shared hook for the four PR write actions (merge / close / mark-ready /
- * update-branch). Used by both the GitReview overlay and the PR Review overlay
- * so the merge admin-bypass retry, optimistic store flips, and error surfacing
- * stay in lockstep across surfaces.
+ * Shared hook for PR write actions (merge / close / mark-ready / update-branch /
+ * edit). Used by both the GitReview overlay and the PR Review overlay so the
+ * merge admin-bypass retry, optimistic store flips, and error surfacing stay in
+ * lockstep across surfaces.
  */
 export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteActionsResult {
   const { projectLocation, localSyncLocation, skipLocalSync, prKey, branch, projectId, onRefresh } =
     args;
   const [pendingAction, setPendingAction] = useState<PrWriteAction | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const actionGeneration = useRef(0);
+  const refreshGeneration = useRef(0);
   const prLoading = pendingAction !== null;
+
+  function beginAction(action: PrWriteAction): number {
+    const generation = actionGeneration.current + 1;
+    actionGeneration.current = generation;
+    setPendingAction(action);
+    return generation;
+  }
+
+  function finishAction(generation: number) {
+    if (actionGeneration.current === generation) setPendingAction(null);
+  }
 
   function getCurrentPrData() {
     if (!prKey) return null;
@@ -65,17 +98,20 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
     if (!prKey || !branch || isRefreshing) return;
     const prNumber = getCurrentPrData()?.number;
     const detailsCacheKey = projectId && prNumber ? `${projectId}#${prNumber}` : undefined;
+    const generation = refreshGeneration.current + 1;
+    refreshGeneration.current = generation;
     setIsRefreshing(true);
     try {
       await refreshSinglePr({
         projectLocation,
+        ...(projectId ? { projectId } : {}),
         prKey,
         branch,
         ...(detailsCacheKey ? { detailsCacheKey } : {}),
         ...(prNumber ? { prNumber } : {}),
       });
     } finally {
-      setIsRefreshing(false);
+      if (refreshGeneration.current === generation) setIsRefreshing(false);
     }
   }
 
@@ -83,30 +119,56 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
     const prData = getCurrentPrData();
     if (!prData) return;
     useSharedSettings.getState().setPrMergeMethod(method);
-    setPendingAction("merge");
+    const generation = beginAction("merge");
+    let expectedPr: PrData | null = prData;
+    let mergeRequested = false;
     try {
-      await readBridge().ghMergePr({
-        projectLocation,
-        prNumber: prData.number,
-        method,
-        admin,
-      });
-      const mergedPr = { ...prData, state: "merged" as const };
+      const client = reviewClient(prData.source);
+      await client.merge(
+        {
+          projectLocation,
+          prNumber: prData.number,
+          method,
+          admin,
+        },
+        prData.headSha,
+      );
+      mergeRequested = true;
+      if (getCurrentPrData() !== prData) return;
+      const observed = prData.source
+        ? await client.details({ projectLocation, prNumber: prData.number }).catch(() => undefined)
+        : undefined;
+      if (getCurrentPrData() !== prData) return;
+      const mergedPr =
+        observed?.pr ?? (prData.source ? prData : { ...prData, state: "merged" as const });
       if (prKey) {
         useGitStore.getState().setPrData(prKey, mergedPr);
       }
-      if (projectId) await syncMergedPrBase(projectId, mergedPr);
+      if (projectId && observed)
+        useGitStore.getState().setPrDetails(`${projectId}#${prData.number}`, observed.details);
+      expectedPr = getCurrentPrData();
+      if (mergedPr.state === "merged" && projectId) await syncMergedPrBase(projectId, mergedPr);
+      if (getCurrentPrData() !== expectedPr) return;
+      if (mergedPr.state !== "merged")
+        toast.info(i18n._(msg`Merge requested. Refresh to check its progress.`));
       onRefresh();
     } catch (err) {
+      if (getCurrentPrData() !== expectedPr) return;
       console.error("[git] merge PR failed", err);
       const message = friendlyError(err);
-      const canBypass = !admin && ADMIN_BYPASS_RX.test(message);
+      const canBypass =
+        !mergeRequested &&
+        !admin &&
+        (prData.source?.capabilities.adminMerge ?? true) &&
+        ADMIN_BYPASS_RX.test(message);
       if (canBypass) {
         toast.danger(message, {
           description: i18n._(msg`Branch protection rules blocked this merge.`),
           actionProps: {
             children: i18n._(msg`Retry with admin`),
-            onPress: () => void handleMergePr(method, true),
+            onPress: () => {
+              if (getCurrentPrData() === expectedPr) void handleMergePr(method, true);
+            },
           },
           timeout: 0,
         });
@@ -114,55 +176,160 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
         toast.danger(message);
       }
     } finally {
-      setPendingAction(null);
+      finishAction(generation);
     }
   }
 
   async function handleClosePr(): Promise<void> {
     const prData = getCurrentPrData();
     if (!prData) return;
-    setPendingAction("close");
+    const generation = beginAction("close");
     try {
-      await readBridge().ghClosePr({ projectLocation, prNumber: prData.number });
+      await reviewClient(prData.source).close({ projectLocation, prNumber: prData.number });
+      if (getCurrentPrData() !== prData) return;
       if (prKey) {
         useGitStore.getState().setPrData(prKey, { ...prData, state: "closed" });
       }
     } catch (err) {
+      if (getCurrentPrData() !== prData) return;
       console.error("[git] close PR failed", err);
       toast.danger(friendlyError(err));
     } finally {
-      setPendingAction(null);
+      finishAction(generation);
     }
   }
 
   async function handleMarkPrReady(): Promise<void> {
     const prData = getCurrentPrData();
     if (!prData) return;
-    setPendingAction("ready");
+    const generation = beginAction("ready");
     try {
-      await readBridge().ghMarkPrReady({ projectLocation, prNumber: prData.number });
+      await reviewClient(prData.source).ready({ projectLocation, prNumber: prData.number });
+      if (getCurrentPrData() !== prData) return;
       if (prKey) {
         useGitStore.getState().setPrData(prKey, { ...prData, state: "open", isDraft: false });
       }
       onRefresh();
     } catch (err) {
+      if (getCurrentPrData() !== prData) return;
       console.error("[git] mark PR ready failed", err);
       toast.danger(friendlyError(err));
     } finally {
-      setPendingAction(null);
+      finishAction(generation);
+    }
+  }
+
+  async function handleReopenPr(): Promise<void> {
+    const prData = getCurrentPrData();
+    if (!prData) return;
+    const generation = beginAction("reopen");
+    try {
+      await reviewClient(prData.source).reopen({ projectLocation, prNumber: prData.number });
+      if (getCurrentPrData() !== prData) return;
+      if (prKey) useGitStore.getState().setPrData(prKey, { ...prData, state: "open" });
+      onRefresh();
+    } catch (err) {
+      if (getCurrentPrData() !== prData) return;
+      console.error("[git] reopen PR failed", err);
+      toast.danger(friendlyError(err));
+    } finally {
+      finishAction(generation);
+    }
+  }
+
+  async function handleConvertPrToDraft(): Promise<void> {
+    const prData = getCurrentPrData();
+    const scoped = scopedReviewSource(prData?.source);
+    if (!prData || !scoped?.capabilities.convertToDraft) return;
+    const generation = beginAction("draft");
+    try {
+      await scopedReviewClient(scoped).convertToDraft({
+        projectLocation,
+        prNumber: prData.number,
+      });
+      if (getCurrentPrData() !== prData) return;
+      if (prKey)
+        useGitStore.getState().setPrData(prKey, { ...prData, state: "draft", isDraft: true });
+      onRefresh();
+    } catch (err) {
+      if (getCurrentPrData() !== prData) return;
+      console.error("[git] convert PR to draft failed", err);
+      toast.danger(friendlyError(err));
+    } finally {
+      finishAction(generation);
+    }
+  }
+
+  async function handleEditPr(input: {
+    title?: string;
+    body?: string;
+    expectedBody?: string;
+  }): Promise<boolean> {
+    const prData = getCurrentPrData();
+    const editedTitle = input.title?.trim();
+    if (!prData || prData.source?.capabilities.edit === false) return false;
+    if (input.title === undefined ? input.body === undefined : !editedTitle) return false;
+    const identity = reviewSourceIdentity(prData.source);
+    const isCurrentReview = () => {
+      const current = getCurrentPrData();
+      return (
+        current !== null &&
+        current.number === prData.number &&
+        reviewSourceIdentity(current.source) === identity
+      );
+    };
+    const generation = beginAction("edit");
+    try {
+      const client = reviewClient(prData.source);
+      const { details: live } = await client.details({
+        projectLocation,
+        prNumber: prData.number,
+      });
+      if (!isCurrentReview()) return false;
+      if (input.expectedBody !== undefined && (live.body ?? "") !== input.expectedBody) {
+        toast.danger(
+          i18n._(
+            msg`The description changed since you started editing. Reload and reapply your edit.`,
+          ),
+        );
+        return false;
+      }
+      const title = editedTitle ?? live.title;
+      const body = input.body ?? live.body ?? "";
+      await client.edit({ projectLocation, prNumber: prData.number, title, body });
+      const current = getCurrentPrData();
+      if (!current || !isCurrentReview()) return false;
+      if (prKey) useGitStore.getState().setPrData(prKey, { ...current, title });
+      if (projectId) {
+        const detailsKey = `${projectId}#${prData.number}`;
+        const details = useGitStore.getState().prDetails[detailsKey];
+        if (details && reviewSourceIdentity(details.source) === identity) {
+          useGitStore.getState().setPrDetails(detailsKey, { ...details, title, body });
+        }
+      }
+      onRefresh();
+      return true;
+    } catch (err) {
+      if (reviewSourceIdentity(getCurrentPrData()?.source) !== identity) return false;
+      console.error("[git] edit PR failed", err);
+      toast.danger(friendlyError(err));
+      return false;
+    } finally {
+      finishAction(generation);
     }
   }
 
   async function handleUpdatePrBranch(rebase = false): Promise<void> {
     const prData = getCurrentPrData();
     if (!prData) return;
-    setPendingAction("update");
+    const generation = beginAction("update");
     try {
-      await readBridge().ghUpdatePrBranch({
+      await reviewClient(prData.source).updateBranch({
         projectLocation,
         prNumber: prData.number,
         rebase,
       });
+      if (getCurrentPrData() !== prData) return;
       if (!skipLocalSync) {
         const syncPayload = {
           projectLocation: localSyncLocation ?? projectLocation,
@@ -171,12 +338,14 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
         if (rebase) await readBridge().gitPullRebase(syncPayload);
         else await readBridge().gitPull(syncPayload);
       }
+      if (getCurrentPrData() !== prData) return;
       onRefresh();
     } catch (err) {
+      if (getCurrentPrData() !== prData) return;
       console.error("[git] update PR branch failed", err);
       toast.danger(friendlyError(err));
     } finally {
-      setPendingAction(null);
+      finishAction(generation);
     }
   }
 
@@ -187,7 +356,10 @@ export function usePrWriteActions(args: UsePrWriteActionsArgs): UsePrWriteAction
     handleMergePr,
     handleClosePr,
     handleMarkPrReady,
+    handleReopenPr,
+    handleConvertPrToDraft,
     handleUpdatePrBranch,
+    handleEditPr,
     handleRefreshPr,
   };
 }

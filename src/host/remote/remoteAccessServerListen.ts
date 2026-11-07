@@ -22,6 +22,7 @@ import {
 } from "./remoteAccessServerTypes";
 import { mintPairingUrl, recordAudit } from "./remoteAccessServerPairing";
 import { announceRemoteServerShutdown } from "./remoteAccessServerShutdown";
+import { releaseLoopbackPort, reserveLoopbackPort } from "./remoteAccessLoopbackGuard";
 
 export function createRemoteAccessHttpServer(
   tls: RemoteAccessServerHost["tls"],
@@ -78,6 +79,10 @@ export async function startListening(
         ? "::1"
         : "127.0.0.1"
       : null;
+  if (isWildcardBindHost(host.options.host) && loopbackHost) {
+    host.loopbackGuard = await reserveLoopbackPort(host.server, loopbackHost, address.port);
+    if (host.stopping) throw new Error("Remote access server is stopping.");
+  }
   const httpBaseUrl = resolveHttpBaseUrl(host, address.port);
   const tailnetHost = isWildcardBindHost(host.options.host)
     ? detectTailnetIpv4Address()
@@ -174,7 +179,10 @@ export async function finishDispose(host: RemoteAccessServerHost): Promise<void>
   await host.options.pushRegistrations?.dispose?.();
   const webSocketsClosed = new Promise<void>((resolve) => host.wss.close(() => resolve()));
   await host.starting?.catch(() => undefined);
+  const guard = host.loopbackGuard;
+  host.loopbackGuard = null;
   await Promise.all([
+    releaseLoopbackPort(guard),
     host.connections.close(host.options.shutdownConnectionGraceMs ?? 5_000),
     webSocketsClosed,
   ]);

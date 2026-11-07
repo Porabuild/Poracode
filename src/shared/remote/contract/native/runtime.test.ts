@@ -371,6 +371,31 @@ function syntheticRoots(): NativeSchemaRoot[] {
     }),
     root("nullable", { anyOf: [{ type: "string" }, { type: "null" }] }),
     root("literal-enum", { type: "string", enum: ["alpha", "beta"] }),
+    semantic("forge.host.https", { type: "string" }),
+    semantic("forge.watch.scope-identity", {
+      type: "object",
+      properties: {
+        forge: { type: "string" },
+        host: { type: "string" },
+        account: {
+          type: "object",
+          properties: { forge: { type: "string" }, host: { type: "string" } },
+          required: ["forge", "host"],
+          additionalProperties: false,
+        },
+      },
+      required: ["forge", "host", "account"],
+      additionalProperties: false,
+    }),
+    semantic("forge.edit.fields", {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        body: { type: "string" },
+        baseBranch: { type: "string" },
+      },
+      additionalProperties: false,
+    }),
     semantic("git.add-worktree.frozen-source", {
       type: "object",
       properties: {
@@ -723,6 +748,50 @@ function mutationCases(wsFixtures: readonly string[]): HarnessCodecCase[] {
         { raw: json({ id: "run", archived: false }) },
       ],
       negatives: [json({ id: "run" })],
+    },
+    {
+      id: "synthetic.semantic.forge.host.https",
+      positives: ["https://git.example", "https://git.example/deployment"].map((value) => ({
+        raw: json(value),
+      })),
+      negatives: [
+        "http://git.example",
+        "https://user@git.example",
+        "https://@git.example",
+        "https://git.example?",
+        "https://git.example#",
+        "https://git.example\\path",
+        "https://git.ex\tample",
+      ].map(json),
+    },
+    {
+      id: "synthetic.semantic.forge.watch.scope-identity",
+      positives: [
+        {
+          raw: json({
+            forge: "gitlab",
+            host: "https://git.example",
+            account: { forge: "gitlab", host: "https://git.example" },
+          }),
+        },
+      ],
+      negatives: [
+        json({
+          forge: "gitlab",
+          host: "https://git.example",
+          account: { forge: "gitea", host: "https://git.example" },
+        }),
+        json({
+          forge: "gitlab",
+          host: "https://git.example",
+          account: { forge: "gitlab", host: "https://other.example" },
+        }),
+      ],
+    },
+    {
+      id: "synthetic.semantic.forge.edit.fields",
+      positives: [{ raw: json({ body: "" }) }, { raw: json({ title: "New title" }) }],
+      negatives: ["{}"],
     },
     {
       id: "synthetic.semantic.git.add-worktree.frozen-source",

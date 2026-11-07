@@ -984,6 +984,117 @@ export const DATABASE_MIGRATIONS = [
     rollback: "forward-only",
     migrate: createConversationSearchSchema,
   },
+  {
+    version: 64,
+    name: "retain independent conversation fork lineage",
+    rollback: "rollback-compatible",
+    // Additive: previous rows have no fork provenance and remain valid.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "threads", "forked_from", "TEXT");
+      sqlite.exec(`CREATE TABLE IF NOT EXISTS thread_fork_contexts (
+        thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+        version INTEGER NOT NULL CHECK(version = 1),
+        content TEXT NOT NULL,
+        delivered INTEGER NOT NULL DEFAULT 0 CHECK(delivered IN (0, 1))
+      )`);
+    },
+  },
+  {
+    version: 65,
+    name: "pin review watch source identity",
+    // Legacy NULL requires explicit re-arming; never infer the active account.
+    // Versioned public scope is execution authority, separate from status patches.
+    rollback: "forward-only",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "pr_watches", "review_scope", "TEXT"),
+  },
+  {
+    version: 66,
+    name: "index manual catalog ordering",
+    // Index-only: existing rows and all cursor formats remain valid. Avoid
+    // updated_at indexes, which amplify writes on frequent metadata updates.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_threads_catalog_manual ON threads(sort_order, id);
+        CREATE INDEX IF NOT EXISTS idx_projects_catalog_manual ON projects(sort_order, id);
+      `);
+    },
+  },
+  {
+    version: 67,
+    name: "record per-thread token usage by crew member",
+    // Additive: a new aggregate the usage ledger fills going forward. Existing
+    // threads stay valid with no per-thread history (no backfill: usage_events
+    // carries no thread id), and older app versions ignore the table.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      sqlite.exec(`CREATE TABLE IF NOT EXISTS thread_token_usage (
+        thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+        member TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL DEFAULT '',
+        input INTEGER NOT NULL DEFAULT 0,
+        output INTEGER NOT NULL DEFAULT 0,
+        cache_read INTEGER NOT NULL DEFAULT 0,
+        cache_write INTEGER NOT NULL DEFAULT 0,
+        total INTEGER NOT NULL DEFAULT 0,
+        cost_usd REAL NOT NULL DEFAULT 0,
+        priced_total INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (thread_id, member, provider, model)
+      )`);
+    },
+  },
+  {
+    version: 68,
+    name: "count streamed per-call usage growth",
+    // Additive: NULL marks a sample counted before its basis was recorded; the
+    // ledger keeps those exact-once as before and counts growth only for rows
+    // that record what was counted. Older app versions ignore the columns.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "usage_token_samples", "counted", "INTEGER");
+      addColumnIfMissing(sqlite, "usage_token_samples", "counted_tokens", "TEXT");
+    },
+  },
+  {
+    version: 69,
+    name: "project branch pins",
+    // Additive nullable columns; older app versions ignore them.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "projects", "worktree_base_branch", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "pinned_branches", "TEXT");
+    },
+  },
+  {
+    version: 70,
+    name: "remember turns cut off before they finished",
+    rollback: "rollback-compatible",
+    // Additive to released schema 69. Unreleased PR builds used 66 and 69;
+    // preserve their markers and install the branch pins skipped by PR schema69.
+    // Private "stopped" markers remember accepted Stop until boot; old readers
+    // ignore unknown marker values, and clients still see only error/restart.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "worktree_base_branch", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "pinned_branches", "TEXT");
+      // PR-only schema66 profiles predate master's index migration with the
+      // same number. Ensure both intentions survive that upgrade too.
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_threads_catalog_manual ON threads(sort_order, id);
+        CREATE INDEX IF NOT EXISTS idx_projects_catalog_manual ON projects(sort_order, id);
+      `);
+    },
+  },
+  {
+    version: 71,
+    name: "project plugin overrides",
+    // Additive nullable column; older app versions ignore it, so a project's
+    // plugin overrides are simply inert on a downgraded build.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "plugin_overrides", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1111,6 +1222,9 @@ const SAFE_COLUMN_REPAIRS = [
   ["projects", "worktree_location", "TEXT"],
   ["projects", "mcp_servers", "TEXT"],
   ["projects", "gh_account", "TEXT"],
+  ["projects", "worktree_base_branch", "TEXT"],
+  ["projects", "pinned_branches", "TEXT"],
+  ["projects", "plugin_overrides", "TEXT"],
   ["projects", "workspace_id", "TEXT"],
   ["projects", "disabled", "INTEGER NOT NULL DEFAULT 0"],
   ["threads", "done", "INTEGER NOT NULL DEFAULT 0"],
@@ -1147,6 +1261,11 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
       .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
       .get() as { value: string } | undefined;
     if (Number(schema?.value) >= 58) createRuntimeGoalIndex(sqlite);
+    // Migration56 calls this helper too. Do not inject a future column into
+    // historical schemas before its own ordered migration has run.
+    if (Number(schema?.value) >= 70) {
+      addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
+    }
     sqlite.exec(
       "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
     );
@@ -1156,6 +1275,7 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
 // Grant columns/journal/guards are deliberately NOT SAFE_COLUMN_REPAIRS:
 // losing custody at schema 55/56 must refuse, not recreate an empty grant or journal.
 const REQUIRED_COLUMNS = {
+  thread_fork_contexts: ["thread_id", "version", "content", "delivered"],
   usage_events: ["cost_details"],
   usage_token_ledger: ["cost_details"],
   conversation_search_meta: ["id", "generation"],
@@ -1185,12 +1305,16 @@ const REQUIRED_COLUMNS = {
     "worktree_location",
     "mcp_servers",
     "gh_account",
+    "worktree_base_branch",
+    "pinned_branches",
+    "plugin_overrides",
     "workspace_id",
     "disabled",
     "sort_order",
     "created_at",
   ],
   threads: [
+    "forked_from",
     "additional_directories",
     "workspace_grant_revision",
     "workspace_owner_incarnation",
@@ -1225,6 +1349,7 @@ const REQUIRED_COLUMNS = {
     "active_turn_started_at",
     "last_turn_started_at",
     "last_turn_ended_at",
+    "interrupted_turn",
   ],
   thread_runtime_items: [
     "thread_id",
@@ -1317,6 +1442,7 @@ const REQUIRED_COLUMNS = {
     "archived_at",
   ],
   pr_watches: [
+    "review_scope",
     "project_id",
     "pr_number",
     "head_branch",

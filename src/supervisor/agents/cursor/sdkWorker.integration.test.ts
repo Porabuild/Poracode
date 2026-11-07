@@ -43,6 +43,7 @@ describe("Cursor SDK worker integration", () => {
     ).resolves.toEqual({
       agentId: "agent-created",
       model: { id: "composer-test" },
+      supportsSummarize: true,
     });
 
     const events: CursorSdkWorkerEvent[] = [];
@@ -184,6 +185,7 @@ describe("Cursor SDK worker integration", () => {
     ).resolves.toEqual({
       agentId: "agent-existing",
       model: { id: "composer-test" },
+      supportsSummarize: true,
     });
     await expect(
       harness.client.initialize({
@@ -203,6 +205,66 @@ describe("Cursor SDK worker integration", () => {
     });
     await harness.client.cancel(runId);
     await harness.client.dispose();
+  });
+
+  it("runs summarize through the shared run path and pumps its stream", async () => {
+    const harness = await createHarness();
+    await harness.client.initialize({
+      createOptions: {
+        model: { id: "composer-test" },
+        local: { cwd: harness.directory },
+      },
+    });
+    const events: CursorSdkWorkerEvent[] = [];
+    harness.client.onEvent((event) => events.push(event));
+
+    await expect(harness.client.summarize()).resolves.toEqual({ runId: "run-1" });
+    await waitFor(() => events.some((event) => event.type === "result"));
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "message",
+        runId: "run-1",
+        message: expect.objectContaining({ type: "summary", status: "completed" }),
+      }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "result",
+        runId: "run-1",
+        result: expect.objectContaining({ status: "finished", result: "summary-done" }),
+      }),
+    );
+    await harness.client.dispose();
+  });
+
+  it("applies the busy guard and summarizes an in-flight run on an old SDK", async () => {
+    const harness = await createHarness();
+    await harness.client.initialize({
+      createOptions: {
+        model: { id: "composer-test" },
+        local: { cwd: harness.directory },
+      },
+    });
+    const { runId } = await harness.client.start({ message: "hold" });
+    await expect(harness.client.summarize()).rejects.toMatchObject({
+      code: "agent_busy",
+    });
+    await harness.client.cancel(runId);
+    await harness.client.dispose();
+
+    const legacy = await createHarness();
+    const initialized = await legacy.client.initialize({
+      createOptions: {
+        model: { id: "composer-test" },
+        name: "no-summarize",
+        local: { cwd: legacy.directory },
+      },
+    });
+    expect(initialized).not.toHaveProperty("supportsSummarize");
+    await expect(legacy.client.summarize()).rejects.toMatchObject({
+      code: "summarize_unsupported",
+    });
+    await legacy.client.dispose();
   });
 
   it("redacts API keys from SDK errors", async () => {
@@ -520,6 +582,20 @@ class FakeRun {
       model: { id: "composer-test" },
     };
     if (this.message === "stream-error") throw new Error("synthetic stream failure");
+    if (this.message === "summarize") {
+      yield {
+        type: "summary",
+        agent_id: this.agentId,
+        run_id: this.id,
+        status: "running",
+      };
+      yield {
+        type: "summary",
+        agent_id: this.agentId,
+        run_id: this.id,
+        status: "completed",
+      };
+    }
     yield {
       type: "assistant",
       agent_id: this.agentId,
@@ -569,7 +645,7 @@ class FakeRun {
     return {
       id: this.id,
       status: this.cancelled ? "cancelled" : "finished",
-      result: this.cancelled ? "partial" : "done",
+      result: this.cancelled ? "partial" : this.message === "summarize" ? "summary-done" : "done",
       model: { id: "composer-test" },
       usage: {
         inputTokens: 1,
@@ -593,6 +669,12 @@ class FakeAgent {
     this.name = options.name;
     this.apiKey = options.apiKey;
     this.mcpServers = options.mcpServers;
+    // Simulates a pre-1.2.0 SDK: no summarize on the agent handle.
+    if (options.name === "no-summarize") this.summarize = undefined;
+  }
+
+  async summarize() {
+    return new FakeRun(this.agentId, "summarize");
   }
 
   async send(message, options = {}) {

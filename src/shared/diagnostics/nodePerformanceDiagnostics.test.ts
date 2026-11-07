@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { recordHandlerTiming, sampleHandlerTimings } from "./handlerTimingObservations";
 import { startNodePerformanceDiagnostics } from "./nodePerformanceDiagnostics";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import {
@@ -76,6 +77,40 @@ describe("opt-in Node performance recording", () => {
       sampledMonotonicMs: 12_345,
       processes: [{ pid: process.pid, type: "Browser", cpuPercent: 1.5 }],
     });
+  });
+
+  it("appends handler timings to sample lines only while recording", async () => {
+    // Disabled globally: a record before start is dropped.
+    recordHandlerTiming("route:runtime-image", 999);
+    expect(sampleHandlerTimings()).toBeNull();
+    const root = await outputDirectory();
+    const recorder = startNodePerformanceDiagnostics("backend", {
+      PORACODE_PERF_OUTPUT_DIR: root,
+      PORACODE_PERF_INTERVAL_MS: "100",
+    })!;
+    try {
+      recordHandlerTiming("route:runtime-image", 12);
+      recordHandlerTiming("supervisor:getGitStatus", 250);
+      await delay(130);
+    } finally {
+      await recorder.stop();
+    }
+    const files = await readdir(root);
+    const records = (await readFile(join(root, files[0]!), "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    expect(records[0]).toMatchObject({ kind: "start", formatVersion: 2 });
+    expect(records[0].handlerTimings).toBeUndefined();
+    const withTimings = records.filter((record: Record<string, unknown>) => record.handlerTimings);
+    expect(withTimings.length).toBeGreaterThanOrEqual(1);
+    expect(withTimings[0].handlerTimings).toEqual([
+      { name: "supervisor:getGitStatus", count: 1, totalMs: 250, maxMs: 250 },
+      { name: "route:runtime-image", count: 1, totalMs: 12, maxMs: 12 },
+    ]);
+    // Stop disables capture again: later records are dropped.
+    recordHandlerTiming("route:runtime-image", 5);
+    expect(sampleHandlerTimings()).toBeNull();
   });
 
   it.each([

@@ -4,8 +4,7 @@ import { type PromptSegment, type ThreadPresentationMode } from "@/shared/contra
 import { i18n } from "@/renderer/i18n/i18n";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { entityHost } from "@/renderer/state/entityHost";
 import { REMOTE_CONVERSATION_SNAPSHOTS_VERSION } from "@/shared/remote/protocol";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSideChatPanelStore } from "./sideChatPanelStore";
@@ -46,10 +45,11 @@ export async function openSideChat(
   sourceThreadId: string,
   prompt = "",
   segments?: PromptSegment[],
+  options?: { autoStart?: boolean },
 ): Promise<boolean> {
   const existing = opening.get(sourceThreadId);
   if (existing) return false;
-  const promise = performOpen(sourceThreadId, prompt, segments);
+  const promise = performOpen(sourceThreadId, prompt, segments, options);
   opening.set(sourceThreadId, promise);
   try {
     return await promise;
@@ -62,22 +62,22 @@ async function performOpen(
   sourceThreadId: string,
   prompt: string,
   segments?: PromptSegment[],
+  options?: { autoStart?: boolean },
 ): Promise<boolean> {
   const source = useAppStore.getState().threads.find((thread) => thread.id === sourceThreadId);
   const open = readBridge().openSideChatPanel;
   if (!source || source.presentationMode !== "gui" || !open || !canOpenSideChat(sourceThreadId))
     return false;
-  const owner = remoteOwner(source);
-  if (owner) {
-    const supported = await useRemoteServersStore
-      .getState()
-      .withClient(
-        owner.desktopId,
-        async (client) =>
-          (await client.environment()).capabilities?.conversationSnapshots?.versions.includes(
-            REMOTE_CONVERSATION_SNAPSHOTS_VERSION,
-          ) === true,
-      );
+  // The owning host (managed or paired) must advertise hidden-context
+  // snapshots; the same environment descriptor answers for both.
+  const host = entityHost(source);
+  if (host) {
+    const supported = await host.withClient(
+      async (client) =>
+        (await client.environment()).capabilities?.conversationSnapshots?.versions.includes(
+          REMOTE_CONVERSATION_SNAPSHOTS_VERSION,
+        ) === true,
+    );
     if (!supported)
       throw new Error(i18n._(msg`Update the remote host to use side chat with hidden context.`));
   }
@@ -88,8 +88,34 @@ async function performOpen(
     title,
     context: null,
     prompt,
-    autoStart: prompt.trim().length > 0,
+    autoStart: options?.autoStart ?? prompt.trim().length > 0,
     ...(segments ? { segments: structuredClone(segments) } : {}),
   });
+  return true;
+}
+
+/** Puts the transcript selection into the side chat draft without sending it. */
+export async function addSelectionToSideChat(
+  sourceThreadId: string,
+  text: string,
+): Promise<boolean> {
+  const quote = text.trim();
+  if (!quote || !canOpenSideChat(sourceThreadId)) return false;
+  const state = useSideChatPanelStore.getState();
+  const existing = state.entries[sourceThreadId];
+  if (!existing) return openSideChat(sourceThreadId, quote, undefined, { autoStart: false });
+
+  if (existing.id && state.detachedIds.has(existing.id)) {
+    await readBridge().openSideChatWindow?.({ ...existing, autoStart: false, appendText: quote });
+    return true;
+  }
+  if (!existing.existingThreadId)
+    await readBridge().bindSideChatThread?.({
+      ...(existing.id ? { id: existing.id } : {}),
+      prompt: existing.prompt,
+      ...(existing.selection ? { selection: existing.selection } : {}),
+    });
+  await readBridge().openSideChatPanel?.({ ...existing, autoStart: false, appendText: quote });
+  usePanelStore.getState().setRightPanelTab("sideChat");
   return true;
 }

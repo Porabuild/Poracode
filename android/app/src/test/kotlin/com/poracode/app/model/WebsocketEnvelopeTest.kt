@@ -65,4 +65,12 @@ class WebsocketEnvelopeTest {
 
         assertTrue(thrown is RemoteClientException)
     }
+
+    @Test
+    fun readyCarriesTheOptionalEventEpoch() {
+        val legacy = RemoteWebSocketServerMessage.decode("""{"type":"ready","seq":7}""")
+        assertEquals(RemoteWebSocketServerMessage.Ready(7, null), legacy)
+        val declared = RemoteWebSocketServerMessage.decode("""{"type":"ready","seq":7,"epoch":"e1"}""")
+        assertEquals(RemoteWebSocketServerMessage.Ready(7, "e1"), declared)
+    }
 }

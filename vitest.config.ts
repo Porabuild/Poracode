@@ -1,7 +1,9 @@
+import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
 import { defineConfig, type TestProjectInlineConfiguration } from "vitest/config";
 import babel from "@rolldown/plugin-babel";
 import { lingui } from "@lingui/vite-plugin";
+import { DurationShardSequencer } from "./src/build/durationShardSequencer.ts";
 import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
 
 // Core CI shards exclude compiler fixtures in the project that collects them.
@@ -35,6 +37,15 @@ function rendererProject(
   };
 }
 
+// A single run keeps half the cores. When scripts/heavy-run-gate.mjs reports
+// peers (other worktrees running heavy tasks), split that same budget so the
+// machine is not oversubscribed. CI and ungated runs keep the plain 50%.
+const gatePeers = Number.parseInt(process.env.PORACODE_HEAVY_GATE_PEERS ?? "", 10);
+const maxWorkers =
+  !process.env.CI && gatePeers > 1
+    ? Math.max(2, Math.floor(availableParallelism() / 2 / gatePeers))
+    : "50%";
+
 export default defineConfig({
   plugins: [runtimePayloadProjectionVitePlugin(import.meta.dirname)],
   test: {
@@ -43,12 +54,14 @@ export default defineConfig({
     // (mock history is cleared before each test, implementations are kept).
     clearMocks: true,
     // Leave capacity for compiler subprocesses and large JSDOM module graphs.
-    maxWorkers: "50%",
+    maxWorkers,
     // Default 5s is too tight for tests that vi.resetModules() + dynamic-import
     // under heavy parallel load. Raise to 15s so import jitter doesn't flake
     // the suite; per-test timeouts can still override.
     testTimeout: 15_000,
     hookTimeout: 15_000,
+    // `--shard` balances files by recorded CI duration instead of by count.
+    sequence: { sequencer: DurationShardSequencer },
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
@@ -57,11 +70,11 @@ export default defineConfig({
     // the sharded unit suite — sibling shard workers contend for the same
     // cores and flip the budgets. They are collected by vitest.perf.config.ts
     // and run via the `test:perf:*` scripts / the dedicated CI perf job.
-    exclude: ["dist", "node_modules", "**/*.perf.test.ts"],
+    exclude: ["dist", "node_modules", "tui/**", "**/*.perf.test.ts"],
     projects: [
       rendererProject({
         name: "renderer",
-        include: ["src/renderer/**/*.test.{ts,tsx}"],
+        include: ["src/renderer/**/*.test.{ts,tsx}", "website/src/**/*.test.tsx"],
         exclude: ["**/*.perf.test.ts", ...monacoTestFiles],
       }),
       rendererProject({
@@ -94,7 +107,7 @@ export default defineConfig({
           // Protocol conformance lives under protocol/ but needs the same node
           // environment and `@` alias as src. Folded into this project so
           // `pnpm run test --shard=N/4` never shards a one-file project.
-          include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts"],
+          include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts", "website/src/**/*.test.ts"],
           // Project-level exclude replaces the inherited root exclude, so the
           // perf-suite pattern is restated here.
           exclude: ["src/renderer/**/*.test.{ts,tsx}", "**/*.perf.test.ts", ...coreShardExcludes],

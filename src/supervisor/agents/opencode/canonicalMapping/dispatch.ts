@@ -13,6 +13,7 @@
 import type { EventSubscribeResponse, Part } from "../legacySdk";
 import type { RuntimeEvent } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
+import { isVideoPath } from "@/shared/chatVideo";
 import { newItemId } from "../../contextUsage";
 import {
   markOpenCodeUsageScopeSampled,
@@ -153,11 +154,23 @@ function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent
       "attachments" in part.state &&
       part.state.attachments !== undefined
         ? resolveOpenCodeAttachments(part.state.attachments, part.messageID, state.location)
-        : { images: [], locations: [] };
+        : { images: [], locations: [], videoResources: undefined };
     const baseLocations = Array.isArray(basePayload.locations) ? basePayload.locations : [];
     const enrichedBase = {
       ...basePayload,
       ...(attachments.images.length > 0 ? { images: attachments.images } : {}),
+      ...(attachments.videoResources
+        ? {
+            result: {
+              content: [
+                ...(typeof basePayload.result === "string"
+                  ? [{ type: "text", text: basePayload.result }]
+                  : []),
+                ...attachments.videoResources,
+              ],
+            },
+          }
+        : {}),
       ...(attachments.locations.length > 0
         ? { locations: [...baseLocations, ...attachments.locations] }
         : {}),
@@ -275,6 +288,20 @@ function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent
       status: "success",
       args: { path: ref.path, mime: ref.mime },
       locations: [{ path: ref.path }],
+      ...(isVideoPath(ref.path, ref.mime)
+        ? {
+            result: {
+              content: [
+                {
+                  type: "resource_link",
+                  uri: ref.path,
+                  mimeType: ref.mime,
+                  name: ref.filename,
+                },
+              ],
+            },
+          }
+        : {}),
     };
     if (!existingFile) {
       state.fileItems.set(part.id, {

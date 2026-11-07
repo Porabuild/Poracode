@@ -1,1 +1,1 @@
-bun run lint-staged && bun run typecheck
+bun run lint-staged && bun run typecheck --threads=8

@@ -16,7 +16,7 @@ export function OpenCodePermissionDetailsLine({ details }: { details: OpenCodePe
         <span className="ml-1 text-foreground">{details.permission}</span>
       </div>
       {details.patterns.length > 0 ? (
-        <div className="whitespace-pre-wrap break-words">
+        <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">
           <span className="text-foreground/60">
             <Plural value={details.patterns.length} one="target" other="targets" />
           </span>
@@ -24,7 +24,7 @@ export function OpenCodePermissionDetailsLine({ details }: { details: OpenCodePe
         </div>
       ) : null}
       {metadataEntries.map(([key, value]) => (
-        <div key={key} className="whitespace-pre-wrap break-words">
+        <div key={key} className="whitespace-pre-wrap [overflow-wrap:anywhere]">
           <span className="text-foreground/60">{key}</span>
           <span className="ml-1 text-foreground">
             {typeof value === "string" ? value : JSON.stringify(value)}
@@ -35,14 +35,20 @@ export function OpenCodePermissionDetailsLine({ details }: { details: OpenCodePe
   );
 }
 
-export function PermissionDetailsLine({ details }: { details: PermissionRequestDetails }) {
+export function PermissionDetailsLine({
+  details,
+  hideSubject = false,
+}: {
+  details: PermissionRequestDetails;
+  hideSubject?: boolean;
+}) {
   const subject = formatInputSubject(details.input);
   const label = details.displayName ?? details.toolName;
   return (
     <div className="mt-0.5 space-y-0.5">
-      <div className="font-mono text-[11px] whitespace-pre-wrap break-words text-foreground/60">
+      <div className="font-mono text-[11px] whitespace-pre-wrap text-foreground/60 [overflow-wrap:anywhere]">
         <span>{label}</span>
-        {subject ? <span className="ml-1">{subject}</span> : null}
+        {subject && !hideSubject ? <span className="ml-1">{subject}</span> : null}
       </div>
       {details.decisionReason ? (
         <div className="text-[11px] text-warning-600 dark:text-warning-400">
@@ -50,7 +56,7 @@ export function PermissionDetailsLine({ details }: { details: PermissionRequestD
         </div>
       ) : null}
       {details.blockedPath ? (
-        <div className="font-mono text-[11px] whitespace-pre-wrap break-words text-foreground/60">
+        <div className="font-mono text-[11px] whitespace-pre-wrap text-foreground/60 [overflow-wrap:anywhere]">
           <Trans>blocked:</Trans> <span className="text-foreground/80">{details.blockedPath}</span>
         </div>
       ) : null}

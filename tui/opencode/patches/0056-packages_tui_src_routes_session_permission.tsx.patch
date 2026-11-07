@@ -1,0 +1,13 @@
+diff --git a/packages/tui/src/routes/session/permission.tsx b/packages/tui/src/routes/session/permission.tsx
+index 07338ab..594e46e 100644
+--- a/packages/tui/src/routes/session/permission.tsx
++++ b/packages/tui/src/routes/session/permission.tsx
+@@ -325,7 +325,7 @@ function RejectPrompt(props: {
+           <text fg={theme.text.base}>Reject permission</text>
+         </box>
+         <box paddingLeft={1}>
+-          <text fg={theme.text.muted}>Tell OpenCode what to do differently</text>
++          <text fg={theme.text.muted}>Tell the agent what to do differently</text>
+         </box>
+       </box>
+       <box

@@ -33,7 +33,11 @@ import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { forgetTimelineMeasurements } from "../timelineMeasurementCache";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
-import { carryPendingThreadInput, confirmPendingThreadInput } from "../pendingThreadInput";
+import {
+  carryPendingThreadInput,
+  confirmPendingThreadInput,
+  noteThreadInterruptedTurnStated,
+} from "../pendingThreadInput";
 import { noteRendererCreatedThreadIntent } from "../managedRootCatalog/rootCreateIntent";
 import { terminateStaleSubAgentItems } from "./staleSubAgents";
 import { msg } from "@lingui/core/macro";
@@ -48,6 +52,31 @@ import {
   type PendingThreadConfig,
   type ThreadConfigSubmission,
 } from "../pendingThreadConfig";
+
+type RemoteHomeThreadIdentity = Pick<Thread, "id" | "projectId" | "remoteServerId">;
+
+/**
+ * Late-bound writer for paired remote Home thread pins. The remote-servers
+ * store owns the persisted map and registers its `workspaceFilings` writer once
+ * its store exists; importing that module here would pull the whole
+ * remote-server/workspace store graph into this app-store slice module.
+ */
+let pinRemoteHomeThreadWorkspaceImpl:
+  | ((thread: RemoteHomeThreadIdentity, workspaceId: string | undefined) => void)
+  | undefined;
+
+export function registerRemoteHomeThreadWorkspacePin(
+  pin: (thread: RemoteHomeThreadIdentity, workspaceId: string | undefined) => void,
+): void {
+  pinRemoteHomeThreadWorkspaceImpl = pin;
+}
+
+function pinRemoteHomeThreadWorkspace(
+  thread: RemoteHomeThreadIdentity,
+  workspaceId: string | undefined,
+): void {
+  pinRemoteHomeThreadWorkspaceImpl?.(thread, workspaceId);
+}
 
 export interface ThreadSlice {
   /** Volatile GUI intent, retaining field revisions while dispatches are in flight. */
@@ -164,6 +193,8 @@ export interface ThreadSlice {
       threadStatusSource?: ThreadStatusSource;
       forceCloseActiveTurn?: boolean;
       errorMessage?: string;
+      /** Null clears a cut-off turn; undefined keeps it until a turn starts. */
+      interruptedTurn?: Thread["interruptedTurn"] | null;
     },
   ) => void;
   /**
@@ -215,7 +246,7 @@ export function normalizeRuntimeSnapshotLaunchConfig<T extends ThreadRuntimeSnap
   return { ...snapshot, launchConfig: snapshot.launchConfig ?? null };
 }
 
-export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
+export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
   threads: [],
   provisioningWorktreeThreadIds: {},
   pendingThreadConfigByThreadId: {},
@@ -358,6 +389,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           : keepAlivePatch({ ...state, threads: [thread, ...state.threads] }, thread.id)),
       };
     });
+    // A paired Home host never receives this client workspace on create, and a
+    // desktop cold restart has no resident mirrored row: pin the client filing
+    // so catalog and history projection can restore it.
+    pinRemoteHomeThreadWorkspace(thread, thread.workspaceId);
 
     // Durable "thread started" usage fact (survives later delete/archive).
     recordThreadStarted(thread);
@@ -499,9 +534,12 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       forgetThreadGalleryCache(threadId);
       confirmPendingThreadInput(threadId);
       const nextThreads = state.threads.filter((thread) => thread.id !== threadId);
+      const chatPromptAnchorIds = Object.fromEntries(
+        Object.entries(state.chatPromptAnchorIds).filter(([id]) => id !== threadId),
+      );
 
       if (nextThreads.length === state.threads.length) {
-        return {};
+        return { chatPromptAnchorIds };
       }
 
       useThreadFollowUpQueueStore.getState().setQueue(threadId, null);
@@ -558,6 +596,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           Object.entries(state.pendingLaunchUserMessageItemIds).filter(([id]) => id !== threadId),
         ),
         runtimeItemIdsByThread,
+        chatPromptAnchorIds,
         runtimeItemsByIdByThread,
         runtimeRequestsByThread,
         runtimeContextByThread,
@@ -579,22 +618,24 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         thread.id === threadId ? { ...thread, title } : thread,
       ),
     })),
-  setThreadWorkspace: (threadId, workspaceId) =>
-    set((state) => {
-      const thread = state.threads.find((t) => t.id === threadId);
-      if (!thread || thread.workspaceId === workspaceId) return {};
-      return {
-        threads: state.threads.map((t) => {
-          if (t.id !== threadId) return t;
-          const { workspaceId: _dropped, ...rest } = t;
-          return {
-            ...rest,
-            ...(workspaceId ? { workspaceId } : {}),
-            updatedAt: new Date().toISOString(),
-          };
-        }),
-      };
-    }),
+  setThreadWorkspace: (threadId, workspaceId) => {
+    const thread = get().threads.find((t) => t.id === threadId);
+    if (!thread || thread.workspaceId === workspaceId) return;
+    set((state) => ({
+      threads: state.threads.map((t) => {
+        if (t.id !== threadId) return t;
+        const { workspaceId: _dropped, ...rest } = t;
+        return {
+          ...rest,
+          ...(workspaceId ? { workspaceId } : {}),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    }));
+    // A genuine move or explicit unfile is client-owned for paired Home
+    // threads; persist it outside the set callback, after the row changed.
+    pinRemoteHomeThreadWorkspace(thread, workspaceId);
+  },
   setThreadWorktree: (threadId, worktreePath, worktreeBranch, options) =>
     set((state) => {
       const { [threadId]: _droppedProvisioning, ...provisioningWorktreeThreadIds } =
@@ -695,6 +736,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       ) {
         return {};
       }
+      if (currentThread && input.interruptedTurn !== undefined) {
+        noteThreadInterruptedTurnStated(threadId);
+      }
       let changed = false;
       let turnUpdate: TurnCloseUpdate = {
         runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread,
@@ -783,6 +827,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         // not on working rebroadcasts after the user marks done mid-turn.
         const turnStarted = input.status === "working" && thread.status !== "working";
         const activityClearsDone = turnStarted && thread.done;
+        const nextInterruptedTurn =
+          input.interruptedTurn !== undefined
+            ? (input.interruptedTurn ?? undefined)
+            : turnStarted
+              ? undefined
+              : thread.interruptedTurn;
+        const nextErrorMessage = input.errorMessage ?? thread.errorMessage;
 
         if (
           thread.status === effectiveStatus &&
@@ -796,7 +847,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
           thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
           thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
-          (input.errorMessage === undefined || thread.errorMessage === input.errorMessage)
+          thread.interruptedTurn === nextInterruptedTurn &&
+          (effectiveStatus === "error"
+            ? input.errorMessage === undefined || thread.errorMessage === input.errorMessage
+            : thread.errorMessage === undefined)
         ) {
           return thread;
         }
@@ -809,8 +863,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         );
 
         changed = true;
+        const threadWithoutErrorMessage = { ...thread };
+        delete threadWithoutErrorMessage.errorMessage;
         return {
-          ...thread,
+          ...threadWithoutErrorMessage,
           status: effectiveStatus,
           attention: effectiveAttention,
           config: nextConfig,
@@ -823,7 +879,12 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           ...(input.sessionConfigOptions !== undefined
             ? { sessionConfigOptions: input.sessionConfigOptions }
             : {}),
-          ...(input.errorMessage !== undefined ? { errorMessage: input.errorMessage } : {}),
+          ...(nextInterruptedTurn !== thread.interruptedTurn
+            ? { interruptedTurn: nextInterruptedTurn }
+            : {}),
+          ...(effectiveStatus === "error" && nextErrorMessage !== undefined
+            ? { errorMessage: nextErrorMessage }
+            : {}),
           ...(turnStarted ? { updatedAt: nowIso } : {}),
           ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
           ...nextTurnTiming,
@@ -984,7 +1045,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         return keep;
       });
       if (nextThreads.length === state.threads.length) return {};
-      return { threads: nextThreads };
+      const keptThreadIds = new Set(nextThreads.map((thread) => thread.id));
+      return {
+        threads: nextThreads,
+        chatPromptAnchorIds: Object.fromEntries(
+          Object.entries(state.chatPromptAnchorIds).filter(([id]) => keptThreadIds.has(id)),
+        ),
+      };
     }),
   archiveOldDoneThreads: (maxAgeDays) =>
     set((state) => {
@@ -1238,6 +1305,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             snapshot.sessionConfigOptions !== undefined &&
             JSON.stringify(thread.sessionConfigOptions) !==
               JSON.stringify(snapshot.sessionConfigOptions);
+          const nextErrorMessage =
+            runtime.status === "error" ? (snapshot.errorMessage ?? thread.errorMessage) : undefined;
 
           if (
             thread.status === runtime.status &&
@@ -1245,7 +1314,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             isThreadConfigEqual(thread.config, nextConfig) &&
             thread.canResumeWithConfig === snapshot.canResumeWithConfig &&
             thread.threadStatusSource === snapshot.threadStatusSource &&
-            thread.errorMessage === snapshot.errorMessage &&
+            (runtime.status === "error"
+              ? snapshot.errorMessage === undefined || thread.errorMessage === snapshot.errorMessage
+              : thread.errorMessage === undefined) &&
             thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
             thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
             thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
@@ -1264,8 +1335,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           );
 
           changed = true;
+          const threadWithoutErrorMessage = { ...thread };
+          delete threadWithoutErrorMessage.errorMessage;
           return {
-            ...thread,
+            ...threadWithoutErrorMessage,
             status: runtime.status,
             attention: runtime.attention,
             config: nextConfig,
@@ -1273,7 +1346,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             ...(snapshot.threadStatusSource !== undefined
               ? { threadStatusSource: snapshot.threadStatusSource }
               : {}),
-            ...(snapshot.errorMessage !== undefined ? { errorMessage: snapshot.errorMessage } : {}),
+            ...(runtime.status === "error" && nextErrorMessage !== undefined
+              ? { errorMessage: nextErrorMessage }
+              : {}),
             ...(snapshot.sessionRef ? { sessionRef: snapshot.sessionRef } : {}),
             ...(snapshot.slashCommands !== undefined
               ? { slashCommands: snapshot.slashCommands }

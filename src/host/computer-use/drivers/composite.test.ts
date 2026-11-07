@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ComputerUseDriver, ComputerUseInteractiveResult } from "../mcp/types";
-import { CompositeComputerUseDriver } from "./composite";
+import { CompositeComputerUseDriver, LOCKED_USE_HELPER_UNAVAILABLE_STAGE } from "./composite";
 import { HelperUnavailableError } from "./helper";
 import { JsonLineActionError } from "./jsonLineHost";
 
@@ -151,5 +151,69 @@ describe("CompositeComputerUseDriver", () => {
     expect(warn).toHaveBeenCalledWith(
       "Computer Use native helper unavailable. The bundled computer-use helper is missing.",
     );
+  });
+
+  describe("locked use", () => {
+    it("forwards begin, end, and status to the helper", async () => {
+      const primary = createDriver({
+        lockedUseBegin: vi
+          .fn<NonNullable<ComputerUseDriver["lockedUseBegin"]>>()
+          .mockResolvedValue({ outcome: "unlocked", approvalId: "a".repeat(64) }),
+        lockedUseEnd: vi
+          .fn<NonNullable<ComputerUseDriver["lockedUseEnd"]>>()
+          .mockResolvedValue({ outcome: "relocked" }),
+        lockedUseStatus: vi
+          .fn<NonNullable<ComputerUseDriver["lockedUseStatus"]>>()
+          .mockResolvedValue({
+            supported: true,
+            signed: true,
+            paused: false,
+            active: true,
+            screenLocked: true,
+          }),
+      });
+      const driver = new CompositeComputerUseDriver({ primary, fallback: createDriver() });
+      await expect(driver.lockedUseBegin({ threadId: "t1" })).resolves.toMatchObject({
+        outcome: "unlocked",
+      });
+      await expect(driver.lockedUseEnd({ reason: "turn_end" })).resolves.toEqual({
+        outcome: "relocked",
+      });
+      await expect(driver.lockedUseStatus()).resolves.toMatchObject({ active: true });
+      expect(primary.lockedUseBegin).toHaveBeenCalledWith({ threadId: "t1" });
+    });
+
+    it("reports unavailable without touching the legacy fallback", async () => {
+      const fallback = createDriver({
+        lockedUseBegin: vi.fn<NonNullable<ComputerUseDriver["lockedUseBegin"]>>(),
+      });
+      const primary = createDriver({
+        listWindows: () =>
+          Promise.reject(new HelperUnavailableError("handshake_failed", "no helper")),
+        lockedUseBegin: () =>
+          Promise.reject(new HelperUnavailableError("handshake_failed", "no helper")),
+      });
+      const driver = new CompositeComputerUseDriver({ primary, fallback });
+      await expect(driver.lockedUseBegin({ threadId: "t1" })).resolves.toEqual({
+        outcome: "unavailable",
+        stage: LOCKED_USE_HELPER_UNAVAILABLE_STAGE,
+      });
+      await expect(driver.lockedUseEnd({ reason: "shutdown" })).resolves.toEqual({
+        outcome: "inactive",
+      });
+      await expect(driver.lockedUseStatus()).resolves.toMatchObject({
+        supported: false,
+        active: false,
+        screenLocked: false,
+      });
+      expect(fallback.lockedUseBegin).not.toHaveBeenCalled();
+    });
+
+    it("treats a primary without locked-use support as unavailable", async () => {
+      const driver = new CompositeComputerUseDriver({ primary: null, fallback: createDriver() });
+      await expect(driver.lockedUseBegin({ threadId: "t1" })).resolves.toMatchObject({
+        outcome: "unavailable",
+      });
+    });
   });
 });

@@ -397,6 +397,183 @@ describe("collectGrok token path", () => {
   });
 });
 
+describe("Grok unified zero-usage periods", () => {
+  const now = Date.parse("2026-10-26T05:12:00Z");
+  const period = {
+    start: "2026-10-26T01:59:39.567Z",
+    end: "2026-11-02T01:59:39.567Z",
+  };
+  // Sanitized shape observed after the CLI's weekly pool reset to 0%.
+  // Both endpoints returned HTTP 200; the credits view omitted its zero scalar
+  // and legacy billing only carried a 0/0 placeholder.
+  const zeroConfig = { isUnifiedBillingUser: true, currentPeriod: period };
+
+  function hostFor(config: Record<string, unknown>, cookie = true) {
+    const requested: string[] = [];
+    const routes = {
+      [GROK_CREDITS_ENDPOINT]: { body: JSON.stringify({ config }) },
+      [GROK_BILLING_ENDPOINT]: {
+        body: JSON.stringify({ config: { monthlyLimit: { val: 0 }, used: { val: 0 } } }),
+      },
+      [GROK_SETTINGS_ENDPOINT]: {
+        body: JSON.stringify({ subscription_tier_display: "SuperGrok Lite" }),
+      },
+      [GROK_GRPC_ENDPOINT]: { bodyBytes: LIVE_GRPC_BODY },
+    };
+    const host = createFakeHost({
+      nowMs: now,
+      tokens: { grok: { accessToken: "cli-token" } },
+      ...(cookie ? { secrets: { grok: { cookie: "sso=fixture" } } } : {}),
+      routes,
+      onRequest: (request) => requested.push(request.url),
+    });
+    return { host, routes, requested };
+  }
+
+  it.each([false, true])(
+    "reads omitted zero without a fallback (cookie available: %s)",
+    async (cookie) => {
+      const { host, requested } = hostFor(zeroConfig, cookie);
+      const snapshot = await collectGrok(host);
+
+      expect(snapshot).toMatchObject({
+        status: "ok",
+        fetchedAt: now,
+        plan: "SuperGrok Lite",
+        windows: [{ label: "Weekly credits", usedPercent: 0, resetsAt: Date.parse(period.end) }],
+      });
+      expect(requested).toEqual([GROK_CREDITS_ENDPOINT, GROK_SETTINGS_ENDPOINT]);
+    },
+  );
+
+  it("refreshes a previous cycle's 72% reading to the new cycle's omitted zero", async () => {
+    const previousPeriod = { start: "2026-10-19T01:59:39.567Z", end: period.start };
+    const { host, routes } = hostFor({
+      ...zeroConfig,
+      currentPeriod: previousPeriod,
+      creditUsagePercent: 72,
+    });
+    host.now = () => Date.parse("2026-10-26T01:57:53Z");
+    const previous = await collectGrok(host);
+    expect(previous.windows[0]).toMatchObject({
+      usedPercent: 72,
+      resetsAt: Date.parse(period.start),
+    });
+
+    routes[GROK_CREDITS_ENDPOINT] = { body: JSON.stringify({ config: zeroConfig }) };
+    host.now = () => now;
+    const refreshed = await collectGrok(host);
+    expect(refreshed).toMatchObject({
+      status: "ok",
+      fetchedAt: now,
+      windows: [{ usedPercent: 0, resetsAt: Date.parse(period.end) }],
+    });
+  });
+
+  const malformedPeriods = [
+    { label: "object start", currentPeriod: { ...period, start: {} } },
+    { label: "array start", currentPeriod: { ...period, start: [] } },
+    { label: "boolean start", currentPeriod: { ...period, start: true } },
+    { label: "object end", currentPeriod: { ...period, end: {} } },
+    { label: "array end", currentPeriod: { ...period, end: [] } },
+    { label: "boolean end", currentPeriod: { ...period, end: false } },
+  ];
+
+  it.each(malformedPeriods)("uses valid legacy billing for $label", async ({ currentPeriod }) => {
+    const { host, routes, requested } = hostFor({ ...zeroConfig, currentPeriod });
+    routes[GROK_BILLING_ENDPOINT] = {
+      body: JSON.stringify({
+        config: {
+          monthlyLimit: { val: 100 },
+          used: { val: 42 },
+          billingPeriodStart: period.start,
+          billingPeriodEnd: period.end,
+        },
+      }),
+    };
+
+    const snapshot = await collectGrok(host);
+
+    expect(snapshot).toMatchObject({
+      status: "ok",
+      windows: [{ usedPercent: 42, used: 42, limit: 100 }],
+    });
+    expect(requested).toEqual([
+      GROK_CREDITS_ENDPOINT,
+      GROK_BILLING_ENDPOINT,
+      GROK_SETTINGS_ENDPOINT,
+    ]);
+  });
+
+  it.each(malformedPeriods)(
+    "uses the cookie when both billing responses have $label",
+    async ({ currentPeriod }) => {
+      const { host, routes, requested } = hostFor({ ...zeroConfig, currentPeriod });
+      routes[GROK_BILLING_ENDPOINT] = routes[GROK_CREDITS_ENDPOINT];
+
+      const snapshot = await collectGrok(host);
+
+      expect(snapshot.status).toBe("ok");
+      expect(snapshot.windows[0]?.usedPercent).toBe(42.5);
+      expect(requested).toEqual([
+        GROK_CREDITS_ENDPOINT,
+        GROK_BILLING_ENDPOINT,
+        GROK_GRPC_ENDPOINT,
+        GROK_SETTINGS_ENDPOINT,
+      ]);
+    },
+  );
+
+  it.each([1, 1000])("preserves numeric period bounds at epoch scale %s", async (scale) => {
+    const { host, requested } = hostFor({
+      ...zeroConfig,
+      currentPeriod: {
+        start: Date.parse(period.start) / scale,
+        end: Date.parse(period.end) / scale,
+      },
+    });
+
+    const snapshot = await collectGrok(host);
+
+    expect(snapshot).toMatchObject({
+      status: "ok",
+      windows: [{ usedPercent: 0, resetsAt: Date.parse(period.end) }],
+    });
+    expect(requested).toEqual([GROK_CREDITS_ENDPOINT, GROK_SETTINGS_ENDPOINT]);
+  });
+
+  it.each([
+    ["missing unified marker", { currentPeriod: period }],
+    ["false unified marker", { ...zeroConfig, isUnifiedBillingUser: false }],
+    ["non-boolean marker", { ...zeroConfig, isUnifiedBillingUser: "true" }],
+    ["missing period", { isUnifiedBillingUser: true }],
+    ["missing start", { ...zeroConfig, currentPeriod: { end: period.end } }],
+    ["missing end", { ...zeroConfig, currentPeriod: { start: period.start } }],
+    ["invalid start", { ...zeroConfig, currentPeriod: { ...period, start: "invalid" } }],
+    ["invalid end", { ...zeroConfig, currentPeriod: { ...period, end: "invalid" } }],
+    ["reversed period", { ...zeroConfig, currentPeriod: { start: period.end, end: period.start } }],
+    [
+      "expired period",
+      { ...zeroConfig, currentPeriod: { start: "2026-10-19T01:59:39Z", end: period.start } },
+    ],
+    [
+      "future period",
+      { ...zeroConfig, currentPeriod: { start: period.end, end: "2026-11-09T01:59:39Z" } },
+    ],
+    ["empty period", { ...zeroConfig, currentPeriod: { start: period.start, end: period.start } }],
+    ["null percentage", { ...zeroConfig, creditUsagePercent: null }],
+    ["string percentage", { ...zeroConfig, creditUsagePercent: "0" }],
+    ["negative percentage", { ...zeroConfig, creditUsagePercent: -1 }],
+    ["out-of-range percentage", { ...zeroConfig, creditUsagePercent: 101 }],
+  ])("keeps the existing cookie fallback for %s", async (_label, config) => {
+    const { host, requested } = hostFor(config);
+    const snapshot = await collectGrok(host);
+    expect(snapshot.status).toBe("ok");
+    expect(snapshot.windows[0]?.usedPercent).toBe(42.5);
+    expect(requested).toContain(GROK_GRPC_ENDPOINT);
+  });
+});
+
 describe("grok OAuth refresh", () => {
   it("maps a refresh response and retains an omitted refresh token", () => {
     expect(parseGrokRefreshResponse({ access_token: "a", expires_in: 3600 }, NOW, "keep")).toEqual({

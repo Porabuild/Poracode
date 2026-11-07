@@ -21,12 +21,12 @@ import {
   type ComposedHostServices,
 } from "@/host/hostServices/composeHostServices";
 import type { DesktopBrowserNativeControl } from "./desktopAppBackendHost";
-import type { DesktopResourceDirs } from "./desktopAppShell";
+import { setComputerUseThreads, type DesktopResourceDirs } from "./desktopAppShell";
 import { safeStorageHealth } from "./safeStorageHealth";
 import { desktopApp, requirePoracodePaths } from "./desktopAppState";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { chromeNativeHostEnabled } from "@/host/browser/external/chromeNativeHost";
-import { focusBrowserExtractWindow } from "./desktopAppWindows";
+import { ensureMainWindow, focusBrowserExtractWindow } from "./desktopAppWindows";
 import { SshEnvironmentSupervisor } from "./ssh/sshEnvironmentSupervisor";
 import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 
@@ -87,6 +87,9 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
         desktopApp.browserExtractWindow !== null && !desktopApp.browserExtractWindow.isDestroyed(),
       focusExtractedWindow: focusBrowserExtractWindow,
       browserSession: electronSession.fromPartition(BROWSER_SESSION_PARTITION),
+      ensureHostWindow: () => {
+        if (!desktopApp.isQuitting) ensureMainWindow(false);
+      },
     },
   );
   desktopApp.browserPanelManager = panelManager;
@@ -97,8 +100,11 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
   // embedded `browser` server. They live side by side (composed in the shared
   // module below, identical to the standalone server).
 
-  // Exiting the badge interrupts the session's thread.
+  // Exiting the badge interrupts the session's thread. Session activity also
+  // feeds the "computer-use" keep-awake condition.
   const overlay = new ComputerUseDesktopOverlay({
+    onActivityState: (state) =>
+      setComputerUseThreads(state.level === "hidden" ? [] : state.threadIds),
     onExit: (threadIds) => {
       desktopApp.computerUseMcpIngress?.interruptActiveActions(threadIds);
       for (const threadId of threadIds) {

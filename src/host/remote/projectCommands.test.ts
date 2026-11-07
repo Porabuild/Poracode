@@ -3,7 +3,11 @@ import { reorderCatalogIds } from "@/shared/catalogOrder";
 import type { Project } from "@/shared/contracts";
 import { projectIdentityKey } from "@/shared/projectIdentity";
 import { remoteProjectCommandSchema } from "@/shared/remote";
-import { applyRemoteProjectCommand, type RemoteProjectCommandDeps } from "./projectCommands";
+import {
+  applyRemoteProjectCommand,
+  registerExistingProjectDirectory,
+  type RemoteProjectCommandDeps,
+} from "./projectCommands";
 
 const NOW = "2026-06-30T00:00:00.000Z";
 
@@ -73,6 +77,9 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
       async () => {},
     ),
     hasRunningProjectThread: () => false,
+    relocateProjectRuntime: vi.fn<RemoteProjectCommandDeps["relocateProjectRuntime"]>(
+      async () => {},
+    ),
     listProjectThreadIds: () => [],
     upsertProject,
     updateProject,
@@ -102,6 +109,43 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
 }
 
 describe("applyRemoteProjectCommand", () => {
+  it.each([
+    { platform: "win32", path: "C:\\" },
+    { platform: "linux", path: "/" },
+    { platform: "linux", path: "/work/repo:fixture" },
+  ] as const)(
+    "registers native folders with a valid default label while retaining existing metadata: %j",
+    ({ platform, path }) => {
+      const f = makeDeps({ platform });
+      const catalog = vi.spyOn(f.deps, "getProjects");
+      const first = registerExistingProjectDirectory({ kind: "add-existing", path }, f.deps, {
+        resultMode: "bounded",
+      });
+      expect(first.response.project?.name).toBe("Project");
+      expect(first.response.created).toBe(true);
+      const existing = {
+        ...f.projects[0]!,
+        name: "Keep my label",
+        scripts: { actions: [], setupScript: "preserved-fixture" },
+      };
+      f.projects[0] = existing;
+      const second = registerExistingProjectDirectory({ kind: "add-existing", path }, f.deps, {
+        resultMode: "bounded",
+      });
+      expect(second.response.created).toBe(false);
+      expect(second.response.project).toEqual(existing);
+      expect(f.upsertProject).toHaveBeenCalledOnce();
+      expect(f.updateProject).not.toHaveBeenCalled();
+      expect(catalog).not.toHaveBeenCalled();
+      expect(() =>
+        registerExistingProjectDirectory({ kind: "add-existing", path, name: "bad/name" }, f.deps, {
+          resultMode: "bounded",
+        }),
+      ).toThrow(/project name/iu);
+      expect(f.upsertProject).toHaveBeenCalledOnce();
+      expect(f.updateProject).not.toHaveBeenCalled();
+    },
+  );
   it("registers an existing folder, deriving the name from the path", async () => {
     const { deps, projects } = makeDeps();
     const result = await applyRemoteProjectCommand(
@@ -263,6 +307,8 @@ describe("applyRemoteProjectCommand", () => {
           name: "After",
           scripts: { actions: [], setupScript: "pnpm install" },
           ghAccount: { host: "github.com", login: "octocat" },
+          worktreeBaseBranch: "origin/main",
+          pinnedBranches: ["release"],
           disabled: true,
         },
       },
@@ -279,6 +325,8 @@ describe("applyRemoteProjectCommand", () => {
     );
     expect(result.response.project?.scripts?.setupScript).toBe("pnpm install");
     expect(result.response.project?.ghAccount).toEqual({ host: "github.com", login: "octocat" });
+    expect(result.response.project?.worktreeBaseBranch).toBe("origin/main");
+    expect(result.response.project?.pinnedBranches).toEqual(["release"]);
   });
 
   it("clears optional project settings when the patch uses null", async () => {
@@ -292,6 +340,9 @@ describe("applyRemoteProjectCommand", () => {
       searchSettings: { useIgnoreFiles: false },
       mcpServers: [],
       ghAccount: { host: "github.com", login: "octocat" },
+      worktreeBaseBranch: "origin/main",
+      pinnedBranches: ["release"],
+      pluginOverrides: { sentry: true },
       createdAt: NOW,
     });
 
@@ -305,6 +356,9 @@ describe("applyRemoteProjectCommand", () => {
           searchSettings: null,
           mcpServers: null,
           ghAccount: null,
+          worktreeBaseBranch: null,
+          pinnedBranches: null,
+          pluginOverrides: null,
         },
       },
       deps,
@@ -321,6 +375,29 @@ describe("applyRemoteProjectCommand", () => {
     expect(result.response.project).not.toHaveProperty("searchSettings");
     expect(result.response.project).not.toHaveProperty("mcpServers");
     expect(result.response.project).not.toHaveProperty("ghAccount");
+    expect(result.response.project).not.toHaveProperty("worktreeBaseBranch");
+    expect(result.response.project).not.toHaveProperty("pinnedBranches");
+    expect(result.response.project).not.toHaveProperty("pluginOverrides");
+  });
+
+  it("replaces project plugin switches through the patch", async () => {
+    const { deps, projects, updateProject } = makeDeps();
+    projects.push({
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      pluginOverrides: { sentry: true, linear: false },
+      createdAt: NOW,
+    });
+
+    await applyRemoteProjectCommand(
+      { kind: "update", projectId: "p1", patch: { pluginOverrides: { linear: true } } },
+      deps,
+    );
+
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "p1", pluginOverrides: { linear: true } }),
+    );
   });
 
   it("sets and updates the project icon through the patch", async () => {
@@ -518,6 +595,10 @@ describe("applyRemoteProjectCommand", () => {
     ).resolves.toMatchObject({
       response: { project: { location: { kind: "posix", path: "/srv/app" } } },
     });
+    expect(idle.deps.relocateProjectRuntime).toHaveBeenCalledWith("p1", {
+      kind: "posix",
+      path: "/srv/app",
+    });
 
     const running = makeDeps({ hasRunningProjectThread: () => true });
     running.projects.push(baseProject);
@@ -527,6 +608,62 @@ describe("applyRemoteProjectCommand", () => {
         running.deps,
       ),
     ).rejects.toMatchObject({ code: "project_has_running_threads", status: 409 });
+  });
+
+  it("keeps the stored folder when the host cannot re-point its runtime at the new one", async () => {
+    const baseProject: Project = {
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      createdAt: NOW,
+    };
+    const { deps, projects, updateProject } = makeDeps({
+      relocateProjectRuntime: async () => {
+        throw new Error("not a git repository");
+      },
+    });
+    projects.push(baseProject);
+    await expect(
+      applyRemoteProjectCommand({ kind: "relocate", projectId: "p1", path: "/srv/app" }, deps),
+    ).rejects.toThrow("not a git repository");
+    expect(updateProject).not.toHaveBeenCalled();
+    expect(projects).toEqual([baseProject]);
+  });
+
+  it("marks the effect boundary only once the runtime accepted the folder, right before the row write", async () => {
+    const baseProject: Project = {
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      createdAt: NOW,
+    };
+    const refusing = makeDeps({
+      relocateProjectRuntime: async () => {
+        throw new Error("not a git repository");
+      },
+    });
+    refusing.projects.push(baseProject);
+    const refused = vi.fn<() => void>();
+    await expect(
+      applyRemoteProjectCommand(
+        { kind: "relocate", projectId: "p1", path: "/srv/app" },
+        refusing.deps,
+        { onEffectBoundary: refused },
+      ),
+    ).rejects.toThrow("not a git repository");
+    // A definite refusal: no uncertain-effect receipt may be minted for it.
+    expect(refused).not.toHaveBeenCalled();
+
+    const accepting = makeDeps();
+    accepting.projects.push(baseProject);
+    const order: string[] = [];
+    accepting.updateProject.mockImplementation(() => order.push("write"));
+    await applyRemoteProjectCommand(
+      { kind: "relocate", projectId: "p1", path: "/srv/app" },
+      accepting.deps,
+      { onEffectBoundary: () => order.push("boundary") },
+    );
+    expect(order).toEqual(["boundary", "write"]);
   });
 
   it("rejects removing an unknown project", async () => {

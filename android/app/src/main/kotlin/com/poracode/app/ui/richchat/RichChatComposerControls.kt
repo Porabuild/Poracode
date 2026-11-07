@@ -142,6 +142,12 @@ internal fun RichChatComposerControlsSheet(
                         checked = draft.thinking == true,
                     ) { draft = draft.copy(thinking = it) }
                 }
+                if (catalog.supportsWorkflows(draft.model)) {
+                    ComposerToggleChip(
+                        label = catalog.workflowLabel ?: stringResource(R.string.rich_chat_workflows),
+                        checked = draft.workflows == true,
+                    ) { draft = draft.copy(workflows = it) }
+                }
             }
 
             if (catalog.modes.size > 1) {

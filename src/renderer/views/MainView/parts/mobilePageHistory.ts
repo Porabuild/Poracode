@@ -85,6 +85,8 @@ function applyHistoryEntry(entry: MobileHistoryEntry | null): void {
         ? (entry.githubActionsContext ?? state.githubActionsContext)
         : null,
     projectSettingsId: entry?.page === "projectSettings" ? (entry.projectSettingsId ?? null) : null,
+    // History restores the page, not a one-shot deep link into one of its sections.
+    projectSettingsSection: null,
   });
 }
 

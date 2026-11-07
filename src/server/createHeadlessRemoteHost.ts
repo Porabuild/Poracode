@@ -36,6 +36,7 @@ export interface HeadlessRemoteHostOptions {
   /** Path to the bundled `supervisor.cjs` the host should fork. */
   readonly supervisorPath: string;
   readonly databaseReadWorkerPath?: string;
+  readonly sessionExportWorkerPath?: string;
   /** Directory of in-WSL helper assets; forwarded to the supervisor for parity. */
   readonly wslHelpersDir: string;
   /** Directory of app-bundled read-only skills; forwarded to the supervisor. */
@@ -77,6 +78,8 @@ export interface HeadlessRemoteHostOptions {
    * this way so a failed qualification can never have accepted user writes.
    */
   readonly staging?: boolean;
+  /** In-process task owner: local authenticated administration without paired access or background jobs. */
+  readonly localAdministrationOnly?: boolean;
   /**
    * Begin the process's bounded graceful drain. When provided, the owner
    * answers the authenticated host-control `shutdown` operation with it
@@ -137,6 +140,7 @@ export interface HeadlessRemoteHost {
   readonly hostServices: ComposedHostServices;
   /** Starts the HTTP/WS server. The supervisor starts on its first call. Idempotent. */
   start(): Promise<RemoteAccessServerInfo>;
+  startLocalAdministration(): Promise<void>;
   /** Stops the server, kills the supervisor, and closes the database. */
   dispose(): Promise<void>;
 }
@@ -148,6 +152,13 @@ export async function createHeadlessRemoteHost(
   options: HeadlessRemoteHostOptions,
 ): Promise<HeadlessRemoteHost> {
   options.signal?.throwIfAborted();
+  if (
+    options.localAdministrationOnly &&
+    (options.staging || options.relayUrl !== undefined || options.registerChromeNativeHost)
+  )
+    throw new Error(
+      "Local task ownership cannot stage an upgrade, register a browser host or use a relay.",
+    );
   if (activeOwner) throw new Error("This process already owns a headless host.");
   const owner = HostOwnerController.acquire(
     options.baseDir ?? resolvePoracodeBaseDir(),
@@ -191,6 +202,15 @@ export async function createHeadlessRemoteHost(
           ready = true;
         }
         return info;
+      },
+      async startLocalAdministration() {
+        options.signal?.throwIfAborted();
+        await composition.startLocalAdministration();
+        options.signal?.throwIfAborted();
+        if (!ready) {
+          owner.markReady();
+          ready = true;
+        }
       },
       async dispose() {
         owner.cancelStartup();

@@ -5,6 +5,7 @@ struct ThreadLifecycleHTTPRequest: Sendable {
   let path: String
   let body: Data
   let headers: [String: String]
+  var timeout: TimeInterval? = nil
 }
 
 enum ThreadLifecycleRawHTTPError: Error, Equatable, Sendable {
@@ -53,7 +54,7 @@ struct GeneratedThreadLifecycleRemoteAPI: ThreadLifecycleRemoteAPI, Sendable {
       try GeneratedRemoteV3Contract.threadStartExistingRequest(
         request, commandID: commandID)
     }
-    let response = try await dispatch(prepared)
+    let response = try await dispatch(prepared, timeout: 600)
     do {
       return try GeneratedRemoteV3Contract.threadStartExistingResponse(response)
     } catch is CancellationError {
@@ -78,7 +79,13 @@ struct GeneratedThreadLifecycleRemoteAPI: ThreadLifecycleRemoteAPI, Sendable {
         commandID: commandID
       )
     }
-    let response = try await dispatch(prepared)
+    let timeout: TimeInterval?
+    if case .start = command {
+      timeout = 600
+    } else {
+      timeout = nil
+    }
+    let response = try await dispatch(prepared, timeout: timeout)
     do {
       try GeneratedRemoteV3Contract.validateThreadCommandResponse(response)
     } catch is CancellationError {
@@ -100,7 +107,9 @@ struct GeneratedThreadLifecycleRemoteAPI: ThreadLifecycleRemoteAPI, Sendable {
     }
   }
 
-  private func dispatch(_ prepared: ThreadLifecyclePreparedRequest) async throws -> Data {
+  private func dispatch(
+    _ prepared: ThreadLifecyclePreparedRequest, timeout: TimeInterval? = nil
+  ) async throws -> Data {
     try Task.checkCancellation()
     do {
       return try await http.executeThreadLifecycleRequest(
@@ -108,7 +117,8 @@ struct GeneratedThreadLifecycleRemoteAPI: ThreadLifecycleRemoteAPI, Sendable {
           method: prepared.method,
           path: prepared.path,
           body: prepared.body,
-          headers: prepared.headers
+          headers: prepared.headers,
+          timeout: timeout
         ))
     } catch is CancellationError {
       throw CancellationError()

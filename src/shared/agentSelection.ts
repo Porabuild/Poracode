@@ -111,6 +111,8 @@ export function capabilitiesForPresentation(
     defaultContextSize: _defaultContextSize,
     fastModels: _fastModels,
     thinkingModels: _thinkingModels,
+    workflowModels: _workflowModels,
+    workflowLabel: _workflowLabel,
     subProviders: _subProviders,
     modelSubProvider: _modelSubProvider,
     modelFamilies: _modelFamilies,
@@ -190,7 +192,7 @@ export function agentStatusForPresentation(
     : stripProviderLogin(runtimeStatus);
 }
 
-function runtimeVariantForSession(
+export function runtimeVariantForSession(
   status: AgentStatus,
   presentationMode: ThreadPresentationMode,
   sessionRef: SessionRef | undefined,
@@ -305,6 +307,11 @@ export function modelSelectionFor(
   };
 }
 
+/** Whether a model can run the provider's workflow mode (`ThreadConfig.workflows`). */
+export function supportsWorkflowMode(capabilities: AgentCapability, model: string): boolean {
+  return capabilities.workflowModels?.includes(model) === true;
+}
+
 /**
  * True when a model offers more than one reasoning level — i.e. there is
  * something for the user to pick. A single advertised level (Kimi's untiered
@@ -330,6 +337,11 @@ export function resolveModelSelection(capabilities: AgentCapability, preferred?:
     : (capabilities.models[0]?.id ?? "");
 }
 
+/**
+ * A valid saved choice wins; otherwise the model's or provider's declared
+ * default. Never auto-pick the strongest tier: top tiers multiply usage and
+ * must stay an explicit choice.
+ */
 export function resolveReasoningSelection(
   capabilities: AgentCapability,
   model: string,

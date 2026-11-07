@@ -7,6 +7,21 @@ const stoppedRecord = () => ({ generation: "gen-1", phase: "stopped" }) as never
 const runningRecord = () => ({ generation: "gen-1", phase: "ready" }) as never;
 
 describe("stopRunningServer", () => {
+  it("refuses a different child before requesting shutdown or waiting", async () => {
+    const call = vi.fn<() => Promise<{ ownerGeneration: string }>>();
+    const readRecord = vi.fn<typeof stoppedRecord>();
+    await expect(
+      stopRunningServer("/tmp/poracode-stop-wrong-child", {
+        expectedPid: 9999,
+        probe: async () => probe,
+        request: { call },
+        wait: { readRecord },
+      }),
+    ).rejects.toThrow("not the expected child");
+    expect(call).not.toHaveBeenCalled();
+    expect(readRecord).not.toHaveBeenCalled();
+  });
+
   it("reports not-running when there is no live owner", async () => {
     const request = vi.fn<() => Promise<{ ownerGeneration: string }>>();
     await expect(
@@ -24,6 +39,7 @@ describe("stopRunningServer", () => {
     }));
     await expect(
       stopRunningServer("/tmp/poracode-stop-ok", {
+        expectedPid: 4242,
         probe: async () => probe,
         request: { call, discoveryGeneration: () => "gen-1" },
         wait: { readRecord: stoppedRecord },

@@ -9,12 +9,43 @@ import type {
 } from "@/shared/contracts";
 import type { WslBridgeClient } from "../wsl/bridge/client";
 import { execGit, removeWslPathViaBridge } from "./exec";
+import { GitProcessAdmissionError } from "./gitProcessAdmission";
 
 const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 const REF_ROOT = "refs/poracode/checkpoints";
 const LEGACY_REF_ROOT = "refs/lightcode/checkpoints";
 
 type CheckpointMetadata = FileCheckpointRecord | FileCheckpointTurn;
+
+/**
+ * One `for-each-ref` returns every checkpoint's ref, object type, object and
+ * message, so listing a thread spawns one git process instead of two per
+ * checkpoint (about 84 ms each on Windows; 87 checkpoints took 7.3 s). `%00` is
+ * a NUL, which a git message cannot contain.
+ */
+const LIST_FORMAT = "%(refname)%00%(objecttype)%00%(objectname)%00%(contents)%00";
+const LIST_FIELDS = 4;
+
+/** A listed ref with its commit and message, or just its name when it needs the per-ref read. */
+type ListedRef = { ref: string; commit: string; body: string } | { ref: string };
+
+/** Null when the output is not whole LIST_FIELDS-field records, so the caller can fall back. */
+function parseListedRefs(output: string): ListedRef[] | null {
+  const fields = output.split("\0");
+  if (fields.length % LIST_FIELDS !== 1 || fields.at(-1)!.trim() !== "") return null;
+  const listed: ListedRef[] = [];
+  for (let offset = 0; offset + LIST_FIELDS < fields.length; offset += LIST_FIELDS) {
+    const [ref, objectType, commit, body] = fields.slice(offset, offset + LIST_FIELDS) as [
+      string,
+      string,
+      string,
+      string,
+    ];
+    // A non-commit ref keeps the per-ref read, which peels it to a commit.
+    listed.push(objectType === "commit" ? { ref: ref.trim(), commit, body } : { ref: ref.trim() });
+  }
+  return listed;
+}
 
 /**
  * Checkpoints are internal, never-published commits, so a repository without a
@@ -117,20 +148,14 @@ export class GitCheckpointService {
     const prefixes = [REF_ROOT, LEGACY_REF_ROOT].map(
       (root) => `${root}/${refSegment(input.threadId)}/`,
     );
-    const output = await execGit(input.projectLocation, [
-      "for-each-ref",
-      "--format=%(refname)",
-      ...prefixes,
-    ]);
-    const refs = output
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
+    const listed =
+      (await this.listBatched(input.projectLocation, prefixes)) ??
+      (await this.listRefNames(input.projectLocation, prefixes));
     const checkpoints: FileCheckpointRecord[] = [];
     const turns: FileCheckpointTurn[] = [];
 
-    for (const ref of refs) {
-      const metadata = await this.readCheckpointMetadata(input.projectLocation, ref);
+    for (const entry of listed) {
+      const metadata = await this.metadataFor(input.projectLocation, entry);
       if (!metadata || metadata.threadId !== input.threadId) continue;
       checkpoints.push(metadata);
       if ("baseCheckpointItemId" in metadata) turns.push(metadata);
@@ -151,6 +176,49 @@ export class GitCheckpointService {
     if (await resolveHeadCommit(input.projectLocation)) {
       await execGit(input.projectLocation, ["reset", "--mixed", "--quiet", "HEAD"]);
     }
+  }
+
+  private async metadataFor(
+    projectLocation: ProjectLocation,
+    entry: ListedRef,
+  ): Promise<CheckpointMetadata | null> {
+    return "body" in entry
+      ? parseCheckpointMetadata(entry.body, entry.ref, entry.commit)
+      : this.readCheckpointMetadata(projectLocation, entry.ref);
+  }
+
+  /** Null when the batch cannot be used (it failed, e.g. oversized output, or is malformed). */
+  private async listBatched(
+    projectLocation: ProjectLocation,
+    prefixes: readonly string[],
+  ): Promise<ListedRef[] | null> {
+    try {
+      return parseListedRefs(
+        await execGit(projectLocation, ["for-each-ref", `--format=${LIST_FORMAT}`, ...prefixes]),
+      );
+    } catch (error) {
+      // An admission refusal is a typed overload signal; running more git processes
+      // would only worsen it. Anything else (e.g. oversized output) takes the per-ref
+      // path, which re-runs git, so a genuinely broken repository still throws there.
+      if (error instanceof GitProcessAdmissionError) throw error;
+      return null;
+    }
+  }
+
+  private async listRefNames(
+    projectLocation: ProjectLocation,
+    prefixes: readonly string[],
+  ): Promise<ListedRef[]> {
+    const output = await execGit(projectLocation, [
+      "for-each-ref",
+      "--format=%(refname)",
+      ...prefixes,
+    ]);
+    return output
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((ref) => ({ ref }));
   }
 
   private async readCheckpoint(
@@ -225,17 +293,25 @@ export class GitCheckpointService {
       return null;
     }
     const body = await execGit(projectLocation, ["log", "-1", "--format=%B", ref]);
-    const jsonLine = body
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .find((line) => line.startsWith("{") && line.endsWith("}"));
-    if (!jsonLine) return null;
-    try {
-      const parsed = JSON.parse(jsonLine) as CheckpointMetadata;
-      return { ...parsed, ref, commit };
-    } catch {
-      return null;
-    }
+    return parseCheckpointMetadata(body, ref, commit);
+  }
+}
+
+function parseCheckpointMetadata(
+  body: string,
+  ref: string,
+  commit: string,
+): CheckpointMetadata | null {
+  const jsonLine = body
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.startsWith("{") && line.endsWith("}"));
+  if (!jsonLine) return null;
+  try {
+    const parsed = JSON.parse(jsonLine) as CheckpointMetadata;
+    return { ...parsed, ref, commit };
+  } catch {
+    return null;
   }
 }
 

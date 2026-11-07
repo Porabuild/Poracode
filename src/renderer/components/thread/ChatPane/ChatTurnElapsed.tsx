@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useShimmerRef } from "@/renderer/thinkingAnimator";
@@ -10,76 +10,58 @@ export interface TurnTiming {
   endedAt: number | null;
 }
 
-export function ChatTurnElapsedFooter({
-  turn,
-  isPaused = false,
-  isWaitingForBackground = false,
-}: {
+/** The transcript-tail surface every closing status line renders inside. */
+export function ChatTailStatus({ children }: { children: ReactNode }) {
+  return (
+    <div className="mx-auto w-full max-w-[920px]">
+      <Surface variant="transparent" className={chatMessageSurfaceClass}>
+        <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
+          {children}
+        </div>
+      </Surface>
+    </div>
+  );
+}
+
+interface ChatTurnStatusProps {
   turn: TurnTiming;
   isPaused?: boolean;
   isWaitingForBackground?: boolean;
-}) {
+}
+
+export function ChatTurnStatus({
+  turn,
+  isPaused = false,
+  isWaitingForBackground = false,
+}: ChatTurnStatusProps) {
   const { t } = useLingui();
-  return (
-    <div className="mx-auto w-full max-w-[920px]">
-      <Surface variant="transparent" className={chatMessageSurfaceClass}>
-        <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          {isWaitingForBackground ? (
-            <span className="text-muted" aria-live="polite">{t`Waiting for background tasks`}</span>
-          ) : (
-            <WorkingFor turn={turn} isPaused={isPaused} />
-          )}
-        </div>
-      </Surface>
-    </div>
+  return isWaitingForBackground ? (
+    <span className="text-muted" aria-live="polite">{t`Waiting for background tasks`}</span>
+  ) : (
+    <WorkingFor turn={turn} isPaused={isPaused} />
   );
 }
 
-export function ChatWorktreeProvisioningFooter() {
-  const { t } = useLingui();
+export function ChatShimmerStatus({ text }: { text: string }) {
   const textRef = useRef<HTMLSpanElement>(null);
-  const text = t`Creating worktree…`;
   useShimmerRef(textRef, true);
-
   return (
-    <div className="mx-auto w-full max-w-[920px]">
-      <Surface variant="transparent" className={chatMessageSurfaceClass}>
-        <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          <span
-            ref={textRef}
-            className="poracode-thinking-text"
-            data-poracode-shimmer-text={text}
-            aria-live="polite"
-          >
-            {text}
-          </span>
-        </div>
-      </Surface>
-    </div>
+    <span
+      ref={textRef}
+      className="poracode-thinking-text"
+      data-poracode-shimmer-text={text}
+      aria-live="polite"
+    >
+      {text}
+    </span>
   );
 }
 
-export function ChatConnectingFooter() {
-  const { t } = useLingui();
-  const textRef = useRef<HTMLSpanElement>(null);
-  const text = t`Connecting…`;
-  useShimmerRef(textRef, true);
-
+export function ChatTurnElapsedFooter(props: ChatTurnStatusProps) {
   return (
-    <div className="mx-auto w-full max-w-[920px]">
-      <Surface variant="transparent" className={chatMessageSurfaceClass}>
-        <div className="inline-flex items-center gap-1.5 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
-          <span
-            ref={textRef}
-            className="poracode-thinking-text"
-            data-poracode-shimmer-text={text}
-            aria-live="polite"
-          >
-            {text}
-          </span>
-        </div>
-      </Surface>
-    </div>
+    <ChatTailStatus>
+      <ChatTurnStatus {...props} />
+    </ChatTailStatus>
   );
 }
 

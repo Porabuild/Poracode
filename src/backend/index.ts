@@ -1,4 +1,9 @@
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
+import { serializeBackendDiagnosticError } from "@/shared/diagnostics/backendDiagnosticError";
+import { classifyErrorCause } from "@/shared/diagnostics/errorCause";
+import { sanitizeSentryEvent } from "@/shared/diagnostics/sentryPrivacy";
+import { DESKTOP_HOST_CONTROL_VERSION } from "@/shared/desktopHostControl";
+import { validateDesktopControlGrant } from "./ownership/delegatedHostControl";
 import { dirname, join } from "node:path";
 import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
@@ -19,6 +24,7 @@ import { shutdownBackendHost } from "./shutdown";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { callDatabaseRpc } from "@/host/db/databaseRpc";
 import { getRuntimePersistenceSample } from "@/host/db/runtimePersistenceRuntime";
+import { serverLogFilePath, startServerLogFile } from "@/server/serverLogFile";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import type { SupervisorEvent } from "@/shared/ipc";
 
@@ -49,6 +55,11 @@ let shuttingDown = false;
 let acceptingRequests = true;
 let runtimeStop: Promise<void> | null = null;
 let runtimeWorkJoined = false;
+/** Desktop parity with `poracode serve`: everything the backend logs at or
+ * above the configured level mirrors into `<host root>/logs/server.log`
+ * (leveled, size-rotated). Started only after the delegated ownership grant
+ * validated and the owned root is known; `null` for flavors without one. */
+let logFileSink: ReturnType<typeof startServerLogFile> | null = null;
 
 function stopRuntimeWork(): Promise<void> {
   if (runtimeStop) return runtimeStop;
@@ -166,11 +177,15 @@ function reportError(
   error: unknown,
   tags?: import("@/shared/diagnostics/sentryPrivacy").PoracodeDiagnosticTags,
 ): void {
+  if (classifyErrorCause(error, "backend")) return;
+  const safeTags = tags ? sanitizeSentryEvent({ tags }).tags : undefined;
+  const diagnostic = serializeBackendDiagnosticError(error);
   send({
     version: BACKEND_HOST_PROTOCOL_VERSION,
     kind: "error",
-    message: error instanceof Error ? error.message : String(error),
-    ...(tags ? { tags } : {}),
+    message: diagnostic.message ?? "Backend operation failed.",
+    diagnostic,
+    ...(safeTags ? { tags: safeTags } : {}),
   });
 }
 
@@ -206,7 +221,32 @@ async function initialize(
 ): Promise<unknown> {
   if (backendHost) throw new Error("Backend host is already initialized.");
   const { baseDir, dbPath, supervisor } = request.payload;
+  const localControl = request.payload.desktop?.localControl;
+  // A future/foreign delegation must refuse before key configuration, root
+  // preparation, database opening or provider/service construction.
+  if (localControl !== undefined)
+    validateDesktopControlGrant({
+      grant: localControl,
+      dataRoot: baseDir,
+      dataFencePath: request.payload.desktop?.dataFencePath,
+      ownerPid: process.ppid,
+    });
   configureSecretStorageKey(supervisor.secretStorageKey);
+  // Desktop-managed flavors mirror the process's console output into the
+  // leveled, rotated server log under the owned root — the main process pipes
+  // this child's stdout nowhere, so without this sink a production incident
+  // leaves no host-side evidence at all. Started only for compositions that
+  // carry the desktop ownership grant (the standalone CLI `serve` installs its
+  // own sink), and only after that grant validated: nothing writes to the
+  // root before ownership. Level comes from PORACODE_LOG_LEVEL (default info).
+  if (request.payload.desktop !== undefined && logFileSink === null) {
+    logFileSink = startServerLogFile({ path: serverLogFilePath(baseDir), env: process.env });
+    console.log(
+      "[backend-host] log file: %s (level %s)",
+      serverLogFilePath(baseDir),
+      logFileSink.level,
+    );
+  }
   // Desktop services can only be built on the constructed host, so a
   // supervisor launch that races initialization (for example the first
   // managed-loopback command) waits for this barrier instead of forking
@@ -217,6 +257,7 @@ async function initialize(
     baseDir,
     dbPath,
     databaseReadWorkerPath: join(dirname(supervisor.supervisorPath), "databaseReadWorker.cjs"),
+    databaseReadImagePreviews: request.payload.desktop !== undefined,
     databaseSchemaMode: "migrate",
     markLiveThreadsInactiveOnOpen: true,
     // Desktop main resolves the fence from the same canonical root mapping as
@@ -238,6 +279,9 @@ async function initialize(
         await Promise.all([desktopServicesReady.promise, supervisorEnvironmentReady.promise]);
         await desktopServices?.prepareSupervisor();
       },
+      // Every (re)spawn, crash respawns included: restore the project watches
+      // that clients registered once and never re-send.
+      onStarted: () => desktopServices?.handleSupervisorStarted(),
       reportError,
     },
     onEvent: (event) => {
@@ -295,7 +339,14 @@ async function initialize(
   }
   desktopServicesReady.resolve();
   if (!acceptingRequests) throw new Error("Backend host is shutting down.");
-  return null;
+  return localControl
+    ? {
+        localControl: {
+          version: DESKTOP_HOST_CONTROL_VERSION,
+          ownerGeneration: localControl.ownerGeneration,
+        },
+      }
+    : null;
 }
 
 function handleRequest(request: BackendHostRequest): Promise<unknown> {
@@ -320,6 +371,10 @@ async function disposeRuntime(): Promise<null> {
   environments = null;
   backendHost?.closeDatabase();
   backendHost = null;
+  // A later initialize on this child starts a fresh sink (the guard in
+  // `initialize` only installs when the handle is null).
+  logFileSink?.stop();
+  logFileSink = null;
   return null;
 }
 
@@ -462,6 +517,9 @@ async function shutdown(exitCode: number, flush: boolean): Promise<void> {
         backendHost?.closeDatabase();
         backendHost = null;
       },
+      // The sink restores the original console hooks; later fatal reports go
+      // to stderr only, which is fine at process exit.
+      () => logFileSink?.stop(),
       () => performanceDiagnostics?.stop(),
     ],
     exitCode,

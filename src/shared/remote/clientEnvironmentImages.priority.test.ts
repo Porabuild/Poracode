@@ -48,7 +48,11 @@ it("bounds a 76-reference gallery burst without aborting or evicting mounted ima
     h.resolve(index, [index]);
   }
   await vi.waitFor(() =>
-    expect(h.cache.resolutionForImageKey(environmentImageRefKey(refs[63]!)).url).not.toBe(""),
+    expect(
+      refs
+        .slice(0, ENVIRONMENT_IMAGE_CACHE_MAX_ENTRIES)
+        .every((ref) => h.cache.resolutionForImageKey(environmentImageRefKey(ref)).url !== ""),
+    ).toBe(true),
   );
   expect(h.cache.resolutionForImageKey(visibleKey).url).toBe("blob:1");
   expect(h.revoked).toEqual([]);
@@ -146,4 +150,196 @@ it("releases foreground priority after the last mounted consumer leaves", async 
   h.cache.localImageResolution("/last");
   expect(h.snapshot("/visible").url).toBe("");
   expect(h.revoked).toContain("blob:1");
+});
+
+it("starts a focused image in a reserved slot ahead of queued mounted images", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  for (const path of ["/a", "/b", "/c"]) h.cache.localImageResolution(path);
+  expect(h.fetches).toHaveLength(1);
+
+  // The open lightbox image does not wait for the busy slot or the queue.
+  h.cache.subscribeImageKey(environmentLocalImageKey("/focus"), () => undefined, "focus");
+  h.cache.localImageResolution("/focus", "focus");
+  expect(h.fetches).toHaveLength(2);
+  expect(h.fetches[1]!.requestPath).toContain("path=%2Ffocus");
+
+  // The reserved slot is for focus only: mounted images keep the normal bound.
+  h.resolve(1, [9]);
+  await vi.waitFor(() => expect(h.snapshot("/focus").url).not.toBe(""));
+  expect(h.fetches).toHaveLength(2);
+  h.resolve(0, [1]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
+  expect(h.fetches[2]!.requestPath).toContain("path=%2Fc");
+});
+
+it("promotes an already queued image when it gains focus", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  for (const path of ["/a", "/b", "/c"]) h.cache.localImageResolution(path);
+  const unsubscribe = h.cache.subscribeImageKey(
+    environmentLocalImageKey("/b"),
+    () => undefined,
+    "focus",
+  );
+  expect(h.fetches).toHaveLength(2);
+  expect(h.fetches[1]!.requestPath).toContain("path=%2Fb");
+  unsubscribe();
+
+  // Once focus leaves, no further key may use the reserved slot.
+  h.resolve(1, [2]);
+  await vi.waitFor(() => expect(h.snapshot("/b").url).not.toBe(""));
+  expect(h.fetches).toHaveLength(2);
+});
+
+it("starts queued transcript images bottom to top whatever order the rows requested in", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  h.cache.localImageResolution("/busy", "foreground");
+  // Rows mount in stages: a lower window first, then rows above it.
+  h.cache.localImageResolution("/row-8", "foreground", undefined, 8);
+  h.cache.localImageResolution("/row-9", "foreground", undefined, 9);
+  h.cache.localImageResolution("/row-3", "foreground", undefined, 3);
+  h.cache.localImageResolution("/row-5", "foreground", undefined, 5);
+
+  const started: string[] = [];
+  for (let index = 0; index < 4; index++) {
+    h.resolve(index, [index]);
+    await vi.waitFor(() => expect(h.fetches).toHaveLength(index + 2));
+    started.push(decodeURIComponent(h.fetches[index + 1]!.requestPath.split("path=")[1]!));
+  }
+  expect(started).toEqual(["/row-9", "/row-8", "/row-5", "/row-3"]);
+});
+
+it("starts unranked demand before ranked transcript images and refreshes a re-requested rank", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  h.cache.localImageResolution("/busy", "foreground");
+  h.cache.localImageResolution("/row-4", "foreground", undefined, 4);
+  h.cache.localImageResolution("/row-2", "foreground", undefined, 2);
+  h.cache.localImageResolution("/composer", "foreground");
+  // History above loaded and shifted this row down to index 6.
+  h.cache.localImageResolution("/row-2", "foreground", undefined, 6);
+
+  h.resolve(0, [1]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(2));
+  expect(h.fetches[1]!.requestPath).toContain("composer");
+  h.resolve(1, [2]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
+  expect(h.fetches[2]!.requestPath).toContain("row-2");
+});
+
+it("prefetch at capacity replaces the least-recently-used unmounted entry, never a mounted one", async () => {
+  const h = harness({ maxEntries: 2 });
+  h.cache.subscribeImageKey(environmentLocalImageKey("/visible"), () => undefined);
+  h.cache.localImageResolution("/visible");
+  h.resolve(0, [1]);
+  await vi.waitFor(() => expect(h.snapshot("/visible").url).toBe("blob:1"));
+  h.cache.localImageResolution("/old", "background");
+  h.resolve(1, [2]);
+  await vi.waitFor(() => expect(h.snapshot("/old").url).toBe("blob:2"));
+
+  h.cache.localImageResolution("/next", "prefetch");
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
+  expect(h.fetches[2]!.requestPath).toContain("path=%2Fnext");
+  expect(h.revoked).toContain("blob:2");
+  expect(h.snapshot("/visible").url).toBe("blob:1");
+  expect(h.snapshot("/old").url).toBe("");
+  h.resolve(2, [3]);
+  await vi.waitFor(() => expect(h.snapshot("/next").url).toBe("blob:3"));
+});
+
+it("prefetch is refused when every entry is held by a mounted consumer", () => {
+  const h = harness({ maxEntries: 1 });
+  h.cache.subscribeImageKey(environmentLocalImageKey("/visible"), () => undefined);
+  h.cache.localImageResolution("/visible");
+  h.resolve(0, [1]);
+  h.cache.localImageResolution("/next", "prefetch");
+  expect(h.fetches).toHaveLength(1);
+  expect(h.snapshot("/next").url).toBe("");
+});
+
+it("prefetch starts after foreground demand and ahead of background work", async () => {
+  const h = harness({ maxConcurrentFetches: 1 });
+  h.cache.localImageResolution("/busy", "foreground");
+  h.cache.localImageResolution("/bg", "background");
+  h.cache.localImageResolution("/pf", "prefetch");
+  h.cache.subscribeImageKey(environmentLocalImageKey("/fg"), () => undefined);
+  h.cache.localImageResolution("/fg");
+  expect(h.fetches).toHaveLength(1);
+  h.resolve(0, [1]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(2));
+  expect(h.fetches[1]!.requestPath).toContain("path=%2Ffg");
+  h.resolve(1, [2]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
+  expect(h.fetches[2]!.requestPath).toContain("path=%2Fpf");
+  h.resolve(2, [3]);
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(4));
+  expect(h.fetches[3]!.requestPath).toContain("path=%2Fbg");
+});
+
+it("an over-budget prefetch replaces older unmounted bytes instead of dropping itself", async () => {
+  const h = harness({ maxBytes: 5 });
+  h.cache.subscribeImageKey(environmentLocalImageKey("/visible"), () => undefined);
+  h.cache.localImageResolution("/visible");
+  h.resolve(0, [1, 2]);
+  await vi.waitFor(() => expect(h.snapshot("/visible").url).toBe("blob:1"));
+  h.cache.localImageResolution("/old", "background");
+  h.resolve(1, [3, 4]);
+  await vi.waitFor(() => expect(h.snapshot("/old").url).toBe("blob:2"));
+
+  h.cache.localImageResolution("/new", "prefetch");
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
+  h.resolve(2, [5, 6, 7]);
+  await vi.waitFor(() => expect(h.snapshot("/new").url).toBe("blob:3"));
+  expect(h.revoked).toContain("blob:2");
+  expect(h.snapshot("/visible").url).toBe("blob:1");
+  expect(h.snapshot("/old").url).toBe("");
+});
+
+it("a prefetch never aborts another unsettled prefetch", async () => {
+  const h = harness({ maxEntries: 2 });
+  h.cache.subscribeImageKey(environmentLocalImageKey("/visible"), () => undefined);
+  h.cache.localImageResolution("/visible");
+  h.resolve(0, [1]);
+  h.cache.localImageResolution("/a", "prefetch");
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(2));
+  h.cache.localImageResolution("/b", "prefetch");
+  expect(h.fetches).toHaveLength(2);
+  expect(h.fetches[1]!.signal.aborted).toBe(false);
+  expect(h.snapshot("/b").url).toBe("");
+});
+
+it("foreground demand bypasses a prefetch eviction latch", async () => {
+  const h = harness({ maxEntries: 1 });
+  h.cache.localImageResolution("/p", "prefetch");
+  h.resolve(0, [1]);
+  await vi.waitFor(() => expect(h.snapshot("/p").url).toBe("blob:1"));
+
+  h.cache.subscribeImageKey(environmentLocalImageKey("/visible"), () => undefined);
+  h.cache.localImageResolution("/visible");
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(2));
+  h.resolve(1, [2]);
+  await vi.waitFor(() => expect(h.snapshot("/visible").url).toBe("blob:2"));
+  expect(h.snapshot("/p").url).toBe("");
+
+  h.cache.subscribeImageKey(environmentLocalImageKey("/p"), () => undefined);
+  h.cache.localImageResolution("/p");
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
+  expect(h.fetches[2]!.requestPath).toContain("path=%2Fp");
+});
+
+it("an over-budget prefetch drops itself rather than displacing a mounted image", async () => {
+  const h = harness({ maxBytes: 5 });
+  h.cache.subscribeImageKey(environmentLocalImageKey("/visible"), () => undefined);
+  h.cache.localImageResolution("/visible");
+  h.resolve(0, [1, 2, 3]);
+  await vi.waitFor(() => expect(h.snapshot("/visible").url).toBe("blob:1"));
+
+  h.cache.localImageResolution("/new", "prefetch");
+  await vi.waitFor(() => expect(h.fetches).toHaveLength(2));
+  h.resolve(1, [4, 5, 6]);
+  await vi.waitFor(() => expect(h.revoked).toContain("blob:2"));
+  expect(h.snapshot("/new").url).toBe("");
+  expect(h.snapshot("/visible").url).toBe("blob:1");
+
+  // The self-drop latches like any other speculative eviction: no refetch storm.
+  h.cache.localImageResolution("/new", "prefetch");
+  expect(h.fetches).toHaveLength(2);
 });

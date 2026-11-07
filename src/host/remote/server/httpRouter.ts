@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { performance } from "node:perf_hooks";
+import { recordHandlerTiming } from "@/shared/diagnostics/handlerTimingObservations";
 import type { RemoteHttpRouteContract, RemoteHttpRouteId } from "@/shared/remote/contract";
 import { REMOTE_HTTP_ROUTES } from "@/shared/remote/contract";
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
@@ -21,6 +23,7 @@ import { writeError, writeHtml, writeText } from "./httpResponses";
 import type { HttpRouteCall, HttpRouteHandler } from "./httpRouteHandlers";
 import { auditRouteEvent, ROUTE_HANDLERS } from "./httpRouteHandlers";
 import { requireCurrentRemoteProtocolVersion } from "./writerProtocolAdmission";
+import { buildMcpAppCsp, MCP_APP_SANDBOX_HTML, MCP_APP_SANDBOX_PATH } from "@/shared/mcpAppSandbox";
 
 export { mapCheckpointRevertCompletedResponse } from "./httpRouteHandlers";
 
@@ -113,6 +116,27 @@ export async function handleHttp(
     // the OPTIONS short-circuit (preflights need no origin decision beyond
     // CORS) and before any routing or authentication.
     ctx.security.enforceHostHeader(req);
+    if (req.method === "GET" && url.pathname === MCP_APP_SANDBOX_PATH) {
+      let csp: unknown;
+      const policy = url.searchParams.get("csp");
+      if (policy && policy.length <= 8192) {
+        try {
+          csp = JSON.parse(policy);
+        } catch {
+          // Malformed policy grants no external network access.
+        }
+      }
+      res.setHeader("content-security-policy", buildMcpAppCsp(csp));
+      res.setHeader(
+        "permissions-policy",
+        "camera=(), microphone=(), geolocation=(), clipboard-read=(), clipboard-write=()",
+      );
+      res.setHeader("referrer-policy", "no-referrer");
+      res.setHeader("x-content-type-options", "nosniff");
+      res.setHeader("cache-control", "no-store");
+      writeHtml(res, 200, MCP_APP_SANDBOX_HTML);
+      return;
+    }
     if (req.method === "GET" && isLegacyClientPath(url.pathname)) {
       res.writeHead(308, { location: `/${url.search}` });
       res.end();
@@ -264,9 +288,14 @@ export async function handleHttp(
       const lease = principalId
         ? ctx.principalAdmission.tryAdmitWork(principalId, workClass)
         : null;
+      const handlerStartedAt = performance.now();
       try {
         await handler(call);
       } finally {
+        // Opt-in evidence only (no-op unless perf diagnostics are recording):
+        // pairs with the process sampler's event-loop-delay window so a stall
+        // can be attributed to the handler(s) that ran during it.
+        recordHandlerTiming(`route:${route.id}`, performance.now() - handlerStartedAt);
         lease?.release();
       }
       return;

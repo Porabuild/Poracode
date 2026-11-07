@@ -2,7 +2,12 @@ import type { PersistStorage, StorageValue } from "zustand/middleware";
 import { filterKnownRemoteAccessScopes } from "@/shared/remote";
 import { sshConnectionConfigSchema } from "@/shared/ssh";
 import { remoteConnectionKey, type RemoteServerRecord } from "./types";
-import { deleteDesktopToken, getDesktopToken, setDesktopToken } from "./tokenVault";
+import {
+  deleteDesktopToken,
+  getDesktopToken,
+  noteDesktopTokenCommitted,
+  setDesktopToken,
+} from "./tokenVault";
 
 type StateWithServers = { servers: RemoteServerRecord[] };
 
@@ -184,101 +189,442 @@ async function readLegacyMobileServers(): Promise<RemoteServerRecord[]> {
   }
 }
 
+type PersistedFields = Record<string, unknown>;
+
+/** One realm's change to one server record, replayed onto the shared document. */
+type ServerOperation =
+  | {
+      readonly kind: "upsert";
+      readonly key: string;
+      readonly fields: Partial<RemoteServerRecord>;
+      readonly unset: readonly string[];
+      /** A bearer this realm set; undefined leaves the vault slot untouched. */
+      readonly bearer: string | undefined;
+      /** A record this realm asserts in full (new here); others only patch. */
+      readonly whole: boolean;
+    }
+  | { readonly kind: "remove"; readonly key: string; readonly desktopId: string };
+
+export interface RemoteServersFieldChange {
+  readonly field: string;
+  /** Entry of an object-valued field; undefined replaces the whole field. */
+  readonly entry?: string;
+  readonly value: unknown;
+  readonly remove: boolean;
+}
+
+interface PersistedChanges {
+  readonly servers: readonly ServerOperation[];
+  readonly fields: readonly RemoteServersFieldChange[];
+  readonly touched: readonly string[];
+}
+
+/** Durable changes other realms made since this realm last synchronized. */
+export interface RemoteServersDurableChanges {
+  /** Records added elsewhere, with their bearer read from the vault. */
+  readonly added: readonly RemoteServerRecord[];
+  /** Field patches (durable values) for records changed elsewhere. */
+  readonly changed: readonly {
+    readonly key: string;
+    readonly fields: Partial<RemoteServerRecord>;
+    /** Present when the endpoint moved: the bearer issued for it. */
+    readonly accessToken?: string;
+  }[];
+  readonly removed: readonly string[];
+  /** Other persisted fields, patched the same way (whole field or entry). */
+  readonly fields: readonly RemoteServersFieldChange[];
+}
+
+export interface SecureRemoteServersStorage<S> extends PersistStorage<S> {
+  /** Records a bearer that credential custody already committed for this
+   * realm, so persisting the store does not write it to the vault again. */
+  acknowledgeBearer(connectionKey: string, accessToken: string): void;
+  /** The server record currently in shared storage, bearer excluded. */
+  durableServer(connectionKey: string): RemoteServerRecord | undefined;
+  /** Hands `apply` what other realms changed, after this realm's pending writes. */
+  reconcile(name: string, apply: (changes: RemoteServersDurableChanges) => void): Promise<void>;
+}
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function sameValue(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function serversOf(state: PersistedFields | undefined): RemoteServerRecord[] {
+  return Array.isArray(state?.servers) ? (state.servers as RemoteServerRecord[]) : [];
+}
+
+function serverKey(connectionKey: string): string {
+  return `servers:${connectionKey}`;
+}
+
+function fieldKey(field: string, entry?: string): string {
+  return entry === undefined ? field : `${field}:${entry}`;
+}
+
+/**
+ * The operations that turn this realm's previous view into its next one. With
+ * no previous view (first write before hydration) every record and field is
+ * asserted, but nothing is removed: this realm cannot know what it would erase.
+ */
+function diffPersisted(
+  previous: PersistedFields | undefined,
+  next: PersistedFields,
+): PersistedChanges {
+  const servers: ServerOperation[] = [];
+  const fields: RemoteServersFieldChange[] = [];
+  const touched: string[] = [];
+  const before = new Map(
+    serversOf(previous).map((server) => [remoteConnectionKey(server), server]),
+  );
+  const after = serversOf(next);
+  for (const server of after) {
+    const key = remoteConnectionKey(server);
+    const prior = before.get(key);
+    const { accessToken, ...rest } = server;
+    if (!prior) {
+      servers.push({
+        kind: "upsert",
+        key,
+        fields: rest,
+        unset: [],
+        bearer: accessToken || undefined,
+        whole: true,
+      });
+      touched.push(serverKey(key));
+      continue;
+    }
+    const patch: Record<string, unknown> = {};
+    const unset: string[] = [];
+    for (const field of new Set([...Object.keys(server), ...Object.keys(prior)])) {
+      if (field === "accessToken") continue;
+      const value = (server as unknown as Record<string, unknown>)[field];
+      if (sameValue(value, (prior as unknown as Record<string, unknown>)[field])) continue;
+      if (value === undefined) unset.push(field);
+      else patch[field] = value;
+    }
+    const bearer = accessToken && accessToken !== prior.accessToken ? accessToken : undefined;
+    if (Object.keys(patch).length === 0 && unset.length === 0 && bearer === undefined) continue;
+    servers.push({ kind: "upsert", key, fields: patch, unset, bearer, whole: false });
+    touched.push(serverKey(key));
+  }
+  if (previous) {
+    const kept = new Set(after.map(remoteConnectionKey));
+    for (const [key, server] of before) {
+      if (kept.has(key)) continue;
+      servers.push({ kind: "remove", key, desktopId: server.desktopId });
+      touched.push(serverKey(key));
+    }
+  }
+  for (const field of new Set([...Object.keys(previous ?? {}), ...Object.keys(next)])) {
+    if (field === "servers") continue;
+    const value = next[field];
+    const prior = previous?.[field];
+    if (previous && sameValue(value, prior)) continue;
+    if (previous && isPlainObject(value) && isPlainObject(prior)) {
+      for (const entry of new Set([...Object.keys(value), ...Object.keys(prior)])) {
+        if (sameValue(value[entry], prior[entry])) continue;
+        fields.push({ field, entry, value: value[entry], remove: !(entry in value) });
+        touched.push(fieldKey(field, entry));
+      }
+      continue;
+    }
+    fields.push({ field, value, remove: !(field in next) });
+    touched.push(fieldKey(field));
+  }
+  return { servers, fields, touched };
+}
+
+function applyRemoteServersFieldChange(
+  state: PersistedFields,
+  operation: RemoteServersFieldChange,
+): void {
+  if (operation.entry === undefined) {
+    if (operation.remove) delete state[operation.field];
+    else state[operation.field] = operation.value;
+    return;
+  }
+  const current = state[operation.field];
+  const target: Record<string, unknown> = isPlainObject(current) ? { ...current } : {};
+  if (operation.remove) delete target[operation.entry];
+  else target[operation.entry] = operation.value;
+  state[operation.field] = target;
+}
+
+/** The top-level fields `changes` patch, computed from a copy of `state`. */
+export function patchRemoteServersFields<T extends object>(
+  state: T,
+  changes: readonly RemoteServersFieldChange[],
+): Partial<T> {
+  const next = { ...state } as PersistedFields;
+  for (const change of changes) applyRemoteServersFieldChange(next, change);
+  // A field another realm's document lacks keeps this realm's value.
+  return Object.fromEntries(
+    changes
+      .map((change) => [change.field, next[change.field]] as const)
+      .filter(([, value]) => value !== undefined),
+  ) as Partial<T>;
+}
+
 /** Persists remote-server metadata locally while keeping bearer credentials in
- * the browser's encrypted WebCrypto vault. */
+ * the browser's encrypted WebCrypto vault. Every renderer realm (window or tab)
+ * writes only its own changes onto the shared document, so a realm with an
+ * older view can neither erase another realm's pairing, resurrect one it
+ * removed, nor write its stale bearer over a newer one. */
+/** Keep each document's read/encrypt/write together across renderer windows. */
+function withSharedStorageLock<T>(name: string, run: () => Promise<T>): Promise<T> {
+  const locks = (globalThis.navigator as Navigator | undefined)?.locks;
+  return locks?.request ? locks.request(`poracode.remote-servers.storage.${name}`, run) : run();
+}
+
 export function createSecureRemoteServersStorage<S extends StateWithServers>(
   createLegacyState?: (servers: RemoteServerRecord[]) => S,
-): PersistStorage<S> {
+): SecureRemoteServersStorage<S> {
   let writeQueue = Promise.resolve();
-  const enqueueWrite = (write: () => Promise<void>): Promise<void> => {
-    const result = writeQueue.then(write);
+  const enqueueWrite = (name: string, write: () => Promise<void>): Promise<void> => {
+    const result = writeQueue.then(() => withSharedStorageLock(name, write));
     writeQueue = result.catch(() => undefined);
     return result;
+  };
+  /** This realm's last persisted view: what its next diff is taken against. */
+  let previous: PersistedFields | undefined;
+  let storageName: string | undefined;
+  /** Keys with queued writes; reconciliation leaves them to those writes. */
+  const pending = new Map<string, number>();
+
+  const applyChanges = async (
+    name: string,
+    version: number | undefined,
+    changes: PersistedChanges,
+  ): Promise<void> => {
+    const raw = localStorage.getItem(name);
+    const stored = parseStoredValue<S>(raw);
+    const state: PersistedFields = { ...(stored?.state as PersistedFields | undefined) };
+    const servers = [...serversOf(state)];
+    const removed: { key: string; desktopId: string }[] = [];
+    for (const operation of changes.servers) {
+      const index = servers.findIndex((server) => remoteConnectionKey(server) === operation.key);
+      if (operation.kind === "remove") {
+        if (index >= 0) servers.splice(index, 1);
+        removed.push(operation);
+        continue;
+      }
+      // Removed by another realm: a patch from an older view never revives it.
+      if (index < 0 && !operation.whole) continue;
+      const base = index >= 0 ? servers[index] : undefined;
+      let accessToken = base?.accessToken ?? "";
+      if (operation.bearer !== undefined) {
+        const encrypted = await setDesktopToken(operation.key, operation.bearer);
+        // New or replacement tokens never fall back to plaintext; only a token
+        // already durable on this same connection is kept until encryption lands.
+        accessToken = encrypted
+          ? ""
+          : base?.accessToken === operation.bearer
+            ? operation.bearer
+            : "";
+      }
+      const record: PersistedFields = { ...base, ...operation.fields, accessToken };
+      for (const field of operation.unset) delete record[field];
+      if (index >= 0) servers[index] = record as unknown as RemoteServerRecord;
+      else servers.push(record as unknown as RemoteServerRecord);
+    }
+    for (const operation of changes.fields) applyRemoteServersFieldChange(state, operation);
+    state.servers = servers;
+    const document = JSON.stringify({
+      ...stored,
+      state,
+      ...(version !== undefined ? { version } : {}),
+    });
+    if (document !== raw) localStorage.setItem(name, document);
+    await Promise.all(
+      removed.flatMap(({ key, desktopId }) => {
+        const slots = [deleteDesktopToken(key)];
+        // A removed environment connection may also own the v1-era shared
+        // `token.<desktopId>` slot; purge it only when no record still claims
+        // that desktop identity.
+        if (key !== desktopId && !servers.some((server) => server.desktopId === desktopId)) {
+          slots.push(deleteDesktopToken(desktopId));
+        }
+        return slots;
+      }),
+    );
   };
 
   return {
     async getItem(name): Promise<StorageValue<S> | null> {
       await writeQueue;
-      const persistedRaw = localStorage.getItem(name);
-      let stored = parseStoredValue<S>(persistedRaw);
-      if (!stored && createLegacyState) {
-        const legacyServers = await readLegacyMobileServers();
-        if (legacyServers.length > 0) {
-          stored = { state: createLegacyState(legacyServers), version: 0 };
+      return withSharedStorageLock(name, async () => {
+        storageName = name;
+        const persistedRaw = localStorage.getItem(name);
+        let stored = parseStoredValue<S>(persistedRaw);
+        if (!stored && createLegacyState) {
+          const legacyServers = await readLegacyMobileServers();
+          if (legacyServers.length > 0) {
+            stored = { state: createLegacyState(legacyServers), version: 0 };
+          }
         }
-      }
-      if (!stored) return null;
-      const hydrated = await hydrateServers(stored.state.servers, () => true);
-      if (hydrated.migrated || (persistedRaw === null && !hydrated.migrationPending)) {
-        localStorage.setItem(
-          name,
-          JSON.stringify({
-            ...stored,
-            state: { ...stored.state, servers: hydrated.persisted },
-          }),
-        );
-      }
-      return {
-        ...stored,
-        state: { ...stored.state, servers: hydrated.live },
-      };
+        if (!stored) return null;
+        const hydrated = await hydrateServers(stored.state.servers, () => true);
+        if (hydrated.migrated || (persistedRaw === null && !hydrated.migrationPending)) {
+          localStorage.setItem(
+            name,
+            JSON.stringify({
+              ...stored,
+              state: { ...stored.state, servers: hydrated.persisted },
+            }),
+          );
+        }
+        const live = { ...stored, state: { ...stored.state, servers: hydrated.live } };
+        previous = clone(live.state) as unknown as PersistedFields;
+        return live;
+      });
     },
 
     setItem(name, value): Promise<void> {
-      const captured = JSON.parse(JSON.stringify(value)) as StorageValue<S>;
-      return enqueueWrite(async () => {
-        const previous = parseStoredValue<S>(localStorage.getItem(name));
-        // Zustand saves immediately after a version migration. Keep only a
-        // token already durable on this same connection until encryption lands;
-        // new/replacement tokens must never fall back to plaintext persistence.
-        const previousTokens = new Map(
-          previous?.state.servers.map((server) => [
-            remoteConnectionKey(server),
-            server.accessToken,
-          ]),
-        );
-        const hydrated = await hydrateServers(
-          captured.state.servers,
-          (server) => previousTokens.get(remoteConnectionKey(server)) === server.accessToken,
-        );
-        localStorage.setItem(
-          name,
-          JSON.stringify({
-            ...captured,
-            state: { ...captured.state, servers: hydrated.persisted },
-          }),
-        );
-        const retained = new Set(captured.state.servers.map(remoteConnectionKey));
-        const retainedDesktopIds = new Set(
-          captured.state.servers.map((server) => server.desktopId),
-        );
-        const staleSlots = new Set<string>();
-        for (const connectionKey of vaultConnectionKeys(previous)) {
-          if (!retained.has(connectionKey)) staleSlots.add(connectionKey);
-        }
-        for (const server of previous?.state.servers ?? []) {
-          const connectionKey = remoteConnectionKey(server);
-          if (retained.has(connectionKey)) continue;
-          // A removed environment connection may also own the v1-era shared
-          // `token.<desktopId>` slot; purge it only when no retained record
-          // still claims that desktop identity.
-          if (connectionKey !== server.desktopId && !retainedDesktopIds.has(server.desktopId)) {
-            staleSlots.add(server.desktopId);
+      storageName = name;
+      const captured = clone(value);
+      const next = captured.state as unknown as PersistedFields;
+      const changes = diffPersisted(previous, next);
+      previous = next;
+      for (const key of changes.touched) pending.set(key, (pending.get(key) ?? 0) + 1);
+      return enqueueWrite(name, async () => {
+        try {
+          await applyChanges(name, captured.version, changes);
+        } finally {
+          for (const key of changes.touched) {
+            const count = (pending.get(key) ?? 1) - 1;
+            if (count > 0) pending.set(key, count);
+            else pending.delete(key);
           }
         }
-        await Promise.all(
-          [...staleSlots].map((connectionKey) => deleteDesktopToken(connectionKey)),
-        );
       });
     },
 
     removeItem(name): Promise<void> {
-      return enqueueWrite(async () => {
+      previous = undefined;
+      return enqueueWrite(name, async () => {
         const stored = parseStoredValue<S>(localStorage.getItem(name));
         localStorage.removeItem(name);
         const slots = vaultConnectionKeys(stored);
         for (const server of stored?.state.servers ?? []) slots.add(server.desktopId);
         await Promise.all([...slots].map((connectionKey) => deleteDesktopToken(connectionKey)));
+      });
+    },
+
+    acknowledgeBearer(connectionKey, accessToken) {
+      const servers = serversOf(previous);
+      const index = servers.findIndex(
+        (candidate) => remoteConnectionKey(candidate) === connectionKey,
+      );
+      if (index >= 0) servers[index] = { ...servers[index]!, accessToken };
+    },
+
+    durableServer(connectionKey) {
+      if (storageName === undefined) return undefined;
+      const stored = parseStoredValue<S>(localStorage.getItem(storageName));
+      return stored?.state.servers.find((server) => remoteConnectionKey(server) === connectionKey);
+    },
+
+    reconcile(name, apply): Promise<void> {
+      return enqueueWrite(name, async () => {
+        const stored = parseStoredValue<S>(localStorage.getItem(name));
+        const view = previous;
+        if (!stored || !view) return;
+        const durable = stored.state as unknown as PersistedFields;
+        const known = new Map(
+          serversOf(view).map((server) => [remoteConnectionKey(server), server]),
+        );
+        const added: RemoteServerRecord[] = [];
+        const changed: {
+          key: string;
+          fields: Partial<RemoteServerRecord>;
+          accessToken?: string;
+        }[] = [];
+        const removed: string[] = [];
+        const durableKeys = new Set<string>();
+        for (const server of serversOf(durable)) {
+          const key = remoteConnectionKey(server);
+          durableKeys.add(key);
+          if (pending.has(serverKey(key))) continue;
+          const prior = known.get(key);
+          if (!prior) {
+            noteDesktopTokenCommitted(key, null);
+            const accessToken = (await getDesktopToken(key)) ?? server.accessToken;
+            added.push({ ...server, accessToken });
+            continue;
+          }
+          const fields: Record<string, unknown> = {};
+          for (const field of new Set([...Object.keys(server), ...Object.keys(prior)])) {
+            if (field === "accessToken") continue;
+            const value = (server as unknown as PersistedFields)[field];
+            if (!sameValue(value, (prior as unknown as PersistedFields)[field])) {
+              fields[field] = value;
+            }
+          }
+          if (Object.keys(fields).length === 0) continue;
+          if (fields.endpoint === undefined) {
+            changed.push({ key, fields });
+            continue;
+          }
+          noteDesktopTokenCommitted(key, null);
+          const accessToken = await getDesktopToken(key);
+          changed.push({ key, fields, ...(accessToken ? { accessToken } : {}) });
+        }
+        for (const key of known.keys()) {
+          if (!durableKeys.has(key) && !pending.has(serverKey(key))) removed.push(key);
+        }
+        const fieldChanges: RemoteServersFieldChange[] = [];
+        for (const field of new Set([...Object.keys(view), ...Object.keys(durable)])) {
+          if (field === "servers" || pending.has(fieldKey(field))) continue;
+          const value = durable[field];
+          const prior = view[field];
+          if (sameValue(value, prior)) continue;
+          if (isPlainObject(value) && isPlainObject(prior)) {
+            for (const entry of new Set([...Object.keys(value), ...Object.keys(prior)])) {
+              if (pending.has(fieldKey(field, entry))) continue;
+              if (sameValue(value[entry], prior[entry])) continue;
+              fieldChanges.push({ field, entry, value: value[entry], remove: !(entry in value) });
+            }
+            continue;
+          }
+          fieldChanges.push({ field, value, remove: !(field in durable) });
+        }
+        if (
+          added.length === 0 &&
+          changed.length === 0 &&
+          removed.length === 0 &&
+          fieldChanges.length === 0
+        ) {
+          return;
+        }
+        // Adopt the durable state into this realm's view first, so the store
+        // write that `apply` triggers does not echo it back as a local change.
+        const nextView = clone(view);
+        const viewServers = serversOf(nextView).filter(
+          (server) => !removed.includes(remoteConnectionKey(server)),
+        );
+        for (const change of changed) {
+          const index = viewServers.findIndex(
+            (server) => remoteConnectionKey(server) === change.key,
+          );
+          if (index < 0) continue;
+          viewServers[index] = {
+            ...viewServers[index]!,
+            ...change.fields,
+            ...(change.accessToken ? { accessToken: change.accessToken } : {}),
+          };
+        }
+        nextView.servers = [...viewServers, ...clone(added)];
+        for (const operation of fieldChanges) applyRemoteServersFieldChange(nextView, operation);
+        previous = nextView;
+        apply({ added, changed, removed, fields: fieldChanges });
       });
     },
   };

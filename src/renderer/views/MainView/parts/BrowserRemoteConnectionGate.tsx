@@ -6,6 +6,7 @@ import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
+  selectBrowserBridgeClientServer,
   selectBrowserBridgeServer,
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
@@ -17,7 +18,12 @@ export function BrowserRemoteConnectionGate(props: {
   fallback?: React.ReactNode;
   onPair?: () => void;
 }) {
-  const selectedServer = useRemoteServersStore(selectBrowserBridgeServer);
+  const onlineServer = useRemoteServersStore(selectBrowserBridgeServer);
+  // The host the bridge client is bound to (the user's selection, kept while
+  // it reconnects). Keying the remount on it, not on whichever host is online
+  // this instant, stops a transient "connecting" on one host from remounting
+  // the whole app onto another.
+  const boundServer = useRemoteServersStore(selectBrowserBridgeClientServer);
   const savedServer = useRemoteServersStore((state) => state.servers[0]);
   const connecting = useRemoteServersStore((state) =>
     state.servers.some(
@@ -26,14 +32,18 @@ export function BrowserRemoteConnectionGate(props: {
   );
 
   if (!isBrowserClientRuntime()) return props.children;
-  if (props.checkingConnection || (!props.allowOffline && !selectedServer && connecting)) {
+  if (props.checkingConnection || (!props.allowOffline && !onlineServer && connecting)) {
     return (
       <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-background text-foreground">
         <PixelLoader size="lg" />
       </div>
     );
   }
-  const server = selectedServer ?? (props.allowOffline ? savedServer : undefined);
+  const server = onlineServer
+    ? (boundServer ?? onlineServer)
+    : props.allowOffline
+      ? (boundServer ?? savedServer)
+      : undefined;
   if (server) return <Fragment key={remoteConnectionKey(server)}>{props.children}</Fragment>;
   if (props.fallback) return props.fallback;
 

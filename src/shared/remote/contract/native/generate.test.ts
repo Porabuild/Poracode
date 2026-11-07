@@ -56,7 +56,7 @@ describe("remote v3 native binding generator", () => {
         formatVersion: 5,
         protocolVersion: 14,
         bindingFormatVersion: 2,
-        generatorVersion: 6,
+        generatorVersion: 7,
         // Optional readonly workspace-grant fields change generated bindings
         // without advertising mutation support or changing wire versions.
         // Selection-binding integration: protocol 13 adds the strict
@@ -71,22 +71,46 @@ describe("remote v3 native binding generator", () => {
         // Optional context-reload facts also add one generated Swift chunk.
         // Optional core PR state preserves the previous details-only result shape.
         // Background task timing, progress and Stop add two structural types.
-        // Combine optional question-answer metadata with saved-message search.
-        sourceHash: "sha256:1d7efef9afdaf2f8d4d07c142892ab935cadb3944eca4952816a6d919889522a",
-        manifestHash: "sha256:b6309d6fb98117981bd84d031807a83df91cded68621791fbd0eecb2561e6497",
+        // Optional question-answer metadata adds three structural types and two Swift chunks.
+        // The additive prompt-rail history route adds one route, its response root and
+        // their native mirrors; native adoption stays planned in native-parity.json.
+        // Source-host reviews add one route, twenty-four procedures, and their native mirrors;
+        // device workspaces add fourteen routes; saved-message search and fork instructions add roots;
+        // review labels, reviewers, reactions, drafts and commit diffs add nine procedures;
+        // the optional review-thread diff side adds one field; optional async reply source IDs
+        // preserve wire versions; the optional `deferBodies` history query parameter adds one
+        // structural type (its literal).
+        // Optional sessionId on the token-exchange result moves the source hash only.
+        // Optional crew favorites/usage and model recency move only the source hash.
+        // The optional `ready.epoch` and the eventEpoch/lastSeenEpoch handshake
+        // parameters move both hashes without changing counts or wire versions.
+        // The optional shell snapshotEpoch moves the source hash only.
+        // The optional open-string runtime error `reason` moves the source hash only.
+        // The optional cut-off marker adds one structural union; older peers omit it.
+        // Host-owned Hex voice transcription adds one typed procedure and schema roots.
+        // The optional mediaFileRequest `disposition` attachment literal moves the source hash.
+        // Background PR polling adds one read procedure and its typed status result.
+        // Additive background-task category/command display metadata adds one
+        // structural enum and moves the source hash without changing wire versions.
+        // Host agent management adds four desktop procedures and their request/result roots;
+        // registry listing is an operate-scoped long mutation because it can install/update agents.
+        // The additive remote-forge-activity broadcast event moves both authority
+        // hashes and grows only the replayable-event count.
+        sourceHash: "sha256:c50fa5aa82cb58b039aa7d73a712da1b79dcc88a5e6192ae2643e8bee9e37f54",
+        manifestHash: "sha256:ed403d7e8e9ec18aa837df221e292fd00c54d0dbd5353890c50dd33aee971ec7",
         counts: {
-          routes: 116,
-          procedures: 130,
-          voidProcedureResults: 50,
-          jsonProcedureResults: 80,
-          webSocketClientVariants: 9,
-          // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
-          webSocketServerVariants: 11,
-          schemaRoots: 482,
-          structuralTypes: 1129,
-          semanticValidators: 22,
-          swiftFiles: 71,
-          kotlinFiles: 61,
+          routes: 119,
+          procedures: 172,
+          voidProcedureResults: 64,
+          jsonProcedureResults: 108,
+          webSocketClientVariants: 11,
+          // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
+          webSocketServerVariants: 12,
+          schemaRoots: 562,
+          structuralTypes: 1313,
+          semanticValidators: 25,
+          swiftFiles: 81,
+          kotlinFiles: 69,
           stateMachines: 5,
         },
       });
@@ -175,7 +199,7 @@ describe("remote v3 native binding generator", () => {
     expect(() => parseNativeBindingIr({ ...ir, bindingFormatVersion: 3 }, manifest)).toThrow(
       /unsupported binding format/,
     );
-    expect(() => parseNativeBindingIr({ ...ir, generatorVersion: 3 }, manifest)).toThrow(
+    expect(() => parseNativeBindingIr({ ...ir, generatorVersion: 6 }, manifest)).toThrow(
       /unsupported generator version/,
     );
     expect(() =>
@@ -358,7 +382,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(482);
+        expect(adapters).toHaveLength(562);
         expect(
           adapters
             .map((adapter) => adapter.id)

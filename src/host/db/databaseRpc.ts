@@ -7,9 +7,11 @@ import {
   dbGetState,
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
+  dbGetThreadTokenUsage,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbGetLatestThreadGoalItem,
+  dbGetThreadPromptIndex,
   dbGetThreads,
   dbGetThreadsPage,
   dbListScheduleRuns,
@@ -44,7 +46,11 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
     case "dbGetThreads":
       return readDatabaseAsync("threads", [], dbGetThreads);
     case "dbGetState":
-      return readDatabaseAsync("state", [call.payload], () => dbGetState(call.payload));
+      // A primary-key lookup on the owner connection, like `dbSetState`. The
+      // read workers are for catalog and transcript queries; routing this one
+      // through them made desktop startup wait ~250 ms for a worker to boot
+      // before main could read the window bounds and create the window.
+      return dbGetState(call.payload);
     case "dbSetState":
       return dbSetState(call.payload.key, call.payload.value);
     case "dbUpsertProject":
@@ -79,6 +85,8 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
     }
     case "dbGetLatestThreadGoalItem":
       return dbGetLatestThreadGoalItem(call.payload.threadId);
+    case "dbGetThreadPromptIndex":
+      return dbGetThreadPromptIndex(call.payload.threadId);
     case "dbTruncateThreadRuntimeAfter":
       // Mutation metadata is internal; preserve the public RPC's void response.
       dbTruncateThreadRuntimeAfter(call.payload.threadId, call.payload.itemId);
@@ -101,6 +109,10 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
     case "dbGetThreadContextUsage":
       return readDatabaseAsync("contextUsage", [call.payload.threadId], () =>
         dbGetThreadContextUsage(call.payload.threadId),
+      );
+    case "dbGetThreadTokenUsage":
+      return readDatabaseAsync("tokenUsage", [call.payload.threadId], () =>
+        dbGetThreadTokenUsage(call.payload.threadId),
       );
     case "dbGetProjectNotes":
       return readDatabaseAsync("notes", [call.payload.projectId], () =>

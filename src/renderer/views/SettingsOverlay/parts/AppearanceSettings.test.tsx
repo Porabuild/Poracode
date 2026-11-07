@@ -22,6 +22,7 @@ describe("AppearanceSettings", () => {
     render(<AppearanceSettings />);
 
     expect(screen.getByText("Translucent sidebar")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Thread docks placement")).not.toBeInTheDocument();
   });
 
   it("hides desktop sidebar glass controls in remote sessions", () => {

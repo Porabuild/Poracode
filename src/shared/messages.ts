@@ -8,6 +8,76 @@
  */
 
 const messages = {
+  "thread.permission.persistentUnavailable":
+    "This request has no matching persistent approval. Choose Allow once.",
+  "thread.execution.owned":
+    "Another client is running this thread. Stop that run before replacing the thread or sending more input.",
+  "forge.commentNotEditable": "Only your own comments on this pull request can be edited.",
+  "forge.commentChanged": "This comment changed while you were editing it. Refresh before saving.",
+  "forge.guideInvalid":
+    "The guide did not cover every changed file or contained an invalid excerpt. Rewrite the guide.",
+  "forge.guideWriterUnsupported":
+    "Select a guide writer that supports an enforced read-only workspace.",
+  "forge.unsupported":
+    "This operation is not supported by the {forge} integration. Open the review on its source host.",
+  "forge.credentials":
+    "Configure credentials scoped to this exact source host in the project's runtime.",
+  "forge.accountMismatch":
+    "The source credential belongs to a different account. Select the correct account and retry.",
+  "forge.hostMismatch": "The selected source account does not match the project's remote.",
+  "forge.hostInvalid": "Source host must be an HTTPS URL without credentials.",
+  "forge.noRemote": "This project has no supported source-host remote.",
+  "forge.remotesAmbiguous":
+    "Multiple source remotes are configured. Set the branch upstream before reviewing.",
+  "forge.responseInvalid":
+    "The source host returned an invalid response. Update the integration or open the review on its source host.",
+  "forge.headChanged":
+    "The pull request head changed or is unavailable. Refresh and review it before merging.",
+  "forge.reviewHeadChanged":
+    "The pull request changed after these line comments were drafted. Refresh and check them before submitting.",
+  "forge.reviewDraftPartial":
+    "Some line comments were posted, but the review did not finish. Refresh before submitting again.",
+  "forge.labelUnknown":
+    "That label does not exist in this repository. Refresh the label list and try again.",
+  "forge.reviewDraftExists":
+    "You have an unfinished review on the source host. Submit or discard it there before submitting this one.",
+  "forge.commitNotInReview":
+    "That commit is not part of this pull request. Refresh and choose a commit from its history.",
+  "forge.outsideApi": "The source host returned a link outside the selected API.",
+  "forge.http": "Source host {host} returned HTTP {status}.",
+  "forge.pagination": "Source host pagination did not complete. Narrow the review query.",
+  "forge.diffUnavailable":
+    "The source host omitted this file's diff content. Open the review on its source host.",
+  "forge.reviewPartial":
+    "The review was submitted, but its comment failed. Refresh before posting the comment separately.",
+  "forge.draftPartial":
+    "Pull request #{number} was created, but marking it as draft failed. Refresh before changing its state.",
+  "forge.mergeFailed":
+    "The source host rejected the merge. Refresh the pull request before retrying.",
+  "forge.commandFailed":
+    "Source control command {command} failed. Check its installation and host login.",
+  "forge.configUnreadable": "Source host login configuration could not be read.",
+  "forge.wslUnavailable": "WSL bridge unavailable for source control.",
+  "forge.bodyRequired": "A review or comment body is required.",
+  "forge.autoMergeUnavailable": "This source host does not support safe automatic merge.",
+  "forge.watchChanged": "The watched pull request changed. Review the watch before continuing.",
+  "forge.autoFixUnavailable": "Automation requires a branch in this repository.",
+  "forge.networkFailed": "Source host request failed. Check its connection and login.",
+  "forge.watchScopeMissing":
+    "This saved review watch has no source scope. Review the pull request and enable automation again.",
+  "forge.watchScopeUnsupported":
+    "This review watch uses an unsupported source-scope version. Update the app before changing it.",
+  "forge.watchScopeUnavailable":
+    "Scoped review watches are unavailable on this host. Update the host before enabling automation.",
+  "forge.repositoryChanged":
+    "The selected repository no longer matches this project's source remote. Refresh before continuing.",
+
+  "thread.forkSourceUnavailable": "The source conversation is unavailable.",
+  "thread.forkSourceActive": "Wait for the source conversation to finish before forking.",
+  "thread.forkBoundaryUnavailable": "Choose a completed turn to fork from.",
+  "thread.forkBoundaryActive": "The selected turn still contains active work.",
+  "thread.forkContextUnavailable": "The fork's saved conversation is unavailable.",
+  "thread.forkRevertUnavailable": "Inherited history cannot be reverted in this fork.",
   "agent.updateQueueTimeout": "The update waited too long for another installation. Try again.",
   "provider.signInDataUnavailable":
     "The provider's sign-in data could not be read. Try again or update Poracode.",
@@ -32,6 +102,7 @@ const messages = {
   "thread.sessionActionFailed": "The session action failed. Try again or reopen the session.",
   "thread.sessionActionUnavailable": "Session actions are unavailable for this thread.",
   "thread.backgroundTaskStopUnconfirmed": "The task has not confirmed that it stopped. Try again.",
+  "thread.backgroundTaskReportMissing": "The task ended without a completion report.",
   "voice.unavailable": "Live voice is unavailable for this thread.",
   "voice.alreadyConnected": "A voice conversation is already active.",
   "voice.subscriptionRequired": "Live voice requires a subscription sign-in for this provider.",
@@ -206,6 +277,13 @@ const messages = {
   "codex.compactFailed": "Codex could not compact the conversation: {detail}",
   "codex.modelRerouted": "Model rerouted from {fromModel} to {toModel}.",
 
+  // ── Cursor ────────────────────────────────────────────────
+  "cursor.summarizeUnavailableDuringTurn":
+    "Cursor can't summarize the conversation while a turn is running. Send /summarize again once it finishes.",
+  "cursor.compactFailed": "Cursor couldn't summarize the conversation, so it was left unchanged.",
+  "cursor.compactFallback":
+    "Cursor couldn't write a summary, so it saved a trimmed copy of the conversation instead.",
+
   // ── App update ────────────────────────────────────────────
   "update.error": "Update error: {detail}",
   "update.serviceUnavailable": "The update service is temporarily unavailable.",
@@ -247,6 +325,7 @@ const messages = {
   "remote.session.expired": "Pairing expired — pair again to reconnect.",
   "remote.server.unreachable":
     "Can't reach the remote server. Check that it is online, then reconnect it.",
+  "remote.server.busy": "Too many remote requests are in progress. Try again in a moment.",
 
   // ── Model family selectors ────────────────────────────────
   "modelSelection.lead": "Lead",
@@ -535,6 +614,11 @@ const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
   experiment_owned: "remote.project.experimentsOwned",
   worktree_threads_changed: "remote.worktree.threadsChanged",
   follow_up_queue_unsupported: "supervisor.followUpQueue.unsupported",
+  // Admission refusals from the desktop bridge, the host's per-client budget,
+  // and the host settings authority.
+  overloaded: "remote.server.busy",
+  principal_busy: "remote.server.busy",
+  settings_overloaded: "remote.server.busy",
 };
 
 function remoteErrorMessageKey(error: unknown): MessageKey | undefined {

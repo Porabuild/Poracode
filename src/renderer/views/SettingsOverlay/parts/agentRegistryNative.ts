@@ -26,6 +26,7 @@ import { OPENCODE2_INSTALL_COMMANDS } from "@/renderer/components/providers/open
 import { OpenCode2ProviderSettings } from "../../../components/providers/settings/OpenCode2ProviderSettings";
 import { OpenCodeProviderSettings } from "../../../components/providers/settings/OpenCodeProviderSettings";
 import { DeepSeekProviderSettings } from "@/renderer/components/providers/deepseek/DeepSeekProviderSettings";
+import { FxProviderSettings } from "@/renderer/components/providers/fx/FxProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
 import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
 import { antigravityCliInstallCommand, antigravityRuntimeSlots } from "./antigravityRuntimeInstall";
@@ -500,6 +501,22 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         windows:
           "if (Get-Command winget -ErrorAction SilentlyContinue) { winget install GitHub.Copilot } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @github/copilot } else { Write-Host 'No supported installer found. Install WinGet or Node.js/npm first, then refresh detected agents.' }",
       }),
+  },
+  {
+    // fx ships no native Windows build; Windows projects install it through WSL.
+    id: "fx",
+    description: msg`First-class Vercel fx integration using Poracode's native terminal and ACP runtimes.`,
+    docsUrl: "https://fx.sh/docs/getting-started/installation",
+    settingsPanel: FxProviderSettings,
+    ownsAuthUi: true,
+    installCommand: (project) =>
+      posixOrWindows(
+        project,
+        "if command -v curl >/dev/null 2>&1; then curl -fsSL https://fx.sh/setup.sh | bash; else " +
+          POSIX_MISSING_CURL_MESSAGE +
+          "; fi",
+        "Write-Host 'fx runs on macOS and Linux. Open this project in WSL to install fx, then refresh detected agents.'",
+      ),
   },
 ];
 

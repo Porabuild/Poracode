@@ -26,6 +26,11 @@ export function buildUserPromptText(content: CanonicalContentBlock[]): string {
     .join("");
 }
 
+/** Browser selector payloads dropped and whitespace runs collapsed to single spaces. */
+export function collapsePromptText(text: string): string {
+  return stripSelectorPayloads(text).replace(/\s+/g, " ");
+}
+
 /**
  * One-line summary of a user message for compact display. Browser selector
  * payloads are dropped and whitespace runs collapse to single spaces. A message
@@ -33,7 +38,7 @@ export function buildUserPromptText(content: CanonicalContentBlock[]): string {
  * exists.
  */
 export function buildUserPromptPreview(content: CanonicalContentBlock[]): string | null {
-  const text = stripSelectorPayloads(buildUserPromptText(content)).replace(/\s+/g, " ").trim();
+  const text = collapsePromptText(buildUserPromptText(content)).trim();
   if (text.length > 0) return text;
   for (const block of content) {
     if (block.kind !== "image" && block.kind !== "file") continue;

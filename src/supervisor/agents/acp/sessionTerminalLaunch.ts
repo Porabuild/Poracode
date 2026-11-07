@@ -79,8 +79,12 @@ function buildWindowsTerminalScript(
   // With no args the command is an entire shell line by contract — run it as
   // PowerShell source. With args it is a native command + argv, so route
   // through the host-appropriate faithful arg-passing strategy.
-  if (args.length === 0) return `$ErrorActionPreference = 'Stop'; ${command}`;
-  return buildPowerShellInvocationScript(shell, command, args);
+  const body =
+    args.length === 0
+      ? `$ErrorActionPreference = 'Stop'; ${command}`
+      : buildPowerShellInvocationScript(shell, command, args);
+  // -EncodedCommand otherwise reports 1 for any failing native command.
+  return `${body}\nif (-not $?) { if ($LASTEXITCODE) { exit $LASTEXITCODE }; exit 1 }`;
 }
 
 function buildPosixTerminalScript(command: string, args: string[]): string {

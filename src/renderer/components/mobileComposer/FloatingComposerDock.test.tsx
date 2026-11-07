@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { Button } from "@heroui/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FloatingComposerDock } from "./FloatingComposerDock";
@@ -139,6 +140,69 @@ describe("FloatingComposerDock", () => {
     scrollLockMock.focusWithoutScroll.mockClear();
     scrollLockMock.lockComposeScroll.mockClear();
     scrollLockMock.unlockComposeScroll.mockClear();
+  });
+
+  it.each(["mouse", "touch"])(
+    "keeps the pinned recovery target stable through its first %s press",
+    (pointerType) => {
+      const onPress = vi.fn<() => void>();
+      render(
+        <FloatingComposerDock
+          keyboardKey="thread-1"
+          scrimLabel="Close composer"
+          collapsedTapLabel="Open composer"
+          inputHasContent
+        >
+          <div data-composer-input-anchor="">
+            <div
+              role="textbox"
+              aria-label="Composer input"
+              contentEditable
+              suppressContentEditableWarning
+              tabIndex={0}
+            />
+          </div>
+          <div className="tooltip__trigger">
+            <Button
+              className="poracode-composer-send"
+              aria-label="Resume response"
+              onPress={onPress}
+            >
+              <svg data-testid="recovery-icon" />
+            </Button>
+          </div>
+        </FloatingComposerDock>,
+      );
+      const button = screen.getByRole("button", { name: "Resume response" });
+      const icon = screen.getByTestId("recovery-icon");
+      const dock = document.querySelector(".m-compose-dock");
+      fireEvent.pointerDown(icon, { pointerType, pointerId: 1, button: 0, isPrimary: true });
+      expect(dock).not.toHaveAttribute("data-expanded");
+      act(() => button.focus());
+      expect(dock).not.toHaveAttribute("data-expanded");
+      expect(document.activeElement).toBe(button);
+      fireEvent.pointerUp(icon, { pointerType, pointerId: 1, button: 0, isPrimary: true });
+      fireEvent.click(button);
+      expect(onPress).toHaveBeenCalledOnce();
+      expect(scrollLockMock.focusWithoutScroll).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the collapsed recovery target stable on keyboard focus", () => {
+    render(
+      <FloatingComposerDock
+        keyboardKey="thread-1"
+        scrimLabel="Close composer"
+        collapsedTapLabel="Open composer"
+        inputHasContent
+      >
+        <button type="button" className="poracode-composer-send">
+          Resume response
+        </button>
+      </FloatingComposerDock>,
+    );
+    act(() => screen.getByRole("button", { name: "Resume response" }).focus());
+    expect(document.querySelector(".m-compose-dock")).not.toHaveAttribute("data-expanded");
   });
 
   it("reports composer focus before focusing the editor on guarded first focus", () => {
@@ -343,6 +407,65 @@ describe("FloatingComposerDock", () => {
     } finally {
       restoreVisualViewport();
     }
+  });
+
+  it("reports the dock on resize, after its transform settles, and on viewport resize", () => {
+    const observed: { callback: ResizeObserverCallback; target: Element }[] = [];
+    globalThis.ResizeObserver = class ResizeObserver {
+      constructor(private readonly callback: ResizeObserverCallback) {}
+      observe(target: Element) {
+        observed.push({ callback: this.callback, target });
+      }
+      unobserve() {}
+      disconnect() {}
+    };
+    const onDockHeightChange = vi.fn<(height: number, dock: HTMLElement) => void>();
+    render(
+      <FloatingComposerDock
+        keyboardKey="thread-1"
+        expanded={false}
+        scrimLabel="Close composer"
+        collapsedTapLabel="Open composer"
+        onExpandedChange={() => {}}
+        onDockHeightChange={onDockHeightChange}
+      >
+        <div />
+      </FloatingComposerDock>,
+    );
+    const dock = document.querySelector<HTMLElement>(".m-compose-dock")!;
+    const bubble = dock.querySelector<HTMLElement>(".m-compose-bubble")!;
+    const dockObserver = observed.find((entry) => entry.target === dock);
+    expect(dockObserver).toBeDefined();
+
+    act(() => {
+      dockObserver!.callback(
+        [
+          {
+            borderBoxSize: [{ blockSize: 96, inlineSize: 320 }],
+            target: dock,
+          } as unknown as ResizeObserverEntry,
+        ],
+        {} as ResizeObserver,
+      );
+    });
+    expect(onDockHeightChange).toHaveBeenLastCalledWith(96, dock);
+
+    // A keyboard lift moves the dock with a transform and resizes nothing.
+    onDockHeightChange.mockClear();
+    act(() => {
+      bubble.dispatchEvent(new Event("transitionend", { bubbles: true }));
+    });
+    expect(onDockHeightChange).not.toHaveBeenCalled();
+    act(() => {
+      dock.dispatchEvent(new Event("transitionend", { bubbles: true }));
+    });
+    expect(onDockHeightChange).toHaveBeenCalledWith(expect.any(Number), dock);
+
+    onDockHeightChange.mockClear();
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(onDockHeightChange).toHaveBeenCalledWith(expect.any(Number), dock);
   });
 
   it("expands a controlled dock when the composer gains focus natively (mouse)", () => {

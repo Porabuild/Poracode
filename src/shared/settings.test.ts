@@ -1,15 +1,151 @@
 import { describe, expect, it } from "vitest";
 import {
   defaultSharedSettings,
+  normalizeKeepAwakeConditions,
   normalizeSharedSettings,
   normalizeSidebarShortcutOrder,
   normalizeThreadDocksOrder,
   reorderVisibleThreadDocks,
   sharedSettingsSchema,
 } from "./settings";
+import { QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
+
+const validCrew = {
+  id: "ship",
+  name: "Ship crew",
+  lead: { agentKind: "claude", model: "opus-5.5" },
+  policy: "crew-only",
+  roles: [
+    {
+      id: "builder",
+      label: "Builder",
+      selection: { agentKind: "codex", model: "gpt-5.5" },
+    },
+  ],
+};
+
+describe("shared settings crews", () => {
+  it("reads pre-shortcut crews and model history and round-trips optional picker metadata", () => {
+    const legacy = {
+      crews: [validCrew],
+      recentModels: [{ agentKind: "example", modelId: "lead", presentationMode: "gui" }],
+      favoriteModels: [],
+    };
+    const normalized = normalizeSharedSettings(legacy);
+    expect(normalized.crews).toEqual(legacy.crews);
+    expect(normalized.recentModels).toEqual(legacy.recentModels);
+    const current = {
+      ...normalized,
+      crews: [{ ...normalized.crews[0]!, favorite: true, lastUsedAt: 123 }],
+      recentModels: [{ ...normalized.recentModels[0]!, lastUsedAt: 124 }],
+    };
+    expect(normalizeSharedSettings(JSON.parse(JSON.stringify(current)))).toEqual(current);
+  });
+
+  it("adds an empty crew list to pre-crews settings without changing other values", () => {
+    const normalized = normalizeSharedSettings({ themeMode: "light", providerOrder: ["codex"] });
+    expect(normalized.crews).toEqual([]);
+    expect(normalized.themeMode).toBe("light");
+    expect(normalized.providerOrder).toEqual(["codex"]);
+  });
+
+  it("drops only malformed or duplicate crews and normalizes each valid roster", () => {
+    const normalized = normalizeSharedSettings({
+      crews: [
+        validCrew,
+        { ...validCrew, id: "broken", roles: [{ id: "bad id" }] },
+        { ...validCrew, name: "Duplicate id" },
+        {
+          ...validCrew,
+          id: "normalized",
+          roles: [
+            validCrew.roles[0],
+            { ...validCrew.roles[0], id: "builder-two", label: " builder " },
+          ],
+        },
+      ],
+    });
+    expect(normalized.crews).toHaveLength(2);
+    expect(normalized.crews.map((crew) => crew.id)).toEqual(["ship", "normalized"]);
+    expect(normalized.crews[1]?.roles).toHaveLength(1);
+  });
+
+  it("runs provider alias, retired-model and selection normalization on crew members", () => {
+    const normalized = normalizeSharedSettings({
+      crews: [
+        {
+          ...validCrew,
+          lead: {
+            agentKind: "acp-generic:antigravity-acp",
+            model: "gemini-3.5-flash-low",
+          },
+          roles: [
+            {
+              ...validCrew.roles[0],
+              selection: { agentKind: "qwen", model: QWEN_RETIRED_PREVIEW_MODEL_ID },
+              fallbacks: [
+                {
+                  agentKind: "acp-generic:antigravity-acp",
+                  model: "gemini-3.5-flash-low",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(normalized.crews[0]?.lead).toMatchObject({
+      agentKind: "antigravity",
+      model: "gemini-3.5-flash",
+      effort: "Medium",
+    });
+    expect(normalized.crews[0]?.roles[0]?.selection).toMatchObject({
+      agentKind: "qwen",
+      model: "qwen3.8-max",
+    });
+    expect(normalized.crews[0]?.roles[0]?.fallbacks?.[0]).toMatchObject({
+      agentKind: "antigravity",
+      model: "gemini-3.5-flash",
+      effort: "Medium",
+    });
+  });
+});
 
 describe("shared settings defaults", () => {
-  it("keeps pre-LAN settings loopback-only without changing remote enablement", () => {
+  it("adds explicit voice backend defaults without changing the Transformers model choice", () => {
+    const normalized = normalizeSharedSettings({
+      audio: {
+        transcriptionModel: "base",
+        transcriptionLanguage: "fr",
+        useWebGpu: false,
+      },
+    });
+    expect(normalized.audio).toMatchObject({
+      transcriptionBackend: "transformers",
+      hexModel: "parakeet_v3",
+      transcriptionModel: "base",
+      transcriptionLanguage: "fr",
+      useWebGpu: false,
+    });
+  });
+
+  it("loads pre-upgrade Poracode disables without disabling its always-on MCP server", () => {
+    expect(
+      normalizeSharedSettings({
+        disabledBuiltInMcpServers: { "app-controls": true, browser: true },
+        disabledBuiltInMcpTools: { "app-controls": ["create_thread"] },
+      }),
+    ).toMatchObject({
+      disabledBuiltInMcpServers: { browser: true },
+      disabledBuiltInMcpTools: { "app-controls": ["create_thread"] },
+    });
+    expect(
+      normalizeSharedSettings({ disabledBuiltInMcpServers: { "app-controls": true } })
+        .disabledBuiltInMcpServers,
+    ).toEqual({});
+  });
+
+  it("retains the retired LAN preference without changing remote enablement", () => {
     const prior = { remoteAccessEnabled: true, remoteAccessTailscaleHttps: true };
     expect(normalizeSharedSettings(prior)).toMatchObject({
       ...prior,
@@ -18,6 +154,28 @@ describe("shared settings defaults", () => {
     expect(normalizeSharedSettings({ ...prior, remoteAccessLanEnabled: true })).toMatchObject({
       remoteAccessLanEnabled: true,
     });
+  });
+
+  it("shows the news line with no dismissed promotions for pre-news-line settings", () => {
+    const prior = { sidebarTranslucency: false, homeScopeEnabled: false };
+    expect(normalizeSharedSettings(prior)).toMatchObject({
+      ...prior,
+      newsLineEnabled: true,
+      newsLineActivity: true,
+      dismissedPromotions: [],
+    });
+  });
+
+  it("keeps promotion ids written by a newer app and resets only a malformed list", () => {
+    const saved = {
+      newsLineEnabled: false,
+      dismissedPromotions: ["github-star", "future-promotion"],
+    };
+    expect(normalizeSharedSettings(saved)).toMatchObject(saved);
+    expect(
+      normalizeSharedSettings({ dismissedPromotions: "github-star" }).dismissedPromotions,
+    ).toEqual([]);
+    expect(normalizeSharedSettings({ newsLineActivity: "no" }).newsLineActivity).toBe(true);
   });
 
   it("defaults absent or malformed font preferences while retaining saved family names", () => {
@@ -98,10 +256,12 @@ describe("shared settings defaults", () => {
   it("normalizes and reorders thread docks without moving hidden dock slots", () => {
     expect(normalizeThreadDocksOrder(["plan", "plan"])).toEqual([
       "plan",
+      "vision",
       "goal",
       "agents",
       "backgroundTasks",
       "images",
+      "info",
       "context",
       "usage",
     ]);
@@ -115,10 +275,16 @@ describe("shared settings defaults", () => {
     ).toEqual(["goal", "images", "agents", "plan", "backgroundTasks"]);
   });
 
-  it("preserves existing saved dock order and appends context and usage on upgrade", () => {
+  it("preserves existing saved dock order and appends new docks on upgrade", () => {
     const priorOrder = ["images", "plan", "agents", "goal", "backgroundTasks"];
     const upgraded = normalizeSharedSettings({ threadDocksOrder: priorOrder });
-    expect(upgraded.threadDocksOrder).toEqual([...priorOrder, "context", "usage"]);
+    expect(upgraded.threadDocksOrder).toEqual([
+      ...priorOrder,
+      "vision",
+      "info",
+      "context",
+      "usage",
+    ]);
     expect(
       reorderVisibleThreadDocks(
         upgraded.threadDocksOrder,
@@ -126,7 +292,77 @@ describe("shared settings defaults", () => {
         3,
         0,
       ),
-    ).toEqual(["usage", "images", "agents", "goal", "backgroundTasks", "plan", "context"]);
+    ).toEqual([
+      "usage",
+      "images",
+      "agents",
+      "goal",
+      "backgroundTasks",
+      "vision",
+      "info",
+      "plan",
+      "context",
+    ]);
+  });
+
+  it("inserts the info dock beside a prior-release context slot without moving saved positions", () => {
+    // Orders saved before the unversioned "info" dock existed remain valid:
+    // the new dock lands next to the old combined section.
+    const priorOrder = [
+      "vision",
+      "goal",
+      "plan",
+      "agents",
+      "backgroundTasks",
+      "images",
+      "context",
+      "usage",
+    ] as const;
+    expect(normalizeThreadDocksOrder(priorOrder)).toEqual([
+      "vision",
+      "goal",
+      "plan",
+      "agents",
+      "backgroundTasks",
+      "images",
+      "info",
+      "context",
+      "usage",
+    ]);
+    // A legacy order without context/usage keeps its relative order and gets
+    // the new docks appended in default order.
+    expect(normalizeThreadDocksOrder(["usage", "images", "plan"])).toEqual([
+      "usage",
+      "images",
+      "plan",
+      "vision",
+      "goal",
+      "agents",
+      "backgroundTasks",
+      "info",
+      "context",
+    ]);
+    // An explicitly saved info position is never rewritten.
+    expect(normalizeThreadDocksOrder(["info", "context", "images"])).toEqual([
+      "info",
+      "context",
+      "images",
+      "vision",
+      "goal",
+      "plan",
+      "agents",
+      "backgroundTasks",
+      "usage",
+    ]);
+    // Reordering context or info does not move hidden slot positions.
+    expect(
+      reorderVisibleThreadDocks(
+        ["vision", "info", "context", "usage", "goal"],
+        ["info", "context"],
+        0,
+        1,
+      ),
+    ).toEqual(["vision", "context", "info", "usage", "goal"]);
   });
 
   it("enables notifications and displays them for visible threads by default", () => {
@@ -135,9 +371,13 @@ describe("shared settings defaults", () => {
     expect(defaultSharedSettings.notificationFilter).toBe("all");
   });
 
-  it("defaults preventSleep to while-remote-access", () => {
-    expect(defaultSharedSettings.preventSleep).toBe("while-remote-access");
-    expect(normalizeSharedSettings({}).preventSleep).toBe("while-remote-access");
+  it("defaults system sleep to working + remote access and screen lock to never", () => {
+    expect(defaultSharedSettings.preventSleepWhen).toEqual(["working", "remote-access"]);
+    expect(defaultSharedSettings.preventScreenLockWhen).toEqual([]);
+    expect(normalizeSharedSettings({})).toMatchObject({
+      preventSleepWhen: ["working", "remote-access"],
+      preventScreenLockWhen: [],
+    });
   });
 
   it.each([true, false])(
@@ -145,11 +385,12 @@ describe("shared settings defaults", () => {
     (computerUseKeepAwake) => {
       const normalized = normalizeSharedSettings({
         ...defaultSharedSettings,
-        preventSleep: "while-working",
+        preventSleepWhen: ["working"],
         computerUseKeepAwake,
       });
 
-      expect(normalized.preventSleep).toBe("while-working");
+      expect(normalized.preventSleepWhen).toEqual(["working"]);
+      expect(normalized.preventScreenLockWhen).toEqual([]);
       expect(normalized).not.toHaveProperty("computerUseKeepAwake");
     },
   );
@@ -205,55 +446,94 @@ describe("shared settings defaults", () => {
     });
   });
 
-  it("migrates legacy sleep booleans into preventSleep", () => {
+  // Pre-upgrade settings shape: the released `preventSleep` enum, cumulative scopes.
+  it.each([
+    ["while-working", ["working"]],
+    ["while-remote-access", ["working", "remote-access"]],
+    ["always", ["always"]],
+  ] as const)("migrates legacy preventSleep %s into preventSleepWhen", (preventSleep, expected) => {
+    const migrated = normalizeSharedSettings({ preventSleep });
+    expect(migrated.preventSleepWhen).toEqual(expected);
+    expect(migrated.preventScreenLockWhen).toEqual([]);
+    expect(migrated).not.toHaveProperty("preventSleep");
+  });
+
+  it("migrates legacy sleep booleans into preventSleepWhen", () => {
     expect(
       normalizeSharedSettings({
         preventSleepWhileWorking: true,
         remoteAccessPreventSleep: false,
-      }).preventSleep,
-    ).toBe("while-working");
+      }).preventSleepWhen,
+    ).toEqual(["working"]);
     expect(
       normalizeSharedSettings({
         preventSleepWhileWorking: false,
         remoteAccessPreventSleep: true,
-      }).preventSleep,
-    ).toBe("while-remote-access");
-    expect(normalizeSharedSettings({ remoteAccessPreventSleep: true }).preventSleep).toBe(
-      "while-remote-access",
-    );
+      }).preventSleepWhen,
+    ).toEqual(["working", "remote-access"]);
+    expect(normalizeSharedSettings({ remoteAccessPreventSleep: true }).preventSleepWhen).toEqual([
+      "working",
+      "remote-access",
+    ]);
     expect(
       normalizeSharedSettings({
         preventSleepWhileWorking: false,
         remoteAccessPreventSleep: false,
-      }).preventSleep,
-    ).toBe("while-working");
+      }).preventSleepWhen,
+    ).toEqual(["working"]);
   });
 
-  it("lets an explicit preventSleep value win over legacy booleans", () => {
+  it("lets a valid legacy preventSleep win over the older booleans", () => {
     const migrated = normalizeSharedSettings({
       preventSleep: "always",
       preventSleepWhileWorking: true,
       remoteAccessPreventSleep: true,
     });
-    expect(migrated.preventSleep).toBe("always");
+    expect(migrated.preventSleepWhen).toEqual(["always"]);
     expect(migrated).not.toHaveProperty("preventSleepWhileWorking");
     expect(migrated).not.toHaveProperty("remoteAccessPreventSleep");
   });
 
-  it("falls back via migration when preventSleep is invalid", () => {
+  it("falls back to the legacy booleans when legacy preventSleep is invalid", () => {
     expect(
       normalizeSharedSettings({
         preventSleep: "never",
         preventSleepWhileWorking: true,
         remoteAccessPreventSleep: false,
-      }).preventSleep,
-    ).toBe("while-working");
+      }).preventSleepWhen,
+    ).toEqual(["working"]);
     expect(
       normalizeSharedSettings({
         preventSleep: "never",
         remoteAccessPreventSleep: true,
-      }).preventSleep,
-    ).toBe("while-remote-access");
+      }).preventSleepWhen,
+    ).toEqual(["working", "remote-access"]);
+  });
+
+  it("lets an explicit preventSleepWhen win over every legacy sleep value", () => {
+    const migrated = normalizeSharedSettings({
+      preventSleepWhen: [],
+      preventSleep: "always",
+      remoteAccessPreventSleep: true,
+    });
+    expect(migrated.preventSleepWhen).toEqual([]);
+  });
+
+  it("keeps stored keep-awake lists as written and normalizes client selections", () => {
+    expect(
+      normalizeSharedSettings({
+        preventSleepWhen: ["remote-access", "working"],
+        preventScreenLockWhen: ["computer-use", "always"],
+      }),
+    ).toMatchObject({
+      preventSleepWhen: ["remote-access", "working"],
+      preventScreenLockWhen: ["computer-use", "always"],
+    });
+    expect(normalizeKeepAwakeConditions(["computer-use", "working", "working"])).toEqual([
+      "working",
+      "computer-use",
+    ]);
+    expect(normalizeKeepAwakeConditions(["computer-use", "always"])).toEqual(["always"]);
   });
 
   it("drops legacy sleep keys from the normalized output", () => {
@@ -261,7 +541,7 @@ describe("shared settings defaults", () => {
       preventSleepWhileWorking: true,
       remoteAccessPreventSleep: true,
     });
-    expect(migrated.preventSleep).toBe("while-remote-access");
+    expect(migrated.preventSleepWhen).toEqual(["working", "remote-access"]);
     expect(migrated).not.toHaveProperty("preventSleepWhileWorking");
     expect(migrated).not.toHaveProperty("remoteAccessPreventSleep");
   });
@@ -707,5 +987,19 @@ describe("canonical AI-utility selection settings", () => {
         futureTopLevel: true,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe.each(["computerUseLockedUse", "computerUseLockedUseDimDisplay"] as const)("%s", (key) => {
+  it("defaults off for settings files written before the field existed", () => {
+    const legacy = { ...defaultSharedSettings } as Record<string, unknown>;
+    delete legacy[key];
+    expect(normalizeSharedSettings(legacy)[key]).toBe(false);
+    expect(defaultSharedSettings[key]).toBe(false);
+  });
+
+  it("keeps an explicit choice and drops a malformed value", () => {
+    expect(normalizeSharedSettings({ ...defaultSharedSettings, [key]: true })[key]).toBe(true);
+    expect(normalizeSharedSettings({ ...defaultSharedSettings, [key]: "yes" })[key]).toBe(false);
   });
 });

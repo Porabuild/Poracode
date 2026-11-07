@@ -1,11 +1,20 @@
 import type { MessageDescriptor } from "@lingui/core";
-import { baseAgentKind, type AgentInstanceConfig, type ProjectLocation } from "@/shared/contracts";
+import {
+  baseAgentKind,
+  type AgentCapability,
+  type AgentInstanceConfig,
+  type ProjectLocation,
+} from "@/shared/contracts";
 
 export interface ProviderMarkdownImageRootsInput {
   sessionId?: string;
   projectLocation: ProjectLocation;
+  /**
+   * Home directory of the machine the thread's host runs on. Absent when the
+   * host does not expose one (a host on another machine), in which case roots
+   * under the home directory cannot be resolved.
+   */
   homeDir?: string;
-  isRemote?: boolean;
 }
 
 export interface RendererProviderManifest {
@@ -16,6 +25,13 @@ export interface RendererProviderManifest {
     config: T,
     models: readonly { id: string }[],
   ) => T & { fast?: boolean | undefined };
+  /**
+   * Project a live session catalog onto the composer. The session inventory
+   * replaces the detection model list; a provider that represents one
+   * advertised model with another composer control folds that model back out
+   * here so an active thread keeps the same controls as a new thread.
+   */
+  projectComposerCapabilities?: (capabilities: AgentCapability) => AgentCapability;
   kind: string;
   label: MessageDescriptor;
   /** Shared discovery/model-picker order. */
@@ -24,6 +40,8 @@ export interface RendererProviderManifest {
   utilityOrder?: number;
   /** Validate and label an instance whose usage can be collected independently. */
   profileUsageLabel?: (instance: AgentInstanceConfig) => string | undefined;
+  /** Billing collector shared by this provider's default account; otherwise its own kind. */
+  usageProviderId?: string;
   /** Provider-owned roots for relative image paths emitted in transcript markdown. */
   resolveMarkdownImageRoots?: (
     input: ProviderMarkdownImageRootsInput,

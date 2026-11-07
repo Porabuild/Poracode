@@ -6,7 +6,8 @@ import XCTest
 @MainActor
 final class RichChatTerminalControllerTests: XCTestCase {
   func testGapInstallsFreshWatchBaselineWithNewWatchIdentity() async {
-    let gateway = TerminalControllerGateway()
+    let replacementWatch = RichChatControllerTestBarrier()
+    let gateway = TerminalControllerGateway(secondWatchBarrier: replacementWatch)
     let controller = RichChatTerminalController(
       gateway: gateway,
       watchIDGenerator: TerminalSequenceWatchIDGenerator(["watch-1", "watch-2"])
@@ -44,7 +45,8 @@ final class RichChatTerminalControllerTests: XCTestCase {
       target: target
     )
 
-    try? await Task.sleep(for: .milliseconds(350))
+    await replacementWatch.waitUntilReached()
+    await replacementWatch.release()
     let watches = await gateway.watchIDs()
     XCTAssertEqual(watches, ["watch-1", "watch-2"])
     XCTAssertEqual(controller.state.watchID, "watch-2")
@@ -210,9 +212,14 @@ actor TerminalControllerGateway: RichChatTerminalGateway {
   private var writes = 0
   private var stops = 0
   private let writeFailure: RichChatGatewayError?
+  private let secondWatchBarrier: RichChatControllerTestBarrier?
 
-  init(writeFailure: RichChatGatewayError? = nil) {
+  init(
+    writeFailure: RichChatGatewayError? = nil,
+    secondWatchBarrier: RichChatControllerTestBarrier? = nil
+  ) {
     self.writeFailure = writeFailure
+    self.secondWatchBarrier = secondWatchBarrier
   }
 
   func watchRichTerminal(
@@ -220,9 +227,10 @@ actor TerminalControllerGateway: RichChatTerminalGateway {
     terminalID _: String,
     watchID: String,
     resume: RichChatTerminalWatchResume?
-  ) {
+  ) async {
     watches.append(watchID)
     resumes.append(resume)
+    if watches.count == 2 { await secondWatchBarrier?.suspend() }
   }
 
   func recordedResumes() -> [RichChatTerminalWatchResume?] { resumes }

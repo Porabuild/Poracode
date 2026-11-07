@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
+import { isChatVideoSource, isVideoPath } from "@/shared/chatVideo";
 
 /**
  * Upper bound for an inline image read. Beyond this the row still surfaces
@@ -107,6 +108,8 @@ export function toOpenCodeFileRef(
   if (typeof part.mime !== "string" || part.mime.length === 0) return undefined;
   if (typeof part.url !== "string" || part.url.length === 0) return undefined;
   let path = fileUrlToFsPath(part.url);
+  if (!path && /^https?:\/\//iu.test(part.url) && isChatVideoSource(part.url, part.mime))
+    path = part.url;
   const dataBytes = path ? undefined : boundedDataUrlBytes(part.url, part.mime);
   if (!path && !dataBytes) return undefined;
   const filename =
@@ -176,10 +179,20 @@ export function resolveOpenCodeAttachments(
   attachments: unknown,
   messageID: string,
   location?: ProjectLocation,
-): { images: string[]; locations: Array<{ path: string }> } {
+): {
+  images: string[];
+  locations: Array<{ path: string }>;
+  videoResources?: Array<{ type: "resource_link"; uri: string; mimeType: string; name: string }>;
+} {
   if (!Array.isArray(attachments)) return { images: [], locations: [] };
   const images: string[] = [];
   const locations: Array<{ path: string }> = [];
+  const videoResources: Array<{
+    type: "resource_link";
+    uri: string;
+    mimeType: string;
+    name: string;
+  }> = [];
   for (const attachment of attachments) {
     if (!attachment || typeof attachment !== "object") continue;
     const ref = toOpenCodeFileRef(
@@ -189,8 +202,16 @@ export function resolveOpenCodeAttachments(
     );
     if (!ref) continue;
     if (ref.path) locations.push({ path: ref.path });
+    if (ref.path && isVideoPath(ref.path, ref.mime)) {
+      videoResources.push({
+        type: "resource_link",
+        uri: ref.path,
+        mimeType: ref.mime,
+        name: ref.filename,
+      });
+    }
     const dataUrl = readOpenCodeImageDataUrl(ref);
     if (dataUrl) images.push(dataUrl);
   }
-  return { images, locations };
+  return { images, locations, ...(videoResources.length > 0 ? { videoResources } : {}) };
 }

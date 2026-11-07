@@ -1,11 +1,184 @@
 import Foundation
 import XCTest
+import CryptoKit
 
 #if canImport(App)
   @testable import App
 #else
   @testable import GitHubOperations
 #endif
+
+@MainActor
+final class ForgeReviewControllerTests: XCTestCase {
+  func testDiskCacheSurvivesRestartAndPreservesFutureSnapshots() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("forge-review-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let cache = ForgeReviewDiskCache(directory: directory)
+    let missing = await cache.read("owner-a")
+    XCTAssertNil(missing)
+    let diff = GitHubDocument(value: .object(["diff": .string("cached diff")]))
+    await cache.write("owner-a", documents: [.forgeGetPrDiff: diff])
+    let reopened = ForgeReviewDiskCache(directory: directory)
+    let snapshot = await reopened.read("owner-a")
+    XCTAssertEqual(snapshot?[.forgeGetPrDiff], diff)
+    let otherOwner = await reopened.read("owner-b")
+    XCTAssertNil(otherOwner)
+    let file = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first)
+    let future = Data(#"{"version":2,"scope":"owner-a","documents":{}}"#.utf8)
+    try future.write(to: file)
+    let refused = await reopened.read("owner-a")
+    XCTAssertNil(refused)
+    await reopened.write("owner-a", documents: [.forgeGetPrDiff: diff])
+    XCTAssertEqual(try Data(contentsOf: file), future)
+  }
+
+  func testCacheScopeIncludesEndpointAndAccountWithoutGrantingOfflineWrites() async throws {
+    var context = GitHubOperationsSamples.context
+    context.cacheEndpoint = "https://desktop.example/prefix/"
+    let payload = GitHubDocument(value: .object(["forgeAccount": .string("alice"), "prNumber": .integer(7)]))
+    let first = ForgeReviewDiskCache.scope(context, payload: payload)
+    context.cacheEndpoint = "https://desktop.example/other/"
+    XCTAssertNotEqual(first, ForgeReviewDiskCache.scope(context, payload: payload))
+    context.isOnline = false
+    let gateway = ForgeControllerGateway()
+    let controller = ForgeReviewController(gateway: gateway)
+    await controller.select(context: context, sourceData: source("alice"), number: 7)
+    let result = await controller.mutate(.forgeSetPrFileViewed, fields: ["path": .string("file"), "fingerprint": .string("VIEWED")])
+    XCTAssertFalse(result)
+    let calls = await gateway.calls
+    XCTAssertTrue(calls.isEmpty)
+  }
+
+  func testPullRequestListCacheUsesTheRawGeneratedResultBoundary() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("forge-list-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    var context = GitHubOperationsSamples.context
+    context.cacheEndpoint = "https://desktop.example/prefix/"
+    let result = try GitHubOperationsRemoteV3Contract.result(for: .ghListPullRequests, response: GitHubOperationsSamples.response(for: .ghListPullRequests))
+    await ForgeReviewDiskCache(directory: directory).writePullRequests(context, result: result)
+    let restored = await ForgeReviewDiskCache(directory: directory).readPullRequests(context)
+    XCTAssertEqual(restored, result)
+  }
+
+  func testEveryCallPinsTheSelectedAccountAndUncertainEditsAreNotReplayed() async throws {
+    let gateway = ForgeControllerGateway()
+    let controller = ForgeReviewController(gateway: gateway)
+    await controller.select(context: GitHubOperationsSamples.context, sourceData: source("alice"), number: 7)
+    let result = await controller.mutate(.forgeEditPrComment, fields: [
+      "commentId": .string("comment-7"), "body": .string("new"), "expectedBody": .string("old"),
+      "forgeAccount": .object(["login": .string("wrong-account")]),
+    ])
+    XCTAssertFalse(result)
+    XCTAssertEqual(controller.failure, .ambiguousOutcome)
+    let calls = await gateway.calls
+    XCTAssertEqual(calls.filter { $0.0 == .forgeEditPrComment }.count, 1)
+    XCTAssertTrue(calls.allSatisfy { $0.1["forgeAccount"]?.objectValue?["login"]?.stringValue == "alice" })
+    XCTAssertTrue(calls.allSatisfy { $0.1["forgeRepository"]?.stringValue == "team/repo" && $0.1["prNumber"]?.integerValue == 7 })
+  }
+
+  func testHostFingerprintsMustMatchTheDisplayedDiff() async throws {
+    let gateway = ForgeControllerGateway()
+    let controller = ForgeReviewController(gateway: gateway)
+    await controller.select(context: GitHubOperationsSamples.context, sourceData: source("alice"), number: 7)
+    XCTAssertNil(controller.viewedFingerprint("__proto__"))
+    await gateway.useCurrentDiffHash()
+    await controller.refresh()
+    XCTAssertEqual(controller.viewedFingerprint("__proto__"), "server-fingerprint")
+    XCTAssertEqual(controller.viewedState("__proto__"), "changed")
+    controller.deactivate()
+    XCTAssertFalse(controller.canMutate)
+    XCTAssertTrue(controller.documents.isEmpty)
+  }
+
+  func testAnOlderAccountResponseCannotReplaceTheSelectedReview() async throws {
+    let gateway = ForgeControllerGateway()
+    await gateway.blockFirstRead()
+    let controller = ForgeReviewController(gateway: gateway)
+    let first = Task { await controller.select(context: GitHubOperationsSamples.context, sourceData: source("alice"), number: 7) }
+    await gateway.waitForBlockedRead()
+    await controller.select(context: GitHubOperationsSamples.context, sourceData: source("bob"), number: 7)
+    await gateway.releaseRead()
+    await first.value
+    XCTAssertEqual(controller.viewerLogin, "bob")
+    XCTAssertEqual(controller.documents[.forgeGetPrDetails]?["viewer"]?.stringValue, "bob")
+  }
+
+  func testViewedMutationIsRestoredFromTheSameReviewScopeOffline() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("forge-mark-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    var context = GitHubOperationsSamples.context
+    context.cacheEndpoint = "https://desktop.example/prefix/"
+    let gateway = ForgeControllerGateway()
+    await gateway.allowViewedWrites()
+    let controller = ForgeReviewController(gateway: gateway, cache: ForgeReviewDiskCache(directory: directory))
+    await controller.select(context: context, sourceData: source("alice"), number: 7)
+    let saved = await controller.mutate(.forgeSetPrFileViewed, fields: ["path": .string("__proto__"), "fingerprint": .string("new-mark")])
+    XCTAssertTrue(saved)
+    context.isOnline = false
+    let reopened = ForgeReviewController(gateway: nil, cache: ForgeReviewDiskCache(directory: directory))
+    await reopened.select(context: context, sourceData: source("alice"), number: 7)
+    XCTAssertTrue(reopened.isCached)
+    XCTAssertEqual(reopened.documents[.forgeGetPrViewedFiles]?["files"]?.arrayValue?.first?.objectValue?["fingerprint"]?.stringValue, "new-mark")
+  }
+
+  private func source(_ login: String) -> Data {
+    Data("""
+      {"repository":"team/repo","account":{"forge":"gitlab","host":"https://git.example","login":"\(login)"},"capabilities":{"viewedFiles":"host"}}
+      """.utf8)
+  }
+}
+
+private actor ForgeControllerGateway: ForgeReviewGateway {
+  private(set) var calls: [(ForgeReviewOperation, GitHubDocument)] = []
+  private var hash = String(repeating: "0", count: 64)
+  private var block = false
+  private var blocked = false
+  private var release: CheckedContinuation<Void, Never>?
+  private var waiter: CheckedContinuation<Void, Never>?
+  private var viewedWrites = false
+  func allowViewedWrites() { viewedWrites = true }
+
+  func blockFirstRead() { block = true }
+  func waitForBlockedRead() async {
+    if blocked { return }
+    await withCheckedContinuation { waiter = $0 }
+  }
+  func releaseRead() { release?.resume(); release = nil }
+  func useCurrentDiffHash() {
+    hash = SHA256.hash(data: Data("current diff".utf8)).map { String(format: "%02x", $0) }.joined()
+  }
+  func callForge(_ operation: ForgeReviewOperation, payload: GitHubDocument, lease: GitHubProjectLease) async throws -> GitHubDocument {
+    calls.append((operation, payload))
+    if block {
+      block = false
+      await withCheckedContinuation { continuation in
+        release = continuation
+        blocked = true
+        waiter?.resume(); waiter = nil
+      }
+    }
+    if operation == .forgeSetPrFileViewed, viewedWrites {
+      return .init(value: .object(["storage": .string("host"), "files": .array([.object(["path": payload["path"]!, "fingerprint": payload["fingerprint"]!])])]))
+    }
+    if operation.scope == .operate { throw GitHubOperationsFailure.ambiguousOutcome }
+    if operation == .forgeGetPrDiff { return .init(value: .object(["diff": .string("current diff")])) }
+    if operation == .forgeGetPrViewedFiles {
+      return .init(value: .object([
+        "storage": .string("host"), "diffHash": .string(hash),
+        "files": .array([.object(["path": .string("__proto__"), "fingerprint": .string("old-fingerprint")])]),
+        "currentFiles": .array([.object(["path": .string("__proto__"), "fingerprint": .string("server-fingerprint")])]),
+      ]))
+    }
+    let procedure: GitHubProcedure = switch operation {
+    case .forgeGetPrDetails: .ghGetPrDetails
+    case .forgeGetPrFiles: .ghGetPrFiles
+    default: .ghGetPrReviewComments
+    }
+    var object = try JSONDecoder().decode(GitHubJSONValue.self, from: GitHubOperationsSamples.response(for: procedure)).objectValue ?? [:]
+    object["viewer"] = payload["forgeAccount"]?.objectValue?["login"] ?? .null
+    return .init(value: .object(object))
+  }
+}
 
 @MainActor
 final class GitHubOperationsControllerTests: XCTestCase {

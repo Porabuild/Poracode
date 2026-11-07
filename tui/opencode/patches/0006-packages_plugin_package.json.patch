@@ -1,0 +1,86 @@
+diff --git a/packages/plugin/package.json b/packages/plugin/package.json
+index 1723f24..4d03bec 100644
+--- a/packages/plugin/package.json
++++ b/packages/plugin/package.json
+@@ -1,71 +1,32 @@
+ {
+-  "$schema": "https://json.schemastore.org/package.json",
+   "name": "@opencode/plugin",
+-  "version": "2.1.0",
++  "version": "2.1.4",
++  "private": true,
+   "type": "module",
+-  "license": "MIT",
+-  "scripts": {
+-    "test": "bun test --only-failures",
+-    "typecheck": "tsc --noEmit",
+-    "build": "tsc -p tsconfig.build.json"
+-  },
+   "exports": {
++    "./package.json": "./package.json",
+     ".": "./src/promise/index.ts",
+-    "./effect": "./src/effect/index.ts",
+     "./host": "./src/host.ts",
+     "./runtime": "./src/runtime.ts",
++    "./runtime-modules": "./src/runtime-modules.ts",
++    "./source": "./src/source.ts",
+     "./tui": "./src/tui/index.ts",
+-    "./*": "./src/*.ts"
++    "./tui/context": "./src/tui/context.ts"
+   },
+   "imports": {
+     "#plugin-source": {
+       "bun": "./src/source.bun.ts",
+-      "node": "./src/source.node.ts",
+-      "default": "./src/source.node.ts"
++      "default": "./src/source.bun.ts"
+     }
+   },
+-  "files": [
+-    "dist"
+-  ],
+   "dependencies": {
+-    "@ai-sdk/provider": "3.0.8",
+-    "@opencode/ai": "workspace:*",
+     "@opencode/client": "workspace:*",
+-    "@opencode/protocol": "workspace:*",
+     "@opencode/schema": "workspace:*",
+-    "@opencode/util": "workspace:*",
+-    "effect": "catalog:"
+-  },
+-  "peerDependencies": {
+-    "@opencode/theme": "workspace:*",
+-    "@opentui/core": ">=0.6.6",
+-    "@opentui/solid": ">=0.6.6",
+-    "solid-js": ">=1.9.0"
+-  },
+-  "peerDependenciesMeta": {
+-    "@opencode/theme": {
+-      "optional": true
+-    },
+-    "@opentui/core": {
+-      "optional": true
+-    },
+-    "@opentui/solid": {
+-      "optional": true
+-    },
+-    "solid-js": {
+-      "optional": true
+-    }
+-  },
+-  "devDependencies": {
+     "@opencode/theme": "workspace:*",
++    "@opencode/util": "workspace:*",
+     "@opentui/core": "catalog:",
+     "@opentui/solid": "catalog:",
+-    "@tsconfig/bun": "catalog:",
+-    "@tsconfig/node22": "catalog:",
+-    "@types/bun": "catalog:",
+-    "@types/node": "catalog:",
+-    "solid-js": "catalog:",
+-    "typescript": "catalog:",
+-    "@typescript/native": "catalog:"
++    "effect": "catalog:",
++    "solid-js": "catalog:"
+   }
+ }

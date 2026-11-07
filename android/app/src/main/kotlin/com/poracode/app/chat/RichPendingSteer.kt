@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -86,6 +87,11 @@ fun Iterable<RichPromptSegment>.toJsonArrayOrNull(): JsonArray? {
     val values = map(RichPromptSegment::toJsonObject).toList()
     return values.takeIf(List<JsonObject>::isNotEmpty)?.let(::JsonArray)
 }
+
+/** An attachment on its own is a complete message (the host's sendable-input rule). */
+fun JsonArray?.containsAttachmentSegment(): Boolean = this?.any { element ->
+    ((element as? JsonObject)?.get("kind") as? JsonPrimitive)?.content == "attachment"
+} == true
 
 data class RichPendingSteer(
     val id: String,

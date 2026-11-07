@@ -3,7 +3,7 @@ import { lstatSync, mkdirSync, renameSync } from "node:fs";
 import type { Dir, Dirent } from "node:fs";
 import { opendir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { getThreadAttachmentDirName } from "./attachmentStorage";
+import { getThreadAttachmentDirName, pendingAttachmentDirectoryNames } from "./attachmentStorage";
 import {
   attachmentDirNameAliases,
   isPersistedStagingAttachmentDirName,
@@ -285,6 +285,9 @@ export class AttachmentReclaimService {
 
   private liveAttachmentDirNames(): Set<string> {
     const names = new Set<string>();
+    for (const name of pendingAttachmentDirectoryNames()) {
+      for (const alias of attachmentDirNameAliases(name)) names.add(alias);
+    }
     for (const threadId of this.options.listLiveThreadIds()) {
       for (const alias of attachmentDirNameAliases(getThreadAttachmentDirName(threadId))) {
         names.add(alias);

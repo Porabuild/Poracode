@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TerminalWriteQueue } from "./terminalWriteQueue";
 import {
   createXtermScreen,
   resetXtermInstanceCacheForTests,
@@ -9,10 +10,13 @@ import {
 } from "./xtermInstanceCache";
 
 function fakeInstance(): CachedXtermInstance {
+  const terminal = { dispose: vi.fn<() => void>(), write: vi.fn<() => void>() };
   return {
-    terminal: { dispose: vi.fn<() => void>() } as unknown as CachedXtermInstance["terminal"],
+    terminal: terminal as unknown as CachedXtermInstance["terminal"],
+    writeQueue: new TerminalWriteQueue(terminal),
     fit: {} as CachedXtermInstance["fit"],
     search: {} as CachedXtermInstance["search"],
+    programStatus: {} as CachedXtermInstance["programStatus"],
     screen: createXtermScreen(),
     hydrated: true,
   };
@@ -34,16 +38,20 @@ describe("xtermInstanceCache", () => {
     const first = fakeInstance();
     const second = fakeInstance();
     stashXtermInstance("thread-a", first);
+    const dispose = vi.spyOn(first.writeQueue, "dispose");
     stashXtermInstance("thread-a", second);
     expect(first.terminal.dispose).toHaveBeenCalled();
+    expect(dispose).toHaveBeenCalledOnce();
     expect(takeXtermInstance("thread-a")).toBe(second);
   });
 
   it("disposes cached instances on teardown", () => {
     const instance = fakeInstance();
     stashXtermInstance("thread-a", instance);
+    const dispose = vi.spyOn(instance.writeQueue, "dispose");
     resetXtermInstanceCacheForTests();
     expect(instance.terminal.dispose).toHaveBeenCalled();
+    expect(dispose).toHaveBeenCalledOnce();
     expect(takeXtermInstance("thread-a")).toBeUndefined();
   });
 });

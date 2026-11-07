@@ -73,11 +73,17 @@ export interface BoundedCatalogDeps {
   readonly runtimeThreads: (connectionKey: string) => readonly Thread[] | undefined;
   readonly runtimeProjects: (connectionKey: string) => readonly Project[] | undefined;
   readonly runtimeStatus: (connectionKey: string) => string | undefined;
-  /** Merge page rows into the runtime catalog and mirror them into app rows. */
+  /**
+   * Merge page rows into the runtime catalog and mirror them into app rows.
+   * `servedThreadIds` names the rows the host served in this read; every other
+   * row comes from the consumer's own catalog view, which must never re-add a
+   * store row removed after it was shown.
+   */
   readonly commitThreadRows: (
     connectionKey: string,
     rows: Thread[],
     preserveThreadIds: ReadonlySet<string>,
+    servedThreadIds: ReadonlySet<string>,
   ) => void;
   readonly commitProjectRows: (connectionKey: string, rows: Project[]) => void;
   readonly removeThreadRows: (connectionKey: string, threadIds: readonly string[]) => void;
@@ -171,6 +177,8 @@ interface BoundedCatalogConnection {
   pendingProjects: boolean;
   lastReconcileAt: number;
   reconcileKind: CatalogKind;
+  /** Removal clock value of this connection's latest confirmed row removal (0 = none). */
+  lastRemovalAt: number;
 }
 
 const EVENT_FOLLOW_UP_DELAY_MS = 600;
@@ -196,6 +204,7 @@ interface RegisteredConsumer extends BoundedCatalogConsumer {
 const consumers = new Map<string, RegisteredConsumer>();
 const connections = new Map<string, BoundedCatalogConnection>();
 const legacyConnections = new Map<string, { generation: number }>();
+let catalogRemovalClock = 0;
 let reconcileTicker: TimerHandle | null = null;
 
 /**
@@ -322,6 +331,7 @@ function ensureConnection(connectionKey: string): BoundedCatalogConnection | und
     pendingProjects: true,
     lastReconcileAt: nowOf(consumer),
     reconcileKind: "threads",
+    lastRemovalAt: 0,
   };
   connections.set(connectionKey, state);
   startReconcileTicker();
@@ -364,10 +374,24 @@ export function noteBoundedCatalogLegacy(connectionKey: string): void {
   legacyConnections.set(connectionKey, { generation });
 }
 
-/** Installs a bounded shell page 1 and schedules the background passes. */
+/**
+ * Capture before starting a shell read. A shell page read before a later
+ * confirmed removal must not restore the removed rows (see
+ * `installBoundedCatalogShellPage`).
+ */
+export function boundedCatalogRemovalMark(): number {
+  return catalogRemovalClock;
+}
+
+/**
+ * Installs a bounded shell page 1 and schedules the background passes.
+ * `readStartedAt` is the {@link boundedCatalogRemovalMark} captured before the
+ * read that produced this page began.
+ */
 export function installBoundedCatalogShellPage(
   connectionKey: string,
   page: RemoteBoundedShellSnapshotPage,
+  readStartedAt: number,
 ): void {
   const state = ensureConnection(connectionKey);
   if (!state) return;
@@ -376,31 +400,41 @@ export function installBoundedCatalogShellPage(
   const active = consumer.deps;
   legacyConnections.delete(connectionKey);
   active.bumpConnectionSeq(connectionKey, page.snapshotSeq);
-  commitThreadPage(active, connectionKey, page.threads, page.snapshotSeq);
-  if (page.projects.length > 0) commitProjectRows(active, connectionKey, page.projects);
-  // Page 1 is authoritative manual paint order. It (re)starts each walk for a
-  // fresh attempt, but a repeated install within the SAME attempt keeps an
-  // in-flight walk (the historical idempotence): replacing it would make the
-  // running loop overwrite the fresh page-1 state with its stale continuation.
-  // The project walk exists only for a connection that declared manual-order
-  // convergence, so a connection without one keeps the historical behavior.
-  installShellPaint(state, active, connectionKey, "threads", {
-    cursor: page.threadsNextCursor,
-    proof: page,
-    ids: page.threads.map((row) => row.id),
-  });
-  if (active.manualOrderConvergence) {
-    installShellPaint(state, active, connectionKey, "projects", {
-      cursor: page.projectsNextCursor,
-      proof: null,
-      ids: page.projects.map((row) => row.id),
+  // A deletion gate that confirmed rows absent after this read began has
+  // already removed them and their pending edits, and this page can still
+  // carry them. Retire its rows, as the gate retires an in-flight paint page,
+  // and repaint page 1 from a fresh read instead.
+  if (state.lastRemovalAt > readStartedAt) {
+    setPaintRefreshRequested(state, "threads", true);
+    if (active.manualOrderConvergence) setPaintRefreshRequested(state, "projects", true);
+  } else {
+    commitThreadPage(active, connectionKey, page.threads, page.snapshotSeq);
+    if (page.projects.length > 0) commitProjectRows(active, connectionKey, page.projects);
+    // Page 1 is authoritative manual paint order. It (re)starts each walk for a
+    // fresh attempt, but a repeated install within the SAME attempt keeps an
+    // in-flight walk (the historical idempotence): replacing it would make the
+    // running loop overwrite the fresh page-1 state with its stale continuation.
+    // The project walk exists only for a connection that declared manual-order
+    // convergence, so a connection without one keeps the historical behavior.
+    installShellPaint(state, active, connectionKey, "threads", {
+      cursor: page.threadsNextCursor,
+      proof: page,
+      ids: page.threads.map((row) => row.id),
     });
+    if (active.manualOrderConvergence) {
+      installShellPaint(state, active, connectionKey, "projects", {
+        cursor: page.projectsNextCursor,
+        proof: null,
+        ids: page.projects.map((row) => row.id),
+      });
+    }
   }
   // Idempotent: resumes a walk whose page failed (no loop owns the slot) and
   // never opens a second loop while one is in flight. Without this a plain
   // refresh would leave a failed paint walk stalled until a fresh attempt.
   schedulePaintSegment(connectionKey, "threads");
-  if (state.paintProjects) schedulePaintSegment(connectionKey, "projects");
+  if (state.paintProjects || paintRefreshRequested(state, "projects"))
+    schedulePaintSegment(connectionKey, "projects");
   if (!state.passesStarted) {
     state.passesStarted = true;
     scheduleInventory(connectionKey, "threads", 0);
@@ -508,7 +542,12 @@ function commitThreadPage(
     current,
   );
   const merged = mergeCatalogRows(current, reuseRemoteRows([...current], [...reconciled]));
-  active.commitThreadRows(connectionKey, merged, staleThreadIds);
+  active.commitThreadRows(
+    connectionKey,
+    merged,
+    staleThreadIds,
+    new Set(rows.map((row) => row.id)),
+  );
 }
 
 function commitProjectRows(
@@ -596,6 +635,7 @@ async function readPaintPage(
   connectionKey: string,
   kind: CatalogKind,
   paint: CatalogPaintState | null,
+  isCurrent: () => boolean,
 ): Promise<PaintPageResult | null> {
   try {
     if (kind === "threads") {
@@ -622,6 +662,7 @@ async function readPaintPage(
               maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
             }),
       );
+      if (!isCurrent()) return null;
       if (result.negotiation !== "bounded") {
         active.reportProtocolError(
           connectionKey,
@@ -658,6 +699,7 @@ async function readPaintPage(
             maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
           }),
     );
+    if (!isCurrent()) return null;
     commitProjectRows(active, connectionKey, result.projects);
     return {
       ids: result.projects.map((row) => row.id),
@@ -706,11 +748,13 @@ async function runPaintSegment(
     const consumer = stateConsumer(state);
     if (!consumer) return;
     const active = consumer.deps;
+    const isReadCurrent = () =>
+      attemptIsCurrent(connectionKey, state, attempt) && !paintRefreshRequested(state, kind);
     for (;;) {
       if (!attemptIsCurrent(connectionKey, state, attempt)) return;
       if (paintRefreshRequested(state, kind)) {
         setPaintRefreshRequested(state, kind, false);
-        const page = await readPaintPage(active, connectionKey, kind, null);
+        const page = await readPaintPage(active, connectionKey, kind, null, isReadCurrent);
         if (page === null) return;
         if (!attemptIsCurrent(connectionKey, state, attempt)) return;
         writePaint(state, kind, {
@@ -732,7 +776,7 @@ async function runPaintSegment(
         if (!paintRefreshRequested(state, kind)) return;
         continue;
       }
-      const page = await readPaintPage(active, connectionKey, kind, paint);
+      const page = await readPaintPage(active, connectionKey, kind, paint, isReadCurrent);
       if (page === null) return;
       if (!attemptIsCurrent(connectionKey, state, attempt)) return;
       const next: CatalogPaintState = {
@@ -757,7 +801,8 @@ async function runPaintSegment(
     // unscheduled (the slot was taken); hand it over now.
     if (state && paintRunningAttempt(state, kind) === attempt) {
       setPaintRunningAttempt(state, kind, null);
-      if (state.attempt !== attempt) schedulePaintSegment(connectionKey, kind);
+      if (state.attempt !== attempt || paintRefreshRequested(state, kind))
+        schedulePaintSegment(connectionKey, kind);
     }
   }
 }
@@ -1042,9 +1087,57 @@ async function runDeletionGate(
       return rowsFor().some((row) => row.id === id);
     });
     if (absent.length === 0) continue;
-    if (kind === "threads") active.removeThreadRows(connectionKey, absent);
-    else active.removeProjectRows(connectionKey, absent);
+    commitConfirmedRemoval(active, connectionKey, state, kind, absent);
   }
+}
+
+/**
+ * Removes rows this connection's host confirmed deleted. The rows leave the
+ * consumer's catalog copy and the store together, and reads begun before the
+ * removal can no longer restore them.
+ */
+function commitConfirmedRemoval(
+  active: BoundedCatalogDeps,
+  connectionKey: string,
+  state: BoundedCatalogConnection | undefined,
+  kind: CatalogKind,
+  ids: readonly string[],
+): void {
+  catalogRemovalClock += 1;
+  if (state) state.lastRemovalAt = catalogRemovalClock;
+  if (kind === "threads") active.removeThreadRows(connectionKey, ids);
+  else active.removeProjectRows(connectionKey, ids);
+  if (!state) return;
+  // A sealed paint cursor can still contain these rows. Retire its pending
+  // response before it can restore them, then start from the current catalog.
+  if (paintRunningAttempt(state, kind) !== null || readPaint(state, kind)?.cursor != null) {
+    setPaintRefreshRequested(state, kind, true);
+    schedulePaintSegment(connectionKey, kind);
+  }
+}
+
+/**
+ * Removes threads whose deletion a successful host command already confirmed,
+ * as the deletion gate removes rows it confirmed absent. Removing only the
+ * store row is not enough: a consumer that keeps its own catalog copy (a paired
+ * connection) would mirror the row back on its next page commit. Without an
+ * owning consumer the connection is gone, and its rows with it.
+ */
+export function removeConfirmedCatalogThreads(
+  connectionKey: string,
+  threadIds: readonly string[],
+): void {
+  const state = connections.get(connectionKey);
+  const owner = state ? stateConsumer(state) : undefined;
+  const consumer = owner ?? resolveConsumer(connectionKey);
+  if (!consumer || threadIds.length === 0) return;
+  commitConfirmedRemoval(
+    consumer.deps,
+    connectionKey,
+    owner ? state : undefined,
+    "threads",
+    threadIds,
+  );
 }
 
 function reportIfProtocolError(

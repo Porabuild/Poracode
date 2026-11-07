@@ -51,6 +51,10 @@ import {
 // also keeps the unit tests path-agnostic when executed on a Windows host.
 import { isAbsolute, normalize, relative, resolve as resolvePath } from "node:path/posix";
 import { createRequire } from "node:module";
+import { promisify } from "node:util";
+import { rm } from "node:fs/promises";
+
+const execFileAsync = promisify(execFile);
 
 // Bumped on every behavioural change. Windows side reads this via regex.
 // Parent-pipe EOF now releases idle bridges and orphaned helpers.
@@ -58,7 +62,8 @@ import { createRequire } from "node:module";
 // symlink-ancestor mutation rejection — that behavior shipped while the
 // constant still said 2.16.0, so the handshake cannot tell them apart.
 // 2.18.0: project reads, listings and editor writes reject symlink escapes.
-const BRIDGE_VERSION = "2.18.0";
+// 2.19.0: checkpoint Git and login-shell capture yield while subprocesses run.
+const BRIDGE_VERSION = "2.19.0";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
@@ -757,19 +762,20 @@ function writeNewFileHandler(req, body) {
   return { status: 200, data: { mtimeMs: st.mtimeMs, size: st.size } };
 }
 
-function git(args, cwd, env, input) {
-  return execFileSync("git", args, {
-    cwd,
-    env: { ...sanitizeGitEnv(process.env), GIT_OPTIONAL_LOCKS: "0", ...(env ?? {}) },
-    encoding: "utf8",
-    ...(input !== undefined ? { input } : {}),
-    maxBuffer: 50 * 1024 * 1024,
-  });
+async function git(args, cwd, env, input) {
+  const result = await runProcessExec(
+    "git",
+    { cwd, args, env, timeoutMs: MAX_GIT_TIMEOUT_MS },
+    input,
+  );
+  if (!result.ok)
+    throw Object.assign(new Error(result.error), { stdout: result.stdout, stderr: result.stderr });
+  return result.stdout;
 }
 
-function gitMaybe(args, cwd, env) {
+async function gitMaybe(args, cwd, env) {
   try {
-    return git(args, cwd, env).trim();
+    return (await git(args, cwd, env)).trim();
   } catch {
     return "";
   }
@@ -831,15 +837,18 @@ function normalizeGitTimeout(value) {
   return Math.min(Math.max(Math.floor(value), 1000), MAX_GIT_TIMEOUT_MS);
 }
 
-function resolveLoginShellPath() {
+async function resolveLoginShellPath() {
   if (typeof process.env.SHELL === "string" && isAbsolute(process.env.SHELL)) {
     return process.env.SHELL;
   }
   try {
-    const shell = execFileSync("sh", ["-lc", 'getent passwd "$(id -un)" | cut -d: -f7'], {
+    const execution = execFileAsync("sh", ["-lc", 'getent passwd "$(id -un)" | cut -d: -f7'], {
       encoding: "utf8",
       timeout: 3_000,
-    }).trim();
+    });
+    execution.child.stdin.end();
+    const { stdout } = await execution;
+    const shell = stdout.trim();
     if (shell && isAbsolute(shell)) return shell;
   } catch {
     // fall through
@@ -883,26 +892,29 @@ function sanitizeGitEnv(baseEnv) {
   return env;
 }
 
-function getLoginShellEnv() {
+async function getLoginShellEnv() {
   if (cachedLoginShellEnv !== undefined) return cachedLoginShellEnv;
-  try {
-    const shell = resolveLoginShellPath();
-    const output = execFileSync(shell, ["-l", "-i", "-c", "env -0"], {
-      env: process.env,
-      encoding: "buffer",
-      maxBuffer: 2 * 1024 * 1024,
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 10_000,
-    });
-    cachedLoginShellEnv = sanitizeGitEnv(parseEnvBlock(output) ?? process.env);
-  } catch {
-    cachedLoginShellEnv = sanitizeGitEnv(process.env);
-  }
+  cachedLoginShellEnv = (async () => {
+    try {
+      const shell = await resolveLoginShellPath();
+      const execution = execFileAsync(shell, ["-l", "-i", "-c", "env -0"], {
+        env: process.env,
+        encoding: "buffer",
+        maxBuffer: 2 * 1024 * 1024,
+        timeout: 10_000,
+      });
+      execution.child.stdin.end();
+      const { stdout: output } = await execution;
+      return sanitizeGitEnv(parseEnvBlock(output) ?? process.env);
+    } catch {
+      return sanitizeGitEnv(process.env);
+    }
+  })();
   return cachedLoginShellEnv;
 }
 
-function buildGitEnv(command) {
-  const baseEnv = command.loginEnv ? getLoginShellEnv() : sanitizeGitEnv(process.env);
+async function buildGitEnv(command) {
+  const baseEnv = command.loginEnv ? await getLoginShellEnv() : sanitizeGitEnv(process.env);
   return { ...baseEnv, GIT_OPTIONAL_LOCKS: "0", ...(command.env ?? {}) };
 }
 
@@ -947,7 +959,8 @@ function terminateProcessTree(child) {
   }
 }
 
-function runProcessExec(binary, command) {
+async function runProcessExec(binary, command, input) {
+  const env = await buildGitEnv(command);
   return new Promise((resolve) => {
     let timedOut = false;
     let timer;
@@ -962,7 +975,7 @@ function runProcessExec(binary, command) {
       {
         cwd: command.cwd,
         detached: setsidBinary === undefined,
-        env: buildGitEnv(command),
+        env,
         encoding: "utf8",
         maxBuffer: 50 * 1024 * 1024,
       },
@@ -985,6 +998,8 @@ function runProcessExec(binary, command) {
         });
       },
     );
+    child.stdin.on("error", () => {});
+    child.stdin.end(input);
     timer = setTimeout(() => {
       timedOut = true;
       terminateProcessTree(child);
@@ -1075,11 +1090,11 @@ const CHECKPOINT_FALLBACK_IDENT_ENV = {
 const MISSING_IDENTITY_RE =
   /identity unknown|unable to auto-detect email|empty ident name|no name was given|no email was given/i;
 
-function commitCheckpointTree(args, cwd, env, input) {
+async function commitCheckpointTree(args, cwd, env, input) {
   // Force English error text so MISSING_IDENTITY_RE can match it regardless
   // of the distro's system locale.
   try {
-    return git(args, cwd, { ...env, LC_ALL: "C" }, input);
+    return await git(args, cwd, { ...env, LC_ALL: "C" }, input);
   } catch (err) {
     const text = `${err?.stderr ?? ""} ${err?.message ?? ""}`;
     if (!MISSING_IDENTITY_RE.test(text)) throw err;
@@ -1087,7 +1102,7 @@ function commitCheckpointTree(args, cwd, env, input) {
   }
 }
 
-function gitCheckpointSnapshotHandler(req, body) {
+async function gitCheckpointSnapshotHandler(req, body) {
   const projectRoot = resolveSafePath(body.projectRoot, body.projectRoot);
   if (!projectRoot) return { status: 400, code: "ESCAPE", message: "projectRoot is invalid" };
   if (typeof body.ref !== "string" || !PORACODE_CHECKPOINT_REF_RE.test(body.ref)) {
@@ -1098,28 +1113,27 @@ function gitCheckpointSnapshotHandler(req, body) {
   }
 
   try {
-    git(["rev-parse", "--is-inside-work-tree"], projectRoot);
-    const indexPath = git(
-      ["rev-parse", "--path-format=absolute", "--git-path", "index"],
-      projectRoot,
+    await git(["rev-parse", "--is-inside-work-tree"], projectRoot);
+    const indexPath = (
+      await git(["rev-parse", "--path-format=absolute", "--git-path", "index"], projectRoot)
     ).trim();
     const tempIndex = `${indexPath}.poracode-${randomUUID()}`;
     try {
       const env = { GIT_INDEX_FILE: tempIndex };
       const baseTree =
-        gitMaybe(["rev-parse", "--verify", "HEAD^{tree}"], projectRoot) || EMPTY_GIT_TREE;
-      git(["read-tree", baseTree], projectRoot, env);
-      git(["add", "-A", "--", "."], projectRoot, env);
-      const tree = git(["write-tree"], projectRoot, env).trim();
-      const head = gitMaybe(["rev-parse", "--verify", "HEAD"], projectRoot);
+        (await gitMaybe(["rev-parse", "--verify", "HEAD^{tree}"], projectRoot)) || EMPTY_GIT_TREE;
+      await git(["read-tree", baseTree], projectRoot, env);
+      await git(["add", "-A", "--", "."], projectRoot, env);
+      const tree = (await git(["write-tree"], projectRoot, env)).trim();
+      const head = await gitMaybe(["rev-parse", "--verify", "HEAD"], projectRoot);
       const commitArgs = ["commit-tree", tree, ...(head ? ["-p", head] : []), "-F", "-"];
       const message = `Poracode checkpoint\n\n${JSON.stringify(body.metadata)}\n`;
-      const commit = commitCheckpointTree(commitArgs, projectRoot, env, message).trim();
-      git(["update-ref", body.ref, commit], projectRoot);
+      const commit = (await commitCheckpointTree(commitArgs, projectRoot, env, message)).trim();
+      await git(["update-ref", body.ref, commit], projectRoot);
       return { status: 200, data: { commit } };
     } finally {
       try {
-        rmSync(tempIndex, { force: true });
+        await rm(tempIndex, { force: true });
       } catch {
         // best effort
       }

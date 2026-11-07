@@ -21,6 +21,11 @@ import { prepareOwnedHostRoot } from "./hostRootManifest";
 import { callHostControl } from "./hostControlClient";
 import { readHostControlDiscovery } from "./hostControlDiscovery";
 import { createHostControlRequestProof } from "./hostControlAuth";
+import {
+  hostAdminRequest,
+  type HostAdminRequest,
+  type HostAdminResult,
+} from "@/shared/hostAdminProtocol";
 
 const cleanup: Array<() => Promise<void>> = [];
 
@@ -35,6 +40,7 @@ async function fixture(
       context: HostControlContext,
       expected: HostControlAdmitPayload,
     ) => void | Promise<void>;
+    administer?: (input: HostAdminRequest, context: HostControlContext) => Promise<HostAdminResult>;
   } = {},
 ) {
   const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-owner-control-")));
@@ -68,6 +74,7 @@ async function fixture(
     ...(options.status ? { status: options.status } : {}),
     ...(options.admit ? { admit: options.admit } : {}),
     ...(options.shutdown ? { shutdown: options.shutdown } : {}),
+    ...(options.administer ? { administer: options.administer } : {}),
   });
   cleanup.push(async () => {
     await control.dispose();
@@ -319,6 +326,60 @@ describe("live owner control", () => {
     test.advance(60_001);
     await callHostControl(test.paths, "issue-pairing", { requestId: ids[0]! });
     expect(test.issuePairing).toHaveBeenCalledTimes(65);
+  });
+
+  it("streams more than 64 export chunks and permits cancellation even when mutation receipts are full", async () => {
+    const administer = vi.fn<
+      (input: HostAdminRequest, context: HostControlContext) => Promise<HostAdminResult>
+    >(async (input) => ({ adminVersion: input.adminVersion, outcome: { ok: true, data: {} } }));
+    const test = await fixture({ administer });
+    const ids = Array.from({ length: 64 }, () => randomUUID());
+    for (const requestId of ids) await callHostControl(test.paths, "issue-pairing", { requestId });
+    const exportId = randomUUID();
+    for (let offset = 0; offset < 80; offset++)
+      await callHostControl(test.paths, "admin", {
+        expectedGeneration: test.lease.generation,
+        payload: hostAdminRequest({
+          action: "sessions-export-read",
+          threadId: "thread",
+          exportId,
+          offset,
+        }),
+      });
+    await callHostControl(test.paths, "admin", {
+      expectedGeneration: test.lease.generation,
+      payload: hostAdminRequest({ action: "sessions-export-cancel", threadId: "thread", exportId }),
+    });
+    expect(administer).toHaveBeenCalledTimes(81);
+    await expect(
+      callHostControl(test.paths, "admin", {
+        requestId: ids[0]!,
+        payload: hostAdminRequest({
+          action: "sessions-export-read",
+          threadId: "thread",
+          exportId,
+          offset: 80,
+        }),
+      }),
+    ).rejects.toMatchObject({ code: "invalid-request" });
+    await expect(
+      callHostControl(test.paths, "admin", {
+        expectedGeneration: randomUUID(),
+        payload: hostAdminRequest({
+          action: "sessions-export-cancel",
+          threadId: "thread",
+          exportId,
+        }),
+      }),
+    ).rejects.toThrow("owner changed");
+    await expect(
+      callHostControl(test.paths, "admin", {
+        payload: hostAdminRequest({ action: "sessions-export-start", threadId: "thread" }),
+      }),
+    ).rejects.toMatchObject({ code: "capacity" });
+    expect(administer).toHaveBeenCalledTimes(81);
+    await callHostControl(test.paths, "issue-pairing", { requestId: ids[0]! });
+    expect(test.issuePairing).toHaveBeenCalledTimes(64);
   });
 
   it("retains a completed mutation when its first response is lost", async () => {

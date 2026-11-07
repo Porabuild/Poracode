@@ -48,12 +48,13 @@ export function revertedPromptToDraft(
           (candidate) =>
             candidate.skillName === block.name && candidate.pluginId === block.pluginId,
         );
+        const segment = skillSegmentFromSlashCommand(command);
         // Quote unavailable skills so submit cannot bind another plugin's /name.
+        // Slash commands carry no `pluginName`, so a plugin @-mention keeps its own.
         draft.segments.push(
-          skillSegmentFromSlashCommand(command) ?? {
-            kind: "text",
-            content: `\`${block.invocation}\``,
-          },
+          segment
+            ? { ...segment, ...(block.pluginName ? { pluginName: block.pluginName } : {}) }
+            : { kind: "text", content: `\`${block.invocation}\`` },
         );
         break;
       }

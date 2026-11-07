@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { agentKindSchema, projectLocationSchema } from "./common";
+import type { ProjectLocation, ThreadPresentationMode } from "./common";
+import { resolveComposerMcpScope, type AgentCapability } from "./agent";
+import { nonEmptyPluginOverrides, type ThreadConfig } from "./config";
 
 export const DEFAULT_MCP_SERVER_TIMEOUT_MS = 30_000;
 
@@ -223,11 +226,23 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "gh_pr_comment",
     "gh_merge_pr",
     "gh_update_pr",
+    "review_list_prs",
+    "review_get_pr",
+    "review_create_pr",
+    "review_comment",
+    "review_merge_pr",
+    "review_update_pr",
+    "review_repository",
+    "review_threads",
+    "review_submit",
+    "review_edit",
     "list_mcp_servers",
     "probe_mcp_server",
     "add_mcp_server",
     "update_mcp_server",
     "remove_mcp_server",
+    "move_mcp_server",
+    "authenticate_mcp_server",
     "list_skills",
     "read_skill",
     "set_skill_enabled",
@@ -524,6 +539,42 @@ export const builtInMcpServerDisabledSchema = z
   .default({});
 export type BuiltInMcpServerDisabled = z.infer<typeof builtInMcpServerDisabledSchema>;
 
+/** Old settings stay readable; Poracode's always-on server ignores saved disables. */
+export function normalizeBuiltInMcpServerDisabled(
+  disabled: BuiltInMcpServerDisabled,
+): BuiltInMcpServerDisabled {
+  const normalized = { ...disabled };
+  delete normalized["app-controls"];
+  return normalized;
+}
+
+/** Standing new-thread defaults, with draft mentions and client-inherent tools applied. */
+export function resolveNewThreadMcpConfig(
+  settings: {
+    enabledMcpServers: Record<string, boolean>;
+    disabledBuiltInMcpServers: BuiltInMcpServerDisabled;
+  },
+  capabilities: Pick<AgentCapability, "mcpScope">,
+  presentationMode: ThreadPresentationMode,
+  location: ProjectLocation,
+  mentions: Partial<Record<BuiltInMcpServerId, boolean>> = {},
+  implicitMcpServers: readonly BuiltInMcpServerId[] = [],
+): Partial<Pick<ThreadConfig, "browserMcp" | "crossagentMcp" | "chromeMcp" | "computerUse">> {
+  const scope = resolveComposerMcpScope(capabilities.mcpScope, presentationMode);
+  const enabled = (id: BuiltInMcpServerId, available = true) =>
+    settings.disabledBuiltInMcpServers[id] !== true &&
+    (mentions[id] === true ||
+      ((implicitMcpServers.includes(id) || settings.enabledMcpServers[id] === true) &&
+        scope !== "none" &&
+        available));
+  return {
+    ...(enabled("browser") ? { browserMcp: true } : {}),
+    ...(enabled("crossagents") ? { crossagentMcp: true } : {}),
+    ...(enabled("chrome", location.kind !== "wsl") ? { chromeMcp: true } : {}),
+    ...(enabled("computer-use", location.kind !== "wsl") ? { computerUse: true } : {}),
+  };
+}
+
 export const builtInMcpDisabledToolsSchema = z
   .partialRecord(z.enum(BUILT_IN_MCP_SERVER_IDS), z.array(z.string().min(1)))
   .default({});
@@ -549,7 +600,8 @@ export function normalizeBuiltInMcpDisabledTools(
 export function disabledBuiltInMcpServerIds(
   disabled: BuiltInMcpServerDisabled,
 ): BuiltInMcpServerId[] {
-  return BUILT_IN_MCP_SERVER_IDS.filter((id) => disabled[id] === true);
+  const normalized = normalizeBuiltInMcpServerDisabled(disabled);
+  return BUILT_IN_MCP_SERVER_IDS.filter((id) => normalized[id] === true);
 }
 
 /** Custom servers plus built-in disables resolved for a thread launch. */
@@ -559,6 +611,17 @@ export interface McpLaunchSnapshot {
   disabledBuiltInMcpTools?: BuiltInMcpDisabledTools;
   /** Built-in MCPs contributed by enabled Agent Plugins for this launch. */
   pluginBuiltInMcpServerIds?: BuiltInMcpServerId[];
+  /**
+   * The project's Agent Plugin switches at launch. Applied beneath the thread's
+   * own `config.pluginOverrides`, and re-read from the project on every launch.
+   */
+  projectPluginOverrides?: Record<string, boolean>;
+}
+
+/** Project-owned launch settings; both are absent for the Home project. */
+export interface McpLaunchProjectSettings {
+  mcpServers?: readonly McpServer[] | undefined;
+  pluginOverrides?: Readonly<Record<string, boolean>> | undefined;
 }
 
 export function emptyMcpLaunchSnapshot(): McpLaunchSnapshot {
@@ -566,7 +629,7 @@ export function emptyMcpLaunchSnapshot(): McpLaunchSnapshot {
 }
 
 /**
- * Authoritative merge of global settings and project overrides into the
+ * Authoritative merge of global settings and project settings into the
  * launch-time MCP snapshot attached to `StartThreadPayload`.
  */
 export function resolveMcpLaunchSnapshot(
@@ -575,11 +638,30 @@ export function resolveMcpLaunchSnapshot(
     disabledBuiltInMcpServers: BuiltInMcpServerDisabled;
     disabledBuiltInMcpTools: BuiltInMcpDisabledTools;
   },
-  projectMcpServers: readonly McpServer[] = [],
+  project: McpLaunchProjectSettings | null | undefined = undefined,
+  overrides: Record<string, boolean> = {},
 ): McpLaunchSnapshot {
+  const projectPluginOverrides = nonEmptyPluginOverrides(project?.pluginOverrides);
   return {
-    mcpServers: resolveEnabledMcpServers(mergeMcpServers(settings.mcpServers, projectMcpServers)),
+    mcpServers: resolveEnabledMcpServers(
+      mergeMcpServers(settings.mcpServers, project?.mcpServers ?? []).map((server) =>
+        Object.hasOwn(overrides, server.id)
+          ? { ...server, enabled: overrides[server.id]! }
+          : server,
+      ),
+    ),
     disabledBuiltInMcpServerIds: disabledBuiltInMcpServerIds(settings.disabledBuiltInMcpServers),
     disabledBuiltInMcpTools: settings.disabledBuiltInMcpTools,
+    // Always set, so a host spreading this over a client payload replaces any
+    // client-supplied project switches instead of letting a stale map survive.
+    projectPluginOverrides: projectPluginOverrides ?? {},
   };
+}
+
+/** Effective per-launch plugin switches: the thread's own choices win over the project's. */
+export function resolveLaunchPluginOverrides(
+  projectPluginOverrides: Readonly<Record<string, boolean>> | undefined,
+  threadPluginOverrides: Readonly<Record<string, boolean>> | undefined,
+): Record<string, boolean> | undefined {
+  return nonEmptyPluginOverrides({ ...projectPluginOverrides, ...threadPluginOverrides });
 }

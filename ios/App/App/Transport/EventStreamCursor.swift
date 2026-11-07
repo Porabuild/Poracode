@@ -1,5 +1,37 @@
 import Foundation
 
+/// Event-stream epoch upgrade declaration (`eventEpoch=v1`), mirrored from
+/// `src/shared/remote/protocol/eventEpoch.ts`. Older hosts ignore both parameters
+/// and send `ready` without an epoch.
+enum RemoteEventEpochDeclaration {
+    static let parameter = "eventEpoch"
+    static let declaration = "v1"
+    static let lastSeenParameter = "lastSeenEpoch"
+
+    private static let unreserved = CharacterSet(
+        charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
+    )
+
+    /// Adds the declaration and the cursor's bound epoch (when it has one) to a
+    /// built upgrade URL, keeping every existing query item byte-for-byte. An
+    /// unbound positive cursor sends no `lastSeenEpoch`, which the server
+    /// answers with one authoritative resync.
+    static func decorate(_ url: URL, lastSeenEpoch: String?) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+        var items = (components.percentEncodedQueryItems ?? []).filter {
+            $0.name != parameter && $0.name != lastSeenParameter
+        }
+        items.append(URLQueryItem(name: parameter, value: declaration))
+        if let encoded = lastSeenEpoch?.addingPercentEncoding(withAllowedCharacters: unreserved) {
+            items.append(URLQueryItem(name: lastSeenParameter, value: encoded))
+        }
+        components.percentEncodedQueryItems = items
+        return components.url ?? url
+    }
+}
+
 /// Client-side applied-seq cursor for the remote event stream.
 ///
 /// Rules (must match desktop remote socket semantics + stricter contiguity):
@@ -17,6 +49,9 @@ import Foundation
 ///   so a `max` merge could strand the client past the end of the new stream.
 /// - The resync gate is cleared only after a successful authoritative refresh —
 ///   never on HTTP failure.
+/// - `eventEpoch=v1`: `epoch` names the server instance `appliedSeq` belongs to.
+///   A new epoch binds only when `resync-required` replaces the cursor, so a lost
+///   resync frame keeps the old binding and the reconnect is refused again.
 struct EventStreamCursor: Sendable, Equatable {
     enum EventDisposition: Sendable, Equatable {
         /// Contiguous next event — apply, then mark applied.
@@ -34,13 +69,33 @@ struct EventStreamCursor: Sendable, Equatable {
     /// True after a gap or `resync-required` until a successful authoritative refresh clears it.
     private(set) var resyncPending: Bool = false
 
-    init(appliedSeq: Int = 0) {
+    /// Server event-stream epoch `appliedSeq` is bound to; nil while unbound.
+    private(set) var epoch: String?
+
+    /// Epoch the current connection's `ready` reported (nil from hosts without one).
+    private var connectionEpoch: String?
+
+    init(appliedSeq: Int = 0, epoch: String? = nil) {
         self.appliedSeq = max(0, appliedSeq)
+        self.epoch = epoch
+    }
+
+    /// A new connection is starting: forget the previous connection's epoch.
+    mutating func beginConnection() {
+        connectionEpoch = nil
     }
 
     /// `ready` only confirms the handshake; it must not move the applied cursor.
-    mutating func noteReady(seq _: Int) {
-        // Intentionally no-op on appliedSeq.
+    /// It names the epoch of every later frame on this connection, which binds
+    /// only when the server's `resync-required` replaces the cursor (an unbound
+    /// cursor stays unbound until then). Returns true when a host stopped
+    /// reporting an epoch under a bound cursor (an older build that cannot
+    /// verify it), which the caller answers with one resync; the binding is
+    /// then cleared.
+    @discardableResult
+    mutating func noteReady(seq _: Int, epoch: String? = nil) -> Bool {
+        connectionEpoch = epoch
+        return epoch == nil && self.epoch != nil
     }
 
     func disposition(forEventSeq seq: Int) -> EventDisposition {
@@ -61,9 +116,11 @@ struct EventStreamCursor: Sendable, Equatable {
         appliedSeq = max(appliedSeq, seq)
     }
 
-    /// Server `resync-required`: replace exactly (may lower after process restart).
+    /// Server `resync-required`: replace exactly (may lower after process restart)
+    /// and bind the epoch this connection's `ready` reported.
     mutating func replaceFromResyncRequired(_ seq: Int) {
         appliedSeq = max(0, seq)
+        epoch = connectionEpoch
         resyncPending = true
     }
 

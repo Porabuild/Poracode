@@ -21,7 +21,7 @@ vi.mock("@/renderer/state/managedRootCatalog/rootCatalogIntents", async (importO
   ...(await importOriginal<
     typeof import("@/renderer/state/managedRootCatalog/rootCatalogIntents")
   >()),
-  dispatchManagedRootThreadGroupIntents: groupIntentsMock,
+  dispatchThreadGroupIntents: groupIntentsMock,
 }));
 
 const project: Project = {
@@ -281,6 +281,25 @@ describe("ThreadContextMenu project actions", () => {
     } as never);
 
     await renderMenu(thread(), project);
+
+    expect(screen.queryByRole("menuitem", { name: "Move to Workspace" })).not.toBeInTheDocument();
+  });
+
+  it("hides Move to Workspace for a paired host's thread, which has its own workspaces", async () => {
+    useSharedSettings.setState({
+      workspaces: [
+        { id: "w1", name: "Work", createdAt: "2026-01-01T00:00:00.000Z", icon: "briefcase" },
+        { id: "w2", name: "Side Hustle", createdAt: "2026-01-01T00:00:00.000Z", icon: "rocket" },
+      ],
+    } as never);
+    const pairedThread = thread({
+      id: "remote:d1:thread:h1",
+      projectId: HOME_PROJECT_ID,
+      remoteServerId: "d1",
+      remoteId: "h1",
+    });
+
+    await renderMenu(pairedThread, homeProject);
 
     expect(screen.queryByRole("menuitem", { name: "Move to Workspace" })).not.toBeInTheDocument();
   });

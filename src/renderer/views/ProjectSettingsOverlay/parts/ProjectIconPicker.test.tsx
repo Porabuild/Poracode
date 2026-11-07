@@ -14,7 +14,10 @@ const { updateProjectIcon, pickFiles, detectProjectIcon, listProjectIconFiles, s
     session: { remote: false },
   }));
 
-vi.mock("@/renderer/actions/projectActions", () => ({ updateProjectIcon }));
+// The picker writes through the logical-project fan-out (shared across environments).
+vi.mock("@/renderer/actions/projectGroupActions", () => ({
+  updateProjectIconEverywhere: updateProjectIcon,
+}));
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({ pickFiles, detectProjectIcon, listProjectIconFiles }),
   isRemoteSession: () => session.remote,

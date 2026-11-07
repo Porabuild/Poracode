@@ -7,8 +7,11 @@ import com.poracode.app.chat.RichRuntimeEvent
 import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.RemoteThreadSnapshot
+import com.poracode.app.model.ThreadConfig
 import com.poracode.app.transport.RemoteApiClient
 import com.poracode.app.transport.richchat.GeneratedRichChatRemoteTransport
+import com.poracode.app.ui.richchat.UploadedAttachment
+import com.poracode.app.ui.richchat.submitRichChatComposer
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -18,7 +21,11 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -620,6 +627,74 @@ class RichChatControllerTest {
             controller.state.value.transcript?.orderedItemIds,
         )
         server.shutdown()
+    }
+
+    @Test
+    fun attachmentOnlySendReachesTheGatewayWithAnEmptyPrompt() = runTest {
+        val session = MutableStateFlow<RichChatHostLease?>(richLease())
+        val gateway = FakeRichChatSessionGateway()
+        val controller = RichChatController(session, gateway)
+        controller.selectThread("thread-a")
+        val segments = JsonArray(
+            listOf(
+                buildJsonObject {
+                    put("kind", "attachment")
+                    put("path", "C:\\shots\\one.png")
+                },
+            ),
+        )
+
+        val result = controller.send(
+            "",
+            config = ThreadConfig(model = "gpt-5"),
+            segments = segments,
+        )
+
+        assertTrue(result is RichChatOperationResult.Success)
+        assertEquals(listOf("send"), gateway.calls.filter { it == "send" })
+        assertEquals(listOf("" to segments), gateway.sentPrompts)
+    }
+
+    @Test
+    fun blankSendWithoutAnAttachmentIsRejectedBeforeTheGateway() = runTest {
+        val session = MutableStateFlow<RichChatHostLease?>(richLease())
+        val gateway = FakeRichChatSessionGateway()
+        val controller = RichChatController(session, gateway)
+        controller.selectThread("thread-a")
+
+        val result = controller.send("   ", config = ThreadConfig(model = "gpt-5"))
+
+        val failure = (result as RichChatOperationResult.Failed).failure
+        assertEquals(RichChatOperationFailure.InvalidRequest, failure)
+        assertFalse("send" in gateway.calls)
+    }
+
+    @Test
+    fun attachmentOnlyComposerSubmissionSendsTheAttachmentSegment() = runTest {
+        val session = MutableStateFlow<RichChatHostLease?>(richLease())
+        val gateway = FakeRichChatSessionGateway()
+        val runtime = RichChatSessionRuntime(session, gateway, scope = backgroundScope)
+        runtime.selectThread("thread-a")
+
+        val result = submitRichChatComposer(
+            runtime = runtime,
+            draft = "",
+            configuration = ThreadConfig(model = "gpt-5"),
+            queuedSegments = emptyList(),
+            attachments = listOf(
+                UploadedAttachment("one.png", "image/png", "/remote/one.png"),
+            ),
+            isTurnActive = false,
+            activeRequest = null,
+        )
+
+        assertTrue(result is RichChatOperationResult.Success)
+        val (prompt, segments) = gateway.sentPrompts.single()
+        assertEquals("", prompt)
+        val attachment = segments?.single() as JsonObject
+        assertEquals("attachment", (attachment["kind"] as JsonPrimitive).content)
+        assertEquals("/remote/one.png", (attachment["path"] as JsonPrimitive).content)
+        assertEquals("image/png", (attachment["mimeType"] as JsonPrimitive).content)
     }
 
     private fun startedEvent(lease: RichChatThreadLease, id: String): RichRuntimeEvent =

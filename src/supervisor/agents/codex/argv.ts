@@ -19,8 +19,11 @@ import {
   probeCodexCliSemver,
 } from "./plugin/install";
 import { resolveCodexWindowsLaunchBinary } from "./windowsExecutable";
+import { codexAgentSettingOverrideArgs } from "@/shared/agents/codexAgentSettings";
 import { codexContextWindowOverrides } from "@/shared/agents/codexContextWindows";
 import { buildCodexMcp } from "./mcpConfig";
+import { readCodexNativeMcpNames } from "./nativeMcp";
+import { isCodexAgentsConfigSupported } from "./agentsConfigSupport";
 import { buildCodexMcpSkillConflictArgs } from "./mcpSkillConflicts";
 
 const CODEX_GOALS_FEATURE_FLAG = "goals";
@@ -30,12 +33,13 @@ interface BuildCodexArgsOptions {
   config: ThreadConfig;
   prompt: string;
   enableGoals: boolean;
+  supportsAgentsConfig: boolean;
   launchOptions?: AgentLaunchOptions;
   mcpArgs?: string[];
 }
 
 function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
-  const { config, prompt, enableGoals, launchOptions, mcpArgs } = opts;
+  const { config, prompt, enableGoals, supportsAgentsConfig, launchOptions, mcpArgs } = opts;
   const args: string[] = [];
 
   if (enableGoals) {
@@ -54,6 +58,7 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
   );
 
   args.push(...(mcpArgs ?? []));
+  args.push(...codexAgentSettingOverrideArgs(launchOptions?.agentSettings, supportsAgentsConfig));
 
   if (!launchOptions?.suppressResumeConfigOverrides) {
     if (config.model) {
@@ -76,8 +81,9 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
     if (config.approvalPolicy) {
       args.push("-a", config.approvalPolicy);
     }
-    if (config.approvalsReviewer) {
-      args.push("-c", `approvals_reviewer="${config.approvalsReviewer}"`);
+    const approvalsReviewer = config.approvalPolicy === "never" ? "user" : config.approvalsReviewer;
+    if (approvalsReviewer) {
+      args.push("-c", `approvals_reviewer="${approvalsReviewer}"`);
     }
     if (config.sandboxMode) {
       args.push("-s", config.sandboxMode);
@@ -116,18 +122,21 @@ export async function buildCodexArgvFor(
   prompt: string,
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
+  env?: Record<string, string>,
 ): Promise<AgentArgvSpec> {
   const binary = resolveCodexWindowsLaunchBinary(location) ?? "codex";
   const mcpServers = launchOptions?.mcpServers ?? [];
-  const mcp = buildCodexMcp(mcpServers);
+  const nativeNames = await readCodexNativeMcpNames(location, mcpServers, env);
+  const mcp = buildCodexMcp(mcpServers, nativeNames);
   const mcpArgs = [...(await buildCodexMcpSkillConflictArgs(location, mcpServers)), ...mcp.args];
-  const mcpEnv = mcp.env;
+  const mcpEnv = { ...mcp.env, ...env };
   const hasMcpEnv = Object.keys(mcpEnv).length > 0;
   const enableGoals = isCodexGoalsSupported(location);
   const baseArgsOptions: BuildCodexArgsOptions = {
     config,
     prompt: "",
     enableGoals,
+    supportsAgentsConfig: isCodexAgentsConfigSupported(location),
     ...(launchOptions ? { launchOptions } : {}),
     mcpArgs,
   };
@@ -174,6 +183,9 @@ export async function buildCodexAppServerCommand(
     wslNodePath?: string;
     mcpServers?: readonly ResolvedMcpServer[];
     includeMcpConfig?: boolean;
+    nativeMcpNames?: readonly string[];
+    /** Stored Codex agent settings; sub-agent defaults apply to the whole shared app-server. */
+    agentSettings?: Record<string, boolean | string>;
     /**
      * Extra spawn env for the app-server (a profile's `CODEX_HOME`). Applied
      * after the MCP env so a profile's identity always wins.
@@ -184,7 +196,10 @@ export async function buildCodexAppServerCommand(
   const wslExecPath = options?.wslExecPath;
   const wslNodePath = options?.wslNodePath;
   const mcpServers = options?.mcpServers ?? [];
-  const mcp = buildCodexMcp(mcpServers);
+  const nativeNames =
+    options?.nativeMcpNames ??
+    (await readCodexNativeMcpNames(location, mcpServers, options?.env, wslExecPath));
+  const mcp = buildCodexMcp(mcpServers, nativeNames);
   const includeMcpConfig = options?.includeMcpConfig ?? true;
   const mcpSkillConflictArgs = await buildCodexMcpSkillConflictArgs(location, mcpServers);
   const mcpEnv = { ...mcp.env, ...(options?.env ?? {}) };
@@ -193,6 +208,10 @@ export async function buildCodexAppServerCommand(
     ...(isCodexGoalsSupported(location, wslExecPath) ? ["--enable", CODEX_GOALS_FEATURE_FLAG] : []),
     ...mcpSkillConflictArgs,
     ...(includeMcpConfig ? mcp.args : []),
+    ...codexAgentSettingOverrideArgs(
+      options?.agentSettings,
+      isCodexAgentsConfigSupported(location),
+    ),
     // Older CLIs tolerate config overrides; no global config mutation.
     "-c",
     "features.realtime_conversation=true",

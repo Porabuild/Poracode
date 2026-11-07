@@ -9,7 +9,7 @@ export function revealSearchDestination(destination: "thread" | "file" | "settin
   panels.closeMobileUtilityPage();
   panels.setGitOverlayOpen(false);
   panels.setBrowserOverlayOpen(false);
-  panels.setPrReviewContext(null);
+  panels.closePullRequestsOverlay();
   panels.setGitHubActionsContext(null);
   if (destination !== "file") useFileEditorStore.getState().setOverlayMode(null);
 }

@@ -75,6 +75,9 @@ export function createMuseAdapter(): AgentAdapter {
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
     // Neither MSP nor terminal MCP config can apply a stdio server cwd.
     mcpRequiresStdioCwdProxy: true,
+    // Native children eagerly expose MCP schemas. A malformed email pattern in
+    // one connected tool rejects every child model request with HTTP 400.
+    mcpRequiresPortableSchemaPatterns: true,
     ...inheritBaseSpawnEnv(museDetectionSpec),
 
     async detectInstall(ctx) {
@@ -87,7 +90,7 @@ export function createMuseAdapter(): AgentAdapter {
       // Muse mints its own session UUID; snapshot existing sessions so
       // discoverSessionRef can identify the new one. Returning no sessionRef
       // enables that discovery path.
-      snapshotMusePreSpawnSessions(location);
+      await snapshotMusePreSpawnSessions(location);
       const mcp = await buildMuseTerminalMcpForLocation(location, launchOptions?.mcpServers ?? []);
       const args = buildMuseArgs(config, prompt, mcp.args);
       return {
@@ -129,10 +132,10 @@ export function createMuseAdapter(): AgentAdapter {
     discoverSessionRef: makeMuseDiscoverSessionRef(),
     watchSessionRef: makeMuseWatchSessionRef(),
 
-    buildDirectInput(prompt) {
+    buildDirectInput(prompt, _segments, _config, projectLocation) {
       // The TUI treats bulk writes as paste, so an embedded `\r` becomes a
       // literal newline. Pause briefly between text and Enter (kimi-style).
-      return [prompt, "@wait:200", "\x1b[13;1u"];
+      return [prompt, "@wait:200", projectLocation?.kind === "windows" ? "\r" : "\x1b[13;1u"];
     },
 
     // `muse resume <uuid>` accepts no positional prompt. Always hand the first

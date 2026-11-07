@@ -100,7 +100,7 @@ object RichTimeline {
         val claimed = mutableSetOf<String>()
         return turns.map { turn ->
             val raw = turn.anchorItemId
-            if (raw == null || !turn.isDisplayable) return@map turn
+            if (raw == null) return@map turn
             if (!resolution.containsKey(raw)) {
                 claimed += raw
                 return@map turn
@@ -205,6 +205,7 @@ object RichTimeline {
 
     private fun isGroupable(node: RichVisibleTimelineNode): Boolean {
         if (node.children.isNotEmpty() || node.item.type !in RichItemTypes.groupable) return false
+        if (McpAppPresentation.from(node.item) != null) return false
         val payload = node.item.payload as? JsonObject
         if (node.item.type == RichItemTypes.TOOL_CALL && isStandaloneTool(payload)) return false
         if (node.item.type in RichItemTypes.toolLike && isDelegatedAgent(payload)) return false

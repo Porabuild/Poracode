@@ -29,9 +29,7 @@ import { nativeBindingEnv } from "@/host/db/runtimeItems.testFixtures";
 import { REAL_HOST_FIXTURE_KEY } from "./harness/realHostRoot";
 
 const CHILD_ENTRY = fileURLToPath(new URL("./harness/zeroClientOwnerChild.ts", import.meta.url));
-const TS_REGISTER = fileURLToPath(
-  new URL("../../scripts/remote-v3-ts-register.mjs", import.meta.url),
-);
+const TS_REGISTER = new URL("../../scripts/remote-v3-ts-register.mjs", import.meta.url).href;
 
 interface ReadyMessage {
   type: "ready";
@@ -56,12 +54,7 @@ function forkOwner(): ChildFixture {
   const paths = resolveHostRootPaths(namespace);
   const effectMarker = join(root, "effect-marker.log");
   const child = fork(CHILD_ENTRY, [namespace, effectMarker], {
-    execArgv: [
-      "--experimental-transform-types",
-      "--disable-warning=ExperimentalWarning",
-      "--import",
-      TS_REGISTER,
-    ],
+    execArgv: ["--disable-warning=ExperimentalWarning", "--import", TS_REGISTER],
     env: {
       ...process.env,
       PORACODE_SECRET_STORAGE_KEY: REAL_HOST_FIXTURE_KEY,

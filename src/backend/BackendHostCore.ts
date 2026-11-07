@@ -1,4 +1,9 @@
-import { closeAsyncDatabaseReads, enableAsyncDatabaseReads } from "@/host/db/asyncReads";
+import { retirePendingThreadState } from "@/host/remote/server/pendingInterruptedTurns";
+import {
+  closeAsyncDatabaseReads,
+  enableAsyncDatabaseReads,
+  warmAsyncDatabaseReads,
+} from "@/host/db/asyncReads";
 import {
   closeDatabase,
   dbGetThread,
@@ -35,6 +40,12 @@ import type {
 import { SupervisorClient, type SupervisorClientOptions } from "@/host/supervisor/SupervisorClient";
 import { ensureHomeProjectRow } from "@/host/schedules/homeProject";
 import { readWorkspaceLaunchSelection } from "@/host/threads/workspaceLaunchScope";
+import { msg } from "@/shared/messages";
+import {
+  acknowledgeThreadForkInitialInstructions,
+  isInheritedThreadForkItem,
+  readThreadForkInitialInstructions,
+} from "@/host/db/threadForks";
 import { HostDataFence } from "@/backend/ownership/hostDataFence";
 import {
   persistSupervisorEvent,
@@ -61,7 +72,7 @@ function isAnchorUnsupportedError(error: unknown): boolean {
   return error instanceof Error && error.message.includes("does not support revert anchors");
 }
 
-export type RevertCheckpointRefusalReason = "THREAD_TURN_ACTIVE";
+export type RevertCheckpointRefusalReason = "THREAD_TURN_ACTIVE" | "INHERITED_FORK_HISTORY";
 
 /** Typed refusal for a revert the backend declined before any side effect. */
 export class RevertCheckpointRefusedError extends Error {
@@ -119,6 +130,7 @@ export interface BackendHostCoreOptions {
   dbPath: string;
   /** Packaged read-only worker; direct/offline database harnesses omit it. */
   databaseReadWorkerPath?: string;
+  databaseReadImagePreviews?: boolean;
   databaseSchemaMode?: "migrate" | "validate";
   markLiveThreadsInactiveOnOpen?: boolean;
   /**
@@ -198,7 +210,13 @@ export class BackendHostCore {
         ? initDatabase(options.dbPath, { schemaMode: options.databaseSchemaMode })
         : initDatabase(options.dbPath);
       if (options.databaseReadWorkerPath) {
-        enableAsyncDatabaseReads(options.dbPath, options.databaseReadWorkerPath);
+        enableAsyncDatabaseReads(
+          options.dbPath,
+          options.databaseReadWorkerPath,
+          options.databaseReadImagePreviews,
+        );
+        // Clients load projects and threads right after the host starts.
+        warmAsyncDatabaseReads();
       }
       this.preparedDatabaseWriteAdmission = capturePreparedDatabaseWriteAdmission(
         database,
@@ -259,7 +277,10 @@ export class BackendHostCore {
           if (typeof threadId === "string" && threadId.length > 0) {
             armRuntimeThreadForLaunch(threadId);
           }
-          return prepared;
+          const initialInstructions = threadId
+            ? readThreadForkInitialInstructions(threadId)
+            : undefined;
+          return initialInstructions ? { ...prepared, initialInstructions } : prepared;
         },
         // Only the owning host database supplies grant-bearing launch intent.
         // A composition-provided callback or replica cannot replace this authority.
@@ -269,6 +290,9 @@ export class BackendHostCore {
           // bounded controller classifies storage failures and raises producer
           // backpressure instead. This try/catch is the last line of defense.
           try {
+            if (event.type === "thread-state" && event.initialInstructionsApplied) {
+              acknowledgeThreadForkInitialInstructions(event.threadId);
+            }
             this.terminalScrollbackPersistence.handle(event);
             const persistOptions = {
               publishDeferredEvent: (deferred) => {
@@ -530,19 +554,25 @@ export class BackendHostCore {
     removedCompletedTurnAnchors: string[];
   } {
     if (this.closing) throw new Error("Backend host is shutting down.");
-    this.assertRevertAllowed(threadId);
+    this.assertRevertAllowed(threadId, itemId);
     return this.truncateThreadRuntimeOwned(threadId, itemId);
   }
 
   /** Guard for entry points that mutate a thread's checkpointed history: a
    * turn-active thread can append items mid-operation, so a truncate here
    * would delete a live turn's items or land under late provider events. */
-  private assertRevertAllowed(threadId: string): void {
+  private assertRevertAllowed(threadId: string, itemId: string): void {
     const thread = dbGetThread(threadId);
     if (!thread) {
       // A missing thread row cascades to missing runtime items, so the
       // truncate below is already a natural no-op; keep that contract.
       return;
+    }
+    if (thread.forkedFrom && isInheritedThreadForkItem(threadId, itemId)) {
+      throw new RevertCheckpointRefusedError(
+        "INHERITED_FORK_HISTORY",
+        msg("thread.forkRevertUnavailable"),
+      );
     }
     if (thread.status === "working" || thread.status === "launching") {
       throw new RevertCheckpointRefusedError(
@@ -581,6 +611,7 @@ export class BackendHostCore {
     if (!result.truncated) {
       return result;
     }
+    retirePendingThreadState(threadId);
     this.options.onEvent({
       type: "thread-runtime-event",
       threadId,
@@ -654,7 +685,7 @@ export class BackendHostCore {
   }
 
   private async runRevertCheckpoint(input: RevertCheckpointInput): Promise<RevertCheckpointResult> {
-    this.assertRevertAllowed(input.threadId);
+    this.assertRevertAllowed(input.threadId, input.checkpointItemId);
     if (!dbHasThreadRuntimeItem(input.threadId, input.checkpointItemId)) {
       // Nothing addressable to revert: no journal row, no side effects, and a
       // concurrent second client converges on this noop after the first

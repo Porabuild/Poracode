@@ -2,7 +2,8 @@ import { z } from "zod";
 
 // A deployed helper boundary, independent of the remote protocol. A changed
 // package, client adaptation or layout invalidates the disposable artifact.
-export const DEVICE_HUB_ARTIFACT_VERSION = 1 as const;
+// Artifact 2 omits macOS native simulator payloads on other platforms.
+export const DEVICE_HUB_ARTIFACT_VERSION = 2 as const;
 export const DEVICE_HUB_CLIENT_ADAPTER_VERSION = 1 as const;
 export const DEVICE_HUB_VERSION = "0.15.3";
 export const DEVICE_HUB_CLIENT_VERSION = "1.5.0";
@@ -21,8 +22,8 @@ export const DEVICE_HUB_SCRCPY_SHA256 =
   "84924bd564a1eb6089c872c7521f968058977f91f5ff02514a8c74aff3210f3a";
 export const DEVICE_HUB_SCRCPY_PATH =
   "node_modules/expo-device-hub/vendor/serve-emu/vendor/scrcpy-server-v4.0";
-// Native patch1 changes only JAR integrity admission. Artifact1's unchanged
-// files closure carries the receipt; pre-patch artifacts are refused intact.
+// Native patch1 changes only JAR integrity admission. The files closure carries
+// the receipt; pre-patch artifacts are refused intact.
 export const DEVICE_HUB_NATIVE_PATCH_VERSION = 1 as const;
 export const DEVICE_HUB_NATIVE_MODULE_PATH =
   "node_modules/expo-device-hub/vendor/serve-emu/dist/scrcpy.js";

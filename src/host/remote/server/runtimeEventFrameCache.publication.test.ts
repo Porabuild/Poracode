@@ -30,7 +30,7 @@ class Socket {
   readonly callbacks: Array<(error?: Error) => void> = [];
   readonly terminate = vi.fn<() => void>();
 
-  send(data: string, callback?: (error?: Error) => void): void {
+  send(data: string, _options: { compress: boolean }, callback?: (error?: Error) => void): void {
     this.sent.push(data);
     if (callback) this.callbacks.push(callback);
   }

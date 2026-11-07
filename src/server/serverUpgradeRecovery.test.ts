@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,7 @@ import { canonicalHostPath } from "@/backend/ownership/hostRootPaths";
 import type { ServerUpgradeJournalRead, ServerUpgradePhase } from "./serverUpgradeJournal";
 import { defaultUpgradeIo } from "./serverUpgrade";
 import { abandonServerUpgrade } from "./serverUpgradeRecovery";
+import { serverUpgradeLockPath } from "./serverUpgradeLock";
 
 /**
  * V3 regression: `--abandon-journal` must decide from the journal that is
@@ -76,6 +77,31 @@ function okRead(
 const noOwnerIo = { ...defaultUpgradeIo, probeOwner: async () => null };
 
 describe("server upgrade recovery under the prefix lock (V3)", () => {
+  it("preserves journal bytes if the prefix lock changes during the awaited owner probe", async () => {
+    const { prefix, releaseDir, journalPath } = sandbox();
+    const bytes = `${JSON.stringify(okRead(prefix, releaseDir, "staged").journal)}\n`;
+    writeFileSync(journalPath, bytes);
+    const io = {
+      ...noOwnerIo,
+      probeOwner: async () => {
+        await Promise.resolve();
+        const lock = JSON.parse(readFileSync(serverUpgradeLockPath(prefix), "utf8"));
+        writeFileSync(
+          serverUpgradeLockPath(prefix),
+          JSON.stringify({ ...lock, token: "replacement-holder-token-000000000000" }),
+        );
+        return null;
+      },
+    };
+    await expect(
+      abandonServerUpgrade(
+        { from: "", prefix, json: true, abandonJournal: true, confirm: true },
+        io,
+      ),
+    ).rejects.toMatchObject({ code: "SERVER_UPGRADE_LOCK_LOST" });
+    expect(readFileSync(journalPath, "utf8")).toBe(bytes);
+    expect(existsSync(releaseDir)).toBe(true);
+  });
   it("refuses to abandon a journal that vanished between inspection and the lock", async () => {
     const { prefix, releaseDir, journalPath } = sandbox();
     writeFileSync(journalPath, `${JSON.stringify(okRead(prefix, releaseDir, "staged").journal)}\n`);

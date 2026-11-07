@@ -90,12 +90,24 @@ export function defaultInstalledPluginState(plugin: LoadedPlugin): InstalledPlug
 export function resolveInstalledPluginState(
   plugin: LoadedPlugin,
   installedPlugins: InstalledPlugins,
+  overrides?: Record<string, boolean>,
 ): InstalledPluginState | undefined {
   const stored = installedPlugins[plugin.name];
   if (isAlwaysEnabledPlugin(plugin)) {
-    return { ...(stored ?? defaultInstalledPluginState(plugin)), enabled: true };
+    // Always-on contributions have no enable controls. Older stored disables
+    // must not strand them; per-tool MCP restrictions are managed separately.
+    return {
+      ...(stored ?? defaultInstalledPluginState(plugin)),
+      enabled: true,
+      disabledSkillIds: [],
+      disabledMcpServerNames: [],
+    };
   }
-  return stored ?? (isBuiltInToolPlugin(plugin) ? defaultInstalledPluginState(plugin) : undefined);
+  const state =
+    stored ?? (isBuiltInToolPlugin(plugin) ? defaultInstalledPluginState(plugin) : undefined);
+  return state && overrides && Object.hasOwn(overrides, plugin.name)
+    ? { ...state, enabled: overrides[plugin.name]! }
+    : state;
 }
 
 /** Bundled plugins the user cannot switch off. */

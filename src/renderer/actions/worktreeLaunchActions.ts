@@ -2,13 +2,14 @@ import { msg } from "@lingui/core/macro";
 import type { Project } from "@/shared/contracts";
 import { worktreeScriptShellId } from "@/shared/worktreeScriptShell";
 import { buildWorktreeLocation, normalizeWorktreePathForComparison } from "@/shared/worktree";
+import { projectHostRunsOnThisMachine } from "@/renderer/state/hostLocality";
+import { worktreePlacementPayload } from "./worktreePlacement";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { removeTerminalTab } from "@/renderer/actions/terminalTabActions";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { getProjectActiveWorktreePaths } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   adoptExternalShell,
@@ -17,7 +18,6 @@ import {
   writeScriptToShellThenExitOnSuccess,
 } from "@/renderer/utils/shellUtils";
 import { cancelPendingWorktreeSetup, enqueueWorktreeSetup } from "./worktreeSetupQueue";
-import { worktreePlacementPayload } from "./worktreePlacement";
 
 export function createWorktree(
   project: Project,
@@ -35,7 +35,10 @@ export function createWorktree(
     branch: input.branch,
     ...(input.startPoint ? { startPoint: input.startPoint } : {}),
     createBranch: input.createBranch,
-    ...(!remoteOwner(project) ? worktreePlacementPayload(project) : {}),
+    // A project on this machine reaches its host over IPC, which has no
+    // placement of its own, so this client's settings and the project's
+    // override place it. A paired host places the worktree from its own.
+    ...(projectHostRunsOnThisMachine(project) ? worktreePlacementPayload(project) : {}),
     ...(copyIgnoredPatterns?.length ? { copyIgnoredPatterns } : {}),
     transferUncommitted: input.transferUncommitted,
     keepChangesInSource: input.keepChangesInSource,

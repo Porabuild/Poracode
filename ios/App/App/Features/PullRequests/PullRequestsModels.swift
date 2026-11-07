@@ -29,6 +29,7 @@ struct PullRequestReviewRoute: Hashable, Sendable {
   let state: String
   let isDraft: Bool
   let location: GitHubProjectLocation
+  let forgeSourceData: Data?
 
   init(entry: PullRequestsEntry) {
     number = entry.summary.number
@@ -38,6 +39,7 @@ struct PullRequestReviewRoute: Hashable, Sendable {
     state = entry.summary.state
     isDraft = entry.summary.isDraft
     location = GitHubProjectLocation(entry.project.location)
+    forgeSourceData = entry.summary.forgeSourceData
   }
 }
 

@@ -126,15 +126,21 @@ describe("Cursor runtime installation", () => {
     const projectStatus = status(true, true, { installationSource: "project" });
 
     expect(canUpdateCursorSdk(npmStatus)).toBe(true);
-    expect(cursorSdkUpdateCommand(npmStatus, posixProject)).toContain(
-      "npm install -g '@cursor/sdk@^1.0.38'",
+    expect(cursorSdkUpdateCommand(npmStatus, posixProject, "1.0.40")).toContain(
+      "npm install -g '@cursor/sdk@1.0.40'",
     );
     expect(canUpdateCursorSdk(pnpmStatus)).toBe(true);
-    expect(cursorSdkUpdateCommand(pnpmStatus, posixProject)).toContain(
-      "pnpm add -g '@cursor/sdk@^1.0.38'",
+    expect(cursorSdkUpdateCommand(pnpmStatus, posixProject, "v1.0.40")).toContain(
+      "pnpm add -g '@cursor/sdk@1.0.40'",
     );
     expect(canUpdateCursorSdk(projectStatus)).toBe(false);
-    expect(cursorSdkUpdateCommand(projectStatus, posixProject)).toBeUndefined();
+    expect(cursorSdkUpdateCommand(projectStatus, posixProject, "1.0.40")).toBeUndefined();
+    // A range that the installed release already satisfies is not an update, and
+    // a version outside the supported window must not be interpolated into a shell.
+    expect(cursorSdkUpdateCommand(npmStatus, posixProject, "^1.0.38")).toBeUndefined();
+    expect(cursorSdkUpdateCommand(npmStatus, posixProject, "1.0.37")).toBeUndefined();
+    expect(cursorSdkUpdateCommand(npmStatus, posixProject, "2.0.0")).toBeUndefined();
+    expect(cursorSdkUpdateCommand(npmStatus, posixProject, "1.0.40; rm -rf /")).toBeUndefined();
   });
 
   it("updates global installs the discovery reports as inferred or explicit", () => {
@@ -145,15 +151,15 @@ describe("Cursor runtime installation", () => {
     for (const installationSource of ["global-inferred", "global-explicit"]) {
       const globalStatus = status(true, true, { installationSource });
       expect(canUpdateCursorSdk(globalStatus)).toBe(true);
-      expect(cursorSdkUpdateCommand(globalStatus, posixProject)).toContain(
-        "npm install -g '@cursor/sdk@^1.0.38'",
+      expect(cursorSdkUpdateCommand(globalStatus, posixProject, "1.0.40")).toContain(
+        "npm install -g '@cursor/sdk@1.0.40'",
       );
     }
 
     for (const installationSource of ["configured", "node-path"]) {
       const scopedStatus = status(true, true, { installationSource });
       expect(canUpdateCursorSdk(scopedStatus)).toBe(false);
-      expect(cursorSdkUpdateCommand(scopedStatus, posixProject)).toBeUndefined();
+      expect(cursorSdkUpdateCommand(scopedStatus, posixProject, "1.0.40")).toBeUndefined();
     }
   });
 });

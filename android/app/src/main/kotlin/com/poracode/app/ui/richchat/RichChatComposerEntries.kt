@@ -24,6 +24,21 @@ internal data class RichChatSlashCommandOption(
     val skill: RichPromptSegment.Skill?,
 )
 
+internal data class RichChatSkillReference(val query: String, val start: Int, val end: Int) {
+    fun removingToken(draft: String): String = draft.removeRange(start, end)
+
+    companion object {
+        fun atCaret(draft: String, start: Int = draft.length, end: Int = start): RichChatSkillReference? {
+            if (start != end) return null
+            val tokenStart = draft.take(start).indexOfLast(Char::isWhitespace) + 1
+            if (tokenStart >= start || draft[tokenStart] != '$') return null
+            val query = draft.substring(tokenStart + 1, start)
+            if ('$' in query) return null
+            return RichChatSkillReference(query, tokenStart, start)
+        }
+    }
+}
+
 /** Humanizes an opaque capability id for display ("gpt-5" → "GPT 5"). */
 internal fun humanizedComposerId(value: String): String {
     val parts = value.split('-', '_', '/').filter(String::isNotBlank)

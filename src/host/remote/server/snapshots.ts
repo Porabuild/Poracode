@@ -1,6 +1,7 @@
 import { getSqlite } from "@/host/db/connection";
 import { DEVICE_WORKSPACE_VERSION } from "@/shared/deviceWorkspace";
 import { DEVICE_PREVIEW_VERSION } from "@/shared/devicePreview";
+import { eventStreamEpochOf } from "./eventStreamEpoch";
 import { readRuntimeSnapshot } from "@/host/db/runtimeReadSnapshot";
 import { assertLegacySnapshotWithinReservation } from "./legacyReadPrecheck";
 import type { ThreadRuntimeSummary } from "@/host/db/runtimeItems";
@@ -37,6 +38,7 @@ import {
   type RemoteRuntimeHistoryNotice,
   type RemoteRuntimeItemsPage,
   type RemoteRuntimeItemsPageRequest,
+  type RemoteHostWorkspace,
   type RemoteShellSnapshot,
   type RemoteThreadListPage,
   type RemoteThreadSnapshot,
@@ -54,6 +56,7 @@ import {
 import { RemoteHttpError } from "../auth";
 import { mapFenceRefusal, mapPersistenceRefusal } from "./persistenceRefusals";
 import type { RemoteServerContext } from "./context";
+import { withPendingInterruptedTurn } from "./pendingInterruptedTurns";
 import { readRuntimeHistoryNoticeForRead } from "./runtimeHistoryNoticeGate";
 import { CONVERSATION_SEARCH_VERSION } from "@/shared/conversationSearch";
 import { withStableUpdatedAt } from "./stableUpdatedAt";
@@ -185,6 +188,8 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
         versions: [REMOTE_THREAD_LAUNCH_METADATA_VERSION],
       },
       conversationSnapshots: { versions: [REMOTE_CONVERSATION_SNAPSHOTS_VERSION] },
+      threadForks: { versions: [1] },
+      sessionImport: { versions: [1] },
       // Managed-root bounded project-command results: the existing project
       // command route honors the exact per-request bounded declaration.
       projectCommandResults: {
@@ -244,7 +249,9 @@ function projectShellSnapshot(
     ctx.sessionConfigInventory.retainThreads(knownThreadIds);
     ctx.threadLiveReadState.retainThreads(knownThreadIds);
   }
-  const threads = data.threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread));
+  const threads = data.threads.map((thread) =>
+    withPendingInterruptedTurn(ctx.sessionConfigInventory.enrichThreadRow(thread)),
+  );
   const summariesByThread = runtimeSummariesFor(threads, summaries);
   const gitSummariesByThread =
     options.threadListLimit === undefined
@@ -253,19 +260,33 @@ function projectShellSnapshot(
   const gitState = ctx.options.gitState
     ? projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot())
     : undefined;
+  const workspaces = readHostWorkspaces(ctx);
   // Async readers pin before dispatch. Never move the cursor past mutations
   // that may have occurred after the worker took its SQLite snapshot.
   return remoteShellSnapshotSchema.parse(
     withStableUpdatedAt("shell", {
       snapshotSeq,
+      snapshotEpoch: eventStreamEpochOf(ctx),
       projects,
       threads,
       ...(threadsNextCursor ? { threadsNextCursor } : {}),
       runtimeSummariesByThread: summariesByThread,
       gitSummariesByThread,
       ...(gitState ? { gitState } : {}),
+      ...(workspaces ? { workspaces } : {}),
     }),
   );
+}
+
+/** The host's workspace names for snapshot readers; absent when unavailable. */
+export function readHostWorkspaces(ctx: RemoteServerContext): RemoteHostWorkspace[] | undefined {
+  try {
+    return ctx.options.settings?.readWorkspaces?.();
+  } catch {
+    // Workspace names only place projects; a settings read failure must not
+    // fail the snapshot.
+    return undefined;
+  }
 }
 
 /**

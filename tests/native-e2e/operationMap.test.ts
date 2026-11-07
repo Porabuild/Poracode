@@ -26,7 +26,7 @@ describe("operation-map inventory lock", () => {
         "tests/native-e2e/harness/operation-map.json manifestHash is stale: the protocol manifest " +
           "or protocol/remote/v3/generated/inventory.json changed without regenerating the " +
           "committed operation map. Refresh it in the same change with: " +
-          "node --experimental-transform-types --disable-warning=ExperimentalWarning " +
+          "node --disable-warning=ExperimentalWarning " +
           "tests/native-e2e/harness/refreshOperationMap.ts",
       );
     }
@@ -34,11 +34,11 @@ describe("operation-map inventory lock", () => {
     expect(live).toEqual(committed);
     expect(committed.keyCount).toBe(EXPECTED_OPERATION_KEY_COUNT);
     expect(committed.counts).toEqual({
-      route: 116,
-      procedure: 130,
-      "ws-client": 9,
-      "ws-server": 11,
-      replay: 16,
+      route: 119,
+      procedure: 172,
+      "ws-client": 11,
+      "ws-server": 12,
+      replay: 17,
       runtime: 16,
     });
   });

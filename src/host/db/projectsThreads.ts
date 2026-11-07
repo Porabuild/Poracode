@@ -28,9 +28,10 @@ import {
 
 // ── Public query functions (called from IPC handlers) ───────────────
 
+// Full legacy lists retain insertion order for tied slots, even with catalog indexes.
 export function dbGetProjects(): Project[] {
   const rows = getSqlite()
-    .prepare("SELECT * FROM projects ORDER BY sort_order ASC")
+    .prepare("SELECT * FROM projects ORDER BY sort_order ASC, rowid ASC")
     .all() as ProjectRow[];
   return rows.map(rowToProject);
 }
@@ -92,7 +93,7 @@ export function dbFindProjectByLocation(
 
 export function dbGetThreads(): Thread[] {
   const rows = getSqlite()
-    .prepare("SELECT * FROM threads ORDER BY sort_order ASC")
+    .prepare("SELECT * FROM threads ORDER BY sort_order ASC, rowid ASC")
     .all() as ThreadRow[];
   return rows.map(rowToThread);
 }
@@ -266,6 +267,9 @@ export function dbUpdateProject(project: Project): void {
          worktree_location = @worktreeLocation,
          mcp_servers = @mcpServers,
          gh_account = @ghAccount,
+         worktree_base_branch = @worktreeBaseBranch,
+         pinned_branches = @pinnedBranches,
+         plugin_overrides = @pluginOverrides,
          workspace_id = @workspaceId,
          disabled = @disabled
        WHERE id = @id`,
@@ -280,6 +284,11 @@ export function dbUpsertThread(
   thread: Thread,
   sortOrder: number,
   onCatalogCommitted?: CatalogIntentCommittedSignal,
+  /**
+   * Host-owned cut-off marker, committed with the row so a crash cannot keep
+   * one without the other. Absent leaves the stored marker alone.
+   */
+  interruptedTurn?: Thread["interruptedTurn"] | "stopped" | null,
 ): void {
   const sqlite = getSqlite();
   sqlite
@@ -293,6 +302,9 @@ export function dbUpsertThread(
       const options = { writeThreadStatusSource: true } as const;
       runThreadUpsert(prepareThreadUpsertStatement(sqlite, options), thread, sortOrder, options);
       if (isNewRow) noteMainCreatedThread(thread.id);
+      if (interruptedTurn !== undefined) {
+        updateThreadInterruptedTurn(sqlite, thread.id, interruptedTurn);
+      }
     })
     .immediate();
   onCatalogCommitted?.();
@@ -317,6 +329,37 @@ export function dbSetThreadsDone(threadIds: readonly string[], doneAt: string): 
   notifyProjectThreadDataChanged();
 }
 
+/** Compute against the current row; never replace runtime/configuration or catalog order. */
+export function dbUpdateThreadMetadata(
+  threadId: string,
+  update: (thread: Thread) => Thread,
+): Thread | null {
+  const sqlite = getSqlite();
+  const result = sqlite
+    .transaction(() => {
+      const current = dbGetThread(threadId);
+      if (!current) return null;
+      const next = update(current);
+      sqlite
+        .prepare(`UPDATE threads SET title = ?, done = ?, done_at = ?, starred = ?,
+      archived = ?, archived_at = ?, updated_at = ? WHERE id = ?`)
+        .run(
+          next.title,
+          next.done ? 1 : 0,
+          next.doneAt ?? null,
+          next.starred ? 1 : 0,
+          next.archived ? 1 : 0,
+          next.archivedAt ?? null,
+          next.updatedAt,
+          threadId,
+        );
+      return next;
+    })
+    .immediate();
+  if (result) notifyProjectThreadDataChanged();
+  return result;
+}
+
 /**
  * Assign a thread to a sidebar group without touching its sort order (unlike
  * `dbUpsertThread`, which requires one). Fallback for orchestrator grouping
@@ -334,16 +377,36 @@ export function dbSetThreadGroup(threadId: string, groupId: string, groupName: s
  * ("launching"/"working"/...) is stale by definition once the process boots.
  * DB-level counterpart of the renderer's `markThreadsInactiveOnLaunch`; the
  * headless server calls it at startup since it has no renderer to self-heal.
+ * A turn that was still running is remembered as cut off by the restart, so
+ * the user can resume it instead of typing "continue".
  */
-export function dbMarkLiveThreadsInactive(): void {
+export function dbMarkLiveThreadsInactive(pendingStopThreadIds: readonly string[] = []): void {
   getSqlite()
     .prepare(
       `UPDATE threads
-       SET status = 'inactive', attention = 'none', active_turn_started_at = NULL
+       SET status = 'inactive', attention = 'none', active_turn_started_at = NULL,
+           interrupted_turn = CASE
+             WHEN interrupted_turn = 'stopped'
+               OR id IN (SELECT value FROM json_each(?)) THEN NULL
+             WHEN status IN ('launching', 'working', 'needs_approval', 'needs_reply')
+               THEN 'restart'
+             ELSE interrupted_turn
+           END
        WHERE status NOT IN ('inactive', 'error')`,
     )
-    .run();
+    .run(JSON.stringify(pendingStopThreadIds));
   notifyProjectThreadDataChanged();
+}
+
+function updateThreadInterruptedTurn(
+  sqlite: ReturnType<typeof getSqlite>,
+  threadId: string,
+  value: Thread["interruptedTurn"] | "stopped" | null,
+): boolean {
+  const result = sqlite
+    .prepare("UPDATE threads SET interrupted_turn = ? WHERE id = ? AND interrupted_turn IS NOT ?")
+    .run(value ?? null, threadId, value ?? null);
+  return result.changes > 0;
 }
 
 export function dbDeleteThread(threadId: string): void {

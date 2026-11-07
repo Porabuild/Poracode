@@ -14,6 +14,8 @@ struct RichChatTranscriptSurface: View {
   let allowsCheckpointRevert: Bool
   let canOperate: Bool
   let retry: () -> Void
+  var requestFork: ((String) -> Void)? = nil
+  var forkBoundaryItemID: String? = nil
 
   var body: some View {
     VStack(spacing: 0) {
@@ -23,6 +25,12 @@ struct RichChatTranscriptSurface: View {
       RichChatNoticeBanner(notice: notice)
       content
     }
+    .environment(
+      \.richChatFileDownloads,
+      projectLocation.map {
+        RichChatFileDownloadContext(controller: mediaController, location: $0)
+      }
+    )
   }
 
   @ViewBuilder
@@ -53,7 +61,9 @@ struct RichChatTranscriptSurface: View {
         sharedTreeThreadCount: sharedTreeThreadCount,
         allowsCheckpointRevert: allowsCheckpointRevert,
         canOperate: canOperate,
-        isRefreshing: false
+        isRefreshing: false,
+        requestFork: requestFork,
+        forkBoundaryItemID: forkBoundaryItemID
       )
     }
   }

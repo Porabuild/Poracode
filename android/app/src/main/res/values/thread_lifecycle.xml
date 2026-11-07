@@ -24,4 +24,6 @@
     <string name="archived_threads_title">Archived threads</string>
     <string name="archived_threads_description">Restore or permanently delete threads you archived.</string>
     <string name="archived_threads_empty">No archived threads</string>
+    <string name="thread_status_starting_agent">Starting agent…</string>
+    <string name="thread_status_resuming">Resuming session…</string>
 </resources>

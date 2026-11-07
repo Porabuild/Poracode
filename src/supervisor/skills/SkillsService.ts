@@ -595,6 +595,7 @@ export class SkillsService {
       ...this.pluginSkillPolicy.resolveScanEntries(
         rootScans.flatMap((result) => result.skills),
         {
+          ...(payload.pluginOverrides ? { pluginOverrides: payload.pluginOverrides } : {}),
           ...(payload.projectLocation ? { projectLocation: payload.projectLocation } : {}),
           ...(activeAdapter ? { capabilities: activeAdapter.capabilities } : {}),
           ...(payload.presentationMode ? { presentationMode: payload.presentationMode } : {}),
@@ -961,6 +962,7 @@ export class SkillsService {
   ): Promise<PromptSegment[]> {
     const adapter = context.agentKind ? this.adapters.get(context.agentKind) : undefined;
     const filtered = await this.pluginSkillPolicy.filterSegments(segments, {
+      ...(context.pluginOverrides ? { pluginOverrides: context.pluginOverrides } : {}),
       ...(context.projectLocation ? { projectLocation: context.projectLocation } : {}),
       ...(adapter ? { capabilities: adapter.capabilities } : {}),
       ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),

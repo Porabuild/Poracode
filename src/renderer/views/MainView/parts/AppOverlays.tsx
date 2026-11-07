@@ -17,15 +17,16 @@ import {
   DeferredGitReviewOverlay,
   DeferredGitHubActionsView,
   DeferredLoginTerminalOverlay as PrewarmedLoginTerminalOverlay,
-  DeferredPrReviewOverlay,
+  DeferredPullRequestsOverlay,
   DeferredProjectSettingsOverlay,
   DeferredSettingsOverlay,
+  DeferredThreadForkDialog,
 } from "@/renderer/deferredFeatures";
 
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadForkStore } from "@/renderer/state/threadForkStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
-import { resolvePrKey } from "@/renderer/state/gitSelectors";
+import { selectPullRequestsOverlayVisible, usePanelStore } from "@/renderer/state/panelStore";
 
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { deleteWorktreeGroup } from "@/renderer/actions/worktreeActions";
@@ -54,11 +55,14 @@ function useEverEnabled(active: boolean): boolean {
 }
 
 export function AppOverlays() {
+  const forkSourceThreadId = useThreadForkStore((state) => state.sourceThreadId);
+  const forkThroughItemId = useThreadForkStore((state) => state.throughItemId);
   const compactLayout = useCompactLayout();
   const mobileUtilityPage = usePanelStore((s) => s.mobileUtilityPage);
   const projects = useAppStore((s) => s.projects);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const projectSettingsId = usePanelStore((s) => s.projectSettingsId);
+  const projectSettingsSection = usePanelStore((s) => s.projectSettingsSection);
   const projectSettingsOverlayVisible =
     projectSettingsId !== null && !(compactLayout && mobileUtilityPage === "projectSettings");
   const gitOverlayOpen = usePanelStore((s) => s.gitOverlayOpen);
@@ -77,11 +81,7 @@ export function AppOverlays() {
     findExperimentByWorktree(gitReviewContext.projectId, gitReviewContext.worktreePath),
   );
   const gitOverlayVisible = gitOverlayOpen && !!gitReviewContext && !!gitReviewProject;
-  const prReviewContext = usePanelStore((s) => s.prReviewContext);
-  const prReviewProject = prReviewContext
-    ? projects.find((p) => p.id === prReviewContext.projectId)
-    : undefined;
-  const prReviewVisible = !!prReviewContext && !!prReviewProject;
+  const pullRequestsVisible = usePanelStore(selectPullRequestsOverlayVisible);
   const githubActionsContext = usePanelStore((s) => s.githubActionsContext);
   const githubActionsVisible =
     githubActionsContext !== null && !(compactLayout && mobileUtilityPage === "githubActions");
@@ -90,7 +90,7 @@ export function AppOverlays() {
   const trackedOverlaySurface =
     fileEditorOverlayMode && fileEditorRootContext
       ? `editor_${fileEditorOverlayMode}`
-      : prReviewVisible
+      : pullRequestsVisible
         ? "pull_request_review"
         : gitOverlayVisible
           ? "git_review"
@@ -113,6 +113,15 @@ export function AppOverlays() {
       <WelcomeOverlay />
       <WhatsNewOverlay />
       <AgentDiscoveryOverlay />
+      {forkSourceThreadId ? (
+        <Suspense fallback={null}>
+          <DeferredThreadForkDialog
+            key={`${forkSourceThreadId}:${forkThroughItemId ?? "latest"}`}
+            sourceThreadId={forkSourceThreadId}
+            throughItemId={forkThroughItemId}
+          />
+        </Suspense>
+      ) : null}
       <OverlayShell
         open={settingsOpen}
         instantEnter
@@ -133,7 +142,9 @@ export function AppOverlays() {
         {projectSettingsOverlayVisible && projectSettingsId && (
           <Suspense fallback={<OverlayLoader />}>
             <DeferredProjectSettingsOverlay
+              key={`${projectSettingsId}:${projectSettingsSection ?? ""}`}
               projectId={projectSettingsId}
+              initialSection={projectSettingsSection}
               onClose={() => usePanelStore.getState().closeProjectSettings()}
             />
           </Suspense>
@@ -197,11 +208,11 @@ export function AppOverlays() {
         )}
       </OverlayShell>
       <OverlayShell
-        open={prReviewVisible}
+        open={pullRequestsVisible}
         instantEnter
-        onExited={() => usePanelStore.getState().setPrReviewContext(null)}
+        onExited={() => usePanelStore.getState().closePullRequestsOverlay()}
       >
-        {prReviewContext && prReviewProject && (
+        {pullRequestsVisible && (
           <Suspense
             fallback={
               <div className="flex flex-1 items-center justify-center">
@@ -209,24 +220,8 @@ export function AppOverlays() {
               </div>
             }
           >
-            <DeferredPrReviewOverlay
-              project={prReviewProject}
-              prNumber={prReviewContext.prNumber}
-              prKey={
-                prReviewContext.prKey ??
-                resolvePrKey(prReviewContext.projectId, prReviewContext.worktreePath)
-              }
-              {...(prReviewContext.skipLocalSync ? { skipLocalSync: true } : {})}
-              {...(prReviewContext.worktreePath
-                ? {
-                    locationOverride: buildWorktreeLocation(
-                      prReviewProject.location,
-                      prReviewContext.worktreePath,
-                    ),
-                    worktreePath: prReviewContext.worktreePath,
-                  }
-                : {})}
-              onClose={() => usePanelStore.getState().setPrReviewContext(null)}
+            <DeferredPullRequestsOverlay
+              onClose={() => usePanelStore.getState().closePullRequestsOverlay()}
             />
           </Suspense>
         )}

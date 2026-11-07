@@ -24,4 +24,9 @@ describe("effort display labels", () => {
     expect(formatEffortLabel("ultracode")).toBe("Ultracode");
     expect(formatEffortLabel("constructor")).toBe("Constructor");
   });
+
+  it("labels the provider-chosen auto effort", async () => {
+    await dynamicActivate("en");
+    expect(formatEffortLabel("auto")).toBe("Auto");
+  });
 });

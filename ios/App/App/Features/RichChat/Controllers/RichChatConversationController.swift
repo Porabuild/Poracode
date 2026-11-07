@@ -46,6 +46,7 @@ final class RichChatConversationController {
   private let interruptTask = RichChatControllerTaskSlot()
   private var revision: UInt64 = 0
   private var isBackgrounded = false
+  private var confirmedMutationID: UUID?
 
   init(
     gateway: any RichChatConversationGateway,
@@ -109,7 +110,7 @@ final class RichChatConversationController {
 
   @discardableResult
   func send(_ input: RichChatSendInput) async -> Bool {
-    guard !input.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    guard RichPromptSegment.isSendable(prompt: input.prompt, segments: input.segments) else {
       state.failure = .invalidRequest
       return false
     }
@@ -135,6 +136,29 @@ final class RichChatConversationController {
     return owns(context)
       && state.failure == nil
       && state.lastCompletedOperation == .send
+  }
+
+  func controlMcpApp(_ payload: [String: RichJSON]) async throws -> RichJSON {
+    guard let context = operationContext(capability: .sessionOperate) else { throw RichChatGatewayError.unavailable }
+    let result = try await gateway.controlRichMcpApp(target: context.target, payload: payload)
+    try Task.checkCancellation()
+    guard owns(context) else { throw RichChatGatewayError.unavailable }
+    return result
+  }
+
+  /// Swaps the failure a refused send published for the outcome of the
+  /// recovery that replaced it (the resume relaunch): nil once the host
+  /// accepted it, `.ambiguousOutcome` (one authoritative read, never a resend)
+  /// when its outcome is unknown. A failure published since is kept.
+  func replaceFailure(
+    _ refusal: RichChatControllerFailure,
+    with replacement: RichChatControllerFailure?
+  ) async {
+    guard state.failure == refusal, let target = state.target else { return }
+    state.failure = replacement
+    guard replacement == .ambiguousOutcome else { return }
+    state.requiresAuthoritativeRefresh = true
+    await refreshRequester.requestRichChatRefresh(target: target, reason: .ambiguousMutation)
   }
 
   func interrupt() async {
@@ -168,7 +192,8 @@ final class RichChatConversationController {
     }
   }
 
-  func runCommand(_ command: RichChatThreadCommand) async {
+  @discardableResult
+  func runCommand(_ command: RichChatThreadCommand) async -> Bool {
     await runMutation(.command, refreshOnSuccess: true) { gateway, target in
       try await gateway.runRichThreadCommand(target: target, command: command)
     }
@@ -188,7 +213,7 @@ final class RichChatConversationController {
 
   @discardableResult
   func setPendingSteer(_ input: RichSetPendingSteerInput) async -> Bool {
-    guard !input.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    guard RichPromptSegment.isSendable(prompt: input.prompt, segments: input.segments) else {
       state.failure = .invalidRequest
       return false
     }
@@ -209,7 +234,7 @@ final class RichChatConversationController {
   /// `thread-follow-up-queue` broadcast, which is the source of truth.
   @discardableResult
   func queueFollowUp(_ input: RichSetPendingSteerInput) async -> Bool {
-    guard !input.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    guard RichPromptSegment.isSendable(prompt: input.prompt, segments: input.segments) else {
       state.failure = .invalidRequest
       return false
     }
@@ -315,6 +340,7 @@ final class RichChatConversationController {
     let revision: UInt64
   }
 
+  @discardableResult
   private func runMutation(
     _ operation: RichChatConversationOperation,
     refreshOnSuccess: Bool,
@@ -322,39 +348,43 @@ final class RichChatConversationController {
       @escaping @Sendable (
         any RichChatConversationGateway, RichChatThreadTarget
       ) async throws -> Void
-  ) async {
+  ) async -> Bool {
     guard state.activeMutation == nil else {
       state.failure = .busy
-      return
+      return false
     }
-    guard let context = operationContext(capability: .sessionOperate) else { return }
+    guard let context = operationContext(capability: .sessionOperate) else { return false }
     state.activeMutation = operation
     state.failure = nil
+    let mutationID = UUID()
     mutationTask.launch { [weak self] in
       guard let self else { return }
-      await self.finish(
+      let succeeded = await self.finish(
         operation: operation,
         target: context.target,
         revision: context.revision,
         refreshOnSuccess: refreshOnSuccess,
         call: { try await call(self.gateway, context.target) }
       )
+      if succeeded { self.confirmedMutationID = mutationID }
       if self.owns(context) { self.state.activeMutation = nil }
     }
     await mutationTask.wait()
+    return confirmedMutationID == mutationID && owns(context)
   }
 
+  @discardableResult
   private func finish(
     operation: RichChatConversationOperation,
     target: RichChatThreadTarget,
     revision: UInt64,
     refreshOnSuccess: Bool,
     call: @escaping @Sendable () async throws -> Void
-  ) async {
+  ) async -> Bool {
     do {
       try await call()
       try Task.checkCancellation()
-      guard owns(target: target, revision: revision) else { return }
+      guard owns(target: target, revision: revision) else { return false }
       state.lastCompletedOperation = operation
       state.failure = nil
       if refreshOnSuccess {
@@ -363,10 +393,11 @@ final class RichChatConversationController {
           reason: .conversationChanged
         )
       }
+      return owns(target: target, revision: revision) && !Task.isCancelled
     } catch is CancellationError {
-      return
+      return false
     } catch {
-      guard owns(target: target, revision: revision) else { return }
+      guard owns(target: target, revision: revision) else { return false }
       let failure = RichChatControllerFailure.map(error)
       state.failure = failure
       if failure == .ambiguousOutcome {
@@ -376,6 +407,7 @@ final class RichChatConversationController {
           reason: .ambiguousMutation
         )
       }
+      return false
     }
   }
 

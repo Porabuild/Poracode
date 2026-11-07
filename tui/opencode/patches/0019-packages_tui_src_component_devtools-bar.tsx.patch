@@ -1,0 +1,14 @@
+diff --git a/packages/tui/src/component/devtools-bar.tsx b/packages/tui/src/component/devtools-bar.tsx
+index 10af201..bbcc348 100644
+--- a/packages/tui/src/component/devtools-bar.tsx
++++ b/packages/tui/src/component/devtools-bar.tsx
+@@ -177,7 +177,8 @@ export function DevToolsBar() {
+           return events.slice(-100)
+         })().catch(() => client.connection.internal.history())
+       : Promise.resolve([]))
+-    const file = path.join(tmpdir(), `opencode-debug-${crypto.randomUUID()}.json`)
++    // poracode: debug snapshots are named for the product.
++    const file = path.join(tmpdir(), `poracode-debug-${crypto.randomUUID()}.json`)
+     const output =
+       JSON.stringify(
+         {

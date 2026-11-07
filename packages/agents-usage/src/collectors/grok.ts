@@ -47,6 +47,7 @@ interface GrokVal {
 interface GrokBillingResponse {
   config?: {
     creditUsagePercent?: number;
+    isUnifiedBillingUser?: boolean;
     monthlyLimit?: GrokVal;
     used?: GrokVal;
     onDemandCap?: GrokVal;
@@ -92,13 +93,34 @@ function grokSnapshot(
  * otherwise render as a confident "0% used", so the collector treats it as a
  * failed attempt and falls back instead.
  */
-function grokBillingHasData(billingBody: unknown): boolean {
+function grokBillingHasData(billingBody: unknown, nowMs: number): boolean {
   const config = grokConfig(billingBody);
   const limit = num(config.monthlyLimit);
   // Plain `/billing` now returns a placeholder 0/0 allowance for unified-billing
   // accounts. Only a positive legacy limit is usable; the credits view's direct
   // percentage remains valid at exactly zero.
-  return percent(config.creditUsagePercent) !== undefined || (limit !== undefined && limit > 0);
+  if (percent(config.creditUsagePercent) !== undefined || (limit !== undefined && limit > 0)) {
+    return true;
+  }
+  // The unified credits view omits its zero scalar after a reset. Recognize
+  // that shape only for a marked unified account and an active, bounded period;
+  // missing data or an explicitly invalid percentage still takes the fallback.
+  if (config.isUnifiedBillingUser !== true || Object.hasOwn(config, "creditUsagePercent")) {
+    return false;
+  }
+  // Network JSON can violate the declared shape; only pass supported runtime
+  // types to the shared formatter so malformed bounds keep the fallback.
+  const startValue: unknown = config.currentPeriod?.start;
+  const endValue: unknown = config.currentPeriod?.end;
+  if (
+    (typeof startValue !== "string" && typeof startValue !== "number") ||
+    (typeof endValue !== "string" && typeof endValue !== "number")
+  ) {
+    return false;
+  }
+  const start = toEpochMs(startValue);
+  const end = toEpochMs(endValue);
+  return start !== undefined && end !== undefined && start <= nowMs && nowMs < end;
 }
 
 /**
@@ -326,7 +348,7 @@ async function collectGrokViaToken(
     } catch {
       return { detail: "invalid JSON response" };
     }
-    if (!grokBillingHasData(billing)) {
+    if (!grokBillingHasData(billing, nowMs)) {
       try {
         res = await grokRequest(host, GROK_BILLING_ENDPOINT, token.accessToken);
       } catch {
@@ -349,7 +371,7 @@ async function collectGrokViaToken(
       } catch {
         return { detail: "invalid JSON response" };
       }
-      if (!grokBillingHasData(billing)) {
+      if (!grokBillingHasData(billing, nowMs)) {
         return { detail: "no credit fields in billing response" };
       }
     }

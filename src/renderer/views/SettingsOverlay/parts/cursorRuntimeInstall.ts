@@ -5,6 +5,11 @@ import {
   cursorRuntimeInstallState,
   cursorSdkUpdateCommand,
 } from "@/renderer/components/providers/cursor/runtimeInstall";
+import {
+  CURSOR_SDK_MAX_EXCLUSIVE_MAJOR,
+  CURSOR_SDK_MIN_SUPPORTED_VERSION,
+  CURSOR_SDK_PACKAGE_NAME,
+} from "@/shared/agents/cursorSdkPackage";
 import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
 
 export {
@@ -79,7 +84,13 @@ export const cursorRuntimeSlots: NativeAgentRuntimeSlots = {
         updatedToast: (nextVersion) => msg`Cursor SDK updated to v${nextVersion}.`,
         upToDateToast: msg`Cursor SDK is up to date.`,
         canUpdate: canUpdateCursorSdk,
-        command: cursorSdkUpdateCommand,
+        command: (status, project, targetVersion) =>
+          targetVersion ? cursorSdkUpdateCommand(status, project, targetVersion) : undefined,
+        npmPackage: {
+          name: CURSOR_SDK_PACKAGE_NAME,
+          minVersion: CURSOR_SDK_MIN_SUPPORTED_VERSION,
+          maxExclusiveMajor: CURSOR_SDK_MAX_EXCLUSIVE_MAJOR,
+        },
       },
     },
   ],

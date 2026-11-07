@@ -231,7 +231,7 @@ function main() {
       cwd: emptyCwd,
       env: baseEnv,
     });
-    if (!helpOutput.includes("poracode pair --json")) {
+    if (!/poracode pair\|connect.*\[--json\]/u.test(helpOutput)) {
       throw new Error("poracode --help did not list the server commands");
     }
 

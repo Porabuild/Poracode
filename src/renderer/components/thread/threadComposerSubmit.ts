@@ -47,6 +47,9 @@ import {
  */
 export interface ComposerSubmitContext {
   thread: Thread;
+  /** Sent by the resume button, not typed: a failure leaves the composer empty
+   * so the button stays for another try. */
+  resumesInterruptedTurn?: boolean;
   agentStatus: AgentStatus | undefined;
   presentationMode: ThreadPresentationMode;
   usesTerminalPresentation: boolean;
@@ -72,7 +75,7 @@ export interface ComposerSubmitContext {
   setHasContent: (value: boolean) => void;
   setIsSubmitting: (value: boolean) => void;
   /** Open the model/effort picker (backs the `/model` and `/effort` commands). */
-  requestOpenControl: (target: "model" | "effort") => void;
+  requestOpenControl: (target: "model" | "effort" | "crew") => void;
   /** Optional surface override for the canonical thread-input action. */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   /** Called after the transport accepts any ordinary, steered, or queued send. */
@@ -110,11 +113,9 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     runtimeLabel: agentStatus?.capabilities.runtimeLabel,
     supportsSideChat: sideChatAvailable(thread.id, ctx.presentationMode),
   };
-  const boundSegments = bindLeadingSkillUnlessLocalAction(
-    segments,
-    ctx.availableCommands,
-    slashLookupContext,
-  );
+  const boundSegments = ctx.resumesInterruptedTurn
+    ? segments
+    : bindLeadingSkillUnlessLocalAction(segments, ctx.availableCommands, slashLookupContext);
   const allSegments = [...attachmentSegments, ...selectorSegments, ...boundSegments];
   const flat = flattenSegments(allSegments);
   // Route side questions before approval denial, queueing or steering. The
@@ -123,7 +124,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     (segment) => segment.kind !== "text" || segment.content.trim().length > 0,
   );
   const sideAction =
-    leadingSegment?.kind === "text"
+    !ctx.resumesInterruptedTurn && leadingSegment?.kind === "text"
       ? resolveLocalSlashCommandAction(flattenSegments(boundSegments), slashLookupContext)
       : null;
   if (sideAction?.kind === "open-side-chat") {
@@ -175,7 +176,9 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     ctx.setHasContent(false);
     ctx.latestSegmentsRef.current = [];
   };
-  const localAction = resolveLocalActionUnlessSkill(allSegments, flat, slashLookupContext);
+  const localAction = ctx.resumesInterruptedTurn
+    ? null
+    : resolveLocalActionUnlessSkill(allSegments, flat, slashLookupContext);
   if (localAction?.kind === "set-mode") {
     changeThreadConfig(thread.id, { ...thread.config, mode: localAction.mode });
     mentionRef.current?.clear();
@@ -184,7 +187,9 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     return;
   }
   if (localAction?.kind === "open-control") {
-    ctx.requestOpenControl(localAction.target);
+    ctx.requestOpenControl(
+      localAction.target === "crew" && !thread.config.crew ? "model" : localAction.target,
+    );
     mentionRef.current?.clear();
     clearComposerText();
     return;
@@ -237,7 +242,12 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   useAppStore.getState().clearThreadDraftContent(thread.id);
   ctx.setIsSubmitting(true);
   if (!usesTerminalPresentation) {
-    useAppStore.getState().requestChatScrollToBottom(thread.id);
+    useAppStore
+      .getState()
+      .requestChatScrollToPrompt(
+        thread.id,
+        ctx.usesPendingSteerPath && ctx.followUpBehavior === "queue",
+      );
   }
 
   let focusPromise = Promise.resolve();
@@ -332,6 +342,10 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       if (ctx.isCurrentSession()) ctx.onSubmitSuccess?.();
     })
     .catch((error: unknown) => {
+      if (ctx.resumesInterruptedTurn) {
+        if (!isRemoteCommandOutcomeUncertainError(error)) toast.danger(friendlyError(error));
+        return;
+      }
       // Leave the prompt intact so the user can retry.
       useAppStore.getState().saveThreadDraftContent(thread.id, {
         segments: submittedInputSegments,

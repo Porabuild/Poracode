@@ -1,9 +1,12 @@
 package com.poracode.app.session.catalog
 
 import com.poracode.app.model.RemoteProject
+import com.poracode.app.model.RemoteSessionRef
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.session.AppSession
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 
 /**
@@ -196,9 +199,16 @@ internal object CatalogStore {
         } else {
             null
         }
+        // Resumable cut-off turn, folded like the host's `persistThreadStateEvent`:
+        // a stated value wins and explicit null (Stop) clears it; otherwise a
+        // starting turn retires it. Absence (older host) leaves the row alone.
+        val interruptedTurnPresent = event.containsKey("interruptedTurn")
+        val interruptedTurn = event.stringValue("interruptedTurn")
+        val statedSessionRef = decodeSessionRef(event["sessionRef"])
         return mutation@{ row ->
             if (agentKind != null && agentKind != row.agentKind) return@mutation null
             row.copy(
+                sessionRef = foldSessionRef(row.sessionRef, statedSessionRef),
                 status = status,
                 attention = attention ?: row.attention,
                 errorMessage = if (errorMessagePresent) errorMessage else row.errorMessage,
@@ -209,9 +219,45 @@ internal object CatalogStore {
                 } else {
                     row.sessionConfigOptions
                 },
+                interruptedTurn = when {
+                    interruptedTurnPresent -> interruptedTurn
+                    status == "working" && row.status != "working" -> null
+                    else -> row.interruptedTurn
+                },
                 updatedAt = if (status == "working" && row.status != "working") nowIso else row.updatedAt,
             )
         }
+    }
+
+    /**
+     * The live provider session, folded like the host's `persistThreadStateEvent`:
+     * a stated reference naming another provider session or execution identity
+     * replaces the row's; an absent, null, unreadable or unchanged one keeps it.
+     * A resume relaunch resumes this reference, so a dropped one would reopen an
+     * older conversation.
+     */
+    private fun foldSessionRef(current: RemoteSessionRef?, stated: RemoteSessionRef?): RemoteSessionRef? = when {
+        stated == null -> current
+        current == null -> stated
+        stated.providerSessionId != current.providerSessionId ||
+            stated.executionIdentity != current.executionIdentity -> stated
+        else -> current
+    }
+
+    private fun decodeSessionRef(element: kotlinx.serialization.json.JsonElement?): RemoteSessionRef? {
+        if (element !is JsonObject) return null
+        // RemoteJson is lenient and would read 42 as "42"; like the host schema and
+        // iOS, a reference with non-string fields is unreadable, not a replacement.
+        fun isString(key: String) = (element[key] as? JsonPrimitive)?.isString == true
+        val identity = element["executionIdentity"]
+        if (!isString("providerSessionId") || !isString("discoveredAt") ||
+            (identity != null && identity !is JsonNull && !isString("executionIdentity"))
+        ) {
+            return null
+        }
+        return runCatching {
+            com.poracode.app.model.RemoteJson.decodeFromJsonElement(RemoteSessionRef.serializer(), element)
+        }.getOrNull()?.takeIf { it.providerSessionId.isNotEmpty() && it.discoveredAt.isNotEmpty() }
     }
 
     private fun decodeSessionConfigOptions(

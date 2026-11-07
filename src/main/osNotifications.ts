@@ -21,6 +21,7 @@ const liveNotifications = new Set<Notification>();
 export function showOsNotification(
   payload: ShowNotificationPayload,
   getMainWindow: () => BrowserWindow | null,
+  openThread?: (threadId: string) => void,
 ): boolean {
   if (!Notification.isSupported()) return false;
 
@@ -46,7 +47,10 @@ export function showOsNotification(
   notification.on("click", () => {
     release();
     const win = getMainWindow();
-    if (!win || win.isDestroyed()) return;
+    if (!win || win.isDestroyed()) {
+      openThread?.(payload.threadId);
+      return;
+    }
     showAndFocusWindow(win);
     win.webContents.send(IPC_EVENT_CHANNELS.threadOpenRequested, {
       threadId: payload.threadId,
@@ -74,6 +78,7 @@ export function showOsNotification(
 export function showUserNotificationFallback(
   notification: UserNotification,
   getMainWindow: () => BrowserWindow | null,
+  openThread?: (threadId: string) => void,
 ): boolean {
   return showOsNotification(
     {
@@ -82,6 +87,7 @@ export function showUserNotificationFallback(
       threadId: notification.threadId,
     },
     getMainWindow,
+    openThread,
   );
 }
 

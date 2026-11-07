@@ -1,0 +1,184 @@
+/** @jsxImportSource @opentui/solid */
+import { testRender } from "@opentui/solid"
+import { expect, test } from "bun:test"
+import { Schema } from "effect"
+import {
+  AttentionSoundName,
+  Info,
+  LeaderTimeoutDefault,
+  resolve,
+  TuiConfigProvider,
+  type Info as TuiConfigInfo,
+  useTuiConfig,
+} from "../src/config/v1"
+
+const decodeInfo = Schema.decodeUnknownSync(Info)
+
+test("defines attention sound names", () => {
+  expect(AttentionSoundName.literals).toEqual(["default", "question", "permission", "error", "done", "subagent_done"])
+})
+
+test("validates config constraints", () => {
+  expect(
+    decodeInfo({
+      leader_timeout: 250,
+      attention: { volume: 1, sounds: { done: "done.wav" } },
+      prompt: { max_height: 10, max_width: "auto" },
+      scroll_speed: 0.001,
+      diff_style: "stacked",
+      cursor: { blinking: false },
+    }),
+  ).toMatchObject({
+    leader_timeout: 250,
+    attention: { volume: 1 },
+    diff_style: "stacked",
+    cursor: { blinking: false },
+  })
+  expect(() => decodeInfo({ leader_timeout: 0 })).toThrow()
+  expect(() => decodeInfo({ attention: { volume: 1.1 } })).toThrow()
+  expect(() => decodeInfo({ prompt: { max_width: 0 } })).toThrow()
+  expect(() => decodeInfo({ scroll_speed: 0 })).toThrow()
+  expect(() => decodeInfo({ cursor: { style: "beam" } })).toThrow()
+  expect(decodeInfo({ attention: { sounds: { unknown: "sound.wav" } } })).toEqual({ attention: { sounds: {} } })
+})
+
+test("resolves host-neutral defaults", () => {
+  const config = resolve({}, { terminalSuspend: true })
+
+  expect(config.attention).toEqual({
+    enabled: false,
+    notifications: true,
+    sound: true,
+    volume: 0.4,
+    sound_pack: "opencode.default",
+    sounds: {},
+  })
+  expect(config.leader_timeout).toBe(LeaderTimeoutDefault)
+  expect(config.mouse).toBe(true)
+  expect(config.keybinds.has("terminal.suspend")).toBe(true)
+  expect(config.keybinds.has("session.list")).toBe(true)
+  expect(config.cursor).toBeUndefined()
+})
+
+test("resolves overrides without mutating input", () => {
+  const input: TuiConfigInfo = {
+    theme: "custom",
+    mouse: false,
+    leader_timeout: 750,
+    attention: {
+      enabled: true,
+      notifications: false,
+      sound: false,
+      volume: 0.8,
+      sound_pack: "custom.pack",
+      sounds: { question: "/sounds/question.wav" },
+    },
+    keybinds: { session_list: "ctrl+l" },
+    cursor: { blinking: false },
+  }
+  const config = resolve(input, { terminalSuspend: true })
+
+  expect(config).toMatchObject({
+    theme: "custom",
+    mouse: false,
+    leader_timeout: 750,
+    attention: input.attention,
+    cursor: { style: "block", blinking: false },
+  })
+  expect(config.keybinds.get("session.list")).toHaveLength(1)
+  expect(input.keybinds).toEqual({ session_list: "ctrl+l" })
+})
+
+test("resolves a session move keybind", () => {
+  const config = resolve({ keybinds: { session_move: "ctrl+o" } }, { terminalSuspend: true })
+
+  expect(config.keybinds.get("session.move")).toMatchObject([{ key: "ctrl+o" }])
+})
+
+test("resolves message navigation defaults", () => {
+  const config = resolve({}, { terminalSuspend: true })
+
+  expect(config.keybinds.get("session.first")).toMatchObject([{ key: "ctrl+g,home,alt+home" }])
+  expect(config.keybinds.get("session.message.previous")).toEqual([])
+  expect(config.keybinds.get("session.message.next")).toEqual([])
+  expect(config.keybinds.get("session.message.user.previous")).toEqual([])
+  expect(config.keybinds.get("session.message.user.next")).toEqual([])
+  expect(config.keybinds.get("session.messages_last_user")).toMatchObject([{ key: "alt+end" }])
+})
+
+test("reserves home and end for navigation", () => {
+  const config = resolve({}, { terminalSuspend: true })
+
+  expect(config.keybinds.get("input.buffer.home")).toEqual([])
+  expect(config.keybinds.get("input.buffer.end")).toEqual([])
+  expect(config.keybinds.get("input.select.buffer.home")).toMatchObject([{ key: "shift+home" }])
+  expect(config.keybinds.get("input.select.buffer.end")).toMatchObject([{ key: "shift+end" }])
+  expect(config.keybinds.get("input.line.home")).toMatchObject([{ key: "ctrl+a" }])
+  expect(config.keybinds.get("input.line.end")).toMatchObject([{ key: "ctrl+e" }])
+  expect(config.keybinds.get("input.visual.line.home")).toMatchObject([{ key: "alt+a" }])
+  expect(config.keybinds.get("input.visual.line.end")).toMatchObject([{ key: "alt+e" }])
+})
+
+test("opens the subagent picker with down", () => {
+  const config = resolve({}, { terminalSuspend: true })
+
+  expect(config.keybinds.get("session.child.first")).toMatchObject([{ key: "down" }])
+})
+
+test("navigates session tabs with option arrows", () => {
+  const config = resolve({}, { terminalSuspend: true })
+
+  expect(config.keybinds.get("session.tab.next")).toMatchObject([{ key: "ctrl+tab,alt+down" }])
+  expect(config.keybinds.get("session.tab.previous")).toMatchObject([{ key: "ctrl+shift+tab,alt+up" }])
+  expect(config.keybinds.get("session.tab.next_unread")).toMatchObject([{ key: "alt+shift+down" }])
+  expect(config.keybinds.get("session.tab.previous_unread")).toMatchObject([{ key: "alt+shift+up" }])
+})
+
+test("preserves pinned session bindings alongside tab bindings", () => {
+  const config = resolve({}, { terminalSuspend: true })
+
+  expect(config.keybinds.get("session.pin.toggle")).toMatchObject([{ key: "ctrl+f" }])
+  expect(config.keybinds.get("session.quick_switch.1")).toMatchObject([{ key: "<leader>1" }])
+  expect(config.keybinds.get("session.tab.select.1")).toMatchObject([{ key: "<leader>1,ctrl+1" }])
+  expect(config.keybinds.get("session.tab.select.10")).toMatchObject([{ key: "<leader>0,ctrl+0" }])
+})
+
+test("disables suspend and assigns ctrl+z to undo when unsupported", () => {
+  const config = resolve({}, { terminalSuspend: false })
+
+  expect(config.keybinds.has("terminal.suspend")).toBe(false)
+  expect(config.keybinds.get("input.undo")).toMatchObject([{ key: "ctrl+z,ctrl+-,super+z" }])
+})
+
+test("preserves an explicit undo binding when suspend is unsupported", () => {
+  const config = resolve({ keybinds: { input_undo: "ctrl+u", terminal_suspend: "ctrl+s" } }, { terminalSuspend: false })
+
+  expect(config.keybinds.has("terminal.suspend")).toBe(false)
+  expect(config.keybinds.get("input.undo")).toHaveLength(1)
+  expect(config.keybinds.get("input.undo")).toMatchObject([{ key: "ctrl+u" }])
+})
+
+test("provides resolved config through Solid context", async () => {
+  const config = resolve({ theme: "custom" }, { terminalSuspend: true })
+
+  function Consumer() {
+    const value = useTuiConfig()
+    return <text>{`${value.theme} ${value.mouse} ${value.leader_timeout}`}</text>
+  }
+
+  const app = await testRender(() => (
+    <TuiConfigProvider config={config}>
+      <Consumer />
+    </TuiConfigProvider>
+  ))
+  try {
+    await app.renderOnce()
+    expect(app.captureCharFrame()).toContain(`custom true ${LeaderTimeoutDefault}`)
+  } finally {
+    app.renderer.destroy()
+  }
+})
+
+test("requires the config provider", () => {
+  expect(() => useTuiConfig()).toThrow("TuiConfigProvider is missing")
+})

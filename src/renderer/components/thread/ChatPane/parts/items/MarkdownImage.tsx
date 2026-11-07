@@ -1,7 +1,11 @@
 import type { ComponentProps } from "react";
 import type { ExtraProps } from "streamdown";
 import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
-import { useRemoteImagePathUrl } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
+import {
+  fetchRemoteImagePathUrl,
+  useRemoteImagePathSnapshot,
+  useRemoteImagePathUrl,
+} from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { ImageCard } from "./ImageCard";
 import { imageViewSourceFromMarkdownImage } from "./imageViewSource";
@@ -28,14 +32,22 @@ export function MarkdownImage({ alt, className, src, width, height }: MarkdownIm
         ? actions.remoteLocalImageUrl(canonicalSrc)
         : resolveLocalImageDisplayUrl(canonicalSrc)
     : canonicalSrc;
-  const { viewportRef, priority } = useImageViewportPriority(
+  const { viewportRef, priority, readRank } = useImageViewportPriority(
     path !== undefined && authority?.readiness !== undefined,
   );
-  const displaySrc = useRemoteImagePathUrl(path, authority?.readiness, fallback, priority);
+  const readiness = authority?.readiness;
+  const variantSrc = useRemoteImagePathUrl(path, readiness, fallback, priority, "card", readRank);
+  const fullSnapshot = useRemoteImagePathSnapshot(path, readiness);
+  const displaySrc = variantSrc || fullSnapshot || (authority ? "" : fallback);
+  const resolveFullSrc =
+    path && readiness ? () => fetchRemoteImagePathUrl(path, readiness) : undefined;
+  const warmFull = path && readiness ? () => readiness.requestPath(path, "prefetch") : undefined;
   if (!canonicalSrc) return null;
   return (
     <ImageCard
       viewportRef={viewportRef}
+      {...(resolveFullSrc ? { resolveFullSrc } : {})}
+      {...(warmFull ? { onPreviewIntent: warmFull } : {})}
       source={imageViewSourceFromMarkdownImage({
         src: displaySrc,
         alt: typeof alt === "string" ? alt : "",

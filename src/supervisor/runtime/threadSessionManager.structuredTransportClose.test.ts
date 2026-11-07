@@ -199,6 +199,13 @@ describe("ThreadSessionManager structured transport close", () => {
     dead.listener()?.onError("server exited unexpectedly (code 143).");
     dead.listener()?.onClose();
     expect(manager.sessions.get(THREAD_ID)?.status).toBe("error");
+    expect(manager.getThreadSnapshots()).toContainEqual(
+      expect.objectContaining({
+        threadId: THREAD_ID,
+        status: "error",
+        errorMessage: "server exited unexpectedly (code 143).",
+      }),
+    );
 
     await manager.sendThreadInput({
       threadId: THREAD_ID,
@@ -221,5 +228,8 @@ describe("ThreadSessionManager structured transport close", () => {
       );
     });
     expect(manager.sessions.get(THREAD_ID)?.structuredSession).toBe(replacement);
+    expect(
+      manager.getThreadSnapshots().find((snapshot) => snapshot.threadId === THREAD_ID),
+    ).not.toHaveProperty("errorMessage");
   });
 });

@@ -54,9 +54,11 @@ export function createAcpStructuredSession(
     | "stderrTurnSignalParser"
     | "resolveMode"
     | "permissionRequestTransform"
+    | "promptErrorReason"
     | "resolveModelConfig"
     | "configureOpenedSession"
     | "allowUnlistedSelectValue"
+    | "promptSteering"
   >,
 ): AcpStructuredSession | undefined {
   // The TUI handoff has no approved-root argv contract. Do not silently lose grants.
@@ -144,5 +146,7 @@ export function createAcpStructuredSession(
     ...(overrides?.allowUnlistedSelectValue
       ? { allowUnlistedSelectValue: overrides.allowUnlistedSelectValue }
       : {}),
+    ...(overrides?.promptSteering ? { promptSteering: overrides.promptSteering } : {}),
+    ...(overrides?.promptErrorReason ? { promptErrorReason: overrides.promptErrorReason } : {}),
   });
 }

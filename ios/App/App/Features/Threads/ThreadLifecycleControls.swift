@@ -203,6 +203,7 @@ extension ThreadConfig {
       contextSize: contextSize,
       fast: fast,
       thinking: thinking,
+      workflows: workflows,
       mode: mode,
       approvalPolicy: approvalPolicy,
       approvalsReviewer: approvalsReviewer,
@@ -211,7 +212,10 @@ extension ThreadConfig {
       crossagentMcp: crossagentMcp,
       computerUse: computerUse,
       chromeMcp: chromeMcp,
-      executionEnvironment: executionEnvironment
+      executionEnvironment: executionEnvironment,
+      mcpServerOverrides: mcpServerOverrides,
+      pluginOverrides: pluginOverrides,
+      crew: crew
     )
   }
 }

@@ -5,5 +5,6 @@
   },
   "installCommand": "BUN_INSTALL_GLOBAL_STORE=0 node ../scripts/setup-bun.mjs --run install --cwd .. --frozen-lockfile --ignore-scripts --filter ./website --omit=peer",
   "buildCommand": "node ../scripts/setup-bun.mjs --run run typecheck && node ../scripts/setup-bun.mjs --run run cross-env VERCEL_PREVIEW_COMMENTS_ENABLED=0 node node_modules/next/dist/bin/next build --webpack",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "crons": [{ "path": "/api/feedback/cleanup", "schedule": "0 * * * *" }]
 }

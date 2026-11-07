@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
@@ -28,7 +28,11 @@ vi.mock("@/renderer/deferredFeatures", () => ({
 
 describe("MobileUtilityPage", () => {
   beforeEach(() => {
-    usePanelStore.setState({ mobileUtilityPage: "projects" });
+    usePanelStore.setState({
+      mobileUtilityPage: "projects",
+      pullRequestsOverlayOpen: false,
+      prReviewContext: null,
+    });
     useRemoteServersStore.setState({
       servers: [
         {
@@ -158,5 +162,40 @@ describe("MobileUtilityPage", () => {
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Project" })).toBeNull());
     // Modal removal can precede React Aria restoring the background's accessibility.
     expect(await screen.findByRole("button", { name: "Project" })).toHaveTextContent("Website");
+  });
+
+  it("hides the page from keyboard and screen readers while the pull-request overlay covers it", () => {
+    usePanelStore.setState({ mobileUtilityPage: "notes" });
+    useAppStore.setState({ projects: [], view: { kind: "home" } });
+    const { container } = render(<MobileUtilityPage />);
+    const page = container.firstElementChild as HTMLElement;
+    expect(page).not.toHaveAttribute("inert");
+    expect(page).not.toHaveAttribute("aria-hidden");
+
+    act(() => usePanelStore.setState({ pullRequestsOverlayOpen: true }));
+    expect(container.firstElementChild).toBe(page);
+    expect(page).toHaveAttribute("inert");
+    expect(page).toHaveAttribute("aria-hidden", "true");
+
+    act(() => usePanelStore.setState({ pullRequestsOverlayOpen: false }));
+    expect(container.firstElementChild).toBe(page);
+    expect(page).not.toHaveAttribute("inert");
+    expect(page).not.toHaveAttribute("aria-hidden");
+  });
+
+  it("covers the page while a review is open even when the list overlay is closed", () => {
+    usePanelStore.setState({ mobileUtilityPage: "projects" });
+    const { container } = render(<MobileUtilityPage />);
+    act(() =>
+      usePanelStore.setState({
+        prReviewContext: {
+          projectId: "p",
+          worktreePath: "/w",
+          prNumber: 1,
+          prKey: "k",
+        },
+      }),
+    );
+    expect(container.firstElementChild).toHaveAttribute("inert");
   });
 });

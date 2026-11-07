@@ -74,7 +74,23 @@ enum RichChatStrings {
 
   static let addAttachment = value("rich_chat_add_attachment", "Add attachment")
   static let composerControls = value("rich_chat_composer_controls", "Composer controls")
+  static let crew = value("rich_chat_crew", "Crew")
+  static let crewLead = value("rich_chat_crew_lead", "Lead")
+  static let crewNoEdits = value(
+    "rich_chat_crew_no_edits", "Told not to edit files. Not enforced."
+  )
+  static let crewOnly = value("rich_chat_crew_only", "Crew only")
+  static let crewFirst = value("rich_chat_crew_first", "Crew first")
+  static let done = value("rich_chat_done", "Done")
+  static let fastMode = value("rich_chat_fast_mode", "Fast")
+  static func crewHelpers(_ count: Int) -> String {
+    let format = value("rich_chat_crew_helpers_count", "+%lld helpers")
+    return String(format: format, locale: .current, Int64(count))
+  }
   static let thinking = value("rich_chat_thinking", "Thinking")
+  /// Generic name of the per-thread workflow-mode toggle; a provider that names
+  /// the mode itself advertises `workflowLabel`, which wins over this.
+  static let workflows = value("rich_chat_workflows", "Workflows")
   static let invalidAttachment = value(
     "rich_chat_attachment_invalid", "Choose a non-empty file no larger than 20 MiB."
   )
@@ -96,6 +112,56 @@ enum RichChatStrings {
   static let clearGoal = value("rich_chat_clear_goal", "Clear goal")
   static let save = value("rich_chat_save", "Save")
   static let pendingSteer = value("rich_chat_pending_steer", "Pending steer")
+
+  static let backgroundTasks = value("rich_chat_background_tasks", "Background tasks")
+  static let backgroundTask = value("rich_chat_background_task", "Background task")
+  static let backgroundTaskMonitor = value("rich_chat_background_task_monitor", "Monitor")
+  static let backgroundTaskAgent = value("rich_chat_background_task_agent", "Agent")
+  static let backgroundTaskWorkflow = value("rich_chat_background_task_workflow", "Workflow")
+  static let backgroundTaskOther = value("rich_chat_background_task_other", "Other")
+  static let backgroundTaskOutput = value("rich_chat_background_task_output", "Task output")
+  static let backgroundTaskOutputLoading = value(
+    "rich_chat_background_task_output_loading", "Loading output…"
+  )
+  static let backgroundTaskOutputEmpty = value(
+    "rich_chat_background_task_output_empty", "No output yet"
+  )
+  static let backgroundTaskOutputUnavailable = value(
+    "rich_chat_background_task_output_unavailable", "Output isn’t available for this task."
+  )
+  static let backgroundTaskOutputFailed = value(
+    "rich_chat_background_task_output_failed", "Background task output could not be read."
+  )
+  static let backgroundTaskReportMissing = value(
+    "rich_chat_background_task_report_missing",
+    "The task ended without a completion report."
+  )
+  static let backgroundTaskStop = value("rich_chat_background_task_stop", "Stop task")
+  static let backgroundTaskStopping = value(
+    "rich_chat_background_task_stopping", "Stopping task…"
+  )
+
+  static func backgroundTaskRunningFor(_ elapsed: String) -> String {
+    String(format: value("rich_chat_background_task_running_for", "Running for %@"), elapsed)
+  }
+
+  static func backgroundTaskLastProgress(_ elapsed: String) -> String {
+    String(
+      format: value("rich_chat_background_task_last_progress", "Last progress %@ ago"),
+      elapsed
+    )
+  }
+
+  static func backgroundTaskOutputTruncated(_ bytes: String) -> String {
+    String(
+      format: value(
+        "rich_chat_background_task_output_truncated",
+        "Only the end of the output is shown (%@ bytes)."
+      ),
+      bytes
+    )
+  }
+
   static let plan = messageActionValue("rich.plan", "Plan")
   static let errors = messageActionValue("rich.errors", "Errors")
   static func activityCount(_ count: Int) -> String {
@@ -204,8 +270,28 @@ enum RichChatStrings {
   static let message = value("rich_chat_message_placeholder", "Message")
   static let send = value("rich_chat_send_message", "Send message")
   static let stop = value("rich_chat_stop_generation", "Stop generation")
+  static let resendLastMessage = value("rich_chat_resend_last_message", "Resend last message")
+  static let resumeResponse = value("rich_chat_resume_response", "Resume response")
+  /// Sent to the agent when a cut-off turn had already started answering.
+  static let resumeContinuePrompt = value(
+    "rich_chat_resume_continue_prompt", "Continue from where you left off."
+  )
   static let retry = value("rich_chat_retry", "Try Again")
   static let cancel = value("rich_chat_cancel", "Cancel")
+
+  static func downloadFile(_ fileName: String) -> String {
+    String(
+      format: value("rich_chat_download_file", "Download %@"),
+      fileName
+    )
+  }
+
+  static func downloadFailed(_ fileName: String) -> String {
+    String(
+      format: value("rich_chat_download_failed", "Unable to download %@."),
+      fileName
+    )
+  }
 
   static let truncateAction = value("rich_chat_truncate_action", "Delete From Here")
   static let truncateAccessibilityLabel = value(

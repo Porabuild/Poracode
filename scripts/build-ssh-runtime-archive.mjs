@@ -41,6 +41,7 @@ import {
   writeStagePackageJson,
 } from "./runtime-closure.mjs";
 import { resolveTar, tarCommand } from "./server-host-tools.mjs";
+import { verifyRuntimeResources } from "../src/shared/runtimeResourceInventory.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -125,6 +126,12 @@ export function buildSshRuntimeArchive(options = {}) {
   const nodeModulesDir = options.nodeModulesDir ?? join(repoRoot, "node_modules");
 
   const closure = readRuntimeClosure(mainBundleDir);
+  const ptyJobOwnerDir = join(dirname(wslHelpersDir), "pty-job-owner");
+  verifyRuntimeResources(closure.resources, {
+    agentPlugins: { path: agentPluginsDir, layout: "staged" },
+    bundledPlugins: pluginsDir,
+    ptyJobOwner: ptyJobOwnerDir,
+  });
   const sourceHash = readSourceHash(mainBundleDir);
   const extra = ["node-pty", "better-sqlite3"].filter(
     (name) => !closure.dependencies.includes(name),
@@ -155,6 +162,9 @@ export function buildSshRuntimeArchive(options = {}) {
       ["wsl-helpers", wslHelpersDir, true],
       ["skills", skillsDir, false],
       ["plugins", pluginsDir, false],
+      ...(closure.resources.some((resource) => resource.kind === "pty-job-owner")
+        ? [["pty-job-owner", ptyJobOwnerDir, true]]
+        : []),
     ];
     for (const [name, sourceDir, required] of resources) {
       if (!existsSync(sourceDir)) {
@@ -163,6 +173,11 @@ export function buildSshRuntimeArchive(options = {}) {
       }
       cpSync(sourceDir, join(stage, name), { recursive: true });
     }
+    verifyRuntimeResources(closure.resources, {
+      agentPlugins: { path: join(stage, "agent-plugins"), layout: "staged" },
+      bundledPlugins: join(stage, "plugins"),
+      ptyJobOwner: join(stage, "pty-job-owner"),
+    });
 
     writeStagePackageJson(stage, {
       name: "poracode-ssh-runtime",

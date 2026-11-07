@@ -1,0 +1,8 @@
+preload = ["@opentui/solid/preload"]
+
+[install]
+saveTextLockfile = true
+# The vendored workspace packages resolve shared dependencies (solid-js and
+# friends) from tui/node_modules, so pin the flat layout instead of inheriting
+# the machine's default linker (CI and fresh machines default to isolated).
+linker = "hoisted"

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
@@ -17,6 +17,7 @@ import {
   imagePreviewKey,
   resetImagePreviews,
   setImagePreviewGenerator,
+  setImagePreviewStoreDir,
   type ImagePreviewGenerator,
 } from "./imagePreview";
 import {
@@ -377,6 +378,37 @@ describe("preview attachment", () => {
     expect(ref?.height).toBe(1);
   });
 
+  it("does not reuse a persisted preview after replacing an image at the same location", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-preview-replacement-"));
+    try {
+      setImagePreviewGenerator(() => "data:image/jpeg;base64,QQ==");
+      await setImagePreviewStoreDir(dir);
+      projectPayloadImageRefs("t1", "i1", { images: [bigPngDataUrl] });
+      await flushPreviews();
+      await vi.waitFor(() =>
+        expect(readdirSync(dir).some((name) => name.endsWith(".json"))).toBe(true),
+      );
+      resetImagePreviews();
+      const generator = vi.fn<ImagePreviewGenerator>(() => "data:image/jpeg;base64,Qg==");
+      setImagePreviewGenerator(generator);
+      await setImagePreviewStoreDir(dir);
+      const original = projectPayloadImageRefs("t1", "i1", { images: [bigPngDataUrl] }).payload as {
+        images: unknown[];
+      };
+      expect(readRemoteImageRef(original.images[0])?.preview).toBe("data:image/jpeg;base64,QQ==");
+      const payload = { images: [`${bigPngDataUrl}BBBB`] };
+      const first = projectPayloadImageRefs("t1", "i1", payload).payload as { images: unknown[] };
+      expect(readRemoteImageRef(first.images[0])?.preview).toBeUndefined();
+      await flushPreviews();
+      const next = projectPayloadImageRefs("t1", "i1", payload).payload as { images: unknown[] };
+      expect(readRemoteImageRef(next.images[0])?.preview).toBe("data:image/jpeg;base64,Qg==");
+      expect(generator).toHaveBeenCalledTimes(1);
+    } finally {
+      await setImagePreviewStoreDir(null);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("still mints usable references when the host cannot make previews", () => {
     const projected = projectPayloadImageRefs("t1", "i1", { images: [bigPngDataUrl] }).payload;
     const ref = readRemoteImageRef((projected as { images: unknown[] }).images[0]);
@@ -440,7 +472,8 @@ describe("preview attachment", () => {
       { length: 7 },
       (_, i) =>
         Buffer.byteLength(image, "utf8") +
-        Buffer.byteLength(imagePreviewKey("t1", "i1", ["images", i]), "utf8"),
+        Buffer.byteLength(imagePreviewKey("t1", "i1", ["images", i]), "utf8") +
+        65,
     ).reduce((sum, cost) => sum + cost, 0);
     await flushPreviews();
     expect(getImagePreviewRetentionSnapshot()).toMatchObject({
@@ -488,7 +521,8 @@ describe("preview attachment", () => {
     expect(ref).toMatchObject({ bytes: Buffer.byteLength(image, "utf8"), width: 18, height: 24 });
     expect(getImagePreviewRetentionSnapshot().retainedBytes).toBe(
       Buffer.byteLength(image, "utf8") +
-        Buffer.byteLength(imagePreviewKey("t1", "i1", ["images", 0]), "utf8"),
+        Buffer.byteLength(imagePreviewKey("t1", "i1", ["images", 0]), "utf8") +
+        65,
     );
     expect(Buffer.byteLength(image, "utf8")).toBeGreaterThan(image.length);
     await flushPreviews();

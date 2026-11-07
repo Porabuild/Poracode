@@ -26,6 +26,7 @@ import type { KeybindingsFile } from "@/shared/keybindings";
 import { readKeybindingsFile } from "../keybindingsFile";
 import { applyKeybindingsWrite } from "../keybindingsApply";
 import { showAndFocusWindow } from "../window/showAndFocusWindow";
+import { notifyRendererStartupReady } from "../window/deferredDevTools";
 import { requestTrackedRendererReload } from "../window/windowHardening";
 import { registerSideChatWindowIpc, isSideChatWindow } from "../window/sideChatWindows";
 import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
@@ -167,6 +168,7 @@ export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): Auto
     const window = BrowserWindow.fromWebContents(event.sender);
     const mainWindow = deps.getMainWindow();
     if (!window || window !== mainWindow || window.isDestroyed()) return;
+    notifyRendererStartupReady(window.webContents);
     deps.quickComposer.handleMainReady();
   });
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {

@@ -224,6 +224,14 @@ export function buildChecks(input: {
 
   if (input.credentials.error !== null) {
     checks.push({ name: "credentials", status: "error", detail: input.credentials.error });
+  } else if (input.liveStatus.reachable && input.liveStatus.mode === "desktop") {
+    checks.push({
+      name: "credentials",
+      status: "ok",
+      detail:
+        "Credential storage is managed by the authenticated desktop owner. " +
+        "Its native key and persistent-credential availability were not inspected by this command.",
+    });
   } else if (input.credentials.mode === null) {
     checks.push({
       name: "credentials",
@@ -251,11 +259,17 @@ export function buildChecks(input: {
         input.liveStatus.endpoint ?? "no endpoint"
       }.`,
     });
-    // D4: a healthy answer is not a release identity. Report what the live
-    // owner can prove, and mark a pre-D4 owner explicitly instead of treating
-    // liveness as upgrade qualification.
+    // Authenticated liveness does not establish release identity or lifecycle admission.
     const live = input.liveStatus;
-    if (live.statusSupported && live.build) {
+    if (live.mode === "desktop") {
+      checks.push({
+        name: "upgrade-identity",
+        status: "ok",
+        detail:
+          "Lifecycle is managed by the desktop app; CLI server drain/upgrade operations do not apply. " +
+          "This command does not verify the desktop release build identity.",
+      });
+    } else if (live.statusSupported && live.build) {
       checks.push({
         name: "upgrade-identity",
         status: live.admission === "held" ? "warn" : "ok",
@@ -269,9 +283,9 @@ export function buildChecks(input: {
         name: "upgrade-identity",
         status: "warn",
         detail:
-          "The running owner predates the authenticated status operation; its build " +
-          "identity is not provable. It can be drained, but an upgrade candidate must " +
-          "prove its own exact build before admission.",
+          "The server build identity was not verified. Status may be unsupported or unavailable; " +
+          "this does not establish owner age or permission to drain/upgrade it. " +
+          "An upgrade candidate must prove its own exact build before admission.",
       });
     }
   } else if (input.discovery !== null) {

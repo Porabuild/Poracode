@@ -12,7 +12,7 @@
 // low-level Server (string-method setRequestHandler) suffices for this
 // pass-through proxy, so no McpServer tool registration is needed.
 import { Server } from "@modelcontextprotocol/server";
-import type { Transport } from "@modelcontextprotocol/server";
+import type { Tool, Transport } from "@modelcontextprotocol/server";
 import { StdioClientTransport as ClientStdioTransport } from "@modelcontextprotocol/client/stdio";
 import {
   Client,
@@ -21,6 +21,17 @@ import {
   StreamableHTTPClientTransport,
 } from "@modelcontextprotocol/client";
 import type { McpServer } from "@/shared/contracts";
+import { isMcpToolVisibleTo, MCP_APP_CLIENT_CAPABILITIES } from "@/shared/mcpAppResources";
+import { McpAppSession } from "./McpAppSession";
+import { materializeMcpAppResult } from "./mcpAppResult";
+import type { BridgeToolResult } from "./toolBridge";
+import { omitInvalidSchemaPatterns } from "./portableSchemaPatterns";
+import {
+  MCP_FILTER_CONFIG_ENV,
+  MCP_FILTER_CONFIG_V1_ENV,
+  MCP_FILTER_CONFIG_V2_ENV,
+  MCP_STDIO_CONFIG_ENV,
+} from "./mcpToolFilterConfig";
 
 export interface FilterProxyOptions {
   serverName: string;
@@ -29,21 +40,71 @@ export interface FilterProxyOptions {
   downstreamTransport: Transport;
   timeoutMs?: number;
   isolateConnectionFailures?: boolean;
+  omitInvalidSchemaPatterns?: boolean;
+  /** Enable only when the connection owner supplies an isolated Apps renderer. */
+  mcpApps?: boolean;
+  onAppResult?(tool: Tool, result: BridgeToolResult): BridgeToolResult;
 }
 
 export interface FilterProxy {
   client: Client;
   server: Server;
+  apps?: McpAppSession;
   close: () => Promise<void>;
 }
 
-export function createUpstreamTransport(server: Pick<McpServer, "transport">): Transport {
+export function mcpStdioEnvironment(
+  explicit: Record<string, string>,
+  inherit: boolean,
+): Record<string, string> {
+  const inherited: Record<string, string> = {};
+  if (inherit) {
+    for (const [key, value] of Object.entries(process.env)) {
+      if (value !== undefined) inherited[key] = value;
+    }
+  }
+  // Preserve native stdio inheritance without exposing the outer helper's
+  // configuration or overriding a nested helper's explicit envelope.
+  for (const key of [
+    MCP_FILTER_CONFIG_ENV,
+    MCP_FILTER_CONFIG_V1_ENV,
+    MCP_FILTER_CONFIG_V2_ENV,
+    MCP_STDIO_CONFIG_ENV,
+  ])
+    delete inherited[key];
+  return { ...inherited, ...explicit };
+}
+
+/** The native owner has already expanded env and applied its reserved values. */
+export function mcpOwnedStdioEnvironment(explicit: Record<string, string>): Record<string, string> {
+  const env = mcpStdioEnvironment({}, true);
+  // Nested helpers still need their own explicit envelope; the outer worker's
+  // envelope was scrubbed above. Ordinary keys must retain the owner's values.
+  for (const key of [
+    MCP_FILTER_CONFIG_ENV,
+    MCP_FILTER_CONFIG_V1_ENV,
+    MCP_FILTER_CONFIG_V2_ENV,
+    MCP_STDIO_CONFIG_ENV,
+  ]) {
+    if (explicit[key] !== undefined) env[key] = explicit[key];
+  }
+  // Electron's worker bootstrap flag belongs to the wrapper, not its server.
+  delete env["ELECTRON_RUN_AS_NODE"];
+  if (explicit["ELECTRON_RUN_AS_NODE"] !== undefined)
+    env["ELECTRON_RUN_AS_NODE"] = explicit["ELECTRON_RUN_AS_NODE"];
+  return env;
+}
+
+export function createUpstreamTransport(
+  server: Pick<McpServer, "transport">,
+  options: { inheritEnv?: boolean } = {},
+): Transport {
   const transport = server.transport;
   if (transport.type === "stdio") {
     return new ClientStdioTransport({
       command: transport.command,
       args: transport.args,
-      env: transport.env,
+      env: mcpStdioEnvironment(transport.env, options.inheritEnv === true),
       ...(transport.cwd ? { cwd: transport.cwd } : {}),
       stderr: "inherit",
     });
@@ -61,7 +122,22 @@ export function createUpstreamTransport(server: Pick<McpServer, "transport">): T
 export async function startFilterProxy(options: FilterProxyOptions): Promise<FilterProxy> {
   const { serverName, upstreamTransport, downstreamTransport } = options;
   const disabled = new Set(options.disabledTools);
-  const client = new Client({ name: "poracode-mcp-filter", version: "1.0.0" });
+  const client = new Client(
+    { name: "poracode-mcp-filter", version: "1.0.0" },
+    { capabilities: options.mcpApps ? MCP_APP_CLIENT_CAPABILITIES : {} },
+  );
+  const apps = options.mcpApps
+    ? new McpAppSession(client, {
+        disabledTools: options.disabledTools,
+        timeoutMs: options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MSEC,
+      })
+    : undefined;
+  let knownTools: Map<string, Tool> | undefined;
+  let discoveryRevision = 0;
+  client.setNotificationHandler("notifications/tools/list_changed", () => {
+    knownTools = undefined;
+    discoveryRevision += 1;
+  });
   let upstreamUnavailable = false;
   const unavailableMessage = `MCP server "${serverName}" could not connect. Its tools are unavailable for this session. Fix its connection or sign-in, then start a new session to use them.`;
   const unavailableTools = {
@@ -79,6 +155,7 @@ export async function startFilterProxy(options: FilterProxyOptions): Promise<Fil
   let proxyServer: Server | undefined;
   const upstreamOnClose = upstreamTransport.onclose;
   upstreamTransport.onclose = () => {
+    apps?.close();
     upstreamOnClose?.();
     upstreamUnavailable = true;
     if (proxyServer && !options.isolateConnectionFailures) {
@@ -99,6 +176,7 @@ export async function startFilterProxy(options: FilterProxyOptions): Promise<Fil
   const close = () => {
     closing ??= Promise.resolve().then(async () => {
       stopped.resolve();
+      apps?.close();
       await Promise.allSettled([server.close(), client.close()]);
     });
     return closing;
@@ -111,21 +189,36 @@ export async function startFilterProxy(options: FilterProxyOptions): Promise<Fil
   server.setRequestHandler("tools/list", async () => {
     await upstreamReady.promise;
     if (options.isolateConnectionFailures && upstreamUnavailable) return unavailableTools;
-    const tools = [];
+    const tools: Tool[] = [];
+    const discovered = new Map<string, Tool>();
+    const revision = discoveryRevision;
     let cursor: string | undefined;
     try {
       do {
         const result = await client.listTools(cursor ? { cursor } : undefined, requestOptions);
-        tools.push(...result.tools.filter((tool) => !disabled.has(tool.name)));
+        for (const tool of result.tools) discovered.set(tool.name, tool);
+        tools.push(
+          ...result.tools.filter(
+            (tool) => !disabled.has(tool.name) && isMcpToolVisibleTo(tool, "model"),
+          ),
+        );
         cursor = result.nextCursor;
       } while (cursor);
+      if (revision === discoveryRevision) knownTools = discovered;
     } catch (error) {
       if (!options.isolateConnectionFailures) throw error;
       upstreamUnavailable = true;
       await client.close().catch(() => undefined);
       return unavailableTools;
     }
-    return { tools };
+    return {
+      tools: options.omitInvalidSchemaPatterns
+        ? tools.map((tool) => ({
+            ...tool,
+            inputSchema: omitInvalidSchemaPatterns(tool.inputSchema),
+          }))
+        : tools,
+    };
   });
   server.setRequestHandler("tools/call", async (request, extra) => {
     await upstreamReady.promise;
@@ -140,10 +233,33 @@ export async function startFilterProxy(options: FilterProxyOptions): Promise<Fil
       return { isError: true, content: [{ type: "text", text: unavailableMessage }] };
     }
     try {
-      return await client.callTool(request.params, {
+      const callOptions = {
         ...requestOptions,
         signal: extra.mcpReq.signal,
-      });
+      };
+      let tools = knownTools;
+      if (!tools || apps) {
+        const revision = discoveryRevision;
+        const result = await client.listTools(undefined, callOptions);
+        tools = new Map(result.tools.map((tool) => [tool.name, tool]));
+        if (revision === discoveryRevision) knownTools = tools;
+      }
+      const tool = tools.get(name);
+      if (tool && !isMcpToolVisibleTo(tool, "model")) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Tool is not visible to the model: ${name}` }],
+        };
+      }
+      const result = await client.callTool(request.params, callOptions);
+      if (apps && tool) {
+        const materialized = await materializeMcpAppResult(client, tool, result, {
+          timeout: options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MSEC,
+          signal: extra.mcpReq.signal,
+        });
+        return options.onAppResult?.(tool, materialized) ?? materialized;
+      }
+      return result;
     } catch (error) {
       if (!options.isolateConnectionFailures || extra.mcpReq.signal.aborted) throw error;
       return {
@@ -184,7 +300,7 @@ export async function startFilterProxy(options: FilterProxyOptions): Promise<Fil
       clearTimeout(timer);
     }
     upstreamReady.resolve();
-    return { client, server, close };
+    return { client, server, close, ...(apps ? { apps } : {}) };
   } catch (error) {
     upstreamReady.reject(error);
     await close();

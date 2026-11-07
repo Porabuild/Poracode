@@ -1,8 +1,8 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import type { McpServer } from "@/shared/contracts";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { McpServer, McpOauthBeginResult } from "@/shared/contracts";
 import {
   AGENT_PLUGINS_MANIFEST_SCHEMA_URL,
   AGENT_PLUGINS_MCP_SCHEMA_URL,
@@ -37,7 +37,7 @@ function setup() {
   }
   const tokens = new Map<string, string>([["https://example.org/mcp", "legacy-url-token"]]);
   const oauth = {
-    beginForCredential: async (_server: McpServer, key?: string) => {
+    beginForCredential: async (_server: McpServer, key?: string): Promise<McpOauthBeginResult> => {
       tokens.set(key!, `secret-${key}`);
       return { status: "authorized" as const };
     },
@@ -76,6 +76,60 @@ function setup() {
 }
 
 describe("plugin service accounts", () => {
+  it("preserves concurrent account creation when an earlier start fails", async () => {
+    const { service, oauth } = setup();
+    const pending = Promise.withResolvers<{ status: "error"; message: string }>();
+    vi.spyOn(oauth, "beginForCredential").mockImplementationOnce(() => pending.promise);
+    const first = service.manage({
+      action: "begin",
+      pluginName: "notes",
+      serverName: "service",
+      label: "Canceled",
+    });
+    const other = await service.manage({
+      action: "begin",
+      pluginName: "calendar",
+      serverName: "service",
+      label: "Retained",
+    });
+    pending.resolve({ status: "error", message: "Canceled" });
+    await first;
+    expect((await service.manage({ action: "list", pluginName: "calendar" })).accounts).toEqual(
+      other.accounts,
+    );
+  });
+
+  it("does not remove an account reused by a newer begin or explicit logout", async () => {
+    const { service, oauth } = setup();
+    const pending = Promise.withResolvers<{ status: "error"; message: string }>();
+    vi.spyOn(oauth, "beginForCredential").mockImplementationOnce(() => pending.promise);
+    const first = service.manage({
+      action: "begin",
+      pluginName: "notes",
+      serverName: "service",
+      label: "Old",
+    });
+    const account = (await service.manage({ action: "list", pluginName: "notes" })).accounts[0]!;
+    const current = await service.manage({
+      action: "begin",
+      pluginName: "notes",
+      serverName: "service",
+      accountId: account.id,
+      label: "Current",
+    });
+    await service.manage({
+      action: "logout",
+      pluginName: "notes",
+      serverName: "service",
+      accountId: account.id,
+    });
+    pending.resolve({ status: "error", message: "Canceled" });
+    await first;
+    expect((await service.manage({ action: "list", pluginName: "notes" })).accounts).toEqual([
+      { ...current.accounts[0], status: "disconnected", scopes: [] },
+    ]);
+  });
+
   it("uses current package-managed headers without changing saved OAuth accounts or credentials", async () => {
     const { root, user, service, server, tokens, registry } = setup();
     const first = await service.manage({

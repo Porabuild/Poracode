@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { recordFeatureSignal } from "@/renderer/state/featureUsageStore";
 import { readBridge } from "@/renderer/bridge";
 import { isCapturingKeybinding } from "@/renderer/commands/keybindingCapture";
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
@@ -50,6 +51,7 @@ export function useKeyboardShortcuts() {
 
         e.preventDefault();
         e.stopPropagation();
+        recordFeatureSignal(`command:${command.id}`);
         void command.run(binding.args);
         return;
       }

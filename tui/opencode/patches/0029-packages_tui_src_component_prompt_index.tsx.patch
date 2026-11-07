@@ -1,0 +1,33 @@
+diff --git a/packages/tui/src/component/prompt/index.tsx b/packages/tui/src/component/prompt/index.tsx
+index d5e0477..5c95ba4 100644
+--- a/packages/tui/src/component/prompt/index.tsx
++++ b/packages/tui/src/component/prompt/index.tsx
+@@ -43,8 +43,6 @@ import { Locale } from "../../util/locale"
+ import { errorMessage } from "../../util/error"
+ import { createColors, createFrames } from "../../ui/spinner"
+ import { useDialog } from "../../ui/dialog"
+-import { DialogIntegration } from "../dialog-integration"
+-import { useConnected } from "../use-connected"
+ import { useToast } from "../../ui/toast"
+ import { createFadeIn } from "../../util/signal"
+ import { DialogSkill } from "../dialog-skill"
+@@ -312,17 +310,13 @@ export function Prompt(props: PromptProps) {
+     ],
+   }))
+   const [cursorVersion, setCursorVersion] = createSignal(0)
+-  const connected = useConnected()
+-
++  // poracode: provider setup stays in the host app.
+   function promptModelWarning() {
+     toast.show({
+       variant: "warning",
+-      message: "Connect an integration to send prompts",
++      message: "Choose a configured model before sending prompts",
+       duration: 3000,
+     })
+-    if (!connected()) {
+-      dialog.replace(() => <DialogIntegration />)
+-    }
+   }
+ 
+   function dismissEditorContext() {

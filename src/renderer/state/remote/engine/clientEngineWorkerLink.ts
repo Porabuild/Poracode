@@ -118,6 +118,15 @@ export class ClientEngineWorkerLink {
       worker.onerror = () => this.hooks.onUnavailable();
       worker.onmessageerror = () => this.hooks.onUnavailable();
       this.worker = worker;
+      // A replacement worker starts at generation 0; retain the host fence
+      // while teaching it the current generation before any work is posted.
+      if (this.generation !== 0) {
+        worker.postMessage({
+          v: CLIENT_ENGINE_PROTOCOL_VERSION,
+          generation: this.generation,
+          type: "reset",
+        } satisfies ClientEngineRequest);
+      }
       this.state = "active";
       this.reprobeEarliestAt = 0;
       this.clearReprobe();

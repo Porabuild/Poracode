@@ -3,6 +3,7 @@ import type {
   ProjectNotes,
   PrWatchAgentSync,
   PrWatchInput,
+  ForgePrWatchInput,
   PrWatchKey,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
@@ -21,9 +22,11 @@ export const REMOTE_IPC_ADAPTER_SPECS = {
   getPrWatch: "project",
   checkPrWatch: "project",
   upsertPrWatch: "project",
+  upsertForgePrWatch: "project",
   deletePrWatch: "project",
   syncPrWatchAgent: "project",
   dbGetThreadRuntimeItemsPage: "thread",
+  dbGetThreadPromptIndex: "thread",
   dbTruncateThreadRuntimeAfter: "thread",
   // R1: the bounded thread-history derived reads. Each maps onto the EXISTING
   // bounded `/history` route (goal item, context usage) plus the `ct1.`
@@ -73,9 +76,11 @@ type RemoteIpcAdapterClient = Pick<
   | "getPrWatch"
   | "checkPrWatch"
   | "upsertPrWatch"
+  | "upsertForgePrWatch"
   | "deletePrWatch"
   | "syncPrWatchAgent"
   | "threadRuntimeItemsPage"
+  | "threadPromptIndex"
   | "truncateThreadRuntimeAfter"
   | "latestThreadGoalItem"
   | "threadCompletedTurns"
@@ -118,6 +123,8 @@ export function invokeRemoteIpcProcedure(
       return client.checkPrWatch(payload as PrWatchKey);
     case "upsertPrWatch":
       return client.upsertPrWatch(payload as PrWatchInput);
+    case "upsertForgePrWatch":
+      return client.upsertForgePrWatch(payload as ForgePrWatchInput);
     case "deletePrWatch":
       return client.deletePrWatch(payload as PrWatchKey);
     case "syncPrWatchAgent":
@@ -130,6 +137,8 @@ export function invokeRemoteIpcProcedure(
       return client.truncateThreadRuntimeAfter(
         payload as Parameters<RemoteDesktopClient["truncateThreadRuntimeAfter"]>[0],
       );
+    case "dbGetThreadPromptIndex":
+      return client.threadPromptIndex(String((payload as { readonly threadId: string }).threadId));
     case "dbGetLatestThreadGoalItem":
       return client.latestThreadGoalItem(
         String((payload as { readonly threadId: string }).threadId),

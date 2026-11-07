@@ -6,6 +6,12 @@ import type {
 import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSupport";
 
 /**
+ * Version 6 adds the `summarize` RPC and the additive
+ * `InitializeResult.supportsSummarize` capability flag (feature-detected on
+ * the real agent handle, present on `@cursor/sdk` 1.2.0+). A stale staged
+ * helper has no `summarize` implementation, so it must fail the handshake
+ * rather than reject the unknown method at call time.
+ *
  * Version 5 requires Windows long-path handling for the SDK's SQLite stores
  * and native Max Mode qualification: workers decorate the public
  * `ModelSelection.maxMode` field, the supported SDK window starts at 1.0.38
@@ -31,7 +37,7 @@ import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSuppor
  * gets it re-staged from current source (the SSH runtime bundle re-installs
  * whenever the built worker bytes change).
  */
-export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 5;
+export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 6;
 
 export interface CursorSdkWorkerModelParameter {
   id: string;
@@ -168,6 +174,8 @@ export interface CursorSdkWorkerInitializeResult {
   stateRoot?: string;
   /** Fresh create found the deterministic local agent and resumed it instead. */
   recoveredExisting?: boolean;
+  /** The agent handle exposes `summarize()` (`@cursor/sdk` 1.2.0+). */
+  supportsSummarize?: boolean;
 }
 
 export interface CursorSdkWorkerStartInput {
@@ -250,6 +258,7 @@ export interface CursorSdkWorkerModelsListParams {
 export type CursorSdkWorkerMethod =
   | "initialize"
   | "start"
+  | "summarize"
   | "steer"
   | "cancel"
   | "reload"
@@ -260,6 +269,7 @@ export type CursorSdkWorkerMethod =
 export type CursorSdkWorkerRequest =
   | CursorSdkWorkerRequestFor<"initialize", CursorSdkWorkerInitializeParams>
   | CursorSdkWorkerRequestFor<"start", CursorSdkWorkerStartInput>
+  | CursorSdkWorkerRequestFor<"summarize", Record<string, never>>
   | CursorSdkWorkerRequestFor<"steer", { runId: string; text: string }>
   | CursorSdkWorkerRequestFor<"cancel", { runId?: string }>
   | CursorSdkWorkerRequestFor<"reload", Record<string, never>>

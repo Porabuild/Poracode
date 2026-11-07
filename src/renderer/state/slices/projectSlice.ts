@@ -1,6 +1,7 @@
 import { retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { composerDraftStorage } from "../composerDraftStorage";
 import { areSelectionBindingsEqual } from "@/shared/contracts";
+import { isThreadConfigCrewEqual } from "@/shared/crew";
 import type {
   Project,
   ProjectDraftConfig,
@@ -12,7 +13,7 @@ import type {
   GitHubAccountRef,
   McpServer,
 } from "@/shared/contracts";
-import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
+import { HOME_PROJECT_ID, HOME_PROJECT_NAME, isHomeProjectId } from "@/shared/homeScope";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { getProjectName } from "@/shared/wsl";
 import { findProjectLocationConflict, projectIdentityKey } from "@/shared/projectIdentity";
@@ -32,6 +33,7 @@ function projectDraftConfigEqual(
 ): boolean {
   return (
     a !== undefined &&
+    isThreadConfigCrewEqual(a.crew, b.crew) &&
     areSelectionBindingsEqual(a.selectionBinding, b.selectionBinding) &&
     a.agentKind === b.agentKind &&
     a.model === b.model &&
@@ -71,6 +73,15 @@ export interface ProjectSlice {
   updateProjectWorktreeLocation: (
     projectId: string,
     worktreeLocation: ProjectWorktreeLocation | undefined,
+  ) => void;
+  /** `undefined` unpins the base (new worktrees use the remote default branch). */
+  updateProjectWorktreeBaseBranch: (projectId: string, baseBranch: string | undefined) => void;
+  /** An empty list clears the project's pinned branches. */
+  updateProjectPinnedBranches: (projectId: string, pinnedBranches: string[]) => void;
+  /** An empty record clears every plugin switch (all plugins inherit global state). */
+  updateProjectPluginOverrides: (
+    projectId: string,
+    pluginOverrides: Record<string, boolean>,
   ) => void;
   /** `undefined` clears the override (supervisor auto-detects the account). */
   updateProjectGhAccount: (projectId: string, ghAccount: GitHubAccountRef | undefined) => void;
@@ -244,6 +255,9 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
       return {
         projects: nextProjects,
         threads: nextThreads,
+        chatPromptAnchorIds: Object.fromEntries(
+          Object.entries(state.chatPromptAnchorIds).filter(([id]) => !projectThreadIds.has(id)),
+        ),
         pendingThreadConfigByThreadId: retainPendingThreadConfigs(
           state.pendingThreadConfigByThreadId,
           nextThreads,
@@ -295,6 +309,39 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
           return rest;
         }
         return { ...project, worktreeLocation };
+      }),
+    })),
+  updateProjectWorktreeBaseBranch: (projectId, baseBranch) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (!baseBranch) {
+          const { worktreeBaseBranch: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, worktreeBaseBranch: baseBranch };
+      }),
+    })),
+  updateProjectPinnedBranches: (projectId, pinnedBranches) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (pinnedBranches.length === 0) {
+          const { pinnedBranches: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, pinnedBranches };
+      }),
+    })),
+  updateProjectPluginOverrides: (projectId, pluginOverrides) =>
+    set((state) => ({
+      projects: state.projects.map((project) => {
+        if (project.id !== projectId) return project;
+        if (Object.keys(pluginOverrides).length === 0) {
+          const { pluginOverrides: _, ...rest } = project;
+          return rest;
+        }
+        return { ...project, pluginOverrides };
       }),
     })),
   updateProjectGhAccount: (projectId, ghAccount) =>
@@ -376,7 +423,7 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
       if (from === to) return {};
       // Home is synthetic and belongs to every workspace, so it stays unfiled.
       const shouldMove = (project: Project) =>
-        project.workspaceId === from && project.id !== HOME_PROJECT_ID;
+        project.workspaceId === from && !isHomeProjectId(project.id);
       if (!state.projects.some(shouldMove)) return {};
       return {
         projects: state.projects.map((project) =>

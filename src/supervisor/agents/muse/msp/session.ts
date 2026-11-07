@@ -195,6 +195,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       observerOptions,
       (method, params) => this.subagents.handleNotification(method, params),
       () => this.subagents.onViewDisconnected(),
+      client,
     );
     this.subagents = new MuseSubagentTranscripts(
       input.projectLocation,
@@ -386,6 +387,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
         ...(config.effort ? { reasoningEffort: config.effort } : {}),
       });
       const turnId = stringValue(result["turnId"]) ?? commandId;
+      options?.onPromptSubmitted?.();
       if (result["disposition"] === "started" && !this.completedTurnIds.has(turnId)) {
         this.activeTurnId = turnId;
         this.emitTurnStarted(turnId);

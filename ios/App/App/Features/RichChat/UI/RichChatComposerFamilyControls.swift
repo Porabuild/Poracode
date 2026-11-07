@@ -73,6 +73,7 @@ extension RichChatComposerControlCatalog {
         accepted: familyAcceptedIDs)
     else { return }
     configuration.apply(patch)
+    clearUnsupportedWorkflows(in: &configuration)
   }
 
   /// Exact model pick: a member id — the representative included, e.g. an
@@ -86,6 +87,7 @@ extension RichChatComposerControlCatalog {
         accepted: familyAcceptedIDs)
       {
         configuration.apply(patch)
+        clearUnsupportedWorkflows(in: &configuration)
       }
       return
     }
@@ -108,6 +110,7 @@ extension RichChatComposerControlCatalog {
       )
     else { return }
     configuration.apply(patch)
+    clearUnsupportedWorkflows(in: &configuration)
   }
 
   /// Explicit Effort pick: inside a model-bound family the one-axis tuple
@@ -120,6 +123,7 @@ extension RichChatComposerControlCatalog {
         accepted: familyAcceptedIDs)
     else { return }
     configuration.apply(patch)
+    clearUnsupportedWorkflows(in: &configuration)
   }
 
   /// Explicit Fast toggle: same resolution rule as the Effort pick.
@@ -130,5 +134,6 @@ extension RichChatComposerControlCatalog {
         accepted: familyAcceptedIDs)
     else { return }
     configuration.apply(patch)
+    clearUnsupportedWorkflows(in: &configuration)
   }
 }

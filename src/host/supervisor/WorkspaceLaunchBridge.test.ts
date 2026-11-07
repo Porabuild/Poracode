@@ -41,6 +41,53 @@ function input() {
   };
 }
 describe("workspace launch negotiation", () => {
+  it("keeps controlled support separate from v1 on the same transport and retains the operation identity", async () => {
+    const bridge = new WorkspaceLaunchBridge();
+    const a = input();
+    await bridge.prepare(a);
+    const requestSupport = vi.fn<() => Promise<{ version: 2; incarnation: string }>>(async () => ({
+      version: 2,
+      incarnation: reply.incarnation,
+    }));
+    const result = await bridge.prepare({
+      ...a,
+      procedure: "controlThreadExecution",
+      operationId: reply.incarnation,
+      requestSupport,
+    });
+    expect(a.requestSupport).toHaveBeenCalledOnce();
+    expect(requestSupport).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      version: 2,
+      operationId: reply.incarnation,
+      scope: a.selection.scope,
+    });
+    await bridge.prepare(a);
+    expect(a.requestSupport).toHaveBeenCalledOnce();
+  });
+  it.each(["owner", "revision", "absent", "transport"] as const)(
+    "refuses a controlled %s change during support",
+    async (field) => {
+      const a = input(),
+        pending = deferred<{ version: 2; incarnation: string }>();
+      let fresh: WorkspaceLaunchSelection | undefined = selection();
+      let current = true;
+      const run = new WorkspaceLaunchBridge().prepare({
+        ...a,
+        procedure: "controlThreadExecution",
+        operationId: reply.incarnation,
+        requestSupport: () => pending.promise,
+        readSelection: () => fresh,
+        isCurrent: () => current,
+      });
+      if (field === "owner") fresh = { ...fresh!, owner: "replacement" };
+      if (field === "revision") fresh!.scope.revision++;
+      if (field === "absent") fresh = undefined;
+      if (field === "transport") current = false;
+      pending.resolve({ version: 2, incarnation: reply.incarnation });
+      await expect(run).rejects.toThrow(WorkspaceLaunchUnavailableError);
+    },
+  );
   it("coalesces support per child, never transfers it to another child", async () => {
     const bridge = new WorkspaceLaunchBridge();
     const a = input();

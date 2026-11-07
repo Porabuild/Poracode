@@ -2,12 +2,9 @@ import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { Suspense, useState } from "react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
-import {
-  selectBrowserBridgeServer,
-  selectBrowserBridgeDesktop,
-  useRemoteServersStore,
-} from "@/renderer/state/remoteServersStore";
+import { selectPullRequestsOverlayVisible, usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useSettingsHostServer, useSettingsHostStore } from "@/renderer/state/settingsHostStore";
 import { getCurrentProjectId } from "@/renderer/actions/currentProject";
 import { BrowserDockSlot } from "./RightPanel/parts/BrowserPanel/BrowserDockSlot";
 import { BrowserPanel } from "./RightPanel/parts/BrowserPanel/BrowserPanel";
@@ -37,18 +34,26 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
  * changes from docked panel to a full mobile page.
  */
 export function MobileUtilityPage() {
+  // The pull-request overlay stacks over this page, so the page must not stay
+  // reachable by keyboard or screen reader underneath it. The wrapper is box-less
+  // and always mounted, so covering the page never remounts its state.
+  const covered = usePanelStore(selectPullRequestsOverlayVisible);
+  return (
+    <div className="contents" aria-hidden={covered || undefined} inert={covered}>
+      <MobileUtilityPageContent />
+    </div>
+  );
+}
+
+function MobileUtilityPageContent() {
   const page = usePanelStore((state) => state.mobileUtilityPage);
   const projects = useAppStore((state) => state.projects);
   const currentProjectId = useAppStore(() => getCurrentProjectId());
   const browserExtracted = useBrowserPanelStore((state) => state.extracted);
-  const projectServer = useRemoteServersStore(
-    (state) => selectBrowserBridgeServer(state) ?? state.servers[0],
-  );
-  const servers = useRemoteServersStore((state) => state.servers);
-  const [selectedDesktopId, setSelectedDesktopId] = useState<string | null>(null);
+  const firstServer = useRemoteServersStore((state) => state.servers[0]);
+  const chooseSettingsHost = useSettingsHostStore((state) => state.choose);
   const [selectedNotesProjectId, setSelectedNotesProjectId] = useState<string | null>(null);
-  const selectedServer =
-    servers.find((server) => remoteConnectionKey(server) === selectedDesktopId) ?? projectServer;
+  const selectedServer = useSettingsHostServer() ?? firstServer;
   const projectRuntime = useRemoteServersStore((state) =>
     selectedServer ? state.runtime[remoteConnectionKey(selectedServer)] : undefined,
   );
@@ -56,19 +61,8 @@ export function MobileUtilityPage() {
     selectedServer ? state.lastKnownProjects[remoteConnectionKey(selectedServer)] : undefined,
   );
 
-  // Drop a disconnected desktop selection during render so the page never
-  // paints a frame for a desktop that is no longer paired.
-  if (
-    selectedDesktopId &&
-    !servers.some((server) => remoteConnectionKey(server) === selectedDesktopId)
-  ) {
-    setSelectedDesktopId(null);
-  }
-
   const changeDesktop = (desktopId: string | null) => {
-    if (!desktopId) return;
-    setSelectedDesktopId(desktopId);
-    selectBrowserBridgeDesktop(desktopId);
+    if (desktopId) chooseSettingsHost(desktopId);
   };
 
   if (page === "usage") return <UsagePanel />;
@@ -138,7 +132,7 @@ export function MobileUtilityPage() {
       notesProjects.find(
         (candidate) =>
           candidate.remoteServerId ===
-          (projectServer ? remoteConnectionKey(projectServer) : undefined),
+          (selectedServer ? remoteConnectionKey(selectedServer) : undefined),
       ) ??
       notesProjects[0];
     return project ? (
@@ -159,24 +153,32 @@ export function MobileUtilityPage() {
     ) : null;
   }
 
-  if ((page === "pullRequests" || page === "schedules") && selectedServer) {
+  if (page === "pullRequests" && selectedServer) {
+    // The list scrolls itself and owns its floating bottom row, so it gets the
+    // page without the generic utility padding that would lift that row.
+    return (
+      <div className="relative h-full min-h-0">
+        <BrowserRemoteConnectionGate allowOffline>
+          <PullRequestsView
+            key={remoteConnectionKey(selectedServer)}
+            remoteDesktopId={remoteConnectionKey(selectedServer)}
+            onRemoteDesktopChange={changeDesktop}
+          />
+        </BrowserRemoteConnectionGate>
+      </div>
+    );
+  }
+
+  if (page === "schedules" && selectedServer) {
     return (
       <div className="relative flex h-full min-h-0 flex-col">
         <div className="m-utility-page min-h-0 flex-1 overflow-y-auto">
           <BrowserRemoteConnectionGate allowOffline>
-            {page === "pullRequests" ? (
-              <PullRequestsView
-                key={remoteConnectionKey(selectedServer)}
-                remoteDesktopId={remoteConnectionKey(selectedServer)}
-                onRemoteDesktopChange={changeDesktop}
-              />
-            ) : (
-              <SchedulesView
-                key={remoteConnectionKey(selectedServer)}
-                remoteDesktopId={remoteConnectionKey(selectedServer)}
-                onRemoteDesktopChange={changeDesktop}
-              />
-            )}
+            <SchedulesView
+              key={remoteConnectionKey(selectedServer)}
+              remoteDesktopId={remoteConnectionKey(selectedServer)}
+              onRemoteDesktopChange={changeDesktop}
+            />
           </BrowserRemoteConnectionGate>
         </div>
       </div>

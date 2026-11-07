@@ -27,7 +27,7 @@ vi.mock("@/renderer/state/appStore", () => ({
     getState: () => ({
       clearThreadDraftContent: mocks.clearDraft,
       saveThreadDraftContent: mocks.saveDraft,
-      requestChatScrollToBottom: vi.fn<() => void>(),
+      requestChatScrollToPrompt: vi.fn<() => void>(),
     }),
   },
 }));

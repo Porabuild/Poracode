@@ -6,7 +6,7 @@ import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useFindFocusStore } from "@/renderer/state/findFocusStore";
 import { useGitFindStore } from "@/renderer/state/gitFindStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { selectPullRequestsOverlayVisible, usePanelStore } from "@/renderer/state/panelStore";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import {
   isEditorFocusElement,
@@ -47,7 +47,7 @@ export function resolveFindTarget(target?: EventTarget | null): FindTarget | nul
     return null;
   }
   if (panel.settingsOpen || panel.projectSettingsId !== null) return "settings";
-  if (panel.gitOverlayOpen || panel.prReviewContext !== null) return "git";
+  if (panel.gitOverlayOpen || selectPullRequestsOverlayVisible(panel)) return "git";
   if (useFileEditorStore.getState().overlayMode !== null) return "tree";
   if (useAppStore.getState().view.kind === "thread") return "chat";
   return null;

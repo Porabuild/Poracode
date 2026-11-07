@@ -33,8 +33,9 @@ import {
   waitForHeldCandidate,
   waitForReadyCandidate,
 } from "./serverUpgradeCandidate";
-import { acquireServerUpgradeLock } from "./serverUpgradeLock";
+import { acquireServerUpgradeLock, type ServerUpgradeLock } from "./serverUpgradeLock";
 import { defaultUpgradeIo, upgradeServerPrefix } from "./serverUpgrade";
+import { registeredServiceUpgradeIo } from "./serverServiceUpgrade";
 import {
   DEFAULT_QUALIFICATION_TIMEOUT_MS,
   UpgradeJournalUnreadableError,
@@ -101,7 +102,9 @@ function writeRecoveryJournal(
   journal: ServerUpgradeJournal,
   phase: ServerUpgradePhase,
   detail: string | null,
+  lock: ServerUpgradeLock,
 ): void {
+  lock.assertHeld();
   writeServerUpgradeJournal(prefix, {
     prefix,
     releaseId: journal.releaseId,
@@ -242,9 +245,10 @@ async function continueStagedCandidate(input: {
   readonly options: UpgradeCliOptions;
   readonly io: UpgradeIo;
   readonly owner: RunningOwnerProbe | null;
+  readonly lock: ServerUpgradeLock;
   readonly clock: { readonly now: () => number; readonly wait: (ms: number) => Promise<void> };
 }): Promise<UpgradeResult> {
-  const { prefix, journal, io, owner, clock } = input;
+  const { prefix, journal, io, owner, clock, lock } = input;
   // The lock is held by the caller; verify the journal still matches the
   // record the recovery decision was made from before starting anything.
   assertJournalUnchanged(prefix, journal);
@@ -273,17 +277,26 @@ async function continueStagedCandidate(input: {
         journal,
         "candidate-started",
         "resume: starting staged candidate",
+        lock,
       );
+      lock.assertHeld();
       await io.startCandidate({ prefix, staging: true });
       await waitForHeldCandidate(io, expected, timeoutMs, clock);
     }
     const alreadyAdmitted = owner !== null && owner.status?.admission === "open";
     if (!alreadyAdmitted) {
+      lock.assertHeld();
       await admitExpectedCandidate(io, expected);
-      writeRecoveryJournal(prefix, journal, "qualified", "resume: admitted after verification");
+      writeRecoveryJournal(
+        prefix,
+        journal,
+        "qualified",
+        "resume: admitted after verification",
+        lock,
+      );
     }
     await waitForReadyCandidate(io, expected, timeoutMs, clock);
-    writeRecoveryJournal(prefix, journal, "complete", "resume: qualified and admitted");
+    writeRecoveryJournal(prefix, journal, "complete", "resume: qualified and admitted", lock);
     return recoveryResult({
       prefix,
       journal,
@@ -298,6 +311,7 @@ async function continueStagedCandidate(input: {
       journal,
       "recovery-required",
       `resume failed: ${messageOf(error)}`,
+      lock,
     );
     return recoveryResult({
       prefix,
@@ -353,7 +367,14 @@ export async function resumeServerUpgrade(
     prefix,
     releaseId: `recovery-resume-${journal.releaseId || "journal"}`,
   });
+  const retryIo = io;
   try {
+    io = await registeredServiceUpgradeIo(
+      io,
+      prefix,
+      currentHostRootPaths().profileNamespace,
+      lock,
+    );
     // Authenticated evidence: probeRunningOwner throws on a mismatched
     // profile, generation, desktop owner or unreachable control surface.
     const owner = await io.probeOwner();
@@ -367,7 +388,7 @@ export async function resumeServerUpgrade(
           throw new UpgradeRecoveryRefusedError(
             "The staged candidate is already holding admission; re-run with --confirm to finish it.",
           );
-        return await continueStagedCandidate({ prefix, journal, options, io, owner, clock });
+        return await continueStagedCandidate({ prefix, journal, options, io, owner, clock, lock });
       }
       // Nothing was drained or swapped: discard the journal and restage safely.
       if (options.from.length === 0)
@@ -375,19 +396,21 @@ export async function resumeServerUpgrade(
           "Resuming a pre-drain journal requires --from <tarball>; the release was never activated, " +
             "so the upgrade must be restaged.",
         );
+      lock.assertHeld();
       removeJournalIfUnchanged(prefix, journal);
+      lock.assertHeld();
       if (journal.releaseDir.length > 0 && isDirectReleaseDirectory(prefix, journal.releaseDir))
         removeStagedReleaseDirectory(prefix, journal.releaseDir);
       lock.release();
       const result = await upgradeServerPrefix(
         { ...options, resume: false, abandonJournal: false },
-        io,
+        retryIo,
       );
       return { ...result, resumed: true };
     }
 
     if (journal.phase === "swapped" || journal.phase === "candidate-started") {
-      return await continueStagedCandidate({ prefix, journal, options, io, owner, clock });
+      return await continueStagedCandidate({ prefix, journal, options, io, owner, clock, lock });
     }
     if (journal.phase === "qualified") {
       // Admission was already granted; only readiness may be missing.
@@ -397,7 +420,7 @@ export async function resumeServerUpgrade(
             "after admission. Do not roll back code over accepted writes; start the intended " +
             "release and verify its data, or abandon the journal after verifying no writes must be kept.",
         );
-      return await continueStagedCandidate({ prefix, journal, options, io, owner, clock });
+      return await continueStagedCandidate({ prefix, journal, options, io, owner, clock, lock });
     }
 
     // draining / drained / backup-captured: post-drain, pre-swap. The old owner
@@ -408,13 +431,15 @@ export async function resumeServerUpgrade(
         `Resuming the ${journal.phase} phase requires --from <tarball> because the swap never ` +
           "happened and the upgrade must be restaged.",
       );
+    lock.assertHeld();
     removeJournalIfUnchanged(prefix, journal);
+    lock.assertHeld();
     if (journal.releaseDir.length > 0 && isDirectReleaseDirectory(prefix, journal.releaseDir))
       removeStagedReleaseDirectory(prefix, journal.releaseDir);
     lock.release();
     const result = await upgradeServerPrefix(
       { ...options, resume: false, abandonJournal: false },
-      io,
+      retryIo,
     );
     return { ...result, resumed: true };
   } finally {
@@ -438,6 +463,12 @@ export async function abandonServerUpgrade(
 
   const lock = acquireServerUpgradeLock({ prefix, releaseId: "recovery-abandon" });
   try {
+    io = await registeredServiceUpgradeIo(
+      io,
+      prefix,
+      currentHostRootPaths().profileNamespace,
+      lock,
+    );
     // Re-read and re-validate under the acquired lock: both the decision and
     // every effect must come from the journal that is actually present while
     // this process holds the prefix lock, not from a record that another
@@ -489,6 +520,7 @@ export async function abandonServerUpgrade(
               "it with `poracode-server upgrade --resume --confirm` instead.",
           );
       }
+      lock.assertHeld();
       removeServerUpgradeJournal(prefix);
       return recoveryResult({
         prefix,
@@ -525,6 +557,7 @@ export async function abandonServerUpgrade(
             "removing an unreadable journal.",
         );
     }
+    lock.assertHeld();
     removeServerUpgradeJournal(prefix);
     return {
       ok: true,

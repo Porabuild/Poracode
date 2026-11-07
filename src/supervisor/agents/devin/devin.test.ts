@@ -73,6 +73,7 @@ import { parseDevinCredentials } from "./credentials";
 import { DEVIN_CLOUD_DEFAULT_MODEL_ID } from "./models";
 import { createDevinAdapter } from "./index";
 import { extractSemverFromVersionOutput } from "../base";
+import { resolveThreadTitlePrompt } from "@/shared/threadTitle";
 
 describe("Devin provider", () => {
   it.each([
@@ -553,6 +554,28 @@ describe("Devin provider", () => {
         'windsurf_api_key = "example"\napi_server_url = "https://server.codeium.com"',
       ),
     ).toEqual({ accessToken: "example", raw: { baseUrl: "https://server.codeium.com" } });
+  });
+});
+
+describe("Devin native goal controls", () => {
+  it("prompts for resume and clear, leaving pause and edit to their own paths", () => {
+    const adapter = createDevinAdapter();
+
+    expect(adapter.buildGoalControlPrompt?.({ action: "resume" })).toBe("/goal resume");
+    expect(adapter.buildGoalControlPrompt?.({ action: "clear" })).toBe("/goal clear");
+    expect(adapter.buildGoalControlPrompt?.({ action: "pause" })).toBeUndefined();
+    expect(adapter.buildGoalControlPrompt?.({ action: "edit", objective: "New objective" })).toBe(
+      undefined,
+    );
+    expect(adapter.goalPauseInterruptsTurn).toBe(true);
+  });
+
+  it("uses the goal objective as a thread title, but keeps control verbs intact", () => {
+    const commands = createDevinAdapter().capabilities.threadTitleCommands;
+
+    expect(resolveThreadTitlePrompt("/goal Ship the TUI", commands)).toBe("Ship the TUI");
+    expect(resolveThreadTitlePrompt("/goal resume", commands)).toBe("/goal resume");
+    expect(resolveThreadTitlePrompt("/goal clear", commands)).toBe("/goal clear");
   });
 });
 

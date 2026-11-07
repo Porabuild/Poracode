@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
-import { ChevronLeft, Settings2, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, Loader2, LogIn, Settings2, SlidersHorizontal } from "lucide-react";
 import type { Selection } from "@heroui/react";
 import { Dropdown, Label } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import type { McpServer, ProjectLocation } from "@/shared/contracts";
 import { MenuSwitch, readOnlyRowClassName, submenuCaptionClassName } from "./ComposerAddMenuParts";
+import { useComposerMcpSignIns } from "./useComposerMcpSignIns";
 
 /**
  * A user-configured MCP server (global or workspace scope) surfaced in the
@@ -17,10 +19,18 @@ export type ComposerCustomMcpItem = {
   enabled: boolean;
   /** Omitted in read-only mode (an active thread's bindings can't change). */
   onToggle?: (next: boolean) => void;
+  /**
+   * The server's configuration, for an OAuth sign-in offered while the list is
+   * open. `projectLocation` is set for workspace-scope rows. Omitted rows are
+   * never probed.
+   */
+  oauth?: { server: McpServer; projectLocation?: ProjectLocation };
 };
 
 /** Selection id of the "Manage MCP servers" action row. */
 const MANAGE_KEY = "manage-mcp-servers";
+/** Read-only session bindings are fixed, so they are never probed. */
+const NO_SERVERS: readonly ComposerCustomMcpItem[] = [];
 
 export type ComposerMcpServersMenuProps = {
   servers: readonly ComposerCustomMcpItem[];
@@ -34,6 +44,15 @@ export type ComposerMcpServersMenuProps = {
   /** Opens the MCP Servers settings page. Omitted — the manage row is hidden. */
   onManage?: () => void;
 };
+
+/** Spinner while the browser sign-in is in flight. */
+function SignInIcon(props: { busy: boolean }) {
+  return props.busy ? (
+    <Loader2 className="size-4 animate-spin text-muted" aria-hidden />
+  ) : (
+    <LogIn className="size-4 text-muted" aria-hidden />
+  );
+}
 
 /** Shared by both surfaces so captions read identically. */
 function useMcpServersMenuText(readOnly: boolean, readOnlyCaption: ReactNode | undefined) {
@@ -54,13 +73,15 @@ function useMcpServersMenuText(readOnly: boolean, readOnlyCaption: ReactNode | u
 
 /**
  * Desktop flyout body for the "MCP Servers" submenu: one switch per
- * user-configured server plus a "Manage" action that jumps to settings.
+ * user-configured server, a "Sign in" action for each enabled server that
+ * needs OAuth, and a "Manage" action that jumps to settings.
  * Rendered inside the parent `Dropdown.Popover`.
  */
 export function ComposerMcpServersSubmenuContent(props: ComposerMcpServersMenuProps) {
   const { servers, readOnly, onManage } = props;
   const { t } = useLingui();
   const { caption, emptyNote } = useMcpServersMenuText(readOnly, props.readOnlyCaption);
+  const signIns = useComposerMcpSignIns(readOnly ? NO_SERVERS : servers);
   const selectedKeys = new Set(
     servers.filter((server) => server.enabled).map((server) => server.id),
   );
@@ -114,7 +135,7 @@ export function ComposerMcpServersSubmenuContent(props: ComposerMcpServersMenuPr
       ) : (
         <p className="min-w-56 px-3 py-2 text-sm text-muted">{emptyNote}</p>
       )}
-      {onManage ? (
+      {onManage || signIns.length > 0 ? (
         // The server list above already takes focus when the flyout opens; a
         // second auto-focused menu would paint two focus rings at once.
         <Dropdown.Menu
@@ -122,16 +143,36 @@ export function ComposerMcpServersSubmenuContent(props: ComposerMcpServersMenuPr
           autoFocus={false}
           selectionMode="none"
           onAction={(key) => {
-            if (key === MANAGE_KEY) onManage();
+            if (key === MANAGE_KEY) onManage?.();
           }}
           className="poracode-menu min-w-56 border-t border-border"
         >
-          <Dropdown.Item id={MANAGE_KEY} textValue={t`Manage MCP servers`}>
-            <SlidersHorizontal className="size-4 text-muted" />
-            <Label className="flex-1 truncate">
-              <Trans>Manage MCP servers</Trans>
-            </Label>
-          </Dropdown.Item>
+          {signIns.map((signIn) => (
+            // Stays open so the row can show the sign-in as in progress while
+            // the browser consent page is up.
+            <Dropdown.Item
+              key={signIn.id}
+              id={`sign-in:${signIn.id}`}
+              textValue={t`Sign in to ${signIn.name}`}
+              isDisabled={signIn.busy}
+              aria-busy={signIn.busy}
+              shouldCloseOnSelect={false}
+              onAction={signIn.signIn}
+            >
+              <SignInIcon busy={signIn.busy} />
+              <Label className="flex-1 truncate">
+                <Trans>Sign in to {signIn.name}</Trans>
+              </Label>
+            </Dropdown.Item>
+          ))}
+          {onManage ? (
+            <Dropdown.Item id={MANAGE_KEY} textValue={t`Manage MCP servers`}>
+              <SlidersHorizontal className="size-4 text-muted" />
+              <Label className="flex-1 truncate">
+                <Trans>Manage MCP servers</Trans>
+              </Label>
+            </Dropdown.Item>
+          ) : null}
         </Dropdown.Menu>
       ) : null}
       <p className={submenuCaptionClassName}>{caption}</p>
@@ -150,6 +191,7 @@ export function ComposerMcpServersMobileList(
   const { servers, readOnly, onManage, onBack, onManaged } = props;
   const { t } = useLingui();
   const { caption, emptyNote } = useMcpServersMenuText(readOnly, props.readOnlyCaption);
+  const signIns = useComposerMcpSignIns(readOnly ? NO_SERVERS : servers);
 
   return (
     <div className="m-sheet-list">
@@ -181,6 +223,21 @@ export function ComposerMcpServersMobileList(
         ),
       )}
       {servers.length === 0 ? <p className="px-2 py-1 text-sm text-muted">{emptyNote}</p> : null}
+      {signIns.map((signIn) => (
+        <button
+          key={signIn.id}
+          type="button"
+          className="m-sheet-action"
+          disabled={signIn.busy}
+          aria-busy={signIn.busy}
+          onClick={signIn.signIn}
+        >
+          <SignInIcon busy={signIn.busy} />
+          <span className="flex-1 truncate">
+            <Trans>Sign in to {signIn.name}</Trans>
+          </span>
+        </button>
+      ))}
       {onManage ? (
         <button
           type="button"

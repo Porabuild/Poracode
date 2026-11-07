@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { transformRuntimeClosure } from "./runtime-closure.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
@@ -29,6 +30,8 @@ function run(args, options = {}) {
 if (!run(["releases", "new", release], { allowFailure: true })) {
   run(["releases", "info", release]);
 }
-run(["sourcemaps", "inject", "dist/main", "dist/renderer"]);
+transformRuntimeClosure(resolve(root, "dist/main"), () =>
+  run(["sourcemaps", "inject", "dist/main", "dist/renderer"]),
+);
 run(["sourcemaps", "upload", "--release", release, "dist/main", "dist/renderer"]);
 run(["releases", "finalize", release]);

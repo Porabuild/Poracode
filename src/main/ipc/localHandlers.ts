@@ -1,6 +1,5 @@
 import { mkdir } from "node:fs/promises";
 import {
-  app,
   clipboard,
   ClipboardItem,
   dialog,
@@ -45,19 +44,21 @@ import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 import { homeScopeLocation } from "@/shared/homeScopeLocation";
-import { resolvePoracodeChannel } from "@/shared/channel";
-import { resolveLegacyElectronUserDataDir } from "@/shared/legacyProductPaths";
 import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintProbe";
 import { installManagedLoopbackCertificatePin } from "../remote/managedLoopbackCertificatePin";
 import { consumeManagedLoopbackBootstrap } from "../backend/managedLoopbackBootstrapPrewarm";
+import { setManagedMcpAppSandboxEndpoint } from "../window/windowHardening";
+import type { LockedComputerUseService } from "@/host/computer-use/lockedUse/LockedComputerUseService";
+import {
+  UNSUPPORTED_LOCKED_COMPUTER_USE_STATUS,
+  type LockedComputerUseActionResult,
+} from "@/shared/contracts/lockedComputerUse";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
   getBrowserPanelManager(): BrowserPanelManager | null;
   sshConnectionManager: SshEnvironmentController;
   requirePoracodePaths(): PoracodePaths;
-  legacyElectronUserDataDir?: string;
-  legacyBaseDir?: string;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
   /** Called with the keybindings just written, so consumers don't re-read the file. */
@@ -79,7 +80,15 @@ interface CreateLocalIpcHandlersOptions {
   hostOffersAutoUpdate?(): boolean;
   /** V6 C.3: host-declared OS notification surface. Omitted means offered. */
   hostOffersOsNotifications?(): boolean;
+  /** Composed Locked Computer Use service; null when this host has none. */
+  lockedComputerUse?(): LockedComputerUseService | null;
 }
+
+const LOCKED_COMPUTER_USE_UNAVAILABLE: LockedComputerUseActionResult = {
+  ok: false,
+  error: "unsupported_platform",
+  status: UNSUPPORTED_LOCKED_COMPUTER_USE_STATUS,
+};
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
   const mgr = getter();
@@ -215,21 +224,6 @@ export function createLocalIpcHandlers(
       if (options.hostOffersOsNotifications?.() === false) return false;
       return showOsNotification(payload, options.getMainWindow);
     },
-    requestLegacyDataMigration: () => {
-      const baseDir = options.requirePoracodePaths().baseDir;
-      const channel = resolvePoracodeChannel();
-      const electronUserDataDir = app.getPath("userData");
-      return callService("requestLegacyDataMigration", {
-        baseDir,
-        channel,
-        electronUserDataDir,
-        legacyElectronUserDataDir:
-          options.legacyElectronUserDataDir ??
-          resolveLegacyElectronUserDataDir(electronUserDataDir, channel),
-        ...(options.legacyBaseDir ? { legacyBaseDir: options.legacyBaseDir } : {}),
-        allowCustomDataRoot: app.isPackaged,
-      });
-    },
     relaunchApp: () => {
       options.requestRelaunch();
     },
@@ -257,7 +251,10 @@ export function createLocalIpcHandlers(
       // Main-native TLS authority: install the exact loopback origin/leaf pin
       // from the authenticated backend bootstrap before the renderer attaches.
       // A null answer (server not serving/disposed) clears any previous pin.
-      if (sender) installManagedLoopbackCertificatePin(sender.session, bootstrap);
+      if (sender) {
+        installManagedLoopbackCertificatePin(sender.session, bootstrap);
+        setManagedMcpAppSandboxEndpoint(sender, bootstrap?.endpoint ?? null);
+      }
       return bootstrap;
     },
     probeTlsCertificateFingerprint: (payload) => probeTlsCertificateFingerprint(payload.url),
@@ -272,6 +269,14 @@ export function createLocalIpcHandlers(
     setRemoteAccessTailscaleHttps: (payload) =>
       callService("setRemoteAccessTailscaleHttps", payload),
     startTailscale: () => callService("startTailscale", {}),
+    // Main-local only: the administrator prompt appears on this Mac, and only
+    // this desktop's own window can reach these handlers.
+    getLockedComputerUseStatus: async () =>
+      (await options.lockedComputerUse?.()?.status()) ?? UNSUPPORTED_LOCKED_COMPUTER_USE_STATUS,
+    installLockedComputerUse: async () =>
+      (await options.lockedComputerUse?.()?.install()) ?? LOCKED_COMPUTER_USE_UNAVAILABLE,
+    uninstallLockedComputerUse: async () =>
+      (await options.lockedComputerUse?.()?.uninstall()) ?? LOCKED_COMPUTER_USE_UNAVAILABLE,
     setRemoteAccessAdvertisedUrl: (payload) => callService("setRemoteAccessAdvertisedUrl", payload),
     revokeRemoteAccessSession: (payload) => callService("revokeRemoteAccessSession", payload),
     revealProjectEntry: async (payload) => {
@@ -354,6 +359,7 @@ export function createLocalIpcHandlers(
     dbGetThreadRuntimeItems: (payload) => callDatabase("dbGetThreadRuntimeItems", payload),
     dbGetThreadRuntimeItemsPage: (payload) => callDatabase("dbGetThreadRuntimeItemsPage", payload),
     dbGetLatestThreadGoalItem: (payload) => callDatabase("dbGetLatestThreadGoalItem", payload),
+    dbGetThreadPromptIndex: (payload) => callDatabase("dbGetThreadPromptIndex", payload),
     dbTruncateThreadRuntimeAfter: (payload) =>
       callDatabase("dbTruncateThreadRuntimeAfter", payload),
     revertCheckpoint: (payload) => options.revertCheckpoint(payload),
@@ -364,6 +370,7 @@ export function createLocalIpcHandlers(
     dbReplaceThreadRuntimeSnapshot: (payload) =>
       callDatabase("dbReplaceThreadRuntimeSnapshot", payload),
     dbGetThreadContextUsage: (payload) => callDatabase("dbGetThreadContextUsage", payload),
+    dbGetThreadTokenUsage: (payload) => callDatabase("dbGetThreadTokenUsage", payload),
     dbGetProjectNotes: (payload) => callDatabase("dbGetProjectNotes", payload),
     dbSetProjectNotes: (payload) => callDatabase("dbSetProjectNotes", payload),
     getAutomationsSnapshot: (payload) => callService("getAutomationsSnapshot", payload),
@@ -379,6 +386,7 @@ export function createLocalIpcHandlers(
     getPrWatch: (payload) => callService("getPrWatch", payload),
     checkPrWatch: (payload) => callService("checkPrWatch", payload),
     upsertPrWatch: (watch) => callService("upsertPrWatch", watch),
+    upsertForgePrWatch: (watch) => callService("upsertForgePrWatch", watch),
     deletePrWatch: (payload) => callService("deletePrWatch", payload),
     syncPrWatchAgent: (agent) => callService("syncPrWatchAgent", agent),
     getUpdateStatus: () =>
@@ -395,7 +403,7 @@ export function createLocalIpcHandlers(
       if (options.hostOffersAutoUpdate?.() === false) return;
       options.autoUpdater.installUpdate();
     },
-    browserGetState: () => requireBrowserPanel(options.getBrowserPanelManager).snapshot(),
+    browserGetState: () => requireBrowserPanel(options.getBrowserPanelManager).snapshotForHost(),
     browserCreateTab: (payload) =>
       requireBrowserPanel(options.getBrowserPanelManager).createTab({
         ...(payload.url !== undefined ? { url: payload.url } : {}),

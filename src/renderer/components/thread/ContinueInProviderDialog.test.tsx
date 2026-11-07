@@ -1,10 +1,12 @@
 import { extractContextPayloadSchema } from "@/shared/contracts/git";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
 import type { AgentStatus, Thread } from "@/shared/contracts";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
@@ -127,13 +129,87 @@ describe("ContinueInProviderDialog handoff flow", () => {
       hiddenModels: {},
       providerConfigs: {},
       providerModelPreferences: {},
+      disabledBuiltInMcpServers: {},
+      disabledBuiltInMcpTools: {},
     } as never);
     useAppStore.setState({
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       threadMentionToolsAvailableByThreadId: {},
     } as never);
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
   });
+
+  it.each(["gui", "terminal"] as const)(
+    "loads the selected remote target's commands in the %s handoff composer",
+    async (mode) => {
+      const remoteThread = { ...thread, agentKind: "codex", remoteServerId: "handoff-host" };
+      const statuses = [agent("codex", "Codex", "gui"), agent("claude", "Claude", mode)];
+      const commands = [{ id: "goal", label: "goal", description: "Set a goal" }];
+      let resolveCatalog!: (value: { kind: string; commands: typeof commands }) => void;
+      const agentSlashCommands = vi.fn<RemoteDesktopClient["agentSlashCommands"]>(
+        () => new Promise((resolve) => (resolveCatalog = resolve)),
+      );
+      const previousFactory = useRemoteServersStore.getState().clientFactory;
+      useRemoteServersStore.setState({
+        clientFactory: () =>
+          ({ setTokenLifecycle: () => {}, agentSlashCommands }) as unknown as RemoteDesktopClient,
+        servers: [
+          {
+            desktopId: "handoff-host",
+            label: "Remote",
+            endpoint: `http://handoff-catalog-${mode}.test/`,
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: {
+          "handoff-host": {
+            status: "online",
+            projects: [],
+            threads: [],
+            agentStatuses: { windows: statuses, wsl: [], updatedAt: "now" },
+          },
+        },
+      });
+      function RemoteHandoff() {
+        const installedAgents = useRemoteServersStore(
+          (state) => state.runtime["handoff-host"]!.agentStatuses!.windows,
+        );
+        return (
+          <AppProvider>
+            <ContinueInProviderDialog
+              isOpen
+              thread={remoteThread}
+              projectLocation={{ kind: "posix", path: "/repo", remoteServerId: "handoff-host" }}
+              installedAgents={installedAgents}
+              onClose={() => {}}
+              onContinue={() => {}}
+            />
+          </AppProvider>
+        );
+      }
+      const view = render(<RemoteHandoff />);
+      try {
+        await waitFor(() => expect(agentSlashCommands).toHaveBeenCalledWith("claude"));
+        const editor = screen.getByRole("textbox");
+        editor.textContent = "/g";
+        const range = document.createRange();
+        range.setStart(editor.firstChild!, 2);
+        range.collapse(true);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        fireEvent.input(editor);
+        expect(screen.queryByRole("option", { name: /goal/ })).not.toBeInTheDocument();
+        await act(async () => resolveCatalog({ kind: "claude", commands }));
+        expect(await screen.findByRole("option", { name: /goal/ })).toBeInTheDocument();
+        expect(agentSlashCommands).toHaveBeenCalledOnce();
+      } finally {
+        view.unmount();
+        useRemoteServersStore.setState({ clientFactory: previousFactory });
+      }
+    },
+  );
 
   it("can add, remove, and re-add Plan for the target provider", () => {
     renderDialog({
@@ -408,6 +484,150 @@ describe("ContinueInProviderDialog handoff flow", () => {
       "switch",
       { strategy: "context-file", extracted: null },
     );
+  });
+  it("extracts a paired host's thread through the same routed procedure as a local one", async () => {
+    const onContinue = renderDialog({
+      thread: {
+        remoteServerId: "handoff-host",
+        remoteId: "host-thread",
+        sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+      },
+    });
+
+    await pressSwitch();
+
+    // The bridge routes the thread-owned procedure to the owning host.
+    expect(bridge.extractContext).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: thread.id, agentKind: "claude" }),
+    );
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.anything(),
+      "terminal",
+      expect.anything(),
+      undefined, // empty composer: no segments
+      "switch",
+      { strategy: "context-file", extracted: expect.objectContaining({ summary: "extracted" }) },
+    );
+  });
+
+  it.each([
+    ["switch", false],
+    ["fork", false],
+    ["switch", true],
+    ["fork", true],
+  ] as const)(
+    "uses a paired host's readable history on %s with local read_thread disabled=%s",
+    async (intent, locallyDisabled) => {
+      useSharedSettings.setState({
+        disabledBuiltInMcpServers: locallyDisabled ? { "app-controls": true } : {},
+        disabledBuiltInMcpTools: locallyDisabled ? { "app-controls": ["read_thread"] } : {},
+      });
+      useAppStore.setState({
+        threadMentionToolsAvailableByThreadId: { [thread.id]: true },
+      } as never);
+      const onContinue = renderDialog({
+        thread: {
+          remoteServerId: "handoff-host",
+          remoteId: "host-thread",
+          sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+      });
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: intent === "switch" ? "Switch" : "Fork" }),
+      );
+
+      expect(bridge.extractContext).not.toHaveBeenCalled();
+      expect(onContinue).toHaveBeenCalledExactlyOnceWith(
+        "codex",
+        expect.anything(),
+        "gui",
+        "Continue where the previous provider left off.",
+        undefined,
+        intent,
+        { strategy: "thread-transcript" },
+      );
+    },
+  );
+
+  it.each(["server", "tool"] as const)(
+    "keeps the context fallback when the local host disables the read_thread %s",
+    async (disabled) => {
+      useSharedSettings.setState({
+        disabledBuiltInMcpServers: disabled === "server" ? { "app-controls": true } : {},
+        disabledBuiltInMcpTools: disabled === "tool" ? { "app-controls": ["read_thread"] } : {},
+      });
+      useAppStore.setState({
+        threadMentionToolsAvailableByThreadId: { [thread.id]: true },
+      } as never);
+      const onContinue = renderDialog({
+        thread: {
+          sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+      });
+
+      await pressSwitch();
+
+      expect(onContinue.mock.calls[0]?.[6].strategy).toBe("context-file");
+      expect(bridge.extractContext).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([false, undefined])(
+    "keeps the context fallback when a paired host reports read_thread availability as %s",
+    async (available) => {
+      // Older hosts omit this optional field; they retain the existing fallback.
+      useAppStore.setState({
+        threadMentionToolsAvailableByThreadId:
+          available === undefined ? {} : { [thread.id]: available },
+      } as never);
+      const onContinue = renderDialog({
+        thread: {
+          remoteServerId: "handoff-host",
+          remoteId: "host-thread",
+          sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+      });
+
+      await pressSwitch();
+
+      expect(onContinue.mock.calls[0]?.[6].strategy).toBe("context-file");
+      expect(bridge.extractContext).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("keeps the context fallback when the paired host's target has no MCP support", async () => {
+    useAppStore.setState({
+      threadMentionToolsAvailableByThreadId: { [thread.id]: true },
+    } as never);
+    const onContinue = renderDialog({
+      thread: {
+        remoteServerId: "handoff-host",
+        remoteId: "host-thread",
+        sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+      },
+      installedAgents: [
+        agent("claude", "Claude", "gui"),
+        agent("codex", "Codex", "gui", { mcpScope: { gui: "none" } }),
+      ],
+    });
+
+    await pressSwitch();
+
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.anything(),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      { strategy: "context-file", extracted: expect.anything() },
+    );
+    expect(bridge.extractContext).toHaveBeenCalledOnce();
   });
 });
 

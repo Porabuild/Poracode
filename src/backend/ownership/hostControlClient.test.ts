@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { readBoundedNodeRequestBody } from "@/shared/http";
+import { hostAdminV1RequestSchema } from "@/shared/hostAdminProtocol";
 import {
   hostControlRequestSchema,
   HOST_CONTROL_PROTOCOL_VERSION,
@@ -86,6 +87,75 @@ afterEach(async () => {
 });
 
 describe("owner control client", () => {
+  it.each([
+    {
+      adminVersion: 2 as const,
+      command: { action: "providers-remove" as const, instanceId: "work" },
+    },
+    { adminVersion: 14 as const, command: { action: "projects-add" as const, path: "C:\\owned" } },
+  ])(
+    "gets an old v1 peer's loud refusal before admin v$adminVersion can execute",
+    async (payload) => {
+      let effects = 0;
+      const test = await fixture(async (request, response, secret) => {
+        const { input } = await receive(request, secret);
+        if (
+          input.operation !== "admin" ||
+          !hostAdminV1RequestSchema.safeParse(input.payload).success
+        ) {
+          response.statusCode = 400;
+          response.end();
+          return;
+        }
+        effects += 1;
+        response.destroy();
+      });
+      await expect(
+        callHostControl(test.paths, "admin", {
+          expectedGeneration: test.owner.generation,
+          payload,
+        }),
+      ).rejects.toBeInstanceOf(HostControlUnsupportedOperationError);
+      expect(effects).toBe(0);
+      test.owner.assertActive();
+    },
+  );
+
+  it.each([1, 2] as const)(
+    "rejects a signed admin response for a different inner version (requested %s)",
+    async (adminVersion) => {
+      let responses = 0;
+      const test = await fixture(async (request, response, secret) => {
+        const { input, authorization } = await receive(request, secret);
+        responses++;
+        const bytes = Buffer.from(
+          JSON.stringify({
+            version: HOST_CONTROL_PROTOCOL_VERSION,
+            requestId: input.requestId,
+            ownerGeneration: input.ownerGeneration,
+            ok: true,
+            result: { adminVersion: adminVersion === 1 ? 2 : 1, outcome: { ok: true, data: {} } },
+          }),
+        );
+        response.setHeader(
+          "x-poracode-control-proof",
+          createHostControlResponseProof(secret, authorization, 200, bytes),
+        );
+        response.end(bytes);
+      });
+      await expect(
+        callHostControl(test.paths, "admin", {
+          expectedGeneration: test.owner.generation,
+          payload:
+            adminVersion === 1
+              ? { adminVersion, command: { action: "clients-list" } }
+              : { adminVersion, command: { action: "providers-remove", instanceId: "work" } },
+        }),
+      ).rejects.toThrow("Invalid or unavailable host control response");
+      expect(responses).toBe(1);
+    },
+  );
+
   it("refuses a replacement listener that merely echoes stale discovery correlation", async () => {
     const test = await fixture(async (request, response) => {
       // This listener has no discovery secret. A process that reused the old
@@ -100,6 +170,20 @@ describe("owner control client", () => {
       response.end(replyBytes(input));
     });
     await expect(callHostControl(test.paths, "issue-pairing")).rejects.toThrow(/control/u);
+  });
+
+  it("refuses shutdown before sending when the selected generation differs from discovery", async () => {
+    let requests = 0;
+    const test = await fixture((_request, response) => {
+      requests += 1;
+      response.end();
+    });
+    await expect(
+      callHostControl(test.paths, "shutdown", {
+        expectedGeneration: randomUUID(),
+      }),
+    ).rejects.toThrow("owner changed");
+    expect(requests).toBe(0);
   });
 
   it("accepts a mutually authenticated response with matching owner correlation", async () => {

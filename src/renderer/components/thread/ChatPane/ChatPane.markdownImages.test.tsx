@@ -44,6 +44,7 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
 }));
 vi.mock("@/renderer/state/projectRootNamesStore", () => ({ useProjectRootNames: () => undefined }));
 vi.mock("./ChatScrollControls", () => ({ ChatScrollControls: () => null }));
+vi.mock("./ChatPromptRail", () => ({ ChatPromptRail: () => null }));
 vi.mock("./parts/items/SubAgentOverlay", () => ({ SubAgentOpenController: () => null }));
 // Keep the actual pane authority, Markdown pipeline, leaf and byte cache. This
 // fixture substitutes only virtual list layout and unrelated host persistence.
@@ -149,7 +150,7 @@ it.each([
     const view = mount(current);
     expect(await screen.findByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
     expect(first.client.fetchTicketedImageBytes).toHaveBeenCalledExactlyOnceWith(
-      "/api/files/image?path=%2Ffixture-image.png",
+      "/api/files/image?path=%2Ffixture-image.png&variant=card",
       expect.any(AbortSignal),
     );
     const card = view.container.querySelector('[data-poracode-image-card="true"]');
@@ -182,7 +183,7 @@ it.each(["project", HOME_PROJECT_ID, "missing-project"])(
     mount(seedThread(scope, { kind: "windows", path: "C:/fixture" }, "C:\\shots\\image%25.png"));
     expect(await screen.findByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
     expect(client.client.fetchTicketedImageBytes).toHaveBeenCalledExactlyOnceWith(
-      "/api/files/image?path=C%3A%2Fshots%2Fimage%2525.png",
+      "/api/files/image?path=C%3A%2Fshots%2Fimage%2525.png&variant=card",
       expect.any(AbortSignal),
     );
   },

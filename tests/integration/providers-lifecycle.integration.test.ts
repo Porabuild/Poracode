@@ -60,6 +60,8 @@ const PREFERRED_MODEL: Record<string, string> = {
   // auto (default), ultimate, performance, efficient, … with no "lite"; the
   // ACP lane rejects set_model("lite") with "Invalid or unavailable model".
   qoder: "auto",
+  // fx: no pin — its catalog follows the active fx provider (gateway, codex,
+  // grok), so the cheap-name fallback picks from detected models.
 };
 
 const CHEAP_NAME_HINTS = ["haiku", "mini", "flash-lite", "flash", "lite", "small", "fast", "nano"];

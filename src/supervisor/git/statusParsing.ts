@@ -1,3 +1,4 @@
+import { unquoteGitPath } from "@/shared/reviewDiff";
 import type { GitFileChange, GitRemoteInfo, GitStatusResult } from "@/shared/contracts";
 import { parseRemoteUrl, toForwardSlash } from "./exec";
 
@@ -137,74 +138,6 @@ export function sumChangeTotals(parsed: ParsedPorcelainStatus): {
       parsed.staged.reduce((sum, file) => sum + file.deletions, 0) +
       parsed.unstaged.reduce((sum, file) => sum + file.deletions, 0),
   };
-}
-
-/**
- * Decode git's C-quoted path form. We force `core.quotepath=false` on every git
- * invocation (see {@link withQuotePathDisabled}), so non-ASCII bytes come
- * through raw — but git ALWAYS quotes a path that contains a double quote,
- * backslash, or control character, regardless of that setting. When `raw` is
- * such a quoted blob (starts and ends with `"`) strip the quotes and decode the
- * C escapes; otherwise return it unchanged.
- *
- * Octal escapes (`\NNN`) are raw UTF-8 BYTES, not code points, so decoded bytes
- * are accumulated into a Buffer and read back as UTF-8 once at the end — decoding
- * each escape as a character would mojibake any multi-byte sequence.
- */
-export function unquoteGitPath(raw: string): string {
-  if (raw.length < 2 || !raw.startsWith('"') || !raw.endsWith('"')) {
-    return raw;
-  }
-  const body = raw.slice(1, -1);
-  const bytes: number[] = [];
-  const pushUtf8 = (char: string): void => {
-    for (const b of Buffer.from(char, "utf-8")) bytes.push(b);
-  };
-  for (let i = 0; i < body.length; i += 1) {
-    const ch = body[i]!;
-    if (ch !== "\\") {
-      pushUtf8(ch);
-      continue;
-    }
-    const next = body[i + 1];
-    if (next === undefined) {
-      bytes.push(0x5c); // trailing backslash — keep literal
-      break;
-    }
-    if (next >= "0" && next <= "7") {
-      // Octal escape: up to 3 octal digits collapse to one byte.
-      let oct = "";
-      let j = i + 1;
-      while (j < body.length && oct.length < 3 && body[j]! >= "0" && body[j]! <= "7") {
-        oct += body[j]!;
-        j += 1;
-      }
-      bytes.push(parseInt(oct, 8) & 0xff);
-      i = j - 1;
-      continue;
-    }
-    switch (next) {
-      case "\\":
-        bytes.push(0x5c);
-        break;
-      case '"':
-        bytes.push(0x22);
-        break;
-      case "t":
-        bytes.push(0x09);
-        break;
-      case "n":
-        bytes.push(0x0a);
-        break;
-      case "r":
-        bytes.push(0x0d);
-        break;
-      default:
-        pushUtf8(next); // unknown escape — keep the escaped char literally
-    }
-    i += 1;
-  }
-  return Buffer.from(bytes).toString("utf-8");
 }
 
 function parseUntrackedPaths(output: string): string[] {

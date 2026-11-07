@@ -1737,6 +1737,39 @@ describe("sdkCanonicalMapping — usage.spent", () => {
 });
 
 describe("sdkCanonicalMapping — file parts", () => {
+  it.each(["file:///tmp/demo.mp4", "https://example.test/demo.mp4"])(
+    "maps produced video %s to a standard playable resource",
+    (url) => {
+      const events = mapOpenCodeEvent(
+        filePartUpdatedEvent({
+          id: "video-part",
+          sessionID: "ses_test",
+          messageID: "msg_video",
+          type: "file",
+          mime: "video/mp4",
+          filename: "demo.mp4",
+          url,
+        }),
+        createOpenCodeMapperState("video-thread"),
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "item.completed",
+          payload: expect.objectContaining({
+            result: {
+              content: [
+                expect.objectContaining({
+                  type: "resource_link",
+                  mimeType: "video/mp4",
+                  name: "demo.mp4",
+                }),
+              ],
+            },
+          }),
+        }),
+      );
+    },
+  );
   function filePartUpdatedEvent(part: Record<string, unknown>): Event {
     return {
       id: "evt-" + Math.random().toString(36).slice(2),

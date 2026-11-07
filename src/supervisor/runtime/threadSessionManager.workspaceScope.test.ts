@@ -736,3 +736,23 @@ describe("approved workspace runtime launch carrier", () => {
     expect(spawn).not.toHaveBeenCalled();
   });
 });
+
+it.each([false, true])(
+  "normalizes MCP schemas only for providers declaring the requirement: %s",
+  async (normalize) => {
+    const provider = {
+      ...adapter("fixture", handle()),
+      mcpRequiresPortableSchemaPatterns: normalize,
+    };
+    const prepareMcpToolFilters = vi.fn<
+      NonNullable<ThreadSessionManagerOptions["prepareMcpToolFilters"]>
+    >(async (servers) => servers);
+    const manager = managerFor([provider], { prepareMcpToolFilters });
+    await manager.startThread(payload());
+    expect(prepareMcpToolFilters).toHaveBeenCalledWith(
+      [],
+      payload().projectLocation,
+      normalize ? { omitInvalidSchemaPatterns: true } : {},
+    );
+  },
+);

@@ -388,13 +388,16 @@ describe("Claude SDK browser access", () => {
     },
   );
 
-  it("preserves saved sandbox settings in Plan even when Bypass is selected for work", async () => {
+  it("disables the saved sandbox in Plan + Bypass and restores it in Plan + Auto", async () => {
     const plan = { ...config, mode: "plan" as const, approvalPolicy: "bypassPermissions" };
     const h = await createSession({ config: plan });
     expect(h.queryInput.options).not.toHaveProperty("sandbox");
     await h.session.startTurn("Plan a browser task", plan);
-    expect(h.fake.applyFlagSettings).not.toHaveBeenCalledWith(
-      expect.objectContaining({ sandbox: expect.anything() }),
+    expect(h.fake.applyFlagSettings).toHaveBeenCalledWith({ sandbox: { enabled: false } });
+    expect(h.fake.setPermissionMode.mock.invocationCallOrder[0]).toBeLessThan(
+      h.fake.applyFlagSettings.mock.invocationCallOrder[0]!,
     );
+    await h.session.startTurn("Plan with native checks", { ...plan, approvalPolicy: "auto" });
+    expect(h.fake.applyFlagSettings).toHaveBeenCalledWith({ sandbox: null });
   });
 });

@@ -4,26 +4,26 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { isAgentStatusSupervisorEvent } from "@/shared/ipc";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
-import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { HOME_PROJECT_ID, isHomeProject } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
 import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
 import { PixelLoader } from "@/renderer/components/common";
 import { ProjectSwitchMenu } from "@/renderer/components/thread/ProjectSwitchMenu";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
+import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import {
   applyAgentStatusSupervisorEvent,
-  isDetectingAgentsForLocation,
+  applyPartialAgentStatuses,
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
 type OverlayPhase = "opening" | "idle" | "closing" | "sending";
-const EMPTY_AGENT_STATUSES: AgentStatus[] = [];
 
 export function QuickComposerOverlay() {
   const { t } = useLingui();
@@ -71,16 +71,20 @@ export function QuickComposerOverlay() {
   // stable until its acknowledgement so a different active project or a probe
   // result cannot unmount its editor and lose failure recovery.
   const project = pendingForm?.project ?? resolvedProject;
-  const projectAgentStatuses = useAgentStatusesStore((state) =>
-    pendingForm
-      ? pendingForm.agentStatuses
-      : project
-        ? getProjectAgentStatuses(project.location, state.agentStatuses, state.wslAgentStatuses)
-        : EMPTY_AGENT_STATUSES,
+  // Narrow subscriptions: the overlay only needs this project's connection
+  // status and failure message, not every runtime snapshot update.
+  const remoteConnectionStatus = useRemoteServersStore((state) =>
+    project?.remoteServerId ? state.runtime[project.remoteServerId]?.status : undefined,
   );
-  const isDetectingAgents = useAgentStatusesStore((state) =>
-    project && !pendingForm ? isDetectingAgentsForLocation(state, project.location) : false,
+  const remoteConnectionMessage = useRemoteServersStore((state) =>
+    project?.remoteServerId ? state.runtime[project.remoteServerId]?.message : undefined,
   );
+  const remoteConnectionUnavailable =
+    !submissionPending &&
+    (remoteConnectionStatus === "offline" || remoteConnectionStatus === "error");
+  const environment = useDraftEnvironment(project);
+  const projectAgentStatuses = pendingForm ? pendingForm.agentStatuses : environment.agentStatuses;
+  const isDetectingAgents = pendingForm ? false : environment.isDetectingAgents;
   const hasInstalledAgent =
     submissionPending ||
     projectAgentStatuses.some(
@@ -95,12 +99,15 @@ export function QuickComposerOverlay() {
       const wslDistros = parseWslProjectDistrosKey(
         buildWslProjectDistrosKey(useAppStore.getState().projects),
       );
+      const statusesBeforeRequest = useAgentStatusesStore.getState();
       const response = await readBridge().getAgentStatuses(wslDistros);
       if (response.fromCache) {
         useAgentStatusesStore.getState().hydrateFromCache({
           windows: response.windows,
           wsl: response.wsl,
         });
+      } else {
+        applyPartialAgentStatuses(response, statusesBeforeRequest);
       }
     };
     // Native show is authoritative: Chromium can keep visibilityState="visible"
@@ -117,6 +124,12 @@ export function QuickComposerOverlay() {
         transitionPhaseRef.current("idle");
       }, 220);
       void refresh().catch(() => undefined);
+      // Chromium can keep visibilityState "visible" while this window is
+      // hidden, so the native show is the authoritative resume signal.
+      void useRemoteServersStore
+        .getState()
+        .verifyConnections()
+        .catch(() => undefined);
     };
     const unsubscribeShown = readBridge().onQuickComposerShown(onShown);
     // Mount runs the same enter sequence as a fresh focus. The phase is
@@ -148,7 +161,7 @@ export function QuickComposerOverlay() {
   );
 
   useEffect(() => {
-    if (!project || project.id === HOME_PROJECT_ID) return;
+    if (!project || isHomeProject(project)) return;
     let active = true;
     void refreshGitProject(project, "initial", "full", { isActive: () => active });
     return () => {
@@ -242,10 +255,18 @@ export function QuickComposerOverlay() {
           <QuickComposerUnavailable onOpenMainWindow={() => dismiss(true)}>
             <Trans>Add a project to start</Trans>
           </QuickComposerUnavailable>
-        ) : isDetectingAgents ? (
+        ) : isDetectingAgents && !hasInstalledAgent ? (
           <QuickComposerProjectStatus projectId={project.id} onProjectChange={setSelectedProjectId}>
             <PixelLoader size="sm" />
             <Trans>Detecting agents…</Trans>
+          </QuickComposerProjectStatus>
+        ) : remoteConnectionUnavailable ? (
+          <QuickComposerProjectStatus projectId={project.id} onProjectChange={setSelectedProjectId}>
+            {remoteConnectionMessage ?? (
+              <Trans>
+                This project's remote server is offline. Reconnect it to start a thread.
+              </Trans>
+            )}
           </QuickComposerProjectStatus>
         ) : !hasInstalledAgent ? (
           <QuickComposerProjectStatus projectId={project.id} onProjectChange={setSelectedProjectId}>
@@ -257,9 +278,13 @@ export function QuickComposerOverlay() {
             project={project}
             agentStatuses={projectAgentStatuses}
             quickComposer
+            submissionPending={submissionPending}
             paneCount={1}
             composerPlaceholder={t`Ask ${project.name} anything about this workspace`}
-            pickFiles={() => readBridge().pickQuickComposerFiles()}
+            pickFiles={environment.pickFiles ?? (() => readBridge().pickQuickComposerFiles())}
+            {...(environment.saveClipboardImage
+              ? { saveClipboardImage: environment.saveClipboardImage }
+              : {})}
             onProjectChange={setSelectedProjectId}
             {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
             onStart={startThread}
@@ -312,8 +337,7 @@ export function resolveQuickComposerProject(input: {
 }): Project | undefined {
   const byId = new Map(input.projects.map((project) => [project.id, project]));
   const isUsable = (project: Project | undefined) =>
-    project !== undefined &&
-    (project.id === HOME_PROJECT_ID ? input.homeScopeEnabled : !project.disabled);
+    project !== undefined && (isHomeProject(project) ? input.homeScopeEnabled : !project.disabled);
   const selectedProject = byId.get(input.selectedProjectId ?? "");
   if (isUsable(selectedProject)) return selectedProject;
   const viewedProject = byId.get(

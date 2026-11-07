@@ -16,8 +16,9 @@ import type { UserNotification } from "@/shared/threadNotification";
 import type { Project } from "@/shared/contracts";
 import type { ScheduleService } from "@/host/schedules/ScheduleService";
 import type { PrWatchService } from "@/host/prWatch";
-import type { GitStateService } from "@/host/gitState";
+import type { GitStateService, ProjectWatchLeases } from "@/host/gitState";
 import type { ImagePreviewGenerator } from "@/host/remote/server/imagePreview";
+import type { ImageCardVariantGenerator } from "@/host/remote/server/imageCardVariant";
 import type {
   RemoteAccessServer,
   RemoteAccessServerOptions,
@@ -65,6 +66,7 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly getBrowserPanelManager?: () => BrowserPanelManager | null;
   readonly browser?: RemoteBrowserGatewayLike;
   readonly deviceWorkspace?: RemoteAccessServerOptions["deviceWorkspace"];
+  readonly readAgentVision?: RemoteAccessServerOptions["readAgentVision"];
   /**
    * The composition's settings authority writes. Every patch the controller
    * persists commits through it as scoped compare-and-swap edits; a conflict
@@ -96,8 +98,11 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
+  /** Durable per-owner watch leases; every rebuilt server receives the same registry. */
+  readonly projectWatchLeases?: ProjectWatchLeases;
   readonly updates: NonNullable<RemoteAccessServerOptions["updates"]>;
   readonly imagePreviewGenerator?: ImagePreviewGenerator;
+  readonly imageCardVariantGenerator?: ImageCardVariantGenerator;
   /**
    * V6 C.2: host-declared capabilities published on GET /api/host/describe.
    * Main supplies the snapshot that matches composeHostServices.
@@ -134,7 +139,6 @@ export interface DesktopRemoteAccessController {
     readonly browserExtension?: boolean;
   }): Promise<ManagedLoopbackBootstrap | null>;
   getTailscaleStatus(): Promise<RemoteAccessTailscaleStatus>;
-  setLanEnabled(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   setTailscaleHttps(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   startTailscale(): Promise<StartTailscaleResult>;
   setAdvertisedUrl(url: string): Promise<RemoteAccessPairingInfo>;

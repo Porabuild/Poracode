@@ -29,15 +29,19 @@ import { getFileChangeCollapsedHeader } from "./collapsedHeaderCache";
 import { LazyInlineDiffView } from "./LazyInlineDiffView";
 import { detectLanguageFromPath } from "./languageDetect";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
+import { HistoryItemDetailPlaceholder, useHistoryItemDetails } from "./useHistoryItemDetails";
 
 interface FileChangeProps {
   item: RuntimeChatItem;
 }
 
-export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
+export const FileChange = memo(function FileChange({ item: source }: FileChangeProps) {
   const { t } = useLingui();
-  const payload = getRuntimeItemPayload<FileChangePayload>(item, "file_change");
   const [isExpanded, setIsExpanded] = useState(false);
+  // A deferred row carries only its header; expanding loads the complete row.
+  const details = useHistoryItemDetails(source, isExpanded);
+  const item = details.item;
+  const payload = getRuntimeItemPayload<FileChangePayload>(item, "file_change");
   const stream = item.streams.file_change_output;
   const hasStream = !!stream && stream.length > 0;
   const header = payload ? getFileChangeCollapsedHeader(item, payload) : null;
@@ -59,7 +63,7 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
     paneActions?.projectLocation
       ? { path: header.path, projectLocation: paneActions.projectLocation }
       : null;
-  const fetched = useReadAbsoluteFile(isExpanded ? fetchTarget : null);
+  const fetched = useReadAbsoluteFile(isExpanded && !details.pending ? fetchTarget : null);
 
   if (!payload || !header) return null;
 
@@ -80,6 +84,7 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
         ]
       : [];
   const hasDetails =
+    source.detailsDeferred === true ||
     hasStream ||
     header.hasArgContent ||
     header.hasDiffText ||
@@ -127,7 +132,9 @@ export const FileChange = memo(function FileChange({ item }: FileChangeProps) {
       isExpanded={isExpanded}
       onExpandedChange={setIsExpanded}
     >
-      {diffText !== undefined ? (
+      {details.pending ? (
+        <HistoryItemDetailPlaceholder failed={details.failed} retry={details.retry} />
+      ) : diffText !== undefined ? (
         <LazyInlineDiffView
           diffText={diffText}
           filePath={payload.path}

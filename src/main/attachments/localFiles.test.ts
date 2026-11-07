@@ -198,16 +198,16 @@ describe("saveClipboardImageFile", () => {
     ).rejects.toThrow(/ENOENT/);
   });
 
-  it("preserves a safe display name and avoids overwriting duplicates", () => {
+  it("preserves a safe display name and avoids overwriting duplicates", async () => {
     tempDir = mkdtempSync(join(tmpdir(), "poracode-attachments-"));
     const paths = resolvePoracodePaths(tempDir);
 
-    const first = saveUploadedAttachmentFile(paths, {
+    const first = await saveUploadedAttachmentFile(paths, {
       threadId: "thread-1",
       fileName: "notes.md",
       data: new Uint8Array([1]),
     });
-    const second = saveUploadedAttachmentFile(paths, {
+    const second = await saveUploadedAttachmentFile(paths, {
       threadId: "thread-1",
       fileName: "notes.md",
       data: new Uint8Array([2]),
@@ -219,11 +219,11 @@ describe("saveClipboardImageFile", () => {
     expect(readFileSync(second)).toEqual(Buffer.from([2]));
   });
 
-  it("keeps untrusted thread ids inside the attachment root", () => {
+  it("keeps untrusted thread ids inside the attachment root", async () => {
     tempDir = mkdtempSync(join(tmpdir(), "poracode-attachments-"));
     const paths = resolvePoracodePaths(tempDir);
 
-    const filePath = saveUploadedAttachmentFile(paths, {
+    const filePath = await saveUploadedAttachmentFile(paths, {
       threadId: "..",
       fileName: "notes.md",
       data: new Uint8Array([1]),

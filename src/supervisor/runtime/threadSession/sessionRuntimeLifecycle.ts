@@ -2,10 +2,12 @@ import { isDeepStrictEqual } from "node:util";
 import {
   areAgentSlashCommandsEqual,
   isThreadConfigEqual,
+  isThreadTurnActive,
   type RuntimeEvent,
 } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
+import type { CrewLeadEditMonitor } from "../crewLeadEditMonitor";
 import type { SessionRuntime } from "../sessionTypes";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 import { shouldReleaseInitialStructuredIdleSuppression } from "./helpers";
@@ -23,7 +25,7 @@ export interface SessionRuntimeLifecycleContext {
   ptyLifecycle: Pick<PtyLifecycle, "track" | "resolveExit" | "kill">;
   outputPipeline: Pick<
     ThreadOutputPipeline,
-    "emitState" | "updateState" | "handlePtyData" | "clearSessionTimers"
+    "emitState" | "updateState" | "noteTurnFailed" | "handlePtyData" | "clearSessionTimers"
   >;
   runtimeEventRouter: Pick<RuntimeEventRouter, "flush" | "append">;
   steerCoordinator: Pick<SteerCoordinator, "maybeDrainPendingSteer"> &
@@ -33,6 +35,8 @@ export interface SessionRuntimeLifecycleContext {
     FollowUpQueueCoordinator,
     "onSessionAttached" | "onSessionClosing" | "onStructuredRuntimeEvent" | "onStructuredUpdate"
   >;
+  /** Crew lead edit reminders; optional for focused lifecycle harnesses. */
+  crewLeadEdits?: Pick<CrewLeadEditMonitor, "onRuntimeEvent">;
   structuredInterruptWatchdog: Pick<
     StructuredInterruptWatchdog,
     "clearStructuredInterruptWatchdog"
@@ -243,8 +247,12 @@ export class SessionRuntimeLifecycle {
       session.suppressInitialStructuredIdle = undefined;
     }
     this.context.runtimeEventRouter.append(session.threadId, event);
+    this.context.crewLeadEdits?.onRuntimeEvent(session, event);
     if (event.type === "turn.started") {
       this.context.steerCoordinator.noteSteerTurnStarted?.(session);
+    }
+    if (event.type === "turn.completed" && event.state === "failed") {
+      this.context.outputPipeline.noteTurnFailed(session);
     }
     this.context.followUpQueue?.onStructuredRuntimeEvent(session, event);
   }
@@ -311,6 +319,17 @@ export class SessionRuntimeLifecycle {
   }
 
   private handleStructuredSessionClosed(session: SessionRuntime): void {
+    // An accepted turn can lose its transport without an error or failed-turn
+    // callback. Preserve that interruption before the inactive state is emitted.
+    // Retired/stale sessions are fenced by canHandleStructuredEvent; Stop and
+    // steer interruptions are intentional and must never offer resume.
+    if (
+      isThreadTurnActive(session.status) &&
+      !session.turnStopRequested &&
+      !session.structuredTurnInterruptRequested
+    ) {
+      this.context.outputPipeline.noteTurnFailed(session);
+    }
     // The transport is gone, so the handle can never accept another turn.
     // Detach it: the send path relaunches (and resumes via `sessionRef`) only
     // when no live structured session is attached. Leaving the dead handle in

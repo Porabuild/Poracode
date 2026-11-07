@@ -1,6 +1,6 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import { estimateRuntimeEventBytes } from "@/shared/runtimeEventSize";
-import { runtimeRequestItemId } from "./runtimeRequestItemId";
+import { payloadItemIdForRuntimeEvent } from "./runtimeItemCommitListeners";
 import type { RuntimeAdmissionRefusalReason, RuntimeRefusalScope } from "./runtimePersistenceTypes";
 import {
   RuntimeAdmissionReservations,
@@ -48,9 +48,12 @@ export type {
  * - Per-thread order is never reordered; coalescing happens only at flush time
  *   and merges consecutive same-item/same-stream deltas.
  * - Admission is bounded by count and estimated bytes per thread and globally,
- *   and by age at the controller level. A batch is accepted chunk by chunk at
- *   event boundaries: acceptance stops at the first event that does not fit and
- *   the remaining events are refused (reported by the caller, never silently
+ *   and by age at the controller level. A count/byte bound is relieved before it
+ *   refuses: the controller's synchronous capacity relief commits pending events
+ *   (preempting read fences that pin them) and the same event is retried, so a
+ *   burst only waits on SQLite. Acceptance stops at the first event that still
+ *   does not fit (relief could not free room, e.g. storage failed) and the
+ *   remaining events are refused (reported by the caller, never silently
  *   evicted). The refusal reason names the exact binding constraint and scope.
  * - A single canonical event has an explicit hard bound
  *   (`maxSingleEventBytes`). The host's per-thread accumulation bound
@@ -100,11 +103,19 @@ export interface RuntimeQueueBounds {
   maxPendingAgeMs: number;
 }
 
+/**
+ * Synchronous capacity relief for a bound that would refuse admission. Commits
+ * pending events (only the thread for `thread` scope, every pending thread for
+ * `global`) and returns true only when at least one event committed, so the
+ * admission loop always makes progress.
+ */
+type RuntimeCapacityRelief = (threadId: string, scope: RuntimeRefusalScope) => boolean;
+
 export const DEFAULT_RUNTIME_QUEUE_BOUNDS: RuntimeQueueBounds = {
-  maxPendingEventsGlobal: 50_000,
-  maxPendingBytesGlobal: 32 * 1024 * 1024,
-  maxPendingEventsPerThread: 5_000,
-  maxPendingBytesPerThread: 4 * 1024 * 1024,
+  maxPendingEventsGlobal: 100_000,
+  maxPendingBytesGlobal: 64 * 1024 * 1024,
+  maxPendingEventsPerThread: 10_000,
+  maxPendingBytesPerThread: 16 * 1024 * 1024,
   maxSingleEventBytes: 8 * 1024 * 1024,
   maxPendingAgeMs: 30_000,
 };
@@ -177,6 +188,7 @@ export class RuntimeWriteQueue {
     private readonly now: () => number = () => Date.now(),
     private readonly atomicBatchWriter?: RuntimeAtomicBatchWriter,
     private readonly onCapacityChange?: (change: RuntimeQueueCapacityChange) => void,
+    private readonly relieveCapacity?: RuntimeCapacityRelief,
   ) {
     this.bounds = { ...DEFAULT_RUNTIME_QUEUE_BOUNDS, ...bounds };
   }
@@ -302,12 +314,6 @@ export class RuntimeWriteQueue {
         persistSeq: 0,
       };
     }
-    const globalRemainingBytes =
-      this.bounds.maxPendingBytesGlobal - this.pendingBytes() - (this.reservations?.bytes ?? 0);
-    const globalRemainingEvents =
-      this.bounds.maxPendingEventsGlobal - this.pendingEvents() - (this.reservations?.events ?? 0);
-    const reservedThread = this.reservations?.forThread(threadId);
-
     let acceptedEvents = 0;
     let acceptedBytes = 0;
     let refusedEvents = 0;
@@ -315,15 +321,24 @@ export class RuntimeWriteQueue {
     let refusalReason: RuntimeAdmissionRefusalReason | undefined;
     let refusalScope: RuntimeRefusalScope | undefined;
     let lastSeq = 0;
-    let entry = this.pending.get(threadId);
 
-    for (let index = 0; index < events.length; index += 1) {
+    for (let index = 0; index < events.length;) {
       const event = events[index]!;
       const bytes = estimates?.[index] ?? estimateRuntimeEventBytes(event);
+      // Re-read after every relief: a committed flush shrinks (or removes) the
+      // thread entry and the global totals.
+      let entry = this.pending.get(threadId);
+      const reservedThread = this.reservations?.forThread(threadId);
       const threadEvents = entry?.events.length ?? 0;
       const threadBytes = entry?.estimatedBytes ?? 0;
-      const globalBytesLeft = globalRemainingBytes - acceptedBytes;
-      const globalEventsLeft = globalRemainingEvents - acceptedEvents;
+      const globalBytesLeft =
+        this.bounds.maxPendingBytesGlobal -
+        this.pendingBytesValue -
+        (this.reservations?.bytes ?? 0);
+      const globalEventsLeft =
+        this.bounds.maxPendingEventsGlobal -
+        this.pendingEventsValue -
+        (this.reservations?.events ?? 0);
 
       // The explicit hard bound comes first: it is a property of the event
       // itself and names the reason precisely.
@@ -344,8 +359,13 @@ export class RuntimeWriteQueue {
         threadEvents + (reservedThread?.eventCount ?? 0) + 1 <=
         this.bounds.maxPendingEventsPerThread;
       const fitsGlobal = bytes <= globalBytesLeft && 1 <= globalEventsLeft;
+      const fitsThread = fitsThreadCount && fitsThreadBytes;
 
-      if (oversizeEvent || !fitsThreadCount || !fitsThreadBytes || !fitsGlobal) {
+      if (!oversizeEvent && (!fitsThread || !fitsGlobal)) {
+        if (this.relieveCapacity?.(threadId, fitsGlobal ? "thread" : "global")) continue;
+      }
+
+      if (oversizeEvent || !fitsThread || !fitsGlobal) {
         if (oversizeEvent) {
           refusalReason = "oversize";
           refusalScope = "thread";
@@ -397,6 +417,7 @@ export class RuntimeWriteQueue {
       acceptedEvents += 1;
       acceptedBytes += bytes;
       lastSeq = persistSeq;
+      index += 1;
     }
 
     this.admittedEvents += acceptedEvents;
@@ -572,19 +593,8 @@ export class RuntimeWriteQueue {
   hasPendingItemWrite(threadId: string, itemId: string): boolean {
     return (
       this.pending.get(threadId)?.events.some(({ event }) => {
-        switch (event.type) {
-          case "item.started":
-          case "item.updated":
-          case "item.completed":
-            return event.itemId === itemId;
-          case "request.opened":
-            return runtimeRequestItemId(event.requestId) === itemId;
-          case "turn.completed":
-            // Cancellation may prune trailing reasoning rows without naming an item.
-            return event.state === "interrupted" || event.state === "cancelled";
-          default:
-            return false;
-        }
+        const payloadItemId = payloadItemIdForRuntimeEvent(event);
+        return payloadItemId === "all" || payloadItemId === itemId;
       }) ?? false
     );
   }

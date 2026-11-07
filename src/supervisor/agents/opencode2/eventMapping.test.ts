@@ -33,6 +33,46 @@ function typesOf(events: RuntimeEvent[]): string[] {
   return events.map((entry) => entry.type);
 }
 
+it("maps completed goal tools into the goal dock while retaining the native tool row", () => {
+  const state = stateFor();
+  const goal = {
+    id: "goal-1",
+    sessionID: SESSION,
+    objective: "Complete a task",
+    status: "active",
+    updatedAt: 100,
+  };
+  mapAll(state, [
+    event("session.tool.input.started", {
+      sessionID: SESSION,
+      assistantMessageID: ASSISTANT,
+      id: "tool-1",
+      name: "create_goal",
+    }),
+  ]);
+  const events = mapAll(state, [
+    event("session.tool.success", {
+      sessionID: SESSION,
+      assistantMessageID: ASSISTANT,
+      id: "tool-1",
+      content: [{ type: "text", text: JSON.stringify({ goal }) }],
+    }),
+  ]);
+  expect(events).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "goal",
+        payload: expect.objectContaining({ objective: "Complete a task", status: "active" }),
+      }),
+      expect.objectContaining({
+        type: "item.updated",
+        payload: expect.objectContaining({ status: "success", result: JSON.stringify({ goal }) }),
+      }),
+    ]),
+  );
+});
+
 /** Full clean-turn sequence captured live from `tmp/probe-v2-clean.txt`. */
 function probeTurnEvents(): V2Event[] {
   return [

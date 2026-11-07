@@ -11,7 +11,7 @@ const afterPack = require("../../build/after-pack.cjs") as (context: {
 }) => Promise<void>;
 const targets = ["win32-x64", "win32-arm64", "darwin-x64", "darwin-arm64", "linux-x64"];
 
-describe("SQLite N-API packaging", () => {
+describe("native N-API packaging", () => {
   let fixture: string;
 
   afterEach(() => {
@@ -34,7 +34,7 @@ describe("SQLite N-API packaging", () => {
       if (target !== missingTarget) writeFileSync(join(sqlite, `${target}.node`), target);
       const pty = join(modules, "node-pty", "prebuilds", target);
       mkdirSync(pty, { recursive: true });
-      writeFileSync(join(pty, "pty.node"), target);
+      writeFileSync(join(pty, target.startsWith("win32-") ? "conpty.node" : "pty.node"), target);
     }
     vi.stubEnv("PORACODE_ALLOW_MISSING_COMPUTER_USE_HELPER", "1");
     return sqlite;
@@ -56,5 +56,19 @@ describe("SQLite N-API packaging", () => {
     await expect(
       afterPack({ appOutDir: fixture, electronPlatformName: "win32", arch: 3 }),
     ).rejects.toThrow(/better-sqlite3 native binary missing/);
+  });
+
+  it.each(["win32-x64", "win32-arm64"])("requires the ConPTY binding for %s", async (target) => {
+    const sqlite = prepare("win32");
+    const pty = join(sqlite, "..", "..", "node-pty", "prebuilds", target);
+    rmSync(join(pty, "conpty.node"));
+    writeFileSync(join(pty, "pty.node"), "obsolete binding");
+    await expect(
+      afterPack({
+        appOutDir: fixture,
+        electronPlatformName: "win32",
+        arch: target.endsWith("arm64") ? 3 : 1,
+      }),
+    ).rejects.toThrow(/node-pty native binary missing/);
   });
 });

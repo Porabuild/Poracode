@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { readToolVideoSources } from "@/shared/chatVideo";
 import {
   CodexUsageScopeTracker,
   createCodexMapperState,
@@ -11,6 +12,34 @@ import {
 } from "./canonicalMapping";
 
 describe("mapCodexNotification — turn lifecycle", () => {
+  it("keeps MCP video resources in their original result envelope", () => {
+    const result = {
+      content: [
+        { type: "resource_link", uri: "file:///tmp/demo.mp4", mimeType: "video/mp4", name: "Demo" },
+      ],
+    };
+    const events = mapCodexNotification(
+      "item/completed",
+      {
+        threadId: "x",
+        item: {
+          id: "video",
+          type: "mcpToolCall",
+          server: "fixture",
+          tool: "record",
+          status: "completed",
+          result,
+        },
+      },
+      createCodexMapperState("video-thread"),
+    );
+    const item = events.find((event) => event.type === "item.completed");
+    expect(
+      item && "payload" in item
+        ? readToolVideoSources((item.payload as { result?: unknown }).result)
+        : [],
+    ).toEqual([{ src: "file:///tmp/demo.mp4", name: "Demo", mimeType: "video/mp4" }]);
+  });
   it("emits turn.started with the supplied turnId", () => {
     const state = createCodexMapperState("t-codex");
     const events = mapCodexNotification("turn/started", { turnId: "abc", threadId: "x" }, state);

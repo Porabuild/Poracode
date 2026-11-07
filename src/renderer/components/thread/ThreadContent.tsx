@@ -1,13 +1,14 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import { Trans } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThread } from "@/renderer/state/useThread";
 import { ChatPane } from "./ChatPane/ChatPane";
 import { ChatRuntimeDebugPanel } from "./ChatPane/ChatRuntimeDebugPanel";
 import { guiChatFontCssVars } from "./ChatPane/chatFontVars";
 import { clearUserMessageCollapsedHeightCache } from "./ChatPane/parts/items/userMessageOverflow";
-import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
+import type { TerminalPaneHandle } from "./TerminalPane";
 import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import { useThreadDockState, type ThreadDockState } from "./useThreadDockState";
@@ -34,8 +35,6 @@ export type ThreadContentCommonProps = {
     | undefined;
   canShowProjectEntryInExplorer?: boolean | undefined;
   checkpointActions?: CheckpointRevertActions | undefined;
-  checkpointProjectLocation?: ProjectLocation | undefined;
-  remoteTerminalTransport?: RemoteTerminalTransport | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
   saveClipboardImage?: SaveClipboardImage | undefined;
 };
@@ -65,6 +64,10 @@ export function GuiThreadContent(
   }, []);
   const ownDockState = useThreadDockState(thread.id);
   const dockState = props.dockState ?? ownDockState;
+  const [composerInset, setComposerInset] = useState(0);
+  // A narrow window that widens keeps its last measurement; only the compact
+  // floating dock covers the transcript.
+  const compactLayout = useCompactLayout();
 
   return (
     <>
@@ -76,6 +79,9 @@ export function GuiThreadContent(
           <div className="min-h-0 min-w-0 flex-1">
             <ChatPane
               thread={thread}
+              {...(compactLayout && composerInset > 0 && !props.hideComposer
+                ? { bottomInset: composerInset }
+                : {})}
               hasSupplementaryContent={dockState.showTodoDock || dockState.showGoalDock}
               hiddenRuntimeItemId={dockState.hiddenRuntimeItemId}
               layoutChangeToken={dockState.dockLayoutToken}
@@ -91,9 +97,6 @@ export function GuiThreadContent(
                 ? { canShowProjectEntryInExplorer: props.canShowProjectEntryInExplorer }
                 : {})}
               {...(props.checkpointActions ? { checkpointActions: props.checkpointActions } : {})}
-              {...(props.checkpointProjectLocation
-                ? { checkpointProjectLocation: props.checkpointProjectLocation }
-                : {})}
               {...(props.initialScrollRevealDelayMs !== undefined
                 ? { initialScrollRevealDelayMs: props.initialScrollRevealDelayMs }
                 : {})}
@@ -117,6 +120,7 @@ export function GuiThreadContent(
       {props.hideComposer ? null : (
         <ThreadComposerSection
           {...props}
+          onComposerInsetChange={setComposerInset}
           todoDockCollapsed={dockState.todoDockCollapsed}
           docksPlacement={dockState.docksPlacement}
           todoDockState={dockState.todoDockState}

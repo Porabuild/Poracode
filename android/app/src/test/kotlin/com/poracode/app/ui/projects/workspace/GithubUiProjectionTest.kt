@@ -32,6 +32,69 @@ class GithubUiProjectionTest {
     }
 
     @Test
+    fun pullRequestRowsProjectAuthorDiffCountsChecksAndReviewRequests() {
+        val document = buildJsonObject {
+            put("pullRequests", JsonArray(listOf(
+                buildJsonObject {
+                    put("headBranch", "feature")
+                    put("additions", 30)
+                    put("deletions", 152)
+                    put("reviewRequested", true)
+                    put("author", buildJsonObject { put("login", "octocat") })
+                    put("pr", buildJsonObject {
+                        put("number", 321)
+                        put("title", "Rework overlay")
+                        put("state", "open")
+                        put("checksStatus", "SUCCESS")
+                    })
+                },
+                buildJsonObject {
+                    put("headBranch", "plain")
+                    put("pr", buildJsonObject {
+                        put("number", 322)
+                        put("title", "No extras")
+                        put("state", "draft")
+                    })
+                },
+            )))
+        }
+        val rows = document.pullRequestRows()
+        assertEquals(2, rows.size)
+        val rich = rows[0]
+        assertEquals("octocat", rich.author)
+        assertEquals(30L, rich.additions)
+        assertEquals(152L, rich.deletions)
+        assertEquals("SUCCESS", rich.checksStatus)
+        assertTrue(rich.reviewRequested)
+        val plain = rows[1]
+        assertEquals(null, plain.author)
+        assertEquals(0L, plain.additions)
+        assertEquals(0L, plain.deletions)
+        assertEquals(null, plain.checksStatus)
+        assertFalse(plain.reviewRequested)
+    }
+
+    @Test
+    fun actionAvailabilityFollowsPullRequestLifecycle() {
+        val open = pullRequestActionAvailability("open", isDraft = false)
+        assertTrue(open.review && open.merge && open.updateBranch && open.convertToDraft && open.close)
+        assertFalse(open.ready)
+        assertFalse(open.reopen)
+
+        val draft = pullRequestActionAvailability("draft", isDraft = true)
+        assertTrue(draft.review && draft.merge && draft.ready && draft.updateBranch && draft.convertToDraft && draft.close)
+        assertFalse(draft.reopen)
+
+        val merged = pullRequestActionAvailability("merged", isDraft = false)
+        assertFalse(merged.review || merged.merge || merged.ready || merged.updateBranch || merged.convertToDraft || merged.close)
+        assertFalse(merged.reopen)
+
+        val closed = pullRequestActionAvailability("closed", isDraft = false)
+        assertFalse(closed.review || closed.merge || closed.ready || closed.updateBranch || closed.convertToDraft || closed.close)
+        assertTrue(closed.reopen)
+    }
+
+    @Test
     fun destructiveConfirmationPolicyIsExactAndNonDestructiveActionsStayImmediate() {
         val location = PosixProjectLocation("/repo")
         val destructive = listOf(

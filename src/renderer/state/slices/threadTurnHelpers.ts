@@ -42,7 +42,6 @@ export function appendCompletedTurnIfClosed(
   const startedAt = parseTurnIso(nextTurnTiming.lastTurnStartedAt);
   const endedAt = parseTurnIso(nextTurnTiming.lastTurnEndedAt);
   if (startedAt === null || endedAt === null) return unchanged;
-  if (endedAt - startedAt < 1000) return unchanged;
   if (
     prevThread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
     prevThread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt

@@ -9,11 +9,28 @@ import { PluginDetail } from "./PluginDetail";
 import { useLocalizedPluginCatalog } from "./pluginCopy";
 
 const actionMocks = vi.hoisted(() => ({
+  browser: false,
+  openExternal: vi.fn<(url: string) => Promise<void>>(async () => undefined),
+  openExternalNative: vi.fn<(url: string) => Promise<void>>(async () => undefined),
   newThreadFromText:
     vi.fn<(projectId: string, text: string, options?: ComposerSeedOptions) => void>(),
   ensureHomeScopeProject: vi.fn<() => Promise<{ id: string }>>(async () => ({
     id: "home-project",
   })),
+}));
+
+vi.mock("./ComputerUsePluginSettings", () => ({
+  ComputerUsePluginSettings: () => <div data-testid="computer-use-plugin-settings" />,
+}));
+
+vi.mock("@/renderer/bridge", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/bridge")>()),
+  readBridge: () => actionMocks,
+}));
+
+vi.mock("@/renderer/clientRuntime", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/clientRuntime")>()),
+  isBrowserClientRuntime: () => actionMocks.browser,
 }));
 
 vi.mock("@/renderer/actions/notesActions", () => ({
@@ -100,17 +117,28 @@ describe("PluginDetail", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+    actionMocks.browser = false;
     seedBuiltInPlugins();
     useSharedSettings.setState({ installedPlugins: {}, disabledBuiltInMcpServers: {} });
     usePanelStore.setState({ settingsOpen: false });
   });
 
-  it("offers publishing skills while preserving settings from the previous plugin version", () => {
+  it("shows settings in the bundled Computer Use plugin details", () => {
+    render(<ComputerUsePluginDetail />);
+    expect(screen.getByTestId("computer-use-plugin-settings")).toBeTruthy();
+  });
+
+  it("keeps Computer Use settings out of other plugin details", () => {
+    render(<BrowserPluginDetail />);
+    expect(screen.queryByTestId("computer-use-plugin-settings")).toBeNull();
+  });
+
+  it("keeps Poracode and its skills available despite disables from the previous plugin version", () => {
     useSharedSettings.setState({
       installedPlugins: {
         "app-controls": {
           version: "1.3.0",
-          enabled: true,
+          enabled: false,
           disabledSkillIds: ["app-controls"],
           disabledMcpServerNames: [],
         },
@@ -123,10 +151,11 @@ describe("PluginDetail", () => {
       return <PluginDetail plugin={plugin} hostPlatform="win32" onBack={() => undefined} />;
     }
     render(<AppControlsDetail />);
-    for (const name of ["Commit", "Create PR", "Finalize"]) {
-      expect(screen.getByRole("switch", { name: `${name} Skill` })).toBeChecked();
+    for (const name of ["Commit", "Create PR", "Finalize", "Poracode"]) {
+      expect(screen.getByText(name, { selector: "span[id*='-skill-']" })).toBeInTheDocument();
     }
-    expect(screen.getByRole("switch", { name: "Poracode Skill" })).not.toBeChecked();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try now" })).toBeEnabled();
   });
 
   it("updates plugin and skill toggles for a built-in tool plugin", () => {
@@ -152,6 +181,28 @@ describe("PluginDetail", () => {
     expect(screen.queryByRole("button", { name: "Uninstall" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Install" })).not.toBeInTheDocument();
     expect(screen.getByText("Built-in")).toBeInTheDocument();
+  });
+
+  it.each([false, true])("opens the published Chrome extension (browser client: %s)", (browser) => {
+    actionMocks.browser = browser;
+    function ChromePluginDetail() {
+      const plugin = useLocalizedPluginCatalog().find(
+        (candidate) => candidate.plugin.name === "chrome-tools",
+      )!;
+      return <PluginDetail plugin={plugin} hostPlatform="win32" onBack={() => undefined} />;
+    }
+    render(<ChromePluginDetail />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Install Chrome extension" }));
+
+    expect(
+      browser ? actionMocks.openExternal : actionMocks.openExternalNative,
+    ).toHaveBeenCalledWith(
+      "https://chromewebstore.google.com/detail/poracode/idhpcefbiobbcccipohielcldnhobcgm",
+    );
+    expect(
+      browser ? actionMocks.openExternalNative : actionMocks.openExternal,
+    ).not.toHaveBeenCalled();
   });
 
   it("keeps the Terminal plugin always on", () => {

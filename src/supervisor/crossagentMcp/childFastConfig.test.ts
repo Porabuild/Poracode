@@ -65,3 +65,31 @@ it("delivers disabled fast mode through the MCP dispatcher and startup fallback"
   h.handles[0]!.completeTurn("completed");
   await flush();
 });
+
+it("does not inherit a parent crew or Crossagents MCP into child config", async () => {
+  const h = makeHarness({
+    parentCrew: {
+      version: 1,
+      policy: "crew-only",
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    },
+  });
+  const result = await dispatchTool(
+    "spawn_agent",
+    { provider: "codex", model: "gpt-5.5", prompt: "Inspect the fixture", background: true },
+    context(h.manager),
+  );
+  expect(result.isError).not.toBe(true);
+  await vi.waitFor(() => expect(h.inputs).toHaveLength(1));
+  expect(h.inputs[0]!.config).not.toHaveProperty("crew");
+  expect(h.inputs[0]!.config).not.toHaveProperty("crossagentMcp");
+  expect(h.inputs[0]!.mcpServers?.some((server) => server.name === "crossagents")).not.toBe(true);
+  h.handles[0]!.completeTurn("completed");
+  await flush();
+});

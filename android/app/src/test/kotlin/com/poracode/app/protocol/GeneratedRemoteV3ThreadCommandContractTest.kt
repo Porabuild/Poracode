@@ -77,6 +77,11 @@ class GeneratedRemoteV3ThreadCommandContractTest {
             put("groupId", "group-1")
             put("groupName", "Group")
         },
+        command("fork") {
+            put("sourceThreadId", "source-thread")
+            put("throughItemId", "completed-reply")
+            put("title", "Alternative")
+        },
         command("rename") { put("title", "Renamed") },
         command("acknowledge"),
         command("set-done") { put("done", true) },

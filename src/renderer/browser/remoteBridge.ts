@@ -40,7 +40,7 @@ import {
 import type { SharedSettingsInput } from "@/shared/settings";
 import { pickAndUploadBrowserFiles } from "@/renderer/utils/browserFilePicker";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { applyCachedSlashCommandCatalogs } from "@/renderer/state/remoteServers/slashCommandCatalogs";
+import { refreshSlashCommandCatalogs } from "@/renderer/state/remoteServers/slashCommandCatalogs";
 import { invokeBoundedRuntimeItemsPage } from "@/renderer/state/remoteServers/catalog/boundedHistoryRegistry";
 import { selectBrowserBridgeServer } from "@/renderer/state/remoteServers/browserBridge";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
@@ -50,6 +50,8 @@ import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { readCachedBrowserThreadSnapshot } from "./offlineThreadCache";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { pushDesktopSettingsDiff } from "./remoteSettingsSync";
+import { callBrowserReviewProcedure } from "./offlineReviewCache";
+import { RemoteClientError } from "@/shared/remote/clientErrors";
 
 /**
  * Remote-session implementation of `window.poracode`. The desktop renderer
@@ -61,10 +63,12 @@ import { pushDesktopSettingsDiff } from "./remoteSettingsSync";
  */
 
 let activeClient: RemoteDesktopClient | null = null;
+let activeReviewOwnerKey: string | undefined;
 let hostSettingsWriteThrough = true;
 let browserImages: RemoteEnvironmentImageCache | null = null;
 let browserImageReadiness: RemoteImageReadiness | undefined;
 const browserImageListeners = new Set<() => void>();
+const remoteBridgeClientListeners = new Set<() => void>();
 const pendingClientResolvers = new Set<(client: RemoteDesktopClient) => void>();
 const remoteTerminals = new RemoteTerminalOwnership<true>();
 /** Host OS of the paired desktop (`win32`/`darwin`/`linux`), when known. */
@@ -102,8 +106,10 @@ function setBrowserKeybindings(file: KeybindingsFile): KeybindingsConfig {
 export function setRemoteBridgeClient(
   client: RemoteDesktopClient | null,
   platform?: NodeJS.Platform | null,
+  reviewOwnerKey?: string,
 ): void {
-  if (activeClient !== client) {
+  const clientChanged = activeClient !== client;
+  if (clientChanged) {
     useBrowserPanelStore.getState().resetOwner();
     browserImages?.dispose();
     browserImages =
@@ -119,6 +125,10 @@ export function setRemoteBridgeClient(
     for (const listener of browserImageListeners) listener();
   }
   activeClient = client;
+  if (clientChanged) {
+    for (const listener of remoteBridgeClientListeners) listener();
+  }
+  activeReviewOwnerKey = client ? reviewOwnerKey : undefined;
   if (client) {
     for (const resolve of pendingClientResolvers) resolve(client);
     pendingClientResolvers.clear();
@@ -138,6 +148,11 @@ export function setRemoteBridgeClient(
 /** Active paired-desktop client, if any (attached Electron owner sync uses this). */
 export function getRemoteBridgeClient(): RemoteDesktopClient | null {
   return activeClient;
+}
+
+export function subscribeRemoteBridgeClient(listener: () => void): () => void {
+  remoteBridgeClientListeners.add(listener);
+  return () => remoteBridgeClientListeners.delete(listener);
 }
 
 /** Reactive, bounded browser image cache for the paired desktop. */
@@ -290,14 +305,32 @@ const remoteBridgeOverrides = {
   // desktop-only and fall through to the rejecting proxy below.
   getUsageLoginState: () => Promise.resolve({ stored: {} }),
   refreshAgentStatuses: async (_wslDistros?: string[], _scope?: RefreshAgentScope) => {
-    const statuses = await withClient((client) =>
-      client
-        .agentStatuses({ omitSlashCommands: true })
-        .then((fetched) => applyCachedSlashCommandCatalogs(client.endpoint, fetched)),
-    );
-    const store = useAgentStatusesStore.getState();
-    store.setAgentStatuses(statuses.windows);
-    store.setWslAgentStatuses(statuses.wsl);
+    const { client, statuses } = await withClient(async (requestClient) => {
+      const fetched = await requestClient.agentStatuses({ omitSlashCommands: true });
+      const refreshedStatuses =
+        requestClient === activeClient
+          ? await refreshSlashCommandCatalogs(requestClient.endpoint, fetched, (kind) =>
+              requestClient.agentSlashCommands(kind).then((result) => result.commands),
+            )
+          : fetched;
+      return { client: requestClient, statuses: refreshedStatuses };
+    });
+    if (client === activeClient) {
+      const server = selectBrowserBridgeServer(useRemoteServersStore.getState());
+      if (server?.endpoint === client.endpoint) {
+        const connectionKey = remoteConnectionKey(server);
+        useRemoteServersStore.setState((state) => {
+          const current = state.runtime[connectionKey];
+          if (!current) return state;
+          return {
+            runtime: { ...state.runtime, [connectionKey]: { ...current, agentStatuses: statuses } },
+          };
+        });
+      }
+      const store = useAgentStatusesStore.getState();
+      store.setAgentStatuses(statuses.windows);
+      store.setWslAgentStatuses(statuses.wsl);
+    }
     return {
       windows: statuses.windows,
       wsl: statuses.wsl,
@@ -407,6 +440,8 @@ const remoteBridgeOverrides = {
     return Promise.resolve(null);
   },
   getAgentHookPluginStatuses: () => Promise.resolve([]),
+  // The config file lives on the paired host, which this client cannot read.
+  getAgentConfigDefaults: () => Promise.resolve({ defaults: {} }),
 
   // Runtime history hydration pages the paired host's bounded routes instead
   // of the local DB. The selected thread's tail arrives with its snapshot;
@@ -527,7 +562,13 @@ const remoteBridge = Object.defineProperties(
     }
     if (isRemoteProcedure(procedure)) {
       const client = await waitForClient();
-      return client.callRemoteProcedure(procedure, args[0]);
+      if (
+        (procedure.startsWith("forge") || procedure.startsWith("gh")) &&
+        client !== activeClient
+      ) {
+        throw new RemoteClientError("Review owner changed.", 499, "cancelled");
+      }
+      return callBrowserReviewProcedure(client, procedure, args[0], activeReviewOwnerKey);
     }
     return Promise.reject(new Error(`"${procedure}" is not available in a remote session.`));
   }),

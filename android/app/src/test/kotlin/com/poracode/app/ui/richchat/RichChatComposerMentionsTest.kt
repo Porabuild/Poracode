@@ -16,6 +16,24 @@ import org.junit.Test
 
 class RichChatComposerMentionsTest {
     @Test
+    fun dollarSkillsReplaceOnlyTheTokenAtTheCaret() {
+        val draft = "Please \$rev before answering"
+        val reference = requireNotNull(RichChatSkillReference.atCaret(draft, 11))
+        assertEquals("rev", reference.query)
+        assertEquals(7, reference.start)
+        assertEquals("Please  before answering", reference.removingToken(draft))
+        for (prefix in listOf("", "Please\n", "😀 ")) {
+            val text = "${prefix}\$rev suffix"
+            val token = requireNotNull(RichChatSkillReference.atCaret(text, prefix.length + 4))
+            assertEquals("${prefix} suffix", token.removingToken(text))
+        }
+        assertEquals(null, RichChatSkillReference.atCaret("cost\$rev"))
+        assertEquals(null, RichChatSkillReference.atCaret("\$rev "))
+        assertEquals(null, RichChatSkillReference.atCaret("\$rev", 0, 4))
+        assertEquals("", RichChatSkillReference.atCaret("\$")?.removingToken("\$"))
+    }
+
+    @Test
     fun mentionTriggerSuggestsMcpFilesAndRelatedThreads() {
         val item = RichRuntimeItem(
             id = "context",
@@ -61,12 +79,18 @@ class RichChatComposerMentionsTest {
             RichPromptSegment.Mcp("browser", "Browser"),
             RichPromptSegment.Thread("thread-related", "Related"),
         )
-        val json = RichChatUiLogic.composerSegments(segments, emptyList())!!
+        val json = RichChatUiLogic.composerSegments(segments, emptyList(), "Please  before answering")!!
 
         assertEquals("file", json[0].jsonObject["kind"].toString().trim('"'))
-        assertEquals("/skills/docs/SKILL.md", json[1].jsonObject["path"].toString().trim('"'))
-        assertEquals("browser", json[2].jsonObject["id"].toString().trim('"'))
-        assertEquals("thread-related", json[3].jsonObject["threadId"].toString().trim('"'))
+        assertEquals("/skills/docs/SKILL.md", json[2].jsonObject["path"].toString().trim('"'))
+        assertEquals("browser", json[4].jsonObject["id"].toString().trim('"'))
+        assertEquals("thread-related", json[6].jsonObject["threadId"].toString().trim('"'))
+        assertEquals("text", json[8].jsonObject["kind"].toString().trim('"'))
+        assertEquals("Please  before answering", json[8].jsonObject["content"].toString().trim('"'))
+        for (index in listOf(1, 3, 5, 7)) {
+            assertEquals(" ", json[index].jsonObject["content"].toString().trim('"'))
+        }
+        assertEquals(8, RichChatUiLogic.composerSegments(segments, emptyList(), "")!!.size)
         assertEquals("@src/App.kt \$docs @Browser @Related", RichChatUiLogic.composerPrompt("", segments))
     }
 

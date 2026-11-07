@@ -41,6 +41,19 @@ describe("project identity", () => {
     expect(projectIdentityKey(home)).not.toBe(projectIdentityKey(project("real", "C:\\Users\\me")));
   });
 
+  it("keeps a browser client's mirrored Home apart from the host's home-folder project", () => {
+    const onHost = (id: string): Project => ({
+      ...project(id, "/home/me"),
+      location: { kind: "posix", path: "/home/me", remoteServerId: "d1" },
+      remoteServerId: "d1",
+    });
+    const mirroredHome = onHost(`remote:d1:project:${HOME_PROJECT_ID}`);
+    const real = onHost("remote:d1:project:p1");
+
+    expect(projectIdentityKey(mirroredHome)).not.toBe(projectIdentityKey(real));
+    expect(dedupeProjects([mirroredHome, real]).projects).toHaveLength(2);
+  });
+
   it("preserves the UNC prefix when normalizing Windows paths", () => {
     expect(projectLocationKey({ kind: "windows", path: "\\\\server\\share\\repo" })).toBe(
       "windows://server/share/repo",

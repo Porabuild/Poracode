@@ -1,12 +1,9 @@
-import type {
-  GitStatusDetail,
-  GitStatusResult,
-  PrData,
-  ProjectLocation,
-  RemoteHostPlatform,
-} from "@/shared/contracts";
+import { pollBranchPr, pollPullRequests } from "./githubPolling";
+import type { GitStatusDetail, GitStatusResult, PrData, ProjectLocation } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
+import { friendlyError, msg } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { reviewClient, reviewSourceIdentity } from "@/renderer/utils/forgeReviews";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -15,7 +12,11 @@ import {
   summaryBackfillMissed,
   useGitStore,
 } from "@/renderer/state/gitStore";
-import { buildBranchNamePrKey, buildBranchPrKey } from "@/renderer/state/gitSelectors";
+import {
+  buildBranchNamePrKey,
+  buildBranchPrKey,
+  resolvePrKey,
+} from "@/renderer/state/gitSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -40,24 +41,13 @@ const refreshingProjects = new Set<string>();
 const pendingWatcherRefreshProjects = new Set<string>();
 const watchedWorktreePaths = new Map<string, string>();
 const activeRefreshTokens = new Map<string, symbol>();
+const singlePrRefreshTokens = new Map<string, symbol>();
 const GIT_REFRESH_TIMEOUT_MS = 30_000;
 export const PR_PENDING_REFRESH_INTERVAL_MS = 30_000;
 export const PR_POST_PUSH_STATUS_WAIT_MS = 15_000;
 export const PR_POST_PUSH_STATUS_POLL_MS = 5_000;
 
 const alwaysActive = () => true;
-
-/**
- * A remote worth trying `gh` against: an explicit GitHub remote, an as-yet
- * unclassified one ("unknown" — covers SSH host aliases that resolve to
- * github.com), or one we haven't inspected yet (undefined). This is the gate
- * every PR-fetch path checks (alongside `ghAvailable`) before paying a
- * `gh pr list` spawn — see {@link prefetchBranchPrData} and the worktree git
- * panel's manual refresh.
- */
-export function mightBeGitHubRemote(platform: RemoteHostPlatform | undefined): boolean {
-  return platform === undefined || platform === "github" || platform === "unknown";
-}
 
 const BRANCH_PR_PREFETCH_THROTTLE_MS = 10_000;
 const branchPrPrefetchLastRun = new Map<string, number>();
@@ -143,12 +133,12 @@ function applyPrefetchedPrData(
 }
 
 /**
- * Bulk-fetch PR status for every branch of a project in one `gh pr list` call and
+ * Bulk-fetch PR status for every branch of a project in one source-host query and
  * cache it under branch-name keys (see {@link buildBranchNamePrKey}) so the branch
  * selector can show PR-status icons for remote/local branches that aren't checked
  * out as a worktree. Dedupes in-flight calls, throttles (so dropdown opens + the
- * refresh cycle don't spam `gh`), and self-gates on gh availability + a GitHub
- * remote. Results persist for free via the gitStore prData snapshot, so cached
+ * refresh cycle don't spam the host), and self-gates on review availability.
+ * Results persist for free via the gitStore prData snapshot, so cached
  * icons show instantly and refresh in place.
  */
 export async function prefetchBranchPrData(project: {
@@ -163,12 +153,13 @@ export async function prefetchBranchPrData(project: {
   if (Date.now() - last < BRANCH_PR_PREFETCH_THROTTLE_MS) return;
   const state = useGitStore.getState();
   if (!state.ghAvailable[project.id]) return;
-  if (!mightBeGitHubRemote(state.statuses[project.id]?.remoteInfo?.platform)) return;
 
   branchPrPrefetchInFlight.add(project.id);
   branchPrPrefetchLastRun.set(project.id, Date.now());
   try {
-    const { prs } = await readBridge().ghListPrs({ projectLocation: project.location });
+    const result = await pollPullRequests({ projectLocation: project.location }, project.id);
+    if (result.status === "blocked") return;
+    const { prs } = result;
     branchPrPrefetchCache.set(project.id, prs);
     applyPrefetchedPrData(project.id, prs, false);
   } catch (err) {
@@ -194,6 +185,104 @@ export function prefetchVisibleGitPanelPrData(
   }
   const project = useAppStore.getState().projects.find((item) => item.id === projectId);
   return project ? prefetchBranchPrData(project) : Promise.resolve();
+}
+
+interface ForgeActivityRefreshInput {
+  projectId: string;
+  worktreePath?: string;
+  branch?: string;
+  action: string;
+}
+
+interface ForgeActivityRefreshEntry {
+  latest: ForgeActivityRefreshInput;
+  rerun: boolean;
+}
+
+/** In-flight forge-activity refresh per project + checkout. */
+const forgeActivityRefreshes = new Map<string, ForgeActivityRefreshEntry>();
+
+function forgeActivityRefreshKey(input: ForgeActivityRefreshInput): string {
+  return `${input.projectId}\u0000${input.worktreePath ?? ""}`;
+}
+
+/**
+ * The host saw an agent push or change a pull/merge request for this checkout.
+ * Re-read its PR now instead of waiting for the next background cycle; the
+ * event is only a trigger and the forge lookup stays the source of truth.
+ * Paired hosts only: the co-located desktop renderer already receives the
+ * host's refreshed read model through `git-state-changed`, and paired clients
+ * receive patches without pull-request bodies, so they re-read here.
+ *
+ * A burst for one checkout (reconnect replay can deliver several frames back
+ * to back) keeps the newest input and issues at most one follow-up refresh.
+ */
+export function refreshPrAfterForgeActivity(input: ForgeActivityRefreshInput): void {
+  if (isHomeProjectId(input.projectId)) return;
+  const project = useAppStore.getState().projects.find((item) => item.id === input.projectId);
+  if (!project) return;
+
+  const key = forgeActivityRefreshKey(input);
+  const active = forgeActivityRefreshes.get(key);
+  if (active) {
+    active.latest = input;
+    active.rerun = true;
+    return;
+  }
+  const entry: ForgeActivityRefreshEntry = { latest: input, rerun: false };
+  forgeActivityRefreshes.set(key, entry);
+  void runForgeActivityRefresh(key, project, entry);
+}
+
+async function runForgeActivityRefresh(
+  key: string,
+  project: { id: string; location: ProjectLocation },
+  entry: ForgeActivityRefreshEntry,
+): Promise<void> {
+  const input = entry.latest;
+  const appState = useAppStore.getState();
+  const gitState = useGitStore.getState();
+  const prKey = resolvePrKey(input.projectId, input.worktreePath);
+  const branch = input.worktreePath
+    ? appState.threads.find(
+        (thread) =>
+          thread.projectId === input.projectId && thread.worktreePath === input.worktreePath,
+      )?.worktreeBranch ||
+      gitState.worktreeStatuses[input.worktreePath]?.branch ||
+      input.branch
+    : gitState.statuses[input.projectId]?.branch || input.branch;
+
+  const tasks: Array<Promise<unknown>> = [];
+  if (branch) {
+    tasks.push(
+      refreshSinglePr({
+        projectLocation: project.location,
+        prKey,
+        branch,
+        projectId: input.projectId,
+      }),
+    );
+    // A push can start fresh checks on an already-known PR: watch its status
+    // briefly so the new pending run is caught without the next poll cycle.
+    if (input.action === "push") {
+      startPostPushPrStatusRefresh({
+        projectId: input.projectId,
+        projectLocation: project.location,
+        prKey,
+        branch,
+      });
+    }
+  }
+
+  // Bulk branch-prefetch is throttled so dropdown opens cannot spam the host,
+  // but a real forge change must be reflected immediately.
+  branchPrPrefetchLastRun.delete(input.projectId);
+  tasks.push(prefetchBranchPrData(project));
+  await Promise.allSettled(tasks);
+
+  if (forgeActivityRefreshes.get(key) !== entry) return;
+  forgeActivityRefreshes.delete(key);
+  if (entry.rerun) refreshPrAfterForgeActivity(entry.latest);
 }
 
 function getWorktreeStatusDetail(
@@ -543,39 +632,84 @@ export async function refreshSinglePr(params: {
   detailsCacheKey?: string;
   prNumber?: number;
 }): Promise<PrData | null | undefined> {
-  const bridge = readBridge();
   const previousPr = useGitStore.getState().prData[params.prKey];
-  const prPromise = bridge
-    .ghGetPrForBranch({ projectLocation: params.projectLocation, branch: params.branch })
-    .catch(() => undefined);
-  const detailsPromise =
-    params.detailsCacheKey && params.prNumber
-      ? bridge
-          .ghGetPrDetails({ projectLocation: params.projectLocation, prNumber: params.prNumber })
-          .catch(() => undefined)
-      : Promise.resolve(undefined);
-  const [pr, details] = await Promise.all([prPromise, detailsPromise]);
-  const currentPr = useGitStore.getState().prData[params.prKey];
-  if (isMergedPrRegression(currentPr, pr, previousPr)) {
-    return currentPr;
-  }
-  if (pr !== undefined) {
-    useGitStore.getState().setPrData(params.prKey, pr);
-  }
-  if (params.detailsCacheKey && details) {
-    useGitStore.getState().setPrDetails(params.detailsCacheKey, details.details);
-  }
-  if (!params.detailsCacheKey && params.projectId && pr && pr.number !== params.prNumber) {
-    const discoveredDetails = await bridge
-      .ghGetPrDetails({ projectLocation: params.projectLocation, prNumber: pr.number })
-      .catch(() => undefined);
-    if (discoveredDetails) {
-      useGitStore
-        .getState()
-        .setPrDetails(`${params.projectId}#${pr.number}`, discoveredDetails.details);
+  const token = Symbol();
+  singlePrRefreshTokens.set(params.prKey, token);
+  let expectedPr = previousPr;
+  const isCurrent = () =>
+    singlePrRefreshTokens.get(params.prKey) === token &&
+    useGitStore.getState().prData[params.prKey] === expectedPr;
+  const clearCache = () => {
+    if (params.detailsCacheKey) useGitStore.getState().clearPrCache(params.detailsCacheKey);
+    if (params.projectId && expectedPr)
+      useGitStore.getState().clearPrCache(`${params.projectId}#${expectedPr.number}`);
+  };
+  const refuseIdentity = (error: unknown) => {
+    if (
+      isCurrent() &&
+      [
+        msg("forge.repositoryChanged"),
+        msg("forge.hostMismatch"),
+        msg("forge.accountMismatch"),
+      ].includes(friendlyError(error))
+    ) {
+      clearCache();
+      useGitStore.getState().setPrData(params.prKey, null);
+      expectedPr = useGitStore.getState().prData[params.prKey];
     }
+  };
+  try {
+    let pr: PrData | null;
+    try {
+      // Discovery follows the current remote/default account. Only the subsequent
+      // detail read is pinned to that result; cached identity is not authority.
+      pr = await pollBranchPr(
+        {
+          projectLocation: params.projectLocation,
+          branch: params.branch,
+        },
+        params.projectId,
+      );
+    } catch (error) {
+      refuseIdentity(error);
+      return undefined;
+    }
+    if (!isCurrent()) return useGitStore.getState().prData[params.prKey];
+    if (isMergedPrRegression(expectedPr, pr, previousPr)) return expectedPr;
+    if (!pr || reviewSourceIdentity(previousPr?.source) !== reviewSourceIdentity(pr.source))
+      clearCache();
+    useGitStore.getState().setPrData(params.prKey, pr);
+    expectedPr = useGitStore.getState().prData[params.prKey];
+    if (!pr) return null;
+    const detailsKey =
+      params.detailsCacheKey && pr.number === params.prNumber
+        ? params.detailsCacheKey
+        : params.projectId && pr.number !== params.prNumber
+          ? `${params.projectId}#${pr.number}`
+          : undefined;
+    if (!detailsKey) return pr;
+    try {
+      const result = await reviewClient(pr.source).details({
+        projectLocation: params.projectLocation,
+        prNumber: pr.number,
+      });
+      if (!isCurrent()) return useGitStore.getState().prData[params.prKey];
+      if (
+        result.details.source &&
+        reviewSourceIdentity(result.details.source) !== reviewSourceIdentity(pr.source)
+      ) {
+        refuseIdentity(new Error(msg("forge.repositoryChanged")));
+        return null;
+      }
+      useGitStore.getState().setPrDetails(detailsKey, result.details);
+    } catch (error) {
+      refuseIdentity(error);
+    }
+    return useGitStore.getState().prData[params.prKey];
+  } finally {
+    if (singlePrRefreshTokens.get(params.prKey) === token)
+      singlePrRefreshTokens.delete(params.prKey);
   }
-  return pr;
 }
 
 async function refreshPendingPr(key: string): Promise<void> {
@@ -624,12 +758,13 @@ async function refreshPostPushPr(key: string): Promise<void> {
   }
 
   entry.attempts += 1;
-  const pr = await readBridge()
-    .ghGetPrForBranch({
+  const pr = await pollBranchPr(
+    {
       projectLocation: entry.target.projectLocation,
       branch: entry.target.branch,
-    })
-    .catch(() => undefined);
+    },
+    entry.target.projectId,
+  ).catch(() => undefined);
   if (postPushPrRefreshEntries.get(key) !== entry) return;
   if (!isPostPushPrRefreshTargetActive(entry.target)) {
     postPushPrRefreshEntries.delete(key);
@@ -739,6 +874,10 @@ export function cleanupGitRefreshProjects(activeProjectIds: ReadonlySet<string>)
     if (activeProjectIds.has(entry.target.projectId)) continue;
     clearTimeout(entry.timeoutId);
     postPushPrRefreshEntries.delete(key);
+  }
+  for (const key of forgeActivityRefreshes.keys()) {
+    const projectId = key.slice(0, key.indexOf("\u0000"));
+    if (!activeProjectIds.has(projectId)) forgeActivityRefreshes.delete(key);
   }
 }
 
@@ -854,12 +993,7 @@ export async function refreshGitProject(
 
         const ghAvailablePromise: Promise<boolean> = cachedGhAvailable
           ? Promise.resolve(true)
-          : snapshotPromise.then((snap) => {
-              const platform = snap?.status?.remoteInfo?.platform;
-              const mightBeGitHub = platform === "github" || platform === "unknown";
-              if (!mightBeGitHub) return false;
-              return snap?.ghAvailable === true;
-            });
+          : snapshotPromise.then((snap) => snap?.ghAvailable === true);
 
         // Worktree-derived work (per-worktree status + source branch) starts as
         // soon as `gitListWorktrees` returns — doesn't wait for status/branches.
@@ -930,16 +1064,24 @@ export async function refreshGitProject(
         const previousPrs: Record<string, PrData | null | undefined> = {};
         const wtThreads = getActiveWorktreeBranchThreads(project.id);
 
-        const wtPrPromises = wtThreads.map(async (t) => {
+        const wtPrThreads = [
+          ...new Map(
+            wtThreads.map((thread) => [`${thread.worktreePath}\0${thread.worktreeBranch}`, thread]),
+          ).values(),
+        ];
+        const wtPrPromises = wtPrThreads.map(async (t) => {
           const ghAvailable = await ghAvailablePromise;
           if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
           if (!ghAvailable || !t.worktreeBranch || !t.worktreePath) return;
           try {
             previousPrs[t.worktreePath] = useGitStore.getState().prData[t.worktreePath];
-            const pr = await readBridge().ghGetPrForBranch({
-              projectLocation: project.location,
-              branch: t.worktreeBranch,
-            });
+            const pr = await pollBranchPr(
+              {
+                projectLocation: project.location,
+                branch: t.worktreeBranch,
+              },
+              project.id,
+            );
             prUpdates[t.worktreePath] = pr;
           } catch (err) {
             console.warn(
@@ -953,15 +1095,16 @@ export async function refreshGitProject(
           const [status, ghAvailable] = await Promise.all([statusPromise, ghAvailablePromise]);
           if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
           if (!ghAvailable || !status?.branch) return;
-          const platform = status.remoteInfo?.platform;
-          if (platform !== "github" && platform !== "unknown") return;
           try {
             const prKey = buildBranchPrKey(project.id);
             previousPrs[prKey] = useGitStore.getState().prData[prKey];
-            const pr = await readBridge().ghGetPrForBranch({
-              projectLocation: project.location,
-              branch: status.branch,
-            });
+            const pr = await pollBranchPr(
+              {
+                projectLocation: project.location,
+                branch: status.branch,
+              },
+              project.id,
+            );
             prUpdates[prKey] = pr;
           } catch (err) {
             console.warn(

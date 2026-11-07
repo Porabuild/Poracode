@@ -3,32 +3,22 @@ import { toast } from "@heroui/react";
 import { KeyRound, LogIn, RefreshCw, Settings } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, Project } from "@/shared/contracts";
+import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { friendlyError } from "@/shared/messages";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
+import { refreshHostAgentAuthStatus } from "@/renderer/actions/hostAgentAuthActions";
 import { openSettings } from "@/renderer/actions/panelActions";
 import { Button } from "@/renderer/components/common/Button";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useAppStore } from "@/renderer/state/appStore";
+import { projectHostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import {
   agentAuthTarget,
-  currentWslDistros,
   findAgentAuthMethodForStatus,
   findTerminalAuthMethodForStatus,
-  scopeEnvForStatus,
   shouldPreferTerminalLogin,
 } from "@/renderer/utils/acpRegistryAuth";
 import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
-
-async function refreshAgentStatus(status: AgentStatus, project?: Project): Promise<void> {
-  if (project?.remoteServerId) {
-    await useRemoteServersStore.getState().refreshServer(project.remoteServerId);
-    return;
-  }
-  await readBridge().refreshAgentStatuses(currentWslDistros(), {
-    agentKinds: [status.kind],
-    envs: [scopeEnvForStatus(status)],
-  });
-}
 
 /**
  * Keep focus on whatever the user had focused before they mouse-clicked the
@@ -42,29 +32,38 @@ function preventFocusSteal(event: React.MouseEvent<HTMLElement>): void {
 }
 
 export function ThreadAuthRequiredDock(props: {
+  threadId?: string;
   agentStatus: AgentStatus;
   project?: Project;
   multilineDescription?: boolean;
+  onAuthenticated?: () => void;
 }) {
   const { agentStatus, project } = props;
   const { t } = useLingui();
-  const isRemote = isRemoteSession();
+  // Two independent facts decide what this dock can do. A browser client has
+  // no desktop sign-in surface at all. Beyond that, the terminal login command
+  // runs in a shell routed to the owning host, so it works for any host, while
+  // the OAuth window, this machine's secret store and Settings act on this
+  // machine only, so they are offered only when the owner runs here.
+  const isBrowserClient = isRemoteSession();
+  const ownerRunsHere = projectHostRunsOnThisMachine(project);
   const [pendingAction, setPendingAction] = useState<"login" | "refresh" | undefined>();
   const agentAuthMethod = findAgentAuthMethodForStatus(agentStatus);
   const terminalAuthMethod = findTerminalAuthMethodForStatus(agentStatus);
-  const canUseAgentAuth = agentAuthMethod !== undefined;
-  const canUseTerminalLogin = Boolean(agentStatus.loginCommand);
+  const canUseAgentAuth = agentAuthMethod !== undefined && ownerRunsHere && !isBrowserClient;
+  const canUseTerminalLogin = Boolean(agentStatus.loginCommand) && !isBrowserClient;
   const hasDirectLogin = canUseAgentAuth || canUseTerminalLogin;
+  const canOpenLocalSettings = ownerRunsHere && !isBrowserClient;
   const preferTerminalLogin = shouldPreferTerminalLogin(agentStatus);
   const useTerminalLogin = canUseTerminalLogin && (preferTerminalLogin || !canUseAgentAuth);
   const loginCommandDisplay = agentStatus.loginCommandDisplay ?? agentStatus.loginCommand;
-  const description = isRemote
-    ? t`Sign in on the paired desktop, then refresh this status.`
-    : useTerminalLogin
-      ? t`Run ${loginCommandDisplay} before this thread can run.`
-      : agentAuthMethod
-        ? t`Complete ${agentAuthMethod.name} sign-in before this thread can run.`
-        : t`Add credentials before this thread can run.`;
+  const description = useTerminalLogin
+    ? t`Run ${loginCommandDisplay} before this thread can run.`
+    : canUseAgentAuth
+      ? t`Complete ${agentAuthMethod.name} sign-in before this thread can run.`
+      : canOpenLocalSettings
+        ? t`Add credentials before this thread can run.`
+        : t`Sign in on the paired desktop, then refresh this status.`;
 
   async function handleLogin() {
     if (pendingAction) return;
@@ -81,7 +80,8 @@ export function ThreadAuthRequiredDock(props: {
           // Unlock the button as soon as the command exits so the user can
           // retry without waiting for the (post-exit) status refresh.
           setPendingAction(undefined);
-          void refreshAgentStatus(agentStatus, project)
+          if (exitCode === 0) props.onAuthenticated?.();
+          void refreshHostAgentAuthStatus(agentStatus, project?.remoteServerId)
             .then(() => {
               if (exitCode === 0) toast.success(t`${agentStatus.label} authenticated.`);
             })
@@ -106,8 +106,9 @@ export function ThreadAuthRequiredDock(props: {
           methodId: agentAuthMethod.id,
           ...agentAuthTarget(agentStatus),
         });
+        props.onAuthenticated?.();
         void readBridge().focusWindow();
-        await refreshAgentStatus(agentStatus, project);
+        await refreshHostAgentAuthStatus(agentStatus, project?.remoteServerId);
         toast.success(t`${agentStatus.label} authenticated.`);
       } catch (error) {
         toast.danger(
@@ -126,7 +127,16 @@ export function ThreadAuthRequiredDock(props: {
     if (pendingAction) return;
     setPendingAction("refresh");
     try {
-      await refreshAgentStatus(agentStatus, project);
+      const thread = useAppStore.getState().threads.find((entry) => entry.id === props.threadId);
+      const refreshed = await refreshHostAgentAuthStatus(agentStatus, project?.remoteServerId);
+      const refreshedForThread = refreshed
+        ? agentStatusForPresentation(
+            refreshed,
+            thread?.presentationMode ?? agentStatus.capabilities.presentationMode,
+            thread?.sessionRef,
+          )
+        : undefined;
+      if (refreshedForThread?.authState === "authenticated") props.onAuthenticated?.();
     } catch (error) {
       toast.danger(
         error instanceof Error ? error.message : t`Unable to refresh ${agentStatus.label}.`,
@@ -149,7 +159,7 @@ export function ThreadAuthRequiredDock(props: {
         {...(props.multilineDescription ? { stackedContent: true } : {})}
         actions={
           <div className="flex shrink-0 items-center gap-1">
-            {!isRemote && hasDirectLogin ? (
+            {hasDirectLogin ? (
               <Button
                 size="sm"
                 variant="ghost"
@@ -162,7 +172,7 @@ export function ThreadAuthRequiredDock(props: {
                 <LogIn className="size-3.5" />
                 <Trans>Login</Trans>
               </Button>
-            ) : !isRemote ? (
+            ) : canOpenLocalSettings ? (
               <Button
                 size="sm"
                 variant="ghost"

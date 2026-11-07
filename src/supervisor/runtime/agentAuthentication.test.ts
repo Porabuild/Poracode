@@ -1,6 +1,10 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
+import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
+import type { ChildProcess } from "node:child_process";
+import { ChildProcessLifetime } from "@/shared/childProcessLifetime";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentKind } from "@/shared/contracts";
 import { defaultSharedSettings } from "@/shared/settings";
@@ -51,8 +55,10 @@ const dispatchAcpAuthenticateMock = vi.hoisted(() =>
     (input: {
       adapter: unknown;
       methodId: string;
-      envKind?: "windows" | "wsl";
+      envKind?: "windows" | "wsl" | "posix";
       wslDistro?: string;
+      signal?: AbortSignal;
+      onProcess?: (process: ChildProcessLifetime) => void;
     }) => Promise<void>
   >(),
 );
@@ -99,6 +105,7 @@ function makeService(settingsPath: string, root: string): AgentRegistryService {
     getAgentStatusService: () =>
       ({
         invalidateAgentStatuses: () => {},
+        reconcileAgentRegistry: () => {},
         refreshAgentStatuses: async () => ({ windows: [], wsl: [], fromCache: false }),
       }) as unknown as AgentStatusService,
     getActiveWslProjectDistros: () => [],
@@ -161,6 +168,299 @@ function writeGenericAcpSettings(authAcknowledged?: {
 }
 
 describe("authenticateAcpAgent", () => {
+  it("keeps cancellation pending through actual pipe-close confirmation and rejects duplicate IDs", async () => {
+    const { root, settingsPath } = writeGenericAcpSettings();
+    const service = makeService(settingsPath, root);
+    const entered = Promise.withResolvers<void>();
+    const child = Object.assign(new EventEmitter(), {
+      pid: undefined,
+      exitCode: null,
+      signalCode: null,
+    }) as unknown as ChildProcess;
+    const lifetime = new ChildProcessLifetime(child);
+    dispatchAcpAuthenticateMock.mockImplementation(async ({ signal, onProcess }) => {
+      onProcess!(lifetime);
+      entered.resolve();
+      await new Promise((_, reject) =>
+        signal!.addEventListener("abort", () => reject(signal!.reason), { once: true }),
+      );
+    });
+    const start = {
+      version: 1,
+      action: "start",
+      operationId: randomUUID(),
+      agentKind: "acp-generic:my-acp",
+      methodId: "browser-login",
+    } as const;
+    const failed = service.controlAcpAuthentication(start).catch((error: unknown) => error);
+    await entered.promise;
+    await expect(service.controlAcpAuthentication(start)).rejects.toThrow("already used");
+    let cancelled = false;
+    const cancellation = service
+      .controlAcpAuthentication({ version: 1, action: "cancel", operationId: start.operationId })
+      .then(() => {
+        cancelled = true;
+      });
+    await Promise.resolve();
+    child.emit("exit", 0, null);
+    await Promise.resolve();
+    expect(cancelled).toBe(false);
+    child.emit("close", 0, null);
+    await cancellation;
+    expect(await failed).toBeInstanceOf(Error);
+    expect(verifyAcpGenericAuthenticationMock).not.toHaveBeenCalled();
+    await service.controlAcpAuthentication({
+      version: 1,
+      action: "cancel",
+      operationId: start.operationId,
+    });
+    await expect(service.controlAcpAuthentication(start)).rejects.toThrow("already used");
+    expect(dispatchAcpAuthenticateMock).toHaveBeenCalledOnce();
+  });
+
+  it("refuses cancel-before-start, repeated cancel, future versions, and unsupported WSL without launching", async () => {
+    const { root, settingsPath } = writeGenericAcpSettings();
+    const service = makeService(settingsPath, root);
+    const start = {
+      version: 1,
+      action: "start",
+      operationId: randomUUID(),
+      agentKind: "acp-generic:my-acp",
+      methodId: "browser-login",
+    } as const;
+    await service.controlAcpAuthentication({
+      version: 1,
+      action: "cancel",
+      operationId: start.operationId,
+    });
+    await service.controlAcpAuthentication({
+      version: 1,
+      action: "cancel",
+      operationId: start.operationId,
+    });
+    await expect(service.controlAcpAuthentication(start)).rejects.toThrow("already used");
+    await expect(
+      service.controlAcpAuthentication({ ...start, version: 2 } as never),
+    ).rejects.toThrow("Invalid input");
+    await expect(
+      service.controlAcpAuthentication({ ...start, operationId: "invalid" }),
+    ).rejects.toThrow("Invalid UUID");
+    await expect(
+      service.controlAcpAuthentication({
+        ...start,
+        operationId: randomUUID(),
+        envKind: "wsl",
+        wslDistro: "Ubuntu",
+      }),
+    ).rejects.toThrow("selected distro");
+    await expect(
+      service.controlAcpAuthentication({
+        ...start,
+        operationId: randomUUID(),
+        wslDistro: "Ubuntu",
+      }),
+    ).rejects.toThrow("selected distro");
+    expect(dispatchAcpAuthenticateMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels a routed start before its asynchronous preparation can run", async () => {
+    const { root, settingsPath } = writeGenericAcpSettings();
+    const service = makeService(settingsPath, root);
+    const start = {
+      version: 1,
+      action: "start",
+      operationId: randomUUID(),
+      agentKind: "acp-generic:my-acp",
+      methodId: "browser-login",
+    } as const;
+    const failed = service.controlAcpAuthentication(start).catch((error: unknown) => error);
+    await service.controlAcpAuthentication({
+      version: 1,
+      action: "cancel",
+      operationId: start.operationId,
+    });
+    expect(await failed).toBeInstanceOf(Error);
+    expect(dispatchAcpAuthenticateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps unconfirmed child custody for a scoped cancellation retry", async () => {
+    const { root, settingsPath } = writeGenericAcpSettings();
+    const service = makeService(settingsPath, root);
+    const child = Object.assign(new EventEmitter(), {
+      pid: undefined,
+      exitCode: null,
+      signalCode: null,
+    }) as unknown as ChildProcess;
+    const lifetime = new ChildProcessLifetime(child);
+    const stop = vi
+      .spyOn(lifetime, "stop")
+      .mockRejectedValueOnce(new Error("Fixture pipe closure unconfirmed"));
+    const entered = Promise.withResolvers<void>();
+    dispatchAcpAuthenticateMock.mockImplementation(async ({ signal, onProcess }) => {
+      onProcess!(lifetime);
+      entered.resolve();
+      await new Promise((_, reject) =>
+        signal!.addEventListener("abort", () => reject(signal!.reason), { once: true }),
+      );
+    });
+    const start = {
+      version: 1,
+      action: "start",
+      operationId: randomUUID(),
+      agentKind: "acp-generic:my-acp",
+      methodId: "browser-login",
+    } as const;
+    const failed = service.controlAcpAuthentication(start).catch((error: unknown) => error);
+    await entered.promise;
+    await expect(
+      service.controlAcpAuthentication({
+        version: 1,
+        action: "cancel",
+        operationId: start.operationId,
+      }),
+    ).rejects.toBeInstanceOf(AggregateError);
+    await expect(service.controlAcpAuthentication(start)).rejects.toThrow("already used");
+    stop.mockImplementationOnce(async () => {
+      child.emit("close", 0, null);
+      await lifetime.closed;
+    });
+    await service.controlAcpAuthentication({
+      version: 1,
+      action: "cancel",
+      operationId: start.operationId,
+    });
+    expect(await failed).toBeInstanceOf(Error);
+    expect(stop).toHaveBeenCalledTimes(2);
+  });
+
+  it("bounds active operations and joins every held request when stopping", async () => {
+    const { root, settingsPath } = writeGenericAcpSettings();
+    const service = makeService(settingsPath, root);
+    dispatchAcpAuthenticateMock.mockImplementation(async ({ signal }) => {
+      await new Promise((_, reject) =>
+        signal!.addEventListener("abort", () => reject(signal!.reason), { once: true }),
+      );
+    });
+    const start = {
+      version: 1,
+      action: "start",
+      agentKind: "acp-generic:my-acp",
+      methodId: "browser-login",
+    } as const;
+    const failed = Array.from({ length: 8 }, () =>
+      service
+        .controlAcpAuthentication({ ...start, operationId: randomUUID() })
+        .catch((error: unknown) => error),
+    );
+    try {
+      await expect(
+        service.controlAcpAuthentication({ ...start, operationId: randomUUID() }),
+      ).rejects.toThrow("Too many active");
+    } finally {
+      await service.disposeAcpAuthentications();
+      expect((await Promise.all(failed)).every((error) => error instanceof Error)).toBe(true);
+    }
+  });
+
+  it("makes late/repeated cancellation harmless after a completed authentication", async () => {
+    const { root, settingsPath } = writeGenericAcpSettings();
+    const service = makeService(settingsPath, root);
+    dispatchAcpAuthenticateMock.mockResolvedValue(undefined);
+    verifyAcpGenericAuthenticationMock.mockResolvedValue(true);
+    const start = {
+      version: 1,
+      action: "start",
+      operationId: randomUUID(),
+      agentKind: "acp-generic:my-acp",
+      methodId: "browser-login",
+    } as const;
+    await service.controlAcpAuthentication(start);
+    await service.controlAcpAuthentication({
+      version: 1,
+      action: "cancel",
+      operationId: start.operationId,
+    });
+    await service.controlAcpAuthentication({
+      version: 1,
+      action: "cancel",
+      operationId: start.operationId,
+    });
+    await expect(service.controlAcpAuthentication(start)).rejects.toThrow("already used");
+    expect(
+      JSON.parse(readFileSync(settingsPath, "utf8")).agentInstances["my-acp"].authAcknowledged
+        .native,
+    ).toBe(true);
+    expect(dispatchAcpAuthenticateMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not cancel a different UUID and joins all held authentications on shutdown", async () => {
+    const { root, settingsPath } = writeGenericAcpSettings();
+    const service = makeService(settingsPath, root);
+    const entered = Promise.withResolvers<void>();
+    let signal: AbortSignal | undefined;
+    dispatchAcpAuthenticateMock.mockImplementation(async (input) => {
+      signal = input.signal;
+      entered.resolve();
+      await new Promise((_, reject) =>
+        signal!.addEventListener("abort", () => reject(signal!.reason), { once: true }),
+      );
+    });
+    const start = {
+      version: 1,
+      action: "start",
+      operationId: randomUUID(),
+      agentKind: "acp-generic:my-acp",
+      methodId: "browser-login",
+    } as const;
+    const failed = service.controlAcpAuthentication(start).catch((error: unknown) => error);
+    await entered.promise;
+    await service.controlAcpAuthentication({
+      version: 1,
+      action: "cancel",
+      operationId: randomUUID(),
+    });
+    expect(signal!.aborted).toBe(false);
+    await service.disposeAcpAuthentications();
+    expect(signal!.aborted).toBe(true);
+    expect(await failed).toBeInstanceOf(Error);
+    await expect(
+      service.controlAcpAuthentication({ ...start, operationId: randomUUID() }),
+    ).rejects.toThrow("shutting down");
+    expect(verifyAcpGenericAuthenticationMock).not.toHaveBeenCalled();
+  });
+
+  it("does not persist a late authentication acknowledgement after cancellation", async () => {
+    const { root, settingsPath } = writeGenericAcpSettings();
+    const service = makeService(settingsPath, root);
+    const entered = Promise.withResolvers<void>();
+    const released = Promise.withResolvers<void>();
+    dispatchAcpAuthenticateMock.mockImplementation(async () => {
+      entered.resolve();
+      await released.promise;
+    });
+    const start = {
+      version: 1,
+      action: "start",
+      operationId: randomUUID(),
+      agentKind: "acp-generic:my-acp",
+      methodId: "browser-login",
+    } as const;
+    const failed = service.controlAcpAuthentication(start).catch((error: unknown) => error);
+    await entered.promise;
+    const cancelled = service.controlAcpAuthentication({
+      version: 1,
+      action: "cancel",
+      operationId: start.operationId,
+    });
+    released.resolve();
+    await cancelled;
+    expect(await failed).toBeInstanceOf(Error);
+    expect(verifyAcpGenericAuthenticationMock).not.toHaveBeenCalled();
+    expect(
+      JSON.parse(readFileSync(settingsPath, "utf8")).agentInstances["my-acp"].authAcknowledged,
+    ).toBeUndefined();
+  });
+
   it("persists generic ACP auth only after verification succeeds", async () => {
     const { root, settingsPath } = writeGenericAcpSettings();
     dispatchAcpAuthenticateMock.mockResolvedValue(undefined);

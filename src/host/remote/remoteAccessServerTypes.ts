@@ -1,4 +1,5 @@
 import type { Server } from "node:http";
+import type { Server as NetServer } from "node:net";
 import type { WebSocket, WebSocketServer } from "ws";
 import { matchEnvironmentProxyPath } from "@/shared/environments";
 import type { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
@@ -6,6 +7,7 @@ import type { HttpServerConnections } from "@/shared/httpServerConnections";
 import type {
   RemoteGitSummaries,
   RemoteHostMode,
+  RemoteHostWorkspace,
   RemoteHostUpdateStatus,
   RemotePushRegistration,
   RemotePushRegistrationRouting,
@@ -15,6 +17,7 @@ import type {
 import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
 import type { ResourceAdmissionPeek } from "@/shared/hostResourceAdmission";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
+import type { WorktreePlacement } from "@/shared/worktree";
 import type {
   RuntimeHistoryGapAcknowledgeResult,
   RuntimeHistoryGapDescriptor,
@@ -36,6 +39,7 @@ import type {
   PrWatch,
   PrWatchAgentSync,
   PrWatchInput,
+  ForgePrWatchInput,
   RemoteThreadCommand,
   ScheduledTask,
   ScheduledTaskInput,
@@ -523,11 +527,25 @@ export interface RemoteAccessServerOptions {
    * trigger.
    */
   readonly experimentAuthority?: RemoteExperimentAuthority;
+  /**
+   * Where this host places a project's new worktrees (its own settings and the
+   * project's override). A client asking for a worktree without a placement
+   * gets this one, so every client lands worktrees where the host is set up.
+   */
+  resolveWorktreePlacement?(location: ProjectLocation): WorktreePlacement;
   /** Resolve authoritative MCP settings for a remotely launched persisted thread. */
-  resolveMcpLaunchSnapshot?(projectId: string): McpLaunchSnapshot;
+  resolveMcpLaunchSnapshot?(
+    projectId: string,
+    overrides?: Record<string, boolean>,
+  ): McpLaunchSnapshot;
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
   readonly browser?: RemoteBrowserGatewayLike;
   readonly deviceWorkspace?: import("../devices/DeviceWorkspaceService").DeviceWorkspaceService;
+  readonly readAgentVision?: (
+    threadId: string,
+    preview: boolean,
+    streaming?: boolean,
+  ) => Promise<import("@/shared/agentVision").AgentVision | null>;
   /** Local dev-server discovery + raw TCP port forwarding. Absent on hosts
    * that don't support it (returns 503). */
   readonly portForward?: RemotePortForwardGateway;
@@ -577,6 +595,8 @@ export interface RemoteAccessServerOptions {
    */
   readonly settings?: {
     read(): RemoteSettings;
+    /** The host's workspaces for shell snapshots; hosts without it omit the field. */
+    readWorkspaces?(): RemoteHostWorkspace[];
     /** Update implementations may commit asynchronously (the settings
      * authority persists on its own queue); the route awaits the result. */
     update(patch: RemoteSettingsPatch): RemoteSettings | Promise<RemoteSettings>;
@@ -603,7 +623,7 @@ export interface RemoteAccessServerOptions {
   };
   /** Persists an attachment uploaded by an authenticated remote composer. */
   readonly attachments?: {
-    save(input: { threadId: string; fileName: string; data: Uint8Array }): string;
+    save(input: { threadId: string; fileName: string; data: Uint8Array }): Promise<string>;
   };
   readonly schedules?: {
     list(): ScheduledTask[];
@@ -622,6 +642,7 @@ export interface RemoteAccessServerOptions {
     get(projectId: string, prNumber: number): PrWatch | null;
     requestCheck(projectId: string, prNumber: number): void;
     upsert(input: PrWatchInput): PrWatch;
+    upsertScoped?(input: ForgePrWatchInput): Promise<PrWatch>;
     delete(projectId: string, prNumber: number): void;
     syncAgent(agent: PrWatchAgentSync): void;
   };
@@ -644,6 +665,19 @@ export interface RemoteAccessServerOptions {
       branch?: string | undefined;
     }): Promise<void>;
     refreshProjectPullRequests(projectId: string): Promise<void>;
+  };
+  /**
+   * Per-owner leases in front of the supervisor's shared project watcher. The
+   * durable host owns them, so they outlive this server instance. Without
+   * them the watch procedures reach the supervisor directly.
+   */
+  readonly projectWatches?: {
+    watchProject(owner: string, projectId: string): Promise<void>;
+    setWorktrees(owner: string, projectId: string, worktreePaths: readonly string[]): Promise<void>;
+    unwatchProject(owner: string, projectId: string, releaseWslDistro?: string): Promise<void>;
+    pinWorktree(projectId: string, worktreePath: string): Promise<void>;
+    unpinWorktree(projectId: string, worktreePath: string): Promise<void>;
+    releaseOwner(owner: string): Promise<void>;
   };
   /**
    * Push-notification registration sink. The server stays pure — the store and
@@ -728,6 +762,8 @@ export interface RemoteAccessServerHost {
   seq: number;
   info: RemoteAccessServerInfo | null;
   activePairingCredential: string | null;
+  /** Loopback guard of a wildcard bind (see `reserveLoopbackPort`). */
+  loopbackGuard: NetServer | null;
   readonly stopping: boolean;
   readonly listenCancellation: AbortController;
   starting: Promise<RemoteAccessServerInfo> | undefined;

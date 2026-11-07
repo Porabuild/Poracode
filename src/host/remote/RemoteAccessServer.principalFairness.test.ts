@@ -663,9 +663,8 @@ describe("principal fairness: aggregate queued output", () => {
     expect(serverSocketsFor(server, "bob")).toHaveLength(0);
     expect(aliceServerSocket.readyState).toBe(WebSocket.CLOSING);
     expect(bobServerSocket.readyState).toBe(WebSocket.CLOSING);
-    // Alice's evicted socket still retains its queued bytes in the transport,
-    // and the accounting still reserves them: no false-freed budget.
-    expect(aliceServerSocket.bufferedAmount).toBeGreaterThan(0);
+    // Reservations survive eviction until write completion or close, including
+    // uncompressed writes already accepted by the kernel on this turn.
     const retained = host.principalAdmission.outboundQueuedBytes(aliceSessionId);
     expect(retained).toBeGreaterThan(globalBudget / 2);
     expect(retained).toBeLessThanOrEqual(globalBudget);

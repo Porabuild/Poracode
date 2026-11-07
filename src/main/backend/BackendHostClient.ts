@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { desktopHostControlAckSchema } from "@/shared/desktopHostControl";
 import { AGENT_UPDATE_REQUEST_TIMEOUT_MS } from "@/shared/agents/updatePolicy";
 import { fork, type ChildProcess } from "node:child_process";
 import { constants as osConstants, setPriority } from "node:os";
@@ -28,6 +29,7 @@ import {
 } from "@/shared/backendHostProtocol";
 import type { CheckpointRevertResult } from "@/shared/contracts";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
+import { restoreBackendDiagnosticError } from "@/shared/diagnostics/backendDiagnosticError";
 import type { IpcQueueCapture, IpcQueueSample } from "@/shared/diagnostics/ipcQueueSample";
 import type {
   IpcProcedurePayload,
@@ -274,6 +276,17 @@ export class BackendHostClient {
       // An expired attempt is dead even while this.child still points at the
       // terminated child during the respawn backoff.
       if (this.disposed || failureHandled || this.child !== child) return result;
+      const grant = this.options.initialize.desktop?.localControl;
+      if (grant) {
+        const acknowledgement = desktopHostControlAckSchema.safeParse(result);
+        if (
+          !acknowledgement.success ||
+          acknowledgement.data.localControl.ownerGeneration !== grant.ownerGeneration
+        )
+          throw new Error(
+            "Backend does not acknowledge this desktop's local control delegation v1. Relaunch a matching desktop build; no CLI administration was admitted.",
+          );
+      }
       this.initializationSucceeded = true;
       this.initializationFailures = 0;
       this.settleInitializationWaiters((waiter) => waiter.resolve());
@@ -406,7 +419,10 @@ export class BackendHostClient {
         this.options.onNativeEvent?.(message.event);
         return;
       case "error":
-        this.options.reportError?.(new Error(message.message), message.tags);
+        this.options.reportError?.(
+          restoreBackendDiagnosticError(message.message, message.diagnostic),
+          message.tags,
+        );
     }
   }
 

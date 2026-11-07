@@ -56,6 +56,7 @@ export function createDesktopRemoteAccessController(
     pushCoordinator: null,
     mdnsAdvertiser: null,
     portForwarding: null,
+    portForwardingBind: null,
     remoteTailscaleServeActiveUrl: null,
     remoteGitSummaries: {},
   };
@@ -116,7 +117,7 @@ export function createDesktopRemoteAccessController(
    * masks the original failure.
    */
   const revertCommittedSetting = async <
-    F extends "remoteAccessLanEnabled" | "remoteAccessTailscaleHttps" | "remoteAccessAdvertisedUrl",
+    F extends "remoteAccessTailscaleHttps" | "remoteAccessAdvertisedUrl",
   >(
     field: F,
     written: SharedSettings[F],
@@ -355,30 +356,6 @@ export function createDesktopRemoteAccessController(
     return buildTailscaleStatusResponse(enabled, status);
   };
 
-  const setLanEnabled = async (enabled: boolean) => {
-    const previous = readSharedSettingsFile(options.paths.settingsPath).remoteAccessLanEnabled;
-    await commitSettingsPatch({ remoteAccessLanEnabled: enabled });
-    // A concurrent URL restart may not have published its listener yet.
-    await refs.remoteAccessStartAttempt?.promise.catch(() => {});
-    if (isRemoteAccessUserEnabled()) {
-      try {
-        const forwarding = refs.portForwarding;
-        refs.portForwarding = null;
-        forwarding?.dispose();
-        await restartRemoteAccessServer(false);
-      } catch (error) {
-        await revertCommittedSetting("remoteAccessLanEnabled", enabled, previous);
-        await startRemoteAccessServer(
-          readSharedSettingsFile(options.paths.settingsPath).remoteAccessEnabled !== true,
-        ).catch((restoreError: unknown) =>
-          options.reportError(restoreError, { "poracode.feature_area": "remote-access" }),
-        );
-        throw error;
-      }
-    }
-    return getPairingInfo();
-  };
-
   const setTailscaleHttps = async (enabled: boolean) => {
     const previous = readSharedSettingsFile(options.paths.settingsPath).remoteAccessTailscaleHttps;
     await commitSettingsPatch({ remoteAccessTailscaleHttps: enabled });
@@ -538,7 +515,6 @@ export function createDesktopRemoteAccessController(
     setEnabled,
     getTailscaleStatus,
     setTailscaleHttps,
-    setLanEnabled,
     startTailscale,
     setAdvertisedUrl,
     dispose: () => {

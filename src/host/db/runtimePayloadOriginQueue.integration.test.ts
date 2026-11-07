@@ -97,6 +97,7 @@ describe("bounded queue/index/transaction payload origin conservation", () => {
     const bounds = runtimePersistenceController.getBounds();
     const previous = { ...bounds };
     Object.assign(bounds, { maxPendingEventsPerThread: 1, maxPendingEventsGlobal: 20 });
+    runtimePersistenceController.setCapacityReliefForTests(false);
     try {
       h.emitA(custodyStarted("a", "accepted-A"));
       h.emitA(custodyStarted("a", "refused-A"));
@@ -118,6 +119,7 @@ describe("bounded queue/index/transaction payload origin conservation", () => {
       expect(h.row("b", "refused-B")).toBeUndefined();
     } finally {
       Object.assign(bounds, previous);
+      runtimePersistenceController.setCapacityReliefForTests(true);
     }
   });
 
@@ -153,6 +155,7 @@ describe("bounded queue/index/transaction payload origin conservation", () => {
       const bounds = runtimePersistenceController.getBounds();
       const previous = { ...bounds };
       Object.assign(bounds, { maxPendingEventsPerThread: shape.endsWith("thread") ? 2 : 1 });
+      runtimePersistenceController.setCapacityReliefForTests(false);
       try {
         h.emitA(custodyStarted("a", "accepted-one"));
         if (shape !== "single") {
@@ -178,6 +181,7 @@ describe("bounded queue/index/transaction payload origin conservation", () => {
         expect(h.origin("a", "refused")).toBeUndefined();
       } finally {
         Object.assign(bounds, previous);
+        runtimePersistenceController.setCapacityReliefForTests(true);
       }
     },
   );

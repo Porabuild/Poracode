@@ -2,6 +2,7 @@ node_modules/
 dist/
 release/
 .vite/
+.turbo/
 coverage/
 # SwiftPM output, including standalone test packages.
 .build/
@@ -39,6 +40,9 @@ resources/wsl-helpers/mcp-stdio.mjs
 resources/agent-plugins/
 resources/computer-use-helper/
 resources/computer-use-helper-dev/
+resources/locked-computer-use/
+resources/service-launcher/
+resources/pty-job-owner/
 resources/device-hub/*-*/
 resources/mobile-ssh-runtime/
 resources/web-ssh-runtime/
@@ -61,3 +65,6 @@ website/out/
 
 # Per-developer agent settings
 .claude/settings.local.json
+tui/node_modules/
+tui/dist/
+tui/**/*.tsbuildinfo

@@ -6,6 +6,7 @@
 
 pub mod actions;
 pub mod keys;
+pub mod locked_use;
 pub mod version;
 pub mod window;
 

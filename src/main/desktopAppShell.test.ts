@@ -9,11 +9,21 @@ const hoisted = vi.hoisted(() => {
       settingsPath: "/tmp/poracode-shell-test/settings.json",
     } as { baseDir: string; settingsPath: string } | null,
     workingThreads: new Set<string>(),
+    computerUseThreads: new Set<string>(),
     sleepInhibitor: {
       setActive: vi.fn<(active: boolean) => void>(),
       dispose: vi.fn<() => void>(),
     },
-    hostServices: null as { applyBrowserAllowFlags(settings: SharedSettings): void } | null,
+    screenLockInhibitor: {
+      setActive: vi.fn<(active: boolean) => void>(),
+      dispose: vi.fn<() => void>(),
+    },
+    hostServices: null as {
+      applyBrowserAllowFlags(settings: SharedSettings): void;
+      agentVision: { stop(threadId: string): void; stopAll(): void };
+      observeThreadActivity(threadId: string, active: boolean): void;
+      resetThreadActivity(): void;
+    } | null,
   };
   return {
     state,
@@ -71,6 +81,12 @@ vi.mock("./windowsJobObject", () => ({
   },
 }));
 
+vi.mock("./windowsNativeJobObject", () => ({
+  createWindowsJobObjectOwner: vi.fn<() => { start(): Promise<void> }>(() => ({
+    start: vi.fn<() => Promise<void>>(async () => {}),
+  })),
+}));
+
 vi.mock("./attachments/localFiles", () => ({
   installLocalFileProtocolHandler: hoisted.installLocalFileProtocolHandler,
 }));
@@ -102,12 +118,15 @@ beforeEach(() => {
     settingsPath: "/tmp/poracode-shell-test/settings.json",
   };
   hoisted.state.workingThreads = new Set<string>();
+  hoisted.state.computerUseThreads = new Set<string>();
   hoisted.state.hostServices = null;
+  hoisted.state.sleepInhibitor.setActive.mockClear();
+  hoisted.state.screenLockInhibitor.setActive.mockClear();
 });
 
 describe("desktopAppShell committed settings cache", () => {
   it("seeds the cache from native-shell startup and never re-reads on thread events", async () => {
-    hoisted.readSharedSettingsFile.mockReturnValue(settings({ preventSleep: "while-working" }));
+    hoisted.readSharedSettingsFile.mockReturnValue(settings({ preventSleepWhen: ["working"] }));
     const shell = await loadShell();
 
     shell.prepareDesktopNativeShell();
@@ -123,7 +142,7 @@ describe("desktopAppShell committed settings cache", () => {
   });
 
   it("falls back to one read when a reaction runs before the shell seeds the cache", async () => {
-    hoisted.readSharedSettingsFile.mockReturnValue(settings({ preventSleep: "always" }));
+    hoisted.readSharedSettingsFile.mockReturnValue(settings({ preventSleepWhen: ["always"] }));
     const shell = await loadShell();
 
     shell.updatePowerSaveBlocker();
@@ -133,10 +152,31 @@ describe("desktopAppShell committed settings cache", () => {
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(true);
   });
 
+  it("revokes vision capture when a thread stops and when the supervisor resets", async () => {
+    const shell = await loadShell();
+    const stop = vi.fn<(threadId: string) => void>();
+    const stopAll = vi.fn<() => void>();
+    const observeThreadActivity = vi.fn<(threadId: string, active: boolean) => void>();
+    const resetThreadActivity = vi.fn<() => void>();
+    hoisted.state.hostServices = {
+      applyBrowserAllowFlags: vi.fn<(settings: SharedSettings) => void>(),
+      agentVision: { stop, stopAll },
+      observeThreadActivity,
+      resetThreadActivity,
+    };
+    shell.applyThreadActivity([activity("vision-thread", false)]);
+    expect(stop).toHaveBeenCalledWith("vision-thread");
+    // Turn end also reaches the composed host services (Locked Computer Use).
+    expect(observeThreadActivity).toHaveBeenCalledWith("vision-thread", false);
+    shell.resetThreadActivity();
+    expect(stopAll).toHaveBeenCalledOnce();
+    expect(resetThreadActivity).toHaveBeenCalledOnce();
+  });
+
   it("applies settings commits and makes unchanged thread-state events no-ops", async () => {
     const shell = await loadShell();
 
-    shell.handleSharedSettingsChanged(settings({ preventSleep: "while-working" }));
+    shell.handleSharedSettingsChanged(settings({ preventSleepWhen: ["working"] }));
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenCalledTimes(1);
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(false);
 
@@ -158,28 +198,28 @@ describe("desktopAppShell committed settings cache", () => {
   it("recalculates the sleep aggregate when a settings commit changes the policy", async () => {
     const shell = await loadShell();
 
-    shell.handleSharedSettingsChanged(settings({ preventSleep: "while-working" }));
+    shell.handleSharedSettingsChanged(settings({ preventSleepWhen: ["working"] }));
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(false);
 
-    shell.handleSharedSettingsChanged(settings({ preventSleep: "always" }));
+    shell.handleSharedSettingsChanged(settings({ preventSleepWhen: ["always"] }));
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(true);
 
     shell.handleSharedSettingsChanged(
       settings({
-        preventSleep: "while-remote-access",
+        preventSleepWhen: ["working", "remote-access"],
         remoteAccessEnabled: false,
       }),
     );
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(false);
 
     shell.handleSharedSettingsChanged(
-      settings({ preventSleep: "while-remote-access", remoteAccessEnabled: true }),
+      settings({ preventSleepWhen: ["working", "remote-access"], remoteAccessEnabled: true }),
     );
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(true);
   });
 
   it("clears the working set on reset so no stale active flag survives a restart", async () => {
-    hoisted.readSharedSettingsFile.mockReturnValue(settings({ preventSleep: "while-working" }));
+    hoisted.readSharedSettingsFile.mockReturnValue(settings({ preventSleepWhen: ["working"] }));
     const shell = await loadShell();
 
     shell.applyThreadActivity([activity("t1", true), activity("t2", true)]);
@@ -201,5 +241,63 @@ describe("desktopAppShell committed settings cache", () => {
 
     expect(hoisted.readSharedSettingsFile).not.toHaveBeenCalled();
     expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(true);
+  });
+
+  it("drives the screen-lock channel from its own conditions", async () => {
+    const shell = await loadShell();
+
+    // Default: screen lock is never prevented, system sleep follows work.
+    shell.handleSharedSettingsChanged(settings());
+    shell.applyThreadActivity([activity("t1", true)]);
+    expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(true);
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenCalledExactlyOnceWith(false);
+
+    shell.handleSharedSettingsChanged(settings({ preventScreenLockWhen: ["working"] }));
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenLastCalledWith(true);
+
+    shell.applyThreadActivity([activity("t1", false)]);
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenLastCalledWith(false);
+    expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(false);
+  });
+
+  it("re-evaluates both channels when Computer Use activity changes", async () => {
+    const shell = await loadShell();
+    shell.handleSharedSettingsChanged(
+      settings({ preventSleepWhen: ["computer-use"], preventScreenLockWhen: ["computer-use"] }),
+    );
+    expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(false);
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenLastCalledWith(false);
+
+    // A session on a thread that is not working does not count.
+    shell.setComputerUseThreads(["t1"]);
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenLastCalledWith(false);
+
+    shell.applyThreadActivity([activity("t1", true)]);
+    shell.setComputerUseThreads(["t1"]);
+    expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(true);
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenLastCalledWith(true);
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenCalledTimes(2);
+
+    shell.setComputerUseThreads([]);
+    expect(hoisted.state.sleepInhibitor.setActive).toHaveBeenLastCalledWith(false);
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenLastCalledWith(false);
+  });
+
+  it("releases Computer Use keep-awake when the session outlives its thread", async () => {
+    const shell = await loadShell();
+    shell.handleSharedSettingsChanged(settings({ preventScreenLockWhen: ["computer-use"] }));
+    shell.applyThreadActivity([activity("t1", true)]);
+    shell.setComputerUseThreads(["t1"]);
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenLastCalledWith(true);
+
+    // The agent ended its turn without `disable`; the overlay still lists it.
+    shell.applyThreadActivity([activity("t1", false)]);
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenLastCalledWith(false);
+
+    // A backend reset clears the working set while the stale session remains.
+    shell.applyThreadActivity([activity("t1", true)]);
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenLastCalledWith(true);
+    shell.resetThreadActivity();
+    expect(hoisted.state.screenLockInhibitor.setActive).toHaveBeenLastCalledWith(false);
   });
 });

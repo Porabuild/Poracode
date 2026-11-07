@@ -32,6 +32,7 @@ import {
   type McpCapabilities,
   type McpServer as ProtocolMcpServer,
   type PromptCapabilities,
+  type PromptResponse,
   type ReadTextFileRequest,
   type ReadTextFileResponse,
   type ReleaseTerminalRequest,
@@ -73,9 +74,12 @@ import {
   getDetachedSubAgentToolCallIdForNotification,
   mapAcpGoalSlashCommand,
   mapAcpSessionUpdate,
+  attributeAcpCommandTerminal,
   type AcpMapperState,
 } from "./canonicalMapping";
 import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
+import { closeOpenContentItems } from "./canonicalMapping/state";
+import { isTextOnlyPrompt, type AcpPromptSteering } from "./promptSteering";
 import {
   createKnownSessionRef,
   type AgentLaunchOptions,
@@ -101,6 +105,7 @@ import {
   type AcpOpenedSessionKind,
 } from "./sessionOpenedSetup";
 import { describeConfigOptionsWithRoles } from "./sessionConfigOptions";
+import { buildTerminalCommandLine, normalizeTerminalCommandText } from "./sessionTerminalLaunch";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -145,10 +150,12 @@ import {
   createAcpPromptUsageSpentEvent,
   isAcpPromptCancellationError,
   normalizeAcpStopReason,
+  resolveAcpPromptErrorReason,
   resolveAcpPromptFailureMessage,
   resolveAcpPromptRpcErrorMessage,
   rewriteLoadSessionError,
   shouldEmitAcpPromptRpcErrorItem,
+  type AcpPromptErrorReasonResolver,
 } from "./sessionErrors";
 import { isFatalAcpQuotaError } from "./acpUserVisibleErrors";
 import { AcpSessionRequests } from "./sessionRequests";
@@ -285,17 +292,43 @@ export interface AcpSessionBehavior {
   allowConfigWritesDuringPrompt?: boolean;
   /** Prompt usage may describe one call instead of a session-cumulative counter. */
   promptUsageCounterKind?: "cumulative" | "per-call";
+  /**
+   * Provider identity shared by prompt replies that repeat one consumption
+   * sample. Returning the same suffix for two replies folds them into one
+   * ledger sample instead of counting native-repeated usage twice. The
+   * returned value is only the namespaced suffix inside the shared
+   * `acp-prompt-v1:` sample id — additive identities, no stored-data
+   * migration; absent keeps the per-turn/per-steer fallback exactly.
+   */
+  promptUsageSampleId?: (response: PromptResponse) => string | undefined;
   /** False when prompt consumption cannot measure context-window occupancy. */
   promptUsageReportsContext?: boolean;
   /** Stop painting message and thought chunks as soon as the user cancels. */
   suppressOutputAfterInterrupt?: boolean;
   /** Keep noisy provider diagnostics out of the parent process console. */
   suppressStderrLogging?: boolean;
+  /**
+   * How a client-hosted terminal (`terminal/create`) that the agent never
+   * references from tool content is matched to its command tool call.
+   * `lookup` (default) resolves output by command text whenever the row is
+   * mapped — correct when the agent creates the terminal before reporting the
+   * call. `attribute-on-create` binds each new terminal to the oldest open
+   * command call running exactly that command and disables command-text lookup,
+   * so an agent that reports the call first never shows an earlier run's output.
+   */
+  unreferencedTerminalCorrelation?: "lookup" | "attribute-on-create";
 }
 
 export interface AcpStructuredSessionOptions {
   /** Normalize vendor request payloads before shared permission/question handling. */
   permissionRequestTransform?: (request: RequestPermissionRequest) => RequestPermissionRequest;
+  /**
+   * Names the shared cause of a rejected `session/prompt` from the provider's
+   * structured JSON-RPC error, so the turn's error item carries a `reason`
+   * (for example `"auth_required"` to offer sign-in). The ACP-standard
+   * `auth_required` error is recognized for every agent without it.
+   */
+  promptErrorReason?: AcpPromptErrorReasonResolver;
   /** User-approved roots, snapshotted before spawn; no live scope mutation. */
   additionalDirectories?: readonly ProjectLocation[];
   /** Resolve the provider's session mode when its permission modes differ from the terminal client. */
@@ -458,6 +491,12 @@ export interface AcpStructuredSessionOptions {
    * instead of double-closing the turn.
    */
   stderrTurnSignalParser?: (line: string) => "background-wait" | undefined;
+  /**
+   * Provider-declared non-interrupting steering (see `AcpPromptSteering`).
+   * `steerTurn` is exposed only after `initialize` confirms the agent supports
+   * it; absent, the runtime keeps interrupt-and-resend steering.
+   */
+  promptSteering?: AcpPromptSteering;
 }
 
 export interface AcpExternalSessionUpdateSource {
@@ -481,6 +520,8 @@ export interface AcpExternalSessionUpdateSource {
 }
 
 export class AcpStructuredSession implements StructuredSessionHandle {
+  readonly supportsOpenCancellation = true;
+  private static readonly MAX_PENDING_UNREFERENCED_TERMINALS = 32;
   launchOptions: AgentLaunchOptions;
 
   private loadSessionErrorRewriter: (error: unknown, sessionId: string) => Error =
@@ -489,6 +530,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly resolveModelConfig: AcpStructuredSessionOptions["resolveModelConfig"];
   private readonly resolveMode: AcpStructuredSessionOptions["resolveMode"];
   private readonly permissionRequestTransform: AcpStructuredSessionOptions["permissionRequestTransform"];
+  private readonly promptErrorReason: AcpStructuredSessionOptions["promptErrorReason"];
 
   private emptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
 
@@ -502,6 +544,14 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly stderrTurnSignalParser:
     | ((line: string) => "background-wait" | undefined)
     | undefined;
+  private readonly promptSteering: AcpPromptSteering | undefined;
+  /** Non-interrupting steer of the in-flight turn; set only when the agent advertises it. */
+  steerTurn?: (
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ) => Promise<void>;
 
   private readonly goalCommands: boolean;
 
@@ -602,6 +652,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    * Mirrors Codex's `pendingTurnInterrupt` race guard at codex/acp.ts:264.
    */
   private promptInFlight = false;
+  /** Ordered steer requests accepted for the current turn; see `steerRunningTurn`. */
+  private pendingSteers: Array<{
+    blocks: ContentBlock[];
+    response: Promise<PromptResponse> | undefined;
+  }> = [];
   /**
    * True for the whole of `startTurn`, including the setup awaits before the
    * prompt is issued. Distinct from `promptInFlight`, which must stay tied to
@@ -611,6 +666,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private foregroundTurnOpen = false;
   private pendingPromptInterrupt = false;
   private currentTurnInterruptRequested = false;
+  /** Survives cancelled-turn cleanup until a fresh turn accepts new commands. */
+  private terminalCreationInterrupted = false;
   private suppressAgentOutputUntilNextTurn = false;
   /**
    * The provider signalled (via `stderrTurnSignalParser`) that the in-flight
@@ -632,10 +689,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   /** User-visible error text from an `agent_message_chunk` before `prompt()` settles. */
   private agentSurfacedErrorMessage: string | undefined;
   private currentTurnHadAgentActivity = false;
+  private pendingPromptAdmission: (() => void) | undefined;
   private agentPromptCapabilities: PromptCapabilities | undefined;
   private agentSessionCapabilities: SessionCapabilities | undefined;
   private agentMcpCapabilities: McpCapabilities | undefined;
   private mapperState: AcpMapperState | undefined;
+  // Agents may request an unreferenced terminal before or after reporting its tool call.
+  private pendingUnreferencedTerminals: { terminalId: string; command: string }[] | undefined;
   /**
    * Last `background_tasks.changed` list emitted by this session. Any
    * text-stream extension may produce that event; the session only mirrors
@@ -893,6 +953,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   ) {
     this.resolveMode = options?.resolveMode;
     this.permissionRequestTransform = options?.permissionRequestTransform;
+    this.promptErrorReason = options?.promptErrorReason;
     this.resolveModelConfig = options?.resolveModelConfig;
     this.child = child;
     this.connection = connection;
@@ -920,6 +981,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.behavior = options?.behavior ?? {};
     this.textStreamExtension = options?.textStreamExtension;
     this.stderrTurnSignalParser = options?.stderrTurnSignalParser;
+    this.promptSteering = options?.promptSteering;
     if (options?.extensionNotificationHandler) {
       this.extensionNotificationHandler = options.extensionNotificationHandler;
     }
@@ -952,8 +1014,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       // get inlined as the canonical `result` payload.
       this.mapperState.resolveTerminalOutput = (terminalId) =>
         this.terminalManager.getTerminalOutput(terminalId);
-      this.mapperState.resolveTerminalOutputByCommand = (command) =>
-        this.terminalManager.resolveAcpTerminalOutputByCommand(command);
+      if (this.behavior?.unreferencedTerminalCorrelation !== "attribute-on-create") {
+        this.mapperState.resolveTerminalOutputByCommand = (command) =>
+          this.terminalManager.resolveAcpTerminalOutputByCommand(command);
+      }
       // Agents that report an image result by reference (a `uri`-only image
       // block, or only a read-kind tool call's `locations`) need a filesystem
       // read the pure mapper can't do itself. Leave the hook unset when this
@@ -1316,6 +1380,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.agentPromptCapabilities = initResult.agentCapabilities?.promptCapabilities;
     this.agentSessionCapabilities = initResult.agentCapabilities?.sessionCapabilities;
     this.agentMcpCapabilities = initResult.agentCapabilities?.mcpCapabilities;
+    if (this.promptSteering?.isSupported(initResult)) {
+      this.steerTurn = (prompt, config, segments, options) =>
+        this.steerRunningTurn(prompt, config, segments, options);
+    }
     acpAdditionalDirectoriesParams(this.additionalDirectories ?? [], this.agentSessionCapabilities);
     console.log(
       "[acp] initialized — protocol v%d, agent: %s",
@@ -1650,6 +1718,52 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
   }
 
+  /**
+   * The optimistic user row painted for an accepted prompt. The prompt itself
+   * generates no `session/update`, so the client paints it from its own text
+   * and segments.
+   */
+  private userMessageItemEvents(
+    itemId: string,
+    prompt: string,
+    segments: PromptSegment[] | undefined,
+  ): RuntimeEvent[] {
+    return [
+      {
+        type: "item.started",
+        threadId: this.threadId,
+        itemId,
+        itemType: "user_message",
+        payload: {
+          content: buildPromptContentBlocks(prompt, segments),
+        },
+      },
+      { type: "item.completed", threadId: this.threadId, itemId },
+    ];
+  }
+
+  /**
+   * Portable-skills fallback: inline instructions are appended to the outbound
+   * prompt only — the painted user_message stays clean of inlined skill bodies.
+   */
+  private outboundPromptBlocks(
+    prompt: string,
+    segments: PromptSegment[] | undefined,
+    options: StartTurnOptions | undefined,
+  ): Promise<ContentBlock[]> {
+    const outboundPrompt = options?.inlineInstructions
+      ? `${prompt}\n\n${options.inlineInstructions}`
+      : prompt;
+    return segmentsToContentBlocks(
+      outboundPrompt,
+      this.projectLocation,
+      segments,
+      this.behavior.inlineImagePrompts === false
+        ? { ...this.agentPromptCapabilities, image: false }
+        : this.agentPromptCapabilities,
+    );
+  }
+
   private async runStartTurn(
     prompt: string,
     config: ThreadConfig,
@@ -1660,6 +1774,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       throw new Error("ACP session not opened yet.");
     }
     this.currentTurnInterruptRequested = false;
+    this.terminalCreationInterrupted = false;
     // A fresh turn ends the previous turn's output suppression. An idle
     // interrupt must not cancel a subsequently submitted prompt.
     this.suppressAgentOutputUntilNextTurn = false;
@@ -1699,16 +1814,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     const userItemId = options?.userMessageItemId ?? `user-${this.currentTurnId}`;
     this.emitRuntimeEvents([
       { type: "turn.started", threadId: this.threadId, turnId: this.currentTurnId },
-      {
-        type: "item.started",
-        threadId: this.threadId,
-        itemId: userItemId,
-        itemType: "user_message",
-        payload: {
-          content: buildPromptContentBlocks(prompt, segments),
-        },
-      },
-      { type: "item.completed", threadId: this.threadId, itemId: userItemId },
+      ...this.userMessageItemEvents(userItemId, prompt, segments),
     ]);
     if (this.goalCommands) {
       const goalEvents = mapAcpGoalSlashCommand(prompt, this.ensureMapperState());
@@ -1718,19 +1824,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // Signal working state immediately
     this.emitListenerUpdate({ status: "working", attention: "working" });
 
-    // Portable-skills fallback: append to the outbound prompt only — the
-    // user_message paint above must stay clean of inlined skill bodies.
-    const outboundPrompt = options?.inlineInstructions
-      ? `${prompt}\n\n${options.inlineInstructions}`
-      : prompt;
-    const contentBlocks = await segmentsToContentBlocks(
-      outboundPrompt,
-      this.projectLocation,
-      segments,
-      this.behavior.inlineImagePrompts === false
-        ? { ...this.agentPromptCapabilities, image: false }
-        : this.agentPromptCapabilities,
-    );
+    const contentBlocks = await this.outboundPromptBlocks(prompt, segments, options);
 
     try {
       // Stop may arrive while configuration setters are awaited. The provider
@@ -1743,35 +1837,17 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         return;
       }
       this.promptInFlight = true;
+      this.pendingPromptAdmission = options?.onPromptSubmitted;
       const result = await this.connection.prompt({
         sessionId: this.sessionId,
         prompt: contentBlocks,
       });
-      if (this.behavior?.promptUsageReportsContext !== false) {
-        const usageEvent = createAcpPromptUsageEvent(this.threadId, result.usage);
-        if (usageEvent) this.emitRuntimeEvents([usageEvent]);
-      }
-      // Counter semantics are provider-declared; consumption and context
-      // occupancy are independent. Missing usage emits neither a zero nor a
-      // fabricated token total.
-      if (this.usageScopeId) {
-        const spentEvent = createAcpPromptUsageSpentEvent(this.threadId, result.usage, {
-          scopeId: this.usageScopeId,
-          epoch: this.usageEpoch,
-          ...(this.usageScopeFresh ? { fresh: true } : {}),
-          ...(this.behavior?.promptUsageCounterKind === "per-call"
-            ? {
-                counterKind: "per-call" as const,
-                sampleId: `acp-prompt-v1:${this.usageScopeId}:${this.usageEpoch}:${usageSampleTurnId}`,
-                turnId: usageSampleTurnId,
-              }
-            : {}),
-        });
-        if (spentEvent) {
-          this.emitRuntimeEvents([spentEvent]);
-          this.usageScopeFresh = false;
-        }
-      }
+      this.pendingPromptAdmission?.();
+      this.pendingPromptAdmission = undefined;
+      this.emitPromptUsage(result, usageSampleTurnId);
+      // Accepted steers are answered only after the receiving turn settles;
+      // they may also carry the next turn's stop reason when the agent ran one.
+      const finalResult = await this.drainPendingSteers(result, usageSampleTurnId);
 
       if (this.promptHeldForBackgroundWork) {
         // The runtime turn was already completed when the background-wait
@@ -1783,17 +1859,17 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       }
 
       // Map stopReason to Poracode status
-      const normalizedStopReason = normalizeAcpStopReason(result.stopReason, {
+      const normalizedStopReason = normalizeAcpStopReason(finalResult.stopReason, {
         interruptRequested: this.currentTurnInterruptRequested,
         recentAgentText: this.recentInterruptAckTextTail,
       });
       if (
-        result.stopReason === "end_turn" &&
+        finalResult.stopReason === "end_turn" &&
         !this.currentTurnInterruptRequested &&
         !this.currentTurnHadAgentActivity
       ) {
         const emptyResponseError = this.emptyResponseErrorResolver?.({
-          stopReason: result.stopReason,
+          stopReason: finalResult.stopReason,
           stderr: this.stderrChunks,
         });
         if (emptyResponseError) throw emptyResponseError;
@@ -1850,11 +1926,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.emitPromptFailure(error);
       }
     } finally {
+      this.pendingPromptAdmission = undefined;
       this.promptInFlight = false;
       this.promptHeldForBackgroundWork = false;
       this.foregroundTurnOpen = false;
       this.pendingPromptInterrupt = false;
       this.currentTurnInterruptRequested = false;
+      this.pendingSteers = [];
       this.recentInterruptAckTextTail = "";
       this.agentSurfacedErrorMessage = undefined;
       // The mapper's per-turn item state has been cleared via
@@ -1865,6 +1943,130 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.clearCompletedTurnCaches();
       }
     }
+  }
+
+  /** Emit one prompt response's context and per-call consumption usage events. */
+  private emitPromptUsage(result: PromptResponse, turnId: string, sampleSuffix = ""): void {
+    if (this.behavior?.promptUsageReportsContext !== false) {
+      const usageEvent = createAcpPromptUsageEvent(this.threadId, result.usage);
+      if (usageEvent) this.emitRuntimeEvents([usageEvent]);
+    }
+    // Counter semantics are provider-declared; consumption and context
+    // occupancy are independent. Missing usage emits neither a zero nor a
+    // fabricated token total.
+    if (this.usageScopeId) {
+      const spentEvent = createAcpPromptUsageSpentEvent(this.threadId, result.usage, {
+        scopeId: this.usageScopeId,
+        epoch: this.usageEpoch,
+        ...(this.usageScopeFresh ? { fresh: true } : {}),
+        ...(this.behavior?.promptUsageCounterKind === "per-call"
+          ? {
+              counterKind: "per-call" as const,
+              sampleId: `acp-prompt-v1:${this.usageScopeId}:${this.usageEpoch}:${this.behavior.promptUsageSampleId?.(result) ?? `${turnId}${sampleSuffix}`}`,
+              turnId,
+            }
+          : {}),
+      });
+      if (spentEvent) {
+        this.emitRuntimeEvents([spentEvent]);
+        this.usageScopeFresh = false;
+      }
+    }
+  }
+
+  /**
+   * Deliver one steer to the running turn. The provider's declaration makes a
+   * marked `session/prompt` join that turn instead of interrupting it; without
+   * a live turn this falls back to ordinary `startTurn` semantics so turn
+   * accounting stays correct.
+   */
+  private async steerRunningTurn(
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): Promise<void> {
+    if (!this.sessionId) {
+      throw new Error("ACP session not opened yet.");
+    }
+    if (
+      !this.promptSteering ||
+      !this.promptInFlight ||
+      this.promptHeldForBackgroundWork ||
+      this.currentTurnInterruptRequested
+    ) {
+      return this.startTurn(prompt, config, segments, options);
+    }
+
+    // Paint the user message before the round-trip. Closing open assistant
+    // content makes the reply after the steer start below it; an agent whose
+    // reply always opens a new item keeps the in-flight message above the row.
+    const closesOpenContent = this.promptSteering.repliesInNewAssistantItem !== true;
+    const userItemId = options?.userMessageItemId ?? `user-${randomUUID()}`;
+    this.emitRuntimeEvents([
+      ...(closesOpenContent ? closeOpenContentItems(this.ensureMapperState()) : []),
+      ...this.userMessageItemEvents(userItemId, prompt, segments),
+    ]);
+
+    const blocks = await this.outboundPromptBlocks(prompt, segments, options);
+    if (this.isDisposed) return;
+    // The turn may have ended while the content blocks were prepared; a steer
+    // then belongs to the next turn, keeping the same painted user row.
+    if (!this.promptInFlight || this.currentTurnInterruptRequested) {
+      return this.startTurn(prompt, config, segments, {
+        ...options,
+        userMessageItemId: userItemId,
+      });
+    }
+
+    if (isTextOnlyPrompt(blocks)) {
+      const response = this.connection.prompt({
+        sessionId: this.sessionId,
+        prompt: blocks,
+        _meta: this.promptSteering.requestMeta,
+      });
+      void response.catch(() => undefined);
+      this.pendingSteers.push({ blocks, response });
+    } else {
+      // Non-text content cannot be folded into the running turn; it waits for
+      // the next prompt.
+      this.pendingSteers.push({ blocks, response: undefined });
+    }
+    options?.onPromptSubmitted?.();
+  }
+
+  /**
+   * Settle accepted steers after the receiving prompt returns. The agent
+   * answers a folded steer once its turn ends; a rejected steer is resent as an
+   * ordinary prompt. Entries pushed while awaiting join this same drain because
+   * `promptInFlight` stays true until `runStartTurn` completes.
+   */
+  private async drainPendingSteers(
+    result: PromptResponse,
+    turnId: string,
+  ): Promise<PromptResponse> {
+    let latest = result;
+    let index = 0;
+    while (this.pendingSteers.length > 0) {
+      const steer = this.pendingSteers.shift()!;
+      index += 1;
+      if (this.isDisposed || this.currentTurnInterruptRequested) continue;
+      let next: PromptResponse | undefined;
+      if (steer.response) {
+        try {
+          next = await steer.response;
+        } catch {
+          next = undefined;
+        }
+      }
+      if (!next) {
+        if (this.isDisposed || this.currentTurnInterruptRequested) continue;
+        next = await this.connection.prompt({ sessionId: this.sessionId!, prompt: steer.blocks });
+      }
+      this.emitPromptUsage(next, turnId, `:steer-${index}`);
+      latest = next;
+    }
+    return latest;
   }
 
   /**
@@ -1928,6 +2130,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
     const closeAwaitingForegroundTurn =
       this.foregroundTurnAwaitingSubagents && !this.promptInFlight;
+    // These commands belong to the supervisor, not the provider process. A
+    // cancelled prompt need not send terminal/kill before it returns idle.
+    this.terminalCreationInterrupted = true;
+    this._terminalManager?.killAllAcpTerminals();
     try {
       const cancelRequest = this.connection.cancel({ sessionId: this.sessionId });
       if (closeAwaitingForegroundTurn) {
@@ -1950,6 +2156,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   }
 
   forceCompleteTurn(): void {
+    this.pendingSteers = [];
     this.completeOrphanTurn({ silent: true });
     if (!this.currentTurnId) return;
     this.foregroundTurnAwaitingSubagents = false;
@@ -2174,9 +2381,37 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     return {};
   }
 
-  private handleCreateTerminal(params: CreateTerminalRequest) {
+  private async handleCreateTerminal(params: CreateTerminalRequest) {
     if (this.terminalCapability === false) throw RequestError.methodNotFound("terminal/create");
-    return this.terminalManager.handleCreateTerminal(params);
+    if (this.terminalCreationInterrupted) {
+      throw RequestError.invalidParams({
+        message: "ACP terminal request belongs to an interrupted turn.",
+      });
+    }
+    const response = await this.terminalManager.handleCreateTerminal(params);
+    if (this.behavior?.unreferencedTerminalCorrelation === "attribute-on-create") {
+      const target = normalizeTerminalCommandText(
+        buildTerminalCommandLine(params.command, params.args ?? []),
+      );
+      if (target) {
+        const attributed = attributeAcpCommandTerminal(
+          this.ensureMapperState(),
+          response.terminalId,
+          (command) => normalizeTerminalCommandText(command) === target,
+        );
+        if (!attributed) {
+          const pendingTerminals = (this.pendingUnreferencedTerminals ??= []);
+          pendingTerminals.push({
+            terminalId: response.terminalId,
+            command: target,
+          });
+          if (pendingTerminals.length > AcpStructuredSession.MAX_PENDING_UNREFERENCED_TERMINALS) {
+            pendingTerminals.shift();
+          }
+        }
+      }
+    }
+    return response;
   }
 
   private handleTerminalOutput(params: TerminalOutputRequest) {
@@ -2186,6 +2421,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private handleReleaseTerminal(params: ReleaseTerminalRequest): void {
     if (this.terminalCapability === false) throw RequestError.methodNotFound("terminal/release");
+    if (this.behavior?.unreferencedTerminalCorrelation === "attribute-on-create") {
+      const pendingTerminals = this.pendingUnreferencedTerminals;
+      const pendingIndex =
+        pendingTerminals?.findIndex((entry) => entry.terminalId === params.terminalId) ?? -1;
+      if (pendingIndex >= 0) pendingTerminals!.splice(pendingIndex, 1);
+    }
     this.terminalManager.handleReleaseTerminal(params);
   }
 
@@ -2386,6 +2627,15 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       update.sessionUpdate === "plan"
     ) {
       this.currentTurnHadAgentActivity = true;
+      if (
+        this.promptInFlight &&
+        !this.isReplayingHistory &&
+        Date.now() >= this.replayHistoryUntil
+      ) {
+        const acknowledge = this.pendingPromptAdmission;
+        this.pendingPromptAdmission = undefined;
+        acknowledge?.();
+      }
     }
 
     if (update.sessionUpdate === "available_commands_update") {
@@ -2434,6 +2684,26 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       const events = mapAcpSessionUpdate(params, mapperState, {
         ...(suppressInterruptedOutput ? { suppressAgentOutput: true } : {}),
       });
+      if (
+        this.behavior?.unreferencedTerminalCorrelation === "attribute-on-create" &&
+        (update.sessionUpdate === "tool_call" || update.sessionUpdate === "tool_call_update")
+      ) {
+        const pendingTerminals = (this.pendingUnreferencedTerminals ??= []);
+        for (let index = 0; index < pendingTerminals.length;) {
+          const pending = pendingTerminals[index]!;
+          if (
+            attributeAcpCommandTerminal(
+              mapperState,
+              pending.terminalId,
+              (command) => normalizeTerminalCommandText(command) === pending.command,
+            )
+          ) {
+            pendingTerminals.splice(index, 1);
+          } else {
+            index++;
+          }
+        }
+      }
       this.rememberAcpToolCallItemId(params, events);
       if (events.length > 0) {
         this.emitRuntimeEvents(events);
@@ -2856,7 +3126,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     const mapperState = this.ensureMapperState();
     const events: RuntimeEvent[] = [...closeOpenTurnItems(mapperState)];
     if (shouldEmitAcpPromptRpcErrorItem(error, this.agentSurfacedErrorMessage)) {
-      events.push({ type: "error", threadId: this.threadId, message: rpcMessage });
+      const reason = resolveAcpPromptErrorReason(error, this.promptErrorReason);
+      events.push({
+        type: "error",
+        threadId: this.threadId,
+        message: rpcMessage,
+        ...(reason ? { reason } : {}),
+      });
     }
     if (this.currentTurnId) {
       const turnId = this.currentTurnId;

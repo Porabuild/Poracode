@@ -28,6 +28,21 @@ export function formatShortDateTime(iso: string | undefined): string {
   });
 }
 
+export function formatMessageTimestamp(
+  timestamp: number,
+  locale: string,
+  now = new Date(),
+): string {
+  const date = new Date(timestamp);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const time: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" };
+  if (date >= today) return date.toLocaleTimeString(locale, time);
+  if (date >= weekStart) return date.toLocaleString(locale, { weekday: "short", ...time });
+  return date.toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
+}
+
 export function isRecent(iso: string): boolean {
   return Date.now() - new Date(iso).getTime() < 24 * 60 * 60 * 1000;
 }

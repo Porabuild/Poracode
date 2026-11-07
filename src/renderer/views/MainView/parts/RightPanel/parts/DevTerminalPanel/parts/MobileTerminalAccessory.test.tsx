@@ -1,33 +1,34 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { MobileTerminalAccessory } from "./MobileTerminalAccessory";
 
-const { toastDanger, writeTerminal } = vi.hoisted(() => ({
+const { sendTerminalInput, toastDanger } = vi.hoisted(() => ({
+  sendTerminalInput: vi.fn<(id: string, data: string) => boolean>(),
   toastDanger: vi.fn<(message: string) => void>(),
-  writeTerminal: vi
-    .fn<(payload: { readonly threadId: string; readonly data: string }) => Promise<void>>()
-    .mockResolvedValue(undefined),
 }));
-
-vi.mock("@heroui/react", () => ({
-  toast: { danger: toastDanger },
-}));
-
-vi.mock("@/renderer/bridge", () => ({
-  readBridge: () => ({ writeTerminal }),
-}));
+vi.mock("@/renderer/components/terminal/terminalInputQueue", () => ({ sendTerminalInput }));
+vi.mock("@heroui/react", () => ({ toast: { danger: toastDanger } }));
 
 describe("MobileTerminalAccessory", () => {
   beforeEach(() => {
+    sendTerminalInput.mockReset().mockReturnValue(true);
     toastDanger.mockReset();
-    writeTerminal.mockReset().mockResolvedValue(undefined);
   });
 
   it("does not render a software-keyboard launcher", () => {
     render(<MobileTerminalAccessory terminalId="term-1" />);
 
     expect(screen.queryByLabelText("Terminal input")).not.toBeInTheDocument();
+  });
+
+  it("reports a missing terminal queue", () => {
+    sendTerminalInput.mockReturnValue(false);
+    render(<MobileTerminalAccessory terminalId="term-1" />);
+    fireEvent.click(screen.getByRole("button", { name: "Tab" }));
+    expect(toastDanger).toHaveBeenCalledWith(
+      "Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again.",
+    );
   });
 
   it("forwards Ctrl+T and Ctrl+Tab sequences", () => {
@@ -38,16 +39,7 @@ describe("MobileTerminalAccessory", () => {
     fireEvent.click(screen.getByRole("button", { name: "^" }));
     fireEvent.click(screen.getByRole("button", { name: "Tab" }));
 
-    expect(writeTerminal).toHaveBeenCalledWith({ threadId: "term-1", data: "\x14" });
-    expect(writeTerminal).toHaveBeenCalledWith({ threadId: "term-1", data: "\x1b[9;5u" });
-  });
-
-  it("reports input failures", async () => {
-    writeTerminal.mockRejectedValueOnce(new Error("terminal detached"));
-    render(<MobileTerminalAccessory terminalId="term-1" />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Tab" }));
-
-    await waitFor(() => expect(toastDanger).toHaveBeenCalledWith("terminal detached"));
+    expect(sendTerminalInput).toHaveBeenCalledWith("term-1", "\x14");
+    expect(sendTerminalInput).toHaveBeenCalledWith("term-1", "\x1b[9;5u");
   });
 });

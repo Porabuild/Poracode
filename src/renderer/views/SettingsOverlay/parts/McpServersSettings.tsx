@@ -1,20 +1,21 @@
-import { useEffect } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { BuiltInMcpServerId, McpServer } from "@/shared/contracts";
+import { McpProjectSettingsPicker } from "@/renderer/components/mcp/McpProjectSettingsPicker";
 import { McpServersManager } from "@/renderer/components/mcp/McpServersManager";
 import { sharedSettingsServerPersistence } from "@/renderer/components/mcp/mcpServersMutation";
 import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginCopy";
 import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
+import { openProjectSettings } from "@/renderer/actions/panelActions";
 import { saveProjectMcpServers } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
-import {
-  ensureProjectMcpServersLoaded,
-  isProjectMcpServersLoaded,
-  loadAuthoritativeProjectMcpServers,
-} from "@/renderer/state/projectSettings/projectSettingsLoader";
+import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
+import { loadAuthoritativeProjectMcpServers } from "@/renderer/state/projectSettings/projectSettingsLoader";
+import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { isHomeProject } from "@/shared/homeScope";
-import { SettingsPage } from "./SettingsForm";
+import { Button } from "@/renderer/components/common/Button";
+import { SettingRow, SettingsPage } from "./SettingsForm";
 import { CrossagentRoutingSection } from "./CrossagentRoutingSection";
 
 export function McpServersSettings() {
@@ -32,12 +33,10 @@ export function McpServersSettings() {
   const projects = useAppStore((state) => state.projects);
   // Catalog rows don't carry private MCP settings; open this page's workspace
   // section with them resident instead of reading "not loaded" as empty.
-  useEffect(() => {
-    if (!workspaceProject || isProjectMcpServersLoaded(workspaceProject)) return;
-    void ensureProjectMcpServersLoaded(workspaceProject.id).catch(() => undefined);
-  }, [workspaceProject]);
+  useResidentProjectMcpServers(workspaceProject);
+  const isReachable = useReachableProjectFilter();
   const importProjects = projects
-    .filter((project) => !isHomeProject(project))
+    .filter((project) => !isHomeProject(project) && isReachable(project))
     .map((project) => ({
       id: project.id,
       name: project.name,
@@ -68,6 +67,19 @@ export function McpServersSettings() {
       description={t`Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings.`}
       bodyClassName="space-y-5"
     >
+      <SettingRow
+        anchorId="mcpServers.projects"
+        title={t`Project MCP servers`}
+        description={t`Servers in a project's settings apply only to that project and override global servers with the same name. To move a global server, edit it and change its scope.`}
+      >
+        <McpProjectSettingsPicker
+          projects={importProjects}
+          onOpen={(projectId) => {
+            usePanelStore.getState().closeSettings();
+            openProjectSettings(projectId, "mcp");
+          }}
+        />
+      </SettingRow>
       <div data-settings-anchor="mcpServers.manage">
         <McpServersManager
           key={workspaceProject?.id ?? "user-only"}
@@ -106,7 +118,18 @@ export function McpServersSettings() {
             crossagents: {
               title: t`Crossagents`,
               actionLabel: t`Crossagent routing and ranking`,
-              content: <CrossagentRoutingSection />,
+              content: (
+                <div className="space-y-3">
+                  <CrossagentRoutingSection />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onPress={() => usePanelStore.getState().openSettingsSection("crews")}
+                  >
+                    {t`Crews`}
+                  </Button>
+                </div>
+              ),
               dialogClassName: "sm:max-w-2xl",
             },
           }}

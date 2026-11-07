@@ -26,6 +26,16 @@ export function defaultFormatPromptSegments(segments: PromptSegment[]): string {
   return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
 }
 
+/**
+ * Terminal input for TUIs that submit on Enter: a multiline prompt goes in
+ * bracketed paste so its inner newlines do not submit early, and the short
+ * wait lets the paste settle before Enter.
+ */
+export function bracketedPasteDirectInput(prompt: string): string[] {
+  const payload = prompt.includes("\n") ? `\x1b[200~${prompt}\x1b[201~` : prompt;
+  return [payload, "@wait:60", "\r"];
+}
+
 export function detectAuthFile(filePath: string): AuthState {
   return existsSync(filePath) ? "authenticated" : "missing";
 }

@@ -9,7 +9,12 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useThreadHasLiveWorkflow } from "@/renderer/state/threadLiveWorkflowStore";
 import { useThread } from "@/renderer/state/useThread";
-import { getPrStatusTone, PR_TONE_TEXT_CLASS } from "@/renderer/utils/prStatus";
+import {
+  describePrStatus,
+  getPrStatusTone,
+  PR_STATUS_LABEL,
+  PR_TONE_TEXT_CLASS,
+} from "@/renderer/utils/prStatus";
 import { useExperimentCandidateStats } from "./useExperimentCandidateStats";
 
 export function ExperimentCandidateCard(props: {
@@ -49,6 +54,9 @@ export function ExperimentCandidateCard(props: {
   );
   const prNumber = pullRequest?.number ?? thread?.prNumber;
   const hasPullRequest = prNumber !== undefined && pullRequest?.state !== "closed";
+  const prStatusLabel = t(
+    PR_STATUS_LABEL[describePrStatus(pullRequest?.state, pullRequest?.checksStatus, pullRequest)],
+  );
   const prIconClass =
     PR_TONE_TEXT_CLASS[getPrStatusTone(pullRequest?.state, pullRequest?.checksStatus, pullRequest)];
   const { stats, isRefreshing: statsRefreshing } = useExperimentCandidateStats({
@@ -165,7 +173,7 @@ export function ExperimentCandidateCard(props: {
                 size="sm"
                 variant="primary"
                 className="h-7"
-                aria-label={t`Open PR #${prNumber}`}
+                aria-label={t`Open PR #${prNumber}: ${prStatusLabel}`}
                 isDisabled={props.operationLocked || !projectId || !worktreePath}
                 onPress={() => {
                   if (projectId && worktreePath) showGitReviewPanel(projectId, worktreePath);

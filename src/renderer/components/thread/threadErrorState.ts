@@ -10,6 +10,8 @@ export interface ThreadErrorDockState {
   message: string;
   /** Set for an advisory notice; absent for an error. */
   severity?: "warning";
+  /** Structured cause the provider reported, when it knows one. */
+  reason?: string;
 }
 
 const EMPTY_ERROR_DOCK_STATES: ThreadErrorDockState[] = [];
@@ -23,6 +25,15 @@ const errorDockStatesCache = new Map<
 >();
 
 const errorDockStateByItem = new WeakMap<RuntimeChatItem, ThreadErrorDockState>();
+
+/** A thread whose status is `error` must explain itself without a transient error item. */
+export function withThreadStatusErrorDock(
+  itemStates: ThreadErrorDockState[],
+  statusError: ThreadErrorDockState | null,
+): ThreadErrorDockState[] {
+  if (!statusError || itemStates.some((state) => state.severity !== "warning")) return itemStates;
+  return [...itemStates, statusError];
+}
 
 /** Errors since the latest user message, oldest → newest (composer order). */
 export function selectThreadErrorDockStates(
@@ -61,12 +72,21 @@ export function getThreadErrorDockStateForItem(item: RuntimeChatItem): ThreadErr
   if (!message) return null;
   if (isAbortOnlyErrorMessage(message)) return null;
   const severity = payload?.severity === "warning" ? ("warning" as const) : undefined;
+  const reason = payload?.reason;
   const cached = errorDockStateByItem.get(item);
-  if (cached && cached.message === message && cached.severity === severity) return cached;
+  if (
+    cached &&
+    cached.message === message &&
+    cached.severity === severity &&
+    cached.reason === reason
+  ) {
+    return cached;
+  }
   const dock: ThreadErrorDockState = {
     sourceItemId: item.id,
     message,
     ...(severity ? { severity } : {}),
+    ...(reason ? { reason } : {}),
   };
   errorDockStateByItem.set(item, dock);
   return dock;
@@ -102,23 +122,29 @@ export function isAuthErrorMessage(message: string): boolean {
 
 /**
  * Whether the auth-required dock applies, shared by every surface that hosts it
- * across full and compact composer presentations. A stale runtime
- * auth error — e.g. a 401 from before the user signed in — must not keep the
- * dock visible once detection confirms the agent is authenticated again;
- * `hasRuntimeAuthError` is returned separately because the error dock hides
- * itself for exactly those messages.
+ * across full and compact composer presentations. Runtime failures always
+ * offer sign-in: a credential can still exist after it expires. Keep input
+ * available when detection reports authenticated, so a historical error cannot
+ * block retry after signing in elsewhere or reopening the thread.
  */
 export function resolveThreadAuthState(input: {
   readonly authState: AuthState | undefined;
   readonly errorDockStates: readonly ThreadErrorDockState[];
 }): { readonly authRequired: boolean; readonly hasRuntimeAuthError: boolean } {
-  const hasRuntimeAuthError =
-    input.authState !== "authenticated" &&
-    input.errorDockStates.some(
-      (state) => state.severity !== "warning" && isAuthErrorMessage(state.message),
-    );
+  const hasRuntimeAuthError = input.errorDockStates.some(isRuntimeAuthError);
   return {
-    authRequired: input.authState === "missing" || hasRuntimeAuthError,
+    authRequired:
+      input.authState === "missing" || (input.authState !== "authenticated" && hasRuntimeAuthError),
     hasRuntimeAuthError,
   };
+}
+
+/**
+ * A provider that recognizes its own sign-in failure from a structured payload
+ * reports `reason: "auth_required"`; the message heuristic covers providers
+ * (and older hosts) that only surface text.
+ */
+export function isRuntimeAuthError(state: ThreadErrorDockState): boolean {
+  if (state.severity === "warning") return false;
+  return state.reason === "auth_required" || isAuthErrorMessage(state.message);
 }

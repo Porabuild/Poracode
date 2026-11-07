@@ -20,6 +20,8 @@ data class ProjectHostLease(
     val scopes: Set<String>,
     val online: Boolean,
     val ready: Boolean,
+    val cacheEndpoint: String? = null,
+    val desktopId: String? = null,
     /** Capability from this live connection's handshake; cleared while reconnecting. */
     val browserForwardVersions: Set<Int> = emptySet(),
     /**

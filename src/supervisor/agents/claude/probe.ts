@@ -242,6 +242,7 @@ async function probeClaudeSdkPartialWsl(
       modelEfforts?: AgentCapability["modelEfforts"];
       modelContextSizes?: AgentCapability["modelContextSizes"];
       fastModels?: AgentCapability["fastModels"];
+      workflowModels?: AgentCapability["workflowModels"];
       fastAvailable?: boolean;
       error?: string;
     };
@@ -256,7 +257,8 @@ async function probeClaudeSdkPartialWsl(
       parsed.defaultHiddenModels !== undefined ||
       parsed.modelEfforts !== undefined ||
       parsed.modelContextSizes !== undefined ||
-      parsed.fastModels !== undefined;
+      parsed.fastModels !== undefined ||
+      parsed.workflowModels !== undefined;
     if (!parsed.slashCommands?.length && !fastDisabledReason && !hasModelCapabilities) {
       return undefined;
     }
@@ -266,6 +268,7 @@ async function probeClaudeSdkPartialWsl(
       ...(parsed.modelEfforts ? { modelEfforts: parsed.modelEfforts } : {}),
       ...(parsed.modelContextSizes ? { modelContextSizes: parsed.modelContextSizes } : {}),
       ...(parsed.fastModels ? { fastModels: parsed.fastModels } : {}),
+      ...(parsed.workflowModels ? { workflowModels: parsed.workflowModels } : {}),
       ...(parsed.slashCommands?.length ? { slashCommands: parsed.slashCommands } : {}),
       ...(fastDisabledReason ? { fastDisabledReason } : {}),
     };

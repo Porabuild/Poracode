@@ -8,8 +8,10 @@ vi.mock("@/host/db/conversationSearch", () => ({
     (typeof import("@/host/db/conversationSearch"))["dbSearchConversations"]
   >(async () => ({ version: 1, entries: [], nextCursor: null, indexing: false })),
 }));
+import { AGENT_PLUGINS_MANIFEST_SCHEMA_URL } from "@/shared/plugins/spec";
 import type {
   AgentStatusesResponse,
+  LoadedPlugin,
   CloseThreadPayload,
   GitProjectSnapshotResult,
   GitWorktreeInfo,
@@ -76,6 +78,37 @@ const thread = {
   config: { model: "gpt-5.6", effort: "high", fast: true },
 } as Thread;
 
+function loadedPlugin(name: string, builtInMcpServerIds: string[] = []): LoadedPlugin {
+  return {
+    name,
+    source: "user",
+    root: `/plugins/${name}`,
+    manifest: { $schema: AGENT_PLUGINS_MANIFEST_SCHEMA_URL, name, version: "1.0.0" },
+    poracode: {
+      category: "developer-tools",
+      featured: false,
+      communityMaintained: false,
+      defaultEnabled: true,
+      alwaysEnabled: false,
+      nativePluginNames: [],
+      builtInMcpServerIds,
+      skills: {},
+    },
+    skills: [],
+    mcpServers: [],
+    diagnostics: [],
+  } as LoadedPlugin;
+}
+
+function installed(...names: string[]): SharedSettings["installedPlugins"] {
+  return Object.fromEntries(
+    names.map((name) => [
+      name,
+      { version: "1.0.0", enabled: true, disabledSkillIds: [], disabledMcpServerNames: [] },
+    ]),
+  );
+}
+
 function makeThread(overrides: Partial<Thread>): Thread {
   return {
     id: "t",
@@ -128,6 +161,7 @@ function context(
     prDetails?: PrDetails;
     prDiff?: string;
     probeResult?: McpProbeResult;
+    plugins?: LoadedPlugin[];
     authenticatedUrls?: string[];
     skillScan?: SkillScanResult;
   } = {},
@@ -252,6 +286,23 @@ function context(
     })),
     gitAbortMerge: vi.fn<SC["gitAbortMerge"]>(async () => ({})),
     gitFinishMerge: vi.fn<SC["gitFinishMerge"]>(async () => ({ success: true })),
+    forgeGetRepository: vi.fn<SC["forgeGetRepository"]>(),
+    forgeEditPr: vi.fn<SC["forgeEditPr"]>(),
+    forgeCreatePr: vi.fn<SC["forgeCreatePr"]>(),
+    forgeListPullRequests: vi.fn<SC["forgeListPullRequests"]>(),
+    forgeMergePr: vi.fn<SC["forgeMergePr"]>(),
+    forgeMergePrAtHead: vi.fn<SC["forgeMergePrAtHead"]>(),
+    forgeClosePr: vi.fn<SC["forgeClosePr"]>(),
+    forgeReopenPr: vi.fn<SC["forgeReopenPr"]>(),
+    forgeMarkPrReady: vi.fn<SC["forgeMarkPrReady"]>(),
+    forgeUpdatePrBranch: vi.fn<SC["forgeUpdatePrBranch"]>(),
+    forgeGetPrChecks: vi.fn<SC["forgeGetPrChecks"]>(),
+    forgeGetPrFiles: vi.fn<SC["forgeGetPrFiles"]>(),
+    forgeGetPrDiff: vi.fn<SC["forgeGetPrDiff"]>(),
+    forgeGetPrDetails: vi.fn<SC["forgeGetPrDetails"]>(),
+    forgeGetPrReviewComments: vi.fn<SC["forgeGetPrReviewComments"]>(),
+    forgePostPrComment: vi.fn<SC["forgePostPrComment"]>(),
+    forgeSubmitPrReview: vi.fn<SC["forgeSubmitPrReview"]>(),
     ghCheckAvailable: vi.fn<SC["ghCheckAvailable"]>(async () => ({
       available: options.ghAvailable ?? true,
     })),
@@ -319,6 +370,13 @@ function context(
     getMcpOauthStatus: vi.fn<SC["getMcpOauthStatus"]>(async () => ({
       authenticatedUrls: options.authenticatedUrls ?? [],
     })),
+    beginMcpServerOauth: vi.fn<SC["beginMcpServerOauth"]>(async () => ({ status: "authorized" })),
+    listPlugins: vi.fn<SC["listPlugins"]>(async () => ({
+      plugins: options.plugins ?? [],
+      userPluginsDir: "/plugins",
+    })),
+    waitMcpServerOauth: vi.fn<SC["waitMcpServerOauth"]>(async () => ({ status: "authorized" })),
+    clearMcpServerOauth: vi.fn<SC["clearMcpServerOauth"]>(async () => undefined),
     scanSkills: vi.fn<SC["scanSkills"]>(
       async () =>
         options.skillScan ?? {
@@ -617,6 +675,32 @@ describe("Poracode app control tools — threads", () => {
     expect(createThread).toHaveBeenCalledWith(
       expect.objectContaining({ worktree: { branch: "feature/x" } }),
     );
+  });
+
+  it("create_thread carries explicit tool choices and attachments without changing app defaults", async () => {
+    const { ctx, createThread } = context();
+    const choices = {
+      browserMcp: true,
+      crossagentMcp: false,
+      chromeMcp: true,
+      computerUse: true,
+      mcpServers: { custom: true, other: false },
+      plugins: { github: true, mail: false },
+      attachments: [{ path: "/tmp/image.png", mimeType: "image/png" }, { path: "/tmp/notes.txt" }],
+    };
+    await dispatchTool("create_thread", { projectId: "p", prompt: "Read these", ...choices }, ctx);
+    expect(createThread).toHaveBeenCalledWith(expect.objectContaining(choices));
+    expect(ctx.settings.write).not.toHaveBeenCalled();
+    const spec = TOOLS.find((tool) => tool.name === "create_thread")!;
+    expect(spec.inputSchema.properties).toMatchObject({
+      browserMcp: { type: "boolean" },
+      crossagentMcp: { type: "boolean" },
+      chromeMcp: { type: "boolean" },
+      computerUse: { type: "boolean" },
+      plugins: { type: "object" },
+      mcpServers: { type: "object" },
+      attachments: { type: "array" },
+    });
   });
 
   it("update_thread dispatches the matching remote thread commands", async () => {
@@ -1202,6 +1286,83 @@ describe("Poracode app control tools — projects", () => {
     );
   });
 
+  it("update_project switches plugins per project and null restores the global state", async () => {
+    const pluginProjects = [
+      {
+        id: "p1",
+        name: "Alpha",
+        location: { kind: "posix", path: "/work/alpha" },
+        pluginOverrides: { linear: false },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      } as Project,
+    ];
+    const { ctx, updateProject } = context({
+      projects: pluginProjects,
+      plugins: [loadedPlugin("sentry"), loadedPlugin("linear")],
+      settings: { ...defaultSharedSettings, installedPlugins: installed("sentry", "linear") },
+    });
+
+    const result = (await dispatchTool(
+      "update_project",
+      { projectId: "p1", plugins: { sentry: true, linear: null } },
+      ctx,
+    )) as { project: { pluginOverrides?: Record<string, boolean> } };
+
+    expect(result.project.pluginOverrides).toEqual({ sentry: true });
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "p1", pluginOverrides: { sentry: true } }),
+    );
+
+    await dispatchTool("update_project", { projectId: "p1", plugins: { linear: null } }, ctx);
+    expect(updateProject.mock.calls.at(-1)![0]).not.toHaveProperty("pluginOverrides");
+
+    const detail = (await dispatchTool("get_project", { projectId: "p1" }, ctx)) as {
+      pluginOverrides?: Record<string, boolean>;
+    };
+    expect(detail.pluginOverrides).toEqual({ linear: false });
+  });
+
+  it("update_project refuses unknown, uninstalled, and built-in tool plugins", async () => {
+    const { ctx, updateProject } = context({
+      projects,
+      plugins: [
+        loadedPlugin("sentry"),
+        loadedPlugin("figma"),
+        { ...loadedPlugin("browser-tools", ["browser"]), source: "bundled" },
+      ],
+      settings: { ...defaultSharedSettings, installedPlugins: installed("sentry") },
+    });
+    for (const [name, error] of [
+      ["missing", /not installed: missing/],
+      ["figma", /not installed: figma/],
+      ["browser-tools", /not switched per project/],
+    ] as const) {
+      await expect(
+        dispatchTool("update_project", { projectId: "p1", plugins: { [name]: false } }, ctx),
+      ).rejects.toThrow(error);
+    }
+    // Clearing a stale switch needs no catalog check.
+    await dispatchTool("update_project", { projectId: "p1", plugins: { missing: null } }, ctx);
+    expect(updateProject).toHaveBeenCalledTimes(1);
+  });
+
+  it("update_project refuses plugin switches on the Home project", async () => {
+    const { ctx, updateProject } = context({
+      projects: [
+        {
+          id: HOME_PROJECT_ID,
+          name: "Home",
+          location: { kind: "posix", path: "/home" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        } as Project,
+      ],
+    });
+    await expect(
+      dispatchTool("update_project", { projectId: HOME_PROJECT_ID, plugins: { x: true } }, ctx),
+    ).rejects.toThrow(/Home project has no plugin switches/);
+    expect(updateProject).not.toHaveBeenCalled();
+  });
+
   it("update_project files a project into a workspace and can unfile it", async () => {
     const filedProjects = [
       {
@@ -1501,6 +1662,17 @@ describe("Poracode app control tools — settings", () => {
     ).rejects.toThrow(/managed elsewhere/);
     expect(settingsWrite).not.toHaveBeenCalled();
   });
+
+  it.each(["computerUseLockedUse", "computerUseLockedUseDimDisplay"])(
+    "update_settings protects %s user opt-in",
+    async (key) => {
+      const { ctx, settingsWrite } = context({ settings: settingsWithSecret() });
+      await expect(
+        dispatchTool("update_settings", { patch: { [key]: true } }, ctx),
+      ).rejects.toThrow(key);
+      expect(settingsWrite).not.toHaveBeenCalled();
+    },
+  );
 
   it("update_settings refuses sensitive agent settings", async () => {
     const { ctx, settingsWrite } = context({ settings: settingsWithSecret() });
@@ -2468,6 +2640,108 @@ describe("Poracode app control tools — github", () => {
     expect(result).not.toHaveProperty("merged");
   });
 
+  it("forwards neutral review account, repository and expected-head selectors without gh fallback", async () => {
+    const { ctx, supervisor } = context({ projects });
+    const account = {
+      forge: "gitlab" as const,
+      host: "https://git.example/gitlab",
+      login: "alice",
+    };
+    supervisor.forgeGetRepository.mockResolvedValue({
+      repository: {
+        forge: "gitlab",
+        host: account.host,
+        repository: "team/app",
+        remote: "origin",
+        account,
+        capabilities: {
+          mergeMethods: ["merge", "squash"],
+          reviewDecisions: ["approve", "comment"],
+          draft: true,
+          reopen: true,
+          updateBranch: false,
+          rebaseBranch: true,
+          edit: true,
+          checks: true,
+          reviewThreads: true,
+          expectedHeadMerge: true,
+          autoMerge: true,
+          autoFix: true,
+          adminMerge: false,
+        },
+      },
+    });
+    const { details } = await supervisor.ghGetPrDetails({
+      projectLocation: projects[0]!.location,
+      prNumber: 7,
+    });
+    supervisor.ghGetPrDetails.mockClear();
+    supervisor.forgeGetPrDetails.mockResolvedValue({ details });
+    supervisor.forgeMergePrAtHead.mockResolvedValue(undefined);
+    await dispatchTool(
+      "review_merge_pr",
+      {
+        projectId: "p1",
+        prNumber: 7,
+        method: "squash",
+        forgeAccount: account,
+        forgeRepository: "team/app",
+        expectedHeadSha: "a".repeat(40),
+      },
+      ctx,
+    );
+    expect(supervisor.forgeMergePrAtHead).toHaveBeenCalledWith({
+      projectLocation: projects[0]!.location,
+      prNumber: 7,
+      method: "squash",
+      admin: false,
+      forgeAccount: account,
+      forgeRepository: "team/app",
+      expectedHeadSha: "a".repeat(40),
+    });
+    expect(supervisor.forgeGetPrDetails).toHaveBeenCalledWith(
+      expect.objectContaining({ forgeAccount: account, forgeRepository: "team/app" }),
+    );
+    expect(supervisor.ghMergePrAtHead).not.toHaveBeenCalled();
+    expect(supervisor.ghGetPrDetails).not.toHaveBeenCalled();
+  });
+
+  it("does not retry a successful neutral review mutation when readback fails", async () => {
+    const { ctx, supervisor } = context({ projects });
+    supervisor.forgeSubmitPrReview.mockResolvedValue(undefined);
+    supervisor.forgeGetPrDetails.mockRejectedValue(new Error("offline"));
+    const result = await dispatchTool(
+      "review_submit",
+      {
+        projectId: "p1",
+        prNumber: 7,
+        decision: "comment",
+        body: "Please check the race",
+        forgeRepository: "team/app",
+      },
+      ctx,
+    );
+    expect(result).toMatchObject({ submitted: true, syncWarning: expect.any(String) });
+    expect(supervisor.forgeSubmitPrReview).toHaveBeenCalledOnce();
+  });
+
+  it("refuses malformed neutral account scope before reaching any supervisor operation", async () => {
+    const { ctx, supervisor } = context({ projects });
+    await expect(
+      dispatchTool(
+        "review_edit",
+        {
+          projectId: "p1",
+          prNumber: 7,
+          title: "New",
+          forgeAccount: { forge: "gitlab", host: "https://user:token@git.example", login: "alice" },
+        },
+        ctx,
+      ),
+    ).rejects.toThrow(/Invalid input/);
+    expect(supervisor.forgeEditPr).not.toHaveBeenCalled();
+  });
+
   it("gh_get_pr resolves checks by the PR head branch and caps the diff", async () => {
     const prDetails = {
       number: 7,
@@ -2501,10 +2775,10 @@ describe("Poracode app control tools — github", () => {
     expect(result.diff.length).toBe(80_000);
   });
 
-  it("github tools fail clearly when the gh CLI is unavailable", async () => {
+  it("review tools fail clearly when the source integration is unavailable", async () => {
     const { ctx, supervisor } = context({ projects, ghAvailable: false });
     await expect(dispatchTool("gh_list_prs", { projectId: "p1" }, ctx)).rejects.toThrow(
-      /gh.*not available|not available.*gh/i,
+      "The source host integration is unavailable or not authenticated in this project's runtime. Configure the matching source host CLI or scoped credentials.",
     );
     expect(supervisor.ghListPullRequests).not.toHaveBeenCalled();
   });
@@ -2798,6 +3072,17 @@ describe("Poracode app control tools — skills", () => {
     { id: "p1", name: "Alpha", location: { kind: "posix", path: "/work/alpha" } } as Project,
   ];
 
+  it("list_skills scans with the project's plugin switches beneath the caller's own", async () => {
+    const { ctx, supervisor } = context({
+      projects: [{ ...projects[0]!, pluginOverrides: { sentry: true, linear: true } } as Project],
+      threads: [{ ...thread, config: { ...thread.config, pluginOverrides: { linear: false } } }],
+    });
+    await dispatchTool("list_skills", { projectId: "p1" }, ctx);
+    expect(supervisor.scanSkills).toHaveBeenCalledWith(
+      expect.objectContaining({ pluginOverrides: { sentry: true, linear: false } }),
+    );
+  });
+
   it("list_skills groups global and project scopes", async () => {
     const skillScan: SkillScanResult = {
       skills: [
@@ -2863,6 +3148,19 @@ describe("Poracode app control tools — skills", () => {
       project: [{ id: "p1s" }],
       effectiveSkillIds: [],
     });
+  });
+
+  it("lists and reads plugin skills using only the calling thread's overrides", async () => {
+    const overrides = { github: true, mail: false };
+    const { ctx, supervisor } = context({
+      threads: [{ ...thread, config: { model: "fixture", pluginOverrides: overrides } }],
+    });
+    await dispatchTool("list_skills", {}, ctx);
+    expect(supervisor.scanSkills).toHaveBeenLastCalledWith({ pluginOverrides: overrides });
+    await expect(dispatchTool("read_skill", { skillId: "absent" }, ctx)).rejects.toThrow(
+      "Unknown skill",
+    );
+    expect(supervisor.scanSkills).toHaveBeenLastCalledWith({ pluginOverrides: overrides });
   });
 
   it("set_skill_enabled toggles by absolutePath", async () => {

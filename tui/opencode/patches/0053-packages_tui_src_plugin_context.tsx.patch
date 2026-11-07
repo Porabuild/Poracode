@@ -1,0 +1,63 @@
+diff --git a/packages/tui/src/plugin/context.tsx b/packages/tui/src/plugin/context.tsx
+index 31c4f4c..4e7f9d9 100644
+--- a/packages/tui/src/plugin/context.tsx
++++ b/packages/tui/src/plugin/context.tsx
+@@ -85,7 +85,16 @@ type Trace = <T>(stage: string, tags: LogTags, task: () => Promise<T>) => Promis
+ 
+ const PluginContext = createContext<Value>()
+ 
+-export function PluginProvider(props: ParentProps<{ packages: PackageSource; directories: string[] }>) {
++// poracode: `internal` injects bundled plugins shipped by the embedding
++// client (e.g. Poracode) alongside the upstream builtins.
++export function PluginProvider(
++  props: ParentProps<{
++    packages: PackageSource
++    directories: string[]
++    server: boolean
++    internal?: readonly Plugin.Definition[]
++  }>,
++) {
+   const host = usePluginHost()
+   const log = useLog({ component: "plugin" })
+   const config = useConfig()
+@@ -93,8 +102,9 @@ export function PluginProvider(props: ParentProps<{ packages: PackageSource; dir
+   const client = useClient()
+   const data = useData()
+   const [serverPlugins, setServerPlugins] = createSignal<readonly PluginInfo[]>([])
++  // poracode: Do not load host-reported plugins from an OpenCode user's global profile in embedded clients.
+   const serverTuiPlugins = createMemo(() =>
+-    serverPlugins().filter(
++    (props.server ? serverPlugins() : []).filter(
+       (plugin): plugin is PluginInfo & { readonly source: { readonly type: "package" } | { readonly type: "local" } } =>
+         plugin.state.status === "active" &&
+         plugin.features.tui === true &&
+@@ -314,6 +324,9 @@ export function PluginProvider(props: ParentProps<{ packages: PackageSource; dir
+     const desired = new Map<string, Desired>()
+     for (const plugin of builtins)
+       desired.set(plugin.id, { plugin, source: "builtin", version: "builtin", enabled: true })
++    // poracode: embedded internal plugins register like builtins.
++    for (const plugin of props.internal ?? [])
++      desired.set(plugin.id, { plugin, source: "builtin", version: "builtin", enabled: true })
+     const failures: State[] = []
+     for (const source of entries) {
+       const entry = source.entry
+@@ -536,8 +549,9 @@ export function PluginProvider(props: ParentProps<{ packages: PackageSource; dir
+       },
+     ),
+   )
+-  const syncServerPlugins = () =>
+-    client.api.plugin
++  const syncServerPlugins = () => {
++    if (!props.server) return
++    return client.api.plugin
+       .list({ location: data.location.default() })
+       .then((response) => {
+         const failed = response.data.filter(
+@@ -560,6 +574,7 @@ export function PluginProvider(props: ParentProps<{ packages: PackageSource; dir
+         })
+       })
+       .catch(() => undefined)
++  }
+   createEffect(
+     on(
+       () => JSON.stringify(data.location.default()),

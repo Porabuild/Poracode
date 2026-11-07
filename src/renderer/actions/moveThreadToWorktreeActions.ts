@@ -6,7 +6,6 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { reopenStoredThread, setThreadWorktree, unloadStoredThread } from "./threadActions";
 import { createWorktree } from "./worktreeLaunchActions";
 import { initializeCreatedWorktree } from "./worktreeInitialization";
@@ -40,10 +39,6 @@ export async function moveThreadToWorktree(threadId: string, withChanges: boolea
   }
 
   const wasActive = thread.status !== "inactive";
-  // As with a new thread, only projected projects delegate setup to the host.
-  // Managed desktop rows still persist through the host, but local setup must
-  // use the same eager shell path as startThreadFromDraft, exactly once.
-  const hostFollowUp = remoteOwner(thread) !== undefined;
   let unloaded = false;
   let assigned = false;
   movingThreadIds.add(threadId);
@@ -83,9 +78,8 @@ export async function moveThreadToWorktree(threadId: string, withChanges: boolea
       return;
     }
     try {
-      await setThreadWorktree(threadId, result.path, branch, {
-        ...(hostFollowUp ? { isNewWorktree: true } : {}),
-      });
+      // Setup runs once, from this client, as for a new thread's worktree.
+      await setThreadWorktree(threadId, result.path, branch);
     } catch (error) {
       // The host may have assigned the worktree while its response was lost.
       // Resuming with stale source metadata can start the agent in the wrong cwd.

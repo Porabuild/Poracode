@@ -5,7 +5,7 @@ import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
-import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
+import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
 import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
 /**
@@ -64,20 +64,19 @@ export function usePanelVisibility() {
   const sideChatOpen = usePanelStore((s) => s.sideChatPanelOpen);
   const bottomDocks = useBottomDockedTabs();
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
-  const threadDocksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
-  const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
   const currentThreadId = useFocusedThreadId();
   const sideChatScoped = useSideChatPanelStore((s) => s.entry?.source.id === currentThreadId);
   const sideChatPanelOpen = sideChatOpen && sideChatScoped;
   const bottomTerminalOpen = useBottomTerminalVisible();
   const informationalDocksPanelOpen = useThreadDocksPanelAvailable();
   const threadDocksPanelOpen = usePanelStore((s) => s.threadDocksPanelOpen);
-  const gallery = useThreadGalleryImages(currentThreadId ?? undefined);
-  const docksPanelOpen =
-    informationalDocksPanelOpen ||
-    (threadDocksPanelOpen &&
-      gallery.length > 0 &&
-      (threadDocksPlacement === "right" || threadDocksFocus === "images"));
+  const gallery = useThreadGalleryCollection(currentThreadId ?? undefined, {
+    requestPending: false,
+  });
+  const hasImages =
+    gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
+    0;
+  const docksPanelOpen = informationalDocksPanelOpen || (threadDocksPanelOpen && hasImages);
 
   const isTerminalRight = terminalPosition === "right";
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;

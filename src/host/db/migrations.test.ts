@@ -71,8 +71,16 @@ describe("database migration registry", () => {
       [61, "settle reasoning in completed runtime turns"],
       [62, "retain token categories and cost provenance"],
       [63, "index saved conversation text"],
+      [64, "retain independent conversation fork lineage"],
+      [65, "pin review watch source identity"],
+      [66, "index manual catalog ordering"],
+      [67, "record per-thread token usage by crew member"],
+      [68, "count streamed per-call usage growth"],
+      [69, "project branch pins"],
+      [70, "remember turns cut off before they finished"],
+      [71, "project plugin overrides"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(63);
+    expect(LATEST_SCHEMA_VERSION).toBe(71);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -110,9 +118,9 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 63,
-      name: "index saved conversation text",
-      rollback: "forward-only",
+      version: 71,
+      name: "project plugin overrides",
+      rollback: "rollback-compatible",
     });
     // Migrations below the floor keep their reviewed defaults.
     expect(() =>

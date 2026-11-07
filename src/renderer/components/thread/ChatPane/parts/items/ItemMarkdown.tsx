@@ -1,5 +1,5 @@
 import { Link } from "@heroui/react";
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import { useSmoothStreamedText } from "@/renderer/hooks/useSmoothStreamedText";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
@@ -20,15 +20,37 @@ interface ItemMarkdownProps {
 
 interface SmoothItemMarkdownProps extends ItemMarkdownProps {
   isStreaming: boolean;
+  initialRevealKey?: string;
 }
 
-export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProps) {
+// Remember first paint across virtual-row and pane remounts, without retaining message text.
+const revealedStreamKeys = new Set<string>();
+
+export function SmoothItemMarkdown({
+  text,
+  isStreaming,
+  initialRevealKey,
+}: SmoothItemMarkdownProps) {
+  const [initialText] = useState(() =>
+    initialRevealKey && !revealedStreamKeys.has(initialRevealKey) ? "" : text,
+  );
   const chunkedPlainText = shouldUseChunkedPlainText(text);
   // Long plain output is still readable as it arrives; limiting DOM updates
   // avoids repeatedly re-laying out an ever-growing paragraph every frame.
-  // Rich reveal updates at about 30 Hz instead of reparsing the whole prefix
-  // at display refresh rate. Completion and replacement still flush immediately.
-  const smoothedText = useSmoothStreamedText(text, isStreaming, chunkedPlainText ? 1_000 : 32);
+  // Normal reveal follows display frames at up to 60 updates per second.
+  const smoothedText = useSmoothStreamedText(
+    text,
+    isStreaming,
+    chunkedPlainText ? 1_000 : 1_000 / 60,
+    initialText,
+  );
+  const hasRevealedText = smoothedText.length > 0;
+  useEffect(() => {
+    if (!initialRevealKey || !hasRevealedText) return;
+    revealedStreamKeys.add(initialRevealKey);
+    if (revealedStreamKeys.size > 500)
+      revealedStreamKeys.delete(revealedStreamKeys.values().next().value!);
+  }, [initialRevealKey, hasRevealedText]);
   const displayedText = isStreaming ? smoothedText : text;
   return <ItemMarkdown text={displayedText} plainText={chunkedPlainText} />;
 }

@@ -118,7 +118,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_mirrored == true }}
     # Enroll the runner with exactly these labels: mirrored networking is a
     # Windows 11 client feature, so the labels — not the comments — are what
-    # keep this leg honest. Node 24 + Bun must be reachable through the
+    # keep this leg honest. Node 26 + Bun must be reachable through the
     # actions below (they provision both).
     runs-on: [self-hosted, Windows, windows11, poracode-wsl-mirrored]
     timeout-minutes: 120

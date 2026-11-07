@@ -15,7 +15,6 @@ import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
 import { legacyProductNameFor } from "@/shared/legacyProductPaths";
 import { shouldUseMockKeychain } from "./mockKeychain";
-import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
 import { installProcessStdioErrorHandlers } from "./processStdio";
 import { HostDataFence, HostDataFenceInUseError } from "@/backend/ownership/hostDataFence";
 import { HostOwnerLease, HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
@@ -29,19 +28,19 @@ import {
   resolveDesktopBaseDir,
   shouldDeferLeaseForAttachProbe,
 } from "./backend/standaloneAttachBootstrap";
-import { probeLegacyOwnerConflict } from "./backend/desktopOwnerAdmission";
 import {
   baseDirOverride,
   channel,
   defaultElectronUserDataDir,
   desktopApp,
   isDev,
-  legacyBaseDirOverride,
-  legacyElectronUserDataDir,
   preserveLegacySafeStorageIdentity,
 } from "./desktopAppState";
 import { ensureMainWindow } from "./desktopAppWindows";
 import { startDesktopApp } from "./desktopAppReady";
+import { shouldRegisterPosixDesktopCli } from "./desktopCliRegistration";
+import { registerPosixDesktopCliForShell } from "./desktopCliShell";
+import { selectedDesktopAppImage } from "@/shared/desktopAppImage";
 
 // Electron can remain alive after its launching terminal or dev runner exits.
 // Install this before any startup logging so a detached diagnostic pipe cannot
@@ -95,7 +94,6 @@ if (baseDirOverride) {
 
 const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 if (hasSingleInstanceLock) {
-  const electronUserDataDir = app.getPath("userData");
   const baseDir = resolveDesktopBaseDir({
     ...(baseDirOverride ? { baseDirOverride } : {}),
     isDev,
@@ -108,17 +106,6 @@ if (hasSingleInstanceLock) {
     desktopApp.deferredStandaloneProbe = { baseDir };
   } else {
     try {
-      // Legacy-owner refusal: a live legacy server with a still-pending data
-      // import refuses BEFORE any acquire — never acquire-and-fight the
-      // importer on the desktop mapping.
-      probeLegacyOwnerConflict({
-        baseDir,
-        channel,
-        electronUserDataDir,
-        ...(legacyElectronUserDataDir ? { legacyElectronUserDataDir } : {}),
-        ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
-        allowCustomDataRoot: app.isPackaged,
-      });
       desktopApp.desktopOwnerLease = HostOwnerLease.acquire(
         resolveDesktopHostRootPaths(baseDir),
         "desktop",
@@ -149,27 +136,11 @@ if (hasSingleInstanceLock) {
       !desktopApp.deferredStandaloneProbe &&
       desktopApp.desktopOwnerLease !== null
     ) {
-      try {
-        const result = migrateLegacyDataOutOfProcess({
-          baseDir,
-          channel,
-          electronUserDataDir,
-          legacyElectronUserDataDir,
-          ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
-          allowCustomDataRoot: app.isPackaged,
-        });
-        if (result.status === "migrated") {
-          console.info(`[migrate] imported all available Lightcode data into ${baseDir}`);
-        }
-      } catch (error) {
-        console.warn(`[migrate] failed to import Lightcode data into ${baseDir}:`, error);
-      }
       // Unified data root (V5 plan 1.3): the desktop owns the `.host-v1`
       // sibling. The synchronous fast path finishes only the cases that need
-      // no promotion; a promotable or resumable plain root (including one the
-      // legacy import above just filled) is left to `admitDesktopStartup`,
-      // which promotes it under the held lease with OS-key cooperation after
-      // the ready event.
+      // no promotion; a promotable or resumable plain root is left to
+      // `admitDesktopStartup`, which promotes it under the held lease with
+      // OS-key cooperation after the ready event.
       // Deep-review guard: an unreadable operation journal (or any other
       // promotion-inspection throw) must reach the ready-time failure dialog,
       // not crash the module scope before that path exists.
@@ -269,7 +240,47 @@ if (!hasSingleInstanceLock) {
 
   void app
     .whenReady()
-    .then(startDesktopApp)
+    .then(async () => {
+      await startDesktopApp();
+      // This common continuation also runs after attached-mode startup. Command
+      // validation does not delay host admission; disposable/dev launches skip it.
+      if (
+        shouldRegisterPosixDesktopCli({
+          platform: process.platform,
+          isPackaged: app.isPackaged,
+          isDev,
+          baseDirOverride,
+          env: process.env,
+        })
+      ) {
+        try {
+          const appImagePath = selectedDesktopAppImage({
+            platform: process.platform,
+            resourcesDir: process.resourcesPath,
+            executablePath: process.execPath,
+            env: process.env,
+          });
+          const result = await registerPosixDesktopCliForShell({
+            resourcesDir: process.resourcesPath,
+            executablePath: process.execPath,
+            appVersion: app.getVersion(),
+            electronVersion: process.versions.electron,
+            channel,
+            appDataDir: app.getPath("appData"),
+            path: process.env.PATH ?? "",
+            env: process.env,
+            ...(appImagePath ? { appImagePath } : {}),
+          });
+          if (result.state === "registered") console.info("[desktop-cli] %s", result.detail);
+          else console.warn("[desktop-cli] %s", result.detail);
+        } catch (error) {
+          console.warn(
+            "[desktop-cli] Command registration was not confirmed; desktop startup will continue.",
+            error,
+          );
+        }
+      }
+    })
     .catch((error: unknown) => {
       captureMainException(error, { "poracode.feature_area": "main-initialization" });
       // Never-silent refusal (V5 H5): a startup failure — e.g. a standalone

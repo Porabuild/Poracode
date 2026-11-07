@@ -944,6 +944,12 @@ function HomeBody({
           <p className="font-mono text-[12px] text-dim">{t("footer.copyright", { year: 2026 })}</p>
           <div className="flex items-center gap-6">
             <Link
+              href="/feedback"
+              className="font-mono text-[13px] text-dim transition-colors hover:text-moon"
+            >
+              Feedback
+            </Link>
+            <Link
               href={aboutHref}
               className="font-mono text-[13px] text-dim transition-colors hover:text-moon"
             >

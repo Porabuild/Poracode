@@ -15,15 +15,11 @@ import type { ReorderPlacement } from "@/renderer/state/reorder";
 import { FLAT_THREAD_LIST_SORT_GROUP } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { dockPanelTab, showFilesPanel, showGitReviewPanel } from "@/renderer/actions/panelActions";
 import { showTerminalPanel } from "@/renderer/actions/terminalActions";
+import { dispatchThreadGroupIntents } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import {
-  dispatchManagedRootProjectReorder,
-  dispatchManagedRootThreadGroupIntents,
-  dispatchManagedRootThreadReorder,
-} from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
-import {
-  dispatchRemoteProjectReorder,
-  dispatchRemoteThreadReorder,
-} from "@/renderer/state/remoteServers/catalog/remoteCatalogIntents";
+  dispatchHostProjectReorder,
+  dispatchHostThreadReorder,
+} from "@/renderer/state/hostCatalogReorder";
 
 type ThreadDragSource = Extract<DragSourceData, { type: "thread" }>;
 type ProjectDragSource = Extract<DragSourceData, { type: "project" }>;
@@ -140,12 +136,17 @@ export function useDndHandlers() {
         finalIndex,
       });
       if (!reorder) return;
-      startTransition(() => reorderProjects(source.projectId, reorder.targetId, reorder.placement));
-      // A paired row's move is a host command on that connection; a root row
-      // keeps the managed-root dispatch, and a purely local row stays local.
-      if (!dispatchRemoteProjectReorder(source.projectId, reorder.targetId, reorder.placement)) {
-        dispatchManagedRootProjectReorder(source.projectId, reorder.targetId, reorder.placement);
-      }
+      // The move is a command on the project's owning host, managed or paired;
+      // a purely local row stays local.
+      dispatchHostProjectReorder({
+        projectId: source.projectId,
+        targetProjectId: reorder.targetId,
+        placement: reorder.placement,
+        paint: () =>
+          startTransition(() =>
+            reorderProjects(source.projectId, reorder.targetId, reorder.placement),
+          ),
+      });
     } else if (source.type === "thread") {
       if (findExperimentByThreadId(source.threadId)) return;
       const allThreads = useAppStore.getState().threads;
@@ -157,27 +158,20 @@ export function useDndHandlers() {
         finalIndex,
       });
       if (!reorder) return;
-      // Managed flat moves negotiate their separate host capability before
+      // A flat move negotiates its separate host capability before the
       // optimistic paint; an older host must leave no misleading local order.
-      if (
-        source.sortGroup === FLAT_THREAD_LIST_SORT_GROUP &&
-        dispatchManagedRootThreadReorder(
-          source.threadId,
-          reorder.targetId,
-          reorder.placement,
-          "catalog",
-        )
-      ) {
-        return;
-      }
-      const reorderInList =
-        source.sortGroup === FLAT_THREAD_LIST_SORT_GROUP
-          ? reorderThreadsAcrossProjects
-          : reorderThreads;
-      startTransition(() => reorderInList(source.threadId, reorder.targetId, reorder.placement));
-      if (!dispatchRemoteThreadReorder(source.threadId, reorder.targetId, reorder.placement)) {
-        dispatchManagedRootThreadReorder(source.threadId, reorder.targetId, reorder.placement);
-      }
+      const flat = source.sortGroup === FLAT_THREAD_LIST_SORT_GROUP;
+      const reorderInList = flat ? reorderThreadsAcrossProjects : reorderThreads;
+      dispatchHostThreadReorder({
+        threadId: source.threadId,
+        targetThreadId: reorder.targetId,
+        placement: reorder.placement,
+        scope: flat ? "catalog" : "project",
+        paint: () =>
+          startTransition(() =>
+            reorderInList(source.threadId, reorder.targetId, reorder.placement),
+          ),
+      });
     }
   }
 
@@ -214,7 +208,7 @@ export function useDndHandlers() {
             ),
           }));
           // Root rows gain the group durably only through the host command.
-          dispatchManagedRootThreadGroupIntents([
+          dispatchThreadGroupIntents([
             {
               threadId,
               groupId: currentView.activeGroupId,

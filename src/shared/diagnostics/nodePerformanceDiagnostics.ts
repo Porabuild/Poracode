@@ -17,6 +17,7 @@ import {
   ProcessPerformanceSampler,
 } from "./processPerformanceSampler";
 import type { AppMetricsSample } from "./appMetricsSample";
+import { sampleHandlerTimings, setHandlerTimingCaptureEnabled } from "./handlerTimingObservations";
 import type { RuntimePersistenceSample } from "./runtimePersistenceSample";
 
 type ProcessRole = "desktop-main" | "backend" | "supervisor" | "server" | "relay";
@@ -154,6 +155,7 @@ export function startNodePerformanceDiagnostics(
         runtimePersistence = null;
       }
     }
+    const handlerTimings = sampleHandlerTimings();
     writer.append({
       kind: "sample",
       formatVersion: NODE_PERFORMANCE_EVIDENCE_FORMAT_VERSION,
@@ -166,6 +168,7 @@ export function startNodePerformanceDiagnostics(
       // start line and every existing field are unchanged, so no version bump.
       ...(appMetrics ? { appMetrics } : {}),
       ...(runtimePersistence ? { runtimePersistence } : {}),
+      ...(handlerTimings ? { handlerTimings } : {}),
     });
   }
 
@@ -175,6 +178,9 @@ export function startNodePerformanceDiagnostics(
     if (state.error || state.budgetExceeded) void stop(state.error ? "error" : "budget");
   }
 
+  // Handler capture runs only while this evidence recording is live; record
+  // sites check the gate so normal runs pay one boolean test per handler.
+  setHandlerTimingCaptureEnabled(true);
   const timer = setInterval(capture, intervalMs);
   timer.unref();
 
@@ -182,6 +188,7 @@ export function startNodePerformanceDiagnostics(
     if (completion) return completion;
     clearInterval(timer);
     if (reason === "shutdown") appendSample();
+    setHandlerTimingCaptureEnabled(false);
     queueCapture.active = false;
     sampler.dispose();
     completion = finish(reason);

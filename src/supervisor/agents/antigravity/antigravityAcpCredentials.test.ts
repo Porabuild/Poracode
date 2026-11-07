@@ -6,6 +6,7 @@ import {
   readAntigravityAcpCredsFromMacKeychain,
   readAntigravityAcpKeychainFingerprint,
   resolveAntigravityAcpCredentials,
+  resolveAntigravityAcpFileCredentials,
 } from "./antigravityAcpCredentials";
 import { resetMacKeychainStateForTests } from "../../runtime/macKeychain";
 
@@ -126,6 +127,19 @@ describe("resolveAntigravityAcpCredentials", () => {
       readWsl: async () => undefined,
     });
     expect(credentials?.refreshToken).toBe("refresh-token");
+  });
+
+  it("resolves file fallbacks without attempting Keychain access", async () => {
+    const deps = {
+      readKeychain: vi.fn<() => Promise<string | undefined>>(),
+      readNative: async () => undefined,
+      readWsl: vi.fn<() => Promise<string | undefined>>().mockResolvedValue(VALID),
+    };
+    await expect(resolveAntigravityAcpFileCredentials(deps)).resolves.toMatchObject({
+      refreshToken: "refresh-token",
+    });
+    expect(deps.readKeychain).not.toHaveBeenCalled();
+    expect(deps.readWsl).toHaveBeenCalledOnce();
   });
 
   it("keeps a grant process-local when its item is replaced during authorization", async () => {

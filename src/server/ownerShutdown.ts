@@ -17,7 +17,7 @@ export interface OwnerShutdownDeps {
   readonly call?: (
     paths: HostRootPaths,
     operation: "shutdown",
-    options: { timeoutMs: number },
+    options: { timeoutMs: number; expectedGeneration: string },
   ) => Promise<{ ownerGeneration: string }>;
   readonly discoveryGeneration?: (paths: HostRootPaths) => string;
 }
@@ -38,7 +38,10 @@ export async function requestOwnerShutdown(
   if (discovered !== generation)
     throw new Error("The running owner generation changed; refusing to stop a different owner.");
   try {
-    const reply = await (deps.call ?? callHostControl)(paths, "shutdown", { timeoutMs: 5_000 });
+    const reply = await (deps.call ?? callHostControl)(paths, "shutdown", {
+      timeoutMs: 5_000,
+      expectedGeneration: generation,
+    });
     if (reply.ownerGeneration !== generation)
       throw new Error("The shutdown reply came from a different owner generation.");
     return "accepted";

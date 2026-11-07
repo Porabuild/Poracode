@@ -2,9 +2,10 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
 import { resolveMarkdownImageUrl } from "@/shared/markdownLocalImages";
-import { fileNameFromPath, toLocalFileUrl } from "@/shared/promptContent";
+import { fileNameFromPath, resolveLocalFileUrlPath, toLocalFileUrl } from "@/shared/promptContent";
 import { imageUrlMetadata } from "@/renderer/utils/imageUrlMetadata";
 import type { ThreadGalleryImage, ThreadGalleryResolvers } from "./threadGalleryImages";
+import { galleryImageResource } from "./threadGalleryImageReadiness";
 
 const HTML_IMG_RE = /<img\b[^>]*>/gi;
 const SRC_FROM_HTML_RE = /(?:^|\s)src\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/i;
@@ -46,28 +47,43 @@ export function extractMarkdownGalleryImages(
   collectMarkdownCandidates(tree, candidates, definitions);
   candidates.sort((a, b) => a.index - b.index);
   const out: ThreadGalleryImage[] = [];
-  const displayResolvers: ThreadGalleryResolvers = recordLocalUrl
-    ? {
-        ...resolvers,
-        remoteLocalImageUrl: (url) => {
-          const src = resolvers.remoteLocalImageUrl
-            ? resolvers.remoteLocalImageUrl(url)
-            : resolveLocalImageDisplayUrl(url);
-          recordLocalUrl(url, src);
-          return src;
-        },
-      }
-    : resolvers;
+  let resource: ThreadGalleryImage["resource"];
+  const displayResolvers: ThreadGalleryResolvers =
+    recordLocalUrl || resolvers.lightboxReadiness
+      ? {
+          ...resolvers,
+          remoteLocalImageUrl: (url) => {
+            const src = resolvers.remoteLocalImageUrl
+              ? resolvers.remoteLocalImageUrl(url)
+              : resolveLocalImageDisplayUrl(url);
+            recordLocalUrl?.(url, src);
+            if (resolvers.lightboxReadiness && (!src || src.startsWith("blob:"))) {
+              const path = resolvers.localImagePathForUrl
+                ? resolvers.localImagePathForUrl(url)
+                : resolveLocalFileUrlPath(url);
+              resource = galleryImageResource(resolvers.lightboxReadiness, path);
+            }
+            return src;
+          },
+        }
+      : resolvers;
   for (const candidate of candidates) {
     if (!candidate.rawUrl) continue;
+    resource = undefined;
     const resolved = candidate.fromHtml
       ? resolveHtmlImageTarget(candidate.rawUrl, displayResolvers)
       : resolveMarkdownImageTarget(candidate.rawUrl, displayResolvers);
-    if (resolved) {
+    if (resolved || resource) {
       const alt = candidate.alt || fileNameFromPath(candidate.rawUrl);
       // Read metadata before a remote resolver replaces the original path with an opaque URL.
       const { fileName, mime } = imageUrlMetadata(candidate.rawUrl, alt);
-      out.push({ src: resolved, fileName, mime, ...(alt ? { alt } : {}) });
+      out.push({
+        src: resolved ?? "",
+        fileName,
+        mime,
+        ...(alt ? { alt } : {}),
+        ...(resource ? { resource } : {}),
+      });
     }
   }
   return out;

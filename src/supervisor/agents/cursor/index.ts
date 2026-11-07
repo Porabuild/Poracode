@@ -1,6 +1,8 @@
 import { cursorMcpLaunch } from "./mcp";
+import { RequestError } from "@agentclientprotocol/sdk";
 import type { AgentInstanceConfig, AgentStatus, PromptSegment } from "@/shared/contracts";
 import { cursorProfileKind } from "@/shared/contracts";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
@@ -118,6 +120,23 @@ function cursorProfileCliStub(kind: string, label: string): AgentStatus {
 export function rewriteCursorLoadSessionError(error: unknown, _sessionId: string): Error {
   const message =
     "Cursor's ACP integration doesn't currently support resuming chat sessions. Start a new thread to continue.";
+  if (error instanceof RequestError && error.code === -32602) {
+    const detail =
+      typeof (error.data as { message?: unknown } | undefined)?.message === "string"
+        ? (error.data as { message: string }).message
+        : error.message;
+    if (/\bsession\b.*\bnot found\b/iu.test(detail)) {
+      return new DiagnosticError(
+        message,
+        {
+          failureClass: "expected-operational",
+          domain: "cursor.acp",
+          errorClass: "session-resume-unsupported",
+        },
+        { cause: error },
+      );
+    }
+  }
   return Object.assign(new Error(message), { cause: error });
 }
 

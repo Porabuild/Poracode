@@ -230,6 +230,7 @@ struct RemoteBoundedShellPage: Sendable, Equatable {
   var gitSummariesByThread: JSONValue?
   var gitState: JSONValue?
   var updatedAt: String
+  var snapshotEpoch: String? = nil
 
   /// Projects the page into the app-owned shell snapshot the session commits.
   /// The bounded carries stay on the snapshot so the catalog can record the
@@ -245,7 +246,8 @@ struct RemoteBoundedShellPage: Sendable, Equatable {
       gitState: gitState,
       reads: RemoteBoundedReads.capability,
       threadsNextCursor: threadsNextCursor,
-      projectsNextCursor: projectsNextCursor
+      projectsNextCursor: projectsNextCursor,
+      snapshotEpoch: snapshotEpoch
     )
   }
 }

@@ -1,5 +1,6 @@
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
+import { buildErrorCauseTags, type ErrorCauseTags } from "@/shared/diagnostics/errorCause";
 
 export type UpdateOperation = "check" | "download";
 
@@ -113,12 +114,16 @@ export function classifyUpdateFailure(
 }
 
 export class UpdateDiagnosticError extends Error {
+  readonly diagnosticCause: ErrorCauseTags;
+
   constructor(
     readonly operation: UpdateOperation,
     readonly outcome: UpdateFailureKind,
+    error?: unknown,
   ) {
     super(`Updater ${operation} failed: ${outcome}.`);
     this.name = "UpdateDiagnosticError";
+    this.diagnosticCause = buildErrorCauseTags(error);
   }
 }
 

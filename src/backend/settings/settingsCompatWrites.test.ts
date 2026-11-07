@@ -245,6 +245,86 @@ describe("settings compat and trusted writes", () => {
     expect(authority.snapshot().sequence).toBe(0);
   });
 
+  it("recomputes coupled fields after a real competing commit, preserving the new neighboring value", async () => {
+    const { authority, writes } = await open({
+      hiddenModels: { removed: ["old"], neighbor: ["old"] },
+      providerOrder: ["removed", "neighbor"],
+    });
+    const realMutate = authority.mutate.bind(authority);
+    let first = true;
+    const mutate = vi.spyOn(authority, "mutate").mockImplementation(async (...args) => {
+      if (first) {
+        first = false;
+        const subject = { kind: "field", field: "hiddenModels" } as const;
+        const snapshot = authority.snapshot([subject]);
+        await realMutate(
+          {
+            version: 1,
+            authorityId: snapshot.authorityId,
+            edits: [
+              {
+                subject,
+                expectedRevision: snapshot.revisions[settingsSubjectId(subject)]!,
+                operation: "set",
+                value: { removed: ["old"], neighbor: ["fresh"] },
+              },
+            ],
+          },
+          () => true,
+        );
+      }
+      return realMutate(...args);
+    });
+    const computed = vi.fn<
+      (current: SharedSettings) => Pick<SharedSettings, "hiddenModels" | "providerOrder">
+    >((current: SharedSettings) => ({
+      hiddenModels: Object.fromEntries(
+        Object.entries(current.hiddenModels).filter(([key]) => key !== "removed"),
+      ),
+      providerOrder: current.providerOrder.filter((key) => key !== "removed"),
+    }));
+    expect(
+      await writes.editSettingsFields(["hiddenModels", "providerOrder"], computed),
+    ).toMatchObject({ status: "committed" });
+    expect(computed).toHaveBeenCalledTimes(2);
+    expect(mutate).toHaveBeenCalledTimes(2);
+    expect(authority.readSettings()).toMatchObject({
+      hiddenModels: { neighbor: ["fresh"] },
+      providerOrder: ["neighbor"],
+    });
+    expect(authority.readSettings().hiddenModels).not.toHaveProperty("removed");
+  });
+
+  it("bounds coupled-field conflicts and does not write an undeclared computed field", async () => {
+    const { authority, writes } = await open({ themeMode: "dark", hiddenModels: { keep: ["x"] } });
+    const result = await writes.editSettingsFields(["hiddenModels"], () => ({
+      hiddenModels: {},
+      themeMode: "light",
+    }));
+    expect(result.status).toBe("committed");
+    expect(authority.readSettings().themeMode).toBe("dark");
+    const before = await readFile(settingsPath, "utf8");
+    const realSnapshot = authority.snapshot.bind(authority);
+    const subject = { kind: "field", field: "hiddenModels" } as const;
+    const snapshot = vi.spyOn(authority, "snapshot").mockImplementation((subjects) => {
+      const value = realSnapshot(subjects);
+      return {
+        ...value,
+        revisions: { ...value.revisions, [settingsSubjectId(subject)]: `s1:${"ff".repeat(32)}` },
+      };
+    });
+    const computed = vi.fn<() => Pick<SharedSettings, "hiddenModels" | "providerOrder">>(() => ({
+      hiddenModels: { keep: ["new"] },
+      providerOrder: ["keep"],
+    }));
+    expect(
+      await writes.editSettingsFields(["hiddenModels", "providerOrder"], computed),
+    ).toMatchObject({ status: "conflict", reason: "revision-changed" });
+    expect(computed).toHaveBeenCalledTimes(4);
+    snapshot.mockRestore();
+    expect(await readFile(settingsPath, "utf8")).toBe(before);
+  });
+
   it("returns a committed no-op for an equal snapshot without touching the document", async () => {
     const { authority, writes } = await open({ themeMode: "dark" });
     const before = await readFile(settingsPath, "utf8");

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>One window for all your AI coding agents.</strong><br />
-  Run Claude, Codex, OpenCode, Gemini, Grok, Kimi Code, Qwen Code, Pi, Qoder, Factory Droid, Antigravity, Cursor, Command Code, and Copilot side-by-side. Terminal and chat, any layout — with built-in MCP so agents can orchestrate each other and the app itself.
+  Run Claude, Codex, OpenCode, Gemini, Grok, Kimi Code, Qwen Code, Pi, Qoder, Factory Droid, Antigravity, Cursor, Command Code, Copilot, and fx side-by-side. Terminal and chat, any layout — with built-in MCP so agents can orchestrate each other and the app itself.
 </p>
 
 <p align="center">
@@ -25,7 +25,7 @@
 
 ## Supported Agents
 
-**Claude** · **Codex** · **OpenCode** · **Gemini** · **Grok** · **Kimi Code** · **Qwen Code** · **Pi** · **Qoder** · **Factory Droid** · **Antigravity** · **Cursor** · **Command Code** · **Copilot** and any agent from the [ACP registry](https://agentclientprotocol.com).
+**Claude** · **Codex** · **OpenCode** · **Gemini** · **Grok** · **Kimi Code** · **Qwen Code** · **Pi** · **Qoder** · **Factory Droid** · **Antigravity** · **Cursor** · **Command Code** · **Copilot** · **fx** and any agent from the [ACP registry](https://agentclientprotocol.com).
 
 ## Why Poracode?
 

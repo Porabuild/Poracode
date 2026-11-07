@@ -7,6 +7,7 @@ import type { CreateStructuredSessionInput } from "../base";
 const mocks = vi.hoisted(() => ({
   spawn: vi.fn<(...args: unknown[]) => unknown>(),
   terminateChildProcessTree: vi.fn<(child: unknown) => void>(),
+  agentsConfigSupported: true,
 }));
 
 vi.mock("node:child_process", async (importOriginal) => ({
@@ -21,6 +22,9 @@ vi.mock("./argv", () => ({
     command: process.execPath,
     args: [],
   }),
+}));
+vi.mock("./agentsConfigSupport", () => ({
+  isCodexAgentsConfigSupported: () => mocks.agentsConfigSupported,
 }));
 vi.mock("./mcpSkillConflicts", () => ({
   buildCodexMcpSkillConflictArgs: () => [],
@@ -87,6 +91,32 @@ describe("Codex app-server pool", () => {
 
   afterEach(() => {
     shutdownSpawnedCodexAppServers();
+  });
+
+  it("isolates native collisions while retaining sharing for unrelated native servers", async () => {
+    const location = { kind: "posix" as const, path: "/repo" };
+    const servers = [httpServer("custom-admin", "https://admin.test/mcp")];
+    const original = await codexAppServerPoolKey(location, servers);
+    const unrelated = await codexAppServerPoolKey(
+      location,
+      servers,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      ["unrelated"],
+    );
+    const colliding = await codexAppServerPoolKey(
+      location,
+      servers,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      ["custom-admin"],
+    );
+    expect(unrelated).toBe(original);
+    expect(colliding).not.toBe(original);
   });
 
   it("reuses one process when only thread-scoped MCP query values differ", async () => {
@@ -269,6 +299,38 @@ describe("Codex app-server pool", () => {
     ).not.toBe(baseline);
     expect(
       await codexAppServerPoolKey(location, [server], "wsl.exe", "/opt/node/bin/node"),
+    ).not.toBe(baseline);
+  });
+
+  it("keeps one app-server when the CLI cannot take the sub-agent defaults", async () => {
+    mocks.agentsConfigSupported = false;
+    try {
+      const location = { kind: "windows" as const, path: "C:\\repo" };
+      const baseline = await codexAppServerPoolKey(location, []);
+
+      expect(
+        await codexAppServerPoolKey(location, [], undefined, undefined, undefined, {
+          subagentModel: "gpt-6-luna",
+        }),
+      ).toBe(baseline);
+    } finally {
+      mocks.agentsConfigSupported = true;
+    }
+  });
+
+  it("starts a separate app-server when the sub-agent defaults change", async () => {
+    const location = { kind: "windows" as const, path: "C:\\repo" };
+    const baseline = await codexAppServerPoolKey(location, []);
+
+    expect(
+      await codexAppServerPoolKey(location, [], undefined, undefined, undefined, {
+        subagentModel: "",
+      }),
+    ).toBe(baseline);
+    expect(
+      await codexAppServerPoolKey(location, [], undefined, undefined, undefined, {
+        subagentModel: "gpt-6-luna",
+      }),
     ).not.toBe(baseline);
   });
 

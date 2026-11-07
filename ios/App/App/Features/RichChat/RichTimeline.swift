@@ -114,7 +114,7 @@ enum RichTimeline {
     }
     var claimed: Set<String> = []
     return turns.map { turn in
-      guard turn.isDisplayable, let raw = turn.anchorItemID else { return turn }
+      guard let raw = turn.anchorItemID else { return turn }
       guard let boxed = resolution[raw] else {
         claimed.insert(raw)
         return turn
@@ -261,6 +261,7 @@ enum RichTimeline {
 
   private static func isGroupable(_ node: RichVisibleTimelineNode) -> Bool {
     node.children.isEmpty && RichItemType.groupable.contains(node.item.type)
+      && RichMcpAppPresentation(item: node.item) == nil
   }
 
   static func epochMilliseconds(_ text: String) -> Int64? {

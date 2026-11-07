@@ -110,10 +110,39 @@ writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 console.log(`[finalize-web-build] prepared the ${webChannel} root-scoped manifest`);
 
 const serviceWorker = readFileSync(serviceWorkerPath, "utf8");
+// Vite's entry preloads do not include the dynamic imports that mount React.
+// Cache their static closure too so an update is runnable before it takes over.
+const buildManifest = JSON.parse(readFileSync(join(outDir, ".vite/manifest.json"), "utf8"));
+const startupAssets = new Set();
+const visited = new Set();
+function includeStartupModule(key) {
+  if (visited.has(key)) return;
+  visited.add(key);
+  const entry = buildManifest[key];
+  if (!entry) throw new Error(`Missing startup module in Vite manifest: ${key}`);
+  startupAssets.add(entry.file);
+  for (const file of [...(entry.css ?? []), ...(entry.assets ?? [])]) startupAssets.add(file);
+  for (const dependency of entry.imports ?? []) includeStartupModule(dependency);
+}
+for (const key of [
+  "index.html",
+  "src/renderer/browser/remoteBridge.ts",
+  "src/renderer/pwa/registerServiceWorker.ts",
+  "src/renderer/pwa/BrowserRuntimeServices.tsx",
+  "src/renderer/main.tsx",
+  "src/renderer/app.tsx",
+  "src/renderer/components/providers/bootstrap.ts",
+]) {
+  includeStartupModule(key);
+}
+for (const key of Object.keys(buildManifest)) {
+  if (/^src\/renderer\/locales\/[^/]+\/messages\.po$/.test(key)) includeStartupModule(key);
+}
 const buildVersion = createHash("sha256")
   .update(readFileSync(source))
   .update("\0")
   .update(serviceWorker)
+  .update(JSON.stringify([...startupAssets]))
   .digest("hex")
   .slice(0, 12);
 const notificationIcon = isNightly
@@ -123,7 +152,10 @@ const tokens = {
   __PORACODE_BUILD_VERSION__: buildVersion,
   __PORACODE_NOTIFICATION_ICON__: notificationIcon,
 };
-let resolvedWorker = serviceWorker;
+let resolvedWorker = serviceWorker.replace(
+  '"__PORACODE_STARTUP_ASSET_URLS__"',
+  JSON.stringify([...startupAssets]),
+);
 for (const [token, value] of Object.entries(tokens)) {
   if (!resolvedWorker.includes(token)) {
     console.error(`[finalize-web-build] missing ${token} in ${serviceWorkerPath}`);
@@ -132,6 +164,7 @@ for (const [token, value] of Object.entries(tokens)) {
   resolvedWorker = resolvedWorker.replaceAll(token, value);
 }
 writeFileSync(serviceWorkerPath, resolvedWorker, "utf8");
+writeFileSync(source, html.replaceAll("__PORACODE_BUILD_VERSION__", buildVersion), "utf8");
 mkdirSync(sshRuntimeTargetDir, { recursive: true });
 copyFileSync(
   join(sshRuntimeSourceDir, "manifest.json"),

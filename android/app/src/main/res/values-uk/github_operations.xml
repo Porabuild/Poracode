@@ -6,6 +6,8 @@
     <string name="github_refresh">Оновити GitHub</string><string name="github_no_pull_requests">Запитів на злиття не знайдено.</string>
     <string name="github_pr_title">Заголовок запиту</string><string name="github_head_branch">Вихідна гілка</string><string name="github_base_branch">Базова гілка</string><string name="github_create_pr">Створити запит на злиття</string>
     <string name="github_pr_summary">#%1$d · %2$s · %3$s</string><string name="github_select_pr">Виберіть запит на злиття для перегляду.</string><string name="github_pr_number">Запит на злиття #%1$d</string>
+    <string name="github_pr_row_summary">%1$s · #%2$d · %3$s · %4$s</string>
+    <string name="github_review_requested">Запитано ваше рев\'ю</string>
     <string name="github_ready">Позначити готовим</string><string name="github_update_branch">Оновити гілку</string><string name="github_reopen">Відкрити знову</string><string name="github_close">Закрити</string><string name="github_merge">Злити</string><string name="github_approve">Схвалити</string><string name="github_post_comment">Опублікувати коментар</string><string name="github_details">Відомості</string><string name="github_checks">Перевірки</string><string name="github_files">Файли</string><string name="github_reviews">Рецензії</string>    <string name="github_dispatch">Запустити процес</string><string name="github_rerun">Запустити повторно</string><string name="github_cancel_run">Скасувати запуск</string><string name="github_delete_run">Видалити запуск</string>    <string name="github_discover_accounts">Знайти облікові записи GitHub</string><string name="github_account">%1$s на %2$s</string>
     <string name="github_change_reconciled">Результат був невизначеним. Poracode не повторював дію й один раз отримав останній стан GitHub.</string>
     <string name="github_request_changes">Запросити зміни</string>
@@ -32,6 +34,7 @@
     <string name="github_back_to_list">Назад до списку</string>
     <string name="github_open_externally">Відкрити у браузері</string>
     <string name="github_thread_resolved">Вирішено</string>
+    <string name="github_thread_old_side">Старий бік</string>
     <string name="github_thread_unresolved">Не вирішено</string>
     <string name="github_ref">Посилання</string>
     <string name="github_rerun_failed">Перезапустити невдалі завдання</string>

@@ -1,0 +1,23 @@
+diff --git a/packages/theme/src/tui/resolve.ts b/packages/theme/src/tui/resolve.ts
+index 6270867..755d41f 100644
+--- a/packages/theme/src/tui/resolve.ts
++++ b/packages/theme/src/tui/resolve.ts
+@@ -137,13 +137,17 @@ function resolveView(
+   hueSteps: Pick<ResolvedThemeTokens, "source" | "increase" | "decrease">,
+ ): ResolvedThemeTokens {
+   const source: Record<string, unknown> = { hue, ...definition }
+-  const resolved = createResolver(source)(source, "theme") as ResolvedThemeTokens
++  const resolved = createResolver(source)(source, "theme") as Omit<ResolvedThemeTokens, "text"> & {
++    text: Omit<ResolvedThemeTokens["text"], "brand"> & { readonly brand?: RGBA }
++  }
+   return {
+     ...resolved,
+     hue,
+     categorical,
+     text: {
+       ...resolved.text,
++      // poracode: legacy and custom themes inherit a semantic brand color.
++      brand: resolved.text.brand ?? resolved.text.action.primary.selected,
+       action: statefulActions(resolved.text.action),
+       formfield: statefulColor(resolved.text.formfield),
+     },

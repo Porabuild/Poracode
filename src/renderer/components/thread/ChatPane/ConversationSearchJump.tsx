@@ -6,11 +6,9 @@ import {
   useConversationSearchTarget,
 } from "@/renderer/commands/conversationSearchNavigation";
 import { useAppStore } from "@/renderer/state/appStore";
-import {
-  hydrateThreadRuntimeItems,
-  loadOlderThreadRuntimeItems,
-} from "@/renderer/state/chatRuntimePersister";
+import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { selectVisibleThreadTimelineEntries } from "./chatPaneSelectors";
+import { loadRuntimeItemThroughHistory } from "./loadRuntimeItemThroughHistory";
 import type { ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 
 /** Reuse canonical, fenced paging; cancellation never changes saved history. */
@@ -39,12 +37,7 @@ export function ConversationSearchJump(props: {
     const current = () => !cancelled && isConversationSearchTargetCurrent(target);
     void (async () => {
       await hydrateThreadRuntimeItems(target.threadId);
-      while (
-        current() &&
-        !useAppStore.getState().runtimeItemsByIdByThread[target.threadId]?.[target.itemId]
-      ) {
-        if (!(await loadOlderThreadRuntimeItems(target.threadId))) break;
-      }
+      await loadRuntimeItemThroughHistory(target.threadId, target.itemId, current);
       if (!current()) return;
       const entries = selectVisibleThreadTimelineEntries(
         useAppStore.getState(),

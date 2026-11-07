@@ -11,6 +11,7 @@ import {
   type PersistedCompletedTurn,
 } from "@/host/db";
 import { sortOrderForThread } from "./snapshots";
+import { commitRuntimeThreadPrefixSync } from "@/host/db/runtimePersistenceRuntime";
 
 type ThreadStateEvent = Extract<SupervisorEvent, { type: "thread-state" }>;
 
@@ -66,6 +67,11 @@ export function persistThreadStateEvent(event: ThreadStateEvent): void {
   // "working"/"launching" state.
   const nowIso = new Date().toISOString();
   const turnTiming = deriveThreadTurnTiming(thread, event.status, nowIso);
+  if (isThreadTurnActive(thread.status) && !isThreadTurnActive(event.status)) {
+    // The state control queue can run ahead of the buffered canonical writes.
+    // Commit the reply before choosing the completed turn's durable anchor.
+    commitRuntimeThreadPrefixSync(event.threadId);
+  }
   const nextSessionRef =
     event.sessionRef &&
     (thread.sessionRef?.providerSessionId !== event.sessionRef.providerSessionId ||
@@ -73,6 +79,18 @@ export function persistThreadStateEvent(event: ThreadStateEvent): void {
       ? event.sessionRef
       : thread.sessionRef;
 
+  // A starting turn retires the marker even when the emitter never stated it:
+  // a session spawned straight into `working` after a restart has no prior
+  // state of its own to clear.
+  const interruptedTurn = event.turnStopRequested
+    ? isThreadTurnActive(event.status)
+      ? "stopped"
+      : null
+    : event.interruptedTurn !== undefined
+      ? event.interruptedTurn
+      : event.status === "working" && thread.status !== "working"
+        ? null
+        : undefined;
   dbUpsertThread(
     {
       ...thread,
@@ -90,6 +108,8 @@ export function persistThreadStateEvent(event: ThreadStateEvent): void {
       ...turnTiming,
     },
     sortOrderForThread(dbGetThreads(), event.threadId),
+    undefined,
+    interruptedTurn,
   );
   appendCompletedTurnIfClosed(event.threadId, thread, turnTiming);
 }
@@ -106,7 +126,6 @@ function appendCompletedTurnIfClosed(
   const startedAt = parseTurnIso(nextTurnTiming.lastTurnStartedAt);
   const endedAt = parseTurnIso(nextTurnTiming.lastTurnEndedAt);
   if (startedAt === null || endedAt === null) return;
-  if (endedAt - startedAt < 1000) return;
   if (
     prevThread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
     prevThread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt

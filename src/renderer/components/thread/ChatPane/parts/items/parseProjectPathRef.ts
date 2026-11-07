@@ -5,7 +5,9 @@ export type ProjectPathRef =
 const PATH_EXTENSION_RE =
   /\.(tsx?|jsx?|mjs|cjs|json|mdx?|css|scss|rs|go|py|toml|yaml|yml|vue|svelte|html?|txt|pdf|pptx?|docx?|xlsx?|csv|tsv|png|jpe?g|gif|webp|svg)$/i;
 
-export const PROJECT_PATH_TOKEN_SOURCE = String.raw`(?<![A-Za-z0-9_:/@.\\-])(\/?(?:[A-Za-z0-9_@.][A-Za-z0-9_@.-]*(?:[\\/][A-Za-z0-9_@.-]+)+|[A-Za-z0-9_@-][A-Za-z0-9_@.-]*\.[A-Za-z][A-Za-z0-9-]*))(?::(\d+)(?:-\d+)?)?`;
+// Consume ellipsis segments as part of the candidate so rejecting an abbreviated
+// path cannot leave a suffix (e.g. `/report.ts` in `src/…/report.ts`) clickable.
+export const PROJECT_PATH_TOKEN_SOURCE = String.raw`(?<![A-Za-z0-9_:/@.…\\-])(\/?(?:(?:[A-Za-z0-9_@.][A-Za-z0-9_@.-]*|…+)(?:[\\/](?:[A-Za-z0-9_@.-]+|…+))+|[A-Za-z0-9_@-][A-Za-z0-9_@.-]*\.[A-Za-z][A-Za-z0-9-]*))(?::(\d+)(?:-\d+)?)?`;
 
 interface ParseOptions {
   /**
@@ -38,9 +40,12 @@ export function parseProjectPathRef(s: string, options: ParseOptions = {}): Proj
   const hasSeparator = candidate.includes("/") || candidate.includes("\\");
   const hasExtension = PATH_EXTENSION_RE.test(candidate);
   const segments = candidate.split(/[\\/]/).filter(Boolean);
+  // Model prose often abbreviates paths as `/var/...` or `src/…/file.ts`.
+  // These do not identify an entry that the editor or file tree can open.
+  if (segments.some((segment) => /^(?:\.{3,}|…+)$/.test(segment))) return null;
   const firstSegment = segments[0] ?? "";
   const lastSegment = segments[segments.length - 1] ?? "";
-  const isDotfile = lastSegment.startsWith(".") && !lastSegment.includes("/");
+  const isDotfile = lastSegment.startsWith(".") && !/^\.+$/.test(lastSegment);
   const trailingSeparator = /[\\/]$/.test(candidate);
 
   if (!hasSeparator && !hasExtension) return null;
@@ -76,4 +81,19 @@ export function parseProjectPathRef(s: string, options: ParseOptions = {}): Proj
     return null;
   }
   return { kind: "folder", path: candidate };
+}
+
+/**
+ * Chat variant for auto-detected prose tokens and relative link destinations.
+ * Without the project's root names there is nothing to verify a folder against
+ * (Home threads), so prose such as `$10/month`, `and/or`, or `/plan` would
+ * become a folder chip that opens nothing. Files keep their chip: an extension
+ * or `:line` suffix is evidence on its own.
+ */
+export function parseChatPathRef(
+  token: string,
+  rootNames: ReadonlySet<string> | undefined,
+): ProjectPathRef | null {
+  const ref = parseProjectPathRef(token, { rootNames });
+  return ref?.kind === "folder" && !rootNames ? null : ref;
 }

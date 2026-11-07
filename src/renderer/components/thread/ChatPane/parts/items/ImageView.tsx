@@ -7,10 +7,16 @@ import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { RemoteImageCard } from "./RemoteImageCard";
 import { resolveImageViewSource } from "./imageViewSource";
 import { ToolCall } from "./ToolCall";
+import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { InlineVisual } from "./InlineVisual";
+import { readMcpAppReference } from "@/shared/contracts/mcpApps";
+import { McpAppCard } from "./McpAppCard";
+import type { CallToolResult } from "@modelcontextprotocol/client";
 
 interface ImageViewProps {
   item: RuntimeChatItem;
 }
+const EMPTY_APP_ARGUMENTS: Record<string, unknown> = {};
 
 /**
  * Renders an `image_view` tool call (e.g. Codex's `imageGeneration`) as an
@@ -37,12 +43,41 @@ export const ImageView = memo(function ImageView({ item }: ImageViewProps) {
     [actions?.remoteImageRefUrl, readiness, payload],
   );
 
-  if (!source || payload?.status === "error") {
-    return <ToolCall item={item} />;
+  const appResource =
+    item.state === "completed" && payload?.status === "success"
+      ? readMcpAppResource(payload.result)
+      : undefined;
+  const image =
+    source && payload?.status !== "error" ? (
+      <Surface variant="transparent" className={chatMessageSurfaceClass}>
+        <RemoteImageCard source={source} />
+      </Surface>
+    ) : null;
+  if (appResource) {
+    const title = payload?.title ?? payload?.name;
+    const app = readMcpAppReference(payload?.result);
+    return (
+      <>
+        {app && app.resourceUri === appResource.uri && actions?.threadId && payload ? (
+          <McpAppCard
+            key={`${app.sessionId}:${app.toolName}`}
+            app={app}
+            threadId={actions.threadId}
+            html={appResource.text}
+            title={title ?? app.toolName}
+            input={
+              payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
+                ? (payload.args as Record<string, unknown>)
+                : EMPTY_APP_ARGUMENTS
+            }
+            result={payload.result as CallToolResult}
+          />
+        ) : (
+          <InlineVisual html={appResource.text} {...(title ? { title } : {})} />
+        )}
+        {image}
+      </>
+    );
   }
-  return (
-    <Surface variant="transparent" className={chatMessageSurfaceClass}>
-      <RemoteImageCard source={source} />
-    </Surface>
-  );
+  return image ?? <ToolCall item={item} />;
 });

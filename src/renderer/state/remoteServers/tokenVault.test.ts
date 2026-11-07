@@ -8,6 +8,7 @@ import {
   setDesktopToken,
 } from "./tokenVault";
 import { TOKEN_VAULT_OPERATION_TIMEOUT_MS } from "./tokenVaultDatabase";
+import { failVaultKeyReads, webKitKeyRestoreError } from "./webKitResultFailure.testFixtures";
 
 const DATABASE_NAME = "lightcode-mobile-vault";
 
@@ -167,6 +168,31 @@ describe("token vault liveness and credential preservation", () => {
     get.mockRestore();
     expect(await getDesktopToken("desktop")).toBe("original-secret");
     expect(await getDesktopToken("other")).toBeNull();
+  });
+
+  it("treats a stored key WebKit cannot restore as a failed read, never a crash or a missing key", async () => {
+    await seedLegacyVault();
+    const generateKey = vi.spyOn(crypto.subtle, "generateKey");
+    const restoreFailure = webKitKeyRestoreError();
+    const escaped: unknown[] = [];
+    const get = failVaultKeyReads(restoreFailure, escaped);
+    expect(await getDesktopToken("desktop")).toBeNull();
+    expect(await setDesktopToken("other", "unsaved-secret")).toBe(false);
+    expect(escaped).toEqual([]);
+    expect(generateKey).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledExactlyOnceWith(
+      expect.stringContaining("[tokenVault]"),
+      restoreFailure,
+    );
+    get.mockRestore();
+    // Nothing was replaced: once the key restores again, the vault is intact.
+    expect(await getDesktopToken("desktop")).toBe("original-secret");
+    expect(await getDesktopToken("other")).toBeNull();
+    expect(await setDesktopToken("other", "retry-secret")).toBe(true);
+    __resetTokenVaultForTest();
+    expect(await getDesktopToken("desktop")).toBe("original-secret");
+    expect(await getDesktopToken("other")).toBe("retry-secret");
+    expect(generateKey).not.toHaveBeenCalled();
   });
 
   it("does not acknowledge or cache a token whose write times out before commit", async () => {

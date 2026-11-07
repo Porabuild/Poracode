@@ -54,8 +54,12 @@ internal data class PullRequestThreadRow(
     val isResolved: Boolean,
     val isOutdated: Boolean,
     val path: String?,
+    val line: Long? = null,
+    val side: String? = null,
     val comments: List<PullRequestCommentRow>,
-)
+) {
+    val isOldSide: Boolean get() = side == "LEFT"
+}
 
 internal data class PullRequestDetailsRow(
     val number: Long,
@@ -71,6 +75,9 @@ internal data class PullRequestDetailsRow(
     val comments: List<PullRequestCommentRow>,
     val reviews: List<PullRequestReviewSummaryRow>,
     val checks: List<PullRequestCheckRow>,
+    val labels: List<PullRequestLabelRow> = emptyList(),
+    val requestedReviewers: List<PullRequestReviewerRow> = emptyList(),
+    val timeline: List<PullRequestTimelineRow> = emptyList(),
 )
 
 internal data class PullRequestConversationRows(
@@ -120,6 +127,9 @@ internal fun JsonElement?.pullRequestDetails(): PullRequestDetailsRow? {
         comments = details.objects("comments").take(MAX_GITHUB_ROWS).mapNotNull(JsonObject::commentRow),
         reviews = details.objects("reviews").take(MAX_GITHUB_ROWS).mapNotNull(JsonObject::reviewRow),
         checks = details.objects("checks").take(MAX_GITHUB_ROWS).map(JsonObject::checkRow),
+        labels = details.labelRows(),
+        requestedReviewers = details.reviewerRows("requestedReviewers"),
+        timeline = details.timelineRows(),
     )
 }
 
@@ -142,6 +152,8 @@ internal fun JsonElement?.pullRequestConversation(): PullRequestConversationRows
                 isResolved = thread.boolean("isResolved"),
                 isOutdated = thread.boolean("isOutdated"),
                 path = thread.stringOrNull("path"),
+                line = thread.long("line"),
+                side = thread.stringOrNull("side"),
                 comments = thread.objects("comments")
                     .take(MAX_GITHUB_ROWS)
                     .mapNotNull(JsonObject::commentRow),

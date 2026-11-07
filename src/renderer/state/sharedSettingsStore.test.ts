@@ -34,6 +34,8 @@ describe("sharedSettingsStore", () => {
         microphoneDeviceId: "",
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
+        transcriptionBackend: "transformers",
+        hexModel: "parakeet_v3",
         useWebGpu: true,
       },
       providerConfigs: {},
@@ -45,6 +47,7 @@ describe("sharedSettingsStore", () => {
       disabledAgents: [],
       favoriteModels: [],
       recentModels: [],
+      crews: [],
       agentSelectionUsage: [],
       crossagentSelectionUsage: [],
       crossagentRoutingOverrides: [],
@@ -72,6 +75,32 @@ describe("sharedSettingsStore", () => {
 
   it("defaults theme to dark", () => {
     expect(useSharedSettings.getState().themeMode).toBe("dark");
+  });
+
+  it("upserts and deletes saved crews through shared settings persistence", () => {
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      lead: { agentKind: "claude", model: "opus-5.5" },
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+      policy: "crew-only" as const,
+    };
+    useSharedSettings.getState().upsertCrew(crew);
+    expect(useSharedSettings.getState().crews).toMatchObject([{ ...crew }]);
+    expect(useSharedSettings.getState().crews[0]?.updatedAt).toEqual(expect.any(Number));
+    expect(JSON.parse(localStorage.getItem("poracode-shared-settings")!).crews).toHaveLength(1);
+    useSharedSettings.getState().upsertCrew({ ...crew, name: "Renamed crew" });
+    expect(useSharedSettings.getState().crews).toHaveLength(1);
+    expect(useSharedSettings.getState().crews[0]?.name).toBe("Renamed crew");
+    useSharedSettings.getState().deleteCrew("ship");
+    expect(useSharedSettings.getState().crews).toEqual([]);
+    expect(JSON.parse(localStorage.getItem("poracode-shared-settings")!).crews).toEqual([]);
   });
 
   it("switches theme mode", () => {
@@ -268,12 +297,66 @@ describe("sharedSettingsStore", () => {
     expect(useSharedSettings.getState().threadDocksOrder).toEqual([
       "backgroundTasks",
       "plan",
+      "vision",
       "goal",
       "agents",
       "images",
+      "info",
       "context",
       "usage",
     ]);
+  });
+
+  it("persists crew shortcuts independently of roster edits and removes recent without deleting the crew", () => {
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      lead: { agentKind: "example", model: "lead" },
+      roles: [
+        { id: "builder", label: "Builder", selection: { agentKind: "example", model: "helper" } },
+      ],
+    };
+    const settings = useSharedSettings.getState();
+    settings.upsertCrew(crew);
+    settings.setCrewFavorite(crew.id, true);
+    settings.setCrewLastUsedAt(crew.id, 123);
+    settings.upsertCrew({ ...crew, name: "Renamed" });
+    const disk = () =>
+      normalizeSharedSettings(JSON.parse(localStorage.getItem("poracode-shared-settings")!));
+    expect(disk().crews[0]).toMatchObject({ name: "Renamed", favorite: true, lastUsedAt: 123 });
+    settings.setCrewLastUsedAt(crew.id, null);
+    expect(disk().crews[0]).not.toHaveProperty("lastUsedAt");
+    expect(disk().crews[0]?.favorite).toBe(true);
+    settings.setCrewFavorite(crew.id, false);
+    expect(disk().crews[0]?.favorite).toBe(false);
+    settings.setCrewFavorite("deleted", true);
+    settings.setCrewLastUsedAt("deleted", 456);
+    expect(disk().crews).toHaveLength(1);
+  });
+
+  it("records a crew launch as one recent shortcut while counting its lead usage", () => {
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      lead: { agentKind: "example", model: "lead" },
+      roles: [
+        { id: "builder", label: "Builder", selection: { agentKind: "example", model: "helper" } },
+      ],
+    };
+    useSharedSettings.getState().upsertCrew(crew);
+    useSharedSettings.getState().pushRecentModel("example", "lead", "gui", "high", false, crew.id);
+    expect(useSharedSettings.getState().recentModels).toEqual([]);
+    expect(useSharedSettings.getState().crews[0]?.lastUsedAt).toEqual(expect.any(Number));
+    expect(useSharedSettings.getState().agentSelectionUsage[0]).toMatchObject({
+      modelId: "lead",
+      count: 1,
+    });
+    useSharedSettings
+      .getState()
+      .pushRecentModel("example", "lead", "gui", "high", false, "deleted");
+    expect(useSharedSettings.getState().recentModels[0]?.modelId).toBe("lead");
   });
 
   it("updates audio settings", () => {
@@ -659,6 +742,48 @@ describe("sharedSettingsStore", () => {
         expect.objectContaining({
           hostResourceAdmission: expect.objectContaining({ maxActiveTerminalShells: 6 }),
         }),
+      );
+    });
+  });
+
+  describe("news line settings", () => {
+    beforeEach(() => {
+      useSharedSettings.setState({
+        newsLineEnabled: true,
+        newsLineActivity: true,
+        dismissedPromotions: [],
+      });
+    });
+
+    it("persists a promotion dismissal once and ignores repeats", async () => {
+      const setSharedSettings = vi.fn<(settings: SharedSettings) => Promise<void>>(() =>
+        Promise.resolve(),
+      );
+      window.poracode = { setSharedSettings } as unknown as typeof window.poracode;
+
+      useSharedSettings.getState().dismissPromotion("github-star");
+      await waitForPendingSharedSettings();
+      useSharedSettings.getState().dismissPromotion("github-star");
+      await waitForPendingSharedSettings();
+
+      expect(useSharedSettings.getState().dismissedPromotions).toEqual(["github-star"]);
+      expect(setSharedSettings).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ dismissedPromotions: ["github-star"] }),
+      );
+    });
+
+    it("persists the news line toggles", async () => {
+      const setSharedSettings = vi.fn<(settings: SharedSettings) => Promise<void>>(() =>
+        Promise.resolve(),
+      );
+      window.poracode = { setSharedSettings } as unknown as typeof window.poracode;
+
+      useSharedSettings.getState().setNewsLineActivity(false);
+      useSharedSettings.getState().setNewsLineEnabled(false);
+      await waitForPendingSharedSettings();
+
+      expect(setSharedSettings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ newsLineEnabled: false, newsLineActivity: false }),
       );
     });
   });

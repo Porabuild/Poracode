@@ -31,6 +31,7 @@ export function readBoundedHistorySnapshotData(
   threadId: string,
   input: {
     readonly compactDetails: boolean;
+    readonly deferFileChangeBodies?: boolean;
     readonly includeTerminalScrollback: boolean;
     readonly completedTurnsLimit: number;
     readonly targetTimelineEntryCount: number;
@@ -52,7 +53,11 @@ export function readBoundedHistorySnapshotData(
     phase1.rows,
     itemsSoft,
     caps,
-    input.compactDetails,
+    {
+      compactDetails: input.compactDetails,
+      deferFileChangeBodies: input.deferFileChangeBodies === true,
+      protectLatestTurn: true,
+    },
   );
 
   const turnsPhase1 = dbReadCompletedTurnPhase1(threadId, {
@@ -86,6 +91,7 @@ export function readBoundedHistoryItems(
   caps: CatalogEffectiveCaps,
   runtimeNotice: RemoteRuntimeHistoryNotice | undefined,
   compactDetails: boolean,
+  deferFileChangeBodies = false,
 ): string {
   if (!dbGetThread(input.threadId))
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
@@ -103,7 +109,12 @@ export function readBoundedHistoryItems(
     phase1.rows,
     soft,
     caps,
-    compactDetails,
+    // Only the tail read owns the latest turn; older pages keep the soft cut.
+    {
+      compactDetails,
+      deferFileChangeBodies,
+      protectLatestTurn: input.beforePosition === undefined,
+    },
   );
   const pageItemsAsc = [...projectedDesc].reverse();
   const omitted = keptMeta.length < phase1.rows.length || phase1.moreBeyondWindow;

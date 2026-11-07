@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { defaultSharedSettings } from "../settings";
+import {
+  BACKGROUND_TASK_OUTPUT_MAX_UTF16_LENGTH,
+  backgroundTaskOutputSchema,
+} from "../contracts/runtimeEvent";
 import { LAUNCH_REMOTE_SERVER_SCRIPT } from "../sshRemoteScripts";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
@@ -8,6 +12,7 @@ import {
   remotePushRegistrationSchema,
   remoteAccessPairingInfoSchema,
   remoteSettingsPatchSchema,
+  remoteSettingsSchema,
   remoteShellSnapshotSchema,
   remoteTerminalCursorSchema,
   remoteTerminalOutputCursorSyncV1Schema,
@@ -18,6 +23,34 @@ import {
 } from "./protocol";
 
 describe("device-local terminal settings", () => {
+  it("round-trips crew picker preferences without adding them to runtime bindings", () => {
+    const crew = {
+      id: "ship",
+      name: "Ship crew",
+      policy: "crew-only" as const,
+      lead: { agentKind: "example", model: "lead" },
+      roles: [
+        { id: "builder", label: "Builder", selection: { agentKind: "example", model: "helper" } },
+      ],
+      favorite: true,
+      lastUsedAt: 123,
+    };
+    expect(
+      remoteSettingsSchema.parse(pickRemoteSettings({ ...defaultSharedSettings, crews: [crew] }))
+        .crews,
+    ).toEqual([crew]);
+    expect(remoteSettingsPatchSchema.parse({ crews: [crew] }).crews).toEqual([crew]);
+  });
+
+  it("accepts remote settings from a host that predates the crews field", () => {
+    const legacy = pickRemoteSettings(defaultSharedSettings);
+    delete legacy.crews;
+    expect(remoteSettingsSchema.parse(legacy)).not.toHaveProperty("crews");
+    expect(remoteSettingsPatchSchema.parse({ titleGenProvider: "claude" })).not.toHaveProperty(
+      "crews",
+    );
+  });
+
   it("keeps sidebar preferences outside the remote-editable projection", () => {
     const settings = pickRemoteSettings({
       ...defaultSharedSettings,
@@ -101,6 +134,22 @@ describe("remote thread snapshots", () => {
         backgroundTasks: [{ taskId: "task-1", kind: "command", description: "pnpm test" }],
       }).backgroundTasks,
     ).toEqual([{ taskId: "task-1", kind: "command", description: "pnpm test" }]);
+    // Additive display/read capabilities survive a snapshot round-trip; the
+    // pre-upgrade shape above stays valid without them.
+    const enriched = {
+      taskId: "task-1",
+      kind: "command" as const,
+      category: "command" as const,
+      description: "pnpm test",
+      command: "pnpm test",
+      outputAction: {
+        id: "background-task.output.v1",
+        payload: { taskId: "task-1", token: "t" },
+      },
+    };
+    expect(
+      remoteThreadSnapshotSchema.parse({ ...base, backgroundTasks: [enriched] }).backgroundTasks,
+    ).toEqual([enriched]);
   });
 
   it("preserves a thread's pinned WSL execution environment", () => {
@@ -124,6 +173,19 @@ describe("remote thread snapshots", () => {
     expect(LAUNCH_REMOTE_SERVER_SCRIPT).toContain(
       `descriptor.protocolVersion === ${PORACODE_REMOTE_PROTOCOL_VERSION}`,
     );
+  });
+});
+
+describe("background-task output bounds", () => {
+  it.each([0, 1])("enforces the native UTF-16 budget with %i extra astral characters", (extra) => {
+    const output = "😀".repeat(BACKGROUND_TASK_OUTPUT_MAX_UTF16_LENGTH / 2 + extra);
+    expect(
+      backgroundTaskOutputSchema.safeParse({
+        output,
+        totalBytes: Buffer.byteLength(output),
+        truncated: false,
+      }).success,
+    ).toBe(extra === 0);
   });
 });
 

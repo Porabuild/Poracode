@@ -1,5 +1,4 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Input } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   emptyStructuredValue,
@@ -9,8 +8,8 @@ import {
   type StructuredFormValue,
 } from "@/shared/structuredForm";
 import { StructuredCustomValues } from "./StructuredCustomValues";
-import { QuestionOptionRow } from "./parts/QuestionOptionRow";
-import { isQuestionStepEnter } from "./QuestionStepForm";
+import { QuestionOptions, QuestionTextInput } from "./parts/QuestionOptions";
+import { QuestionRowMarker, questionRowClassName } from "./parts/QuestionOptionRow";
 
 export function StructuredElicitationField(props: {
   fieldKey: string;
@@ -19,7 +18,9 @@ export function StructuredElicitationField(props: {
   formValues: Record<string, StructuredFormValue>;
   requiredKeys: string[];
   isDisabled: boolean;
+  isCustomAnswer: boolean | undefined;
   setFormValues: Dispatch<SetStateAction<Record<string, StructuredFormValue>>>;
+  onCustomAnswer: (value: string) => void;
   onSingleChoice: (value: string, submitOnLast?: boolean) => void;
 }) {
   const {
@@ -30,12 +31,17 @@ export function StructuredElicitationField(props: {
     requiredKeys,
     isDisabled,
     setFormValues,
+    onCustomAnswer,
     onSingleChoice,
   } = props;
   const { t } = useLingui();
   const label = property.title ?? key;
-  const description = property.description ?? "";
   const enumOpts = structuredFormOptions(property);
+  const isCustomAnswer = props.isCustomAnswer ?? !enumOpts.some(({ id }) => id === formValues[key]);
+  const options = enumOpts.map(({ id, label: optionLabel }) => ({
+    optionId: id,
+    label: optionLabel,
+  }));
   // Array fields read their current selection in three places below;
   // narrow once here (updates still read `cur[key]` functionally).
   const selectedValues = Array.isArray(formValues[key]) ? (formValues[key] as string[]) : [];
@@ -63,61 +69,38 @@ export function StructuredElicitationField(props: {
   ]
     .filter(Boolean)
     .join(" · ");
-  const textInput = (
-    <Input
-      aria-label={label}
-      aria-invalid={invalid}
-      aria-describedby={errorId}
-      {...(property.placeholder !== undefined ? { placeholder: property.placeholder } : {})}
-      minLength={property.minLength}
-      maxLength={property.maxLength}
-      type="text"
-      disabled={isDisabled}
-      value={String(formValues[key] ?? "")}
-      onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
-      className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
-    />
-  );
+  const checked = Boolean(formValues[key]);
   return (
     <div
       data-question-step
-      className="space-y-1"
+      className="space-y-1.5"
       role="group"
       aria-label={label}
       aria-describedby={errorId}
     >
-      <div>
-        <p className="text-[11px] font-medium text-foreground">
-          {label}
-          {isRequired ? <span className="text-warning"> *</span> : null}
-        </p>
-        {description ? (
-          <p className="text-[11px] text-[color:var(--muted)]">{description}</p>
-        ) : null}
-      </div>
-      <p id={errorId} className="text-[11px] text-muted">
-        {constraints}
-        {invalid ? (
-          <span className="block text-danger">
-            <Trans>Enter a valid value.</Trans>
-          </span>
-        ) : null}
-      </p>
       {property.type === "boolean" ? (
-        <label className="flex items-center gap-2 text-[11px] text-foreground">
+        <label
+          className={`${questionRowClassName(checked)} cursor-pointer has-[:focus-visible]:bg-[var(--row-hover)] has-[:focus-visible]:focus-ring`}
+        >
           <input
             type="checkbox"
-            className="size-3.5"
+            data-question-option
+            aria-label={label}
+            className="sr-only"
             disabled={isDisabled}
-            checked={Boolean(formValues[key])}
+            checked={checked}
             onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.checked }))}
           />
-          <span>{label}</span>
+          <QuestionRowMarker active={checked}>1</QuestionRowMarker>
+          <span className="text-xs font-medium text-foreground">
+            <Trans>Yes</Trans>
+          </span>
         </label>
       ) : property.type === "integer" || property.type === "number" ? (
-        <Input
+        <QuestionTextInput
           aria-label={label}
           aria-invalid={invalid}
+          aria-required={isRequired}
           aria-describedby={errorId}
           min={property.minimum}
           max={property.maximum}
@@ -131,42 +114,31 @@ export function StructuredElicitationField(props: {
               [key]: e.target.value.trim().length === 0 ? "" : Number(e.target.value),
             }))
           }
-          className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
         />
       ) : property.type === "array" ? (
-        <div className="space-y-0.5">
-          {enumOpts.map((option, index) => {
-            const checked = selectedValues.includes(option.id);
-            return (
-              <label
-                key={option.id}
-                className="flex items-center gap-2 text-[11px] text-foreground"
-              >
-                <input
-                  type="checkbox"
-                  data-question-option
-                  aria-label={option.label}
-                  {...(index < 9 ? { "aria-keyshortcuts": String(index + 1) } : {})}
-                  disabled={isDisabled}
-                  className="size-3.5"
-                  checked={checked}
-                  onChange={(e) =>
-                    setFormValues((cur) => {
-                      const next = Array.isArray(cur[key]) ? [...(cur[key] as string[])] : [];
-                      return {
-                        ...cur,
-                        [key]: e.target.checked
-                          ? [...next, option.id]
-                          : next.filter((v) => v !== option.id),
-                      };
-                    })
-                  }
-                />
-                <span aria-hidden="true" className="text-muted">{`${index + 1}.`}</span>
-                <span>{option.label}</span>
-              </label>
-            );
-          })}
+        <div className="flex flex-col gap-px">
+          <QuestionOptions
+            label={label}
+            options={options}
+            value={selectedValues}
+            multiSelect
+            wrapLabels
+            isDisabled={isDisabled}
+            invalid={invalid}
+            required={isRequired}
+            describedBy={errorId}
+            onSelect={(optionId) =>
+              setFormValues((cur) => {
+                const selected = Array.isArray(cur[key]) ? (cur[key] as string[]) : [];
+                return {
+                  ...cur,
+                  [key]: selected.includes(optionId)
+                    ? selected.filter((value) => value !== optionId)
+                    : [...selected, optionId],
+                };
+              })
+            }
+          />
           {property.allowCustom ? (
             <StructuredCustomValues
               isDisabled={isDisabled}
@@ -189,43 +161,62 @@ export function StructuredElicitationField(props: {
           ) : null}
         </div>
       ) : enumOpts.length > 0 ? (
-        <>
-          <div
-            role="listbox"
-            aria-label={label}
-            aria-describedby={errorId}
-            aria-invalid={invalid}
-            className="space-y-0.5"
-          >
-            {enumOpts.map((option, index) => (
-              <QuestionOptionRow
-                key={option.id}
-                index={index}
-                option={{ optionId: option.id, label: option.label }}
-                isDisabled={isDisabled}
-                selected={formValues[key] === option.id}
-                onClick={() => {
-                  setFormValues((cur) => ({
-                    ...cur,
-                    [key]: !isRequired && cur[key] === option.id ? "" : option.id,
-                  }));
-                  onSingleChoice(!isRequired && formValues[key] === option.id ? "" : option.id);
-                }}
-                onKeyDown={(event) => {
-                  if (isDisabled || !isQuestionStepEnter(event)) return;
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setFormValues((cur) => ({ ...cur, [key]: option.id }));
-                  onSingleChoice(option.id, true);
-                }}
-              />
-            ))}
-          </div>
-          {property.allowCustom ? textInput : null}
-        </>
+        <QuestionOptions
+          label={label}
+          options={options}
+          value={isCustomAnswer ? "" : String(formValues[key] ?? "")}
+          isDisabled={isDisabled}
+          invalid={invalid}
+          required={isRequired}
+          describedBy={errorId}
+          onSelect={(optionId, submitOnLast) => {
+            const value =
+              !submitOnLast && !isRequired && !isCustomAnswer && formValues[key] === optionId
+                ? ""
+                : optionId;
+            setFormValues((cur) => ({ ...cur, [key]: value }));
+            onSingleChoice(value, submitOnLast);
+          }}
+          {...(property.allowCustom
+            ? {
+                custom: {
+                  value: isCustomAnswer ? String(formValues[key] ?? "") : "",
+                  onChange: onCustomAnswer,
+                  "aria-label": label,
+                  "aria-invalid": invalid,
+                  "aria-describedby": errorId,
+                  minLength: property.minLength,
+                  maxLength: property.maxLength,
+                  ...(property.placeholder !== undefined
+                    ? { placeholder: property.placeholder }
+                    : {}),
+                },
+              }
+            : {})}
+        />
       ) : (
-        textInput
+        <QuestionTextInput
+          aria-label={label}
+          aria-invalid={invalid}
+          aria-required={isRequired}
+          aria-describedby={errorId}
+          {...(property.placeholder !== undefined ? { placeholder: property.placeholder } : {})}
+          minLength={property.minLength}
+          maxLength={property.maxLength}
+          type="text"
+          disabled={isDisabled}
+          value={String(formValues[key] ?? "")}
+          onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
+        />
       )}
+      <p id={errorId} className="px-2.5 text-[11px] text-[color:var(--muted)] empty:hidden">
+        {constraints}
+        {invalid ? (
+          <span className="block text-danger">
+            <Trans>Enter a valid value.</Trans>
+          </span>
+        ) : null}
+      </p>
     </div>
   );
 }

@@ -1,0 +1,25 @@
+diff --git a/packages/tui/src/feature-plugins/system/storybook/session-location-missing.tsx b/packages/tui/src/feature-plugins/system/storybook/session-location-missing.tsx
+index c62d07b..63eb39f 100644
+--- a/packages/tui/src/feature-plugins/system/storybook/session-location-missing.tsx
++++ b/packages/tui/src/feature-plugins/system/storybook/session-location-missing.tsx
+@@ -7,7 +7,7 @@ import { SessionLocationUnavailable } from "../../../routes/session/location-mis
+ import type { Story } from "./index"
+ import { StoryFooter } from "./footer"
+ 
+-const directory = "/Users/kit/code/open-source/opencode-workerd-profile"
++const directory = "/Users/kit/code/poracode/poracode-worker-profile"
+ 
+ function SessionLocationMissingStory(props: { context: Plugin.Context }) {
+   const dimensions = useTerminalDimensions()
+@@ -18,9 +18,9 @@ function SessionLocationMissingStory(props: { context: Plugin.Context }) {
+       <DialogWorkspaces
+         projectID="fixture-project"
+         initialDirectories={[
+-          { directory: "/Users/kit/code/open-source/opencode" },
++          { directory: "/Users/kit/code/poracode/poracode" },
+           {
+-            directory: "/Users/kit/code/open-source/opencode-instruction-rename",
++            directory: "/Users/kit/code/poracode/poracode-instruction-rename",
+             strategy: "git_worktree",
+           },
+         ]}

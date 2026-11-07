@@ -15,6 +15,36 @@ function message(id: string, text: string): RuntimeChatItem {
 }
 
 describe("collectThreadArtifacts", () => {
+  it("normalizes slash-prefixed Windows links before display and deduplication", () => {
+    const internal = pathRefUrl({ kind: "file", path: "/E:/work/report.md", line: 20 });
+    expect(
+      collectThreadArtifacts([
+        message(
+          "windows",
+          `[Report](/E:/work/report.md:20) [Internal](${internal}) [File URL](file:///E:/work/report.md) [Encoded](</e:/My%20Files/notes.txt>) [POSIX](/tmp/notes.txt) [UNC](file://server/share/notes.txt)`,
+        ),
+      ]),
+    ).toEqual([
+      { target: "E:/work/report.md", name: "report.md", external: false },
+      { target: "e:/My Files/notes.txt", name: "notes.txt", external: false },
+      { target: "/tmp/notes.txt", name: "notes.txt", external: false },
+      { target: "//server/share/notes.txt", name: "notes.txt", external: false },
+    ]);
+  });
+
+  it("normalizes slash-prefixed Windows attachments", () => {
+    const item: RuntimeChatItem = {
+      id: "attachment",
+      type: "user_message",
+      state: "completed",
+      payload: { content: [{ kind: "file", path: "/E:/work/input.csv", name: "Input data" }] },
+      streams: {},
+    };
+    expect(collectThreadArtifacts([item])).toEqual([
+      { target: "E:/work/input.csv", name: "Input data", external: false },
+    ]);
+  });
+
   it("uses the provider's transcript formatter for native output citations and keeps formatter caches separate", () => {
     const item = message(
       "native",

@@ -59,4 +59,13 @@ describe("profile detection publication", () => {
       label: "Devin",
     });
   });
+
+  it("keeps the goal title command through detection and presentation composition", async () => {
+    const adapter = createDevinAdapter();
+    const defaultCommands = adapter.capabilities.threadTitleCommands;
+    const detected = await adapter.detectInstall({ envKind: "posix" });
+
+    expect(defaultCommands).toEqual([{ command: "goal", controlArguments: ["resume", "clear"] }]);
+    expect(detected.capabilities.threadTitleCommands).toEqual(defaultCommands);
+  });
 });

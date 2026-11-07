@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import fs, {
@@ -17,7 +17,7 @@ import fs, {
 } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -98,6 +98,43 @@ const hermeticRun = (command, args, options = {}) => {
   if (command === "npm") return Buffer.from("");
   return execFileSync(command, args, options);
 };
+
+void test("first-install progress stays on stderr before a structured runtime response", () => {
+  const root = tempDir("poracode-cli-install-json-");
+  const { tarball, sha256: artifactSha } = buildRuntimeTarball(root, {
+    version: launcherVersion(),
+  });
+  const npmCli = join(root, "npm-cli.js");
+  writeFileSync(
+    npmCli,
+    "process.stdout.write('Owned installer progress\\n'); process.stderr.write('Owned installer warning\\n');",
+  );
+  if (process.platform !== "win32")
+    writeFileSync(join(root, "npm"), `#!/usr/bin/env node\n${readFileSync(npmCli, "utf8")}`, {
+      mode: 0o755,
+    });
+  const env = {
+    ...process.env,
+    ...(process.platform !== "win32" ? { PATH: `${root}${delimiter}${process.env.PATH}` } : {}),
+    npm_execpath: npmCli,
+    PORACODE_BASE_DIR: join(root, "profile"),
+    PORACODE_RUNTIME_CACHE_DIR: join(root, "cache"),
+    PORACODE_RUNTIME_TARGET: "test-x64",
+    PORACODE_SERVER_TARBALL: tarball,
+    PORACODE_SERVER_TARBALL_SHA256: artifactSha,
+  };
+  delete env.NODE_OPTIONS;
+  const result = spawnSync(
+    process.execPath,
+    [join(repoRoot, "packages/poracode-cli/bin/poracode.mjs"), "doctor", "--json"],
+    { env, encoding: "utf8", windowsHide: true, timeout: 15_000 },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout).argv, ["doctor", "--json"]);
+  assert.match(result.stderr, /Owned installer progress/u);
+  assert.match(result.stderr, /Owned installer warning/u);
+});
 
 void test("ensureRuntime installs once, reuses the cache, and refuses tampering", async () => {
   const root = tempDir("poracode-cli-install-");
@@ -447,7 +484,7 @@ void test("a displaced generation is never deleted and a lost restore leaves ine
   assert.equal(error?.code, "PORACODE_RUNTIME_INSTALL_LOCK_TIMEOUT");
   assert.equal(readLockOwner(lockDir).token, "third-owner", "the third owner's lock must survive");
   assert.ok(quarantine !== null && existsSync(quarantine), "the lost restore leaves inert residue");
-  assert.deepEqual(lockScratch(root), [quarantine.split("/").pop()]);
+  assert.deepEqual(lockScratch(root), [basename(quarantine)]);
 });
 
 void test("cancellation aborts the lock wait without deleting the holder's lock", async () => {
@@ -612,6 +649,7 @@ const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 const emit = (event) => process.stdout.write(JSON.stringify(event) + "\\n");
 
 const runtimeDir = await ensureRuntime({
+  npm: "npm",
   version,
   target,
   entry: { url: "https://example.invalid/runtime.tar.gz", sha256 },
@@ -1078,7 +1116,7 @@ void test("member extraction reuses the validated listing instead of listing the
   const { tarball } = buildRuntimeTarball(root);
   const calls = [];
   const countingRun = (command, args, options) => {
-    if (command === "tar") calls.push(args[0]);
+    if (/^tar(?:\.exe)?$/iu.test(basename(command))) calls.push(args[0]);
     return execFileSync(command, args, options);
   };
   const names = validateRuntimeArchive({ tarball, run: countingRun });
@@ -1112,8 +1150,53 @@ void test("runCli answers --version and --help without touching the cache", asyn
   output.length = 0;
   assert.equal(await runCli(["--help"], { stdout }), 0);
   const help = output.join("");
-  assert.match(help, /poracode pair --json/u);
+  assert.match(help, /start server \+ open web app/u);
+  assert.match(help, /serve or --no-open for server only/u);
+  assert.match(help, /poracode pair\|connect.*\[--json\]/u);
+  assert.match(help, /--base-dir PATH/u);
+  assert.match(help, /poracode auth list\|accounts\|methods\|login\|logout/u);
+  assert.match(help, /poracode pairings create/u);
+  assert.match(help, /service install\|start\|stop\|restart\|status\|uninstall --prefix PATH/u);
+  assert.match(help, /One registration per explicit installed prefix/u);
+  assert.match(help, /remove\|unset-env/u);
   assert.match(help, /PORACODE_SERVER_TARBALL/u);
+  assert.match(help, /--effective/u);
+  assert.match(help, /--prompt-env NAME/u);
+  assert.match(help, /--env-stdin/u);
+  assert.match(help, /poracode setup/u);
+  assert.match(help, /--profile-env/u);
+  assert.match(help, /--new-profile ID --driver DRIVER/u);
+  assert.match(help, /--profile-config-file JSON/u);
+  assert.match(help, /providers list\|catalog\|drivers\|install/u);
+  assert.match(help, /not installation\/account status/u);
+  assert.match(help, /local-admin v5/u);
+  assert.match(help, /scripts supply an explicit ID/u);
+  assert.match(help, /--shutdown-drain-deadline-ms/u);
+  assert.match(help, /poracode providers configure --help/u);
+  assert.match(help, /poracode auth login --help/u);
+  assert.match(help, /poracode plugins list\|refresh/u);
+  assert.match(help, /poracode plugins catalogs list\|add\|inspect\|refresh\|remove/u);
+  assert.match(help, /poracode plugins inspect\|install\|update CATALOG_ID ENTRY/u);
+  assert.match(help, /--review-digest SHA256/u);
+  assert.match(help, /poracode plugins accounts login PLUGIN --server NAME --label TEXT/u);
+  assert.match(help, /poracode mcp auth status\|login\|logout SERVER_ID/u);
+  assert.match(help, /Provider logins, plugin service accounts and user MCP OAuth are separate/u);
+  assert.match(help, /poracode sessions list/u);
+  assert.match(help, /poracode sessions stop THREAD_ID/u);
+  assert.match(help, /systemd --user, Windows scheduled task, or macOS launchd/u);
+  assert.match(help, /Windows and macOS require a logged-on graphical user/u);
+  assert.doesNotMatch(help, /systemd user manager only/u);
+  assert.match(help, /poracode mcp list\|inspect/u);
+  assert.match(help, /mcp list\|inspect\|enable\|disable\|remove/u);
+  assert.match(help, /local-admin v6/u);
+  assert.match(help, /mcp add\|configure SERVER_ID/u);
+  assert.match(help, /--config-file JSON \| --config-stdin/u);
+  assert.match(help, /local-admin v7/u);
+  assert.match(help, /refuses a changed target/u);
+  assert.match(help, /removal requires typed confirmation or --yes/u);
+  assert.match(help, /local-admin v4/u);
+  assert.match(help, /completion bash\|zsh\|fish\|powershell/u);
+  assert.match(help, /No shell profile is edited/u);
 });
 
 void test("resolveRuntimeDir selects the manifest entry and reports offline installs", async () => {
@@ -1219,6 +1302,34 @@ void test("execServer forwards argv and pins PORACODE_APP_VERSION", async () => 
   assert.equal(captured.command, process.execPath);
   assert.deepEqual(captured.args.slice(-2), ["doctor", "--json"]);
   assert.equal(captured.options.env.PORACODE_APP_VERSION, "9.9.9");
+});
+
+void test("runCli forwards the selected profile to the runtime without forwarding its global flag", async () => {
+  const root = tempDir("poracode-cli-profile-");
+  const profile = join(root, "profile with spaces");
+  const { tarball, sha256: artifactSha } = buildRuntimeTarball(root);
+  const env = {
+    PORACODE_SERVER_TARBALL: tarball,
+    PORACODE_SERVER_TARBALL_SHA256: artifactSha,
+    PORACODE_RUNTIME_TARGET: "test-x64",
+    PORACODE_RUNTIME_CACHE_DIR: join(root, "cache"),
+  };
+  let captured;
+  const code = await runCli(["auth", "list", "--base-dir", profile, "--json"], {
+    env,
+    installOptions: { run: hermeticRun, npm: "npm" },
+    spawnImpl: (command, args, options) => {
+      captured = { command, args, options };
+      const child = new EventEmitter();
+      child.kill = () => {};
+      queueMicrotask(() => child.emit("exit", 0, null));
+      return child;
+    },
+  });
+  assert.equal(code, 0);
+  assert.deepEqual(captured.args.slice(1), ["auth", "list", "--json"]);
+  assert.equal(captured.options.env.PORACODE_BASE_DIR, profile);
+  assert.equal(env.PORACODE_BASE_DIR, undefined);
 });
 
 void test("parseRuntimeManifest rejects malformed manifests", () => {

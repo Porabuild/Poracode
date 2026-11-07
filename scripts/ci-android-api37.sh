@@ -93,7 +93,7 @@ export NATIVE_E2E_CONTROL_CAPABILITY="$capability"
 export PORACODE_NATIVE_E2E_SLOT=1
 export NATIVE_E2E_TEST_TIMEOUT_MS=1800000
 cd ..
-node --experimental-transform-types \
+node \
   --import ./scripts/remote-v3-ts-register.mjs \
   --no-warnings=ExperimentalWarning \
   ./tests/native-e2e/harness/cli.ts --mode mock --slot 1 \
@@ -118,9 +118,26 @@ adb reverse tcp:49161 tcp:49161
 # Keep this lane on the mock-capable API 37 classes. The real-host family and
 # capable-history runners own the one-time pairing URLs their classes require;
 # discovering those classes here would fail before exercising either contract.
-mock_classes="com.poracode.app.Android37MultihostInstrumentedTest,com.poracode.app.Android37WireLabFamilyInstrumentedTest,com.poracode.app.Android37WireLabJourneyInstrumentedTest,com.poracode.app.Android37WireLabSmokeInstrumentedTest"
+mock_classes="com.poracode.app.Android37MultihostInstrumentedTest,com.poracode.app.Android37WireLabFamilyInstrumentedTest,com.poracode.app.Android37WireLabJourneyInstrumentedTest,com.poracode.app.Android37WireLabSmokeInstrumentedTest,com.poracode.app.BackgroundTaskDetailsInstrumentedTest"
+test_status=0
 ./gradlew connectedDebugAndroidTest \
   -Pandroid.testInstrumentationRunnerArguments.capability="$capability" \
   -Pandroid.testInstrumentationRunnerArguments.class="$mock_classes" \
-  --no-daemon --stacktrace
+  --no-daemon --stacktrace || test_status=$?
+
+# Orchestrator clears app data between methods. The shell-owned screenshot
+# survives that cleanup; pull only this known file, then remove it on device.
+screenshot_dir="$RUNNER_TEMP/android-api37-screenshots"
+mkdir -p "$screenshot_dir"
+screenshot="$screenshot_dir/background-task-details.png"
+adb pull /data/local/tmp/poracode-background-task-details.png "$screenshot" >/dev/null 2>&1 || true
+adb shell rm -f /data/local/tmp/poracode-background-task-details.png >/dev/null 2>&1 || true
+if [ "$test_status" -ne 0 ]; then
+  exit "$test_status"
+fi
+if [ ! -s "$screenshot" ] || [ "$(head -c 8 "$screenshot" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
+  echo "Background-task screenshot is missing or is not a PNG." >&2
+  exit 1
+fi
+echo "Pulled background-task screenshot evidence: $screenshot"
 printf '%s\n' '### Android 17 runtime evidence' '' '- API 37 emulator booted as Android 17 (REL).' '- The targetSdk 37 / minSdk 34 APK installed and launched.' '- The API 37 instrumentation suite passed.' >> "$GITHUB_STEP_SUMMARY"

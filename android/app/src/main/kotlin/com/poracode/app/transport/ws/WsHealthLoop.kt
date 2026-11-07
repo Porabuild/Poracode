@@ -123,8 +123,24 @@ class WsHealthLoop(
                     forceReconnect("ping send failed")
                     return@launch
                 }
-                delay(RemoteSocketPolicy.HEALTH_PING_TIMEOUT_MS)
-                if (state.generationGate.isCurrent(gen) && state.pendingPingId.get() == id) {
+                var windowStartedAtMs = System.currentTimeMillis()
+                var extensions = 0
+                while (true) {
+                    delay(RemoteSocketPolicy.HEALTH_PING_TIMEOUT_MS)
+                    if (!state.generationGate.isCurrent(gen) || state.pendingPingId.get() != id) break
+                    val nowMs = System.currentTimeMillis()
+                    if (RemoteSocketDecisions.shouldExtendHealthDeadline(
+                            nowMs = nowMs,
+                            deadlineAtMs = windowStartedAtMs + RemoteSocketPolicy.HEALTH_PING_TIMEOUT_MS,
+                            windowStartedAtMs = windowStartedAtMs,
+                            lastInboundAtMs = state.lastInboundAtMs.get(),
+                            extensions = extensions,
+                        )
+                    ) {
+                        extensions += 1
+                        windowStartedAtMs = nowMs
+                        continue
+                    }
                     state.pendingPingId.set(null)
                     forceReconnect("health ping timeout")
                     return@launch

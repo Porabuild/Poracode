@@ -41,10 +41,9 @@ function runFixture(profile: string, mode: string) {
     [profile, mode, String(DEADLINE_MS)],
     {
       execArgv: [
-        "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--import",
-        fileURLToPath(new URL("../../scripts/remote-v3-ts-register.mjs", import.meta.url)),
+        new URL("../../scripts/remote-v3-ts-register.mjs", import.meta.url).href,
       ],
       env: environment,
       stdio: ["ignore", "ignore", "pipe", "ipc"],

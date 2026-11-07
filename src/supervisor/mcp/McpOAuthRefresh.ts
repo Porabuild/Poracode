@@ -5,6 +5,7 @@ export class McpOAuthRefresh {
     { controller: AbortController; result: Promise<string | undefined> }
   >();
   private readonly versions = new Map<string, number>();
+  private readonly retiring = new Set<Promise<string | undefined>>();
   private disposed = false;
 
   constructor(private readonly timeoutMs?: number) {}
@@ -32,6 +33,8 @@ export class McpOAuthRefresh {
         if (this.pending.get(url)?.controller === controller) this.pending.delete(url);
       });
     this.pending.set(url, { controller, result });
+    this.retiring.add(result);
+    void result.then(() => this.retiring.delete(result));
     return result;
   }
 
@@ -41,10 +44,11 @@ export class McpOAuthRefresh {
     this.pending.delete(url);
   }
 
-  dispose(): void {
+  async dispose(): Promise<void> {
     this.disposed = true;
     for (const { controller } of this.pending.values()) controller.abort();
     this.pending.clear();
+    await Promise.all(this.retiring);
   }
 }
 

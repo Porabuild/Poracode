@@ -26,10 +26,11 @@ jobs:
     outputs:
       core: ${{ steps.scope.outputs.core }}
     steps:
-      - name: Checkout complete history for PR diff
+      # Only the classifier script is needed; it fetches the PR's two commits.
+      - name: Checkout the change classifier
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
-          fetch-depth: 0
+          sparse-checkout: scripts
 
       - name: Classify affected CI surfaces
         id: scope
@@ -80,8 +81,14 @@ jobs:
       - name: Release version regression tests
         run: node --test scripts/resolve-release-version.test.mjs
 
-      - name: macOS notarization dependency regression tests
-        run: node --test scripts/mac-notarization-dependency.test.mjs
+      - name: Desktop packaging regression tests
+        run: node --test scripts/build-desktop-artifact.test.mjs scripts/mac-notarization-dependency.test.mjs
+
+      - name: Electron development regression tests
+        run: node --test scripts/dev-runtime-watch.test.mjs scripts/dev-launch.test.mjs scripts/vite-lingui-macro-worker.test.mjs
+
+      - name: Turbo cache regression tests
+        run: node --test scripts/turbo.test.mjs scripts/heavy-run-gate.test.mjs
 
       - name: Architecture boundary audit and analyzer tests
         run: bun run architecture:check
@@ -100,7 +107,34 @@ jobs:
         run: bun run vitest run --config tests/native-e2e/vitest.config.ts operationMap.test.ts
 
       - name: Nightly qualification regression tests
-        run: node --test scripts/ci-server-artifact-meta.test.mjs scripts/qualification-http.test.mjs scripts/server-n1-qualification.test.mjs scripts/package-chrome-extension.test.mjs scripts/chrome-extension-worker.test.mjs scripts/ci-change-scope.test.mjs scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs scripts/deploy-website-workflow.test.mjs scripts/native-ci-workflows.test.mjs scripts/qualify-release-pwa.test.mjs scripts/server-gate-workflows.test.mjs scripts/verify-server-tarball-contents.test.mjs scripts/prepare-server-native.test.mjs scripts/server-release-install.test.mjs scripts/runtime-closure.test.mjs scripts/generate-runtime-manifest.test.mjs scripts/set-release-version.test.mjs scripts/build-ssh-runtime-archive.test.mjs scripts/poracode-cli-qualification.test.mjs scripts/publish-npm-package.test.mjs packages/poracode-cli/test/launcher.test.mjs
+        run: node --test scripts/ci-server-artifact-meta.test.mjs scripts/qualification-http.test.mjs scripts/server-n1-qualification.test.mjs scripts/package-chrome-extension.test.mjs scripts/chrome-extension-worker.test.mjs scripts/ci-change-scope.test.mjs scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs scripts/deploy-website-workflow.test.mjs scripts/native-ci-workflows.test.mjs scripts/qualify-release-pwa.test.mjs scripts/server-gate-workflows.test.mjs scripts/verify-server-tarball-contents.test.mjs scripts/prepare-server-native.test.mjs scripts/server-release-install.test.mjs scripts/runtime-closure.test.mjs scripts/generate-runtime-manifest.test.mjs scripts/set-release-version.test.mjs scripts/build-ssh-runtime-archive.test.mjs scripts/poracode-cli-qualification.test.mjs scripts/publish-npm-package.test.mjs packages/poracode-cli/test/launcher.test.mjs scripts/update-test-durations.test.mjs scripts/wait-for-run-artifact.test.mjs
+
+      - name: Desktop CLI packaging and bootstrap regressions
+        run: node --test scripts/prepare-desktop-cli.test.mjs
+
+  tui:
+    name: TUI
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+
+      - name: Install TUI dependencies
+        run: bun run tui:install
+
+      - name: Typecheck
+        run: bun run tui:typecheck
+
+      - name: Test
+        run: bun run tui:test
 
   fmt:
     name: Format
@@ -240,6 +274,13 @@ jobs:
         if: runner.os == 'Linux'
         run: cargo deny check
 
+      # The authorization plug-in and its installer are macOS-only; these tests
+      # use fakes and temp roots and never touch the authorization database.
+      - name: Locked computer use plug-in and installer tests
+        if: runner.os == 'macOS'
+        working-directory: .
+        run: node --test scripts/prepare-locked-computer-use.test.mjs scripts/locked-computer-use-installer.test.mjs
+
   test_shard:
     name: Test shard (${{ matrix.shard }}/8)
     needs: changes
@@ -314,11 +355,30 @@ jobs:
       - name: Remote protocol perf suite
         run: bun run test:perf:remote
 
+      - name: Project tree perf suite
+        run: bun run test:perf:project-tree
+
+      - name: Dev server startup guards
+        # Watcher scope, warmup, pre-bundled deps and main-thread Babel: the
+        # causes behind the former ~80 s dev start, plus a warmup time budget.
+        run: bun run test:perf:dev-server
+
   ci_gate:
     name: Test
     if: ${{ always() }}
     needs:
-      [changes, typecheck, lint, fmt, web_build, runtime_deps, rust_helper, test_shard, test_perf]
+      [
+        changes,
+        typecheck,
+        lint,
+        fmt,
+        tui,
+        web_build,
+        runtime_deps,
+        rust_helper,
+        test_shard,
+        test_perf,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -332,7 +392,7 @@ jobs:
           if (!["true", "false"].includes(process.env.CORE_REQUIRED)) throw new Error("core change scope is missing");
           const required = new Set(["changes", "fmt"]);
           if (process.env.CORE_REQUIRED === "true") {
-            for (const name of ["typecheck", "lint", "web_build", "runtime_deps", "rust_helper", "test_shard", "test_perf"]) required.add(name);
+            for (const name of ["typecheck", "lint", "tui", "web_build", "runtime_deps", "rust_helper", "test_shard", "test_perf"]) required.add(name);
           }
           for (const [name, job] of Object.entries(jobs)) {
             const expected = required.has(name) ? "success" : "skipped";

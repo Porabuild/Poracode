@@ -15,21 +15,22 @@ export interface McpThreadIdentity {
 
 const MAX_TITLE = 80;
 
-/** Append `?thread=&title=` to an MCP endpoint URL (no-op without a threadId). */
+/** Append thread identity and tool restrictions, including for shared provider endpoints. */
 export function encodeThreadQuery(
   baseUrl: string,
   identity: McpThreadIdentity | undefined,
 ): string {
-  if (!identity?.threadId) return baseUrl;
-  const sep = baseUrl.includes("?") ? "&" : "?";
-  let query = `${sep}thread=${encodeURIComponent(identity.threadId)}`;
+  if (!identity) return baseUrl;
+  const params = new URLSearchParams();
+  if (identity.threadId) params.set("thread", identity.threadId);
   const title = identity.title?.trim();
-  if (title) query += `&title=${encodeURIComponent(title.slice(0, MAX_TITLE))}`;
+  if (identity.threadId && title) params.set("title", title.slice(0, MAX_TITLE));
   for (const tool of identity.disabledTools ?? []) {
-    query += `&disable=${encodeURIComponent(tool)}`;
+    params.append("disable", tool);
   }
-  if (identity.deviceProof) query += `&deviceProof=${encodeURIComponent(identity.deviceProof)}`;
-  return baseUrl + query;
+  if (identity.deviceProof) params.set("deviceProof", identity.deviceProof);
+  const query = params.toString();
+  return query ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${query}` : baseUrl;
 }
 
 /** Read the thread identity back out of a request URL (path + query). */

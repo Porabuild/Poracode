@@ -26,7 +26,7 @@ where
     W: Write + Send + 'static,
 {
     let (writer, writer_thread) = LineWriter::spawn(sink);
-    let mut dispatcher = Dispatcher::new(backend, writer.clone());
+    let mut dispatcher = Dispatcher::new(backend.clone(), writer.clone());
 
     for line in reader.lines() {
         let line = line?;
@@ -71,6 +71,9 @@ where
         }
     }
 
+    // Before draining the lanes: an in-flight locked-use begin is aborted and
+    // an active session relocks now, not after the lanes finish their work.
+    backend.shutdown();
     dispatcher.shutdown();
     drop(writer);
     let _ = writer_thread.join();

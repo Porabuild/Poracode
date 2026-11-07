@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvironmentPublicProjection } from "@/shared/environments";
 import { RemoteClientError } from "@/shared/remote/client";
+import { currentRemoteServerGeneration } from "./eventSocketRegistry";
 import {
   environmentParentCacheKey,
   type EnvironmentParentRef,
@@ -47,6 +48,7 @@ vi.mock("./environmentSessions", async (importOriginal) => {
     parentClientFor: () => parentClient,
     environmentParentEndpointFor: () => "http://127.0.0.1:49153/",
     createEnvironmentClientForPairing,
+    releaseEnvironmentChildGrant: () => {},
   };
 });
 
@@ -165,6 +167,51 @@ describe("environment management actions", () => {
         .getState()
         .updateEnvironment(PARENT_REF, ENVIRONMENT_ID, { label: "x" }),
     ).rejects.toThrow(/changed on the host/i);
+  });
+
+  it("retires the previous authority generation after a successful environment re-pair", async () => {
+    storeState.servers = [
+      parentRecord(),
+      {
+        connectionId: "conn-child",
+        desktopId: "child-1",
+        label: "Child",
+        endpoint: `http://127.0.0.1:49153/api/environments/${ENVIRONMENT_ID}/proxy/`,
+        accessToken: "old-child-access",
+        scopes: ["session:read"],
+        transport: {
+          kind: "environment",
+          parentConnectionId: PARENT_KEY,
+          environmentId: ENVIRONMENT_ID,
+          childDesktopId: "child-1",
+        },
+      },
+    ];
+    parentClient.pairEnvironment.mockResolvedValue({
+      environmentId: ENVIRONMENT_ID,
+      endpoint: `/api/environments/${ENVIRONMENT_ID}/proxy/`,
+      pairingCredential: "pair-new",
+      childDesktopId: "child-1",
+    });
+    const dispose = vi.fn<() => void>();
+    createEnvironmentClientForPairing.mockReturnValue({
+      client: {
+        exchangePairingCredential: async () => ({
+          accessToken: "new-child-access",
+          scopes: ["session:read"],
+        }),
+        environment: async () => ({ label: "Child" }),
+        dispose,
+      },
+    });
+    const previousGeneration = currentRemoteServerGeneration("conn-child");
+    const paired = await useEnvironmentManagementStore
+      .getState()
+      .pairEnvironmentDevice(PARENT_REF, ENVIRONMENT_ID);
+    expect(paired.connectionId).toBe("conn-child");
+    expect(currentRemoteServerGeneration("conn-child")).toBe(previousGeneration + 1);
+    expect(reconnectServer).toHaveBeenCalledWith("conn-child");
+    expect(dispose).toHaveBeenCalledOnce();
   });
 
   it("refuses to repoint an environment whose child identity changed", async () => {

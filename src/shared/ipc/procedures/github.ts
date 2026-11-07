@@ -1,4 +1,6 @@
 import {
+  ghPollPullRequestsPayloadSchema,
+  ghPollPullRequestsResultSchema,
   cloneRepoPayloadSchema,
   cloneRepoResultSchema,
   getGitStatusPayloadSchema,
@@ -47,6 +49,8 @@ import {
   ghPostPrCommentResultSchema,
 } from "../../contracts";
 import type {
+  GhPollPullRequestsPayload,
+  GhPollPullRequestsResult,
   CloneRepoPayload,
   CloneRepoResult,
   GetGitStatusPayload,
@@ -96,6 +100,16 @@ import type {
 import { definePayloadProcedure, omittedResultSchema } from "../core";
 
 export const githubProcedures = {
+  ghPollPullRequests: definePayloadProcedure<
+    GhPollPullRequestsPayload,
+    GhPollPullRequestsResult,
+    "supervisor"
+  >(
+    "ghPollPullRequests",
+    "supervisor",
+    ghPollPullRequestsPayloadSchema,
+    ghPollPullRequestsResultSchema,
+  ),
   ghCheckAvailable: definePayloadProcedure<
     GetGitStatusPayload,
     GhCheckAvailableResult,

@@ -13,6 +13,7 @@ import { appTools } from "./tools/app";
 import { fileTools } from "./tools/files";
 import { gitTools } from "./tools/git";
 import { githubTools } from "./tools/github";
+import { reviewTools } from "./tools/reviews";
 import { mcpServerTools } from "./tools/mcpServers";
 import { projectTools } from "./tools/projects";
 import { scheduleTools } from "./tools/schedules";
@@ -54,6 +55,8 @@ if (!APP_CONTROLS_CORE_SKILL || !TERMINAL_CORE_SKILL || !DEVICES_CORE_SKILL) {
 export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "Poracode app controls. " +
   `For threads, git, pull requests, and schedules, ${loadPluginCoreSkillPhrase(APP_CONTROLS_CORE_SKILL)}. ` +
+  "Keep your thread's assigned worktree for task changes and checks unless the user explicitly requests a different task checkout. " +
+  "See the app-controls skill for worktree creation and delegation guidance. " +
   `When reading the Terminal panel, ${loadPluginCoreSkillPhrase(TERMINAL_CORE_SKILL)}. ` +
   `For simulator and emulator work, ${loadPluginCoreSkillPhrase(DEVICES_CORE_SKILL)}. ` +
   "Read and control the running app: device schedules " +
@@ -101,7 +104,16 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "observed output from inference, and do not echo secrets or dump the entire raw scrollback. If " +
   "list_terminals returns no panes, say no running Terminal panel is attached to this worktree; do " +
   "not fall back to agent TUI or chat scrollback. If read_terminal reports zero output, say the pane " +
-  "is running but has not emitted output yet.";
+  "is running but has not emitted output yet. " +
+  "For app-native charts, comparison tables, calculators, checklists, tabs, text and relationship diagrams in desktop/web conversations, use a poracode-visual-v2 code fence with a plain title and strict JSON. " +
+  "To show a recorded or generated video with playback in desktop/web chat, save the file and include [Watch video](<absolute-file-path.mp4>) or ![Video](<absolute-file-path.webm>) in your response. HTTPS video URLs and standard MCP/ACP video resource links are also supported. Use the actual saved path; prose saying a clip exists does not attach it. Playback depends on the client's supported codecs. " +
+  "Read Native visuals v2 in the app-controls core skill for the bounded schema and example, fixed app-theme layout/accent choices and shared numeric inputs. Native v1 chart/table/outputs documents remain supported; formulas in both versions are arithmetic trees, never strings or JavaScript. " +
+  "Native visuals have no URLs, custom markup, tools, host actions or author code; native mobile clients keep fenced source. Use ordinary Markdown for unsupported content. " +
+  "A poracode-html-v1 code fence with a plain title preserves HTML as a source preview in the conversation (maximum 256 KiB per block). " +
+  "Author HTML and scripts remain source-only. Configured MCP Apps servers can supply interactive cards in GUI chat through declared ui:// resources and the host-managed sandbox. " +
+  "Do not promise app tools or host actions from authored HTML or native visual fences. Keep ordinary HTML examples in html fences." +
+  " For source-host PR/MR workflows, discover review_repository, then pass its public forgeAccount and full forgeRepository to review_* tools. " +
+  "Honor the reported capabilities and host policies. A successful merge request can remain queued; read the observed state and retry refresh without repeating a successful mutation.";
 
 const DOMAINS: readonly ToolDomain[] = [
   deviceTools,
@@ -117,6 +129,7 @@ const DOMAINS: readonly ToolDomain[] = [
   agentTools,
   gitTools,
   githubTools,
+  reviewTools,
   mcpServerTools,
   skillTools,
 ];

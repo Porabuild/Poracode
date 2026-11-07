@@ -17,6 +17,7 @@ import { NewThreadButton } from "./NewThreadButton";
 import { buildSidebarProjectRows } from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
+import { SidebarDoneRows } from "./SidebarDoneRows";
 
 export function SidebarProjectThreadList(props: { project: Project; sortMode: ThreadSortMode }) {
   const { project, sortMode } = props;
@@ -48,6 +49,19 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
     openThreadIds: new Set(currentThreadIds),
     ...(experimentCandidateOrder.size > 0 ? { experimentCandidateOrder } : {}),
   });
+  const doneStart = rows.findIndex((row) => row.kind === "section-label");
+  const renderRow = (row: (typeof rows)[number]) =>
+    row.kind === "see-more" ? (
+      <SeeMoreThreadsButton key={row.key} onPress={() => revealMoreThreads(project.id)} />
+    ) : (
+      <SidebarThreadRow
+        key={row.key}
+        row={row}
+        project={project}
+        editingThreadId={editingThreadId}
+        setEditingThreadId={setEditingThreadId}
+      />
+    );
 
   return (
     <div className="space-y-0.5">
@@ -62,19 +76,10 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
       />
 
       <div>
-        {rows.map((row) =>
-          row.kind === "see-more" ? (
-            <SeeMoreThreadsButton key={row.key} onPress={() => revealMoreThreads(project.id)} />
-          ) : (
-            <SidebarThreadRow
-              key={row.key}
-              row={row}
-              project={project}
-              editingThreadId={editingThreadId}
-              setEditingThreadId={setEditingThreadId}
-            />
-          ),
-        )}
+        {(doneStart === -1 ? rows : rows.slice(0, doneStart + 1)).map(renderRow)}
+        {doneStart !== -1 ? (
+          <SidebarDoneRows rows={rows.slice(doneStart + 1)} renderRow={renderRow} />
+        ) : null}
       </div>
     </div>
   );

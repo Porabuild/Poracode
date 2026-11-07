@@ -1,3 +1,4 @@
+import type { IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import { normalizeWorktreePathForComparison, resolveProjectLocation } from "@/shared/worktree";
 import type {
@@ -65,9 +66,17 @@ import type {
   InterruptThreadPayload,
   ListProjectTreePayload,
   ListProjectTreeResult,
+  McpOauthBeginPayload,
+  McpOauthBeginResult,
+  McpOauthClearPayload,
+  McpOauthStatusPayload,
   McpOauthStatusResult,
+  McpOauthWaitPayload,
+  McpOauthWaitResult,
   McpProbePayload,
   McpProbeResult,
+  ListPluginsPayload,
+  ListPluginsResult,
   PrComment,
   PrData,
   Project,
@@ -115,6 +124,58 @@ import type { DeviceWorkspaceService } from "../../../devices/DeviceWorkspaceSer
  * the full supervisor procedure surface.
  */
 export interface AppControlsSupervisorCaller {
+  forgeGetRepository(
+    payload: IpcProcedurePayload<"forgeGetRepository">,
+  ): Promise<IpcProcedureResult<"forgeGetRepository">>;
+  forgeEditPr(
+    payload: IpcProcedurePayload<"forgeEditPr">,
+  ): Promise<IpcProcedureResult<"forgeEditPr">>;
+  forgeCreatePr(
+    payload: IpcProcedurePayload<"forgeCreatePr">,
+  ): Promise<IpcProcedureResult<"forgeCreatePr">>;
+  forgeListPullRequests(
+    payload: IpcProcedurePayload<"forgeListPullRequests">,
+  ): Promise<IpcProcedureResult<"forgeListPullRequests">>;
+  forgeMergePr(
+    payload: IpcProcedurePayload<"forgeMergePr">,
+  ): Promise<IpcProcedureResult<"forgeMergePr">>;
+  forgeMergePrAtHead(
+    payload: IpcProcedurePayload<"forgeMergePrAtHead">,
+  ): Promise<IpcProcedureResult<"forgeMergePrAtHead">>;
+  forgeClosePr(
+    payload: IpcProcedurePayload<"forgeClosePr">,
+  ): Promise<IpcProcedureResult<"forgeClosePr">>;
+  forgeReopenPr(
+    payload: IpcProcedurePayload<"forgeReopenPr">,
+  ): Promise<IpcProcedureResult<"forgeReopenPr">>;
+  forgeMarkPrReady(
+    payload: IpcProcedurePayload<"forgeMarkPrReady">,
+  ): Promise<IpcProcedureResult<"forgeMarkPrReady">>;
+  forgeUpdatePrBranch(
+    payload: IpcProcedurePayload<"forgeUpdatePrBranch">,
+  ): Promise<IpcProcedureResult<"forgeUpdatePrBranch">>;
+  forgeGetPrChecks(
+    payload: IpcProcedurePayload<"forgeGetPrChecks">,
+  ): Promise<IpcProcedureResult<"forgeGetPrChecks">>;
+  forgeGetPrFiles(
+    payload: IpcProcedurePayload<"forgeGetPrFiles">,
+  ): Promise<IpcProcedureResult<"forgeGetPrFiles">>;
+  forgeGetPrDiff(
+    payload: IpcProcedurePayload<"forgeGetPrDiff">,
+  ): Promise<IpcProcedureResult<"forgeGetPrDiff">>;
+  forgeGetPrDetails(
+    payload: IpcProcedurePayload<"forgeGetPrDetails">,
+  ): Promise<IpcProcedureResult<"forgeGetPrDetails">>;
+  forgeGetPrReviewComments(
+    payload: IpcProcedurePayload<"forgeGetPrReviewComments">,
+  ): Promise<IpcProcedureResult<"forgeGetPrReviewComments">>;
+  forgePostPrComment(
+    payload: IpcProcedurePayload<"forgePostPrComment">,
+  ): Promise<IpcProcedureResult<"forgePostPrComment">>;
+  forgeSubmitPrReview(
+    payload: IpcProcedurePayload<"forgeSubmitPrReview">,
+  ): Promise<IpcProcedureResult<"forgeSubmitPrReview">>;
+
   getThreadSnapshots(): Promise<ThreadRuntimeSnapshot[]>;
   getTerminalShellSnapshots(): Promise<TerminalShellSnapshot[]>;
   /** Start (or resume) a thread's runtime session. Used to revive a thread with no live session. */
@@ -228,8 +289,16 @@ export interface AppControlsSupervisorCaller {
   probeMcpServer(payload: McpProbePayload): Promise<McpProbeResult>;
   /** Re-resolve + apply an agent kind's MCP set to its live sessions (hot-reload). */
   reloadAgentMcpServers(payload: ReloadAgentMcpServersPayload): Promise<void>;
-  /** OAuth authentication status for configured MCP servers. */
-  getMcpOauthStatus(): Promise<McpOauthStatusResult>;
+  /** OAuth authentication status, scoped to a project's runtime when given (WSL token store). */
+  getMcpOauthStatus(payload?: McpOauthStatusPayload): Promise<McpOauthStatusResult>;
+  /** Start an OAuth sign-in for one HTTP/SSE MCP server. */
+  beginMcpServerOauth(payload: McpOauthBeginPayload): Promise<McpOauthBeginResult>;
+  /** Wait for a started OAuth sign-in to finish (or expire). */
+  waitMcpServerOauth(payload: McpOauthWaitPayload): Promise<McpOauthWaitResult>;
+  /** Forget the stored OAuth credential for one MCP endpoint URL. */
+  clearMcpServerOauth(payload: McpOauthClearPayload): Promise<void>;
+  /** Agent Plugin packages visible to a project (bundled, user, and its own). */
+  listPlugins(payload: ListPluginsPayload): Promise<ListPluginsResult>;
   /** Scan installed skills (global + optional project scope). */
   scanSkills(payload: ScanSkillsPayload): Promise<SkillScanResult>;
   /** Enable or disable one skill. */

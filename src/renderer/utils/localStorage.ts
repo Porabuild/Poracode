@@ -54,3 +54,18 @@ export function writeStoredString(key: string, value: string): void {
     /* ignore */
   }
 }
+
+/** Parsed JSON stored under `key`, or null when missing, unreadable, or malformed. */
+export function readStoredJson(key: string): unknown {
+  const raw = readStoredString(key);
+  if (raw === null) return null;
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+export function writeStoredJson(key: string, value: unknown): void {
+  writeStoredString(key, JSON.stringify(value));
+}

@@ -1,0 +1,143 @@
+import path from "path"
+import { measureEditText, type WidthMethod } from "@opentui/core"
+import { onMount } from "solid-js"
+import { createStore, produce, unwrap } from "solid-js/store"
+import type { PromptInput } from "@opencode/schema"
+import type { Types } from "effect"
+import { createSimpleContext } from "../context/helper"
+import { useTuiPaths } from "../context/runtime"
+import { appendText, readText, writeText } from "../util/persistence"
+
+export type PastedText = {
+  text: string
+  source: {
+    start: number
+    end: number
+    text: string
+  }
+}
+
+export type PromptInfo = Types.DeepMutable<Pick<PromptInput.Prompt, "text" | "files" | "agents" | "skills">> & {
+  pasted: PastedText[]
+  mode?: "normal" | "shell"
+}
+
+export type PromptPartRef = {
+  type: "file" | "agent" | "skill" | "pasted"
+  index: number
+}
+
+export const emptyPrompt = (): PromptInfo => ({ text: "", files: [], agents: [], skills: [], pasted: [] })
+
+// Part ranges are textarea offsets, so shift by the measured offset rather than string length.
+export function appendPrompt(prompt: PromptInfo, following: PromptInfo, widthMethod: WidthMethod): PromptInfo {
+  const text = prompt.text ? `${prompt.text}\n\n` : ""
+  const offset = measureEditText(text, { widthMethod })
+  const shift = <T extends { start: number; end: number }>(range: T, by: number) => ({
+    ...range,
+    start: range.start + by,
+    end: range.end + by,
+  })
+  const mentions = <T extends { mention?: { start: number; end: number } }>(
+    items: T[] | undefined,
+    next: T[] | undefined,
+  ) => [
+    ...(items ?? []).map((item) => ({ ...item, mention: item.mention && shift(item.mention, 0) })),
+    ...(next ?? []).map((item) => ({ ...item, mention: item.mention && shift(item.mention, offset) })),
+  ]
+  return {
+    text: text + following.text,
+    files: mentions(prompt.files, following.files),
+    agents: mentions(prompt.agents, following.agents),
+    skills: mentions(prompt.skills, following.skills),
+    pasted: [
+      ...prompt.pasted.map((part) => ({ ...part, source: shift(part.source, 0) })),
+      ...following.pasted.map((part) => ({ ...part, source: shift(part.source, offset) })),
+    ],
+  }
+}
+
+export const MAX_HISTORY_ENTRIES = 50
+
+export function parsePromptHistory(text: string) {
+  return text
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      try {
+        return parsePromptInfo(JSON.parse(line))
+      } catch {
+        return undefined
+      }
+    })
+    .filter((line): line is PromptInfo => line !== undefined)
+    .slice(-MAX_HISTORY_ENTRIES)
+}
+
+export function isDuplicateEntry(previous: PromptInfo | undefined, next: PromptInfo): boolean {
+  if (!previous) return false
+  return JSON.stringify(previous) === JSON.stringify(next)
+}
+
+export function parsePromptInfo(value: unknown): PromptInfo | undefined {
+  if (!value || typeof value !== "object") return
+  const input = value as Record<string, unknown>
+  if (typeof input.text !== "string" || !Array.isArray(input.pasted)) return
+  return input as PromptInfo
+}
+
+export const { use: usePromptHistory, provider: PromptHistoryProvider } = createSimpleContext({
+  name: "PromptHistory",
+  init: () => {
+    const paths = useTuiPaths()
+    const historyPath = path.join(paths.state, "prompt-history.jsonl")
+    onMount(async () => {
+      const lines = parsePromptHistory(await readText(historyPath).catch(() => ""))
+      setStore("history", lines)
+
+      // Rewrite valid retained entries to self-heal corruption and enforce the limit.
+      if (lines.length > 0)
+        writeText(historyPath, lines.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {})
+    })
+
+    const [store, setStore] = createStore({ index: 0, history: [] as PromptInfo[] })
+
+    return {
+      move(direction: 1 | -1, input: string) {
+        if (!store.history.length) return undefined
+        const current = store.history.at(store.index)
+        if (!current) return undefined
+        if (current.text !== input && input.length) return
+        const next = store.index + direction
+        if (Math.abs(next) > store.history.length || next > 0) return
+        setStore("index", next)
+        if (next === 0) return emptyPrompt()
+        return store.history.at(next)
+      },
+      append(item: PromptInfo) {
+        const entry = structuredClone(unwrap(item))
+        if (isDuplicateEntry(store.history.at(-1), entry)) {
+          setStore("index", 0)
+          return
+        }
+        let trimmed = false
+        setStore(
+          produce((draft) => {
+            draft.history.push(entry)
+            if (draft.history.length > MAX_HISTORY_ENTRIES) {
+              draft.history = draft.history.slice(-MAX_HISTORY_ENTRIES)
+              trimmed = true
+            }
+            draft.index = 0
+          }),
+        )
+
+        if (trimmed) {
+          writeText(historyPath, store.history.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {})
+          return
+        }
+        appendText(historyPath, JSON.stringify(entry) + "\n").catch(() => {})
+      },
+    }
+  },
+})

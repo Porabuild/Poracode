@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import type { SessionRef } from "@/shared/contracts";
+import type { AgentCapability, SessionRef, ToolCallPayload } from "@/shared/contracts";
 import { dispatchTool } from "./toolRegistry";
 import { FakeHandle, flush, makeHarness, PARENT } from "./testHarness";
 
@@ -293,3 +293,358 @@ it.each([false, true])(
     await flush();
   },
 );
+
+it("continues a crew role's previous helper session for its next task", async () => {
+  const open = vi.fn<(handle: FakeHandle, ref: SessionRef | undefined) => Promise<string>>(
+    async (_handle, ref) => ref?.providerSessionId ?? "role-session",
+  );
+  const h = makeHarness({ resume: { sessionId: "role-session", open } });
+  const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+  const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "First task", crewRole });
+  await flush();
+  answer(h.handles[0]!, "First result");
+  await h.manager.waitForSettlement(PARENT, runId);
+
+  const next = await h.manager.continueRole(
+    PARENT,
+    { agent: "codex", prompt: "Second task", crewRole },
+    true,
+  );
+  await flush();
+  expect(next).toEqual({ runId: expect.any(String), continuedFrom: runId });
+  expect(h.inputs[1]!.sessionRef?.providerSessionId).toBe("role-session");
+  expect(h.handles[1]!.startTurns[0]!.prompt).toContain("Second task");
+
+  // New reasoning or Fast updates the same helper's next turn instead of
+  // starting a new one.
+  answer(h.handles[1]!, "Second result");
+  await h.manager.waitForSettlement(PARENT, next!.runId);
+  const tuned = await h.manager.continueRole(
+    PARENT,
+    { agent: "codex", effort: "low", fast: true, prompt: "Third task", crewRole },
+    true,
+  );
+  await flush();
+  expect(tuned).toEqual({ runId: expect.any(String), continuedFrom: next!.runId });
+  expect(h.inputs[2]!.sessionRef?.providerSessionId).toBe("role-session");
+  expect(h.handles[2]!.startTurns[0]!.config).toMatchObject({ effort: "low", fast: true });
+
+  // A changed role model or context length starts a fresh helper instead of
+  // reusing the session.
+  answer(h.handles[2]!, "Third result");
+  await h.manager.waitForSettlement(PARENT, tuned!.runId);
+  expect(
+    await h.manager.continueRole(
+      PARENT,
+      { agent: "codex", contextSize: "1m", prompt: "Wider task", crewRole },
+      true,
+    ),
+  ).toBeUndefined();
+  expect(
+    await h.manager.continueRole(
+      PARENT,
+      { agent: "codex", model: "other-model", prompt: "Fourth task", crewRole },
+      true,
+    ),
+  ).toBeUndefined();
+  h.manager.cancelAllForThread(PARENT);
+  await flush();
+});
+
+it("titles a role follow-up with the lead's task name", async () => {
+  const h = makeHarness({ resume: { sessionId: "role-session" } });
+  const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+  const { runId } = h.manager.spawn(PARENT, {
+    agent: "codex",
+    name: "Say one",
+    prompt: "Reply with exactly: ONE.",
+    crewRole,
+  });
+  await flush();
+  answer(h.handles[0]!, "ONE");
+  await h.manager.waitForSettlement(PARENT, runId);
+
+  const next = await h.manager.continueRole(
+    PARENT,
+    { agent: "codex", name: "Say two", prompt: "Reply with exactly: TWO.", crewRole },
+    true,
+  );
+  await flush();
+  expect(next).toEqual({ runId: expect.any(String), continuedFrom: runId });
+  const startedPayload = (itemId: string) =>
+    (
+      h.appended.find(
+        (entry) => entry.event.type === "item.started" && entry.event.itemId === itemId,
+      )?.event as { payload?: ToolCallPayload } | undefined
+    )?.payload;
+  expect(startedPayload(`sub:${next!.runId}`)).toMatchObject({
+    title: "Say two",
+    name: expect.stringMatching(/^Say two — /),
+  });
+
+  // A follow-up without a name keeps deriving its title from the prompt.
+  answer(h.handles[1]!, "TWO");
+  await h.manager.waitForSettlement(PARENT, next!.runId);
+  const unnamed = await h.manager.continueRole(
+    PARENT,
+    { agent: "codex", prompt: "Reply with exactly: THREE.", crewRole },
+    true,
+  );
+  await flush();
+  expect(startedPayload(`sub:${unnamed!.runId}`)).toMatchObject({
+    title: "Reply with exactly: THREE.",
+  });
+  h.manager.cancelAllForThread(PARENT);
+  await flush();
+});
+
+it("names a completed crew steer follow-up and keeps its original selection", async () => {
+  const statusCapabilities = {
+    supportsResume: true,
+    models: [{ id: "gpt-5.5", label: "GPT-5.5" }],
+    efforts: ["low", "high"],
+    fastModels: ["gpt-5.5"],
+    contextSizes: [
+      { id: "272k", label: "272k" },
+      { id: "1m", label: "1M" },
+    ],
+    modelContextSizes: { "gpt-5.5": ["272k", "1m"] },
+    approvalPolicies: [
+      { id: "on-request", label: "On Request" },
+      { id: "never", label: "Full Access" },
+    ],
+    sandboxModes: [
+      { id: "workspace-write", label: "Workspace Write" },
+      { id: "danger-full-access", label: "Full Access" },
+    ],
+    bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+  } as unknown as AgentCapability;
+  const h = makeHarness({ resume: { sessionId: "role-session" }, statusCapabilities });
+  const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+  const { runId } = h.manager.spawn(PARENT, {
+    agent: "codex",
+    name: "First task",
+    prompt: "First prompt",
+    crewRole,
+    effort: "high",
+    fast: true,
+    contextSize: "1m",
+  });
+  await flush();
+  answer(h.handles[0]!, "First result");
+  await h.manager.waitForSettlement(PARENT, runId);
+
+  const pending = dispatchTool(
+    "steer_agent",
+    {
+      run_id: runId,
+      prompt:
+        "New task: you may now EDIT files (no commit, no push). Implement the crew label fix.",
+      name: "  Fix crew model labels  ",
+    },
+    { parentThreadId: PARENT, runManager: h.manager, listSpawnableAgents: async () => [] },
+  );
+  await flush();
+  const nextRunId = h.manager.listRuns(PARENT)[1]!.run_id;
+  const payloadFor = (eventType: string) =>
+    (
+      h.appended
+        .filter((entry) => (entry.event as { itemId?: string }).itemId === `sub:${nextRunId}`)
+        .find((entry) => entry.event.type === eventType)?.event as
+        | { payload?: ToolCallPayload }
+        | undefined
+    )?.payload;
+
+  expect(h.inputs[1]!.sessionRef?.providerSessionId).toBe("role-session");
+  expect(h.inputs[1]!.config).toMatchObject({
+    model: "gpt-5.5",
+    effort: "high",
+    fast: true,
+    contextSize: "1m",
+  });
+  expect(payloadFor("item.started")).toMatchObject({
+    title: "Fix crew model labels",
+    name: expect.stringMatching(/^Fix crew model labels — /),
+  });
+
+  answer(h.handles[1]!, "Done");
+  const response = await pending;
+  expect(response.isError).not.toBe(true);
+  expect(payloadFor("item.completed")).toMatchObject({
+    title: "Fix crew model labels",
+    name: expect.stringMatching(/^Fix crew model labels — /),
+  });
+});
+
+it("keeps a live correction's task label when a name is supplied", async () => {
+  const h = makeHarness();
+  const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+  const { runId } = h.manager.spawn(PARENT, {
+    agent: "codex",
+    name: "First task",
+    prompt: "First prompt",
+    crewRole,
+  });
+  await flush();
+  h.handles[0]!.steerTurn = async () => {};
+
+  const response = await dispatchTool(
+    "steer_agent",
+    { run_id: runId, prompt: "Correction", name: "Should not replace", background: true },
+    { parentThreadId: PARENT, runManager: h.manager, listSpawnableAgents: async () => [] },
+  );
+  expect(response.isError).not.toBe(true);
+  const payloadFor = (eventType: string) =>
+    (
+      h.appended
+        .filter((entry) => (entry.event as { itemId?: string }).itemId === `sub:${runId}`)
+        .find((entry) => entry.event.type === eventType)?.event as
+        | { payload?: ToolCallPayload }
+        | undefined
+    )?.payload;
+  expect(payloadFor("item.started")).toMatchObject({
+    title: "First task",
+    name: expect.stringMatching(/^First task — /),
+  });
+  expect(h.manager.listRuns(PARENT)).toHaveLength(1);
+
+  h.handles[0]!.completeTurn("completed");
+  await h.manager.waitForSettlement(PARENT, runId);
+  expect(payloadFor("item.completed")).toMatchObject({
+    title: "First task",
+    name: expect.stringMatching(/^First task — /),
+  });
+  expect(h.manager.listRuns(PARENT)[0]?.name).toMatch(/^First task — /);
+});
+
+it("keeps the previous label but derives the title from the prompt without a new name", async () => {
+  const h = makeHarness({ resume: { sessionId: "role-session" } });
+  const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+  const { runId } = h.manager.spawn(PARENT, {
+    agent: "codex",
+    name: "First task",
+    prompt: "First prompt",
+    crewRole,
+  });
+  await flush();
+  answer(h.handles[0]!, "First result");
+  await h.manager.waitForSettlement(PARENT, runId);
+
+  const pending = dispatchTool(
+    "steer_agent",
+    { run_id: runId, prompt: "Verify once more" },
+    { parentThreadId: PARENT, runManager: h.manager, listSpawnableAgents: async () => [] },
+  );
+  await flush();
+  const nextRunId = h.manager.listRuns(PARENT)[1]!.run_id;
+  const payloadFor = (eventType: string) =>
+    (
+      h.appended
+        .filter((entry) => (entry.event as { itemId?: string }).itemId === `sub:${nextRunId}`)
+        .find((entry) => entry.event.type === eventType)?.event as
+        | { payload?: ToolCallPayload }
+        | undefined
+    )?.payload;
+
+  expect(h.inputs[1]!.sessionRef?.providerSessionId).toBe("role-session");
+  expect(payloadFor("item.started")).toMatchObject({
+    title: "Verify once more",
+    name: expect.stringMatching(/^First task — /),
+  });
+
+  answer(h.handles[1]!, "Done");
+  const response = await pending;
+  expect(response.isError).not.toBe(true);
+  expect(payloadFor("item.completed")).toMatchObject({
+    title: "Verify once more",
+    name: expect.stringMatching(/^First task — /),
+  });
+  expect(h.manager.listRuns(PARENT)[1]?.name).toMatch(/^First task — /);
+});
+
+it("continues the newest helper run when runs share a creation timestamp", async () => {
+  const now = vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+  try {
+    const h = makeHarness({ resume: { sessionId: "role-session" } });
+    const crewRole = { id: "builder", label: "Builder", parallel: 1 };
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "First task", crewRole });
+    await flush();
+    answer(h.handles[0]!, "First result");
+    await h.manager.waitForSettlement(PARENT, runId);
+
+    const next = await h.manager.continueRole(
+      PARENT,
+      { agent: "codex", prompt: "Second task", crewRole },
+      true,
+    );
+    await flush();
+    expect(next).toEqual({ runId: expect.any(String), continuedFrom: runId });
+
+    // The predecessor is already continued, so only the newer run may be picked.
+    answer(h.handles[1]!, "Second result");
+    await h.manager.waitForSettlement(PARENT, next!.runId);
+    const third = await h.manager.continueRole(
+      PARENT,
+      { agent: "codex", prompt: "Third task", crewRole },
+      true,
+    );
+    await flush();
+    expect(third).toEqual({ runId: expect.any(String), continuedFrom: next!.runId });
+    h.manager.cancelAllForThread(PARENT);
+    await flush();
+  } finally {
+    now.mockRestore();
+  }
+});
+
+it("marks a continued run's tile as a follow-up", async () => {
+  const h = await completed();
+  type TileEvent = { type: string; payload?: ToolCallPayload };
+  const itemEvents = (itemId: string): TileEvent[] =>
+    h.appended
+      .filter(
+        (entry) =>
+          entry.event.type === "item.started" ||
+          entry.event.type === "item.updated" ||
+          entry.event.type === "item.completed",
+      )
+      .filter((entry) => (entry.event as { itemId: string }).itemId === itemId)
+      .map((entry) => entry.event as TileEvent);
+
+  const firstTile = itemEvents(`sub:${h.runId}`);
+  expect(firstTile.length).toBeGreaterThan(0);
+  for (const event of firstTile) {
+    expect(event.payload?.isSubAgentResume).toBeUndefined();
+  }
+
+  const next = await h.manager.steer(h.runId, "Fence stale shell pages", PARENT);
+  await flush();
+  answer(h.handles[1]!, "Fenced");
+  await h.manager.waitForSettlement(PARENT, next.runId);
+
+  const nextTile = itemEvents(`sub:${next.runId}`);
+  const started = nextTile.find((event) => event.type === "item.started");
+  const completedTile = nextTile.find((event) => event.type === "item.completed");
+  expect(started?.payload).toMatchObject({ isSubAgentResume: true, isCrossagent: true });
+  expect(completedTile?.payload).toMatchObject({
+    isSubAgentResume: true,
+    isCrossagent: true,
+    status: "success",
+  });
+});
+
+it("starts a fresh helper while the role is still busy", async () => {
+  const h = makeHarness({ resume: { sessionId: "busy-session" } });
+  const crewRole = { id: "builder", label: "Builder", parallel: 2 };
+  h.manager.spawn(PARENT, { agent: "codex", prompt: "Long task", crewRole, background: true });
+  await flush();
+  expect(
+    await h.manager.continueRole(
+      PARENT,
+      { agent: "codex", prompt: "Parallel task", crewRole },
+      true,
+    ),
+  ).toBeUndefined();
+  h.manager.cancelAllForThread(PARENT);
+  await flush();
+});

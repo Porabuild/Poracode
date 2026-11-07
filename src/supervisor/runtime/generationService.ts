@@ -13,6 +13,8 @@ import type {
   GenerateTitleResult,
   JudgeExperimentPayload,
   JudgeExperimentResult,
+  ForgeWritePrReviewGuidePayload,
+  ForgeRepository,
 } from "@/shared/contracts";
 import { evaluateScheduleCompletion } from "../scheduleCompletionEvaluator";
 import { generateCommitMessage } from "../commitMessageGenerator";
@@ -23,6 +25,8 @@ import {
 import { generatePrSummary } from "../prSummaryGenerator";
 import { generateTitle } from "../titleGenerator";
 import { judgeExperiment } from "../experimentJudge";
+import { generateReviewGuide } from "../reviewGuideGenerator";
+import type { ReviewGuideSnapshot } from "../forges/reviewGuides";
 import type { AgentAdapter } from "../agents/base";
 import type { HostResourceAdmission } from "./hostResourceAdmission";
 import type { WslBridgeClient } from "../wsl/bridge/client";
@@ -123,6 +127,17 @@ export class GenerationService {
         payload.selection,
         payload.language,
       ),
+    );
+  }
+
+  async generateReviewGuide(
+    payload: ForgeWritePrReviewGuidePayload,
+    snapshot: ReviewGuideSnapshot,
+    source: ForgeRepository,
+  ) {
+    const adapter = this.requireAdapter(payload.agentKind);
+    return this.withHelperLease("review-guide", () =>
+      generateReviewGuide(payload, snapshot, source, adapter, this.deps.wslBridgeClient),
     );
   }
 

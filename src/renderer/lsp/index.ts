@@ -6,6 +6,7 @@ import { detectLanguageServerId, getMonacoLanguages } from "./languageSupport";
 import { LspIpcTransport } from "./ipcTransport";
 import { registerLspProviders } from "./monacoProviders";
 import { DocumentSyncManager } from "./documentSync";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 
 type IDisposable = { dispose(): void };
 
@@ -44,8 +45,8 @@ export class LspOrchestrator {
     projectLocation: ProjectLocation,
     filePath: string,
   ): Promise<LspSession | null> {
-    // Remote paths belong to the paired host, never a local language server.
-    if (this.disposed || projectLocation.remoteServerId) return null;
+    // A project on another machine has no files for a local language server.
+    if (this.disposed || !hostRunsOnThisMachine(projectLocation)) return null;
     const languageId = detectLanguageServerId(filePath);
     if (!languageId) return null;
     const sessionId = `${projectId}:${languageId}`;

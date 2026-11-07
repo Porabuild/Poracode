@@ -1,0 +1,9 @@
+{
+  "name": "@opencode/ui",
+  "version": "2.1.4",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./audio/*": "./src/assets/audio/*"
+  }
+}

@@ -17,6 +17,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -26,7 +27,13 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scanRuntimeExternals } from "./runtime-externals.mjs";
+import { prepareDesktopCli } from "./prepare-desktop-cli.mjs";
 import { preparePackagedDeviceHub } from "./prepare-device-hub.mjs";
+import { pinInstalledVersions, readRuntimeClosure } from "./runtime-closure.mjs";
+import { npmInvocation } from "./server-host-tools.mjs";
+import { verifyRuntimeResources } from "../src/shared/runtimeResourceInventory.ts";
+import { readPtyJobOwnerArtifact } from "../src/shared/ptyJobOwnerArtifact.ts";
+import { SUPPORTED_LOCALES } from "../src/shared/locale.ts";
 import {
   MAC_NOTARIZE_VERSION,
   verifyMacNotarizationDependency,
@@ -48,6 +55,7 @@ const { supportEmail } = requireFromHere("../branding/contact.json");
 const RUNTIME_DEPS = [
   "@anthropic-ai/claude-agent-sdk",
   "@modelcontextprotocol/client",
+  "@modelcontextprotocol/server",
   "@opencode-ai/sdk",
   "@opencode/client",
   "@sentry/electron",
@@ -59,6 +67,7 @@ const RUNTIME_DEPS = [
   "micromatch",
   "node-pty",
   "proper-lockfile",
+  "qrcode",
   "sharp",
   "smol-toml",
   "vscode-jsonrpc",
@@ -132,17 +141,22 @@ const PLATFORM_FLAG = { mac: "--mac", linux: "--linux", win: "--win" };
 // the per-platform `target.arch` lists emitted by buildElectronBuilderConfig().
 const DEFAULT_TARGET_ARCHES = { win: ["x64", "arm64"], mac: ["x64", "arm64"], linux: ["x64"] };
 
+export function verifyDesktopPtyTargets(resourceRoot, arches) {
+  for (const arch of arches)
+    readPtyJobOwnerArtifact(join(resourceRoot, "pty-job-owner"), `win32-${arch}`);
+}
+
 // A missing peer of a runtime external surfaces as `ERR_MODULE_NOT_FOUND` deep
 // inside SDK code at app launch. Walk each external's installed package.json
 // and pull in any non-optional peer that the root itself declares as a dep —
 // this stays explicit regardless of the installer's auto-peer behavior.
-function expandPeerDeps(externals, rootPkg) {
+function expandPeerDeps(externals, rootPkg, nodeModulesDir) {
   const expanded = new Set();
   const rootHasDep = (name) =>
     Boolean(rootPkg.dependencies?.[name] ?? rootPkg.devDependencies?.[name]);
 
   for (const name of externals) {
-    const pkgPath = resolve(repoRoot, "node_modules", name, "package.json");
+    const pkgPath = join(nodeModulesDir, name, "package.json");
     if (!existsSync(pkgPath)) continue;
     const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
     const peers = pkg.peerDependencies ?? {};
@@ -157,31 +171,22 @@ function expandPeerDeps(externals, rootPkg) {
   return [...expanded];
 }
 
-function buildStagePackageJson(rootPkg) {
-  const pick = (name) => rootPkg.dependencies?.[name] ?? rootPkg.devDependencies?.[name] ?? null;
-
-  const dependencies = {};
-  const peerDeps = expandPeerDeps(RUNTIME_DEPS, rootPkg);
+export function buildStagePackageJson(rootPkg, nodeModulesDir = join(repoRoot, "node_modules")) {
+  const pinOptions = {
+    rootPackage: {
+      ...rootPkg,
+      dependencies: { ...rootPkg.devDependencies, ...rootPkg.dependencies },
+    },
+    nodeModulesDir,
+  };
+  const peerDeps = expandPeerDeps(RUNTIME_DEPS, rootPkg, nodeModulesDir);
   const allRuntime = [...RUNTIME_DEPS, ...peerDeps];
-  for (const name of allRuntime) {
-    const version = pick(name);
-    if (!version) {
-      throw new Error(`Runtime dep ${name} not found in root package.json`);
-    }
-    dependencies[name] = version;
-  }
+  const dependencies = pinInstalledVersions(allRuntime, pinOptions);
   if (peerDeps.length > 0) {
     console.log(`[stage] pulled in peer deps: ${peerDeps.join(", ")}`);
   }
 
-  const devDependencies = {};
-  for (const name of STAGE_DEV_DEPS) {
-    const version = pick(name);
-    if (!version) {
-      throw new Error(`Stage dev dep ${name} not found in root package.json`);
-    }
-    devDependencies[name] = version;
-  }
+  const devDependencies = pinInstalledVersions(STAGE_DEV_DEPS, pinOptions);
 
   return {
     name: rootPkg.name,
@@ -196,6 +201,7 @@ function buildStagePackageJson(rootPkg) {
     main: rootPkg.main ?? "dist/main/main.cjs",
     dependencies,
     devDependencies,
+    ...(rootPkg.overrides ? { overrides: rootPkg.overrides } : {}),
     engines: rootPkg.engines,
   };
 }
@@ -236,16 +242,8 @@ function copyPackagedDist(stageRoot) {
   }
 }
 
-// The Claude Agent SDK lists `@anthropic-ai/claude-agent-sdk-<plat>-<arch>` as
-// optionalDependencies — each platform pack contains a ~200 MB precompiled
-// SEA binary of the `claude` CLI. The asar exclusion in the staged
-// electron-builder.yml keeps them out of the shipped app; this prune shrinks
-// the stage tmpdir and speeds up electron-builder's file walk.
-//
-// Safe to delete after `npm install` returned: the platform packs are pure
-// binary blobs with no postinstall hooks, and the SDK only `require`s them
-// lazily at runtime (when `pathToClaudeCodeExecutable` is unset) — which we
-// always set on posix and route through wsl.exe on WSL.
+// These optional SEA binaries are never used by our provider launcher. Keep
+// the other optionals: dmg-builder requires dmg-license even during import.
 function pruneStageBinaries(stageRoot) {
   const anthropicDir = join(stageRoot, "node_modules", "@anthropic-ai");
   if (!existsSync(anthropicDir)) return;
@@ -256,8 +254,26 @@ function pruneStageBinaries(stageRoot) {
       pruned += 1;
     }
   }
-  if (pruned > 0) {
+  if (pruned > 0)
     console.log(`[stage] pruned ${pruned} @anthropic-ai/claude-agent-sdk-* platform pack(s)`);
+}
+
+// Staged by scripts/prepare-locked-computer-use.mjs (macOS only).
+const LOCKED_COMPUTER_USE_DIR = "resources/locked-computer-use";
+const LOCKED_COMPUTER_USE_BUNDLE = "PoracodeLockedUse.bundle";
+
+export function verifyLockedComputerUseResources(resourceDir) {
+  for (const entry of [
+    `${LOCKED_COMPUTER_USE_BUNDLE}/Contents/Info.plist`,
+    `${LOCKED_COMPUTER_USE_BUNDLE}/Contents/MacOS/PoracodeLockedUse`,
+    "locked-computer-use-installer",
+    "README.md",
+  ]) {
+    if (!existsSync(join(resourceDir, entry))) {
+      throw new Error(
+        `macOS packaging requires the staged locked computer use plug-in (missing ${entry}). Run node scripts/prepare-locked-computer-use.mjs first.`,
+      );
+    }
   }
 }
 
@@ -319,6 +335,9 @@ async function main() {
     ];
     if (arch && platform !== "mac") helperArgs.push("--arch", arch);
     run("node", helperArgs, { cwd: repoRoot });
+    if (platform === "mac") {
+      run("node", ["scripts/prepare-locked-computer-use.mjs"], { cwd: repoRoot });
+    }
     run("bun", ["run", "prepare:package-assets"], { cwd: repoRoot });
   }
 
@@ -328,6 +347,22 @@ async function main() {
   if (checkRuntimeDeps) {
     return;
   }
+  const runtimeClosure = readRuntimeClosure(join(repoRoot, "dist/main"));
+  if (
+    platform === "win" &&
+    !runtimeClosure.resources.some((resource) => resource.kind === "pty-job-owner")
+  )
+    throw new Error(
+      "Windows packaging requires a runtime built with the prepared PTY job owner. Rebuild before packaging.",
+    );
+  if (platform === "mac") verifyLockedComputerUseResources(join(repoRoot, LOCKED_COMPUTER_USE_DIR));
+  verifyRuntimeResources(runtimeClosure.resources, {
+    agentPlugins: { path: join(repoRoot, "resources/agent-plugins"), layout: "staged" },
+    bundledPlugins: join(repoRoot, "resources/plugins"),
+    ptyJobOwner: join(repoRoot, "resources/pty-job-owner"),
+  });
+  if (platform === "win")
+    verifyDesktopPtyTargets(join(repoRoot, "resources"), arch ? [arch] : DEFAULT_TARGET_ARCHES.win);
 
   // 2. Create the stage in tmp (outside the workspace).
   const stageRoot = mkdtempSync(join(tmpdir(), "poracode-stage-"));
@@ -343,45 +378,39 @@ async function main() {
     const rootPkg = JSON.parse(readFileSync(resolve(repoRoot, "package.json"), "utf8"));
     const stagePkg = buildStagePackageJson(rootPkg);
     if (platform === "mac") {
-      // This flat npm stage does not inherit the root dependency overrides.
-      stagePkg.overrides = { "@electron/notarize": MAC_NOTARIZE_VERSION };
+      stagePkg.overrides = { ...stagePkg.overrides, "@electron/notarize": MAC_NOTARIZE_VERSION };
     }
     writeFileSync(join(stageRoot, "package.json"), `${JSON.stringify(stagePkg, null, 2)}\n`);
+
+    const desktopCli = prepareDesktopCli({
+      stageRoot,
+      mainBundleDir: join(repoRoot, "dist", "main"),
+      rendererDir: join(repoRoot, "dist", "renderer"),
+      appVersion: rootPkg.version,
+    });
 
     // 5. Stage the initial electron-builder config.
     const initialMacArtifactKind = macArtifactKindFor(platform, target);
     writeFileSync(
       join(stageRoot, "electron-builder.yml"),
-      buildElectronBuilderConfig(initialMacArtifactKind),
+      buildElectronBuilderConfig(
+        initialMacArtifactKind,
+        platform,
+        existsSync(join(stageRoot, "resources/pty-job-owner")),
+      ),
     );
 
-    // 6. Install prod + stage devdeps with a genuinely flat npm layout.
-    //    electron-builder's file walker (and our asar globs) expect this.
-    //    npm runs electron's postinstall and the native dependency build
-    //    scripts by default. The stage's deps are pinned to versions the root
-    //    project already trusts.
-    //    We DON'T disable optionals because electron-builder's dmg-builder
-    //    requires the `dmg-license` optionalDependency unconditionally at
-    //    import time. Instead we install optionals normally, then surgically
-    //    delete the only optional we actually want gone: the Claude SDK's
-    //    platform-specific `claude` SEA binary (~200 MB).
-    //    The stage tmpdir is fresh each run, so any generated package-lock.json
-    //    is ephemeral and gets discarded with the stage.
-    //    We install with npm, not pnpm, here. pnpm's hoisted layout still keeps
-    //    packages behind a node_modules/.pnpm virtual store with Windows
-    //    junctions; on CI runners electron-builder's own grandchild dependency
-    //    async-exit-hook (electron-builder -> builder-util -> temp-file ->
-    //    async-exit-hook) fails to resolve through those junctions, crashing the
-    //    first electron-builder pass. The pnpm .cmd NODE_PATH fallback then
-    //    re-invokes it, and that second pass packs better-sqlite3 incorrectly
-    //    (source-only, inside the asar, native binary dropped) -> the app
-    //    crashes at launch with "Could not locate the bindings file".
-    //    --config.shamefully-hoist=true did NOT fix it. npm produces a genuinely
-    //    flat node_modules (no .pnpm, no junctions) where every transitive
-    //    resolves, and electron-builder then uses its well-trodden npm collector.
-    //    npm runs native build scripts by default, so electron/better-sqlite3/
-    //    node-pty all build without pnpm's build-gating flags.
-    run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error"], { cwd: stageRoot });
+    // 6. Use a fresh flat npm layout: electron-builder's dependency collector
+    // cannot reliably walk the workspace's virtual-store links on Windows.
+    const npm = npmInvocation([
+      "install",
+      "--include=dev",
+      "--ignore-scripts=false",
+      "--no-audit",
+      "--no-fund",
+      "--loglevel=error",
+    ]);
+    run(npm.command, npm.args, { cwd: stageRoot, shell: npm.shell });
     if (platform === "mac") {
       const notarizeVersion = verifyMacNotarizationDependency(stageRoot);
       console.log(
@@ -405,10 +434,30 @@ async function main() {
       selectedTarget,
       macArtifactKind = macArtifactKindFor(platform, selectedTarget),
     ) => {
+      desktopCli.writeManifest({
+        platform: platform === "mac" ? "darwin" : platform === "win" ? "win32" : "linux",
+        channel: channelTable.normalizeChannel(process.env.PORACODE_CHANNEL),
+        executableName:
+          platform === "mac"
+            ? channelTable.macExecutableNameFor(
+                channelTable.normalizeChannel(process.env.PORACODE_CHANNEL),
+                macArtifactKind,
+              )
+            : platform === "linux"
+              ? linuxDesktopExecutableName(
+                  channelTable.normalizeChannel(process.env.PORACODE_CHANNEL),
+                )
+              : `${channelTable.productNameFor(channelTable.normalizeChannel(process.env.PORACODE_CHANNEL))}.exe`,
+        electronVersion: rootPkg.devDependencies.electron,
+      });
       if (platform === "mac") {
         writeFileSync(
           join(stageRoot, "electron-builder.yml"),
-          buildElectronBuilderConfig(macArtifactKind),
+          buildElectronBuilderConfig(
+            macArtifactKind,
+            platform,
+            existsSync(join(stageRoot, "resources/pty-job-owner")),
+          ),
         );
       }
       const electronBuilderArgs = [PLATFORM_FLAG[platform]];
@@ -463,7 +512,11 @@ function macArtifactKindFor(platform, target) {
   return platform === "mac" && target === "zip" ? "updater" : "branded";
 }
 
-function buildElectronBuilderConfig(macArtifactKind = "branded") {
+export function buildElectronBuilderConfig(
+  macArtifactKind = "branded",
+  platform,
+  includePtyOwner = platform === "win",
+) {
   // Generate the staged electron-builder config with a drastically simplified
   // `files:` block — the stage's node_modules contains only the runtime
   // externals we listed, so we can include all of node_modules without dragging
@@ -479,8 +532,50 @@ function buildElectronBuilderConfig(macArtifactKind = "branded") {
   const runtimeIconSuffix = channel === "nightly" ? "-nightly-mac" : "-mac";
   const macExecutableName = channelTable.macExecutableNameFor(channel, macArtifactKind);
   const publishChannelLine = updaterChannel ? `\n  channel: ${updaterChannel}` : "";
+  const includeDesktopCli = ["win", "mac", "linux"].includes(platform);
+  const desktopCliFiles = includeDesktopCli
+    ? '\n  - dist/cli-runtime/**/*\n  - "!dist/cli-runtime/**/*.map"'
+    : "";
+  const desktopCliResources = includeDesktopCli
+    ? '\n  - from: resources/desktop-cli\n    to: desktop-cli\n    filter:\n      - "**/*"'
+    : "";
+  // The plug-in bundle is signed as a whole (electron-builder only walks
+  // .app/.framework directories and loose Mach-O files on its own).
+  const lockedComputerUseResources =
+    platform === "mac"
+      ? `\n  - from: ${LOCKED_COMPUTER_USE_DIR}\n    to: locked-computer-use\n    filter:\n      - "**/*"`
+      : "";
+  const lockedComputerUseBinaries =
+    platform === "mac"
+      ? `\n  binaries:\n    - Contents/Resources/locked-computer-use/${LOCKED_COMPUTER_USE_BUNDLE}`
+      : "";
+  const ptyOwnerResources = includePtyOwner
+    ? '\n  - from: resources/pty-job-owner\n    to: pty-job-owner\n    filter:\n      - "**/*"'
+    : "";
+  // The broker is a real child entry. Its captured CJS chunks must be readable
+  // by both the desktop and desktop-CLI Node children outside app.asar.
+  const ptyBrokerUnpack = includePtyOwner
+    ? "\n  - dist/main/**/*.cjs\n  - dist/cli-runtime/lib/**/*.cjs"
+    : "";
+  const desktopCliUnpack = includeDesktopCli
+    ? [
+        "claudeSdkProbeWorker.mjs",
+        "cursorSdkWorker.mjs",
+        "remoteHttpBridge.cjs",
+        "sshEnvironmentWorker.cjs",
+      ]
+        .map((file) => `\n  - dist/cli-runtime/lib/${file}`)
+        .join("")
+    : "";
   const macEntitlements = "build/entitlements.mac.plist";
   const macEntitlementsInherit = "build/entitlements.mac.plist";
+  const electronLanguages = [
+    ...new Set(
+      SUPPORTED_LOCALES.flatMap((locale) =>
+        locale === "en" ? ["en-US", "en-GB"] : [locale, locale.replaceAll("-", "_")],
+      ),
+    ),
+  ];
   const packagedDistFilesYaml = PACKAGED_DIST_FILES.map((glob) =>
     glob.startsWith("!") ? `  - "${glob}"` : `  - ${glob}`,
   ).join("\n");
@@ -488,16 +583,18 @@ function buildElectronBuilderConfig(macArtifactKind = "branded") {
   return `appId: ${appId}
 productName: ${productName}
 copyright: Copyright (C) 2026 Poracode
+electronLanguages: ${JSON.stringify(electronLanguages)}
 
 directories:
   output: release
   buildResources: build
 
 files:
-${packagedDistFilesYaml}
+${packagedDistFilesYaml}${desktopCliFiles}
   - package.json
   - node_modules/**/*
   - "!node_modules/**/*.map"
+  - "!node_modules/effect/src/**/*"
   # The SDK's optionalDependencies include a 200+MB precompiled \`claude\` SEA
   # binary per platform. We ship without it; users provide \`claude\` via PATH.
   - "!node_modules/@anthropic-ai/claude-agent-sdk-*/**/*"
@@ -507,7 +604,11 @@ ${packagedDistFilesYaml}
   - "!node_modules/{better-sqlite3,node-pty}/build/**/obj/**/*"
   - "!node_modules/{better-sqlite3,node-pty}/build/**/*.{iobj,ipdb,lib,pdb,exp}"
 
-extraResources:
+extraResources:${desktopCliResources}${ptyOwnerResources}
+  - from: resources/third-party
+    to: third-party
+    filter:
+      - "**/*"
   - from: resources/device-hub
     to: device-hub
     filter:
@@ -515,7 +616,7 @@ extraResources:
   - from: resources/computer-use-helper
     to: computer-use-helper
     filter:
-      - "**/*"
+      - "**/*"${lockedComputerUseResources}
   - from: resources/wsl-helpers
     to: wsl-helpers
     filter:
@@ -566,7 +667,7 @@ asarUnpack:
   - dist/main/remoteHttpBridge.cjs
   # Same rule for the SSH environment utility: main forks this file path.
   - dist/main/sshEnvironmentWorker.cjs
-  - node_modules/@anthropic-ai/claude-agent-sdk/**/*
+  - node_modules/@anthropic-ai/claude-agent-sdk/**/*${desktopCliUnpack}${ptyBrokerUnpack}
 
 afterPack: build/after-pack.cjs
 
@@ -584,13 +685,18 @@ win:
   icon: build/icon${iconSuffix}.ico
 
 nsis:
-  oneClick: false
+  oneClick: false${platform === "win" ? "\n  include: build/desktop-cli.nsh" : ""}
   perMachine: false
   allowToChangeInstallationDirectory: true
   buildUniversalInstaller: false
   artifactName: ${prefix}-Setup-\${version}-\${arch}.\${ext}
 
+appImage:
+  # A stable outer filename keeps the installed CLI binding valid through updates.
+  artifactName: ${prefix}-Linux-\${arch}.\${ext}
+
 linux:
+  executableName: ${linuxDesktopExecutableName(channel)}
   target:
     - target: AppImage
       arch:
@@ -623,14 +729,24 @@ mac:
   extendInfo:
     NSMicrophoneUsageDescription: Poracode uses the microphone for local voice input in the composer.
   entitlements: ${macEntitlements}
-  entitlementsInherit: ${macEntitlementsInherit}
+  entitlementsInherit: ${macEntitlementsInherit}${lockedComputerUseBinaries}
   notarize: true
 
 npmRebuild: false
 `;
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? (error.stack ?? error.message) : error);
-  process.exit(1);
-});
+function linuxDesktopExecutableName(channel) {
+  // Keep the package manager's GUI symlink separate from the terminal command.
+  return channel === "nightly" ? "poracode-nightly-desktop" : "poracode-desktop";
+}
+
+if (
+  process.argv[1] &&
+  realpathSync.native(process.argv[1]) === realpathSync.native(fileURLToPath(import.meta.url))
+) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? (error.stack ?? error.message) : error);
+    process.exit(1);
+  });
+}

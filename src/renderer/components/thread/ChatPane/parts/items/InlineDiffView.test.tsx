@@ -1,5 +1,22 @@
-import { describe, expect, it } from "vitest";
-import { prepareInlineDiffParts, splitUnifiedDiffFiles } from "./InlineDiffView";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { AppProvider } from "@/renderer/components/ui/provider";
+import { InlineDiffView, prepareInlineDiffParts, splitUnifiedDiffFiles } from "./InlineDiffView";
+
+vi.mock("@git-diff-view/react", async (importOriginal) => {
+  const { createElement } = await import("react");
+  return {
+    ...(await importOriginal<typeof import("@git-diff-view/react")>()),
+    DiffView: () => createElement("div", { "data-testid": "diff-view" }),
+  };
+});
+
+vi.mock("@/renderer/views/GitReviewOverlay/parts/diffBuildClient", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/renderer/views/GitReviewOverlay/parts/diffBuildClient")
+  >()),
+  useDiffTheme: () => "dark" as const,
+}));
 
 describe("InlineDiffView", () => {
   it("splits multi-file unified diffs into per-file chunks", () => {
@@ -61,5 +78,26 @@ describe("InlineDiffView", () => {
     expect(parts[0]?.diff).toContain("@@ -1 +1 @@");
     expect(parts[0]?.diff).toContain("@@ -20 +20 @@");
     expect(parts[0]?.diff).not.toContain("a//Users");
+  });
+
+  it("opts chat diffs into the compact line-number gutter at any width", async () => {
+    const diffText = [
+      "diff --git a/src/a.ts b/src/a.ts",
+      "--- a/src/a.ts",
+      "+++ b/src/a.ts",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+      "",
+    ].join("\n");
+
+    render(
+      <AppProvider>
+        <InlineDiffView diffText={diffText} filePath="src/a.ts" />
+      </AppProvider>,
+    );
+
+    const diffView = await screen.findByTestId("diff-view");
+    expect(diffView.closest(".poracode-compact-diff-gutter")).not.toBeNull();
   });
 });

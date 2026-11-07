@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import type { HttpRequest } from "../host";
+import { describe, expect, it, vi } from "vitest";
+import type { HostPort, HttpRequest } from "../host";
 import { createFakeHost, FAKE_NOW_MS } from "../testHost";
 import { collectKimi, KIMI_USAGES_ENDPOINT, parseKimiUsage, resolveKimiUsagesUrl } from "./kimi";
 
@@ -132,6 +132,60 @@ describe("resolveKimiUsagesUrl", () => {
 });
 
 describe("collectKimi", () => {
+  it("renews a rejected CLI token once and keeps its global endpoint and identity", async () => {
+    const endpoint = "https://api.kimi.ai/coding/v1/usages";
+    const old = { accessToken: "old", raw: { baseUrl: "https://api.kimi.ai/coding/v1" } };
+    const next = {
+      accessToken: "renewed",
+      raw: {
+        baseUrl: "https://api.kimi.ai/coding/v1",
+        identityHeaders: { "X-Msh-Device-Id": "device" },
+      },
+    };
+    const refresh = vi.fn<NonNullable<HostPort["credentials"]["refreshOAuthToken"]>>(
+      async () => next,
+    );
+    const host = createFakeHost({ tokens: { kimi: old }, refreshOAuthToken: refresh });
+    const request = vi
+      .fn<NonNullable<typeof host.http.request>>()
+      .mockResolvedValueOnce({ status: 401, headers: {}, body: "" })
+      .mockResolvedValueOnce({ status: 200, headers: {}, body: USAGES_BODY });
+    host.http.request = request;
+    expect((await collectKimi(host)).status).toBe("ok");
+    expect(refresh).toHaveBeenCalledExactlyOnceWith("kimi", old);
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request.mock.calls[1]![0]).toMatchObject({
+      url: endpoint,
+      headers: { Authorization: "Bearer renewed", "X-Msh-Device-Id": "device" },
+    });
+  });
+
+  it("does not refresh or repeatedly retry an invalid pasted key", async () => {
+    const refresh = vi.fn<NonNullable<HostPort["credentials"]["refreshOAuthToken"]>>();
+    const host = createFakeHost({
+      secrets: { kimi: { apiKey: "bad-pasted-key" } },
+      tokens: { kimi: { accessToken: "unrelated-cli" } },
+      routes: { [KIMI_USAGES_ENDPOINT]: { status: 401 } },
+      refreshOAuthToken: refresh,
+    });
+    host.credentials.getOAuthToken = vi.fn<HostPort["credentials"]["getOAuthToken"]>();
+    expect((await collectKimi(host)).status).toBe("auth-missing");
+    expect(refresh).not.toHaveBeenCalled();
+    expect(host.credentials.getOAuthToken).not.toHaveBeenCalled();
+  });
+
+  it("bounds a rejected renewal to one retry", async () => {
+    const refresh = vi.fn<NonNullable<HostPort["credentials"]["refreshOAuthToken"]>>(async () => ({
+      accessToken: "still-rejected",
+    }));
+    const host = createFakeHost({
+      tokens: { kimi: { accessToken: "rejected" } },
+      routes: { [KIMI_USAGES_ENDPOINT]: { status: 403 } },
+      refreshOAuthToken: refresh,
+    });
+    expect((await collectKimi(host)).status).toBe("auth-missing");
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
   it("returns auth-missing when neither a pasted key nor a native credential exists", async () => {
     const snap = await collectKimi(createFakeHost());
     expect(snap.status).toBe("auth-missing");

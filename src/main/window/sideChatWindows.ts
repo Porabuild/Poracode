@@ -3,7 +3,7 @@ import { createSideChatOwnershipStorage } from "./sideChatOwnershipStorage";
 import { BrowserWindow, ipcMain } from "electron";
 import { IPC_EVENT_CHANNELS, IPC_WINDOW_CHANNELS } from "@/shared/ipc";
 import {
-  sideChatBootstrapSchema,
+  sideChatOpenInputSchema,
   sideChatThreadBindingSchema,
   type SideChatBootstrap,
   type SideChatThreadBinding,
@@ -114,12 +114,23 @@ export function registerSideChatWindowIpc(deps: {
     return owner;
   };
   const bootstrap = (input: unknown) => {
-    const parsed = sideChatBootstrapSchema.parse(input);
+    const { appendText, ...parsed } = sideChatOpenInputSchema.parse(input);
     if (parsed.source.presentationMode !== "gui")
       throw new Error("Side chats require GUI presentation");
     if (parsed.existingThreadId === parsed.source.id)
       throw new Error("Side chat cannot own its parent thread");
-    return { ...parsed, id: parsed.id ?? crypto.randomUUID() };
+    return { next: { ...parsed, id: parsed.id ?? crypto.randomUUID() }, appendText };
+  };
+  const appendInput = (window: BrowserWindow, entry: Entry, text: string | undefined) => {
+    if (!text) return;
+    window.webContents.send(IPC_EVENT_CHANNELS.sideChatWindowsChanged, {
+      threadIds: ids(),
+      hiddenThreadIds: ids(true),
+      composerInput: {
+        composerId: entry.threadId ?? `side-chat:${entry.bootstrap.id}`,
+        text,
+      },
+    });
   };
   const bind = (entry: Entry, binding: SideChatThreadBinding) => {
     if (binding.id && binding.id !== entry.bootstrap.id) return false;
@@ -148,11 +159,13 @@ export function registerSideChatWindowIpc(deps: {
     IPC_WINDOW_CHANNELS.sideChatPanelOpen,
     (event, input: unknown) => {
       sender(event);
-      const next = bootstrap(input);
+      const { next, appendText } = bootstrap(input);
       const previous = panels.get(next.source.id);
       if (previous?.bootstrap.id === next.id) {
         panel = previous;
         publish();
+        const main = deps.getMainWindow();
+        if (main && !main.isDestroyed()) appendInput(main, previous, appendText);
         return;
       }
       for (const [window, detached] of sideWindows) {
@@ -172,13 +185,14 @@ export function registerSideChatWindowIpc(deps: {
     IPC_WINDOW_CHANNELS.sideChatOpen,
     (event, input: unknown) => {
       sender(event);
-      const next = bootstrap(input);
+      const { next, appendText } = bootstrap(input);
       const existing = [...sideWindows.entries()].find(
         ([window, entry]) => !window.isDestroyed() && entry.bootstrap.id === next.id,
-      )?.[0];
+      );
       if (existing) {
-        existing.show();
-        existing.focus();
+        existing[0].show();
+        existing[0].focus();
+        appendInput(existing[0], existing[1], appendText);
         return;
       }
       const moving = panels.get(next.source.id)?.bootstrap.id === next.id;

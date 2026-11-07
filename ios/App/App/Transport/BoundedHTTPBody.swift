@@ -52,13 +52,16 @@ enum StreamingHTTPBody {
     static func perform(
         session: URLSession,
         request: URLRequest,
-        maxBytes: Int
+        maxBytes: Int,
+        resourceTimeout: TimeInterval? = nil
     ) async throws -> (Data, URLResponse) {
         let box = StreamingBodyBox(maxBytes: maxBytes)
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<(Data, URLResponse), Error>) in
                 // Preserve the caller's configuration (URLProtocol test fakes, timeouts).
-                box.start(baseSession: session, request: request, continuation: cont)
+                box.start(
+                    baseSession: session, request: request,
+                    resourceTimeout: resourceTimeout, continuation: cont)
             }
         } onCancel: {
             box.cancel()
@@ -84,6 +87,7 @@ private final class StreamingBodyBox: NSObject, URLSessionDataDelegate, @uncheck
     func start(
         baseSession: URLSession,
         request: URLRequest,
+        resourceTimeout: TimeInterval?,
         continuation: CheckedContinuation<(Data, URLResponse), Error>
     ) {
         lock.lock()
@@ -102,7 +106,7 @@ private final class StreamingBodyBox: NSObject, URLSessionDataDelegate, @uncheck
         // system resource default is 7 days — a stalled slow-drip stream would
         // hold the load open indefinitely. Cap it with a real ceiling.
         config.timeoutIntervalForResource = min(
-            config.timeoutIntervalForResource,
+            resourceTimeout ?? config.timeoutIntervalForResource,
             RemoteSocketPolicy.streamingBodyResourceTimeoutSeconds
         )
         let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)

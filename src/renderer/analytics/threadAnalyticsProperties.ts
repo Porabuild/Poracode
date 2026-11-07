@@ -54,7 +54,8 @@ function selectedControlLabel(control: ComposerControl): string | undefined {
   if (
     control.kind === "static" ||
     control.kind === "provider-model" ||
-    control.kind === "effort-context"
+    control.kind === "effort-context" ||
+    control.kind === "crew"
   ) {
     return undefined;
   }
@@ -91,7 +92,8 @@ function providerComposerProperties(input: {
     permissionControl.kind !== "toggle" &&
     permissionControl.kind !== "static" &&
     permissionControl.kind !== "provider-model" &&
-    permissionControl.kind !== "effort-context"
+    permissionControl.kind !== "effort-context" &&
+    permissionControl.kind !== "crew"
       ? permissionControl.value
       : undefined;
   const normalizedPermissionFromLabel = normalizeComposerPermission(permissionLabel);

@@ -1,3 +1,4 @@
+import { unquoteGitPath } from "@/shared/reviewDiff";
 /**
  * Pure-parser regression tests for statusParsing.
  *
@@ -16,7 +17,6 @@ import {
   isInheritedStartPointUpstream,
   parseDiffNumstat,
   parseStatusPorcelainV2,
-  unquoteGitPath,
 } from "./statusParsing";
 
 // git C-quotes non-ASCII bytes as octal-escaped UTF-8 wrapped in double quotes.
@@ -227,6 +227,7 @@ describe("unquoteGitPath", () => {
     expect(unquoteGitPath("src/plain.ts")).toBe("src/plain.ts");
     expect(unquoteGitPath(DECODED_CYRILLIC)).toBe(DECODED_CYRILLIC);
     expect(unquoteGitPath("")).toBe("");
+    expect(unquoteGitPath('"')).toBe('"');
     // A path only prefixed with a quote is not a fully-quoted blob.
     expect(unquoteGitPath('"partial')).toBe('"partial');
   });

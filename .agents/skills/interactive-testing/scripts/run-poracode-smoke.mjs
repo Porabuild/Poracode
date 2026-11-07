@@ -345,11 +345,7 @@ try {
   try {
     await stopOwnedProcesses([integrationProcess, appProcess, rendererProcess, buildProcess]);
     if (sessionManifest) await waitForSessionPortsClosed(sessionManifest, 5_000);
-    if (sessionManifest)
-      await removeSmokeRuntime(
-        runtime ?? { appRoot: join(root, "runtime"), ownerToken: sessionToken },
-        root,
-      );
+    if (runtime) await removeSmokeRuntime(runtime, root);
   } catch (error) {
     teardownError = error instanceof Error ? error.message : String(error);
     failureMessage ??= teardownError;
@@ -475,7 +471,16 @@ process.stdin.on("data", (chunk) => {
   );
   execFileSync(
     process.execPath,
-    ["--no-warnings", seedScript, "--baseDir", dataDir, "--projectDir", projectDir, "--reset"],
+    [
+      "--no-warnings",
+      seedScript,
+      "--baseDir",
+      dataDir,
+      "--projectDir",
+      projectDir,
+      "--reset",
+      ...(mode === "mock" ? ["--fork-fixture"] : []),
+    ],
     { cwd: repoRoot, stdio: "inherit", windowsHide: process.platform === "win32" },
   );
 }

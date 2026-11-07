@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import Database from "better-sqlite3";
-import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
@@ -58,6 +58,7 @@ import {
   waitForRestoredOwner,
 } from "./serverUpgradeCandidate";
 import { stopUpgradeCandidate } from "./serverUpgradeCandidateStop";
+import { registeredServiceUpgradeIo } from "./serverServiceUpgrade";
 import { installServerRelease } from "../../scripts/server-release-install.mjs";
 import {
   DEFAULT_QUALIFICATION_TIMEOUT_MS,
@@ -249,6 +250,7 @@ export const defaultUpgradeIo: UpgradeIo = {
 };
 
 interface UpgradeContext {
+  readonly lock: ServerUpgradeLock;
   readonly prefix: string;
   readonly releaseId: string;
   readonly deadlineMs: number;
@@ -301,6 +303,7 @@ function writeJournal(
     readonly forwardOnlyMigration?: boolean;
   },
 ): void {
+  context.lock.assertHeld();
   writeServerUpgradeJournal(context.prefix, {
     prefix: context.prefix,
     releaseId: context.releaseId,
@@ -317,6 +320,7 @@ function writeJournal(
 
 function removeReleaseDir(context: UpgradeContext): void {
   if (context.releaseDir === null) return;
+  context.lock.assertHeld();
   // Never delete the release the current symlink points at.
   removeStagedReleaseDirectory(context.prefix, context.releaseDir);
   context.releaseDir = null;
@@ -364,6 +368,7 @@ export async function upgradeServerPrefix(
   const releaseId = allocateUpgradeReleaseId();
   const lock = acquireServerUpgradeLock({ prefix, releaseId });
   const context: UpgradeContext = {
+    lock,
     prefix,
     releaseId,
     deadlineMs,
@@ -377,6 +382,12 @@ export async function upgradeServerPrefix(
     resumed: false,
   };
   try {
+    io = await registeredServiceUpgradeIo(
+      io,
+      prefix,
+      currentHostRootPaths().profileNamespace,
+      lock,
+    );
     // Re-read the journal under the lock: a crashed holder may have written a
     // non-terminal phase between the pre-lock check and acquisition (its stale
     // lock is taken over), and stacking over that interruption is forbidden.
@@ -397,6 +408,7 @@ async function runUpgrade(
   writeJournal(context, { phase: "staging" });
   try {
     // 1. Stage a distinct release and verify the artifact identity.
+    lock.assertHeld();
     context.releaseDir = allocateReleaseDirectory(context.prefix, context.releaseId);
     io.stage(options.from, context.releaseDir);
     lock.assertHeld();
@@ -458,6 +470,7 @@ async function runUpgrade(
         expectedEntrypointSha256: expected.entrypointSha256,
         forwardOnlyMigration: plan.backupRequired,
       });
+      lock.assertHeld();
       await io.stopOwner(context.prefix, owner);
       lock.assertHeld();
       context.ownerStopped = true;
@@ -473,6 +486,7 @@ async function runUpgrade(
     //    forward-only migration makes a code-only rollback unsound.
     if (plan.backupRequired && currentSchemaVersion !== null) {
       const destination = join(context.prefix, "backups", `${context.releaseId}-pre-migration`);
+      lock.assertHeld();
       await io.captureBackup(destination);
       lock.assertHeld();
       context.backupPath = destination;
@@ -485,6 +499,7 @@ async function runUpgrade(
     }
 
     // 5. Swap the code symlink.
+    lock.assertHeld();
     io.writeCurrent(context.prefix, context.releaseDir);
     context.swapped = true;
     lock.assertHeld();
@@ -496,6 +511,7 @@ async function runUpgrade(
     });
 
     // 6. Start the candidate with admission held and prove its exact build.
+    lock.assertHeld();
     context.handle = await io.startCandidate({ prefix: context.prefix, staging: true });
     writeJournal(context, {
       phase: "candidate-started",
@@ -571,6 +587,7 @@ async function recoverFromFailure(
     });
   }
   try {
+    lock.assertHeld();
     await io.stopCandidate(context.handle);
   } catch {
     // The candidate may already be gone; the schema check below decides.
@@ -621,6 +638,7 @@ async function recoverFromFailure(
   // the previous release (or leave no `current` when this was a fresh install).
   if (context.previousTarget === null) {
     if (context.swapped) {
+      lock.assertHeld();
       io.removeCurrent(context.prefix);
       writeJournal(context, { phase: "failed", detail: messageOf(error) });
       return resultFrom(context, {
@@ -656,6 +674,7 @@ async function recoverFromFailure(
     io.writeCurrent(context.prefix, previousReleasePath(context.prefix, context.previousTarget));
     const swappedBack = context.swapped;
     context.swapped = false;
+    lock.assertHeld();
     await io.startCandidate({ prefix: context.prefix, staging: false });
     const restored = await waitForRestoredOwner(io, clock);
     if (!restored)

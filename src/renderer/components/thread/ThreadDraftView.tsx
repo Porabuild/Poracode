@@ -4,7 +4,6 @@ import { msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type {
   AgentStatus,
-  BuiltInMcpServerId,
   Project,
   ProjectDraftConfig,
   ProviderDraftConfig,
@@ -13,13 +12,8 @@ import type {
 } from "@/shared/contracts";
 import { HOME_PROJECT_NAME, isHomeProject } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
-import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
+import { resolveNewThreadMcpConfig } from "@/shared/contracts";
 import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
-import {
-  chromeMcpServer,
-  COMPUTER_USE_MCP_ID,
-  resolveMcpScope,
-} from "@/renderer/components/composer/composerMcpServers";
 import { getConfigNormalizer } from "@/renderer/components/providers/providerComposer";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
@@ -28,9 +22,14 @@ import type { ProviderModelSelectionIntent } from "@/renderer/components/common/
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
-import { dispatchManagedRootProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
-import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
+import { dispatchProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
+import {
+  capabilitiesForPresentation,
+  filterHiddenModels,
+  supportsWorkflowMode,
+} from "@/shared/agentSelection";
 import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
 import type { ProviderModelPreference } from "@/shared/settings";
 import {
@@ -64,11 +63,36 @@ import {
 import { composerSelectionEvent, type ComposerSelectionOrigin } from "./composerSelectionMutation";
 import { applyThreadConfigMutation, type SelectionMutationEvent } from "@/shared/selectionBinding";
 import { isThreadConfigEqual } from "@/shared/contracts/config";
+import {
+  canLeadCrew,
+  crewBindingFromSavedCrew,
+  isThreadConfigCrewEqual,
+  type CrewMemberSelection,
+  type SavedCrew,
+  type ThreadCrewBinding,
+} from "@/shared/crew";
 import { friendlyError } from "@/shared/messages";
+import { NewsLine } from "@/renderer/components/newsLine/NewsLine";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
 import type { SaveClipboardImage } from "../composer/useAttachments";
+import { applyCrewComposerControls } from "@/renderer/components/crew/applyCrewComposerControls";
+import {
+  CREW_ROLE_TEMPLATE_DESCRIPTORS,
+  DEFAULT_CREW_ROLE_ID,
+} from "@/renderer/components/crew/crewRoleTemplates";
+import {
+  crewPickerEntry,
+  crewSummary,
+  crewModelLabelOf,
+  draftCrewFromConfig,
+  leadSelectionOf,
+  newCrewBinding,
+  savedCrewFor,
+} from "@/renderer/components/crew/crewComposerModel";
+import { useCrewHelperOptions } from "@/renderer/components/crew/crewHelperOptions";
 import {
   ThreadDraftCompactHeader,
   ThreadDraftDropIndicators,
@@ -78,6 +102,21 @@ import {
 
 function clampNumber(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function withoutDraftCrew(config: ProviderDraftConfig): ProviderDraftConfig {
+  const { crew: _crew, ...providerConfig } = config;
+  return providerConfig;
+}
+
+function projectDraftWithCrew(
+  config: ProjectDraftConfig,
+  crew: ThreadCrewBinding | null | undefined,
+  explicitlyCleared: boolean,
+): ProjectDraftConfig {
+  const { crew: _previousCrew, ...draft } = config;
+  if (crew) return { ...draft, crew };
+  return explicitlyCleared ? { ...draft, crew: null } : draft;
 }
 
 /** Minimum gap kept above the composer once it can no longer stay centered. */
@@ -185,6 +224,12 @@ export function ThreadDraftView(props: {
   submitOnEnter?: boolean;
   /** Override mount autofocus for embedded draft-composer surfaces. */
   autoFocusComposer?: boolean;
+  /**
+   * True while this surface's submission is in flight. A pending submission
+   * must stay mounted through connection changes so its failure checkpoint can
+   * still recover the submitted editor content.
+   */
+  submissionPending?: boolean;
   pickFiles?: () => Promise<string[] | null>;
   saveClipboardImage?: SaveClipboardImage;
   paneAlign?: "left" | "center" | "right";
@@ -217,7 +262,13 @@ export function ThreadDraftView(props: {
   const implicitMcpServers = useImplicitMcpServers();
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
+  const savedCrews = useSharedSettings((s) => s.crews);
+  const upsertCrew = useSharedSettings((s) => s.upsertCrew);
+  const helperOptions = useCrewHelperOptions();
   const sharedSettingsHydrated = useSharedSettings((s) => s.sharedSettingsHydrated);
+  const newsLineEnabled = useSharedSettings((s) => s.newsLineEnabled);
+  const draftVisit = useAppStore((s) => s.draftVisit);
+  const compactLayout = useCompactLayout();
   const isHomeScope = isHomeProject(project);
   const scopeLabel = isHomeScope ? HOME_PROJECT_NAME : undefined;
   const remoteConnection = useRemoteServersStore((state) => {
@@ -260,6 +311,7 @@ export function ThreadDraftView(props: {
     : preferredAgentKind;
   const selectedAgent =
     installedAgents.find((status) => status.kind === effectiveAgentKind) ?? installedAgents[0];
+  useAgentSlashCommandCatalog(project.remoteServerId, selectedAgent?.kind);
   // One complete draft config: own empty/false carriers, absence, and the
   // selection binding survive restore, edits, persistence, and launch. The
   // scalar reads below are display projections only.
@@ -282,6 +334,19 @@ export function ThreadDraftView(props: {
       sandboxMode: "",
     };
   });
+  const [draftCrew, setDraftCrew] = useState<ThreadCrewBinding | undefined>(() =>
+    draftCrewFromConfig(lastDraftConfig?.crew, useSharedSettings.getState().crews),
+  );
+  const [draftCrewExplicitlyCleared, setDraftCrewExplicitlyCleared] = useState(
+    () => lastDraftConfig?.crew === null,
+  );
+  const [crewOpenSignal, setCrewOpenSignal] = useState(0);
+  const [crewOpenPending, setCrewOpenPending] = useState(false);
+  useEffect(() => {
+    if (!crewOpenPending) return;
+    setCrewOpenPending(false);
+    setCrewOpenSignal((current) => current + 1);
+  }, [crewOpenPending]);
   const model = draftConfig.model;
   const effort = draftConfig.effort ?? "";
   const contextSize = draftConfig.contextSize;
@@ -299,6 +364,9 @@ export function ThreadDraftView(props: {
   const [crossagentMcpMention, setCrossagentMcpMention] = useState(false);
   const [chromeMcpMention, setChromeMcpMention] = useState(false);
   const [computerUseMention, setComputerUseMention] = useState(false);
+  // The provider's workflow mode is a per-draft choice: it multiplies usage,
+  // so it is never written to the persisted draft or model preferences.
+  const [workflows, setWorkflows] = useState(false);
   const [worktreeMode, setWorktreeMode] = useState(
     isHomeScope ? false : (lastDraftConfig?.worktreeMode ?? false),
   );
@@ -386,7 +454,7 @@ export function ThreadDraftView(props: {
       const rememberedConfig: ProjectDraftConfig =
         nextDraftConfig.mode === "plan" ? { ...nextDraftConfig, mode: "agent" } : nextDraftConfig;
       updateProjectDraftConfigStore(projectId, rememberedConfig);
-      dispatchManagedRootProjectDraftConfig(projectId, rememberedConfig);
+      dispatchProjectDraftConfig(projectId, rememberedConfig);
     },
   );
   const updateProjectDraftConfig = updateProjectDraftConfigRef.current;
@@ -404,7 +472,12 @@ export function ThreadDraftView(props: {
   // Spread is required: the effects below mutate `providerConfigsRef.current[kind]`
   // in place to keep effort/model selections in sync mid-render. Assigning the
   // store reference directly would mutate Zustand state and skip subscribers.
-  providerConfigsRef.current = { ...useSharedSettings.getState().providerConfigs };
+  providerConfigsRef.current = Object.fromEntries(
+    Object.entries(useSharedSettings.getState().providerConfigs).map(([kind, config]) => [
+      kind,
+      withoutDraftCrew(config),
+    ]),
+  );
   providerModelPreferencesRef.current = {
     ...useSharedSettings.getState().providerModelPreferences,
   };
@@ -425,30 +498,87 @@ export function ThreadDraftView(props: {
   }
 
   function persistProviderConfig(providerKind: string, config: ProviderDraftConfig) {
-    providerConfigsRef.current[providerKind] = config;
+    const providerConfig = withoutDraftCrew(config);
+    providerConfigsRef.current[providerKind] = providerConfig;
     if (!isHomeScope) {
       setProviderConfig(
         providerKind,
-        config.mode === "plan" ? { ...config, mode: "agent" } : config,
+        providerConfig.mode === "plan" ? { ...providerConfig, mode: "agent" } : providerConfig,
       );
     }
-    persistProviderModelPreference(providerKind, config);
+    persistProviderModelPreference(providerKind, providerConfig);
   }
 
-  function persistProjectDraftConfig(nextDraftConfig: ProjectDraftConfig) {
-    updateProjectDraftConfig(project.id, nextDraftConfig);
+  function persistProjectDraftConfig(
+    nextDraftConfig: ProjectDraftConfig,
+    crew: ThreadCrewBinding | null | undefined = draftCrew,
+    explicitlyCleared = draftCrewExplicitlyCleared,
+  ) {
+    updateProjectDraftConfig(
+      project.id,
+      projectDraftWithCrew(nextDraftConfig, crew, explicitlyCleared),
+    );
   }
 
   // The one commit for a complete draft selection: component state, the
   // per-provider config, and the project draft record land together with every
   // own field intact, so no projection can drop an empty/false carrier or the
   // selection binding.
-  function commitDraftConfig(kind: AgentStatus["kind"], config: ProviderDraftConfig) {
-    setDraftConfig(config);
+  function commitDraftConfig(
+    kind: AgentStatus["kind"],
+    config: ProviderDraftConfig,
+    crewOverride?: ThreadCrewBinding | null,
+  ) {
+    const crew = crewOverride === undefined ? draftCrew : crewOverride;
+    const explicitlyCleared =
+      crewOverride === null || (crewOverride === undefined && draftCrewExplicitlyCleared);
+    if (crewOverride !== undefined) {
+      setDraftCrew(crew ?? undefined);
+      setDraftCrewExplicitlyCleared(crewOverride === null);
+    }
+    const providerConfig = withoutDraftCrew(config);
+    setDraftConfig(providerConfig);
     lastAppliedAgentKindRef.current = kind;
-    persistProviderConfig(kind, config);
-    persistProjectDraftConfig({ ...config, agentKind: kind, worktreeMode: effectiveWorktreeMode });
+    persistProviderConfig(kind, providerConfig);
+    persistProjectDraftConfig(
+      { ...providerConfig, agentKind: kind, worktreeMode: effectiveWorktreeMode },
+      crew,
+      explicitlyCleared,
+    );
   }
+
+  function commitDraftCrew(next: ThreadCrewBinding | null) {
+    const binding = next ?? undefined;
+    const explicitlyCleared = next === null;
+    hasLocalConfigEditRef.current = true;
+    setDraftCrew(binding);
+    setDraftCrewExplicitlyCleared(explicitlyCleared);
+    if (effectiveAgentKind) {
+      persistProjectDraftConfig(
+        {
+          ...withoutDraftCrew(draftConfig),
+          agentKind: effectiveAgentKind,
+          worktreeMode: effectiveWorktreeMode,
+        },
+        binding,
+        explicitlyCleared,
+      );
+    }
+  }
+
+  useEffect(() => {
+    if (hasLocalConfigEditRef.current) return;
+    const restoredCrew = draftCrewFromConfig(lastDraftConfig?.crew, savedCrews);
+    const explicitlyCleared = lastDraftConfig?.crew === null;
+    if (
+      isThreadConfigCrewEqual(draftCrew, restoredCrew) &&
+      draftCrewExplicitlyCleared === explicitlyCleared
+    ) {
+      return;
+    }
+    setDraftCrew(restoredCrew);
+    setDraftCrewExplicitlyCleared(explicitlyCleared);
+  }, [draftCrew, draftCrewExplicitlyCleared, lastDraftConfig?.crew, savedCrews]);
 
   const persistProviderConfigRef = useRef(persistProviderConfig);
   const persistProjectDraftConfigRef = useRef(persistProjectDraftConfig);
@@ -585,7 +715,7 @@ export function ThreadDraftView(props: {
         thinking: nextThinking,
       };
       persistProviderConfigRef.current(effectiveAgentKind, corrected);
-      updateProjectDraftConfig(project.id, {
+      persistProjectDraftConfigRef.current({
         agentKind: effectiveAgentKind,
         model: nextModel,
         effort: nextEffort,
@@ -626,7 +756,12 @@ export function ThreadDraftView(props: {
     if (hasLocalConfigEditRef.current) return;
 
     const settings = useSharedSettings.getState();
-    providerConfigsRef.current = { ...settings.providerConfigs };
+    providerConfigsRef.current = Object.fromEntries(
+      Object.entries(settings.providerConfigs).map(([kind, config]) => [
+        kind,
+        withoutDraftCrew(config),
+      ]),
+    );
     providerModelPreferencesRef.current = { ...settings.providerModelPreferences };
     // A family member's carriers in state are authoritative on this surface;
     // the unscoped per-model preference replay must not overwrite them (the
@@ -722,7 +857,9 @@ export function ThreadDraftView(props: {
     if (!providerConfig) {
       return;
     }
-    providerConfigsRef.current = { ...providerConfigs };
+    providerConfigsRef.current = Object.fromEntries(
+      Object.entries(providerConfigs).map(([kind, config]) => [kind, withoutDraftCrew(config)]),
+    );
     providerModelPreferencesRef.current = { ...providerModelPreferences };
 
     if (hasLocalConfigEditRef.current) {
@@ -746,7 +883,7 @@ export function ThreadDraftView(props: {
       const { contextSize: _previousContext, ...current } = draftConfig;
       const next = { ...current, ...(nextContext ? { contextSize: nextContext } : {}) };
       setDraftConfig(next);
-      updateProjectDraftConfig(project.id, {
+      persistProjectDraftConfigRef.current({
         ...next,
         agentKind: effectiveAgentKind,
         worktreeMode: effectiveWorktreeMode,
@@ -805,7 +942,7 @@ export function ThreadDraftView(props: {
       persistProviderConfigRef.current(effectiveAgentKind, resolved);
     }
 
-    updateProjectDraftConfig(project.id, {
+    persistProjectDraftConfigRef.current({
       ...resolved,
       agentKind: effectiveAgentKind,
       worktreeMode: effectiveWorktreeMode,
@@ -927,6 +1064,7 @@ export function ThreadDraftView(props: {
     targetAgent: AgentStatus,
     targetMode: ThreadPresentationMode,
     transitionPatch: Partial<ThreadConfig>,
+    crewOverride?: ThreadCrewBinding | null,
   ) {
     const targetAgentForConfig = agentWithCapabilities(targetAgent, targetMode);
     const resolved = resolveProviderDraftConfig(targetAgentForConfig, {
@@ -948,20 +1086,37 @@ export function ThreadDraftView(props: {
         targetMode,
         relation ? { type: "family-member-edit", relation } : { type: "owner-retarget" },
       ),
+      crewOverride,
     );
   }
   const latestConfigPatchRef = useRef<
-    (patch: Partial<ThreadConfig>, origin?: ComposerSelectionOrigin) => void
+    (
+      patch: Partial<ThreadConfig>,
+      origin?: ComposerSelectionOrigin,
+      crewOverride?: ThreadCrewBinding | null,
+    ) => void
   >(() => undefined);
   const latestProviderModelChangeRef = useRef<
-    (next: {
-      agentKind: string;
-      model: string;
-      presentationMode?: ThreadPresentationMode;
-      selectionIntent?: ProviderModelSelectionIntent;
-    }) => void
+    (
+      next: {
+        agentKind: string;
+        model: string;
+        presentationMode?: ThreadPresentationMode;
+        selectionIntent?: ProviderModelSelectionIntent;
+      },
+      overrides?: {
+        crew?: ThreadCrewBinding | null;
+        effort?: string;
+        fast?: boolean;
+        contextSize?: string;
+      },
+    ) => void
   >(() => undefined);
-  const onConfigPatch = (patch: Partial<ThreadConfig>, origin?: ComposerSelectionOrigin) => {
+  const onConfigPatch = (
+    patch: Partial<ThreadConfig>,
+    origin?: ComposerSelectionOrigin,
+    crewOverride?: ThreadCrewBinding | null,
+  ) => {
     if ("browserMcp" in patch) {
       // Per-draft mention flag — not part of ProviderDraftConfig, so it bypasses
       // the resolver/persistence below. Set by an `@browser` mention, cleared by
@@ -982,6 +1137,11 @@ export function ThreadDraftView(props: {
     if ("computerUse" in patch) {
       // Per-draft mention flag — same bypass as browserMcp above.
       setComputerUseMention(patch.computerUse === true);
+      return;
+    }
+    if ("workflows" in patch) {
+      // Per-draft workflow mode — same bypass as the mention flags above.
+      setWorkflows(patch.workflows === true);
       return;
     }
     if (!selectedAgentForConfig) return;
@@ -1011,26 +1171,35 @@ export function ThreadDraftView(props: {
       composerSelectionEvent(patch, origin, selectedAgentForConfig.capabilities),
     );
     // A retained family-row no-op writes nothing.
-    if (Object.keys(patch).length === 0 && isThreadConfigEqual(next, draftConfig)) return;
+    const crewChanged =
+      crewOverride !== undefined && !isThreadConfigCrewEqual(draftCrew, crewOverride);
+    if (Object.keys(patch).length === 0 && isThreadConfigEqual(next, draftConfig) && !crewChanged) {
+      return;
+    }
 
     // Keep local state and persisted config in one transaction so menu
     // selection animations do not receive a second delayed state update.
     if (effectiveAgentKind) {
-      commitDraftConfig(effectiveAgentKind, next);
+      commitDraftConfig(effectiveAgentKind, next, crewOverride);
     } else {
       setDraftConfig(next);
     }
   };
   latestConfigPatchRef.current = onConfigPatch;
 
-  latestProviderModelChangeRef.current = ({
-    agentKind: nextKind,
-    model: nextModel,
-    presentationMode: nextPresentationMode,
-    selectionIntent,
-  }) => {
+  latestProviderModelChangeRef.current = (
+    {
+      agentKind: nextKind,
+      model: nextModel,
+      presentationMode: nextPresentationMode,
+      selectionIntent,
+    },
+    overrides,
+  ) => {
     if (!selectedAgent || !selectedAgentForConfig) return;
     hasLocalConfigEditRef.current = true;
+    // Workflow mode is chosen per model, like the native composers.
+    setWorkflows(false);
     const targetPresentationMode = props.chatOnly
       ? "gui"
       : (nextPresentationMode ?? presentationMode);
@@ -1100,6 +1269,9 @@ export function ThreadDraftView(props: {
           ...(targetPreference?.fast !== undefined ? { fast: targetPreference.fast } : {}),
         });
       }
+      if (overrides?.effort !== undefined) resolved.effort = overrides.effort;
+      if (overrides?.fast !== undefined) resolved.fast = overrides.fast;
+      if (overrides?.contextSize) resolved.contextSize = overrides.contextSize;
       // The target config is valid: commit the surface and preserve the source
       // provider's draft snapshot together with the target selection.
       if (targetPresentationMode !== presentationMode) {
@@ -1121,6 +1293,7 @@ export function ThreadDraftView(props: {
             ? { type: "family-member-edit", relation: targetRelation }
             : { type: "owner-retarget" },
         ),
+        overrides?.crew,
       );
     } else {
       const picked = normalizeProviderModelConfig(
@@ -1138,7 +1311,12 @@ export function ThreadDraftView(props: {
             familyTransitionFailureToast();
             return;
           }
-          applyFamilySurfaceTransition(selectedAgent, targetPresentationMode, transition);
+          applyFamilySurfaceTransition(
+            selectedAgent,
+            targetPresentationMode,
+            transition,
+            overrides?.crew,
+          );
           return;
         }
         retargetPresentation(targetPresentationMode);
@@ -1165,9 +1343,16 @@ export function ThreadDraftView(props: {
         // An empty family retain still reaches the reduction so a stale record
         // can drop; only a family row may mint.
         if (patch) {
+          const nextPatch = {
+            ...patch,
+            ...(overrides?.effort !== undefined ? { effort: overrides.effort } : {}),
+            ...(overrides?.fast !== undefined ? { fast: overrides.fast } : {}),
+            ...(overrides?.contextSize ? { contextSize: overrides.contextSize } : {}),
+          };
           latestConfigPatchRef.current(
-            patch,
+            nextPatch,
             selectionIntent === "family" ? { kind: "family-resolved" } : { kind: "raw-pick" },
+            overrides?.crew,
           );
         }
         return;
@@ -1178,24 +1363,161 @@ export function ThreadDraftView(props: {
         providerConfigsRef.current,
         providerModelPreferencesRef.current,
       );
+      const modelPatch = patchConfigForModelChange(
+        selectedAgentForConfig.capabilities,
+        targetModel,
+        {
+          ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
+          ...(contextSize ? { contextSize } : {}),
+          ...(modelPreference?.fast !== undefined
+            ? { fast: modelPreference.fast }
+            : picked.fast !== undefined
+              ? { fast: picked.fast }
+              : {}),
+        },
+        effectiveAgentKind ?? selectedAgent.kind,
+      );
       latestConfigPatchRef.current(
-        patchConfigForModelChange(
-          selectedAgentForConfig.capabilities,
-          targetModel,
-          {
-            ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
-            ...(contextSize ? { contextSize } : {}),
-            ...(modelPreference?.fast !== undefined
-              ? { fast: modelPreference.fast }
-              : picked.fast !== undefined
-                ? { fast: picked.fast }
-                : {}),
-          },
-          effectiveAgentKind ?? selectedAgent.kind,
-        ),
+        {
+          ...modelPatch,
+          ...(overrides?.effort !== undefined ? { effort: overrides.effort } : {}),
+          ...(overrides?.fast !== undefined ? { fast: overrides.fast } : {}),
+          ...(overrides?.contextSize ? { contextSize: overrides.contextSize } : {}),
+        },
+        undefined,
+        overrides?.crew,
       );
     }
   };
+
+  const roleTemplates = CREW_ROLE_TEMPLATE_DESCRIPTORS.map(({ brief, label, ...template }) => ({
+    ...template,
+    label: i18n._(label),
+    ...(brief ? { brief: i18n._(brief) } : {}),
+  }));
+  const leadProviders = buildProviderModelMenuProviders(installedAgents, {
+    presentationMode,
+    hiddenModelsByAgent: allHiddenModels,
+    filterAgent: (agent) =>
+      canLeadCrew(
+        capabilitiesForPresentation(agent.capabilities, presentationMode),
+        presentationMode,
+      ),
+  });
+  const draftLead = selectedAgent ? leadSelectionOf(selectedAgent.kind, draftConfig) : undefined;
+  const draftLeadCanLead = Boolean(
+    selectedAgentForConfig && canLeadCrew(selectedAgentForConfig.capabilities, presentationMode),
+  );
+  const crewsOffered = presentationMode === "gui" || draftLeadCanLead;
+  const defaultHelper = draftLead ? helperOptions.defaultSelectionFor(draftLead) : undefined;
+  const modelLabelOf = (selection: CrewMemberSelection) =>
+    crewModelLabelOf(installedAgents, selection);
+  function handleDraftCrewChoice(choice: { crewId: string } | { newCrew: true }) {
+    if (!draftLead || !draftLeadCanLead) {
+      toast.danger(
+        i18n._(
+          msg`${selectedAgent?.capabilities.models.find((candidate) => candidate.id === model)?.label ?? model} can't lead a crew. Pick another model first.`,
+        ),
+      );
+      return;
+    }
+    if ("newCrew" in choice) {
+      const sidekick = roleTemplates.find((template) => template.id === DEFAULT_CREW_ROLE_ID);
+      if (!defaultHelper || !sidekick) return;
+      commitDraftCrew(newCrewBinding(defaultHelper, sidekick));
+      setCrewOpenPending(true);
+      return;
+    }
+    const saved = savedCrews.find((crew) => crew.id === choice.crewId);
+    if (!saved) return;
+    const binding = crewBindingFromSavedCrew(saved);
+    const target = leadProviders.find((provider) => provider.kind === saved.lead.agentKind);
+    const targetModel = target?.capabilities.models.find(
+      (candidate) => candidate.id === saved.lead.model,
+    );
+    if (!target || !targetModel || !canLeadCrew(target.capabilities, presentationMode)) {
+      commitDraftCrew(binding);
+      toast.warning(
+        i18n._(
+          msg`${target?.label ?? saved.lead.agentKind} isn't available, so ${modelLabelOf(draftLead)} stays the lead.`,
+        ),
+      );
+      return;
+    }
+    latestProviderModelChangeRef.current(
+      { agentKind: saved.lead.agentKind, model: saved.lead.model, presentationMode },
+      {
+        crew: binding,
+        effort: saved.lead.effort ?? "",
+        fast: saved.lead.fast ?? false,
+        ...(saved.lead.contextSize ? { contextSize: saved.lead.contextSize } : {}),
+      },
+    );
+  }
+  const crewSection = crewsOffered
+    ? {
+        entries: savedCrews.map((crew) =>
+          crewPickerEntry(crew, helperOptions.modelLabelOf, {
+            lead: i18n._(msg`Lead`),
+            readOnly: i18n._(msg`Read-only`),
+          }),
+        ),
+        ...(draftCrew?.crewId ? { currentCrewId: draftCrew.crewId } : {}),
+        ...(draftCrew ? { current: { name: draftCrew.name ?? i18n._(msg`Crew`) } } : {}),
+        canCreate: draftLeadCanLead && defaultHelper !== undefined,
+        onSelect: handleDraftCrewChoice,
+      }
+    : undefined;
+  const activeSavedCrew = savedCrewFor(draftCrew, savedCrews);
+  const crewRoster =
+    draftCrew && draftLead && crewsOffered
+      ? {
+          binding: draftCrew,
+          lead: draftLead,
+          ...(activeSavedCrew ? { savedCrew: activeSavedCrew } : {}),
+          helperOptions,
+          roleTemplates,
+          leadProviders,
+          ...(defaultHelper ? { defaultHelper } : {}),
+          summary: crewSummary(
+            modelLabelOf(draftLead),
+            draftCrew.roles,
+            helperOptions.modelLabelOf,
+          ),
+          isDraft: true,
+          isDisabled: false,
+          onBindingChange: (binding: ThreadCrewBinding) => commitDraftCrew(binding),
+          onLeadChange: (selection: CrewMemberSelection) => {
+            if (
+              selection.agentKind !== draftLead.agentKind ||
+              selection.model !== draftLead.model
+            ) {
+              latestProviderModelChangeRef.current(
+                { agentKind: selection.agentKind, model: selection.model, presentationMode },
+                {
+                  effort: selection.effort ?? "",
+                  fast: selection.fast ?? false,
+                  ...(selection.contextSize ? { contextSize: selection.contextSize } : {}),
+                },
+              );
+            } else {
+              latestConfigPatchRef.current({
+                effort: selection.effort ?? "",
+                fast: selection.fast ?? false,
+                ...(selection.contextSize ? { contextSize: selection.contextSize } : {}),
+              });
+            }
+          },
+          onSaveToCrew: (crew: SavedCrew, binding: ThreadCrewBinding) => {
+            upsertCrew(crew);
+            commitDraftCrew(binding);
+          },
+          onSaveAsNewCrew: (crew: SavedCrew, binding: ThreadCrewBinding) => {
+            upsertCrew(crew);
+            commitDraftCrew(binding);
+          },
+        }
+      : undefined;
 
   const baseDraftControls = useMemo(() => {
     if (!selectedAgent || !selectedAgentForConfig) return [];
@@ -1208,10 +1530,13 @@ export function ThreadDraftView(props: {
       ...(contextSize ? { contextSize } : {}),
       fast,
       thinking,
+      workflows,
+      includeWorkflowsToggle: true,
       capabilities: filteredCaps,
       presentationMode,
       machineKey: machineKeyForLocation(project.location),
-      onProviderModelChange: (next) => latestProviderModelChangeRef.current(next),
+      onProviderModelChange: (next) =>
+        latestProviderModelChangeRef.current(next, draftCrew ? { crew: null } : undefined),
       onConfigPatch: (patch, origin) => latestConfigPatchRef.current(patch, origin),
     });
   }, [
@@ -1224,14 +1549,16 @@ export function ThreadDraftView(props: {
     contextSize,
     fast,
     thinking,
+    workflows,
     presentationMode,
     project.location,
+    draftCrew,
   ]);
 
-  const draftControls = useMemo(() => {
+  const draftControls = (() => {
     if (!selectedAgent || !selectedAgentForConfig) return [];
     const filteredCaps = selectedAgentFilteredCapabilities ?? selectedAgentForConfig.capabilities;
-    return appendProviderComposerControls(baseDraftControls, {
+    const composed = appendProviderComposerControls(baseDraftControls, {
       agentKind: selectedAgent.kind,
       capabilities: filteredCaps,
       config: {
@@ -1249,22 +1576,13 @@ export function ThreadDraftView(props: {
       isDisabled: false,
       onConfigChange: (patch, origin) => latestConfigPatchRef.current(patch, origin),
     });
-  }, [
-    baseDraftControls,
-    selectedAgent,
-    selectedAgentForConfig,
-    selectedAgentFilteredCapabilities,
-    model,
-    effort,
-    contextSize,
-    fast,
-    thinking,
-    mode,
-    approvalPolicy,
-    approvalsReviewer,
-    sandboxMode,
-    presentationMode,
-  ]);
+    if (!crewSection) return composed;
+    return applyCrewComposerControls(composed, {
+      crewSection,
+      ...(crewRoster ? { roster: crewRoster } : {}),
+      openSignal: crewOpenSignal,
+    });
+  })();
 
   // Stable centering for the full (non-compact) draft view: center once, then
   // pin the input's top edge so the composer no longer jumps when it grows.
@@ -1281,17 +1599,22 @@ export function ThreadDraftView(props: {
     spacerRef: anchorSpacerRef,
   });
 
-  if (remoteConnection === "connecting" && !hostUpdateRestarting) {
+  if (!props.submissionPending && remoteConnection === "connecting" && !hostUpdateRestarting) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <PixelLoader size="md" />
         <p className="text-sm text-muted">
-          <Trans>Connecting…</Trans>
+          <Trans>Connecting to host…</Trans>
         </p>
       </div>
     );
   }
-  if (!hostUpdateRestarting && remoteConnection !== "local" && remoteConnection !== "online") {
+  if (
+    !props.submissionPending &&
+    !hostUpdateRestarting &&
+    remoteConnection !== "local" &&
+    remoteConnection !== "online"
+  ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -1345,6 +1668,10 @@ export function ThreadDraftView(props: {
     ? ""
     : `${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`;
   const blockMaxWidthClass = props.quickComposer ? "" : "max-w-[720px]";
+  // Wait for authoritative settings so an opted-out user never mounts (or fetches
+  // for) the line on defaults, and leave compact layouts to the composer alone.
+  const showNewsLine =
+    newsLineEnabled && sharedSettingsHydrated && !compactLayout && !props.chatOnly;
 
   const handlePresentationChange = (next: ThreadPresentationMode) => {
     // A deliberate switch while inside a family relation must prove an exact
@@ -1404,26 +1731,18 @@ export function ThreadDraftView(props: {
   // actually supports. A persistent enable with a "none" scope must NOT set the
   // config flag — otherwise the composer would show a phantom "on" state and the
   // scope-reset effect there would fight it.
-  const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) =>
-    disabledBuiltInMcpServers[id] !== true &&
-    (mention ||
-      ((implicitMcpServers.includes(id) || enabledMcpServers[id] === true) && scope !== "none"));
-  const selectedMcpScope = resolveMcpScope(selectedAgent.capabilities.mcpScope, presentationMode);
-  const effectiveBrowserMcp = effectiveMcp("browser", browserMcpMention, selectedMcpScope);
-  const effectiveCrossagentMcp = effectiveMcp(
-    "crossagents",
-    crossagentMcpMention,
-    selectedMcpScope,
-  );
-  const effectiveChromeMcp = effectiveMcp(
-    "chrome",
-    chromeMcpMention,
-    chromeMcpServer.getScope(selectedAgent.capabilities, presentationMode, project.location),
-  );
-  const effectiveComputerUse = effectiveMcp(
-    COMPUTER_USE_MCP_ID,
-    computerUseMention,
-    getComputerUseScope(selectedAgent.capabilities, presentationMode, project.location),
+  const mcpConfig = resolveNewThreadMcpConfig(
+    { enabledMcpServers, disabledBuiltInMcpServers },
+    selectedAgent.capabilities,
+    presentationMode,
+    project.location,
+    {
+      browser: browserMcpMention,
+      crossagents: crossagentMcpMention,
+      chrome: chromeMcpMention,
+      "computer-use": computerUseMention,
+    },
+    implicitMcpServers,
   );
 
   return (
@@ -1490,7 +1809,6 @@ export function ThreadDraftView(props: {
           )}
           <ThreadDraftComposerArea
             project={project}
-            isRemote={project.remoteServerId !== undefined}
             {...(props.paneId ? { paneId: props.paneId } : {})}
             {...(props.restoreWorktreeSelectionToken !== undefined
               ? { restoreWorktreeSelectionToken: props.restoreWorktreeSelectionToken }
@@ -1499,14 +1817,21 @@ export function ThreadDraftView(props: {
             controls={draftControls}
             config={{
               ...launchSelectionFields(draftConfig, selectedAgentForConfig?.capabilities),
+              ...(workflows &&
+              selectedAgentForConfig &&
+              supportsWorkflowMode(selectedAgentForConfig.capabilities, model)
+                ? { workflows: true }
+                : {}),
               ...(mode ? { mode } : {}),
               ...(approvalPolicy ? { approvalPolicy } : {}),
               ...(approvalsReviewer ? { approvalsReviewer } : {}),
               ...(sandboxMode ? { sandboxMode } : {}),
-              ...(effectiveBrowserMcp ? { browserMcp: true } : {}),
-              ...(effectiveCrossagentMcp ? { crossagentMcp: true } : {}),
-              ...(effectiveChromeMcp ? { chromeMcp: true } : {}),
-              ...(effectiveComputerUse ? { computerUse: true } : {}),
+              ...mcpConfig,
+              ...(draftCrew
+                ? { crew: draftCrew }
+                : draftCrewExplicitlyCleared
+                  ? { crew: null }
+                  : {}),
             }}
             compact={compactComposer}
             {...(props.chatOnly ? { hideWorkspaceControls: true } : {})}
@@ -1531,9 +1856,14 @@ export function ThreadDraftView(props: {
             onStart={onStart}
           />
         </div>
-        {/* Absorbs the slack below the anchored composer in the full draft view. */}
+        {/* Absorbs the slack below the anchored composer in the full draft view.
+            The news line lives here so it can never move the composer. */}
         {compactComposer ? null : (
-          <div aria-hidden data-draft-slack="" className="min-h-0 w-full flex-1" />
+          <div data-draft-slack="" className="flex min-h-0 w-full flex-1 flex-col items-center">
+            {showNewsLine ? (
+              <NewsLine key={draftVisit} className={`mt-3 w-full ${blockMaxWidthClass}`} />
+            ) : null}
+          </div>
         )}
       </div>
     </div>

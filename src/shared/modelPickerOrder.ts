@@ -4,6 +4,7 @@ export interface ModelPickerRef {
   agentKind: string;
   modelId: string;
   presentationMode?: ThreadPresentationMode;
+  lastUsedAt?: number | undefined;
 }
 
 function refKey(ref: ModelPickerRef): string {

@@ -12,7 +12,7 @@ use poracode_computer_use::protocol::actions::{
 #[test]
 fn reports_tcc_state_and_returns_structured_permission_failures() {
     let backend = MacOsBackend::new();
-    let hello = build_hello(backend.hello());
+    let hello = build_hello(&backend);
     assert_eq!(hello.platform, "darwin");
     assert!(hello.capabilities.accessibility_tree);
     assert!(hello.capabilities.element_actions);

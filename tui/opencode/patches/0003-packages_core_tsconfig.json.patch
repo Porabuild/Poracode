@@ -1,0 +1,11 @@
+diff --git a/packages/core/tsconfig.json b/packages/core/tsconfig.json
+index c26f8db..db261eb 100644
+--- a/packages/core/tsconfig.json
++++ b/packages/core/tsconfig.json
+@@ -14,5 +14,5 @@
+     "rootDir": "src",
+     "tsBuildInfoFile": "node_modules/.ts-dist/source.tsbuildinfo"
+   },
+-  "include": ["src"]
++  "include": ["src/util/slug.ts"]
+ }

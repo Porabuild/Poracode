@@ -128,4 +128,63 @@ final class EventStreamCursorTests: XCTestCase {
         XCTAssertFalse(cursor.resyncPending)
         XCTAssertEqual(cursor.disposition(forEventSeq: 1), .apply)
     }
+
+    func testUnboundCursorBindsOnlyThroughResyncRequired() {
+        var cursor = EventStreamCursor()
+        cursor.beginConnection()
+        XCTAssertFalse(cursor.noteReady(seq: 0, epoch: "e1"))
+        XCTAssertNil(cursor.epoch)
+        cursor.replaceFromResyncRequired(3)
+        XCTAssertEqual(cursor.epoch, "e1")
+    }
+
+    func testLostResyncKeepsTheOldBindingForTheNextReconnect() {
+        var cursor = EventStreamCursor(appliedSeq: 5, epoch: "e1")
+        cursor.beginConnection()
+        XCTAssertFalse(cursor.noteReady(seq: 8, epoch: "e2"))
+        XCTAssertEqual(cursor.epoch, "e1")
+        XCTAssertEqual(cursor.appliedSeq, 5)
+        // The next connection never inherits the previous connection's epoch.
+        cursor.beginConnection()
+        cursor.replaceFromResyncRequired(8)
+        XCTAssertNil(cursor.epoch)
+    }
+
+    func testResyncOnTheSameConnectionBindsTheNewEpoch() {
+        var cursor = EventStreamCursor(appliedSeq: 5, epoch: "e1")
+        cursor.beginConnection()
+        cursor.noteReady(seq: 8, epoch: "e2")
+        cursor.replaceFromResyncRequired(8)
+        XCTAssertEqual(cursor.epoch, "e2")
+        XCTAssertEqual(cursor.appliedSeq, 8)
+        XCTAssertTrue(cursor.resyncPending)
+    }
+
+    func testWithdrawnEpochAsksForOneResyncAndUnbinds() {
+        var legacy = EventStreamCursor(appliedSeq: 4)
+        legacy.beginConnection()
+        XCTAssertFalse(legacy.noteReady(seq: 4, epoch: nil))
+
+        var bound = EventStreamCursor(appliedSeq: 5, epoch: "e1")
+        bound.beginConnection()
+        XCTAssertTrue(bound.noteReady(seq: 9, epoch: nil))
+        bound.replaceFromResyncRequired(9)
+        XCTAssertNil(bound.epoch)
+        bound.beginConnection()
+        XCTAssertFalse(bound.noteReady(seq: 9, epoch: nil))
+    }
+
+    func testEpochDeclarationKeepsExistingQueryItemsAndAddsOnlyABoundEpoch() throws {
+        let base = try XCTUnwrap(URL(string: "wss://h/ws?ticket=t&lastSeenSeq=5&threadItemInterests=%5B%22a%22%5D"))
+        let bound = RemoteEventEpochDeclaration.decorate(base, lastSeenEpoch: "e1")
+        XCTAssertEqual(
+            bound.absoluteString,
+            "wss://h/ws?ticket=t&lastSeenSeq=5&threadItemInterests=%5B%22a%22%5D&eventEpoch=v1&lastSeenEpoch=e1"
+        )
+        let unbound = RemoteEventEpochDeclaration.decorate(bound, lastSeenEpoch: nil)
+        XCTAssertEqual(
+            unbound.absoluteString,
+            "wss://h/ws?ticket=t&lastSeenSeq=5&threadItemInterests=%5B%22a%22%5D&eventEpoch=v1"
+        )
+    }
 }

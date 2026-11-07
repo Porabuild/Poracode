@@ -34,7 +34,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24"
+          node-version: "26"
       - name: Require successful core and native checks
         id: check
         env:
@@ -75,13 +75,15 @@ jobs:
             exit 1
           fi
       - name: Install Vercel CLI
-        run: npm install --global vercel@59.10.0
+        run: npm install --global vercel@64.5.0
       - name: Pull Vercel environment
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
       - name: Build
         env:
+          # The pinned CLI gates Node 26 (package.json engines) behind this flag.
+          VERCEL_ALLOW_NODEJS_26: "1"
           PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
           PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

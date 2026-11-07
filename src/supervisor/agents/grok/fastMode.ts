@@ -1,78 +1,8 @@
-import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
-import {
-  canonicalGrokModelId,
-  grokFastVariantId,
-  grokStandardModelId,
-  isGrokBuildFastModelId,
-} from "./modelId";
+import type { ThreadConfig } from "@/shared/contracts";
+import { grokFastVariantId, grokStandardModelId, isGrokBuildFastModelId } from "./modelId";
 import { listSelectConfigOptionValues, resolveModelConfigValue } from "../acp/sessionConfig";
 
-type GrokFastFoldable = Partial<AgentCapability>;
-
-/**
- * Drop `*-build-fast` siblings from the model picker and record the standard
- * id in `fastModels`. A sibling is folded only when its standard model is
- * also advertised, so an unknown fast-only id stays selectable.
- */
-export function foldGrokFastModels<T extends GrokFastFoldable>(
-  capabilities: T,
-): T & GrokFastFoldable {
-  const models = capabilities.models;
-  if (!models?.length) return capabilities;
-
-  const folded = new Map<string, string>();
-  for (const model of models) {
-    const standard = canonicalGrokModelId(model.id, models);
-    if (standard !== model.id) folded.set(model.id, standard);
-  }
-  if (folded.size === 0) return capabilities;
-
-  const fastModels = new Set((capabilities.fastModels ?? []).filter((id) => !folded.has(id)));
-  for (const standard of folded.values()) fastModels.add(standard);
-
-  return {
-    ...capabilities,
-    models: models.filter((model) => !folded.has(model.id)),
-    fastModels: [...fastModels],
-    ...(capabilities.modelEfforts
-      ? { modelEfforts: remapRecord(capabilities.modelEfforts, folded) }
-      : {}),
-    ...(capabilities.modelDefaultEfforts
-      ? { modelDefaultEfforts: remapRecord(capabilities.modelDefaultEfforts, folded) }
-      : {}),
-    ...(capabilities.modelContextSizes
-      ? { modelContextSizes: remapRecord(capabilities.modelContextSizes, folded) }
-      : {}),
-    ...(capabilities.thinkingModels
-      ? { thinkingModels: remapList(capabilities.thinkingModels, folded) }
-      : {}),
-  };
-}
-
-function remapRecord<V>(
-  record: Record<string, V>,
-  folded: ReadonlyMap<string, string>,
-): Record<string, V> {
-  const next: Record<string, V> = {};
-  for (const [id, value] of Object.entries(record)) {
-    const standard = folded.get(id);
-    if (!standard) {
-      next[id] = value;
-      continue;
-    }
-    if (next[standard] === undefined) next[standard] = value;
-  }
-  return next;
-}
-
-function remapList(ids: readonly string[], folded: ReadonlyMap<string, string>): string[] {
-  const next: string[] = [];
-  for (const id of ids) {
-    const standard = folded.get(id) ?? id;
-    if (!next.includes(standard)) next.push(standard);
-  }
-  return next;
-}
+export { foldGrokFastModels } from "./modelId";
 
 /**
  * Model id Grok's CLI and ACP model select should receive.

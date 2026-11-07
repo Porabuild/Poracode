@@ -1,11 +1,12 @@
 import { Worker } from "node:worker_threads";
 import { z } from "zod";
-import { DATABASE_READ_WORKER_PROTOCOL_VERSION } from "./databaseReadProtocol";
+import { DATABASE_READ_WORKER_PROTOCOL_VERSION } from "./databaseReadVersion";
 
 const initializationSchema = z.strictObject({
   kind: z.literal("initialize"),
   version: z.literal(DATABASE_READ_WORKER_PROTOCOL_VERSION),
   dbPath: z.string().min(1),
+  imagePreviews: z.boolean().optional(),
 });
 
 /**
@@ -29,7 +30,11 @@ export function startDatabaseReadProcess(entryPath: string): void {
       return;
     }
     worker = new Worker(entryPath, {
-      workerData: { version: parsed.data.version, dbPath: parsed.data.dbPath },
+      workerData: {
+        version: parsed.data.version,
+        dbPath: parsed.data.dbPath,
+        imagePreviews: parsed.data.imagePreviews === true,
+      },
     });
     worker.on("message", (frame: unknown) => {
       if (!process.connected) {

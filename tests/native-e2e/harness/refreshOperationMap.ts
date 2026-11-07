@@ -14,7 +14,7 @@ import {
  * Run this in the same change that regenerates
  * `protocol/remote/v3/generated/inventory.json`:
  *
- *   node --experimental-transform-types --disable-warning=ExperimentalWarning \
+ *   node --disable-warning=ExperimentalWarning \
  *     tests/native-e2e/harness/refreshOperationMap.ts
  *
  * The lock test (`tests/native-e2e/operationMap.test.ts`) fails on any drift

@@ -73,6 +73,9 @@ struct PullRequestReviewDetails: Equatable, Sendable {
   let comments: [PullRequestReviewComment]
   let reviews: [PullRequestReviewSummary]
   let checks: [PullRequestReviewCheck]
+  let labels: [GitHubReviewLabel]
+  let requestedReviewers: [GitHubReviewerSummary]
+  let timeline: [PullRequestTimelineEvent]
 }
 
 struct PullRequestReviewConversation: Equatable, Sendable {
@@ -107,7 +110,10 @@ enum PullRequestReviewProjection {
       commits: object.array("commits").compactMap(commit),
       comments: object.array("comments").compactMap(comment),
       reviews: object.array("reviews").compactMap(review),
-      checks: object.array("checks").compactMap(check)
+      checks: object.array("checks").compactMap(check),
+      labels: GitHubResultProjection.labels(object["labels"]),
+      requestedReviewers: GitHubResultProjection.reviewers(object["requestedReviewers"]),
+      timeline: PullRequestTimelineProjection.events(object["timeline"])
     )
   }
 

@@ -123,6 +123,7 @@ internal object HomeThreadListPresentation {
                     computerUse = draft.computerUse,
                     chromeMcp = draft.chromeMcp,
                     executionEnvironment = draft.executionEnvironment,
+                    crew = draft.crew,
                 ),
             )
         }
@@ -132,6 +133,11 @@ internal object HomeThreadListPresentation {
             .filter { it.projectId == project.id }
             .maxByOrNull { it.updatedAt }
             ?: return null
-        return HomeThreadLaunchDefaults(latest.agentKind, latest.agentInstanceId, latest.config)
+        // Workflow mode is a per-draft choice: a new thread never inherits it.
+        return HomeThreadLaunchDefaults(
+            latest.agentKind,
+            latest.agentInstanceId,
+            latest.config.copy(workflows = null),
+        )
     }
 }

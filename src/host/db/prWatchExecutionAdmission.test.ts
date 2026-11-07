@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { PrWatch } from "@/shared/contracts";
+import type { PrWatch, ForgeReviewScope } from "@/shared/contracts";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { nativeBindingEnv, sqliteAvailable } from "./runtimeItems.testFixtures";
 import { dbUpsertProject } from "./projectsThreads";
@@ -20,6 +20,13 @@ import {
 
 const PROJECT_ID = "p1";
 const PR_NUMBER = 42;
+const reviewScope: ForgeReviewScope = {
+  version: 1,
+  forge: "github",
+  host: "https://github.com",
+  repository: "team/app",
+  account: { forge: "github", host: "https://github.com", login: "alice" },
+};
 /** A full profile kind: one opaque agentKind route identity. */
 const PROFILE_KIND = "vendor:profile";
 
@@ -44,6 +51,7 @@ function watch(overrides: Partial<PrWatch> = {}): PrWatch {
     projectId: PROJECT_ID,
     prNumber: PR_NUMBER,
     headBranch: "feature/pr-watch",
+    reviewScope,
     watchEnabled: true,
     autoMerge: false,
     agentKind: PROFILE_KIND,
@@ -117,6 +125,7 @@ describe.skipIf(!sqliteAvailable)("prWatchExecutionAdmission (real sqlite)", () 
         projectId: PROJECT_ID,
         prNumber: PR_NUMBER,
         headBranch: "feature/pr-watch",
+        reviewScope,
         watchEnabled: true,
         autoMerge: false,
         agentKind: PROFILE_KIND,

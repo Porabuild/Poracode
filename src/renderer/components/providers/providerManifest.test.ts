@@ -36,6 +36,7 @@ const EXPECTED_PROVIDER_ORDER = [
   "cursor",
   "copilot",
   "factory",
+  "fx",
 ] as const;
 
 describe("renderer provider manifests", () => {

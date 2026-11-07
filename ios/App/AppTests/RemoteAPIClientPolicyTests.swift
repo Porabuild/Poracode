@@ -588,3 +588,54 @@ final class SendWithoutConfigPolicyTests: XCTestCase {
         XCTAssertFalse(message.isEmpty)
     }
 }
+
+// MARK: - Socket health deadline (parity with `RemoteSocketHealthMonitor`)
+
+final class SocketHealthDeadlineTests: XCTestCase {
+    func testStalledDeadlineWaitsForTheQueuedPong() {
+        // The deadline fired 6.5s late: the process stalled, not the peer.
+        XCTAssertTrue(
+            RemoteSocketPolicy.shouldExtendHealthDeadline(
+                nowMs: 11_500,
+                deadlineAtMs: 5_000,
+                windowStartedAtMs: 0,
+                lastInboundAtMs: nil,
+                extensions: 0
+            )
+        )
+    }
+
+    func testFramesDuringTheWindowExtendItThenSilenceIsDead() {
+        XCTAssertTrue(
+            RemoteSocketPolicy.shouldExtendHealthDeadline(
+                nowMs: 5_001,
+                deadlineAtMs: 5_000,
+                windowStartedAtMs: 0,
+                lastInboundAtMs: 4_000,
+                extensions: 0
+            )
+        )
+        // Next window: on time and no frames since it started.
+        XCTAssertFalse(
+            RemoteSocketPolicy.shouldExtendHealthDeadline(
+                nowMs: 10_002,
+                deadlineAtMs: 10_001,
+                windowStartedAtMs: 5_001,
+                lastInboundAtMs: 4_000,
+                extensions: 1
+            )
+        )
+    }
+
+    func testHealthDeadlineExtensionsAreBounded() {
+        XCTAssertFalse(
+            RemoteSocketPolicy.shouldExtendHealthDeadline(
+                nowMs: 11_500,
+                deadlineAtMs: 5_000,
+                windowStartedAtMs: 0,
+                lastInboundAtMs: 4_000,
+                extensions: RemoteSocketPolicy.healthDeadlineMaxExtensions
+            )
+        )
+    }
+}

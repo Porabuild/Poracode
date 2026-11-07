@@ -1,6 +1,21 @@
 import Foundation
 
+extension RichChatRemoteAPI {
+  func richControlMcpApp(payload _: [String: RichJSON]) async throws -> RichJSON {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
+  /// Default for test fakes and older transports: fail closed, never fabricate.
+  func richDownloadFile(
+    request _: RichChatFileAccess,
+    projectLocation _: ProjectLocation,
+    suggestedName _: String
+  ) async throws -> RichChatFileDownload {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
+}
+
 protocol RichChatRemoteAPI: Sendable {
+  func richControlMcpApp(payload: [String: RichJSON]) async throws -> RichJSON
   func richHistory(threadID: String, targetEntryCount: Int?) async throws -> RemoteThreadSnapshot
   func richHistoryPage(
     threadID: String,
@@ -25,6 +40,14 @@ protocol RichChatRemoteAPI: Sendable {
 
   func richLocalImage(path: String) async throws -> RichChatBinaryPayload
   func richRuntimeImage(_ reference: RichRemoteImageReference) async throws -> RichChatBinaryPayload
+  /// Mint → authenticated streamed GET → release for one chat file card on
+  /// this same client. The response URL is never trusted; the media route is
+  /// resolved through the endpoint resolver.
+  func richDownloadFile(
+    request: RichChatFileAccess,
+    projectLocation: ProjectLocation,
+    suggestedName: String
+  ) async throws -> RichChatFileDownload
   func richListCheckpoints(
     threadID: String, projectLocation: ProjectLocation
   ) async throws -> RichChatCheckpointCollection
@@ -91,6 +114,12 @@ protocol RichChatRemoteAPI: Sendable {
 struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
   private let json: RemoteAPIClient
   private let raw: (any RichChatRawHTTPExecuting)?
+
+  func richControlMcpApp(payload: [String: RichJSON]) async throws -> RichJSON {
+    let body = try prepare { try GeneratedRemoteV3Contract.mcpAppRequest(payload) }
+    let data = try await mutationRequest(path: "/api/git/call", body: body)
+    return try GeneratedRemoteV3Contract.mcpAppResult(data)
+  }
 
   init(json: RemoteAPIClient, raw: (any RichChatRawHTTPExecuting)? = nil) {
     self.json = json
@@ -180,6 +209,96 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
     return try await raw.fetchImage(path: path, queryItems: route.queryItems)
   }
 
+  func richDownloadFile(
+    request: RichChatFileAccess,
+    projectLocation: ProjectLocation,
+    suggestedName: String
+  ) async throws -> RichChatFileDownload {
+    let location = try RichJSON.decode(JSONEncoder().encode(projectLocation))
+    let requestObject: [String: RichJSON]
+    switch request {
+    case .project(let relative):
+      requestObject = [
+        "access": .string("project"),
+        "disposition": .string("attachment"),
+        "path": .string(relative),
+        "projectLocation": location,
+      ]
+    case .external(let absolute):
+      requestObject = [
+        "access": .string("external"),
+        "disposition": .string("attachment"),
+        "path": .string(absolute),
+        "projectLocation": location,
+      ]
+    }
+    // Canonicalize the body through the generated root codec so a malformed
+    // request fails before the wire, then validate the ticket reply the same
+    // way. `response.url` is intentionally ignored — a host-supplied URL is
+    // never navigated to.
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.canonicalData(
+        JSONEncoder().encode(RichJSON.object(requestObject)),
+        codec: RemoteRootCodecs.routeU2EFileU2DMediaU2DTicketU2ERequest,
+        boundary: "file media ticket request"
+      )
+    }
+    let ticketData = try await mutationRequest(path: "/api/files/media-ticket", body: body)
+    let ticket: String
+    do {
+      let canonical = try GeneratedRemoteV3Contract.canonicalData(
+        ticketData,
+        codec: RemoteRootCodecs.routeU2EFileU2DMediaU2DTicketU2EResponse,
+        boundary: "file media ticket response"
+      )
+      guard
+        let found = try RichJSON.decode(canonical).objectValue?["ticket"]?.stringValue,
+        !found.isEmpty
+      else { throw RichChatTransportFailure.invalidResponse }
+      ticket = found
+    }
+    // The ticket is released only after the transfer settles; the detached
+    // helper still frees it when the caller is cancelled.
+    let download: RichChatFileDownload
+    do {
+      guard let raw else { throw RichChatTransportFailure.rawTransportUnavailable }
+      download = try await raw.downloadFile(
+        path: "/api/files/media",
+        queryItems: [URLQueryItem(name: "ticket", value: ticket)],
+        suggestedName: suggestedName
+      )
+    } catch {
+      await releaseFileMediaTicketIgnoringCancellation(ticket)
+      throw error
+    }
+    await releaseFileMediaTicketIgnoringCancellation(ticket)
+    do {
+      try Task.checkCancellation()
+      return download
+    } catch {
+      try? FileManager.default.removeItem(at: download.directory)
+      throw error
+    }
+  }
+
+  /// Best-effort release that survives caller cancellation: the request runs
+  /// in its own task so a cancelled caller still frees the ticket.
+  private func releaseFileMediaTicketIgnoringCancellation(_ ticket: String) async {
+    let task = Task { try? await self.releaseFileMediaTicket(ticket) }
+    _ = await task.value
+  }
+
+  private func releaseFileMediaTicket(_ ticket: String) async throws {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.canonicalData(
+        JSONEncoder().encode(RichJSON.object(["ticket": .string(ticket)])),
+        codec: RemoteRootCodecs.routeU2EFileU2DMediaU2DReleaseU2ERequest,
+        boundary: "file media release request"
+      )
+    }
+    _ = try await mutationRequest(path: "/api/files/media-release", body: body)
+  }
+
   func richListCheckpoints(
     threadID: String,
     projectLocation: ProjectLocation
@@ -266,7 +385,7 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
       try GeneratedRemoteV3Contract.richThreadCommand(threadID: threadID, command: command)
     }
     let body = try RichJSON.decode(route.body).objectValue
-    let isStart = body?["kind"]?.stringValue == "start"
+    let isStart = ["start", "fork"].contains(body?["kind"]?.stringValue ?? "")
     let headers =
       isStart
       ? [ProtocolConstants.commandIdHeader: command.commandID ?? "thread-start:\(threadID)"]

@@ -12,15 +12,12 @@ const { bridgeMock, pairingChangedState, sharedSettingsState, toDataURLMock } = 
     onRemoteAccessPairingChanged:
       vi.fn<(listener: (info: RemoteAccessPairingInfo) => void) => () => void>(),
     getRemoteAccessTailscaleStatus: vi.fn<() => Promise<RemoteAccessTailscaleStatus>>(),
-    setRemoteAccessLanEnabled:
-      vi.fn<(payload: { enabled: boolean }) => Promise<RemoteAccessPairingInfo>>(),
     openExternal: vi.fn<(url: string) => Promise<void>>(),
   },
   pairingChangedState: {
     listener: null as ((info: RemoteAccessPairingInfo) => void) | null,
   },
   sharedSettingsState: {
-    remoteAccessLanEnabled: false,
     remoteAccessTailscaleHttps: true,
     remoteAccessAdvertisedUrl: "",
     remotePushEnabled: true,
@@ -72,8 +69,6 @@ function readyInfo(
 describe("RemoteAccessSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    sharedSettingsState.remoteAccessLanEnabled = false;
-    bridgeMock.setRemoteAccessLanEnabled.mockResolvedValue(readyInfo("lc_pair_lan"));
     bridgeMock.getRemoteAccessPairing.mockResolvedValue(readyInfo("lc_pair_test"));
     bridgeMock.refreshRemoteAccessPairing.mockImplementation(() =>
       bridgeMock.getRemoteAccessPairing(),
@@ -147,7 +142,7 @@ describe("RemoteAccessSettings", () => {
     expect(screen.getByRole("radio", { name: "Tailscale" })).toBeChecked();
   });
 
-  it("disables unavailable network links and enables LAN through its own switch", async () => {
+  it("disables unavailable network links and has no separate network access switch", async () => {
     const info = readyInfo("lc_pair_local");
     Reflect.deleteProperty(info, "lanHttpBaseUrl");
     Reflect.deleteProperty(info, "tailnetHttpBaseUrl");
@@ -158,11 +153,7 @@ describe("RemoteAccessSettings", () => {
     render(<RemoteAccessSettings />);
     expect(await screen.findByRole("radio", { name: "LAN" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "Tailscale" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("switch", { name: "Network access" }));
-    await waitFor(() => {
-      expect(bridgeMock.setRemoteAccessLanEnabled).toHaveBeenCalledWith({ enabled: true });
-    });
-    expect(await screen.findByText("lc_pair_lan")).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Network access" })).not.toBeInTheDocument();
   });
 
   it("shows device presence and last connection time, and updates on disconnect", async () => {

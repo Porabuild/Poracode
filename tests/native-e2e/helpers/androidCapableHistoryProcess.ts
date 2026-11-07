@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   CAPABLE_HISTORY_SEED_ARMED_MARKER,
   CAPABLE_HISTORY_VERIFY_MARKER,
@@ -40,10 +41,9 @@ function launchFixtureChild(input: {
 }): ChildProcess {
   return fork(input.fixturePath, [input.mode, input.dbPath, JSON.stringify(input.params)], {
     execArgv: [
-      "--experimental-transform-types",
       "--disable-warning=ExperimentalWarning",
       "--import",
-      resolve(input.repoRoot, "scripts/remote-v3-ts-register.mjs"),
+      pathToFileURL(resolve(input.repoRoot, "scripts/remote-v3-ts-register.mjs")).href,
     ],
     env: fixtureForkEnv(input.repoRoot),
     stdio: ["ignore", "pipe", "pipe", "ipc"],

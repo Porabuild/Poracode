@@ -1,17 +1,22 @@
 package com.poracode.app.ui.projects.workspace
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -27,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,7 +40,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -51,6 +59,11 @@ import com.poracode.app.session.projects.GithubOperationsEntry
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.Json
+import com.poracode.app.protocol.forge.ForgeReviewOperation
+import com.poracode.app.session.projects.ForgeReviewEntry
+import com.poracode.app.model.AgentStatusEntry
 
 enum class ProjectGithubSection { PullRequests, Actions, Repositories }
 
@@ -61,14 +74,19 @@ internal fun ProjectGithubPane(
     canRead: Boolean,
     canOperate: Boolean,
     expanded: Boolean,
+    guideWriters: List<AgentStatusEntry> = emptyList(),
+    lease: com.poracode.app.session.projects.ProjectHostLease? = null,
     initialSection: ProjectGithubSection = ProjectGithubSection.PullRequests,
     modifier: Modifier = Modifier,
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
     val entry = state.entries[target.identity] ?: GithubOperationsEntry()
+    LaunchedEffect(target, lease?.key, lease?.online, lease?.ready) {
+        if (!canRead) controller.refresh(target)
+    }
     val gate = githubUiGate(
-        canRead,
-        canOperate,
+        canRead || entry.isCached,
+        canOperate && !entry.isCached,
         entry.available,
         entry.loading,
         entry.activeMutation != null,
@@ -79,6 +97,7 @@ internal fun ProjectGithubPane(
     }
     val section = ProjectGithubSection.valueOf(sectionName)
     Column(modifier.fillMaxSize()) {
+        if (entry.isCached) Text(stringResource(R.string.settings_status_offline), Modifier.padding(12.dp))
         if (entry.loading || entry.activeMutation != null) LinearProgressIndicator(Modifier.fillMaxWidth())
         if (entry.available == false) {
             Text(
@@ -101,10 +120,10 @@ internal fun ProjectGithubPane(
         }
         when (section) {
             ProjectGithubSection.PullRequests -> GithubPullRequestsPane(
-                entry, target, controller, gate.canRead, gate.canMutate, expanded,
+                entry, target, controller, gate.canRead, gate.canMutate, expanded, guideWriters, lease,
             )
             ProjectGithubSection.Actions -> GithubActionsPane(
-                entry, target, controller, gate.canRead, gate.canMutate, expanded,
+                entry, target, controller, gate.canRead, gate.canMutate, expanded, lease,
             )
             ProjectGithubSection.Repositories -> GithubRepositoriesPane(
                 entry, target, controller, gate.canRead,
@@ -138,16 +157,27 @@ private fun GithubPullRequestsPane(
     canRead: Boolean,
     canOperate: Boolean,
     expanded: Boolean,
+    guideWriters: List<AgentStatusEntry>,
+    lease: com.poracode.app.session.projects.ProjectHostLease?,
 ) {
     val scope = rememberCoroutineScope()
     var selectedNumber by rememberSaveable(target.identity) { mutableLongStateOf(0L) }
     var selectedBranch by rememberSaveable(target.identity) { mutableStateOf("") }
+    var selectedState by rememberSaveable(target.identity) { mutableStateOf("") }
+    var selectedSource by rememberSaveable(target.identity) { mutableStateOf("") }
+    val source = remember(selectedSource) { selectedSource.takeIf { it.isNotEmpty() }?.let { Json.parseToJsonElement(it) as? JsonObject } }
+    LaunchedEffect(target, selectedNumber, source, lease?.key, lease?.online, lease?.ready) {
+        if (source != null && selectedNumber > 0) controller.forgeReview.select(target, source, selectedNumber)
+    }
     val rows = remember(entry.pullRequests) { entry.pullRequests.pullRequestRows() }
     val list: @Composable (Modifier) -> Unit = { modifier ->
         LazyColumn(modifier) {
             item("pr-actions") {
                 OutlinedButton(
-                    onClick = { scope.launch { controller.refresh(target) } },
+                    onClick = { scope.launch {
+                        controller.refresh(target)
+                        if (source != null && selectedNumber > 0) controller.forgeReview.refresh(target)
+                    } },
                     enabled = canRead && !entry.loading,
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                 ) { Text(stringResource(R.string.github_refresh)) }
@@ -161,15 +191,58 @@ private fun GithubPullRequestsPane(
                     Modifier.fillMaxWidth().clickable(enabled = canRead) {
                         selectedNumber = row.number
                         selectedBranch = row.branch
-                        scope.launch { controller.selectPullRequest(target, row.number, row.branch) }
+                        selectedState = row.state
+                        selectedSource = row.source?.toString().orEmpty()
+                        if (row.source == null) scope.launch { controller.selectPullRequest(target, row.number, row.branch) }
                     }.semantics { role = Role.Button }.padding(16.dp),
                 ) {
                     Text(row.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        stringResource(R.string.github_pr_summary, row.number, row.branch, row.state),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        row.author?.let { author ->
+                            Box(
+                                Modifier.size(20.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    author.first().uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        Text(
+                            if (row.author != null) {
+                                stringResource(R.string.github_pr_row_summary, row.author, row.number, row.branch, row.state)
+                            } else {
+                                stringResource(R.string.github_pr_summary, row.number, row.branch, row.state)
+                            },
+                            Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (row.additions != 0L || row.deletions != 0L) {
+                            DiffCounts(row.additions, row.deletions)
+                        }
+                        when (row.checksStatus) {
+                            "SUCCESS" -> GithubStatusIcon("completed", "success", stringResource(R.string.github_checks))
+                            "FAILURE" -> GithubStatusIcon("completed", "failure", stringResource(R.string.github_checks))
+                            "PENDING" -> GithubStatusIcon("in_progress", "", stringResource(R.string.github_checks))
+                        }
+                        if (row.reviewRequested) {
+                            Icon(
+                                Icons.Outlined.RateReview,
+                                stringResource(R.string.github_review_requested),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                    PullRequestLabelChips(row.labels, Modifier.padding(top = 6.dp))
                 }
                 HorizontalDivider()
             }
@@ -177,8 +250,8 @@ private fun GithubPullRequestsPane(
     }
     val detail: @Composable (Modifier) -> Unit = { modifier ->
         GithubPullRequestDetail(
-            entry, target, controller, selectedNumber, selectedBranch,
-            canOperate && entry.activeMutation == null, modifier,
+            entry, target, controller, selectedNumber, selectedBranch, selectedState,
+            source, guideWriters, canOperate && entry.activeMutation == null, modifier,
         )
     }
     AdaptiveGithubSplit(
@@ -187,107 +260,12 @@ private fun GithubPullRequestsPane(
         onBack = {
             selectedNumber = 0L
             selectedBranch = ""
+            selectedState = ""
+            selectedSource = ""
         },
         list,
         detail,
     )
-}
-
-@Composable
-private fun GithubCreatePullRequest(
-    target: ProjectWorkspaceTarget,
-    controller: GithubOperationsController,
-    enabled: Boolean,
-) {
-    val scope = rememberCoroutineScope()
-    var title by rememberSaveable(target.identity) { mutableStateOf("") }
-    var branch by rememberSaveable(target.identity) { mutableStateOf("") }
-    var base by rememberSaveable(target.identity) { mutableStateOf("") }
-    Column(Modifier.padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.github_pr_title)) })
-        OutlinedTextField(branch, { branch = it }, label = { Text(stringResource(R.string.github_head_branch)) })
-        OutlinedTextField(base, { base = it }, label = { Text(stringResource(R.string.github_base_branch)) })
-        Button(
-            onClick = {
-                scope.launch {
-                    controller.execute(
-                        target,
-                        GithubRequests.create(
-                            GithubProcedure.CreatePr,
-                            target.location,
-                            mapOf(
-                                "title" to JsonPrimitive(title.trim()),
-                                "branch" to JsonPrimitive(branch.trim()),
-                                "baseBranch" to JsonPrimitive(base.trim()),
-                            ),
-                        ),
-                    )
-                }
-            },
-            enabled = enabled && title.isNotBlank() && branch.isNotBlank() && base.isNotBlank(),
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text(stringResource(R.string.github_create_pr)) }
-    }
-}
-
-@Composable
-private fun GithubPullRequestDetail(
-    entry: GithubOperationsEntry,
-    target: ProjectWorkspaceTarget,
-    controller: GithubOperationsController,
-    number: Long,
-    branch: String,
-    enabled: Boolean,
-    modifier: Modifier,
-) {
-    val scope = rememberCoroutineScope()
-    var sheetName by rememberSaveable(target.identity, number) { mutableStateOf("") }
-    val mutate: (GithubProcedure, Map<String, JsonElement>) -> Unit = { procedure, fields ->
-        scope.launch {
-            controller.execute(
-                target,
-                GithubRequests.create(
-                    procedure,
-                    target.location,
-                    mapOf("prNumber" to JsonPrimitive(number)) + fields,
-                ),
-            )
-        }
-    }
-    Column(modifier.fillMaxSize()) {
-        GithubPullRequestDetailPane(entry, number, branch, Modifier.weight(1f).fillMaxWidth())
-        if (number > 0) {
-            HorizontalDivider()
-            Column(Modifier.padding(12.dp)) {
-                GithubActionButtons(
-                    enabled,
-                    listOf(
-                        R.string.github_submit_review to {
-                            sheetName = PullRequestActionSheet.Review.name
-                        },
-                        R.string.github_post_comment to {
-                            sheetName = PullRequestActionSheet.Comment.name
-                        },
-                        R.string.github_merge to { sheetName = PullRequestActionSheet.Merge.name },
-                        R.string.github_ready to { mutate(GithubProcedure.MarkPrReady, emptyMap()) },
-                        R.string.github_update_branch to {
-                            mutate(GithubProcedure.UpdatePrBranch, emptyMap())
-                        },
-                        R.string.github_reopen to { mutate(GithubProcedure.ReopenPr, emptyMap()) },
-                        R.string.github_close to { mutate(GithubProcedure.ClosePr, emptyMap()) },
-                    ),
-                )
-            }
-        }
-    }
-    if (sheetName.isNotEmpty()) {
-        PullRequestActionSheetHost(
-            sheet = PullRequestActionSheet.valueOf(sheetName),
-            enabled = enabled,
-            onDismiss = { sheetName = "" },
-            onSubmit = mutate,
-        )
-    }
 }
 
 @Composable
@@ -298,17 +276,19 @@ private fun GithubActionsPane(
     canRead: Boolean,
     canOperate: Boolean,
     expanded: Boolean,
+    lease: com.poracode.app.session.projects.ProjectHostLease?,
 ) {
     val scope = rememberCoroutineScope()
     var workflowId by rememberSaveable(target.identity) { mutableLongStateOf(0L) }
     var runId by rememberSaveable(target.identity) { mutableLongStateOf(0L) }
     val workflows = remember(entry.workflows) { entry.workflows.workflowRows() }
     val runs = remember(entry.workflowRuns) { entry.workflowRuns.runRows() }
+    LaunchedEffect(target, lease?.key, lease?.online, lease?.ready) { controller.refreshActions(target) }
     val list: @Composable (Modifier) -> Unit = { modifier ->
         LazyColumn(modifier) {
             item("refresh") {
                 OutlinedButton(
-                    onClick = { scope.launch { controller.refresh(target) } },
+                    onClick = { scope.launch { controller.refreshActions(target) } },
                     enabled = canRead && !entry.loading,
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                 ) { Text(stringResource(R.string.github_refresh)) }

@@ -2,6 +2,7 @@ import type { AgentCapability, ModelFamilySelection } from "@/shared/contracts";
 import type { CapabilitiesProbeResult } from "../base";
 import {
   DEVIN_CLOUD_DEFAULT_MODEL_ID,
+  isDevinEffortlessRegularFamily,
   isDevinFastCapableFamily,
   type DevinModelFamily,
 } from "./models";
@@ -63,31 +64,22 @@ function devinGuiRuntimeIdentity(
 
 type CatalogIdentity = { description?: string };
 
-/**
- * Accepted ids that are catalog variants of a family carrying a Fast choice —
- * the root `fastModels` rule keyed by the accepted id instead of the family
- * id, so accepted variant spellings (e.g. `gpt-5-6-sol-medium`, not the
- * family id `gpt-5-6-sol-none`) keep their native Fast select. All-composite
- * families stay out: a Fusion pair's Fast availability comes from the
- * relation-aware half in {@link devinFastCapableFamilyMembers}.
- */
-function devinFastCapableAcceptedVariants(
+/** Project qualifying regular variants onto the negotiated menu, preserving menu order. */
+function acceptedRegularVariantIds(
   negotiated: readonly { id: string }[],
   families: readonly DevinModelFamily[],
+  qualifies: (family: DevinModelFamily) => boolean,
 ): string[] {
-  const fastFamilyVariantIds = new Set<string>();
+  const variantIds = new Set<string>();
   for (const family of families) {
-    if (family.variants.length === 0) continue;
-    if (!isDevinFastCapableFamily(family)) continue;
-    // A composite row's Fast availability comes only from the relation rule —
-    // a mixed family (regular Fast variant + composite pair) must not mark
-    // the pair on the family's strength alone.
+    if (!qualifies(family)) continue;
+    // Composite controls come from the relation rule, even in a mixed family.
     for (const variant of family.variants) {
       if (variant.composite !== undefined) continue;
-      fastFamilyVariantIds.add(variant.id);
+      variantIds.add(variant.id);
     }
   }
-  return negotiated.filter((model) => fastFamilyVariantIds.has(model.id)).map((model) => model.id);
+  return negotiated.filter((model) => variantIds.has(model.id)).map((model) => model.id);
 }
 
 /**
@@ -130,15 +122,27 @@ export function devinNegotiatedGuiSelectionCapabilities(
   // also expose an independent native thought-level selector; catalog labels
   // must not suppress it. Explicit per-model ladders remain authoritative.
   const modelEfforts = { ...(projection.modelEfforts ?? {}) };
-  // The accepted-menu relation (62 pair rows on the captured inventory,
-  // effort/Fast owned by the independent native selects). Declared even when
-  // EMPTY: a presentation override must re-declare its own accepted-member
-  // relation — the shared fold strips the root value so an override that
-  // stayed silent would advertise no relation at all.
+  // Catalog-declared effort-less regular variants the probe did not open get
+  // an EMPTY ladder: no effort is offered or defaulted for them. An observed
+  // per-model entry (the probe saw the live select) stays authoritative.
+  for (const id of acceptedRegularVariantIds(
+    negotiated,
+    families,
+    isDevinEffortlessRegularFamily,
+  )) {
+    if (!(id in modelEfforts)) modelEfforts[id] = [];
+  }
+  // The catalog relation rebound to the independent native effort/Fast
+  // selects. Declared even when EMPTY: a presentation override must
+  // re-declare its own relation — the shared fold strips the root value so an
+  // override that stayed silent would advertise no relation at all. The
+  // relation keeps catalog pairs the detection probe did not accept; the live
+  // session inventory intersects it at the renderer, so pairs the agent adds
+  // later still join the family instead of staying raw-only.
   const guiFamilies = devinGuiFamilySelections(negotiated, families);
   const fastCapable = new Set([
     ...(projection.fastModels ?? []),
-    ...devinFastCapableAcceptedVariants(negotiated, families),
+    ...acceptedRegularVariantIds(negotiated, families, isDevinFastCapableFamily),
     ...devinFastCapableFamilyMembers(
       guiFamilies,
       terminalSelections ?? devinTerminalFamilySelections(families),

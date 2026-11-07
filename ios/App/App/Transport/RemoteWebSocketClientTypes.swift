@@ -18,6 +18,14 @@ protocol RemoteWebSocketClientDelegate: AnyObject {
     ) async -> Bool
     func webSocketNeedsResync(_ client: RemoteWebSocketClient, reason: String) async
     func webSocketSessionExpired(_ client: RemoteWebSocketClient, reason: String) async
+    /// The applied cursor was replaced under a different event-stream epoch
+    /// (`eventEpoch=v1`); reported before the frame that caused it, so cursor
+    /// copies replace both values instead of mixing two server instances.
+    func webSocket(
+        _ client: RemoteWebSocketClient,
+        didBindEventEpoch epoch: String?,
+        appliedSeq: Int
+    ) async
 }
 
 /// Default keeps delegates that only observe frames source-compatible: they
@@ -31,6 +39,9 @@ extension RemoteWebSocketClientDelegate {
         await webSocket(client, didReceive: .event(seq: seq, event: event))
         return true
     }
+
+    /// Delegates that keep no cursor copy ignore epoch bindings.
+    func webSocket(_: RemoteWebSocketClient, didBindEventEpoch _: String?, appliedSeq _: Int) async {}
 }
 
 extension RemoteWebSocketClient {

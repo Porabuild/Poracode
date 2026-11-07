@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { readToolVideoSources } from "@/shared/chatVideo";
 import type {
   AgentSlashCommand,
   PromptSegment,
@@ -7,6 +9,7 @@ import type {
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import {
+  buildAgentCommand,
   createKnownSessionRef,
   type CreateStructuredSessionInput,
   type StartTurnOptions,
@@ -179,7 +182,6 @@ export class PiRpcSession implements StructuredSessionHandle {
     if (input.projectLocation.kind === "wsl") {
       throw new Error("Pi structured chat requires a native project; use Pi terminal mode in WSL.");
     }
-    const cwd = input.projectLocation.path;
     const binary = options?.binary ?? resolveAgentBinaryPath(input.projectLocation, "pi") ?? "pi";
     const mcp = await piMcpLaunch(input.projectLocation, input.mcpServers);
 
@@ -195,12 +197,9 @@ export class PiRpcSession implements StructuredSessionHandle {
     }
     args.push(...mcp.args);
 
-    const client = PiRpcClient.spawn({
-      command: binary,
-      args,
-      cwd,
-      ...(mcp.env ? { env: mcp.env } : {}),
-    });
+    const client = PiRpcClient.spawn(
+      buildAgentCommand(input.projectLocation, "pi", args, binary, mcp.env),
+    );
     try {
       await client.spawnReady;
       return new PiRpcSession(input, client, mcp.cleanup);
@@ -254,6 +253,7 @@ export class PiRpcSession implements StructuredSessionHandle {
         this.failTurn(response.error ?? "Pi rejected the prompt.");
         return;
       }
+      options?.onPromptSubmitted?.();
       // Extension commands and prompt handlers can complete without starting an
       // agent run, so no agent_settled event follows them. If no agent run
       // begins shortly after acceptance, settle the turn locally.
@@ -426,6 +426,9 @@ export class PiRpcSession implements StructuredSessionHandle {
       case "message_update":
         this.handleMessageUpdate(event);
         break;
+      case "message_end":
+        this.handleMessageEnd(event);
+        break;
       case "tool_execution_start":
         this.handleToolStart(event);
         break;
@@ -518,6 +521,25 @@ export class PiRpcSession implements StructuredSessionHandle {
     }
   }
 
+  private handleMessageEnd(event: PiRpcEvent): void {
+    const message = recordOf(event.message);
+    if (message?.role !== "assistant") return;
+    // Auth and other pre-stream failures can arrive only on the final message.
+    // Wait for settlement: a later successful attempt supersedes this error.
+    if (message.stopReason === "error") {
+      this.turnErrorMessage =
+        (typeof message.errorMessage === "string" && message.errorMessage) ||
+        this.turnErrorMessage ||
+        "Pi model request failed.";
+    } else if (
+      message.stopReason === "stop" ||
+      message.stopReason === "length" ||
+      message.stopReason === "toolUse"
+    ) {
+      this.turnErrorMessage = undefined;
+    }
+  }
+
   private handleToolStart(event: PiRpcEvent): void {
     const toolCallId = String(event.toolCallId ?? "");
     const toolName = String(event.toolName ?? "tool");
@@ -569,6 +591,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.openToolItems.delete(toolCallId);
     const toolName = String(event.toolName ?? "tool");
     const images = toolResultImages(event.result);
+    const mcpResult = recordOf(event.result)?.details;
     this.emit({
       type: "item.completed",
       threadId: this.input.threadId,
@@ -577,7 +600,12 @@ export class PiRpcSession implements StructuredSessionHandle {
         name: toolName,
         title: toolName,
         kind: toolKind(toolName),
-        result: toolResultText(event.result) ?? event.result,
+        result:
+          readMcpAppResource(mcpResult) || readToolVideoSources(mcpResult).length > 0
+            ? mcpResult
+            : readToolVideoSources(event.result).length > 0
+              ? event.result
+              : (toolResultText(event.result) ?? event.result),
         status: event.isError === true ? "error" : "success",
         ...(images.length > 0 ? { images } : {}),
         ...(isSubAgentTool(toolName) ? { isSubAgent: true } : {}),
@@ -802,7 +830,11 @@ export class PiRpcSession implements StructuredSessionHandle {
 
   private handleExit(): void {
     if (this.disposed) return;
-    if (this.currentTurnId) this.finishTurn("cancelled");
+    // Without a Stop, a process that died mid-turn cut that turn off.
+    if (this.currentTurnId) {
+      if (!this.interruptRequested && this.turnErrorMessage) this.failTurn(this.turnErrorMessage);
+      else this.finishTurn(this.interruptRequested ? "cancelled" : "failed");
+    }
     const stderr = this.client.stderr;
     this.emit({
       type: "session.exited",

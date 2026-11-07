@@ -14,6 +14,7 @@ import {
 } from "./ItemMarkdown";
 import { rewriteMarkdownLocalImageUrls } from "@/shared/markdownLocalImages";
 import { isOrdinaryPlainProse, MAX_ORDINARY_PLAIN_PROSE_LENGTH } from "./ordinaryPlainProse";
+import { pathRefUrl } from "./markdownPathRefs";
 
 const { codeBlockSpy, streamdownSpy, parseBlocksSpy } = vi.hoisted(() => ({
   codeBlockSpy:
@@ -358,6 +359,92 @@ describe("ItemMarkdownInner", () => {
       undefined,
     );
   });
+
+  it("leaves slash prose as text when no project can verify folders", () => {
+    const homeActions: ChatPaneActions = {
+      openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
+    };
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={homeActions}>
+          <ItemMarkdownInner text="Subscribe to the GOAT plan ($10/month) and open src/main.ts now" />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const chips = [...container.querySelectorAll(".poracode-inline-path-chip")];
+    expect(chips.some((chip) => chip.textContent?.includes("10/month"))).toBe(false);
+    expect(container.textContent).toContain("$10/month");
+    expect(screen.getByRole("button", { name: /main.ts/ })).not.toBeNull();
+  });
+
+  it("shows a relative folder link label as text when no project can open it", () => {
+    const homeActions: ChatPaneActions = {
+      openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
+    };
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={homeActions}>
+          <ItemMarkdownInner text="See [the guide](docs/guide) for details" />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.querySelector(".poracode-inline-path-chip")).toBeNull();
+    expect(container.textContent).toContain("See the guide for details");
+  });
+
+  it.each([
+    { refreshRate: 60, initial: "Hello" },
+    { refreshRate: 120, initial: "Hello" },
+    { refreshRate: 60, initial: "**Hello**" },
+    { refreshRate: 120, initial: "**Hello**" },
+  ])(
+    "reveals text at 60 updates per second on a $refreshRate Hz display: $initial",
+    async ({ refreshRate, initial }) => {
+      const frames = new Map<number, FrameRequestCallback>();
+      let nextFrame = 0;
+      const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((frame) => {
+        frames.set(++nextFrame, frame);
+        return nextFrame;
+      });
+      const cancelFrame = vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+        frames.delete(id);
+      });
+      const { container, rerender, unmount } = render(
+        <SmoothItemMarkdown text={initial} isStreaming />,
+      );
+      try {
+        await waitFor(() => expect(container.querySelector("p")?.textContent).toBe("Hello"));
+        const target = `${initial}${" streamed words".repeat(60)}`;
+        const visibleTarget = target.replaceAll("**", "");
+        rerender(<SmoothItemMarkdown text={target} isStreaming />);
+        let previousLength = 5;
+        for (let frame = 0; frame < 8; frame += 1) {
+          act(() => {
+            const pending = [...frames.values()];
+            frames.clear();
+            for (const callback of pending) callback(1_000 + (frame * 1_000) / refreshRate);
+          });
+          const displayed = container.querySelector("p")?.textContent ?? "";
+          const shouldAdvance = frame % (refreshRate / 60) === 0;
+          expect(displayed.length > previousLength).toBe(shouldAdvance);
+          expect(displayed.length).toBeGreaterThanOrEqual(previousLength);
+          expect(displayed.length).toBeLessThan(visibleTarget.length);
+          expect(visibleTarget.startsWith(displayed)).toBe(true);
+          previousLength = displayed.length;
+        }
+        rerender(<SmoothItemMarkdown text={target} isStreaming={false} />);
+        expect(container.querySelector("p")?.textContent).toBe(visibleTarget);
+        expect(frames.size).toBe(0);
+      } finally {
+        unmount();
+        requestFrame.mockRestore();
+        cancelFrame.mockRestore();
+      }
+    },
+  );
 
   it.each(["", " **done**"])(
     "preserves smoothing and flushes completed display text %j",
@@ -871,8 +958,28 @@ describe("ItemMarkdownInner", () => {
     const chip = screen.getByRole("button", { name: /MissingFile\.ts.*12/ });
     fireEvent.click(chip);
 
-    await waitFor(() => expect(chip).toBeDisabled());
+    await waitFor(() => expect(chip).toHaveAttribute("aria-disabled", "true"));
     expect(chip).toHaveClass("poracode-inline-path-chip--inert");
+    fireEvent.click(chip);
+    expect(actions.openProjectRelativePath).toHaveBeenCalledOnce();
+  });
+
+  it("normalizes a stored Windows path chip without project context", () => {
+    const openProjectRelativePath = vi
+      .fn<NonNullable<ChatPaneActions["openProjectRelativePath"]>>()
+      .mockResolvedValue(undefined);
+    const href = pathRefUrl({ kind: "file", path: "/E:/work/report.md", line: 20 });
+    render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={{ openProjectRelativePath }}>
+          <ItemMarkdownInner text={`[Report](${href})`} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    const chip = screen.getByRole("button", { name: /report\.md.*20/ });
+    expect(chip).toHaveAttribute("title", "E:/work/report.md:20");
+    fireEvent.click(chip);
+    expect(openProjectRelativePath).toHaveBeenCalledWith("E:/work/report.md", 20);
   });
 
   it("keeps out-of-project absolute markdown link hrefs absolute", () => {
@@ -881,16 +988,16 @@ describe("ItemMarkdownInner", () => {
     render(
       <AppProvider>
         <ChatPaneActionsContext.Provider value={actions}>
-          <ItemMarkdownInner text={"Read [outside.txt](/tmp/outside.txt)"} />
+          <ItemMarkdownInner text={"Read [outside.md](/tmp/outside.md)"} />
         </ChatPaneActionsContext.Provider>
       </AppProvider>,
     );
 
-    const chip = screen.getByRole("button", { name: /outside\.txt/ });
-    expect(chip).toHaveAttribute("title", "/tmp/outside.txt");
+    const chip = screen.getByRole("button", { name: /outside\.md/ });
+    expect(chip).toHaveAttribute("title", "/tmp/outside.md");
 
     fireEvent.click(chip);
-    expect(actions.openProjectRelativePath).toHaveBeenCalledWith("/tmp/outside.txt", undefined);
+    expect(actions.openProjectRelativePath).toHaveBeenCalledWith("/tmp/outside.md", undefined);
   });
 
   it("does not leave a malformed table as raw piped text", () => {
@@ -963,6 +1070,54 @@ describe("ItemMarkdownInner", () => {
     expect(container.querySelector('a[href="/"]')).toBeNull();
     expect(container).toHaveTextContent("Changed styles.css");
     expect(screen.queryByText(/\[blocked\]/)).not.toBeInTheDocument();
+  });
+
+  it("marks artifact-only unordered lists while other lists keep bullets", async () => {
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider
+          value={makeActions({
+            mediaLocation: { kind: "posix", path: "/Users/serhiivecherenko/work/poracode" },
+          })}
+        >
+          <ItemMarkdownInner
+            text={
+              "- [ZIP](dist/a.zip)\n- [PDF](docs/a.pdf)\n\nProse between.\n\n- first\n- second\n\nMore prose.\n\n- explanation\n- [ZIP](dist/a.zip)\n\n1. [ZIP](dist/a.zip)"
+            }
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    await waitFor(() =>
+      expect(container.querySelectorAll(".poracode-inline-path-chip").length).toBe(4),
+    );
+    const lists = [...container.querySelectorAll("ul")];
+    const fileList = container.querySelector("ul.poracode-chat-file-list");
+    expect(fileList).not.toBeNull();
+    expect(fileList!.querySelectorAll(".poracode-inline-path-chip")).toHaveLength(2);
+    const others = lists.filter((ul) => ul !== fileList);
+    expect(others.length).toBeGreaterThan(0);
+    for (const ul of others) expect(ul.className).not.toContain("poracode-chat-file-list");
+    expect(container.querySelector("ol.poracode-chat-file-list")).toBeNull();
+  });
+
+  it("keeps task lists and nested/source lists off the file-only class", () => {
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider
+          value={makeActions({
+            mediaLocation: { kind: "posix", path: "/Users/serhiivecherenko/work/poracode" },
+          })}
+        >
+          <ItemMarkdownInner
+            text={
+              "- [x] [ZIP](dist/a.zip)\n- [ ] todo\n\n- [ZIP](dist/a.zip)\n  - nested note\n\n- [src](src/file.ts)\n- [app](dist/a.zip)"
+            }
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    expect(container.querySelector("ul.poracode-chat-file-list")).toBeNull();
   });
 
   it("reports failed markdown link opens", async () => {

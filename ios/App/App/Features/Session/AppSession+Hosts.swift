@@ -4,6 +4,7 @@ extension AppSession {
     func unpairSelectedOrLegacy(registrations: PushRegistrationController? = nil) async {
         if state.phase == .localStoreInconsistent {
             await pairing.clearInconsistentLocalStorage()
+            ForgeReviewDiskCache.purgeAll()
             return
         }
         if let id = state.selectedConnectionId, !state.hosts.isEmpty {
@@ -11,6 +12,7 @@ extension AppSession {
             return
         }
         await pairing.unpair()
+        ForgeReviewDiskCache.purgeAll()
     }
 
     func switchHost(_ connectionId: ClientConnectionID) async {
@@ -96,6 +98,7 @@ extension AppSession {
                 "Local host list could not be updated. Disconnect to retry, then pair again."
             return
         }
+        ForgeReviewDiskCache.purgeAll()
         await cancelStaleSessionWork(invalidateSocket: false)
         await sessionPool.forget(.host(connectionId))
         EnvironmentConnectionRegistry.shared.remove(connectionId: connectionId)

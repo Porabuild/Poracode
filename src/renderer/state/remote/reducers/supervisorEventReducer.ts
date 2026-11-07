@@ -5,10 +5,10 @@ import {
 } from "@/renderer/state/pendingThreadInput";
 import { historyContentOmissions } from "@/renderer/state/historyDelivery";
 import { noteHistoryDeliveryGap } from "@/renderer/state/historyResumeRegistry";
+import { isRendererRuntimeInterestWireCovered } from "@/renderer/state/rendererEventInterests";
 import {
   noteAppliedHistoryBatches,
   noteImmediatelyAppliedHistoryBatches,
-  hasHistoryTranscriptCoverage,
   appliedHistoryTranscriptSequence,
 } from "@/renderer/state/historyResumeApplied";
 import {
@@ -23,7 +23,10 @@ import {
 import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
 import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import { RuntimeEventQueue, type RuntimeEventQueueBatch } from "@/renderer/state/runtimeEventQueue";
+import { invalidateRuntimeHistoryRead } from "@/renderer/state/runtimeHistoryBoundary";
+import { forgetBoundedHistoryThreadByViewId } from "@/renderer/state/remoteServers/catalog/boundedHistoryRegistry";
 import { drainRuntimeEventQueue } from "@/renderer/state/runtimeEventDrain";
+import { createRecoveryRetries } from "./recoveryRetries";
 import {
   isAgentStatusSupervisorEvent,
   type AgentStatusSupervisorEvent,
@@ -33,24 +36,21 @@ import type { RuntimeEvent, Thread } from "@/shared/contracts";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 
 /**
- * THE one `SupervisorEvent` reducer (V5 plan 2.3 / T3).
+ * THE one `SupervisorEvent` reducer (V5 plan 2.3 / T3), for every host.
  *
- * Desktop (`app.tsx`) and remote clients (`state/remote/sync.ts`) used to run
- * two hand-maintained copies of this state machine over the same event union.
- * They diverged on selector-cache invalidation and on reset/resume ordering.
- * This module is the single implementation; each flavor injects:
+ * The desktop's own host (`app.tsx`) and paired hosts (`state/remote/sync.ts`)
+ * run this one state machine over the same event union; each composition
+ * injects:
  *
- * - a RECOVERY STRATEGY — how authoritative state is re-installed when the
- *     bounded runtime queue overflows, and how a `thread-reset` orders the
- *     resume:
- *     - local snapshot (`localSnapshotRecovery.ts`): the desktop re-reads the
- *       backend-persisted runtime history and resumes only once it lands;
- *     - HTTP snapshot (remote): the caller re-fetches snapshots from the host
- *       for overflow, and a reset — having no snapshot to await — resumes the
- *       queue immediately so fresh deltas are not blocked behind recovery.
- * - persistence/surface hooks — the fan-outs only one flavor owns (Electron
- *     terminal scrollback + dev shells, provider usage, agent-status bulk
- *     discovery; remote launch-config normalization and mobile side effects).
+ * - a RECOVERY STRATEGY (`hostHistoryRecovery.ts`) — how authoritative state
+ *     is re-installed when the bounded runtime queue overflows, a
+ *     `thread-reset` arrives or a connection resumes: the thread's history is
+ *     re-read from its owning host and the queue resumes only once that read
+ *     has landed;
+ * - persistence/surface hooks — the fan-outs only one composition owns
+ *     (desktop terminal scrollback + dev shells, provider usage, agent-status
+ *     bulk discovery; paired launch-config normalization and mobile side
+ *     effects).
  *
  * The core owns everything shared: the bounded runtime event queue, the
  * frame-paced flush scheduling, overflow lifecycle (in-flight/invalidated
@@ -76,13 +76,16 @@ export type ProviderUsageAllSupervisorEvent = Extract<
  * How a flavor recovers authoritative state. `resume()` unblocks the runtime
  * queue (and reschedules the flush); it is a no-op while the recovery is
  * invalidated. A strategy returns a promise when it performs async recovery —
- * the core then resumes on `true`/`void` and fails the hydration status on
- * `false` or rejection. A synchronous return means the strategy applied its
- * own ordering inline (the remote reset path resumes immediately).
+ * the core then resumes on `true`/`void` and, on `false` or rejection, retries
+ * on its own before it fails the hydration status. A synchronous return means
+ * the strategy applied its own ordering inline (the remote reset path resumes
+ * immediately).
  */
 export interface RuntimeEventRecoveryStrategy {
   /** Transcript-only snapshots do not replace the live pending-request map. */
   readonly preservesOpenRequests?: boolean;
+  /** Keeps loaded history until recovery can synchronously install its replacement. */
+  readonly preservesTranscript?: boolean;
   readonly recoverFromQueueOverflow: (
     threadIds: readonly string[],
     resume: () => void,
@@ -148,6 +151,12 @@ export interface SupervisorEventReducerConfig {
     readonly maxBytes?: number;
     readonly maxThreadBytes?: number;
   };
+  /**
+   * Delays before each automatic re-run of a failed recovery. A busy stream or
+   * a reconnect usually settles within them; only after the last attempt fails
+   * does the thread show its retryable load failure. Tests shorten or disable it.
+   */
+  readonly recoveryRetryDelaysMs?: readonly number[];
   /** Electron: tracks the latest sequenced event per thread for recovery arbitration. */
   readonly onSequencedEvent?: (
     event: SupervisorEvent,
@@ -159,25 +168,29 @@ export interface SupervisorEventReducerConfig {
    * `shell:`; the event is fully consumed afterwards (dev shells never touch
    * the thread stores).
    */
-  readonly routeShellEvent?: (event: SupervisorEvent) => void;
+  readonly routeShellEvent?: ((event: SupervisorEvent) => void) | undefined;
   /** Electron persistence hooks: the renderer-side terminal scrollback accumulator. */
-  readonly onThreadOutput?: (threadId: string, data: string) => void;
-  readonly onThreadOutputCleared?: (threadId: string) => void;
+  readonly onThreadOutput?: ((threadId: string, data: string) => void) | undefined;
+  readonly onThreadOutputCleared?: ((threadId: string) => void) | undefined;
   /** Flavor-specific agent-status fan-out (bulk discovery is desktop-only). */
   readonly onAgentStatusEvent?: (event: AgentStatusSupervisorEvent) => void;
-  readonly onProviderUsage?: (event: ProviderUsageSupervisorEvent) => void;
-  readonly onProviderUsageAll?: (event: ProviderUsageAllSupervisorEvent) => void;
+  readonly onProviderUsage?: ((event: ProviderUsageSupervisorEvent) => void) | undefined;
+  readonly onProviderUsageAll?: ((event: ProviderUsageAllSupervisorEvent) => void) | undefined;
   /** Remote: snapshot-shaped thread-state events normalize a missing launchConfig to null. */
   readonly normalizeThreadState?: (event: ThreadStateSupervisorEvent) => ThreadStateEventPayload;
   /** Electron perf diagnostics (Gate 4). `stats` is filled by the flush. */
-  readonly wrapFlush?: (
-    run: () => void,
-    stats: { drainedThreads: number; drainedEvents: number },
-  ) => void;
-  readonly wrapApply?: (
-    run: () => void,
-    stats: { drainedThreads: number; drainedEvents: number },
-  ) => void;
+  readonly wrapFlush?:
+    | ((run: () => void, stats: { drainedThreads: number; drainedEvents: number }) => void)
+    | undefined;
+  readonly wrapApply?:
+    | ((run: () => void, stats: { drainedThreads: number; drainedEvents: number }) => void)
+    | undefined;
+  /**
+   * True when the thread's installed authoritative history already includes
+   * the host's events through `sequence`: a replayed `runtime.truncated` at or
+   * below it would only roll back newer state.
+   */
+  readonly isHistoryIncorporated?: ((threadId: string, sequence: number) => boolean) | undefined;
   /** Flavor-specific post-drain persistence, such as durable usage capture. */
   readonly afterApply?: (
     batches: readonly RuntimeEventQueueBatch[],
@@ -202,8 +215,20 @@ export interface SupervisorEventReducer {
   ): void;
   /** Drains one thread's queued deltas synchronously, preserving event order. */
   flushSync(threadId: string): void;
+  /**
+   * Drops one thread's queued, not yet applied deltas without applying them:
+   * its host restarted, so its sequence space restarted and every queued frame
+   * belongs to the previous instance.
+   */
+  discardQueued(threadId: string): void;
   /** Reacquired live content needs a baseline before queued deltas resume. */
   recoverRuntimeHistory(threadId: string): void;
+  /**
+   * A transport resync installed these threads' authoritative baselines
+   * outside this reducer. Threads without a recovery in flight resume their
+   * queues and drop a pending retry or a stale load failure.
+   */
+  noteAuthoritativeBaselines(threadIds: readonly string[]): void;
   /** Idempotent; returns the teardown for the scheduling listeners. */
   installScheduling(): () => void;
   /** Drops every queued delta, cancels pending flushes, and tears down listeners. */
@@ -211,6 +236,8 @@ export interface SupervisorEventReducer {
   /** Invalidates every in-flight recovery (transport generation changed). */
   invalidateInFlightRecoveries(): void;
 }
+
+const RECOVERY_RETRY_DELAYS_MS: readonly number[] = [500, 2_000, 5_000];
 
 const RUNTIME_ENVELOPE_TYPES: ReadonlySet<string> = new Set([
   "thread-runtime-event",
@@ -243,6 +270,12 @@ export function createSupervisorEventReducer(
   const queue = new RuntimeEventQueue(config.queueLimits ?? {});
   const runtimeRecoveryInFlight = new Set<string>();
   const runtimeRecoveryInvalidated = new Set<string>();
+  const recoveryRetries = createRecoveryRetries(
+    config.recoveryRetryDelaysMs ?? RECOVERY_RETRY_DELAYS_MS,
+    (threadId) => recoverRuntimeHistory(threadId),
+  );
+  /** Bumped by clear(): recoveries started before it settle without effect. */
+  let recoveryGeneration = 0;
   const pendingContentOmissions = new Map<string, number>();
   let runtimeFlushHandle: number | null = null;
   let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
@@ -352,17 +385,33 @@ export function createSupervisorEventReducer(
     for (const threadId of threadIds) {
       runtimeRecoveryInFlight.delete(threadId);
       runtimeRecoveryInvalidated.delete(threadId);
+      recoveryRetries.reset(threadId);
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
       recoverOmittedContent(threadId);
     }
     schedulePendingRuntimeEvents();
   };
 
+  /** The queue stays blocked between attempts; only an exhausted retry
+   * budget surfaces the failure the pane offers to retry by hand. */
   const failRecovery = (threadIds: readonly string[]): void => {
     const store = useAppStore.getState();
     for (const threadId of threadIds) {
       runtimeRecoveryInFlight.delete(threadId);
       runtimeRecoveryInvalidated.delete(threadId);
-      store.setRuntimeHydrationStatus(threadId, "failed");
+      if (!recoveryRetries.schedule(threadId)) store.setRuntimeHydrationStatus(threadId, "failed");
+    }
+    schedulePendingRuntimeEvents();
+  };
+
+  const noteAuthoritativeBaselines = (threadIds: readonly string[]): void => {
+    const store = useAppStore.getState();
+    for (const threadId of threadIds) {
+      if (runtimeRecoveryInFlight.has(threadId)) continue;
+      recoveryRetries.reset(threadId);
+      queue.resume(threadId);
+      if (store.runtimeHydrationStatus[threadId] === "failed")
+        store.setRuntimeHydrationStatus(threadId, null);
     }
     schedulePendingRuntimeEvents();
   };
@@ -382,6 +431,7 @@ export function createSupervisorEventReducer(
     resume: () => void,
     phase: "overflow" | "reset",
   ): void => {
+    const generation = recoveryGeneration;
     if (!isThenable(recovery)) {
       if (phase === "overflow") {
         // No async recovery was started (the injected strategy declined):
@@ -395,6 +445,7 @@ export function createSupervisorEventReducer(
     }
     void recovery.then(
       (recovered) => {
+        if (generation !== recoveryGeneration) return;
         if (
           recovered !== false &&
           !threadIds.some((threadId) => runtimeRecoveryInvalidated.has(threadId))
@@ -405,11 +456,63 @@ export function createSupervisorEventReducer(
           failRecovery(threadIds);
         }
       },
-      () => failRecovery(threadIds),
+      () => {
+        if (generation === recoveryGeneration) failRecovery(threadIds);
+      },
     );
   };
 
+  /**
+   * A host truncation deletes the thread's tail. One the installed history
+   * already includes is dropped; any other invalidates in-flight reads and the
+   * recorded continuation, and when this client has not loaded the checkpoint
+   * it cannot tell what was deleted, so the thread re-baselines from its host.
+   */
+  const admitTruncations = (
+    batches: readonly RuntimeBatchInput[],
+    sequence: number | undefined,
+  ): { readonly batches: readonly RuntimeBatchInput[]; readonly rebaseline: string[] } => {
+    const rebaseline: string[] = [];
+    if (!batches.some((batch) => batch.events.some((event) => event.type === "runtime.truncated")))
+      return { batches, rebaseline };
+    const admitted = batches.flatMap((batch) => {
+      const events = batch.events.filter(
+        (event) =>
+          event.type !== "runtime.truncated" ||
+          sequence === undefined ||
+          config.isHistoryIncorporated?.(batch.threadId, sequence) !== true,
+      );
+      for (const event of events) {
+        if (event.type !== "runtime.truncated") continue;
+        invalidateRuntimeHistoryRead(batch.threadId);
+        forgetBoundedHistoryThreadByViewId(batch.threadId);
+        const loaded =
+          useAppStore.getState().runtimeItemIdsByThread[batch.threadId]?.includes(event.itemId) ===
+          true;
+        if (!loaded) rebaseline.push(batch.threadId);
+      }
+      return events.length > 0 ? [{ threadId: batch.threadId, events }] : [];
+    });
+    return { batches: admitted, rebaseline };
+  };
+
   const enqueueRuntimeBatches = (
+    input: readonly RuntimeBatchInput[],
+    options?: RuntimeBatchDispatchOptions,
+  ): void => {
+    const { batches, rebaseline } = admitTruncations(input, options?.rendererSequence);
+    try {
+      enqueueAdmittedRuntimeBatches(batches, options);
+    } finally {
+      for (const threadId of rebaseline) {
+        // A recovery already reading may predate this truncation: let it retry.
+        if (runtimeRecoveryInFlight.has(threadId)) runtimeRecoveryInvalidated.add(threadId);
+        else recoverRuntimeHistory(threadId);
+      }
+    }
+  };
+
+  const enqueueAdmittedRuntimeBatches = (
     batches: readonly RuntimeBatchInput[],
     options?: RuntimeBatchDispatchOptions,
   ): void => {
@@ -418,8 +521,7 @@ export function createSupervisorEventReducer(
       noteHistoryDeliveryGap(threadId);
       if (
         options?.rendererSequence !== undefined &&
-        (runtimeRecoveryInFlight.has(threadId) ||
-          hasHistoryTranscriptCoverage(threadId, useAppStore.getState().threads))
+        (runtimeRecoveryInFlight.has(threadId) || isRendererRuntimeInterestWireCovered(threadId))
       ) {
         pendingContentOmissions.set(
           threadId,
@@ -431,6 +533,14 @@ export function createSupervisorEventReducer(
     if (batches.length === 0) return;
     for (const batch of batches)
       notePendingThreadInputCanonicalEvents(batch.threadId, batch.events);
+    // A batch intake's sequences arbitrate recovery exactly like a dispatched frame's.
+    if (options?.rendererSequence !== undefined && config.onSequencedEvent)
+      for (const batch of batches)
+        config.onSequencedEvent(
+          { type: "thread-runtime-events", threadId: batch.threadId, events: [...batch.events] },
+          options.rendererSequence,
+          options.sequenceSpace ?? "ipc",
+        );
     if (options?.deliverRuntimeEventsImmediately) {
       // Ordered authoritative replay (recovery): apply directly without
       // re-entering the bounded queue.
@@ -468,20 +578,20 @@ export function createSupervisorEventReducer(
       if (runtimeRecoveryInFlight.has(batch.threadId)) {
         // The bounded post-baseline tail also overflowed while a recovery
         // already owns this thread. The current snapshot can no longer prove
-        // convergence: block and surface the retryable hydration failure. The
-        // projection is intentionally left as the recovery installed it.
+        // convergence: keep the queue blocked so the settled recovery retries.
+        // The projection is intentionally left as the recovery installed it.
         runtimeRecoveryInvalidated.add(batch.threadId);
-        useAppStore.getState().setRuntimeHydrationStatus(batch.threadId, "failed");
       } else {
         // The backend persists runtime events before broadcasting them. Once
-        // the final-consumer queue overflows, clear the partial projection and
-        // re-read authoritative history (injected strategy) before accepting
-        // new deltas.
+        // the final-consumer queue overflows, re-read authoritative history
+        // (injected strategy) before accepting new deltas.
         overflowed.push(batch.threadId);
         runtimeRecoveryInFlight.add(batch.threadId);
-        useAppStore.getState().clearThreadRuntimeEvents(batch.threadId, {
-          keepOpenRequests: config.recovery.preservesOpenRequests === true,
-        });
+        if (!config.recovery.preservesTranscript) {
+          useAppStore.getState().clearThreadRuntimeEvents(batch.threadId, {
+            keepOpenRequests: config.recovery.preservesOpenRequests === true,
+          });
+        }
         forgetThreadRuntimeWindow(batch.threadId);
         useAppStore.getState().clearAllPendingSteer(batch.threadId);
         clearRuntimeItemStoreSelectorCacheForThread(batch.threadId);
@@ -502,6 +612,10 @@ export function createSupervisorEventReducer(
 
   const recoverRuntimeHistory = (threadId: string): void => {
     if (runtimeRecoveryInFlight.has(threadId)) return;
+    recoveryRetries.cancel(threadId);
+    // A visible failure gives way to the attempt; it returns if retries run out.
+    if (useAppStore.getState().runtimeHydrationStatus[threadId] === "failed")
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
     queue.block(threadId);
     runtimeRecoveryInFlight.add(threadId);
     const resume = createGroupResume([threadId]);
@@ -593,11 +707,13 @@ export function createSupervisorEventReducer(
         return;
       case "thread-reset": {
         queue.discard(event.threadId);
-        useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
+        if (config.recovery.preservesTranscript) queue.block(event.threadId);
+        useAppStore.getState().clearThreadRuntimeEvents(event.threadId, {
+          keepTranscript: config.recovery.preservesTranscript === true,
+        });
         forgetThreadRuntimeWindow(event.threadId);
         useAppStore.getState().clearAllPendingSteer(event.threadId);
-        // The reset wiped the in-memory transcript: drop the selector caches
-        // for the thread in BOTH flavors so no pane can render stale items.
+        // Drop derived caches even when the recovery retains the loaded rows.
         clearRuntimeItemStoreSelectorCacheForThread(event.threadId);
         options?.sideEffects?.onThreadReset?.(event.threadId);
         if (!runtimeRecoveryInFlight.has(event.threadId)) {
@@ -664,15 +780,14 @@ export function createSupervisorEventReducer(
     queue.clear();
     runtimeRecoveryInFlight.clear();
     runtimeRecoveryInvalidated.clear();
+    recoveryRetries.clear();
+    recoveryGeneration += 1;
     pendingContentOmissions.clear();
   };
 
+  /** Each invalidated recovery fails when it settles and retries from there. */
   const invalidateInFlightRecoveries = (): void => {
-    const store = useAppStore.getState();
-    for (const threadId of runtimeRecoveryInFlight) {
-      runtimeRecoveryInvalidated.add(threadId);
-      store.setRuntimeHydrationStatus(threadId, "failed");
-    }
+    for (const threadId of runtimeRecoveryInFlight) runtimeRecoveryInvalidated.add(threadId);
   };
 
   const installReadBarrierListener = (): void => {
@@ -693,7 +808,7 @@ export function createSupervisorEventReducer(
       pendingContentOmissions.delete(threadId);
       return;
     }
-    if (hasHistoryTranscriptCoverage(threadId, threads)) recoverRuntimeHistory(threadId);
+    if (isRendererRuntimeInterestWireCovered(threadId)) recoverRuntimeHistory(threadId);
   };
 
   return {
@@ -705,7 +820,9 @@ export function createSupervisorEventReducer(
     dispatch,
     enqueueRuntimeBatches,
     flushSync,
+    discardQueued: (threadId) => queue.discard(threadId),
     recoverRuntimeHistory,
+    noteAuthoritativeBaselines,
     installScheduling,
     clear,
     invalidateInFlightRecoveries,

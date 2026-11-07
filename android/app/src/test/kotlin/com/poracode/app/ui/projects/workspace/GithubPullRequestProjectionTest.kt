@@ -129,6 +129,33 @@ class GithubPullRequestProjectionTest {
     }
 
     @Test
+    fun conversationThreadsProjectLineAndSideForOldSideMarkers() {
+        fun thread(id: String, line: Long?, side: String?) = buildJsonObject {
+            put("id", id)
+            if (line != null) put("line", line)
+            if (side != null) put("side", side)
+        }
+        val document = buildJsonObject {
+            put("threads", JsonArray(listOf(
+                thread("t-left", 1, "LEFT"),
+                thread("t-right", 1, "RIGHT"),
+                thread("t-unknown", null, "OTHER"),
+                thread("t-absent", null, null),
+            )))
+        }
+        val threads = document.pullRequestConversation().threads
+        assertEquals(4, threads.size)
+        assertEquals(1L, threads[0].line)
+        assertEquals("LEFT", threads[0].side)
+        assertTrue(threads[0].isOldSide)
+        assertFalse(threads[1].isOldSide)
+        assertFalse(threads[2].isOldSide)
+        assertFalse(threads[3].isOldSide)
+        assertEquals(null, threads[3].line)
+        assertEquals(null, threads[3].side)
+    }
+
+    @Test
     fun statusToneMapsGithubConclusionsIncludingTheUppercaseWireCasing() {
         assertEquals(GithubStatusTone.Success, githubStatusTone("COMPLETED", "SUCCESS"))
         assertEquals(GithubStatusTone.Failure, githubStatusTone("completed", "failure"))

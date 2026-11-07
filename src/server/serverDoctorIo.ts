@@ -1,7 +1,7 @@
 import { closeSync, constants, fstatSync, lstatSync, openSync, readSync } from "node:fs";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
 import {
   HOST_CONTROL_DISCOVERY_FILE,
   HOST_CONTROL_MAX_RESPONSE_BYTES,

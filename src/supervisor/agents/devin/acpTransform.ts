@@ -14,11 +14,11 @@ import {
   annotateCloudTextStreamChunk,
   convertCloudBookkeepingToolCall,
 } from "./cloudTextSnapshots";
+import { record } from "./acpRecord";
+import { annotateDevinCommandStatus } from "./commandStatus";
+import { normalizeDevinToolCall } from "./toolCallNormalization";
+import { createDevinGoalTransform } from "./goals";
 
-const record = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 const text = (value: unknown) => (typeof value === "string" ? value : undefined);
 /** Nonnegative safe integer, or undefined. Strict: no coercion, no truncation. */
 const usageToken = (value: unknown): number | undefined =>
@@ -111,6 +111,7 @@ export function pickDevinSubagentCompletion(
 /** Translate Cognition's separate call IDs and agent IDs at the provider boundary. */
 export function createDevinAcpTransform() {
   const subagents = createAcpSubagentCoordinator();
+  const goalTransform = createDevinGoalTransform();
   const pending = new Map<
     string,
     { title?: string; task?: string; profile?: string; background: boolean }
@@ -119,6 +120,9 @@ export function createDevinAcpTransform() {
   const completed = new Set<string>();
   const contentMessageIds = new Map<string, string>();
   return (notification: SessionNotification): SessionNotification => {
+    notification = annotateDevinCommandStatus(notification);
+    notification = normalizeDevinToolCall(notification);
+    notification = goalTransform(notification);
     const update = notification.update as Record<string, unknown>;
     const meta = record(update._meta);
     if (update.sessionUpdate === "usage_update") {

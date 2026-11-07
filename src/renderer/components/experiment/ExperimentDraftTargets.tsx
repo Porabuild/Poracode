@@ -3,7 +3,11 @@ import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { FlaskConical, Plus, X } from "lucide-react";
 import type { ExperimentCandidateSpec } from "@/renderer/actions/experimentActions";
 import { Button } from "@/renderer/components/common/Button";
+import { PoracodeGlyph } from "@/renderer/components/common/PoracodeGlyph";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { crewModelLabelOf } from "@/renderer/components/crew/crewComposerModel";
+import { threadCrewBinding } from "@/shared/crew";
 import {
   ThreadDockActionRow,
   ThreadDockHeader,
@@ -27,6 +31,13 @@ export function ExperimentDraftTargets(props: {
   onAdd: () => void;
 }) {
   const { t } = useLingui();
+  const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
+  const wslStatuses = useAgentStatusesStore((state) => state.wslAgentStatuses);
+  const statuses = [...agentStatuses, ...wslStatuses];
+  const agentCount = props.candidates.reduce((count, candidate) => {
+    const crew = threadCrewBinding(candidate.config);
+    return count + 1 + (crew?.roles.reduce((total, role) => total + (role.parallel ?? 1), 0) ?? 0);
+  }, 0);
 
   return (
     <ThreadDockSection ariaLabel={t`Experiment`} placement="composer">
@@ -34,7 +45,22 @@ export function ExperimentDraftTargets(props: {
         icon={FlaskConical}
         title={t`Experiment`}
         countLabel={
-          <Plural value={props.candidates.length} one="# candidate" other="# candidates" />
+          <span>
+            <Plural value={props.candidates.length} one="# candidate" other="# candidates" />
+            {" · "}
+            {agentCount > 16 ? (
+              <Tooltip delay={0}>
+                <Tooltip.Trigger>
+                  <span className="cursor-help text-danger underline decoration-dotted">
+                    <Plural value={agentCount} one="up to # agent" other="up to # agents" />
+                  </span>
+                </Tooltip.Trigger>
+                <Tooltip.Content>{t`More than 16 agents can run at once.`}</Tooltip.Content>
+              </Tooltip>
+            ) : (
+              <Plural value={agentCount} one="up to # agent" other="up to # agents" />
+            )}
+          </span>
         }
         actions={
           <div className="flex items-center gap-0.5">
@@ -81,20 +107,28 @@ export function ExperimentDraftTargets(props: {
         <ThreadDockList placement="composer" gap="1">
           {props.candidates.map((candidate, index) => {
             const provider = candidate.agentLabel ?? candidate.agentKind;
+            const crew = threadCrewBinding(candidate.config);
+            const helperCount =
+              crew?.roles.reduce((total, role) => total + (role.parallel ?? 1), 0) ?? 0;
+            const lead = crewModelLabelOf(statuses, {
+              agentKind: candidate.agentKind,
+              model: candidate.config.model,
+            });
+            const crewName = crew?.name?.trim() || t`Crew`;
             const label = [
-              candidate.modelLabel,
+              crew ? `${lead} + ${helperCount}` : candidate.modelLabel,
               candidate.config.effort ? formatEffortLabel(candidate.config.effort) : undefined,
               candidate.config.fast ? t`Fast` : undefined,
             ]
               .filter((value): value is string => !!value)
               .join(" · ");
             const details = [
-              label ? provider : undefined,
+              label ? (crew ? label : provider) : undefined,
               candidate.presentationMode === "terminal" ? t`CLI` : t`Chat`,
             ]
               .filter((value): value is string => !!value)
               .join(" · ");
-            const title = label || provider;
+            const title = crew ? crewName : label || provider;
             return (
               <ThreadDockActionRow
                 key={candidate.id}
@@ -105,12 +139,37 @@ export function ExperimentDraftTargets(props: {
                 onAction={() => props.onRemove(candidate.id)}
                 isActionDisabled={props.isSubmitting}
               >
-                <ProviderIcon
-                  kind={candidate.agentKind}
-                  fallbackLabel={provider}
-                  {...(candidate.icon ? { icon: candidate.icon } : {})}
-                  className="size-3.5 shrink-0"
-                />
+                {crew ? (
+                  <span className="flex shrink-0 items-center gap-0.5">
+                    <PoracodeGlyph className="size-3.5" />
+                    {[
+                      ...new Set([
+                        candidate.agentKind,
+                        ...crew.roles.map((role) => role.selection.agentKind),
+                      ]),
+                    ]
+                      .slice(0, 4)
+                      .map((kind) => {
+                        const status = statuses.find((entry) => entry.kind === kind);
+                        return (
+                          <ProviderIcon
+                            key={kind}
+                            kind={kind}
+                            {...(status?.icon ? { icon: status.icon } : {})}
+                            fallbackLabel={status?.label ?? kind}
+                            className="size-3.5"
+                          />
+                        );
+                      })}
+                  </span>
+                ) : (
+                  <ProviderIcon
+                    kind={candidate.agentKind}
+                    fallbackLabel={provider}
+                    {...(candidate.icon ? { icon: candidate.icon } : {})}
+                    className="size-3.5 shrink-0"
+                  />
+                )}
                 <span className="min-w-0 flex-1 truncate leading-5 text-foreground">{title}</span>
                 {details ? (
                   <span className="max-w-[55%] shrink-0 truncate text-foreground-muted opacity-80">

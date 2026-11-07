@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setDesktopToken, __resetTokenVaultForTest } from "./tokenVault";
+import { failVaultKeyReads, webKitKeyRestoreError } from "./webKitResultFailure.testFixtures";
 import {
   acquireConnectionIncarnation,
   acquireRefreshSubjectOwnership,
@@ -265,6 +266,26 @@ describe("legacy remote-environment slot migration", () => {
     await writeRefreshTokenToVault(remoteSubject, "remote-token");
     await writeRefreshTokenToVault(managedSubject, "managed-token");
     expect(await legacyStillPresent()).toBe(false);
+  });
+});
+
+describe("vault key WebKit cannot restore", () => {
+  it("settles hydration instead of hanging, and recovers once the key restores", async () => {
+    await expect(writeRefreshTokenToVault(directSubject, "direct-token")).resolves.toBe(true);
+    __resetRefreshTokensForTest();
+    const restoreFailure = webKitKeyRestoreError();
+    const escaped: unknown[] = [];
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const get = failVaultKeyReads(restoreFailure, escaped);
+    await hydrateRefreshTokens({ subjects: [directSubject] });
+    expect(escaped).toEqual([]);
+    expect(refreshTokenForSubject(directSubject)).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("refresh token"), restoreFailure);
+    await expect(writeRefreshTokenToVault(directSubject, "replacement")).resolves.toBe(false);
+
+    get.mockRestore();
+    await hydrateRefreshTokens({ subjects: [directSubject] });
+    expect(refreshTokenForSubject(directSubject)).toBe("direct-token");
   });
 });
 

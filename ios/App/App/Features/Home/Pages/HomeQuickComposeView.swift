@@ -14,10 +14,13 @@ struct HomeQuickComposeView: View {
   @State var projectID: String
   @State var threadID = UUID().uuidString.lowercased()
   @State var prompt = ""
+  @State var promptSelection: NSRange?
   @State var selectedAgentKind: String?
   @State var selectedModel: String?
   @State var selectedEffort: String?
   @State var fast = false
+  /// Per-draft workflow mode: never restored from a saved draft or earlier thread.
+  @State var workflows = false
   @State var browserMcp: Bool?
   @State var crossagentMcp: Bool?
   @State var computerUse: Bool?
@@ -55,7 +58,7 @@ struct HomeQuickComposeView: View {
   @State var importing = false
   @State var preparingWorktree = false
   @State var failureMessage: String?
-  @FocusState var promptFocused: Bool
+  @State var promptFocused = false
 
   init(
     session: AppSession,
@@ -165,6 +168,7 @@ struct HomeQuickComposeView: View {
         selectedModel = nil
         selectedEffort = nil
         fast = false
+        workflows = false
         browserMcp = nil
         crossagentMcp = nil
         computerUse = nil
@@ -196,6 +200,7 @@ struct HomeQuickComposeView: View {
           selectedModel.flatMap { defaultEffort(for: candidate, modelID: $0) }
         }
         fast = false
+        workflows = false
         configuredConfiguration = nil
       }
       .onChange(of: selector) { _, destination in
@@ -266,12 +271,16 @@ struct HomeQuickComposeView: View {
       || launchSeed?.defaultPrompt != nil
       || !fileMentions.isEmpty
       || !mentionedMCPs.isEmpty
+      || !skills.isEmpty
+      || !attachments.isEmpty
   }
 
   var compactPrompt: String {
     let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-    let mentions = fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" }
-    return text.isEmpty ? mentions.joined(separator: " ") : text
+    let mentions = fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" } + skills.map(\.invocation)
+    if !text.isEmpty { return text }
+    if !mentions.isEmpty { return mentions.joined(separator: " ") }
+    return attachments.map(\.name).joined(separator: " ")
   }
 
   var canStart: Bool {

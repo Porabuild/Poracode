@@ -20,6 +20,11 @@ on:
         required: false
         type: string
         default: production
+      tui_manifest:
+        description: "Stage the tui-manifest artifact into resources/tui for the desktop CLI bundle"
+        required: false
+        type: boolean
+        default: false
     secrets:
       MAC_CSC_LINK:
         required: false
@@ -36,6 +41,8 @@ on:
 
 permissions:
   contents: read
+  # wait-for-run-artifact.mjs reads this run's artifacts and jobs.
+  actions: read
 
 env:
   # Release runners are disposable single checkouts; use Bun's local
@@ -120,6 +127,9 @@ jobs:
           # other native deps (node-pty, better-sqlite3) are still verified.
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
+      - name: Check native PTY lifecycle
+        run: node --test scripts/node-pty-lifecycle.test.mjs
+
       - name: Build app
         run: bun run build
         shell: bash
@@ -127,6 +137,7 @@ jobs:
           PORACODE_CHANNEL: ${{ inputs.channel }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
           SENTRY_ENVIRONMENT: ${{ inputs.sentry_environment }}
+          PORACODE_SOURCEMAPS: ${{ matrix.platform == 'linux' && '1' || '0' }}
           POSTHOG_ENABLED: ${{ vars.POSTHOG_ENABLED || '1' }}
           POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST || 'https://us.i.posthog.com' }}
@@ -135,6 +146,15 @@ jobs:
       - name: Prepare computer-use helper
         run: node scripts/prepare-computer-use-helper.mjs --platform "${{ matrix.platform }}" --require
         shell: bash
+
+      - name: Prepare locked computer use plug-in
+        if: matrix.platform == 'mac'
+        # The plug-in pins the helper's Developer ID team at build time; a
+        # release build without it would always deny, so require it here.
+        run: node scripts/prepare-locked-computer-use.mjs --require-team
+        shell: bash
+        env:
+          PORACODE_LCU_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Build the immutable SSH runtime archive
         # C3/S3: release-time preassembled SSH runtime from the same frozen
@@ -175,6 +195,15 @@ jobs:
       - name: Remove packaged source maps
         run: bun run clean:sourcemaps
         shell: bash
+
+      # The TUI binaries build alongside this job (it no longer `needs:` them);
+      # only packaging reads their manifest, so wait for it here.
+      - name: Stage the TUI download manifest
+        if: ${{ inputs.tui_manifest }}
+        run: node scripts/wait-for-run-artifact.mjs tui-manifest resources/tui "tui_binaries /"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Package Windows/Linux
         if: matrix.platform != 'mac'
@@ -241,6 +270,13 @@ jobs:
             helper_signature="$(codesign -d --verbose=4 "$helper" 2>&1)"
             if ! grep -q 'flags=.*runtime' <<<"$helper_signature"; then
               echo "::error file=$helper::Computer-use helper is missing the hardened-runtime signature flag."
+              exit 1
+            fi
+
+            plugin="$app/Contents/Resources/locked-computer-use/PoracodeLockedUse.bundle"
+            codesign --verify --strict --verbose=4 "$plugin"
+            if ! grep -q "^TeamIdentifier=${APPLE_TEAM_ID}$" <<<"$(codesign -d --verbose=4 "$plugin" 2>&1)"; then
+              echo "::error file=$plugin::Locked computer use plug-in is not signed by the expected Apple team."
               exit 1
             fi
 

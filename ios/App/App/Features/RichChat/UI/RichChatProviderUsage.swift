@@ -30,7 +30,7 @@ struct RichChatProviderUsagePresentation: Equatable {
       )
     case "cursor":
       return RichChatUsageRings(
-        outerPercent: first(["cursor-auto"]),
+        outerPercent: first(["weekly", "cursor-auto"]),
         innerPercent: first(["cursor-api"])
       )
     default:

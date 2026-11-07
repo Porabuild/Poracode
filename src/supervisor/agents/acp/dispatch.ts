@@ -23,6 +23,7 @@ import {
 } from "../base";
 import { resolveProbeSpawnCwd } from "../probeCwd";
 import { authenticateAcpAgent, logoutAcpAgent } from "./probe";
+import type { ChildProcessLifetime } from "@/shared/childProcessLifetime";
 
 /**
  * Apply WSL-only env overrides for interactive ACP auth flows.
@@ -62,12 +63,21 @@ export async function dispatchAcpAuthenticate(input: {
   methodId: string;
   envKind?: AgentEnvContext["envKind"];
   wslDistro?: string;
+  signal?: AbortSignal;
+  onProcess?: (process: ChildProcessLifetime) => void;
 }): Promise<AgentEnvContext | undefined> {
+  input.signal?.throwIfAborted();
   if (!input.adapter.buildAcpAuthCommand) {
     throw new Error(`Agent does not support ACP authentication: ${input.adapter.kind}`);
   }
-  const ctx = envContextFromPayload(input.envKind, input.wslDistro);
+  const ctx = envContextFromPayload(
+    input.envKind ??
+      (input.signal ? (process.platform === "win32" ? "windows" : "posix") : undefined),
+    input.wslDistro,
+  );
+  if (ctx && input.signal) ctx.signal = input.signal;
   const rawCommand = await input.adapter.buildAcpAuthCommand(ctx);
+  input.signal?.throwIfAborted();
   if (!rawCommand) {
     throw new Error(`Agent did not return an ACP auth command: ${input.adapter.kind}`);
   }
@@ -86,7 +96,10 @@ export async function dispatchAcpAuthenticate(input: {
     ...(processCwd ? { processCwd } : {}),
     ...(location.kind !== "wsl" && env ? { env } : {}),
     label: input.adapter.label,
+    ...(input.signal ? { signal: input.signal } : {}),
+    ...(input.onProcess ? { onProcess: input.onProcess } : {}),
   });
+  input.signal?.throwIfAborted();
   return ctx;
 }
 

@@ -1,11 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/react/shallow";
 import { useAppStore } from "@/renderer/state/appStore";
+import { getThreadMap } from "@/renderer/state/useThread";
 import type { ThreadDocksPlacement } from "@/shared/settings";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
-import { selectThreadErrorDockStates, type ThreadErrorDockState } from "./threadErrorState";
+import {
+  selectThreadErrorDockStates,
+  type ThreadErrorDockState,
+  withThreadStatusErrorDock,
+} from "./threadErrorState";
 import { selectThreadGoalDockItem, type ThreadGoalDockState } from "./threadGoalState";
 import {
   selectVisibleThreadGoalDockState,
@@ -32,6 +38,22 @@ export interface ThreadDockState {
 }
 
 export function useThreadDockState(threadId: string): ThreadDockState {
+  const { t } = useLingui();
+  const statusErrorMessage = useAppStore((s) => {
+    const thread = getThreadMap(s.threads).get(threadId);
+    return thread?.status === "error" ? (thread.errorMessage?.trim() ?? "") : undefined;
+  });
+  const statusErrorEndedAt = useAppStore(
+    (s) => getThreadMap(s.threads).get(threadId)?.lastTurnEndedAt,
+  );
+  const fallbackMessage = t`The agent stopped because of an error.`;
+  const statusErrorDock =
+    statusErrorMessage === undefined
+      ? null
+      : {
+          sourceItemId: `thread-status-error:${statusErrorEndedAt ?? ""}`,
+          message: statusErrorMessage || fallbackMessage,
+        };
   const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const todoDockCollapsed = useThreadTodoDockStore(
     (s) => s.byThreadId[threadId]?.collapsed ?? s.defaultCollapsed,
@@ -80,9 +102,8 @@ export function useThreadDockState(threadId: string): ThreadDockState {
     dismissedErrors.threadId === threadId
       ? dismissedErrors.itemIds
       : EMPTY_DISMISSED_ERROR_ITEM_IDS;
-  const errorDockStates = useMemo(
-    () => errorDockStatesRaw.filter((state) => !dismissedErrorItemIds.has(state.sourceItemId)),
-    [dismissedErrorItemIds, errorDockStatesRaw],
+  const errorDockStates = withThreadStatusErrorDock(errorDockStatesRaw, statusErrorDock).filter(
+    (state) => !dismissedErrorItemIds.has(state.sourceItemId),
   );
 
   const showTodoDock = todoDockState !== null;

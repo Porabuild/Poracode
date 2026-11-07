@@ -133,7 +133,8 @@ extension HomeQuickComposeView {
           crossagentMcp: object["crossagentMcp"]?.boolValue,
           computerUse: object["computerUse"]?.boolValue,
           chromeMcp: object["chromeMcp"]?.boolValue,
-          executionEnvironment: Self.draftExecutionEnvironment(object)
+          executionEnvironment: Self.draftExecutionEnvironment(object),
+          crew: object["crew"]
         )
       )
     }
@@ -222,6 +223,7 @@ extension HomeQuickComposeView {
       configuration.model = model
       configuration.effort = selectedEffort ?? configuration.effort
       configuration.fast = fast
+      configuration.workflows = draftWorkflows(for: agent, model: model)
       configuration.browserMcp = browserMcp ?? configuration.browserMcp
       configuration.crossagentMcp = crossagentMcp ?? configuration.crossagentMcp
       configuration.computerUse = computerUse ?? configuration.computerUse
@@ -232,11 +234,25 @@ extension HomeQuickComposeView {
       model: model,
       effort: selectedEffort ?? defaultEffort(for: agent, modelID: model),
       fast: fast,
+      workflows: draftWorkflows(for: agent, model: model),
       browserMcp: browserMcp,
       crossagentMcp: crossagentMcp,
       computerUse: computerUse,
       chromeMcp: chromeMcp
     )
+  }
+
+  /// Workflow mode is a per-draft choice: off unless switched on for this
+  /// draft, sent only while the selected model offers it, and never read back
+  /// from saved drafts or an earlier thread's config.
+  private func draftWorkflows(for agent: AgentStatusRecord, model: String) -> Bool? {
+    guard workflows,
+      HomeComposerCatalog.supportsWorkflows(
+        capabilities: HomeComposerCatalog.capabilities(
+          for: agent, presentationMode: presentationMode),
+        modelID: model)
+    else { return nil }
+    return true
   }
 
   func openComposerControls() {
@@ -251,6 +267,7 @@ extension HomeQuickComposeView {
     selectedModel = configuration.model
     selectedEffort = configuration.effort
     fast = configuration.fast == true
+    workflows = configuration.workflows == true
     browserMcp = configuration.browserMcp
     crossagentMcp = configuration.crossagentMcp
     computerUse = configuration.computerUse
@@ -337,6 +354,7 @@ extension ThreadConfig {
       contextSize: configuration.contextSize,
       fast: configuration.fast,
       thinking: configuration.thinking,
+      workflows: configuration.workflows,
       mode: configuration.mode,
       approvalPolicy: configuration.approvalPolicy,
       approvalsReviewer: configuration.approvalsReviewer,
@@ -345,7 +363,10 @@ extension ThreadConfig {
       crossagentMcp: configuration.crossagentMcp,
       computerUse: configuration.computerUse,
       chromeMcp: configuration.chromeMcp,
-      executionEnvironment: configuration.executionEnvironment
+      mcpServerOverrides: configuration.mcpServerOverrides,
+      pluginOverrides: configuration.pluginOverrides,
+      executionEnvironment: configuration.executionEnvironment,
+      crew: configuration.crew
     )
   }
 }
@@ -358,6 +379,7 @@ extension ThreadLaunchConfiguration {
       contextSize: configuration.contextSize,
       fast: configuration.fast,
       thinking: configuration.thinking,
+      workflows: configuration.workflows,
       mode: configuration.mode,
       approvalPolicy: configuration.approvalPolicy,
       approvalsReviewer: configuration.approvalsReviewer,
@@ -366,7 +388,10 @@ extension ThreadLaunchConfiguration {
       crossagentMcp: configuration.crossagentMcp,
       computerUse: configuration.computerUse,
       chromeMcp: configuration.chromeMcp,
-      executionEnvironment: configuration.executionEnvironment
+      executionEnvironment: configuration.executionEnvironment,
+      mcpServerOverrides: configuration.mcpServerOverrides,
+      pluginOverrides: configuration.pluginOverrides,
+      crew: configuration.crew
     )
   }
 }
@@ -454,8 +479,8 @@ enum HomeComposerCatalog {
       for key in [
         "models", "efforts", "modelEfforts", "defaultEffort", "modelDefaultEfforts",
         "defaultHiddenModels", "contextSizes", "modelContextSizes", "defaultContextSize",
-        "fastModels", "thinkingModels", "subProviders", "modelSubProvider",
-        "modelFamilies",
+        "fastModels", "thinkingModels", "workflowModels", "workflowLabel", "subProviders",
+        "modelSubProvider", "modelFamilies",
       ] {
         resolved.removeValue(forKey: key)
       }
@@ -471,6 +496,18 @@ enum HomeComposerCatalog {
       let runtimeCapabilities = variant["capabilities"]?.objectValue
     else { return resolved }
     return runtimeCapabilities
+  }
+
+  /// Whether the provider offers the per-thread workflow-mode toggle for this
+  /// model (`workflowModels`, exact ids).
+  static func supportsWorkflows(capabilities: [String: JSONValue], modelID: String) -> Bool {
+    capabilities["workflowModels"]?.arrayValue?.compactMap(\.stringValue).contains(modelID) == true
+  }
+
+  /// The provider's own name for workflow mode (`workflowLabel`); `nil` leaves
+  /// the caller on the localized generic label.
+  static func workflowLabel(capabilities: [String: JSONValue]) -> String? {
+    capabilities["workflowLabel"]?.stringValue?.nilIfBlank
   }
 
   static func models(

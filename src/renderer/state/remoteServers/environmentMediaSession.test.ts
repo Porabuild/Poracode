@@ -112,6 +112,7 @@ async function fixture() {
   const state = { servers: [parent, child] } as unknown as RemoteServersState;
   configureEnvironmentSessions({
     getState: () => state,
+    persistAccessToken: () => undefined,
     clientFactory: () => (url, token) => new RemoteDesktopClient(url, token),
     certPinForConnection: () => undefined,
     refreshTokenForSubject: () => undefined,

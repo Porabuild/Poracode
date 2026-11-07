@@ -39,10 +39,22 @@ vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", async (importOrigina
   };
 });
 const commands = vi.hoisted(() => ({ managedRootRuntime: true }));
-vi.mock("@/renderer/state/managedRootCatalog/rootCatalogCommands", () => ({
-  isManagedRootDesktopRuntime: () => commands.managedRootRuntime,
-  managedRootOfflineError: () => new Error("loopback offline"),
-}));
+vi.mock("@/renderer/state/managedRootCatalog/rootCatalogCommands", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/renderer/state/managedRootCatalog/rootCatalogCommands")
+    >();
+  const { isManagedRootRow } = await import("@/renderer/state/managedRootCatalog/rootCatalogRows");
+  return {
+    ...actual,
+    isManagedRootDesktopRuntime: () => commands.managedRootRuntime,
+    managedRootOwner: (entity: { id: string; remoteServerId?: string }) =>
+      commands.managedRootRuntime && isManagedRootRow(entity)
+        ? { kind: "managed-root" as const, threadId: entity.id }
+        : undefined,
+    managedRootOfflineError: () => new Error("loopback offline"),
+  };
+});
 
 const smokeExternal: McpServer = {
   id: "smoke-external-id",

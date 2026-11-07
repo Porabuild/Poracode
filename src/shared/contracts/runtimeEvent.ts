@@ -138,6 +138,12 @@ export const questionAnswerEntrySchema = z.object({
 export type QuestionAnswerEntry = z.infer<typeof questionAnswerEntrySchema>;
 
 export const questionAnswerItemPayloadSchema = z.object({
+  /**
+   * Canonical assistant-message id for an async reply. Optional and additive:
+   * existing answers remain valid; older readers retain the ordinary prompt.
+   * No storage or wire version bump is needed.
+   */
+  sourceItemId: z.string().min(1).optional(),
   questions: z.array(questionAnswerEntrySchema),
 });
 export type QuestionAnswerItemPayload = z.infer<typeof questionAnswerItemPayloadSchema>;
@@ -354,9 +360,11 @@ export const toolCallPayloadSchema = z.object({
   /**
    * This agent row CONTINUES an earlier run instead of launching a new agent —
    * e.g. Claude Code's `SendMessage` resuming a completed sub-agent from its
-   * transcript. Without it a resume is indistinguishable from a fresh launch in
-   * the transcript. Absent on rows persisted before resumes were recognized;
-   * those keep rendering as plain agent rows, which is what they were.
+   * transcript, or a Crossagents follow-up that continues a completed run's
+   * provider session. Without it a resume is indistinguishable from a fresh
+   * launch in the transcript. Absent on rows persisted before resumes were
+   * recognized; those keep rendering as plain agent rows, which is what they
+   * were.
    */
   isSubAgentResume: z.boolean().optional(),
   /**
@@ -376,6 +384,18 @@ export const webSearchPayloadSchema = z.object({
 });
 export type WebSearchPayload = z.infer<typeof webSearchPayloadSchema>;
 
+/**
+ * Why a runtime error happened, when the provider can tell from its structured
+ * payload. `"auth_required"`: the provider's own sign-in is missing or expired
+ * (for example an expired refresh token), so the composer offers sign-in
+ * instead of only the raw error. Optional and additive: older readers ignore
+ * it and fall back to recognizing the message text. The wire value is an open
+ * string so a reader skips a reason it does not know instead of rejecting the
+ * event.
+ */
+export const runtimeErrorReasonSchema = z.string().min(1);
+export type RuntimeErrorReason = "auth_required";
+
 export const errorItemPayloadSchema = z.object({
   message: z.string(),
   /**
@@ -384,6 +404,7 @@ export const errorItemPayloadSchema = z.object({
    * predate the field show such an item as an error.
    */
   severity: z.enum(["error", "warning"]).optional(),
+  reason: runtimeErrorReasonSchema.optional(),
 });
 export type ErrorItemPayload = z.infer<typeof errorItemPayloadSchema>;
 
@@ -418,13 +439,28 @@ export type ThreadContextUsage = z.infer<typeof threadContextUsageSchema>;
  * One unit of provider-reported background work that outlives the turn that
  * launched it (a backgrounded shell command, a file watcher, a detached job).
  * Sub-agent runs are NOT reported here — they surface as running `tool_call`
- * items with their own dock. `kind` is a coarse, provider-agnostic class the
- * renderer uses only for iconography; `description` is the provider's own
- * human-readable label (typically the command or the task's stated purpose).
+ * items with their own dock. `kind` is the coarse, legacy two-value class the
+ * first clients know; `category` is the additive, provider-agnostic display
+ * capability (absent on older producers, where readers fall back to `kind`).
+ * `description` is the provider's own human-readable label (typically the
+ * task's stated purpose), never used as progress.
  */
 export const backgroundTaskKindSchema = z.enum(["command", "other"]);
 export type BackgroundTaskKind = z.infer<typeof backgroundTaskKindSchema>;
-/** A provider-declared, instance-bound action using the existing session-action transport. */
+export const backgroundTaskCategorySchema = z.enum([
+  "command",
+  "monitor",
+  "tool",
+  "agent",
+  "workflow",
+  "other",
+]);
+export type BackgroundTaskCategory = z.infer<typeof backgroundTaskCategorySchema>;
+/**
+ * A provider-declared, instance-bound action using the existing session-action
+ * transport. `stopAction` and `outputAction` share this shape; `id` is the
+ * capability the client invokes, `payload` carries the opaque task token.
+ */
 export const backgroundTaskStopActionSchema = z.object({
   id: z.string().min(1).max(120),
   payload: z.record(z.string().max(120), z.string().max(512)),
@@ -432,7 +468,11 @@ export const backgroundTaskStopActionSchema = z.object({
 export const backgroundTaskSchema = z.object({
   taskId: z.string().min(1),
   kind: backgroundTaskKindSchema,
+  /** Additive display class; absent on older producers → fall back to `kind`. */
+  category: backgroundTaskCategorySchema.optional(),
   description: z.string(),
+  /** Bounded, already-trimmed launch command when the provider knows it. */
+  command: z.string().max(16384).optional(),
   /** Host-observed task start, in Unix milliseconds; absent on older hosts. */
   startedAt: z.number().finite().nonnegative().optional(),
   /** Last provider-reported progress, excluding membership updates and heartbeats. */
@@ -440,8 +480,32 @@ export const backgroundTaskSchema = z.object({
   progress: z.string().max(4096).optional(),
   /** Absent when the live provider cannot stop this task independently. */
   stopAction: backgroundTaskStopActionSchema.optional(),
+  /** Read capability returning BackgroundTaskOutput; absent when unsupported. */
+  outputAction: backgroundTaskStopActionSchema.optional(),
 });
 export type BackgroundTask = z.infer<typeof backgroundTaskSchema>;
+
+/**
+ * Maximum UTF-16 code-unit length of a background-task output tail. The
+ * provider feature and every generated native validator render this same value.
+ */
+export const BACKGROUND_TASK_OUTPUT_MAX_UTF16_LENGTH = 16_384;
+
+/**
+ * Provider-normalized answer to a background-task output read: a bounded tail
+ * (never a full unbounded capture), the native total byte count, and whether
+ * the tail is only the end of longer output.
+ */
+export const backgroundTaskOutputSchema = z.object({
+  // Zod's string maximum counts code points; this read contract budgets UTF-16 units.
+  output: z
+    .string()
+    .max(BACKGROUND_TASK_OUTPUT_MAX_UTF16_LENGTH)
+    .refine((value) => value.length <= BACKGROUND_TASK_OUTPUT_MAX_UTF16_LENGTH),
+  totalBytes: z.number().finite().nonnegative().int().max(Number.MAX_SAFE_INTEGER),
+  truncated: z.boolean(),
+});
+export type BackgroundTaskOutput = z.infer<typeof backgroundTaskOutputSchema>;
 
 /**
  * Provider-reported token CONSUMPTION, kept strictly separate from
@@ -476,6 +540,17 @@ export const usageSpentSchema = z.object({
   tokens: usageTokenCategoriesSchema.optional(),
   /** Provider-reported cost, not proof of an invoice or subscription charge. */
   cost: usageMoneySchema.optional(),
+  /**
+   * Set only on usage forwarded from a crossagents helper run into its parent
+   * thread; absent = the thread's own (lead) usage. `agentKind` is the helper's
+   * provider, so ledgers price and attribute the tokens to it, not the parent.
+   */
+  helper: z
+    .object({
+      agentKind: z.string().min(1).max(64),
+      crewRoleId: z.string().min(1).max(64).optional(),
+    })
+    .optional(),
 });
 export type UsageSpent = z.infer<typeof usageSpentSchema>;
 
@@ -721,6 +796,7 @@ export const runtimeEventSchema = z.discriminatedUnion("type", [
     type: z.literal("error"),
     threadId: z.string(),
     message: z.string(),
+    reason: runtimeErrorReasonSchema.optional(),
   }),
 ]);
 export type RuntimeEvent = z.infer<typeof runtimeEventSchema>;

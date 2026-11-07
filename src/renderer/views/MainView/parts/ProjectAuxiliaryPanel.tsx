@@ -38,9 +38,7 @@ import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel"
 import { SideChatModelText } from "@/renderer/components/thread/SideChat/SideChatModelText";
 import { SideChatBody } from "@/renderer/components/thread/SideChat/SideChatBody";
 import { useSideChatPanelStore } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
-import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
-import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
-import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
+import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -52,8 +50,6 @@ import {
   selectBrowserPanelAvailable,
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
 import {
   closeAllPanels,
@@ -174,7 +170,6 @@ export function ProjectAuxiliaryPanel(props: {
   const globalTerminal = useDevTerminalStore((s) => s.source === "global");
   const terminalProjectId = useDevTerminalStore((s) => s.activeProjectId);
   const terminalWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
-  const terminalProject = projects.find((project) => project.id === terminalProjectId);
   const currentThread = useAppStore((state) =>
     currentThreadId ? state.threads.find((thread) => thread.id === currentThreadId) : undefined,
   );
@@ -188,14 +183,12 @@ export function ProjectAuxiliaryPanel(props: {
   const docksInCurrentThread = useThreadDocksPanelAvailable();
   // Image-only threads offer the Docks tab without making image presence itself
   // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
-  const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
-  const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
-  const gallery = useThreadGalleryImages(
-    currentThreadId !== null && (docksPlacement === "right" || threadDocksFocus === "images")
-      ? currentThreadId
-      : undefined,
-  );
-  const imagesInCurrentThread = gallery.length > 0;
+  const gallery = useThreadGalleryCollection(currentThreadId ?? undefined, {
+    requestPending: false,
+  });
+  const imagesInCurrentThread =
+    gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
+    0;
   const docksTabAvailable = docksInCurrentThread || imagesInCurrentThread;
 
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;
@@ -308,13 +301,14 @@ export function ProjectAuxiliaryPanel(props: {
 
       // Let the thread and linked-panel frames paint before paying for PR I/O.
       // The prefetch itself gates on gh availability + GitHub remote, and also
-      // throttles and deduplicates per project.
+      // throttles and deduplicates per project. Prefetch the panel's displayed
+      // checkout, not the focused thread: a draft has no focused thread, and a
+      // pinned panel may show a different project/worktree than the focus.
       refreshTimer = window.setTimeout(() => {
-        const app = useAppStore.getState();
-        if (selectFocusedThreadId(app) !== currentThreadId) return;
-        const thread = app.threads.find((item) => item.id === currentThreadId);
-        if (!thread || isHomeProjectId(thread.projectId)) return;
-        void prefetchVisibleGitPanelPrData(thread.projectId, thread.worktreePath);
+        if (selectFocusedThreadId(useAppStore.getState()) !== currentThreadId) return;
+        const context = usePanelStore.getState().gitReviewContext;
+        if (!context || isHomeProjectId(context.projectId)) return;
+        void prefetchVisibleGitPanelPrData(context.projectId, context.worktreePath);
       }, 0);
     });
     return () => {
@@ -483,15 +477,7 @@ export function ProjectAuxiliaryPanel(props: {
                 }
               />
             ) : (
-              <DevTerminalPanel
-                hideHeader
-                {...(terminalProject?.remoteServerId
-                  ? {
-                      watchTerminal: (terminalId, listener) =>
-                        watchRemoteTerminal(terminalProject.remoteServerId!, terminalId, listener),
-                    }
-                  : {})}
-              />
+              <DevTerminalPanel hideHeader />
             ),
           }
         : {})}
@@ -535,6 +521,9 @@ export function ProjectAuxiliaryPanel(props: {
               <ThreadDocksPanel
                 key={currentThreadId}
                 threadId={currentThreadId}
+                visible={
+                  props.visible && (activeTab === "docks" || rightPanelSplit?.tab === "docks")
+                }
                 {...(currentThreadProjectLocation
                   ? { projectLocation: currentThreadProjectLocation }
                   : {})}
@@ -579,12 +568,6 @@ export function ProjectAuxiliaryPanel(props: {
       }
       portsHeaderActions={
         <PortsPanelHeaderActions dragControlClass="poracode-overlay-header__controls" />
-      }
-      docksHeaderActions={
-        <ThreadDocksPlacementToggle
-          placement={docksPlacement}
-          buttonClassName={`poracode-overlay-header__controls ${panelHeaderIconButtonClass}`}
-        />
       }
       showTerminalTab={props.includeTerminal}
       showFilesTab={!isHomeScope}

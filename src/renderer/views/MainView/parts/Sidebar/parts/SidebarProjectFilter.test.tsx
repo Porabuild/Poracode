@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
@@ -66,7 +66,12 @@ describe("SidebarProjectFilter", () => {
     responsiveMenuState.mobile = false;
   });
 
-  it("names the hosting machine on mirrored rows and on a lone selection", async () => {
+  afterEach(() => {
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useAppStore.setState({ projects: [] });
+  });
+
+  it("moves the hosting machine into a connection tooltip while preserving the selected label", async () => {
     const mirrored = {
       ...project("r", "Alpha"),
       remoteServerId: "desktop-1",
@@ -84,10 +89,271 @@ describe("SidebarProjectFilter", () => {
     );
 
     const menu = await openMenu();
-    const rows = [...menu.querySelectorAll('[role="menuitemcheckbox"]')].map((r) => r.textContent);
-    expect(rows.filter((row) => row?.includes("MacBook 16"))).toHaveLength(1);
+    const rows = [...menu.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
+    expect(
+      rows.every(
+        (row) => !row.querySelector('[data-slot="label"]')?.textContent?.includes("MacBook 16"),
+      ),
+    ).toBe(true);
+    const connection = within(menu).getByRole("img", { name: "MacBook 16" });
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    fireEvent.pointerEnter(connection, { pointerType: "mouse" });
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("MacBook 16");
+    expect(within(tooltip).getByTitle("Online")).toHaveClass(
+      "bg-success",
+      "right-0",
+      "bottom-0",
+      "ring-1",
+      "ring-background",
+    );
+    expect(tooltip).not.toHaveTextContent("Online");
+    fireEvent.pointerLeave(connection, { pointerType: "mouse" });
+  });
 
-    useRemoteServersStore.setState({ servers: [], runtime: {} });
+  it("lists a project on several environments as one row that toggles every environment", async () => {
+    const mirrored = {
+      ...project("r", "Alpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+      location: { kind: "posix", path: "/Users/me/alpha", remoteServerId: "desktop-1" },
+    } as Project;
+    const list = [projects[0]!, mirrored, projects[1]!];
+    useAppStore.setState({ projects: list });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    const onChange = renderFilter(null, vi.fn(), list);
+
+    const menu = await openMenu();
+    const rows = [...menu.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
+    // One Alpha row for both machines, without per-environment badges.
+    expect(rows).toHaveLength(3);
+    expect(within(rows[1]!).getByText("Alpha")).toBeInTheDocument();
+    expect(rows[1]!.querySelector("[data-project-environments]")).toBeNull();
+    expect(within(rows[1]!).queryByText("Local")).toBeNull();
+    expect(within(rows[1]!).queryByText("MacBook 16")).toBeNull();
+    // The combined row uses the project identity icon, not the local Windows glyph.
+    expect(rows[1]!.querySelector(".lucide-monitor")).toBeNull();
+    expect(rows[1]!.querySelector(".lucide-folder-open")).not.toBeNull();
+    expect(within(rows[2]!).getByText("Beta")).toBeInTheDocument();
+
+    const connection = within(rows[1]!).getByRole("img", { name: "Local, MacBook 16" });
+    expect(connection.querySelector(".lucide-server")).toBeInTheDocument();
+    expect(within(connection).getByTitle("Online")).toHaveClass("bg-success", "ring-background");
+    expect(rows[2]!.querySelector("[data-project-connection]")).toBeNull();
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    fireEvent.pointerEnter(connection, { pointerType: "mouse" });
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Local");
+    expect(tooltip).toHaveTextContent("MacBook 16");
+    expect(tooltip).toHaveTextContent("/Users/me/alpha");
+    // Only the paired machine has a connection status; Local stays unmarked.
+    expect(within(tooltip).getAllByTitle("Online")).toHaveLength(1);
+    await act(async () => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+      } as never);
+    });
+    expect(within(tooltip).getByTitle("Offline")).toBeInTheDocument();
+    expect(within(connection).getByTitle("Offline")).not.toHaveClass("bg-success");
+    expect(within(tooltip).queryByTitle("Online")).toBeNull();
+    expect(tooltip).not.toHaveTextContent(/Online|Offline/);
+    fireEvent.pointerLeave(connection, { pointerType: "mouse" });
+
+    // Unchecking Alpha in the all state filters out both environments.
+    fireEvent.click(rows[1]!);
+    expect(onChange).toHaveBeenLastCalledWith(["b"]);
+  });
+
+  it("dismisses keyboard connection details before closing the project filter", async () => {
+    const mirrored = {
+      ...project("r", "Alpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "remote-a",
+    } as Project;
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "MacBook" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    const list = [projects[0]!, mirrored, projects[1]!];
+    useAppStore.setState({ projects: list });
+    renderFilter(null, vi.fn(), list);
+    const menu = await openMenu();
+    fireEvent.keyDown(menu, { key: "Home" });
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    const alpha = within(menu).getByRole("menuitemcheckbox", { name: /^Alpha/ });
+    await waitFor(() => expect(alpha).toHaveFocus());
+    expect(alpha).toHaveAccessibleDescription(/Local.*MacBook/);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("MacBook");
+    fireEvent.keyDown(alpha, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull());
+    expect(menu).toBeInTheDocument();
+    fireEvent.keyDown(alpha, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+  });
+
+  it("uses the same Home, local, remote ordering as the new-thread pickers", async () => {
+    const mirrored = {
+      ...project("r", "Remote"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+    } as Project;
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "MacBook" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    const list = [mirrored, projects[0]!, homeProject, projects[1]!];
+    useAppStore.setState({ projects: list });
+    renderFilter(null, vi.fn(), list);
+    const menu = await openMenu();
+    expect(
+      within(menu)
+        .getAllByRole("menuitemcheckbox")
+        .map((row) => row.querySelector('[data-slot="label"]')?.textContent),
+    ).toEqual(["All projects", "Home", "Alpha", "Beta", "Remote"]);
+  });
+
+  it("keeps Home first without disturbing the other projects' order", async () => {
+    const list = [projects[0]!, projects[1]!, projects[2]!, homeProject];
+    useAppStore.setState({ projects: list });
+    renderFilter(null, vi.fn(), list);
+
+    const menu = await openMenu();
+    const rows = [...menu.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
+
+    expect(rows).toHaveLength(5);
+    expect(rows[0]).toHaveTextContent("All projects");
+    expect(within(rows[1]!).getByText("Home")).toBeInTheDocument();
+    expect(within(rows[2]!).getByText("Alpha")).toBeInTheDocument();
+    expect(within(rows[3]!).getByText("Beta")).toBeInTheDocument();
+    expect(within(rows[4]!).getByText("Gamma")).toBeInTheDocument();
+  });
+
+  it("keeps Home first in the mobile project sheet", async () => {
+    responsiveMenuState.mobile = true;
+    const list = [projects[0]!, projects[1]!, projects[2]!, homeProject];
+    useAppStore.setState({ projects: list });
+    renderFilter(null, vi.fn(), list);
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Filter by project" });
+    const labels = within(dialog)
+      .getAllByRole("button")
+      .map((button) => button.textContent?.trim() ?? "")
+      .filter((text) => text.length > 0);
+
+    expect(labels[0]).toContain("All projects");
+    expect(labels[1]).toContain("Home");
+    expect(labels[2]).toContain("Alpha");
+    expect(labels[3]).toContain("Beta");
+    expect(labels[4]).toContain("Gamma");
+  });
+
+  it("groups canonical and mirrored Home into one row", async () => {
+    const mirroredHome = {
+      ...homeProject,
+      id: "remote:desktop-1:project:__lightcode_home__",
+      remoteId: HOME_PROJECT_ID,
+      remoteServerId: "desktop-1",
+      location: { kind: "posix", path: "/Users/me", remoteServerId: "desktop-1" },
+    } as Project;
+    const list = [projects[0]!, homeProject, mirroredHome, projects[1]!];
+    useAppStore.setState({ projects: list });
+    renderFilter(null, vi.fn(), list);
+
+    const menu = await openMenu();
+    const rows = [...menu.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
+
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveTextContent("All projects");
+    expect(rows[1]).toHaveTextContent("Home");
+    expect(rows[1]!.querySelector("[data-project-environments]")).toBeNull();
+    expect(within(rows[1]!).queryByText("Local")).toBeNull();
+    expect(rows.filter((row) => row.textContent?.includes("Home"))).toHaveLength(1);
+  });
+
+  it("keeps unavailable combined rows compact with connection details on hover", async () => {
+    const mirrored = {
+      ...project("r", "Alpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+      location: { kind: "posix", path: "/Users/me/alpha", remoteServerId: "desktop-1" },
+    } as Project;
+    const list = [projects[0]!, mirrored, projects[1]!];
+    useAppStore.setState({ projects: list });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+    } as never);
+    render(
+      <SidebarProjectFilter
+        projects={list}
+        filterableProjectIds={new Set(["b"])}
+        threadCounts={threadCounts}
+        value={null}
+        onChange={vi.fn<(next: string[] | null) => void>()}
+      />,
+    );
+
+    const menu = await openMenu();
+    const alpha = within(menu).getByText("Alpha").closest<HTMLElement>('[data-slot="menu-item"]');
+    expect(alpha).not.toBeNull();
+    expect(alpha!.querySelector("[data-project-environments]")).toBeNull();
+    expect(within(alpha!).queryByText("Local")).toBeNull();
+    expect(within(alpha!).queryByText("MacBook 16")).toBeNull();
+    expect(alpha!.querySelector(".lucide-monitor")).toBeNull();
+    expect(alpha!.querySelector(".lucide-folder-open")).not.toBeNull();
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    fireEvent.pointerEnter(within(alpha!).getByRole("img", { name: "Local, MacBook 16" }), {
+      pointerType: "mouse",
+    });
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("MacBook 16");
+    expect(within(tooltip).getByTitle("Offline")).toBeInTheDocument();
+    expect(within(tooltip).queryByTitle("Online")).toBeNull();
+    expect(tooltip).not.toHaveTextContent(/Online|Offline/);
+  });
+
+  it("shows a project selected when a saved filter holds one of its machines", async () => {
+    const mirrored = {
+      ...project("r", "Alpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+      location: { kind: "posix", path: "/Users/me/alpha", remoteServerId: "desktop-1" },
+    } as Project;
+    const list = [projects[0]!, mirrored, projects[1]!];
+    useAppStore.setState({ projects: list });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    const counts = new Map([
+      ["a", 2],
+      ["r", 3],
+      ["b", 1],
+    ]);
+    const onChange = vi.fn<(next: string[] | null) => void>();
+    render(
+      <SidebarProjectFilter
+        projects={list}
+        filterableProjectIds={new Set(list.map((candidate) => candidate.id))}
+        threadCounts={counts}
+        value={new Set(["r"])}
+        onChange={onChange}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Filter by project" })).toHaveTextContent("Alpha");
+
+    const menu = await openMenu();
+    const alpha = [...menu.querySelectorAll('[role="menuitemcheckbox"]')][1]!;
+    expect(alpha).toHaveAttribute("aria-checked", "true");
+    // The count covers both machines.
+    expect(alpha).toHaveTextContent("5");
+    // Toggling the half-selected row clears both of its machines.
+    fireEvent.click(alpha);
+    expect(onChange).toHaveBeenLastCalledWith(null);
   });
 
   it("labels the trigger with the current selection", () => {

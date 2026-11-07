@@ -1,9 +1,18 @@
-import { dbGetThreads, onProjectThreadDataChanged } from "@/host/db";
+import { dbGetProject, dbGetThread, dbGetThreads, onProjectThreadDataChanged } from "@/host/db";
+import { callDatabaseRpc } from "@/host/db/databaseRpc";
+import { persistedThreadPageSchema } from "@/shared/ipc/schemas";
+import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
+import { DesktopHostAdministration } from "./DesktopHostAdministration";
+import { delegatedDesktopControl } from "./ownership/delegatedHostControl";
 import { dirname, join } from "node:path";
 import { inactivateLiveThreads } from "./inactivateLiveThreads";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { runOwnedExperimentWorktreePreparation } from "@/host/remote/experimentOwnership";
-import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
+import {
+  SupervisorUnavailableError,
+  type SupervisorCallOptions,
+} from "@/host/supervisor/SupervisorClient";
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
@@ -29,7 +38,6 @@ import {
 } from "@/host/profile";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
-import { requestLegacyDataMigration } from "@/host/legacyDataMigration";
 import {
   type CreateExperimentWorktreesPayload,
   type RemoteThreadCommand,
@@ -48,7 +56,8 @@ import type {
 import { RevertCheckpointRefusedError, type BackendHostCore } from "./BackendHostCore";
 import { BackendDurableServices } from "./BackendDurableServices";
 import { BackendRemoteBrowserProxy } from "./BackendRemoteBrowserProxy";
-import { generateBackendImagePreview } from "./BackendImagePreview";
+import { generateBackendImageCardVariant } from "./BackendImagePreview";
+import { generateImagePreview } from "@/host/remote/server/imagePreviewGenerator";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { createBackendSettingsAccess, type BackendSettingsAccess } from "./BackendSettingsService";
 import { type BackendSettingsNotifications } from "./BackendSettingsNotifications";
@@ -102,6 +111,7 @@ export class BackendDesktopServices {
   private readonly browser: BackendRemoteBrowserProxy;
   private readonly stopProjectionWatch: () => void;
   private readonly settings: BackendSettingsAccess;
+  private readonly administration: DesktopHostAdministration | null;
   private updateStatus: RemoteHostUpdateStatus | null = null;
 
   constructor(private readonly options: BackendDesktopServicesOptions) {
@@ -262,6 +272,9 @@ export class BackendDesktopServices {
         this.remote?.getServer()?.publishSupervisorEvent({ type: "remote-git-state", patch });
         options.emitNativeEvent({ type: "git-state-changed", patch });
       },
+      onForgeActivity: (event) => {
+        this.remote?.getServer()?.publishSupervisorEvent(event);
+      },
       onPrMerged: (watch) =>
         options.emitNativeEvent({
           type: "pr-watch-merged",
@@ -322,6 +335,11 @@ export class BackendDesktopServices {
           ...(experimentAuthority ? { experimentAuthority } : {}),
           dispatchThreadCommand,
           browser: this.browser,
+          readAgentVision: (threadId, preview, streaming) =>
+            options.requestNative({
+              operation: "agent-vision",
+              payload: { threadId, preview, ...(streaming ? { streaming } : {}) },
+            }) as Promise<import("@/shared/agentVision").AgentVision | null>,
           // The controller's settings patches commit through the same authority
           // as every other writer; the committed broadcast happens in the
           // authority's onCommitted hook.
@@ -343,12 +361,14 @@ export class BackendDesktopServices {
           notifyUserNotification: (notification) =>
             options.emitNativeEvent({ type: "user-notification", notification }),
           notifyEventInterestsChanged: ignoreRemoteEventInterests,
-          imagePreviewGenerator: generateBackendImagePreview,
+          imagePreviewGenerator: generateImagePreview,
+          imageCardVariantGenerator: generateBackendImageCardVariant,
           reportError: options.reportError,
           scheduleService: this.durable.scheduleService,
           deviceWorkspace: this.durable.deviceWorkspace,
           prWatchService: this.durable.prWatchService,
           gitStateService: this.durable.gitStateService,
+          projectWatchLeases: this.durable.projectWatchLeases,
           updates: {
             currentVersion: () => initialize.supervisor.appVersion,
             status: () => this.updateStatus,
@@ -376,6 +396,57 @@ export class BackendDesktopServices {
           },
         })
       : null;
+    if (desktop?.localControl) {
+      const custody = host.getDataCustody();
+      if (!custody || !desktop.dataFencePath || !desktop.hostCapabilities)
+        throw new Error(
+          "Desktop administration requires existing data custody and composed host capabilities.",
+        );
+      const authority = delegatedDesktopControl({
+        grant: desktop.localControl,
+        dataRoot: initialize.baseDir,
+        dataFencePath: desktop.dataFencePath,
+        custody,
+        ownerPid: process.ppid,
+        assertParentActive: () => {
+          if (!process.connected) throw new Error("The desktop control owner is disconnected.");
+        },
+      });
+      this.administration = new DesktopHostAdministration({
+        attachments: {
+          save: (input) =>
+            saveUploadedAttachmentFile(resolvePoracodePaths(initialize.baseDir), input),
+        },
+        statusCachePath: resolvePoracodePaths(initialize.baseDir).statusCachePath,
+        authority,
+        capabilities: { ...desktop.hostCapabilities, ssh: Boolean(options.environments) },
+        call: (name, payload, callOptions) => this.callSupervisor(name, payload, callOptions),
+        server: () => {
+          const server = this.remote?.getServer();
+          if (!server)
+            throw new Error("The desktop host listener is not ready. Retry after desktop startup.");
+          return server;
+        },
+        settings: this.settings,
+        readSettings: getSharedSettings,
+        // Desktop initialization already provided its persistent sealing key;
+        // settings writes retain the same authority/persistence guard as UI edits.
+        assertCanPersistSecrets: () => authority.assertActive(),
+        sessions: {
+          readThread: dbGetThread,
+          readPage: async (payload) =>
+            persistedThreadPageSchema.parse(
+              await callDatabaseRpc({ name: "dbGetThreadsPage", payload }),
+            ),
+        },
+        sessionExportWorker: {
+          path: join(dirname(initialize.supervisor.supervisorPath), "sessionExportWorker.cjs"),
+          dbPath: initialize.dbPath,
+        },
+        resolveMcpLaunchSnapshot: (projectId) =>
+          resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)),
+      });
+    } else this.administration = null;
   }
 
   getSupervisorExtraEnv(): Record<string, string> {
@@ -399,9 +470,11 @@ export class BackendDesktopServices {
     // children must not hold the local listener or renderer startup hostage.
     void this.options.environments?.start().catch(this.options.reportError);
     await this.remote?.startIfEnabled();
+    await this.administration?.start().catch(this.options.reportError);
   }
 
   observeSupervisorEvent(event: SupervisorEvent): boolean {
+    this.administration?.observe(event);
     if (this.durable.observeSupervisorEvent(event)) return true;
     this.remote?.handleSupervisorEvent(event);
     return false;
@@ -413,8 +486,13 @@ export class BackendDesktopServices {
    * cannot shadow the fresh supervisor's live reads.
    */
   handleSupervisorReset(): void {
+    this.administration?.reset();
     this.durable.handleSupervisorReset();
     this.remote?.handleSupervisorReset();
+  }
+
+  handleSupervisorStarted(): void {
+    this.durable.handleSupervisorStarted();
   }
 
   /**
@@ -491,9 +569,12 @@ export class BackendDesktopServices {
   callSupervisor<Name extends SupervisorProcedureName>(
     name: Name,
     payload: IpcProcedurePayload<Name>,
+    options?: Pick<SupervisorCallOptions, "assertLaunchCurrent">,
   ): Promise<IpcProcedureResult<Name>> {
     const dispatch = (): Promise<IpcProcedureResult<Name>> =>
-      this.options.host.supervisorClient.call(name, payload);
+      options
+        ? this.options.host.supervisorClient.call(name, payload, options)
+        : this.options.host.supervisorClient.call(name, payload);
     if (name !== "createExperimentWorktrees") return dispatch();
     return runOwnedExperimentWorktreePreparation(
       payload as CreateExperimentWorktreesPayload,
@@ -555,9 +636,10 @@ export class BackendDesktopServices {
       case "getRemoteAccessTailscaleStatus":
         return this.requireRemote().getTailscaleStatus() as Promise<BackendServiceResult<Name>>;
       case "setRemoteAccessLanEnabled":
-        return this.requireRemote().setLanEnabled(
-          (payload as { enabled: boolean }).enabled,
-        ) as Promise<BackendServiceResult<Name>>;
+        // Retired: the Remote Access switch is the only exposure gate. The
+        // procedure stays so a published peer still resolves it (removing it
+        // would move the client/host hop); it changes nothing.
+        return this.requireRemote().getPairingInfo() as BackendServiceResult<Name>;
       case "setRemoteAccessTailscaleHttps":
         return this.requireRemote().setTailscaleHttps(
           (payload as { enabled: boolean }).enabled,
@@ -624,6 +706,10 @@ export class BackendDesktopServices {
       }
       case "upsertPrWatch":
         return this.durable.prWatchService.upsert(payload as never) as BackendServiceResult<Name>;
+      case "upsertForgePrWatch":
+        return this.durable.prWatchService.upsertScoped(payload as never) as Promise<
+          BackendServiceResult<Name>
+        >;
       case "deletePrWatch": {
         const input = payload as { projectId: string; prNumber: number };
         this.durable.prWatchService.delete(input.projectId, input.prNumber);
@@ -645,8 +731,6 @@ export class BackendDesktopServices {
       case "updateStatusChanged":
         this.updateStatus = (payload as { status: RemoteHostUpdateStatus | null }).status;
         return undefined as BackendServiceResult<Name>;
-      case "requestLegacyDataMigration":
-        return requestLegacyDataMigration(payload as never) as BackendServiceResult<Name>;
     }
   }
 
@@ -657,6 +741,7 @@ export class BackendDesktopServices {
     void joinRuntimeShutdown(
       [
         () => this.stopProjectionWatch(),
+        () => this.administration?.dispose(),
         () => this.durable.dispose(),
         () => this.browser.dispose(),
         () => this.remote?.dispose(),

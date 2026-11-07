@@ -1,7 +1,7 @@
 import Foundation
 
 /// Enforces client connection, host lease, project identity/location, and generation.
-actor SelectedGitHubOperationsGateway: GitHubOperationsGateway {
+actor SelectedGitHubOperationsGateway: GitHubOperationsGateway, ForgeReviewGateway {
   typealias SelectionProvider =
     @MainActor @Sendable () -> GitHubTransportSelection?
   typealias SelectionResolver =
@@ -60,5 +60,30 @@ actor SelectedGitHubOperationsGateway: GitHubOperationsGateway {
     case (.projectLocation, .ghListAccounts), (.projectLocation, .ghListRepos): false
     case (.projectLocation, _): true
     }
+  }
+
+  func callForge(
+    _ operation: ForgeReviewOperation,
+    payload: GitHubDocument,
+    lease: GitHubProjectLease
+  ) async throws -> GitHubDocument {
+    try Task.checkCancellation()
+    try ForgeReviewRemoteV3Contract.checkMetadata(operation)
+    let expectedLocation = try JSONDecoder().decode(GitHubJSONValue.self, from: JSONEncoder().encode(lease.location))
+    guard lease.isConsistent, payload["projectLocation"] == expectedLocation else {
+      throw GitHubOperationsFailure.invalidResponse
+    }
+    guard let selection = try await selectionResolver(lease),
+      selection.context.isUsable, selection.context.lease == lease
+    else { throw CancellationError() }
+    guard selection.context.permits(operation.scope), let api = selection.api as? any ForgeReviewRemoteAPI else {
+      throw GitHubOperationsFailure.capabilityMissing
+    }
+    let result = try await api.remoteForgeReviewOperation(operation, payload: payload)
+    try Task.checkCancellation()
+    guard let current = try await selectionResolver(lease),
+      current.context.isUsable, current.context.lease == lease
+    else { throw CancellationError() }
+    return result
   }
 }

@@ -58,12 +58,12 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 116,
-  procedures: 130,
-  webSocketClientMessages: 9,
+  httpRoutes: 119,
+  procedures: 172,
+  webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
-  webSocketServerMessages: 11,
-  replayableEventTypes: 16,
+  webSocketServerMessages: 12,
+  replayableEventTypes: 17,
   runtimeEventTypes: 16,
 } as const;
 
@@ -262,7 +262,12 @@ const PLANNED_ABSENCE_TOKENS: Record<
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
   ...Object.fromEntries(
-    ["conversation-search", "thread-history-item", "thread-history-changes"].map((id) => [
+    [
+      "conversation-search",
+      "thread-history-item",
+      "thread-history-prompts",
+      "thread-history-changes",
+    ].map((id) => [
       id,
       [
         { platform: "ios" as Platform, token: `"${id}"` },
@@ -272,11 +277,47 @@ const PLANNED_ABSENCE_TOKENS: Record<
   ),
   // Quoted procedure identifiers distinguish the new wire calls from existing UI method names.
   ...Object.fromEntries(
-    ["getProviderUsage", "refreshProviderUsage"].map((token) => [
+    [
+      "hexVoice",
+      "getProviderUsage",
+      "refreshProviderUsage",
+      "listImportableSessions",
+      "getLatestAgentVersion",
+      "refreshAgentStatuses",
+      "listAcpRegistry",
+      "updateAgentBinary",
+      "updateAcpRegistryAgent",
+    ].map((token) => [
       token,
       [
         { platform: "ios" as Platform, token: `"${token}"` },
         { platform: "android" as Platform, token: `"${token}"` },
+      ],
+    ]),
+  ),
+  // Scoped review operations that a native platform has not wired keep their quoted wire
+  // name out of that platform's tree until the ledger records the implementation.
+  ...Object.fromEntries(
+    [
+      "forgeListPullRequestsInState",
+      "forgeGetPrCommitDiff",
+      "forgeSetPrReaction",
+      "forgeSubmitPrReviewDraft",
+      "ghPollPullRequests",
+    ].map((token) => [
+      token,
+      [
+        { platform: "ios" as Platform, token: `"${token}"` },
+        { platform: "android" as Platform, token: `"${token}"` },
+      ],
+    ]),
+  ),
+  ...Object.fromEntries(
+    ["pr-watch-scoped-upsert"].map((id) => [
+      id,
+      [
+        { platform: "ios" as Platform, token: `"${id}"` },
+        { platform: "android" as Platform, token: `"${id}"` },
       ],
     ]),
   ),

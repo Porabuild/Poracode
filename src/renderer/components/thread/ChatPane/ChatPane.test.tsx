@@ -1,11 +1,25 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "@heroui/react";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
+import { useThreadForkStore } from "@/renderer/state/threadForkStore";
+import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
+import * as runtimeInterestHydration from "@/renderer/state/runtimeInterestHydration";
 import { useRevertedPromptStore } from "../revertedPrompt";
 import { ChatPane } from "./ChatPane";
 import { byTextContent } from "@/renderer/testUtils/text";
@@ -56,7 +70,12 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
   finalizeFileCheckpoint,
 }));
 
-vi.mock("@/renderer/state/rendererEventInterests", () => ({ retainRendererEventInterest }));
+vi.mock("@/renderer/state/rendererEventInterests", () => ({
+  retainRendererEventInterest,
+  snapshotRendererEventInterests: () => ({ terminalThreadIds: [], runtimeThreadIds: [] }),
+  subscribeRendererEventInterests: () => () => {},
+  noteRendererEventInterestWireCoverage: () => {},
+}));
 
 vi.mock("@legendapp/list/react", async () => {
   const React = await import("react");
@@ -71,6 +90,7 @@ vi.mock("@legendapp/list/react", async () => {
         className?: string;
         contentContainerClassName?: string;
         contentContainerStyle?: React.CSSProperties;
+        contentInsetEndAdjustment?: number;
         onLoad?: () => void;
         onStartReached?: () => void;
         onKeyDownCapture?: React.KeyboardEventHandler<HTMLDivElement>;
@@ -155,6 +175,7 @@ vi.mock("@legendapp/list/react", async () => {
           <div
             className={`legend-list-content-container ${props.contentContainerClassName ?? ""}`}
             style={props.contentContainerStyle}
+            data-end-inset={props.contentInsetEndAdjustment}
           >
             {props.data.length === 0 ? props.ListEmptyComponent : null}
             {props.data.map((item, index) => (
@@ -311,7 +332,7 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Creating worktree…")).not.toBeInTheDocument();
   });
 
-  it("shows loading and retry states instead of a false empty hint while hydrating", async () => {
+  it("keeps hydration silent without a transcript error or false empty hint", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({ threads: [thread] });
 
@@ -319,18 +340,16 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
     expect(screen.getByText("No messages yet")).toBeInTheDocument();
 
-    // First read in flight: the empty hint is suppressed, loading shows.
+    // First read in flight: suppress the empty hint without a loading row.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "pending" } });
     await waitFor(() => expect(screen.queryByText("No messages yet")).not.toBeInTheDocument());
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument();
 
-    // Failed read: error with retry; retrying re-runs the hydration.
+    // Failed reads are reported by the composer, never inside the transcript.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "failed" } });
-    await waitFor(() =>
-      expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument());
+    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
 
     // Success clears the status back to the honest empty state.
     useAppStore.setState({ runtimeHydrationStatus: {} });
@@ -338,7 +357,28 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
   });
 
-  it("shows connecting without starting a working timer during GUI reconnect", () => {
+  it.each([false, true])("names agent startup accurately (saved session: %s)", (resuming) => {
+    const thread: Thread = {
+      ...makeThread(),
+      status: "launching",
+      ...(resuming
+        ? {
+            sessionRef: {
+              providerSessionId: "saved-session",
+              discoveredAt: new Date().toISOString(),
+            },
+          }
+        : {}),
+    };
+    useAppStore.setState({ threads: [thread] });
+    renderChatPane(thread);
+    expect(
+      screen.getByText(resuming ? "Resuming session…" : "Starting agent…"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Working for/)).not.toBeInTheDocument();
+  });
+
+  it("shows session resumption without starting a working timer during GUI reconnect", () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({
       threads: [thread],
@@ -347,12 +387,25 @@ describe("ChatPane", () => {
 
     renderChatPane(thread);
 
-    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+    expect(screen.getByText("Resuming session…")).toBeInTheDocument();
     expect(screen.queryByText(/^Working for/)).not.toBeInTheDocument();
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument();
   });
 
-  it("keeps a loaded reply's completed timer when a history refresh fails", async () => {
+  it("keeps history warnings out of supplementary transcript content", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({
+      threads: [thread],
+      runtimeHydrationStatus: { [thread.id]: "failed" },
+    });
+
+    renderChatPane(thread, { hasSupplementaryContent: true });
+
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+  });
+
+  it("keeps a loaded reply and its completed timer during recovery", async () => {
     const thread = {
       ...makeThread(),
       status: "idle" as const,
@@ -364,14 +417,22 @@ describe("ChatPane", () => {
       runtimeHydrationStatus: { [thread.id]: "failed" },
     });
     seedAssistantMessage(thread.id, "Previously loaded reply");
-    renderChatPane(thread);
-    expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
-    expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
-    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+    const recover = vi.fn<(threadId: string) => void>();
+    const uninstall = installRuntimeHistoryRecovery(recover);
+    try {
+      renderChatPane(thread);
+      expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
+      expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
+      expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+      await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id));
+      expect(screen.getByText("Previously loaded reply")).toBeInTheDocument();
+    } finally {
+      uninstall();
+    }
   });
 
   it.each(["idle", "inactive", "working"] as const)(
-    "offers retry when a %s thread's history fails after a completed turn",
+    "keeps a %s thread's failed history warning outside the transcript",
     async (status) => {
       const thread = {
         ...makeThread(),
@@ -386,15 +447,17 @@ describe("ChatPane", () => {
         threads: [thread],
         runtimeHydrationStatus: { [thread.id]: "failed" },
       });
+      // A failed load retries through the reducer that owns the thread's queue.
+      const recover = vi.fn<(threadId: string) => void>();
+      const uninstall = installRuntimeHistoryRecovery(recover);
+      onTestFinished(uninstall);
 
       renderChatPane(thread);
 
-      expect(await screen.findByText("Messages could not be loaded.")).toBeInTheDocument();
+      expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
       expect(screen.queryAllByText(/^Working for/)).toHaveLength(status === "working" ? 1 : 0);
-      await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledOnce());
-      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-      await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id));
 
       act(() => {
         seedAssistantMessage(thread.id, "Recovered saved reply");
@@ -419,7 +482,7 @@ describe("ChatPane", () => {
     renderChatPane(thread);
 
     expect(await screen.findByText(/^Working for/)).toBeInTheDocument();
-    expect(screen.queryByText("Connecting…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument();
   });
 
   it.each([
@@ -428,7 +491,7 @@ describe("ChatPane", () => {
     ["inactive", 75_000],
     ["inactive", 700],
   ] as const)(
-    "keeps connecting while an %s thread's completed history is loading (%i ms turn)",
+    "keeps an %s thread's completed history loading silent (%i ms turn)",
     async (status, durationMs) => {
       const startedAt = "2026-05-01T12:00:00.000Z";
       const thread = {
@@ -444,10 +507,36 @@ describe("ChatPane", () => {
 
       renderChatPane(thread);
 
-      expect(await screen.findByText("Connecting…")).toBeInTheDocument();
+      expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument();
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
     },
   );
+
+  it.each([false, true])("reveals measured history immediately for remote=%s", (remote) => {
+    const thread: Thread = {
+      ...makeThread(),
+      ...(remote ? { remoteServerId: "remote-host", remoteId: "remote-thread" } : {}),
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Measured history");
+    const height = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+    const reader = vi.spyOn(runtimeInterestHydration, "adoptRuntimeThreadReader").mockReturnValue({
+      ready: Promise.resolve(),
+      release: () => {},
+    });
+    const frames = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
+    const onInitialScrollSettled = vi.fn<() => void>();
+    try {
+      const { container, unmount } = renderChatPane(thread, { onInitialScrollSettled });
+      expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+      expect(getContentElement(getScrollElement(container))).not.toHaveClass("opacity-0");
+      unmount();
+    } finally {
+      height.mockRestore();
+      reader.mockRestore();
+      frames.mockRestore();
+    }
+  });
 
   it("waits for the initial history layout before paging at the start", async () => {
     const thread = makeThread();
@@ -659,6 +748,34 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     expect(getScrollElement(container).className).toContain("[overflow-anchor:none]");
+  });
+
+  it("sizes the chat scroller below in-flow banners so the tail stays above the composer", async () => {
+    const thread: Thread = {
+      ...makeThread(),
+      forkedFrom: {
+        version: 1,
+        threadId: "thread-source",
+        title: "Source thread",
+        throughItemId: "assistant-source",
+        inheritedTurnCount: 1,
+        contextStrategy: "transcript",
+      },
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Inspect output");
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    // A full-height scroller placed after a banner overflows its container by
+    // the banner height, hiding the "Working for" footer under the composer.
+    const scroller = getScrollElement(container);
+    const banner = screen.getByTestId("thread-fork-source");
+    expect(banner.parentElement).toBe(scroller.parentElement);
+    expect(scroller.parentElement?.className).toContain("flex-col");
+    expect(scroller.className).toContain("flex-1");
+    expect(scroller.className).not.toContain("h-full");
   });
 
   it("does not disturb the native end anchor when bottom-pinned content collapses", async () => {
@@ -1014,6 +1131,83 @@ describe("ChatPane", () => {
 
     await waitFor(() => expect(metrics.getScrollTop()).toBe(300));
   });
+
+  it.each([true, false])(
+    "resumes following on a downward wheel after layout growth: %s",
+    async (wheelDown) => {
+      const thread = makeThread();
+      seedAssistantMessage(thread.id, "Inspect output");
+
+      let now = 1_000;
+      const performanceNow = vi.spyOn(performance, "now").mockImplementation(() => now);
+      try {
+        const { container } = renderChatPane(thread);
+        await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+        const scrollElement = getScrollElement(container);
+        const contentElement = getContentElement(scrollElement);
+        const metrics = installScrollMetrics(scrollElement, {
+          scrollHeight: 200,
+          clientHeight: 100,
+          scrollTop: 0,
+        });
+
+        // Let the initial settle finish before scrolling: its reveal watchdog
+        // would otherwise force a bottom pin later and mask the wheel wiring.
+        await act(async () => {
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+          );
+        });
+
+        act(() => {
+          metrics.setScrollTop(100);
+          fireEvent.scroll(scrollElement);
+        });
+
+        // Wheel up and scroll away: sticky releases and the reader pauses.
+        act(() => {
+          fireEvent.wheel(scrollElement, { deltaY: -120 });
+          metrics.setScrollTop(20);
+          fireEvent.scroll(scrollElement);
+        });
+
+        // Let the scroll-away intent window lapse.
+        now += 1_000;
+        // Content grows without a scroll event, so the next scroll event sees
+        // growth and cannot take the layout-stable return path.
+        metrics.setScrollHeight(300);
+
+        act(() => {
+          if (wheelDown) fireEvent.wheel(scrollElement, { deltaY: 120 });
+          metrics.setScrollTop(300);
+          fireEvent.scroll(scrollElement);
+        });
+        // Restore the real clock so the streamed append can render.
+        performanceNow.mockRestore();
+
+        act(() => {
+          appendAssistantText(thread.id, " — Open logs");
+        });
+        await screen.findByText(/Open logs/);
+
+        act(() => {
+          metrics.setScrollHeight(400);
+          MockResizeObserver.notify(contentElement);
+        });
+
+        await waitFor(() => expect(metrics.getScrollTop()).toBe(wheelDown ? 400 : 300));
+        await act(async () => {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        });
+        expect(metrics.getScrollTop()).toBe(wheelDown ? 400 : 300);
+      } finally {
+        performanceNow.mockRestore();
+      }
+    },
+  );
 
   it("does not release sticky mode for layout-driven upward scroll during tail collapse", async () => {
     const thread = makeThread();
@@ -1706,6 +1900,22 @@ describe("ChatPane", () => {
     expect(badge).toHaveAttribute("aria-label", "Computer Use");
   });
 
+  it("renders a skill picked from a plugin as a skill badge, not the plugin", async () => {
+    const thread = makeThread();
+    seedUserMessageContent(thread.id, [
+      { kind: "skill", name: "finalize", invocation: "/finalize", pluginId: "app-controls" },
+    ]);
+
+    const { container } = renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    const badge = container.querySelector('[data-skill-name="finalize"]');
+    expect(badge).toHaveTextContent("finalize");
+    expect(badge).toHaveAttribute("aria-label", "Skill: finalize");
+    expect(badge).not.toHaveAttribute("data-plugin-id");
+    expect(badge?.querySelector("svg.lucide-sparkles")).toBeInTheDocument();
+  });
+
   it("keeps a leading slash command when a later skill chip is present", async () => {
     const thread = makeThread();
     seedUserMessageContent(thread.id, [
@@ -1717,7 +1927,9 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     expect(screen.getByText("goal").parentElement).toHaveClass("poracode-slash-chip");
-    expect(screen.getByText("goal").previousElementSibling).toHaveTextContent("/");
+    expect(
+      screen.getByText("goal").previousElementSibling?.querySelector(".lucide-target"),
+    ).toHaveAttribute("aria-hidden", "true");
     const skill = container.querySelector('[data-skill-name="code-review"]');
     expect(skill).toHaveTextContent("code-review");
     expect(skill?.querySelector("svg")).toBeInTheDocument();
@@ -2215,6 +2427,128 @@ describe("ChatPane", () => {
     expect(label.closest(".surface")).not.toBeNull();
   });
 
+  it.each(["latest", "historical", "sub-second"])(
+    "keeps the %s turn's fork beside copy instead of its elapsed footer",
+    (position) => {
+      const thread = { ...makeThread(), status: "idle" as const };
+      useAppStore.setState({ threads: [thread] });
+      seedAssistantMessage(thread.id, "Final answer");
+      completeAssistantMessage(thread.id);
+      useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+        {
+          startedAt: 1000,
+          endedAt: position === "sub-second" ? 1500 : 76000,
+          anchorItemId: ASSISTANT_ITEM_ID,
+        },
+      ]);
+      if (position === "historical") seedUserMessage(thread.id, "Follow-up", "user-2");
+      useAppStore.setState({ threads: [thread] });
+
+      renderChatPane(thread);
+
+      const copy = within(screen.getByText("Final answer").closest(".surface")!).getByRole(
+        "button",
+        { name: "Copy message" },
+      );
+      const fork = screen.getByRole("button", { name: "Fork from here" });
+      expect(copy.closest(".poracode-message-action-strip")).toContainElement(fork);
+      expect(
+        screen.queryByText("Worked for 1m 15s")?.closest(".surface")?.contains(fork) ?? false,
+      ).toBe(false);
+      fireEvent.click(fork);
+      expect(useThreadForkStore.getState()).toMatchObject({
+        sourceThreadId: thread.id,
+        throughItemId: ASSISTANT_ITEM_ID,
+      });
+      useThreadForkStore.getState().close();
+    },
+  );
+
+  it("forks from the persisted anchor when a hidden goal ends an assistant turn", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(thread.id, [
+        { startedAt: 1000, endedAt: 76000, anchorItemId: "goal-1" },
+      ]);
+    useAppStore.setState({ threads: [thread] });
+
+    const { container } = renderChatPane(thread);
+
+    const fork = screen.getByRole("button", { name: "Fork from here" });
+    expect(container.querySelector(".poracode-message-action-strip")).toContainElement(fork);
+    fireEvent.click(fork);
+    expect(useThreadForkStore.getState().throughItemId).toBe("goal-1");
+    useThreadForkStore.getState().close();
+  });
+
+  it("keeps the footer fork when the turn ends with a tool instead of an answer", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "tool-1",
+      itemType: "tool_call",
+      payload: { name: "Read", status: "completed", args: { file_path: "hello.txt" } },
+    });
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(thread.id, [
+        { startedAt: 1000, endedAt: 76000, anchorItemId: "tool-1" },
+      ]);
+    useAppStore.setState({ threads: [thread] });
+
+    renderChatPane(thread);
+
+    expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy message" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the footer fork row while reconnecting so the footer height does not change", () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "tool-1",
+      itemType: "tool_call",
+      payload: { name: "Read", status: "completed", args: { file_path: "hello.txt" } },
+    });
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(thread.id, [
+        { startedAt: 1000, endedAt: 76000, anchorItemId: "tool-1" },
+      ]);
+    useAppStore.setState({
+      threads: [thread],
+      connectingThreadIds: { [thread.id]: "connection-1" },
+    });
+
+    renderChatPane(thread);
+
+    expect(screen.getByText("Resuming session…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+
+    act(() => {
+      useAppStore.getState().finishThreadConnecting(thread.id, "connection-1");
+    });
+
+    expect(screen.queryByText("Resuming session…")).not.toBeInTheDocument();
+    expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+  });
+
   it("renders a completed turn whose stored anchor is an unrendered goal item", () => {
     const thread = {
       ...makeThread(),
@@ -2652,7 +2986,7 @@ describe("ChatPane", () => {
         },
       },
     });
-    renderChatPane(thread, { checkpointProjectLocation: project.location });
+    renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
@@ -2919,6 +3253,149 @@ describe("ChatPane", () => {
 
     expect(screen.queryByText("Revert to checkpoint?")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("Another prompt")).not.toBeInTheDocument());
+  });
+
+  describe("live status bubble", () => {
+    let slot: HTMLDivElement;
+
+    beforeEach(() => {
+      slot = document.createElement("div");
+      document.body.appendChild(slot);
+      useComposerBubbleSlotStore.getState().setSlot("status", "thread-gui", slot);
+    });
+
+    afterEach(() => {
+      useComposerBubbleSlotStore.getState().setSlot("status", "thread-gui", null);
+      useComposerBubbleSlotStore.getState().setEndInset("thread-gui", 0);
+      slot.remove();
+      useAppStore.setState({
+        runtimeOpenTurnByThread: {},
+        runtimeBackgroundTasksByThread: {},
+      });
+    });
+
+    it("rides the bubble row's leading edge while the turn is working", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-05-01T12:01:10.000Z"));
+
+      const { container } = renderChatPane({
+        ...makeThread(),
+        activeTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      });
+
+      const label = within(slot).getByText("Working for 1m 10s");
+      const bubble = label.closest("[data-chat-status-bubble]");
+      expect(bubble).not.toBeNull();
+      expect(bubble).toHaveClass("poracode-floating-chrome--bubble");
+      expect(container).not.toContainElement(label);
+      expect(within(container).queryByText(/Working for/)).toBeNull();
+      // The bubble row's end inset reserves its band, so the tail adds no row.
+      const content = container.querySelector(".legend-list-content-container");
+      expect(content?.querySelector(":scope > .pb-2")).toBeNull();
+    });
+
+    it("reserves the bubble row's floating band below the transcript tail", () => {
+      useComposerBubbleSlotStore.getState().setEndInset("thread-gui", 34);
+
+      const { container } = renderChatPane(makeThread());
+
+      expect(container.querySelector(".legend-list-content-container")).toHaveAttribute(
+        "data-end-inset",
+        "34",
+      );
+    });
+
+    it("keeps the compact composer's inset when no bubble row is mounted", () => {
+      const { container } = renderChatPane(makeThread(), { bottomInset: 90 });
+
+      expect(container.querySelector(".legend-list-content-container")).toHaveAttribute(
+        "data-end-inset",
+        "90",
+      );
+    });
+
+    it("shows worktree provisioning in the slot only", () => {
+      const thread = { ...makeThread(), status: "launching" as const };
+      useAppStore.setState({
+        threads: [thread],
+        provisioningWorktreeThreadIds: { [thread.id]: true },
+      });
+      seedUserMessage(thread.id, "Build the feature");
+
+      const { container } = renderChatPane(thread);
+
+      expect(within(slot).getByText("Creating worktree…")).toBeInTheDocument();
+      expect(within(container).queryByText("Creating worktree…")).not.toBeInTheDocument();
+    });
+
+    it("shows the background-wait status in the slot", () => {
+      const thread = { ...makeThread(), status: "working" as const };
+      useAppStore.setState({
+        threads: [thread],
+        runtimeOpenTurnByThread: { [thread.id]: false },
+        runtimeBackgroundTasksByThread: {
+          [thread.id]: [{ taskId: "server", kind: "command", description: "Admin server" }],
+        },
+      });
+
+      renderChatPane(thread);
+
+      expect(within(slot).getByText("Waiting for background tasks")).toBeInTheDocument();
+    });
+
+    it("keeps a completed turn's duration in the transcript and the slot empty", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-05-01T12:02:00.000Z"));
+
+      const { container } = renderChatPane({
+        ...makeThread(),
+        status: "idle",
+        activeTurnStartedAt: undefined,
+        lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+        lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+      });
+
+      expect(within(container).getByText("Worked for 1m 15s")).toBeInTheDocument();
+      expect(slot).toBeEmptyDOMElement();
+    });
+
+    it("moves the reconnect status into the bubble and keeps the fork row", () => {
+      const thread = { ...makeThread(), status: "idle" as const };
+      useAppStore.setState({ threads: [thread] });
+      useAppStore.getState().applyRuntimeEvent(thread.id, {
+        type: "item.started",
+        threadId: thread.id,
+        itemId: "tool-1",
+        itemType: "tool_call",
+        payload: { name: "Read", status: "completed", args: { file_path: "hello.txt" } },
+      });
+      useAppStore
+        .getState()
+        .hydrateThreadCompletedTurns(thread.id, [
+          { startedAt: 1000, endedAt: 76000, anchorItemId: "tool-1" },
+        ]);
+      useAppStore.setState({
+        threads: [thread],
+        connectingThreadIds: { [thread.id]: "connection-1" },
+      });
+
+      const { container } = renderChatPane(thread);
+
+      expect(within(slot).getByText("Resuming session…")).toBeInTheDocument();
+      expect(
+        within(slot).getByText("Resuming session…").closest("[data-chat-status-bubble]"),
+      ).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+      expect(within(container).queryByText(/Resuming session/)).toBeNull();
+
+      act(() => {
+        useAppStore.getState().finishThreadConnecting(thread.id, "connection-1");
+      });
+
+      expect(slot).toBeEmptyDOMElement();
+      expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+    });
   });
 });
 

@@ -67,6 +67,14 @@ export function projectRemoteThread(remoteServerId: string, thread: Thread): Thr
     ...(thread.parentThreadId
       ? { parentThreadId: remoteThreadId(remoteServerId, thread.parentThreadId) }
       : {}),
+    ...(thread.forkedFrom
+      ? {
+          forkedFrom: {
+            ...thread.forkedFrom,
+            threadId: remoteThreadId(remoteServerId, thread.forkedFrom.threadId),
+          },
+        }
+      : {}),
   };
 }
 
@@ -249,26 +257,6 @@ function threadMentionTextSegment(
   segment: Extract<PromptSegment, { kind: "thread" }>,
 ): PromptSegment {
   return { kind: "text", content: inlinePromptSegmentText(segment) };
-}
-
-/** Translate renderer-projected thread mention ids back to a remote host id. */
-export function unprojectRemoteThreadMentionSegments(
-  remoteServerId: string,
-  segments: readonly PromptSegment[],
-  threads: readonly Thread[],
-): PromptSegment[] {
-  const remoteThreads = new Map(
-    threads
-      .filter((thread) => thread.remoteServerId === remoteServerId && thread.remoteId)
-      .map((thread) => [thread.id, thread.remoteId!]),
-  );
-  return segments.map((segment) => {
-    if (segment.kind !== "thread") return segment;
-    const remoteId =
-      remoteThreads.get(segment.threadId) ??
-      unprojectRemoteThreadId(remoteServerId, segment.threadId);
-    return remoteId ? { ...segment, threadId: remoteId } : threadMentionTextSegment(segment);
-  });
 }
 
 /**

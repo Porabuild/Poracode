@@ -66,6 +66,24 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
     }
     var checkpointCollection = RichCheckpointCollection(emptyList(), emptyList())
     var uploadHandler: suspend (String, AttachmentUploadBody) -> String = { _, _ -> "/tmp/file" }
+    var downloadHandler: suspend (
+        RichChatHostLease,
+        com.poracode.app.chat.RichChatFileAccess,
+        com.poracode.app.model.ProjectLocation,
+        java.io.File,
+    ) -> com.poracode.app.transport.richchat.RichChatDownloadedFile =
+        { _, _, _, _ -> error("downloadRichFile not stubbed") }
+
+    override suspend fun downloadRichFile(
+        lease: RichChatHostLease,
+        request: com.poracode.app.chat.RichChatFileAccess,
+        projectLocation: com.poracode.app.model.ProjectLocation,
+        suggestedName: String,
+        destinationDirectory: java.io.File,
+    ): com.poracode.app.transport.richchat.RichChatDownloadedFile {
+        calls += "download-file"
+        return downloadHandler(lease, request, projectLocation, destinationDirectory)
+    }
 
     override suspend fun history(
         lease: RichChatHostLease,
@@ -120,6 +138,8 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
         return acknowledgeGapHandler(threadId, episodeToken, commandId)
     }
 
+    val sentPrompts = mutableListOf<Pair<String, JsonArray?>>()
+
     override suspend fun send(
         lease: RichChatHostLease,
         threadId: String,
@@ -127,7 +147,10 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
         config: ThreadConfig,
         segments: JsonArray?,
         userMessageItemId: String?,
-    ) = call("send")
+    ) {
+        sentPrompts += prompt to segments
+        call("send")
+    }
 
     override suspend fun interrupt(lease: RichChatHostLease, threadId: String) = call("interrupt")
     override suspend fun truncate(lease: RichChatHostLease, threadId: String, itemId: String) =

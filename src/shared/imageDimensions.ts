@@ -73,6 +73,19 @@ function readBase64DataUrlBody(value: string): string | null {
     : null;
 }
 
+/**
+ * True for an animated PNG. Decoders such as libvips report APNG as a single
+ * page; its animation control chunk precedes the first image-data chunk.
+ */
+export function isAnimatedPng(bytes: Uint8Array): boolean {
+  for (let offset = 8; offset + 12 <= bytes.length; offset += 12 + readUint32BE(bytes, offset)) {
+    const chunk = String.fromCharCode(...bytes.subarray(offset + 4, offset + 8));
+    if (chunk === "acTL") return true;
+    if (chunk === "IDAT") return false;
+  }
+  return false;
+}
+
 function readPngDimensions(bytes: Uint8Array) {
   if (
     bytes.length < 24 ||

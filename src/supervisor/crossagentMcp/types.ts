@@ -18,16 +18,10 @@ import type { CompactResult } from "./compactResult";
 import type { CrossagentRoutingOverride } from "@/shared/settings";
 import type { HostDiagnosticsSnapshot } from "@/shared/lsp";
 import type { DispatchProvenance, SubagentDispatchTrace } from "./dispatchTrace";
+import type { ModelTier } from "@/shared/modelTier";
 
 /** Terminal states a subagent run can settle into. */
 export type SubagentRunStatus = "running" | "completed" | "failed" | "cancelled";
-
-/**
- * Coarse capability/cost hint for a model, so calling agents can route without
- * guessing from labels alone: fast-cheap for light tasks, max-capability for
- * the hardest ones, balanced as the default.
- */
-export type ModelTier = "fast-cheap" | "balanced" | "max-capability";
 
 /** A model choice offered to the calling agent for a spawnable agent. */
 export interface SpawnableAgentModel {
@@ -85,7 +79,7 @@ export function resolveSubagentExecution(adapter: {
  * permission rule in `buildSubagentOneShotCommand`.
  */
 export function buildUnrestrictedChildConfig(
-  child: { model: string; effort?: string; fast?: boolean },
+  child: { model: string; effort?: string; fast?: boolean; contextSize?: string },
   targetCapabilities: Pick<
     AgentCapability,
     "approvalPolicies" | "sandboxModes" | "bypassPermissions"
@@ -96,6 +90,7 @@ export function buildUnrestrictedChildConfig(
     model: child.model,
     ...(child.effort ? { effort: child.effort } : {}),
     ...(typeof child.fast === "boolean" ? { fast: child.fast } : {}),
+    ...(child.contextSize ? { contextSize: child.contextSize } : {}),
     ...resolveUnrestrictedPermissionConfig(targetCapabilities),
     ...(parentConfig?.browserMcp === true ? { browserMcp: true } : {}),
     ...(parentConfig?.computerUse === true ? { computerUse: true } : {}),
@@ -169,6 +164,8 @@ export interface SpawnAgentSelection {
   model?: string;
   effort?: string;
   fast?: boolean;
+  /** Context length id; applied only when the provider offers it for the model. */
+  contextSize?: string;
 }
 
 export interface ExplicitSpawnAgentSelection {
@@ -182,10 +179,48 @@ export interface ExplicitSpawnAgentSelection {
   };
 }
 
+/**
+ * Immutable snapshot of one configured crew option, captured before
+ * availability filtering. Internal and memory-only; never persisted or sent on
+ * the wire. `contextSize` is the configured value, not the capability-filtered
+ * effective value.
+ */
+export interface CrewRoleOptionSnapshot {
+  provider: string;
+  model: string;
+  contextSize?: string;
+  effort?: string;
+  fast?: boolean;
+}
+
 /** Arguments accepted by `spawn_agent` / `run_agent`. */
 export interface SpawnAgentRequest extends SpawnAgentSelection {
   /** Internal selection provenance; never parsed from caller-supplied metadata. */
   dispatchProvenance?: DispatchProvenance;
+  /** Trusted crew role metadata resolved from the parent thread binding. */
+  crewRole?: {
+    id: string;
+    label: string;
+    brief?: string;
+    noEdits?: true;
+    parallel: number;
+    /**
+     * The role's configured options at resolution time, before availability
+     * filtering. Optional because internal callers and manually constructed
+     * plans may omit metadata; these run plans are memory-only and do not
+     * survive restart.
+     */
+    selection?: CrewRoleOptionSnapshot;
+    fallbacks?: CrewRoleOptionSnapshot[];
+    /**
+     * Maps each `PreparedSubagentRun.attempts` entry to its index in the
+     * configured selection/fallbacks snapshot. Captured before availability
+     * filtering so duplicate identities keep their original occurrence.
+     * Memory-only; the mapping is carried as `[winningIndex]` when planning a
+     * continued single-attempt turn.
+     */
+    optionIndices?: number[];
+  };
   prompt: string;
   /** Ask the worker to prepare a structured final report; reads omit narration by default. */
   resultMode?: "compact";
@@ -266,6 +301,7 @@ export interface SubagentRunSummary {
   attempt: number;
   attempt_count: number;
   can_steer: boolean;
+  role?: string;
   /** Next turn receipt when a completed worker has already been resumed. */
   continued_by?: string;
 }

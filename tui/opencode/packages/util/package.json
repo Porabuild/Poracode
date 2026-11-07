@@ -1,0 +1,21 @@
+{
+  "name": "@opencode/util",
+  "version": "2.1.4",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./effect/layer-node": "./src/effect/layer-node.ts",
+    "./*": "./src/*.ts"
+  },
+  "imports": {
+    "#global-roots": "./src/global-roots.ts",
+    "#runtime-import": {
+      "bun": "./src/runtime/import.bun.ts",
+      "default": "./src/runtime/import.bun.ts"
+    }
+  },
+  "dependencies": {
+    "effect": "catalog:",
+    "open": "catalog:"
+  }
+}

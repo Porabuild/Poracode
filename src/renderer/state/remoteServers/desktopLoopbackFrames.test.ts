@@ -122,6 +122,12 @@ describe("private desktop loopback frame vocabulary (A3)", () => {
       ports,
     );
     expect(onServerFrame).toHaveBeenCalledWith({ type: "terminal-output", id: "t1", data: "x" });
+    const vision = { type: "agent-vision-frame", watchId: "watch", vision: null };
+    routeDesktopLoopbackFrame(validateDesktopLoopbackFrame(vision), ports);
+    expect(onServerFrame).toHaveBeenCalledWith(vision);
+    expect(
+      validateDesktopLoopbackFrame({ ...vision, vision: { image: "https://invalid" } }),
+    ).toEqual({ kind: "invalid" });
   });
 
   it("routes pong, rebuild and events to their ports and ignores invalid", () => {

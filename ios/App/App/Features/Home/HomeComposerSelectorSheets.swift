@@ -99,6 +99,7 @@ extension HomeQuickComposeView {
       selectedModel = model.modelID
       selectedEffort = defaultEffort(for: agent, modelID: model.modelID)
       fast = false
+      workflows = false
       configuredConfiguration = nil
       selector = nil
     } label: {

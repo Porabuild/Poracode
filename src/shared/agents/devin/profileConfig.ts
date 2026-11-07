@@ -257,6 +257,11 @@ export function isUsableDevinProfileConfig(
   return result.status === "ok";
 }
 
+export function validateDevinProfileConfig(value: unknown): void {
+  const result = parseDevinProfileConfig(value);
+  if (result.status !== "ok") throw new Error(result.reason);
+}
+
 /** Human-readable explanation for a disabled profile, or undefined when usable. */
 export function describeDevinProfileConfigUnavailability(
   result: DevinProfileConfigParseResult,

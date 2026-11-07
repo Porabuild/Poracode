@@ -11,6 +11,137 @@ import { i18n } from "./i18n";
  * arguments resolved with the values passed to `msg()`.
  */
 export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "thread.permission.persistentUnavailable": msg({
+    message: "This request has no matching persistent approval. Choose Allow once.",
+  }),
+  "thread.execution.owned": msg({
+    message:
+      "Another client is running this thread. Stop that run before replacing the thread or sending more input.",
+  }),
+  "forge.commentNotEditable": msg({
+    message: "Only your own comments on this pull request can be edited.",
+  }),
+  "forge.guideInvalid": msg({
+    message:
+      "The guide did not cover every changed file or contained an invalid excerpt. Rewrite the guide.",
+  }),
+  "forge.guideWriterUnsupported": msg({
+    message: "Select a guide writer that supports an enforced read-only workspace.",
+  }),
+  "forge.commentChanged": msg({
+    message: "This comment changed while you were editing it. Refresh before saving.",
+  }),
+  "forge.unsupported": msg({
+    message:
+      "This operation is not supported by the {forge} integration. Open the review on its source host.",
+  }),
+  "forge.credentials": msg({
+    message: "Configure credentials scoped to this exact source host in the project's runtime.",
+  }),
+  "forge.accountMismatch": msg({
+    message:
+      "The source credential belongs to a different account. Select the correct account and retry.",
+  }),
+  "forge.hostMismatch": msg({
+    message: "The selected source account does not match the project's remote.",
+  }),
+  "forge.hostInvalid": msg({ message: "Source host must be an HTTPS URL without credentials." }),
+  "forge.noRemote": msg({ message: "This project has no supported source-host remote." }),
+  "forge.remotesAmbiguous": msg({
+    message: "Multiple source remotes are configured. Set the branch upstream before reviewing.",
+  }),
+  "forge.responseInvalid": msg({
+    message:
+      "The source host returned an invalid response. Update the integration or open the review on its source host.",
+  }),
+  "forge.headChanged": msg({
+    message:
+      "The pull request head changed or is unavailable. Refresh and review it before merging.",
+  }),
+  "forge.reviewHeadChanged": msg({
+    message:
+      "The pull request changed after these line comments were drafted. Refresh and check them before submitting.",
+  }),
+  "forge.reviewDraftPartial": msg({
+    message:
+      "Some line comments were posted, but the review did not finish. Refresh before submitting again.",
+  }),
+  "forge.labelUnknown": msg({
+    message: "That label does not exist in this repository. Refresh the label list and try again.",
+  }),
+  "forge.reviewDraftExists": msg({
+    message:
+      "You have an unfinished review on the source host. Submit or discard it there before submitting this one.",
+  }),
+  "forge.commitNotInReview": msg({
+    message:
+      "That commit is not part of this pull request. Refresh and choose a commit from its history.",
+  }),
+  "forge.outsideApi": msg({ message: "The source host returned a link outside the selected API." }),
+  "forge.http": msg({ message: "Source host {host} returned HTTP {status}." }),
+  "forge.pagination": msg({
+    message: "Source host pagination did not complete. Narrow the review query.",
+  }),
+  "forge.diffUnavailable": msg({
+    message:
+      "The source host omitted this file's diff content. Open the review on its source host.",
+  }),
+  "forge.reviewPartial": msg({
+    message:
+      "The review was submitted, but its comment failed. Refresh before posting the comment separately.",
+  }),
+  "forge.draftPartial": msg({
+    message:
+      "Pull request #{number} was created, but marking it as draft failed. Refresh before changing its state.",
+  }),
+  "forge.mergeFailed": msg({
+    message: "The source host rejected the merge. Refresh the pull request before retrying.",
+  }),
+  "forge.commandFailed": msg({
+    message: "Source control command {command} failed. Check its installation and host login.",
+  }),
+  "forge.configUnreadable": msg({ message: "Source host login configuration could not be read." }),
+  "forge.wslUnavailable": msg({ message: "WSL bridge unavailable for source control." }),
+  "forge.bodyRequired": msg({ message: "A review or comment body is required." }),
+  "forge.autoMergeUnavailable": msg({
+    message: "This source host does not support safe automatic merge.",
+  }),
+  "forge.watchChanged": msg({
+    message: "The watched pull request changed. Review the watch before continuing.",
+  }),
+  "forge.autoFixUnavailable": msg({ message: "Automation requires a branch in this repository." }),
+  "forge.networkFailed": msg({
+    message: "Source host request failed. Check its connection and login.",
+  }),
+  "forge.watchScopeMissing": msg({
+    message:
+      "This saved review watch has no source scope. Review the pull request and enable automation again.",
+  }),
+  "forge.watchScopeUnsupported": msg({
+    message:
+      "This review watch uses an unsupported source-scope version. Update the app before changing it.",
+  }),
+  "forge.watchScopeUnavailable": msg({
+    message:
+      "Scoped review watches are unavailable on this host. Update the host before enabling automation.",
+  }),
+  "forge.repositoryChanged": msg({
+    message:
+      "The selected repository no longer matches this project's source remote. Refresh before continuing.",
+  }),
+
+  "thread.forkSourceUnavailable": msg({ message: "The source conversation is unavailable." }),
+  "thread.forkSourceActive": msg({
+    message: "Wait for the source conversation to finish before forking.",
+  }),
+  "thread.forkBoundaryUnavailable": msg({ message: "Choose a completed turn to fork from." }),
+  "thread.forkBoundaryActive": msg({ message: "The selected turn still contains active work." }),
+  "thread.forkContextUnavailable": msg({
+    message: "The fork's saved conversation is unavailable.",
+  }),
+  "thread.forkRevertUnavailable": msg({
+    message: "Inherited history cannot be reverted in this fork.",
+  }),
   "agent.updateQueueTimeout": msg({
     message: "The update waited too long for another installation. Try again.",
   }),
@@ -126,6 +257,9 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
   }),
   "thread.backgroundTaskStopUnconfirmed": msg({
     message: "The task has not confirmed that it stopped. Try again.",
+  }),
+  "thread.backgroundTaskReportMissing": msg({
+    message: "The task ended without a completion report.",
   }),
   "voice.unavailable": msg({ message: "Live voice is unavailable for this thread." }),
   "voice.alreadyConnected": msg({ message: "A voice conversation is already active." }),
@@ -358,6 +492,17 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
   "codex.modelRerouted": msg({
     message: "Model rerouted from {fromModel} to {toModel}.",
   }),
+  "cursor.summarizeUnavailableDuringTurn": msg({
+    message:
+      "Cursor can't summarize the conversation while a turn is running. Send /summarize again once it finishes.",
+  }),
+  "cursor.compactFailed": msg({
+    message: "Cursor couldn't summarize the conversation, so it was left unchanged.",
+  }),
+  "cursor.compactFallback": msg({
+    message:
+      "Cursor couldn't write a summary, so it saved a trimmed copy of the conversation instead.",
+  }),
   "acp.authenticationUnverified": msg({
     message:
       "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
@@ -461,6 +606,9 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
   }),
   "remote.server.unreachable": msg({
     message: "Can't reach the remote server. Check that it is online, then reconnect it.",
+  }),
+  "remote.server.busy": msg({
+    message: "Too many remote requests are in progress. Try again in a moment.",
   }),
   "thread.compact.noop": msg({
     message: "Nothing to compact yet — the conversation is still small.",

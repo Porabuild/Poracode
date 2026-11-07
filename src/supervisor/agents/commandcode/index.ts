@@ -13,9 +13,13 @@ import {
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildCommandCodeArgs } from "./argv";
-import { buildCommandCodeAcpCommand, resolveCommandCodeAcpMode } from "./acp";
+import {
+  buildCommandCodeAcpCommand,
+  resolveCommandCodeAcpMode,
+  resolveCommandCodePromptErrorReason,
+} from "./acp";
 import { normalizeCommandCodePermissionRequest } from "./acpRequests";
-import { normalizeCommandCodeSessionUpdate } from "./acpUpdates";
+import { attachCommandCodeSubagentSteps, normalizeCommandCodeSessionUpdate } from "./acpUpdates";
 import { commandCodeMcpLaunch } from "./mcp";
 import { commandCodeDetectionSpec, defaultCommandCodeCapabilities } from "./detection";
 import {
@@ -141,7 +145,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
       // real id afterward (discoverSessionRef below). Returning no sessionRef
       // is what enables that discovery path; resume then targets the exact id.
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
-      snapshotCommandCodePreSpawnSessions(location, cwd);
+      await snapshotCommandCodePreSpawnSessions(location, cwd);
       const mcp = await commandCodeMcpLaunch(location, options?.mcpServers);
       return {
         ...mcp,
@@ -167,7 +171,7 @@ export function createCommandCodeAdapter(): AgentAdapter {
       // must create their own session rather than resume that unwritten ID.
       if (input.presentationMode !== "gui") return undefined;
       await prepareAgentLocationEnvironment(input.projectLocation);
-      return createAcpStructuredSession(
+      const session = createAcpStructuredSession(
         buildCommandCodeAcpCommand(
           input.projectLocation,
           resolveAgentBinaryPath(input.projectLocation, "command-code"),
@@ -182,11 +186,14 @@ export function createCommandCodeAdapter(): AgentAdapter {
         {
           resolveMode: resolveCommandCodeAcpMode,
           permissionRequestTransform: normalizeCommandCodePermissionRequest,
+          promptErrorReason: resolveCommandCodePromptErrorReason,
           // promptResult usage is cumulative consumption; native usage_update
           // carries authoritative context occupancy (including compaction).
           behavior: { promptUsageReportsContext: false, strictConfigSelection: true },
         },
       );
+      if (session) attachCommandCodeSubagentSteps(session);
+      return session;
     },
 
     createInitialSessionRef() {

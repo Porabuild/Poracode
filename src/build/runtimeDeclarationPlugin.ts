@@ -21,6 +21,52 @@ interface RuntimeDeclarationOptions {
   readonly manifestEntry?: SshRuntimeEntryName;
   readonly buildOptions: Readonly<Record<string, unknown>>;
   readonly dependencies: Readonly<Record<string, string>>;
+  readonly batch?: RuntimeDeclarationBatch;
+}
+
+type SourceDeclaration = ReturnType<typeof readRuntimeSourceDeclaration>;
+
+interface RuntimeDeclarationBatch {
+  read(root: string, buildOptions: Readonly<Record<string, unknown>>): SourceDeclaration;
+}
+
+export interface RuntimeDeclarationPluginApi {
+  runtimeDeclaration: {
+    buildOptions: Readonly<Record<string, unknown>>;
+    withBatch(batch: RuntimeDeclarationBatch): ReturnType<typeof runtimeDeclarationPlugin>;
+  };
+}
+
+/** A finite dev batch shares fresh input reads, then validates again after every build joins. */
+export async function withRuntimeDeclarationBatch<T>(
+  root: string,
+  buildOptions: Readonly<Record<string, unknown>>,
+  build: (batch: RuntimeDeclarationBatch) => Promise<T>,
+): Promise<T> {
+  const resolvedRoot = realpathSync(root);
+  const optionsKey = JSON.stringify(buildOptions);
+  const declaration = readRuntimeSourceDeclaration(resolvedRoot, buildOptions);
+  let active = true;
+  try {
+    const result = await build({
+      read(candidateRoot, candidateOptions) {
+        if (
+          !active ||
+          candidateRoot !== resolvedRoot ||
+          JSON.stringify(candidateOptions) !== optionsKey
+        )
+          throw new Error("Runtime declaration batch does not match this build.");
+        return declaration;
+      },
+    });
+    if (
+      readRuntimeSourceDeclaration(resolvedRoot, buildOptions).sourceHash !== declaration.sourceHash
+    )
+      throw new Error("Runtime inputs changed during the build. Rebuild the complete runtime.");
+    return result;
+  } finally {
+    active = false;
+  }
 }
 
 function packageName(moduleId: string): string | undefined {
@@ -33,7 +79,9 @@ function packageName(moduleId: string): string | undefined {
 /** Read the declaration on every build and embed it during output rendering.
  * Input transforms may be cached across rebuilds; their old value must not
  * determine the identity of a newly rendered host or supervisor. */
-export function runtimeDeclarationPlugin(options: RuntimeDeclarationOptions): TsdownPlugin {
+export function runtimeDeclarationPlugin(
+  options: RuntimeDeclarationOptions,
+): TsdownPlugin & { api: RuntimeDeclarationPluginApi } {
   const root = realpathSync(options.root);
   const entryPath = resolve(root, options.entryPath);
   const identityPath = resolve(root, "src/shared/runtimeBuildIdentity.ts");
@@ -41,8 +89,16 @@ export function runtimeDeclarationPlugin(options: RuntimeDeclarationOptions): Ts
   let renderedIdentity = false;
   return {
     name: `poracode:runtime-declaration:${options.entryPath}`,
+    api: {
+      runtimeDeclaration: {
+        buildOptions: options.buildOptions,
+        withBatch: (batch) => runtimeDeclarationPlugin({ ...options, batch }),
+      },
+    },
     buildStart() {
-      declaration = readRuntimeSourceDeclaration(root, options.buildOptions);
+      declaration = options.batch
+        ? options.batch.read(root, options.buildOptions)
+        : readRuntimeSourceDeclaration(root, options.buildOptions);
       renderedIdentity = false;
       for (const file of declaration.files) this.addWatchFile(file);
     },
@@ -76,7 +132,9 @@ export function runtimeDeclarationPlugin(options: RuntimeDeclarationOptions): Ts
     generateBundle(_output, bundle) {
       if (!declaration || !renderedIdentity)
         throw new Error("Runtime source declaration was not embedded in this build.");
-      const current = readRuntimeSourceDeclaration(root, options.buildOptions);
+      const current = options.batch
+        ? options.batch.read(root, options.buildOptions)
+        : readRuntimeSourceDeclaration(root, options.buildOptions);
       if (current.sourceHash !== declaration.sourceHash)
         throw new Error("Runtime inputs changed during the build. Rebuild the complete runtime.");
       const declared = new Set(declaration.files);

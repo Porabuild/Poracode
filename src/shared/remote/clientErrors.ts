@@ -76,6 +76,13 @@ export function isUnauthorizedRemoteError(error: unknown): error is RemoteClient
   return error instanceof RemoteClientError && (error.status === 401 || error.status === 403);
 }
 
+/** The host has no thread with the requested id (`404 thread_not_found`). */
+export function isRemoteThreadNotFoundError(error: unknown): error is RemoteClientError {
+  return (
+    error instanceof RemoteClientError && error.status === 404 && error.code === "thread_not_found"
+  );
+}
+
 export function isRemoteTransportFailure(error: unknown): boolean {
   if (error instanceof RemoteClientError) {
     if (error.code === "cancelled") return false;

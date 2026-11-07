@@ -202,7 +202,7 @@ describe("RemoteAccessServer audit log (Gate 6 item 4.7)", () => {
         audit,
         portForward: gateway,
         attachments: {
-          save: (input: { fileName: string }) => join(auditDir, `saved-${input.fileName}`),
+          save: async (input: { fileName: string }) => join(auditDir, `saved-${input.fileName}`),
         },
       });
       const info = await server.start();

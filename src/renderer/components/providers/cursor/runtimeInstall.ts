@@ -1,4 +1,7 @@
-import { CURSOR_SDK_INSTALL_SPEC } from "@/shared/agents/cursorSdkPackage";
+import {
+  CURSOR_SDK_INSTALL_SPEC,
+  cursorSdkExactPackageSpec,
+} from "@/shared/agents/cursorSdkPackage";
 import type { AgentStatus, Project } from "@/shared/contracts";
 
 export type CursorInstallRuntime = "acp" | "sdk" | "both";
@@ -90,6 +93,19 @@ export function cursorSdkInstallCommand(project: Project): string {
   );
 }
 
+/** Install one exact `@cursor/sdk` release with the package manager that owns it. */
+function cursorSdkExactInstallCommand(
+  project: Project,
+  manager: "npm" | "pnpm",
+  spec: string,
+): string {
+  const quoted = `'${spec}'`;
+  if (manager === "pnpm") {
+    return guardedCommand(project, "pnpm", `pnpm add -g ${quoted}`, MISSING_PNPM_MESSAGE);
+  }
+  return guardedCommand(project, "npm", `npm install -g ${quoted}`, MISSING_NPM_MESSAGE);
+}
+
 /**
  * Global installs the SDK discovery can report. `global-npm` / `global-pnpm`
  * only come from the deferred `npm root -g` / `pnpm root -g` probe, which never
@@ -101,18 +117,20 @@ export function cursorSdkInstallCommand(project: Project): string {
  */
 const NPM_UPDATABLE_SDK_SOURCES = new Set(["global-npm", "global-explicit", "global-inferred"]);
 
-export function cursorSdkUpdateCommand(status: AgentStatus, project: Project): string | undefined {
+export function cursorSdkUpdateCommand(
+  status: AgentStatus,
+  project: Project,
+  targetVersion: string,
+): string | undefined {
+  // The probed release, not the install range. `npm install -g @cursor/sdk@^1.0.38`
+  // exits 0 while 1.0.38 is installed, because that version already satisfies
+  // the range, so the Update action finished without changing the package.
+  const spec = cursorSdkExactPackageSpec(targetVersion);
+  if (!spec) return undefined;
   const source = cursorRuntimeInstallState(status).sdkInstallationSource;
-  if (source === "global-pnpm") {
-    return guardedCommand(
-      project,
-      "pnpm",
-      `pnpm add -g ${CURSOR_SDK_PACKAGE_SPEC}`,
-      MISSING_PNPM_MESSAGE,
-    );
-  }
+  if (source === "global-pnpm") return cursorSdkExactInstallCommand(project, "pnpm", spec);
   if (!source || !NPM_UPDATABLE_SDK_SOURCES.has(source)) return undefined;
-  return cursorSdkInstallCommand(project);
+  return cursorSdkExactInstallCommand(project, "npm", spec);
 }
 
 export function canUpdateCursorSdk(status: AgentStatus): boolean {

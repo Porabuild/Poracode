@@ -14,15 +14,28 @@ export class RuntimeEventRouter {
   // Canonical admission can synchronously stop a producer. Keep every released
   // prefix visible to that reentrant stop boundary until all its events enter.
   private readonly childAdmissions = new Map<string, Set<PendingChildAdmission>>();
+  private readonly onRequestEvent:
+    | ((
+        threadId: string,
+        event: Extract<RuntimeEvent, { type: "request.opened" | "request.resolved" }>,
+      ) => void)
+    | undefined;
 
   constructor(
     emit: ConstructorParameters<typeof RuntimeEventBuffer>[0],
-    options: RuntimeEventBufferOptions = {},
+    options: RuntimeEventBufferOptions & {
+      onRequestEvent?: RuntimeEventRouter["onRequestEvent"];
+    } = {},
   ) {
     this.runtimeEvents = new RuntimeEventBuffer(emit, options);
+    this.onRequestEvent = options.onRequestEvent;
   }
 
   append(threadId: string, event: RuntimeEvent): void {
+    // Request custody changes at the producer boundary, even while canonical
+    // delivery or a private child history is buffered for its client.
+    if (event.type === "request.opened" || event.type === "request.resolved")
+      this.onRequestEvent?.(threadId, event);
     const parentItemId = this.subAgents.resolveParent(threadId, event);
     if (parentItemId && !this.subAgents.isSubscribed(threadId, parentItemId)) {
       const released = this.subAgents.bufferEvent(threadId, parentItemId, event);

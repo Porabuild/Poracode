@@ -18,6 +18,7 @@ export interface GitStateSupervisorCaller {
 
 export function createGitStateExecutor(call: GitStateSupervisorCaller): GitStateExecutor {
   return {
+    ghPollPullRequests: (payload) => call("ghPollPullRequests", payload),
     gitFetch: (payload) => call("gitFetch", payload),
     gitProjectSnapshot: (payload) => call("gitProjectSnapshot", payload),
     getGitStatus: (payload) => call("getGitStatus", payload),
@@ -33,3 +34,10 @@ export function createGitStateExecutor(call: GitStateSupervisorCaller): GitState
 }
 
 export { GitStateService, type GitStateExecutor, type GitStateServiceOptions };
+export {
+  HOST_WORKTREE_WATCH_OWNER,
+  ProjectWatchLeases,
+  type ProjectWatchCallOptions,
+  type ProjectWatchLeasesOptions,
+  type ProjectWatchSupervisorCaller,
+} from "./ProjectWatchLeases";

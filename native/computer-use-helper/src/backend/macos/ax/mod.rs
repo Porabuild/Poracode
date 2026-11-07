@@ -143,7 +143,7 @@ fn attribute(name: &str) -> CFRetained<CFString> {
     CFString::from_str(name)
 }
 
-fn application(pid: u32) -> Result<AxElement> {
+pub(super) fn application(pid: u32) -> Result<AxElement> {
     // SAFETY: AXUIElementCreateApplication accepts any process id and returns a
     // Create-rule CoreFoundation object or null.
     let application = unsafe { AXUIElementCreateApplication(pid as libc::pid_t) };
@@ -155,7 +155,7 @@ fn application(pid: u32) -> Result<AxElement> {
     Ok(application)
 }
 
-fn copy_attribute(element: &AxElement, name: &str) -> Option<CFRetained<CFType>> {
+pub(super) fn copy_attribute(element: &AxElement, name: &str) -> Option<CFRetained<CFType>> {
     let name = attribute(name);
     let mut value = std::ptr::null_mut();
     // SAFETY: `element` and `name` are live and `value` is writable. A success
@@ -176,7 +176,7 @@ fn copy_attribute(element: &AxElement, name: &str) -> Option<CFRetained<CFType>>
     })
 }
 
-fn string_attribute(element: &AxElement, name: &str) -> Option<String> {
+pub(super) fn string_attribute(element: &AxElement, name: &str) -> Option<String> {
     copy_attribute(element, name)?
         .downcast::<CFString>()
         .ok()
@@ -204,7 +204,7 @@ fn bool_attribute(element: &AxElement, name: &str) -> Option<bool> {
         .map(CFBoolean::as_bool)
 }
 
-fn array_attribute(element: &AxElement, name: &str) -> Vec<AxElement> {
+pub(super) fn array_attribute(element: &AxElement, name: &str) -> Vec<AxElement> {
     let Some(value) = copy_attribute(element, name) else {
         return Vec::new();
     };
@@ -231,6 +231,13 @@ fn position(element: &AxElement) -> Option<CGPoint> {
             )
         })
     .then_some(point)
+}
+
+/// Center of an element's frame in global display coordinates, when it has area.
+pub(super) fn center(element: &AxElement) -> Option<CGPoint> {
+    let (point, size) = position(element).zip(size(element))?;
+    (size.width > 0.0 && size.height > 0.0)
+        .then(|| CGPoint::new(point.x + size.width / 2.0, point.y + size.height / 2.0))
 }
 
 fn size(element: &AxElement) -> Option<CGSize> {
@@ -480,13 +487,23 @@ fn cached_element(
     Ok((live_info, element, moved))
 }
 
-fn perform(element: &AxElement, action: &str) -> bool {
+pub(super) fn perform(element: &AxElement, action: &str) -> bool {
     let action = attribute(action);
     // SAFETY: The element and action string are live for this synchronous call.
     unsafe {
         AXUIElementPerformAction(element.as_ptr(), CFRetained::as_ptr(&action).as_ptr())
             == AX_SUCCESS
     }
+}
+
+/// Set an element's `AXValue` to `text`.
+pub(super) fn set_string_value(element: &AxElement, text: &str) -> bool {
+    let value = CFString::from_str(text);
+    set_value(
+        element,
+        "AXValue",
+        CFRetained::as_ptr(&value).as_ptr().cast_const().cast(),
+    )
 }
 
 fn set_value(element: &AxElement, attribute_name: &str, value: *const c_void) -> bool {

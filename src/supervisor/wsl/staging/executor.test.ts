@@ -104,6 +104,17 @@ describe("ProcessStagingExecutor", () => {
     }
   });
 
+  it("reports the worker's exit when its input closes before the request lands", async () => {
+    const executor = createProcessStagingExecutor(fixtureSpec("close-input"));
+    try {
+      await expect(
+        executor.execute({ op: "exists", path: "/tmp/whatever" }, { timeoutMs: 5_000 }),
+      ).rejects.toThrow(/exited \(code 3\)/);
+    } finally {
+      await executor.dispose();
+    }
+  });
+
   it("rejects an aborted waiter without killing the worker", async () => {
     const executor = createProcessStagingExecutor(fixtureSpec("echo"));
     try {

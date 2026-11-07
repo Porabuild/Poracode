@@ -1,9 +1,9 @@
-import { useState, type KeyboardEvent } from "react";
-import { Button } from "@heroui/react";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useId, useState } from "react";
+import { useLingui } from "@lingui/react/macro";
 import type { UserInputOption } from "@/shared/contracts";
-import { QuestionOptionRow } from "./QuestionOptionRow";
-import { handleQuestionOptionKey } from "../questionOptionKeyboard";
+import { QuestionOptions } from "./QuestionOptions";
+import { QuestionStepForm } from "../QuestionStepForm";
+import { QuestionFormActions } from "./QuestionFormActions";
 
 export function QuestionRows(props: {
   options: readonly UserInputOption[];
@@ -13,30 +13,8 @@ export function QuestionRows(props: {
 }) {
   const { options, isDisabled, onSubmit, multiSelect } = props;
   const { t } = useLingui();
+  const formId = useId();
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
-  function onOptionKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (!isDisabled) handleQuestionOptionKey(event, event.currentTarget);
-  }
-  if (!multiSelect) {
-    return (
-      <div
-        role="listbox"
-        aria-label={t`Options`}
-        className="flex flex-col px-1 pb-1"
-        onKeyDownCapture={onOptionKeyDown}
-      >
-        {options.map((option, index) => (
-          <QuestionOptionRow
-            key={option.optionId}
-            index={index}
-            option={option}
-            isDisabled={isDisabled}
-            onClick={() => onSubmit([option.optionId])}
-          />
-        ))}
-      </div>
-    );
-  }
 
   function toggle(optionId: string) {
     setSelected((prev) => {
@@ -52,34 +30,33 @@ export function QuestionRows(props: {
 
   const selectedIds = [...selected];
   return (
-    <div
-      role="listbox"
-      aria-label={t`Options`}
-      aria-multiselectable="true"
-      onKeyDownCapture={onOptionKeyDown}
-      className="flex flex-col px-1 pb-1"
+    <QuestionStepForm
+      id={formId}
+      activeStep="options"
+      isLastStep
+      isDisabled={isDisabled}
+      onSubmit={() => {
+        if (selectedIds.length > 0) onSubmit(selectedIds);
+      }}
+      footer={
+        multiSelect ? (
+          <QuestionFormActions
+            formId={formId}
+            isLastStep
+            canSubmit={selectedIds.length > 0}
+            isDisabled={isDisabled}
+          />
+        ) : null
+      }
     >
-      {options.map((option, index) => (
-        <QuestionOptionRow
-          key={option.optionId}
-          index={index}
-          option={option}
-          isDisabled={isDisabled}
-          checked={selected.has(option.optionId)}
-          onClick={() => toggle(option.optionId)}
-        />
-      ))}
-      <div className="flex justify-end gap-1 px-1 pt-1">
-        <Button
-          isDisabled={isDisabled || selectedIds.length === 0}
-          size="sm"
-          variant="secondary"
-          className="text-white"
-          onPress={() => onSubmit(selectedIds)}
-        >
-          <Trans>Submit</Trans>
-        </Button>
-      </div>
-    </div>
+      <QuestionOptions
+        label={t`Options`}
+        options={options}
+        value={selectedIds}
+        multiSelect={multiSelect}
+        isDisabled={isDisabled}
+        onSelect={(optionId) => (multiSelect ? toggle(optionId) : onSubmit([optionId]))}
+      />
+    </QuestionStepForm>
   );
 }

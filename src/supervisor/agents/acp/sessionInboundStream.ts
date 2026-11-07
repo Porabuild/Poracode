@@ -1,7 +1,10 @@
 import { RequestError, type AnyMessage, type Stream } from "@agentclientprotocol/sdk";
 
-/** Canonical 8 MiB event ceiling plus bounded protocol wrapper space. */
-export const ACP_INBOUND_FRAME_MAX_BYTES = 8 * 1024 * 1024 + 64 * 1024;
+/** ACP `diff` updates carry full old/new text and may repeat cumulative edits;
+ * a dozen ~0.9 MB catalogs can reach ~22 MiB. This is separate from the 8 MiB
+ * canonical-event limit because canonical mapping keeps one file's text plus a
+ * unified diff; the runtime event buffer still rejects oversized canonical events. */
+export const ACP_INBOUND_FRAME_MAX_BYTES = 64 * 1024 * 1024 + 64 * 1024;
 export const ACP_STDOUT_QUEUED_BYTES = 64 * 1024;
 
 export class AcpInboundFrameLimitError extends Error {

@@ -208,7 +208,7 @@ function ownerTokenForBranch(branch: string): string | null {
   return null;
 }
 
-function thread(id: string, worktreePath: string, worktreeBranch: string): Thread {
+function makeThread(id: string, worktreePath: string, worktreeBranch: string): Thread {
   return {
     id,
     projectId: project.id,
@@ -575,7 +575,7 @@ describe("experimentActions", () => {
       useAppStore.setState({
         threads: [
           {
-            ...thread("thread-1", "/repo/one", "poracode/one"),
+            ...makeThread("thread-1", "/repo/one", "poracode/one"),
             groupId: existing.id,
             groupName: existing.title,
           },
@@ -596,12 +596,12 @@ describe("experimentActions", () => {
     useAppStore.setState({
       threads: [
         {
-          ...thread("thread-1", "/repo/one", "poracode/one"),
+          ...makeThread("thread-1", "/repo/one", "poracode/one"),
           groupId: existing.id,
           groupName: existing.title,
         },
         {
-          ...thread("unrelated", "/repo/other", "poracode/other"),
+          ...makeThread("unrelated", "/repo/other", "poracode/other"),
           groupId: "another-group",
           groupName: "Other group",
         },
@@ -763,13 +763,45 @@ describe("experimentActions", () => {
         {
           agentKind: "codex",
           agentLabel: "Codex",
-          config: { model: "gpt-5", effort: "high" },
+          config: {
+            model: "gpt-5",
+            effort: "high",
+            crew: {
+              version: 1,
+              crewId: "crew-codex",
+              name: "Codex crew",
+              policy: "crew-only",
+              roles: [
+                {
+                  id: "builder",
+                  label: "Builder",
+                  selection: { agentKind: "claude", model: "opus" },
+                },
+              ],
+            },
+          },
           presentationMode: "gui",
         },
         {
           agentKind: "claude",
           agentLabel: "Claude",
-          config: { model: "opus" },
+          config: {
+            model: "opus",
+            crew: {
+              version: 1,
+              crewId: "crew-claude",
+              name: "Claude crew",
+              policy: "crew-first",
+              roles: [
+                {
+                  id: "reviewer",
+                  label: "Reviewer",
+                  selection: { agentKind: "codex", model: "gpt-5" },
+                  parallel: 2,
+                },
+              ],
+            },
+          },
           presentationMode: "terminal",
         },
       ],
@@ -832,6 +864,21 @@ describe("experimentActions", () => {
         (call) => (call[0] as { thread: Thread }).thread.worktreePath,
       ),
     ).toEqual(["/repo/one", "/repo/two"]);
+    expect(
+      mocks.performInitialThreadLaunch.mock.calls.map((call) => {
+        const thread = (call[0] as { thread: Thread }).thread;
+        return { worktreePath: thread.worktreePath, crew: thread.config.crew };
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        worktreePath: "/repo/one",
+        crew: expect.objectContaining({ crewId: "crew-codex" }),
+      }),
+      expect.objectContaining({
+        worktreePath: "/repo/two",
+        crew: expect.objectContaining({ crewId: "crew-claude" }),
+      }),
+    ]);
     expect(mocks.runWorktreeSetupScript).toHaveBeenCalledTimes(2);
     expect(mocks.runWorktreeSetupScript).toHaveBeenNthCalledWith(
       1,
@@ -1069,8 +1116,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
@@ -1109,8 +1156,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
@@ -1152,8 +1199,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
@@ -1190,9 +1237,9 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
         {
-          ...thread("thread-2", "/repo/two", "poracode/two"),
+          ...makeThread("thread-2", "/repo/two", "poracode/two"),
           config: { model: "gpt-5-mini", effort: "low", fast: false },
         },
       ],
@@ -1229,8 +1276,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
@@ -1299,8 +1346,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
@@ -1330,8 +1377,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment({
@@ -1409,7 +1456,7 @@ describe("experimentActions", () => {
   ])(
     "PR summary transports actual candidate controls without thread binding: %j",
     async (actual) => {
-      const candidateThread = thread("thread-1", "/repo/one", "poracode/one");
+      const candidateThread = makeThread("thread-1", "/repo/one", "poracode/one");
       candidateThread.config = {
         ...actual,
         selectionBinding: {
@@ -1448,8 +1495,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
       view: { kind: "experiment", experimentId: "experiment-1", projectId: project.id },
     }));
@@ -1477,8 +1524,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
@@ -1504,8 +1551,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
@@ -1523,8 +1570,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment({
@@ -1554,11 +1601,11 @@ describe("experimentActions", () => {
   });
 
   it("stops and discards candidates with a live background workflow", async () => {
-    const runningThread = thread("thread-1", "/repo/one", "poracode/one");
+    const runningThread = makeThread("thread-1", "/repo/one", "poracode/one");
     runningThread.status = "working";
     useAppStore.setState((state) => ({
       ...state,
-      threads: [runningThread, thread("thread-2", "/repo/two", "poracode/two")],
+      threads: [runningThread, makeThread("thread-2", "/repo/two", "poracode/two")],
     }));
     useExperimentStore.getState().addExperiment(experiment());
     useThreadLiveWorkflowStore.setState({ liveThreadIds: new Set(["thread-1"]) });
@@ -1573,8 +1620,8 @@ describe("experimentActions", () => {
 
   it("projects the removal only after the host confirms it and discard cleanup finishes", async () => {
     const threads = [
-      thread("thread-1", "/repo/one", "poracode/one"),
-      thread("thread-2", "/repo/two", "poracode/two"),
+      makeThread("thread-1", "/repo/one", "poracode/one"),
+      makeThread("thread-2", "/repo/two", "poracode/two"),
     ];
     useAppStore.setState((state) => ({
       ...state,
@@ -1612,8 +1659,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
       view: { kind: "experiment", experimentId: "experiment-1", projectId: project.id },
     }));
@@ -1643,8 +1690,8 @@ describe("experimentActions", () => {
 
   it("keeps the experiment removed when discard cleanup is partial", async () => {
     const threads = [
-      thread("thread-1", "/repo/one", "poracode/one"),
-      thread("thread-2", "/repo/two", "poracode/two"),
+      makeThread("thread-1", "/repo/one", "poracode/one"),
+      makeThread("thread-2", "/repo/two", "poracode/two"),
     ];
     useAppStore.setState((state) => ({
       ...state,
@@ -1665,8 +1712,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
@@ -1684,8 +1731,8 @@ describe("experimentActions", () => {
   });
 
   it("recovers candidate worktree paths from their branches after an interrupted launch", async () => {
-    const first = thread("thread-1", "/repo/one", "poracode/one");
-    const second = thread("thread-2", "/repo/two", "poracode/two");
+    const first = makeThread("thread-1", "/repo/one", "poracode/one");
+    const second = makeThread("thread-2", "/repo/two", "poracode/two");
     delete first.worktreePath;
     delete second.worktreePath;
     useAppStore.setState((state) => ({ ...state, threads: [first, second] }));
@@ -1718,8 +1765,8 @@ describe("experimentActions", () => {
   });
 
   it("removes owner-marked branches left behind without worktrees", async () => {
-    const first = thread("thread-1", "/repo/one", "poracode/one");
-    const second = thread("thread-2", "/repo/two", "poracode/two");
+    const first = makeThread("thread-1", "/repo/one", "poracode/one");
+    const second = makeThread("thread-2", "/repo/two", "poracode/two");
     delete first.worktreePath;
     delete second.worktreePath;
     useAppStore.setState((state) => ({ ...state, threads: [first, second] }));
@@ -1749,8 +1796,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment({
@@ -1781,8 +1828,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/stale-one", "poracode/one"),
-        thread("thread-2", "/repo/stale-two", "poracode/two"),
+        makeThread("thread-1", "/repo/stale-one", "poracode/one"),
+        makeThread("thread-2", "/repo/stale-two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
@@ -1815,8 +1862,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
@@ -1840,8 +1887,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment({
@@ -1892,8 +1939,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment({
@@ -1946,8 +1993,8 @@ describe("experimentActions", () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
-        thread("thread-1", "/repo/one", "poracode/one"),
-        thread("thread-2", "/repo/two", "poracode/two"),
+        makeThread("thread-1", "/repo/one", "poracode/one"),
+        makeThread("thread-2", "/repo/two", "poracode/two"),
       ],
     }));
     useExperimentStore.getState().addExperiment({
@@ -1996,8 +2043,8 @@ describe("experimentActions", () => {
       useAppStore.setState((state_) => ({
         ...state_,
         threads: [
-          thread("thread-1", "/repo/one", "poracode/one"),
-          thread("thread-2", "/repo/two", "poracode/two"),
+          makeThread("thread-1", "/repo/one", "poracode/one"),
+          makeThread("thread-2", "/repo/two", "poracode/two"),
         ],
       }));
       useExperimentStore.getState().addExperiment({
@@ -2035,8 +2082,8 @@ describe("experimentActions", () => {
       useAppStore.setState((state) => ({
         ...state,
         threads: [
-          thread("thread-1", "/repo/one", "poracode/one"),
-          thread("thread-2", "/repo/two", "poracode/two"),
+          makeThread("thread-1", "/repo/one", "poracode/one"),
+          makeThread("thread-2", "/repo/two", "poracode/two"),
         ],
       }));
       useExperimentStore.getState().addExperiment({

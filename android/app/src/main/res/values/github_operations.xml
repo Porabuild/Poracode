@@ -15,6 +15,8 @@
     <string name="github_base_branch">Base branch</string>
     <string name="github_create_pr">Create pull request</string>
     <string name="github_pr_summary">#%1$d · %2$s · %3$s</string>
+    <string name="github_pr_row_summary">%1$s · #%2$d · %3$s · %4$s</string>
+    <string name="github_review_requested">Review requested</string>
     <string name="github_select_pr">Select a pull request to inspect it.</string>
     <string name="github_pr_number">Pull request #%1$d</string>
     <string name="github_ready">Mark ready</string>
@@ -59,6 +61,7 @@
     <string name="github_back_to_list">Back to list</string>
     <string name="github_open_externally">Open in browser</string>
     <string name="github_thread_resolved">Resolved</string>
+    <string name="github_thread_old_side">Old side</string>
     <string name="github_thread_unresolved">Unresolved</string>
     <string name="github_ref">Ref</string>
     <string name="github_rerun_failed">Rerun failed jobs</string>

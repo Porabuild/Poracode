@@ -14,7 +14,10 @@ describe("requestOwnerShutdown", () => {
     await expect(
       requestOwnerShutdown(paths, "gen-1", { call, discoveryGeneration: () => "gen-1" }),
     ).resolves.toBe("accepted");
-    expect(call).toHaveBeenCalledExactlyOnceWith(paths, "shutdown", { timeoutMs: 5_000 });
+    expect(call).toHaveBeenCalledExactlyOnceWith(paths, "shutdown", {
+      timeoutMs: 5_000,
+      expectedGeneration: "gen-1",
+    });
   });
 
   it("maps the authenticated unsupported response to unsupported", async () => {

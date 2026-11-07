@@ -96,6 +96,12 @@ export class DesktopLoopbackLiveness {
     this.healthPingInterval.unref?.();
   }
 
+  /** Any inbound frame on the current socket (see
+   * {@link RemoteSocketHealthMonitor.noteActivity}). */
+  noteActivity(): void {
+    this.health.noteActivity();
+  }
+
   /** Correlated pong acceptance for the in-flight health probe. */
   acceptPong(id: string | undefined): boolean {
     return this.health.acceptPong(id);

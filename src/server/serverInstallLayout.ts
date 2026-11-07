@@ -1,4 +1,4 @@
-import { lstatSync } from "node:fs";
+import { lstatSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, join } from "node:path";
 
 /**
@@ -31,6 +31,7 @@ import { dirname, isAbsolute, join } from "node:path";
  * `lib/`, declares its assets.
  */
 
+// Version-1 shapes remain unchanged; Windows spellings share one physical identity.
 export const SERVER_INSTALL_LAYOUT_VERSION = 1;
 
 export type ServerInstallLayoutKind = "checkout" | "prefix";
@@ -119,12 +120,13 @@ function describeSupportedLayouts(libDir: string): string {
 export function resolveServerInstallLayout(
   input: { readonly libDir?: string } = {},
 ): ServerInstallLayout {
-  const libDir = assertAbsolute(input.libDir ?? __dirname, "bundle directory");
+  let libDir = assertAbsolute(input.libDir ?? __dirname, "bundle directory");
   if (!isDirectory(libDir)) {
     throw new ServerLayoutError(
       `The Poracode server bundle directory does not exist: ${libDir}. ${describeSupportedLayouts(libDir)}`,
     );
   }
+  if (process.platform === "win32") libDir = realpathSync.native(libDir);
 
   const parent = dirname(libDir);
   // Prefix shape: `<prefix>/lib` beside `<prefix>/resources` and package.json.

@@ -19,7 +19,7 @@ export function NewThreadButton(props: {
     id: string;
     name: string;
     icon?: ReactNode;
-    description?: string;
+    trailingContent?: ReactNode;
   }[];
   onSelectProject?: (projectId: string) => void;
   /**
@@ -47,7 +47,7 @@ export function NewThreadButton(props: {
           id: `new-thread-project:${project.id}`,
           label: project.name,
           ...(project.icon ? { icon: project.icon } : {}),
-          ...(project.description ? { description: project.description } : {}),
+          ...(project.trailingContent ? { trailingContent: project.trailingContent } : {}),
           // Same payload as dragging the button itself, so a row can be dropped
           // straight onto a pane target to open that project's draft there.
           dragSource: {

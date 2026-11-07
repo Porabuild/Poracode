@@ -95,7 +95,7 @@ export function scopeEnvForStatus(status: AgentStatus): RefreshAgentScopeEnv {
 
 /** Pick one kind's status out of a refresh response for a native/WSL target. */
 export function findStatusForTarget(
-  response: AgentStatusesResponse | undefined,
+  response: Pick<AgentStatusesResponse, "windows" | "wsl"> | undefined,
   kind: string,
   target: RefreshAgentScopeEnv,
 ): AgentStatus | undefined {

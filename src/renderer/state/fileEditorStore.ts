@@ -536,20 +536,8 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
           attemptBuffer = currentBuffer;
           continue;
         }
-        set((state) => {
-          const { [currentPath]: _, ...rest } = state.buffers;
-          return {
-            buffers: rest,
-            tabs: state.tabs.filter((tabPath) => tabPath !== currentPath),
-            activePath:
-              state.activePath === currentPath
-                ? (state.tabs.find((tabPath) => tabPath !== currentPath) ?? null)
-                : state.activePath,
-            previewTab: state.previewTab === currentPath ? null : state.previewTab,
-            markdownPreviewPath:
-              state.markdownPreviewPath === currentPath ? null : state.markdownPreviewPath,
-          };
-        });
+        // Closing the last tab also dismisses the otherwise empty inline panel.
+        get().closeTab(currentPath);
         throw error;
       }
     }
@@ -704,6 +692,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         activePath: nextActivePath,
         previewTab: state.previewTab === path ? null : state.previewTab,
         markdownPreviewPath: state.markdownPreviewPath === path ? null : state.markdownPreviewPath,
+        pendingReveal: state.pendingReveal?.path === path ? null : state.pendingReveal,
         overlayMode:
           tabs.length === 0 && state.overlayMode !== "fullscreen" ? null : state.overlayMode,
       };

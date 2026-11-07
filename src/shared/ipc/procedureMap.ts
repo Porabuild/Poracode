@@ -5,9 +5,11 @@ import { browserProcedures } from "./procedures/browser";
 import { dbProcedures } from "./procedures/db";
 import { experimentProcedures } from "./procedures/experiment";
 import { githubProcedures } from "./procedures/github";
+import { forgeProcedures } from "./procedures/forge";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
 import { liveVoiceProcedures } from "./procedures/liveVoice";
+import { hexVoiceProcedures } from "./procedures/hexVoice";
 import { mcpProcedures } from "./procedures/mcp";
 import { pluginProcedures } from "./procedures/plugins";
 import { profileProcedures } from "./procedures/profile";
@@ -29,9 +31,11 @@ export const groupedIpcProcedures = {
   thread: threadProcedures,
   sessionActions: sessionActionProcedures,
   liveVoice: liveVoiceProcedures,
+  hexVoice: hexVoiceProcedures,
   git: gitProcedures,
   experiment: experimentProcedures,
   github: githubProcedures,
+  forge: forgeProcedures,
   projectTree: projectTreeProcedures,
   settings: settingsProcedures,
   ssh: sshProcedures,
@@ -56,9 +60,11 @@ export const ipcProcedureMap = {
   ...threadProcedures,
   ...sessionActionProcedures,
   ...liveVoiceProcedures,
+  ...hexVoiceProcedures,
   ...gitProcedures,
   ...experimentProcedures,
   ...githubProcedures,
+  ...forgeProcedures,
   ...projectTreeProcedures,
   ...settingsProcedures,
   ...sshProcedures,
@@ -110,6 +116,8 @@ export type IpcProcedureName = keyof IpcProcedureMap;
  * Network enablement adds a main-local name only; existing operations stay compatible.
  * Model-provider management is additive; older peers reject the unknown name
  * before effects. Native configuration and credential formats remain provider-owned.
+ * Review marks, owned-comment edits and guides add negotiated names only;
+ * existing peers reject unknown names before effects, so hop 18 stays compatible.
  */
 export const IPC_PROCEDURE_MAP_VERSION = CLIENT_HOST_HOP_VERSION;
 
@@ -185,7 +193,6 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "openMicrophoneSettings",
   "focusWindow",
   "showNotification",
-  "requestLegacyDataMigration",
   "relaunchApp",
   "getHomeScopeLocation",
   "getKeybindings",
@@ -201,6 +208,9 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "getRemoteAccessTailscaleStatus",
   "setRemoteAccessTailscaleHttps",
   "startTailscale",
+  "getLockedComputerUseStatus",
+  "installLockedComputerUse",
+  "uninstallLockedComputerUse",
   "setRemoteAccessAdvertisedUrl",
   "sshDiscoverHosts",
   "sshConnect",
@@ -230,6 +240,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbSyncChanges",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
+  "dbGetThreadPromptIndex",
   "dbGetThreadsPage",
   "dbGetLatestThreadGoalItem",
   "dbTruncateThreadRuntimeAfter",
@@ -239,6 +250,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbReplaceThreadCompletedTurns",
   "dbReplaceThreadRuntimeSnapshot",
   "dbGetThreadContextUsage",
+  "dbGetThreadTokenUsage",
   "dbGetProjectNotes",
   "dbSetProjectNotes",
   "getUpdateStatus",
@@ -318,6 +330,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "getPrWatch",
   "checkPrWatch",
   "upsertPrWatch",
+  "upsertForgePrWatch",
   "deletePrWatch",
   "syncPrWatchAgent",
 ] as const satisfies readonly IpcProcedureName[];

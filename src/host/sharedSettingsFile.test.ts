@@ -110,6 +110,7 @@ describe("sharedSettingsFile", () => {
       themeMode: "dark",
       themePreset: "default",
       customThemes: [],
+      crews: [],
       locale: "system",
       gitTextLanguage: "en",
       terminalPosition: "right",
@@ -171,7 +172,8 @@ describe("sharedSettingsFile", () => {
       agentTerminalFontSize: 12,
       guiChatFontSize: 13,
       terminalPanelFontSize: 12,
-      preventSleep: "while-remote-access",
+      preventSleepWhen: ["working", "remote-access"],
+      preventScreenLockWhen: [],
       launchAtStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -186,8 +188,13 @@ describe("sharedSettingsFile", () => {
       sidebarHiddenShortcuts: ["githubActions"],
       sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       sidebarTranslucency: false,
+      newsLineEnabled: true,
+      newsLineActivity: true,
+      dismissedPromotions: [],
       sidebarGlassTint: { light: null, dark: null },
       autoShowTerminalPanel: true,
+      computerUseLockedUse: false,
+      computerUseLockedUseDimDisplay: false,
       worktreeStorageMode: "global",
       worktreeBasePath: "",
       wslWorktreeBasePath: "",
@@ -237,6 +244,8 @@ describe("sharedSettingsFile", () => {
         microphoneDeviceId: "",
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
+        transcriptionBackend: "transformers",
+        hexModel: "parakeet_v3",
         useWebGpu: true,
       },
       usage: {
@@ -264,6 +273,7 @@ describe("sharedSettingsFile", () => {
       themeMode: "dark",
       themePreset: "default",
       customThemes: [],
+      crews: [],
       locale: "system",
       gitTextLanguage: "en",
       terminalPosition: "right",
@@ -316,7 +326,17 @@ describe("sharedSettingsFile", () => {
       agentInstances: {},
       collapseTerminalComposer: false,
       threadDocksPlacement: "composer",
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images", "context", "usage"],
+      threadDocksOrder: [
+        "goal",
+        "plan",
+        "agents",
+        "backgroundTasks",
+        "images",
+        "vision",
+        "info",
+        "context",
+        "usage",
+      ],
       cliPickerTarget: "ask",
       staleThreadUnloadMinutes: 20,
       autoArchiveDoneAfterDays: 7,
@@ -324,7 +344,8 @@ describe("sharedSettingsFile", () => {
       agentTerminalFontSize: 12,
       guiChatFontSize: 13,
       terminalPanelFontSize: 12,
-      preventSleep: "while-remote-access",
+      preventSleepWhen: ["working", "remote-access"],
+      preventScreenLockWhen: [],
       launchAtStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -339,8 +360,13 @@ describe("sharedSettingsFile", () => {
       sidebarHiddenShortcuts: ["githubActions"],
       sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       sidebarTranslucency: false,
+      newsLineEnabled: true,
+      newsLineActivity: true,
+      dismissedPromotions: [],
       sidebarGlassTint: { light: null, dark: null },
       autoShowTerminalPanel: true,
+      computerUseLockedUse: false,
+      computerUseLockedUseDimDisplay: false,
       worktreeStorageMode: "global",
       worktreeBasePath: "",
       wslWorktreeBasePath: "",
@@ -390,6 +416,8 @@ describe("sharedSettingsFile", () => {
         microphoneDeviceId: "",
         transcriptionLanguage: "en",
         transcriptionModel: "tiny",
+        transcriptionBackend: "transformers",
+        hexModel: "parakeet_v3",
         useWebGpu: true,
       },
       usage: {
@@ -434,9 +462,19 @@ describe("sharedSettingsFile", () => {
     );
 
     const settings = readSharedSettingsFile(settingsPath);
-    expect(settings.preventSleep).toBe("while-working");
+    expect(settings.preventSleepWhen).toEqual(["working"]);
     expect(settings).not.toHaveProperty("preventSleepWhileWorking");
     expect(settings).not.toHaveProperty("remoteAccessPreventSleep");
+  });
+
+  it("migrates the released preventSleep enum from a previous settings file", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeFileSync(settingsPath, JSON.stringify({ preventSleep: "always" }), "utf8");
+
+    const settings = readSharedSettingsFile(settingsPath);
+    expect(settings.preventSleepWhen).toEqual(["always"]);
+    expect(settings.preventScreenLockWhen).toEqual([]);
+    expect(settings).not.toHaveProperty("preventSleep");
   });
 
   it("defaults usage tracking to Claude and Codex only", () => {
@@ -563,6 +601,8 @@ describe("sharedSettingsFile", () => {
       microphoneDeviceId: "mic-1",
       transcriptionLanguage: "en",
       transcriptionModel: "tiny",
+      transcriptionBackend: "transformers",
+      hexModel: "parakeet_v3",
       useWebGpu: true,
     });
   });
@@ -581,7 +621,17 @@ describe("sharedSettingsFile", () => {
       themeMode: "dark",
       collapseTerminalComposer: true,
       threadDocksPlacement: "right",
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images", "context", "usage"],
+      threadDocksOrder: [
+        "vision",
+        "goal",
+        "plan",
+        "agents",
+        "backgroundTasks",
+        "images",
+        "info",
+        "context",
+        "usage",
+      ],
     });
   });
 
@@ -626,6 +676,8 @@ describe("sharedSettingsFile", () => {
       microphoneDeviceId: "mic-1",
       transcriptionLanguage: "es",
       transcriptionModel: "tiny",
+      transcriptionBackend: "transformers",
+      hexModel: "parakeet_v3",
       useWebGpu: true,
     });
   });

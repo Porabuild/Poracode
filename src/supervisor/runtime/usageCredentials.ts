@@ -9,7 +9,7 @@ import { resolveCursorToken } from "../agents/cursor/usageCredentials";
 import { resolveFactoryCliToken } from "./factoryCredentials";
 import { resolveGeminiToken } from "./geminiCredentials";
 import { refreshRejectedGrokToken, resolveFreshGrokToken } from "./grokTokenRefresh";
-import { resolveKimiToken } from "./kimiCredentials";
+import { refreshRejectedKimiToken, resolveKimiToken } from "../agents/kimi/usageCredentials";
 import { resolveMuseToken } from "../agents/muse/usageCredentials";
 import { resolveQoderToken } from "./qoderCredentials";
 import { resolveQwenUsageToken } from "./qwenCredentials";
@@ -59,6 +59,7 @@ function tokenResolvers(
 const tokenRefreshers: Record<string, (token: OAuthToken) => Promise<OAuthToken | undefined>> = {
   claude: refreshRejectedClaudeToken,
   grok: refreshRejectedGrokToken,
+  kimi: refreshRejectedKimiToken,
 };
 
 /** Build the native credential store consumed by the usage HostPort. */

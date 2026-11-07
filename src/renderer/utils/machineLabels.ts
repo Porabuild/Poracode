@@ -8,7 +8,7 @@ import type { AgentEnv, MachineRef } from "@/shared/machines";
  * `"Windows"`/`"WSL: X"`) so every surface names a machine the same way.
  */
 export function localEnvLabel(env: AgentEnv): string {
-  return env.kind === "wsl" ? i18n._(msg`WSL · ${env.distro}`) : i18n._(msg`This computer`);
+  return env.kind === "wsl" ? i18n._(msg`WSL · ${env.distro}`) : i18n._(msg`Local`);
 }
 
 /** Label for a machine; remote names come from the paired server record. */

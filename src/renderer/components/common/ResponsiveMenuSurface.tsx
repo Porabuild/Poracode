@@ -46,6 +46,8 @@ export function ResponsiveMenuSurface(props: {
   readonly dialogClassName?: string;
   /** Additional class for the compact bottom sheet. */
   readonly sheetClassName?: string;
+  /** Let a menu with its own content header keep one shared header on compact surfaces. */
+  readonly hideSheetHeader?: boolean;
   /** Applied to `Popover.Trigger` (desktop) / the trigger wrapper (mobile). */
   readonly triggerClassName?: string;
 }) {
@@ -73,6 +75,7 @@ export function ResponsiveMenuSurface(props: {
             {...(contentClassName ? { className: contentClassName } : {})}
           >
             <Popover.Dialog
+              aria-label={props.label}
               {...(props.dialogClassName ? { className: props.dialogClassName } : {})}
             >
               {desktopBody}
@@ -98,9 +101,11 @@ export function ResponsiveMenuSurface(props: {
       >
         {({ expanded }) => (
           <>
-            <div className="m-sheet-head">
-              <span className="truncate">{props.label}</span>
-            </div>
+            {!props.hideSheetHeader ? (
+              <div className="m-sheet-head">
+                <span className="truncate">{props.label}</span>
+              </div>
+            ) : null}
             <div className="flex min-h-0 flex-1 flex-col">
               {typeof props.children === "function" ? props.children({ expanded }) : props.children}
             </div>

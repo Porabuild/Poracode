@@ -1,4 +1,8 @@
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
+import {
+  setAgentVisionSocketSender,
+  handleAgentVisionServerMessage,
+} from "@/renderer/browser/agentVisionStream";
 import { parseIpcProcedureArgs, type IpcProcedureName } from "@/shared/ipc";
 import { msg } from "@/shared/messages";
 import { msg as linguiMsg } from "@lingui/core/macro";
@@ -8,7 +12,7 @@ import {
   type RemoteWebSocketClientMessage,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
-import { RemoteDesktopClient } from "@/shared/remote/client";
+import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
 import type { ManagedLoopbackBootstrap } from "@/shared/managedLoopback";
 import {
   DesktopLoopbackIntake,
@@ -150,6 +154,15 @@ export function isDesktopLoopbackIntakeActive(): boolean {
   return managedLoopback.intake?.isActive() ?? false;
 }
 
+/** Test seam: install the wiring's current intake, which the managed client's
+ * `onUnauthorized` escalation fence reads. Tests pass the same stub they
+ * built their client with; `resetDesktopLoopbackIntakeForTest` clears it. */
+export function __setManagedLoopbackIntakeForTest(
+  intake: Pick<DesktopLoopbackIntake, "isActive"> | null,
+): void {
+  managedLoopback.intake = intake as DesktopLoopbackIntake | null;
+}
+
 /** Re-discovery cadence while the loopback server is starting or its
  * credential was consumed by a server restart (cheap one-procedure check per
  * tick; the always-on guarantee makes the first ask succeed in practice). */
@@ -199,18 +212,30 @@ export function createManagedLoopbackProcedureHost(
  * activation identity: a delayed rotation from a retired intake never
  * reinstall the owner row.
  */
-function createManagedLoopbackClient(
+export function createManagedLoopbackClient(
   endpoint: string,
   accessToken: string,
-  intake: DesktopLoopbackIntake,
+  intake: Pick<
+    DesktopLoopbackIntake,
+    "getAccessToken" | "getRefreshToken" | "applyTokens" | "isActive" | "noteBearerRefused"
+  >,
 ): RemoteDesktopClient {
   return new RemoteDesktopClient(endpoint, accessToken, undefined, {
     tokenLifecycle: {
+      // Each activation builds a client, and a retired one can still send. They
+      // all read the intake's current bearer: otherwise a stale client's 401
+      // spends the refresh token again, which deletes the bearer its sibling
+      // holds, and the two rotate in turns until the host's token rate limit
+      // refuses the refresh and requests fail with "Invalid access token".
+      accessToken: () => intake.getAccessToken() ?? undefined,
       refreshToken: () => intake.getRefreshToken() ?? undefined,
       onTokensRefreshed: (tokens) => {
         intake.applyTokens({
           accessToken: tokens.accessToken,
           ...(tokens.refreshToken !== undefined ? { refreshToken: tokens.refreshToken } : {}),
+          ...(tokens.accessTokenExpiresAt !== undefined
+            ? { accessTokenExpiresAt: tokens.accessTokenExpiresAt }
+            : {}),
         });
         if (managedLoopback.intake !== intake || !intake.isActive()) return;
         setManagedLoopbackOwnerRow({
@@ -219,8 +244,45 @@ function createManagedLoopbackClient(
           scopes: [...REMOTE_OPERATOR_SCOPES],
         });
       },
+      // A request 401 the refresh path could not repair means the leg's
+      // session is dead server-side while the socket can still look healthy
+      // (the host only reaps it at the session's deadline). Escalate to the
+      // intake: its rate-limited re-proof renews, re-pairs, or re-bootstraps
+      // instead of every UI surface showing "Invalid access token".
+      onUnauthorized: () => {
+        if (managedLoopback.intake !== intake || !intake.isActive()) return;
+        intake.noteBearerRefused();
+      },
     },
   });
+}
+
+/**
+ * Renews a managed loopback session through the shared, coalesced client
+ * refresh, which reports the rotation back through the intake's `applyTokens`.
+ * Resolves false when the host refused the grant (401/403); rejects on
+ * transport-class failures, including 429.
+ */
+export async function renewManagedLoopbackSession(
+  endpoint: string,
+  intake: Pick<
+    DesktopLoopbackIntake,
+    "getAccessToken" | "getRefreshToken" | "applyTokens" | "isActive" | "noteBearerRefused"
+  >,
+): Promise<boolean> {
+  try {
+    const renewed = await createManagedLoopbackClient(
+      endpoint,
+      intake.getAccessToken() ?? "",
+      intake,
+    ).refreshTokens();
+    return renewed !== null;
+  } catch (error) {
+    if (error instanceof RemoteClientError && (error.status === 401 || error.status === 403)) {
+      return false;
+    }
+    throw error;
+  }
 }
 
 /**
@@ -576,6 +638,9 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
   if (!isCurrentBootstrap()) return;
   const pairingToken = bootstrap ? parsePairingCredential(bootstrap.pairingUrl) : null;
   if (!bootstrap || !pairingToken || !isLoopbackEndpoint(bootstrap.endpoint)) {
+    console.warn(
+      "[loopback] managed loopback bootstrap unavailable; retrying discovery in the background",
+    );
     scheduleLoopbackDiscoveryRetry();
     return;
   }
@@ -588,6 +653,9 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     managedLoopback.intake === intake;
   const recoverIntake = (): void => {
     if (managedLoopback.intake !== intake || intake === null) return;
+    console.warn(
+      "[loopback] disposing the leg for a fresh bootstrap (new pairing credential + session)",
+    );
     intake.dispose();
     managedLoopback.intake = null;
     intake = null;
@@ -606,14 +674,21 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     ...(managedLoopbackTestSeams.preflightTimeoutMs !== undefined
       ? { preflightTimeoutMs: managedLoopbackTestSeams.preflightTimeoutMs }
       : {}),
-    readItemInterests: () => eventInterests.snapshotRendererEventInterests().runtimeThreadIds,
+    // This socket carries only the managed host's own threads; each paired
+    // host's socket carries its own.
+    readItemInterests: () =>
+      eventInterests
+        .snapshotRendererEventInterests()
+        .runtimeThreadIds.filter(eventInterests.isManagedHostEventInterest),
     subscribeItemInterests: (listener) => eventInterests.subscribeRendererEventInterests(listener),
     onItemInterestsTruncated: (droppedCount) => {
       if (!isCurrentIntake()) return;
       // Truthful window-local capacity state (A1): the thread surface shows the
       // overload with recovery guidance instead of a console-only warning, and
       // the state clears as soon as the wire carries every retained thread.
-      useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(droppedCount);
+      useLiveStreamCapacityStore
+        .getState()
+        .setDroppedRuntimeThreadCount(droppedCount, eventInterests.MANAGED_EVENT_INTEREST_WIRE);
     },
     onItemInterestsApplied: (threadIds) => {
       if (!isCurrentIntake()) return;
@@ -623,6 +698,17 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     },
     onCredentialExhausted: recoverIntake,
     onRecoveryExhausted: recoverIntake,
+    // Renewal rides the shared client refresh, which coalesces with in-flight
+    // request refreshes on the same refresh token: spending it twice would
+    // revoke the session family. A refused grant (401/403) means re-pair;
+    // anything else (429, network) is transport-class, and the intake retries
+    // it on its local ladder instead of re-pairing at once.
+    renewSession: () => {
+      const owner = intake;
+      return owner && isCurrentIntake()
+        ? renewManagedLoopbackSession(endpoint, owner)
+        : Promise.resolve(false);
+    },
     dispatch: (event, seq, space) => {
       if (!isCurrentIntake()) return;
       // Catalog membership rides the same dispatch as the desktop reducer:
@@ -722,6 +808,7 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     },
     onTerminalReady: (send) => {
       if (!isCurrentIntake()) return;
+      setAgentVisionSocketSender(undefined, send);
       feed.setRemoteTerminalSocketSender(
         feed.managedTerminalFeedId(),
         send as (message: RemoteWebSocketClientMessage) => boolean,
@@ -730,10 +817,13 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     },
     onTerminalLost: () => {
       if (!isCurrentIntake()) return;
+      setAgentVisionSocketSender(undefined, null);
       feed.setRemoteTerminalSocketSender(feed.managedTerminalFeedId(), null);
     },
     onServerFrame: (message) => {
       if (!isCurrentIntake()) return false;
+      if (handleAgentVisionServerMessage(undefined, message as RemoteWebSocketServerMessage))
+        return true;
       return feed.handleRemoteTerminalServerMessage(
         feed.managedTerminalFeedId(),
         message as RemoteWebSocketServerMessage,

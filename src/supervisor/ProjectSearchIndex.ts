@@ -16,6 +16,13 @@ const CACHE_TTL_MS = 10_000;
 const MAX_CACHE_ENTRIES = 4;
 const MAX_SEARCH_INDEX_SIZE = 50_000;
 
+// Shared with the rank tiebreaker below: per-comparison `localeCompare` with
+// options rebuilds collation machinery (~25x slower over large result sets).
+const entryPathCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
+
 interface CachedSearchIndex {
   entries: ProjectTreeEntry[];
   createdAt: number;
@@ -276,10 +283,7 @@ export class ProjectSearchIndex {
       if (a.entry.path.length !== b.entry.path.length) {
         return a.entry.path.length - b.entry.path.length;
       }
-      return a.entry.path.localeCompare(b.entry.path, undefined, {
-        numeric: true,
-        sensitivity: "base",
-      });
+      return entryPathCollator.compare(a.entry.path, b.entry.path);
     });
 
     return scored.slice(0, limit).map((item) => item.entry);

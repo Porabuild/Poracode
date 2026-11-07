@@ -428,6 +428,7 @@ struct LiveConnectionController {
             // deltas onto live state.
             if host.state.snapshot == nil {
               host.state.lastSeenSeq = 0
+              host.state.lastSeenEpoch = nil
             }
             host.state.projectsLoadState = .failed(error.localizedDescription)
             host.state.phase = .ready

@@ -31,9 +31,12 @@ export function targetGuaranteesReadThreadTool(
 export interface ProviderHandoffStrategyInput {
   sourcePresentationMode: ThreadPresentationMode;
   targetPresentationMode: ThreadPresentationMode;
-  /** True for a mirrored thread, whose transcript lives on its host. */
-  isMirroredThread: boolean;
-  /** Current settings leave the built-in `read_thread` tool callable. */
+  /**
+   * The settings that decide the next launch's MCP snapshot leave the built-in
+   * `read_thread` tool callable. Those belong to the host that launches the
+   * session. A paired client uses that host's resolved session availability
+   * when its current tool settings are not exposed to the client.
+   */
   readThreadToolEnabled: boolean;
   /** The thread's last session actually resolved `read_thread` at launch. */
   threadResolvedReadThreadTool: boolean;
@@ -55,22 +58,52 @@ export interface ProviderHandoffStrategyInput {
  *   PTY has no persisted rows to read and cannot call the tool, so the
  *   context has to travel with the prompt.
  *
- * The transcript route additionally needs the thread to be local (a mirrored
- * thread's transcript lives on its host) and `read_thread` to be reachable —
- * per current settings, which decide the next launch's MCP snapshot, and per
- * the thread's last session, which is the only evidence that the built-in
- * server actually resolves for it. When either says no, the handoff falls back
- * to a context file rather than starting the new provider blind.
+ * The transcript route additionally needs `read_thread` to be reachable — per
+ * the launching host's settings when available (otherwise its resolved
+ * session availability), and per the thread's last session, which is the only
+ * evidence that the built-in server actually resolves for it. When either says
+ * no, the handoff falls back to a context file rather than starting the new
+ * provider blind.
  */
 export function resolveProviderHandoffStrategy(
   input: ProviderHandoffStrategyInput,
 ): ProviderHandoffContextStrategy {
   const chatToChat = continuesInPlace(input.sourcePresentationMode, input.targetPresentationMode);
   return chatToChat &&
-    !input.isMirroredThread &&
     input.readThreadToolEnabled &&
     input.threadResolvedReadThreadTool &&
     input.targetReadThreadToolGuaranteed
     ? "thread-transcript"
     : "context-file";
+}
+
+import type { ExtractContextResult } from "./contracts/git";
+import type { BuiltInMcpDisabledTools, BuiltInMcpServerDisabled } from "./contracts/mcpServer";
+
+/**
+ * Whether current settings leave the built-in `read_thread` tool callable —
+ * the `app-controls` server enabled and the tool itself not disabled.
+ */
+export function readThreadToolEnabled(settings: {
+  disabledBuiltInMcpServers: BuiltInMcpServerDisabled;
+  disabledBuiltInMcpTools: BuiltInMcpDisabledTools;
+}): boolean {
+  return (
+    settings.disabledBuiltInMcpServers["app-controls"] !== true &&
+    !(settings.disabledBuiltInMcpTools["app-controls"] ?? []).includes("read_thread")
+  );
+}
+
+/**
+ * The sentence that introduces the attached context file. A verbatim chat
+ * history is introduced as such, with an instruction to read it in full: it
+ * is the prior turns, not a summary, and the provider must not skim it or
+ * treat it as background notes. A provider-produced summary keeps the
+ * original wording.
+ */
+export function handoffContextInstruction(extractedContext: ExtractContextResult): string {
+  const source = extractedContext.sourceProvider;
+  return extractedContext.contentKind === "transcript"
+    ? `This task was handed off from a ${source} session. The attached file is the chat history of this conversation so far. Read it in full before answering, treat it as the prior turns of this conversation, and continue the user's task from where it left off.`
+    : `This task was handed off from a ${source} session. Use the attached context file as prior conversation context.`;
 }

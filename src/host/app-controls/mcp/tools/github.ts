@@ -303,7 +303,7 @@ export const githubTools: ToolDomain = {
   },
 };
 
-async function syncPullRequest(
+export async function syncPullRequest(
   ctx: AppControlsToolContext,
   projectId: string,
   prNumber: number,
@@ -314,7 +314,7 @@ async function syncPullRequest(
   } catch (error) {
     ctx.reportError?.(error);
     syncWarning =
-      "The PR operation completed, but refreshing Poracode's open PR list failed. Retry gh_list_prs.";
+      "The PR operation completed, but refreshing Poracode's open PR list failed. Refresh the review list without repeating the operation.";
   }
   try {
     const result = await ctx.supervisor.ghGetPrDetails({
@@ -333,12 +333,12 @@ async function syncPullRequest(
     ctx.reportError?.(error);
     return {
       syncWarning:
-        "The operation completed, but refreshing Poracode's PR state failed. Retry gh_get_pr.",
+        "The operation completed, but refreshing Poracode's PR state failed. Refresh the review without repeating the operation.",
     };
   }
 }
 
-/** Fail fast with a clear message when the `gh` CLI is not available for this runtime. */
+/** Legacy tool names also dispatch through the host's review integration. */
 async function requireGh(
   ctx: AppControlsToolContext,
   projectLocation: ProjectLocation,
@@ -346,7 +346,7 @@ async function requireGh(
   const { available } = await ctx.supervisor.ghCheckAvailable({ projectLocation });
   if (!available) {
     throw new Error(
-      "The GitHub CLI (gh) is not available or not authenticated for this project's runtime. Install and sign in with `gh auth login` to use GitHub tools.",
+      "The source host integration is unavailable or not authenticated in this project's runtime. Configure the matching source host CLI or scoped credentials.",
     );
   }
 }

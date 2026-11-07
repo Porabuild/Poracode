@@ -4,6 +4,7 @@ import com.poracode.app.model.PersistedRuntimeItem
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.asObjectOrNull
 import com.poracode.app.model.string
+import com.poracode.remote.v3.generated.RemoteBackgroundTaskOutput
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -114,12 +115,19 @@ class RuntimeBackgroundTasksReduceTest {
         assertEquals(1770000010000.0, rich.lastProgressAt)
         assertEquals("Server ready", rich.progress)
         assertEquals("run-fixture-001", rich.stopAction!!.payload["token"])
+        assertEquals("command", rich.category)
+        assertEquals("pnpm test", rich.command)
+        assertEquals("background-task.output.v1", rich.outputAction!!.id)
+        assertEquals("run-fixture-001", rich.outputAction!!.payload["token"])
         val old = BackgroundTask(rich.taskId, rich.kind, rich.description)
         val domain = ThreadRuntimeDomainState(backgroundTasks = listOf(old))
         assertEquals(listOf(rich), RuntimeDomainReducer.apply(parsed, parsed.threadId!!, domain).backgroundTasks)
         assertNull(RuntimeEventReducer.parseRuntimeEvent(event(JsonArray(listOf(JsonObject(task("a", "command", "d") + ("startedAt" to JsonPrimitive("123"))))))))
         val invalidAction = buildJsonObject { put("id", "stop"); put("payload", buildJsonObject { put("task", 1) }) }
         assertNull(RuntimeEventReducer.parseRuntimeEvent(event(JsonArray(listOf(JsonObject(task("a", "command", "d") + ("stopAction" to invalidAction)))))))
+        assertNull(RuntimeEventReducer.parseRuntimeEvent(event(JsonArray(listOf(JsonObject(task("a", "command", "d") + ("category" to JsonPrimitive("watcher"))))))))
+        val outputAction = buildJsonObject { put("id", "background-task.output.v1"); put("payload", buildJsonObject { put("taskId", "a") }) }
+        assertNotNull(RuntimeEventReducer.parseRuntimeEvent(event(JsonArray(listOf(JsonObject(task("a", "command", "d") + ("category" to JsonPrimitive("tool")) + ("outputAction" to outputAction)))))))
     }
 
     @Test
@@ -140,6 +148,30 @@ class RuntimeBackgroundTasksReduceTest {
         assertFalse(parses(action("stop", key = astral.repeat(121))))
         assertTrue(parses(action("stop", value = astral.repeat(512))))
         assertFalse(parses(action("stop", value = astral.repeat(513))))
+    }
+
+    @Test
+    fun generatedBackgroundTaskOutputDtoValidatesBounds() {
+        val decoded = RemoteJson.decodeFromString(
+            RemoteBackgroundTaskOutput.serializer(),
+            """{"output":"tail","totalBytes":42,"truncated":true}""",
+        )
+        assertEquals("tail", decoded.output)
+        assertEquals(42.0, decoded.totalBytes, 0.0)
+        assertTrue(decoded.truncated)
+        assertTrue(decoded.isValid)
+
+        assertFalse(RemoteBackgroundTaskOutput("x", -1.0, false).isValid)
+        assertFalse(RemoteBackgroundTaskOutput("x", 1.5, false).isValid)
+        assertFalse(RemoteBackgroundTaskOutput("x", 9_007_199_254_740_992.0, false).isValid)
+        assertFalse(RemoteBackgroundTaskOutput("a".repeat(16_385), 1.0, false).isValid)
+        assertTrue(
+            RemoteBackgroundTaskOutput(
+                "a".repeat(16_384),
+                9_007_199_254_740_991.0,
+                true,
+            ).isValid,
+        )
     }
 
     @Test

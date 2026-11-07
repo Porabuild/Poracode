@@ -24,4 +24,6 @@
     <string name="archived_threads_title">보관된 스레드</string>
     <string name="archived_threads_description">보관한 스레드를 복원하거나 영구 삭제합니다.</string>
     <string name="archived_threads_empty">보관된 스레드가 없습니다</string>
+    <string name="thread_status_starting_agent">에이전트 시작 중…</string>
+    <string name="thread_status_resuming">세션 재개 중…</string>
 </resources>

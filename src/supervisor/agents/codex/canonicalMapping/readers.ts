@@ -6,8 +6,9 @@
  * dependencies on the rest of the mapper.
  */
 
+import type { RuntimeErrorReason } from "@/shared/contracts";
 import { readStringField } from "../../fileChangeSummary";
-import type { TurnPlanStepStatus } from "../protocol";
+import type { CodexErrorInfo, TurnPlanStepStatus } from "../protocol";
 
 const CODEX_PLAN_STATUS_MAP = {
   pending: "pending",
@@ -134,6 +135,38 @@ export function readCodexErrorMessage(
     if (turnMessage) return turnMessage;
   }
   return undefined;
+}
+
+/**
+ * Maps a Codex failure to a shared runtime error reason from its structured
+ * `codexErrorInfo`, never from message text. Codex reports a refresh token that
+ * expired, was exhausted, or was revoked as `"unauthorized"` (its
+ * `RefreshTokenFailed` error), with a message such as "Your access token could
+ * not be refreshed because your refresh token has expired". A 401 can also
+ * arrive on the variants that carry an upstream HTTP status.
+ */
+export function readCodexErrorReason(
+  params: Record<string, unknown> | undefined,
+): RuntimeErrorReason | undefined {
+  const turn = readRecord(params?.turn);
+  const info = readRecord(params?.error)?.codexErrorInfo ?? readRecord(turn?.error)?.codexErrorInfo;
+  return isCodexAuthErrorInfo(info) ? "auth_required" : undefined;
+}
+
+const CODEX_HTTP_STATUS_ERROR_INFO_KEYS = [
+  "httpConnectionFailed",
+  "responseStreamConnectionFailed",
+  "responseStreamDisconnected",
+  "responseTooManyFailedAttempts",
+] as const;
+
+function isCodexAuthErrorInfo(info: unknown): boolean {
+  if (info === ("unauthorized" satisfies CodexErrorInfo)) return true;
+  const record = readRecord(info);
+  if (!record) return false;
+  return CODEX_HTTP_STATUS_ERROR_INFO_KEYS.some(
+    (key) => readRecord(record[key])?.httpStatusCode === 401,
+  );
 }
 
 function readTurnErrorMessage(value: unknown): string | undefined {

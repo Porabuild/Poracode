@@ -1,7 +1,14 @@
 import { realpath, stat } from "node:fs/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
-import { getWslCommand, primeWslLaunchEnvironment, clearExecutablePathCache } from "../base";
+import * as base from "../base";
+import {
+  buildPowerShellInvocationScript,
+  clearExecutablePathCache,
+  getWslCommand,
+  primeWslLaunchEnvironment,
+  type DetectedPowerShell,
+} from "../base";
 import {
   buildAcpTerminalLaunch,
   resolveAcpTerminalCwd,
@@ -25,6 +32,43 @@ const wslProject: ProjectLocation = {
   linuxPath: "/home/demo/project",
   uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
 };
+
+it.each([
+  {
+    name: "shell-line",
+    command: "Write-Output ok # trailing comment",
+    args: [],
+  },
+  {
+    name: "native args",
+    command: "node",
+    args: ["-e", "process.exit(3)"],
+  },
+])("appends native exit-code propagation after the Windows $name body", ({ command, args }) => {
+  const shell: DetectedPowerShell = { path: "pwsh.exe", kind: "pwsh" };
+  const shellSpy = vi.spyOn(base, "detectShell").mockReturnValue(shell);
+  try {
+    const launch = buildAcpTerminalLaunch(
+      { kind: "windows", path: "C:\\fixture\\project" },
+      "C:\\fixture\\project",
+      command,
+      args,
+      {},
+    );
+    const encoded = launch.args[launch.args.indexOf("-EncodedCommand") + 1]!;
+    const script = Buffer.from(encoded, "base64").toString("utf16le");
+    const body =
+      args.length === 0
+        ? `$ErrorActionPreference = 'Stop'; ${command}`
+        : buildPowerShellInvocationScript(shell, command, args);
+
+    expect(script).toBe(
+      `${body}\nif (-not $?) { if ($LASTEXITCODE) { exit $LASTEXITCODE }; exit 1 }`,
+    );
+  } finally {
+    shellSpy.mockRestore();
+  }
+});
 
 describe.skipIf(process.platform !== "win32")("buildAcpTerminalLaunch", () => {
   afterEach(() => clearExecutablePathCache());

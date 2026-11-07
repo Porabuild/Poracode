@@ -11,10 +11,13 @@ import type {
 } from "@/shared/contracts";
 import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp";
 import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
+import type { DirtySetSnapshot } from "../../git/dirtySetSnapshot";
 import type { HostResourceAdmission } from "../hostResourceAdmission";
+import type { MemberRunActivity } from "../shellEditTracker";
 import type { AgentAdapter, AgentNativePlugin } from "../../agents/base";
 import type { WindowsShellPreference } from "../../shellPreference";
 import type { HostDiagnosticsSnapshot } from "@/shared/lsp";
+import type { TerminalPtyFactory } from "../../pty/managedPty";
 
 export interface ThreadSessionManagerOptions {
   /**
@@ -28,6 +31,8 @@ export interface ThreadSessionManagerOptions {
   settingsPath: string;
   readDisableCliHookPlugin(): boolean;
   adapters: Map<AgentKind, AgentAdapter>;
+  /** Platform PTY owner; absent uses the existing direct node-pty route. */
+  createPty?: TerminalPtyFactory;
   resolveWindowsShell(runtime?: "preferred" | "powershell"): WindowsShellPreference;
   /** Live host diagnostics for the exact execution location; unavailable is distinct from empty. */
   readHostDiagnostics?(
@@ -94,8 +99,24 @@ export interface ThreadSessionManagerOptions {
      * `true` when the id belonged to a subagent (namespaced under a run) and was
      * handled; `false` to fall through to the normal session resolve path.
      */
-    resolveChildRequest(requestId: ThreadServerRequestId, response: unknown): boolean;
+    resolveChildRequest(
+      requestId: ThreadServerRequestId,
+      response: unknown,
+      parentThreadId: string,
+    ): Promise<boolean>;
+    /**
+     * Member runs of a lead thread: how many hold work now and how many ever
+     * started. Lets crew lead edit tracking rule out worktree changes a member
+     * could have made; absent, shell edits are not tracked.
+     */
+    memberRunActivity?(threadId: string): MemberRunActivity;
   };
+  /**
+   * Optional: fingerprints a worktree's dirty set (see `readDirtySetSnapshot`)
+   * so a crew lead's shell-command edits can be noticed; absent, only
+   * provider-reported file edits count.
+   */
+  readDirtySetSnapshot?(location: ProjectLocation): Promise<DirtySetSnapshot | undefined>;
   /**
    * Optional: resolves how a WSL distro reaches host-bound services (NAT
    * gateway IP vs. mirrored-mode loopback) so built-in MCP URLs can be
@@ -120,6 +141,7 @@ export interface ThreadSessionManagerOptions {
     agentKind: AgentKind,
     options?: {
       includeExternalServers: boolean;
+      pluginOverrides?: Record<string, boolean>;
       /** Inspect explicit skill metadata through the adapter captured for this session's launch. */
       nativePluginAdapter?: Pick<AgentAdapter, "listNativePlugins">;
     },
@@ -128,16 +150,32 @@ export interface ThreadSessionManagerOptions {
     builtInMcpServerIds: BuiltInMcpServerId[];
     nativePlugins: AgentNativePlugin[];
   }>;
+  /** Keep provider and app requests on supervisor-owned MCP connections. */
+  mcpApps?: {
+    prepare(
+      threadId: string,
+      servers: McpServer[],
+      location: ProjectLocation,
+    ): Promise<McpServer[]>;
+    releaseThread(threadId: string): Promise<void>;
+    modelContext(threadId: string): string | undefined;
+  };
   /** Wrap disabled tools and unsupported stdio cwd in the same-environment MCP proxy. */
   prepareMcpToolFilters?(
     servers: McpServer[],
     projectLocation: ProjectLocation,
-    options?: { proxyStdioCwd?: boolean; isolateConnectionFailures?: boolean },
+    options?: {
+      proxyStdioCwd?: boolean;
+      isolateConnectionFailures?: boolean;
+      omitInvalidSchemaPatterns?: boolean;
+      remoteViaStdio?: boolean;
+    },
   ): Promise<McpServer[]>;
   /** Synchronize Poracode-owned provider skill projections before a new agent process starts. */
   prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;
   /** Enforce plugin skill policy before a segment reaches a provider. */
   filterPluginSkillSegments?(input: {
+    pluginOverrides?: Record<string, boolean>;
     agentKind: AgentKind;
     projectLocation: ProjectLocation;
     presentationMode?: ThreadPresentationMode;

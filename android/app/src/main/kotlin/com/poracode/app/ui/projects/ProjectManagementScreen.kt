@@ -68,6 +68,7 @@ internal fun ProjectManagementScreen(
     initialDestination: ProjectManagementDestination = ProjectManagementDestination.Detail,
 ) {
     val lease by runtime.hostLease.collectAsStateWithLifecycle()
+    val guideWriters by runtime.guideWriters.collectAsStateWithLifecycle()
     val catalogs by runtime.catalog.state.collectAsStateWithLifecycle()
     val excludedProjectIds by runtime.syncPreferences.excludedProjectIds
         .collectAsStateWithLifecycle()
@@ -168,6 +169,7 @@ internal fun ProjectManagementScreen(
             lease = lease,
             target = workspaceTarget!!,
             projectName = workspaceProject.name,
+            guideWriters = guideWriters,
             onBack = {
                 if (initialWorkspace != null && workspaceProject.id == initialProjectId) {
                     onBack()

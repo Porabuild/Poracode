@@ -9,6 +9,7 @@ import type { AppStoreState } from "@/renderer/state/slices/shared";
 import { createKnownSessionRef, type StructuredSessionUpdate } from "../base";
 import { PiRpcClient } from "./rpcClient";
 import { PiRpcSession } from "./rpcSession";
+import { readToolVideoSources } from "@/shared/chatVideo";
 
 // A minimal stand-in for `pi --mode rpc` so the session's protocol handling is
 // exercised deterministically without a live provider or the (removed) SDK.
@@ -50,6 +51,14 @@ rl.on("line", (line) => {
       send({ type: "agent_settled" });
       return;
     }
+    if (text.includes("MCP_VISUAL") || text.includes("MCP_VIDEO")) {
+      send({ type: "agent_start" });
+      send({ type: "tool_execution_start", toolCallId: "app-call", toolName: "mcp__fixture__chart", args: {} });
+      const details = text.includes("MCP_VIDEO") ? { content: [{type:"resource_link",uri:"file:///tmp/demo.mp4",mimeType:"video/mp4",name:"Demo"}] } : { content: [{ type: "resource", resource: { uri: "ui://fixture/chart", mimeType: "text/html;profile=mcp-app", text: "<h1>Chart</h1>" } }], structuredContent: { value: 42 } };
+      send({ type: "tool_execution_end", toolCallId: "app-call", toolName: "mcp__fixture__chart", result: { content: [{ type: "text", text: "Fallback" }], details } });
+      send({ type: "agent_settled" });
+      return;
+    }
     if (text.includes("DIALOG")) {
       send({ type: "extension_ui_request", id: "dlg-1", method: "select", title: "Pick one", options: ["alpha", "beta"] });
       return;
@@ -60,6 +69,33 @@ rl.on("line", (line) => {
       send({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "SAW:" + text } });
       send({ type: "message_end" });
       send({ type: "agent_settled" });
+      return;
+    }
+    if (text.includes("CRASH")) {
+      send({ type: "agent_start" });
+      process.exit(1);
+    }
+    if (text.startsWith("FINAL_ERROR")) {
+      send({ type: "agent_start" });
+      const recovered = text.includes("RECOVERED");
+      const errorMessage = recovered ? "Temporary provider overload" : "OAuth refresh failed for anthropic: Refresh token expired";
+      const message = { role: "assistant", content: [], stopReason: "error", ...(text.includes("NO_DETAIL") ? {} : { errorMessage }) };
+      send({ type: "message_start", message });
+      send({ type: "message_end", message });
+      if (text.includes("EXIT")) {
+        process.stdout.write("", () => process.exit(1));
+        return;
+      }
+      send({ type: "turn_end", message, toolResults: [] });
+      send({ type: "agent_end", messages: [message], willRetry: recovered });
+      if (recovered) {
+        send({ type: "auto_retry_start", errorMessage });
+        send({ type: "agent_start" });
+        send({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "RECOVERED" } });
+        send({ type: "message_end", message: { role: "assistant", content: [{ type: "text", text: "RECOVERED" }], stopReason: "stop" } });
+        send({ type: "auto_retry_end", success: true });
+      }
+      send({ type: "agent_settled", aborted: false });
       return;
     }
     if (text.includes("FAIL")) {
@@ -196,6 +232,57 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     };
   }
 
+  it("preserves bridge MCP resource details instead of flattening them to prose", async () => {
+    const { session, events } = await createSession();
+    try {
+      await session.startTurn("MCP_VISUAL", { model: "mock/model", effort: "off" });
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "item.completed",
+          payload: expect.objectContaining({
+            result: {
+              content: [
+                {
+                  type: "resource",
+                  resource: {
+                    uri: "ui://fixture/chart",
+                    mimeType: "text/html;profile=mcp-app",
+                    text: "<h1>Chart</h1>",
+                  },
+                },
+              ],
+              structuredContent: { value: 42 },
+            },
+          }),
+        }),
+      );
+    } finally {
+      await session.dispose();
+    }
+  });
+
+  it("preserves MCP video resources through the RPC subprocess", async () => {
+    const { session, events } = await createSession();
+    try {
+      await session.startTurn("MCP_VIDEO", { model: "mock/model", effort: "off" });
+      const completed = events.find(
+        (event) =>
+          event.type === "item.completed" &&
+          "payload" in event &&
+          (event.payload as { name?: unknown })?.name === "mcp__fixture__chart",
+      );
+      const result =
+        completed && "payload" in completed
+          ? (completed.payload as { result?: unknown }).result
+          : undefined;
+      expect(readToolVideoSources(result)).toEqual([
+        { src: "file:///tmp/demo.mp4", mimeType: "video/mp4", name: "Demo" },
+      ]);
+    } finally {
+      await session.dispose();
+    }
+  });
+
   it("keeps canonical item and turn identities distinct when resuming in a new RPC process", async () => {
     const first = await createSession();
     try {
@@ -242,6 +329,19 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
       }
     } finally {
       await first.session.dispose();
+    }
+  });
+
+  it("fails a turn whose process dies without a Stop", async () => {
+    const { session, events } = await createSession();
+    try {
+      await session.startTurn("CRASH", { model: "mock/model", effort: "off" });
+      await waitFor(events, (event) => event.type === "session.exited");
+      expect(
+        events.filter((event) => event.type === "turn.completed").map((event) => event.state),
+      ).toEqual(["failed"]);
+    } finally {
+      await session.dispose();
     }
   });
 
@@ -522,6 +622,47 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
       ]),
     );
     await disposeSettledSession(session, events, updates);
+  });
+
+  it.each([
+    { prompt: "FINAL_ERROR", message: "OAuth refresh failed for anthropic: Refresh token expired" },
+    {
+      prompt: "FINAL_ERROR_EXIT",
+      message: "OAuth refresh failed for anthropic: Refresh token expired",
+    },
+    { prompt: "FINAL_ERROR_NO_DETAIL", message: "Pi model request failed." },
+  ])(
+    "fails a turn whose error only arrives in the final assistant message ($prompt)",
+    async ({ prompt, message }) => {
+      const { session, events } = await createSession();
+      try {
+        await session.startTurn(prompt, { model: "mock/model", effort: "off" });
+        expect(events.filter((event) => event.type === "error")).toEqual([
+          expect.objectContaining({ message }),
+        ]);
+        expect(events).toContainEqual(
+          expect.objectContaining({ type: "turn.completed", state: "failed" }),
+        );
+      } finally {
+        await session.dispose();
+      }
+    },
+  );
+
+  it("allows a successful final assistant message to recover a failed attempt", async () => {
+    const { session, events } = await createSession();
+    try {
+      await session.startTurn("FINAL_ERROR_RECOVERED", { model: "mock/model", effort: "off" });
+      expect(events.filter((event) => event.type === "error")).toEqual([]);
+      expect(events).toContainEqual(
+        expect.objectContaining({ type: "content.delta", delta: "RECOVERED" }),
+      );
+      expect(events).toContainEqual(
+        expect.objectContaining({ type: "turn.completed", state: "completed" }),
+      );
+    } finally {
+      await session.dispose();
+    }
   });
 
   it("maps persisted pi-goal lifecycle entries into a canonical goal item", async () => {

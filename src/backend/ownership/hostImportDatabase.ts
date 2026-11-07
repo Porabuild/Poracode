@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { chmodSync, lstatSync } from "node:fs";
 import { join } from "node:path";
-import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
 import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 
 /**

@@ -1,4 +1,5 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation, SessionRef } from "@/shared/contracts";
@@ -58,15 +59,15 @@ function getGrokSessionsRoot(location: ProjectLocation): string | null {
   return getNativeGrokSessionsRoot();
 }
 
-function sessionExistsUnderAnyCwd(
+async function sessionExistsUnderAnyCwd(
   sessionsRoot: string,
   currentCwdKey: string,
   sessionId: string,
-): boolean {
+): Promise<boolean> {
   if (existsSync(join(sessionsRoot, currentCwdKey, sessionId))) return true;
   if (!existsSync(sessionsRoot)) return false;
 
-  for (const entry of readdirSync(sessionsRoot, { withFileTypes: true })) {
+  for (const entry of await readdir(sessionsRoot, { withFileTypes: true })) {
     if (entry.isDirectory() && existsSync(join(sessionsRoot, entry.name, sessionId))) return true;
   }
   return false;
@@ -77,29 +78,31 @@ function sessionExistsUnderAnyCwd(
  * before spawning the grok PTY. It records what sessions already exist for
  * this cwd so that discover can tell the brand-new one apart.
  *
- * Sync on native platforms only. WSL discovery uses the in-distro bridge
+ * Native platforms only. WSL discovery uses the in-distro bridge
  * after launch instead of doing a direct pre-spawn query.
  */
-export function snapshotGrokPreSpawnSessions(location: ProjectLocation, cwd: string): void {
-  preSpawnSessionIds = new Set();
-  preSpawnCwdKey = null;
-  if (location.kind === "wsl") return;
-
-  const dir = getGrokCwdSessionsDir(location, cwd);
-  if (!dir) return;
-
-  if (!existsSync(dir)) return;
-  preSpawnCwdKey = encodeCwdKey(cwd);
-
+export async function snapshotGrokPreSpawnSessions(
+  location: ProjectLocation,
+  cwd: string,
+): Promise<void> {
+  const ids = new Set<string>();
+  let cwdKey: string | null = null;
   try {
-    const entries = readdirSync(dir, { withFileTypes: true });
+    if (location.kind === "wsl") return;
+    const dir = getGrokCwdSessionsDir(location, cwd);
+    if (!dir) return;
+    cwdKey = encodeCwdKey(cwd);
+    const entries = await readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory() && isUuid(entry.name)) {
-        preSpawnSessionIds.add(entry.name);
+        ids.add(entry.name);
       }
     }
   } catch {
     // Best effort; discovery will still be able to pick a recent dir.
+  } finally {
+    preSpawnSessionIds = ids;
+    preSpawnCwdKey = cwdKey;
   }
 }
 
@@ -123,24 +126,28 @@ function isUuid(s: string): boolean {
  * Returns `undefined` when the check is unavailable (WSL distro home not
  * cached / UNC bridge unreachable); callers should then default to resume.
  */
-export function grokSessionDirMaterialized(
+export async function grokSessionDirMaterialized(
   location: ProjectLocation,
   cwd: string,
   sessionId: string,
-): boolean | undefined {
+): Promise<boolean | undefined> {
   if (location.kind === "wsl") {
     const home = getCachedWslHomeDirectory(location.distro);
     if (!home) return undefined;
     const linuxRoot = `${home}/.grok/sessions`;
     const uncRoot = `\\\\wsl.localhost\\${location.distro}${linuxRoot.replaceAll("/", "\\")}`;
     try {
-      return sessionExistsUnderAnyCwd(uncRoot, encodeCwdKey(cwd), sessionId);
+      return await sessionExistsUnderAnyCwd(uncRoot, encodeCwdKey(cwd), sessionId);
     } catch {
       return undefined;
     }
   }
   try {
-    return sessionExistsUnderAnyCwd(getNativeGrokSessionsRoot(), encodeCwdKey(cwd), sessionId);
+    return await sessionExistsUnderAnyCwd(
+      getNativeGrokSessionsRoot(),
+      encodeCwdKey(cwd),
+      sessionId,
+    );
   } catch {
     return undefined;
   }
@@ -153,12 +160,12 @@ export function grokSessionDirMaterialized(
  * re-assigning an existing id makes grok exit 1, while wrongly resuming a
  * missing one is the same failure mode we had before `-s` existed.
  */
-export function resolveGrokSessionArg(
+export async function resolveGrokSessionArg(
   location: ProjectLocation,
   cwd: string,
   knownSessionId: string,
-): GrokSessionArg {
-  const materialized = grokSessionDirMaterialized(location, cwd, knownSessionId);
+): Promise<GrokSessionArg> {
+  const materialized = await grokSessionDirMaterialized(location, cwd, knownSessionId);
   return materialized === false
     ? { kind: "new", sessionId: knownSessionId }
     : { kind: "resume", sessionId: knownSessionId };
@@ -170,7 +177,7 @@ export function resolveGrokSessionArg(
  * pre-snapshot. Falls back to the absolute newest UUID dir if the pre-snapshot
  * is empty.
  *
- * Native uses `readdirSync` + `statSync`. WSL routes through the in-distro
+ * Native uses asynchronous directory reads and stats. WSL routes through the in-distro
  * bridge (`listSessionDir` + batched `statSessionPaths`) so each discovery
  * round-trip costs ~10ms (HTTP loopback) instead of ~100ms (`wsl.exe`).
  */

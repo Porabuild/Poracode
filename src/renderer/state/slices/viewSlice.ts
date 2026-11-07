@@ -34,8 +34,16 @@ import { usePanelStore } from "../panelStore";
 export interface ViewSlice {
   view: AppView;
   focusedPaneId: string | null;
+  /**
+   * Bumped whenever a draft is opened. Client-only surfaces use it to re-roll
+   * per-visit content (the news line) even though the draft view stays mounted.
+   */
+  draftVisit: number;
   pendingComposerFocusThreadId: string | null;
   chatScrollToBottomTokens: Record<string, number>;
+  chatScrollToPromptRequests: Record<string, { afterItemId: string | null; remaining: number }>;
+  /** Renderer-only anchors survive pane remounts without persisting scroll state. */
+  chatPromptAnchorIds: Record<string, string>;
   /**
    * Optimistic, urgent active-thread id used only for instant sidebar-row
    * highlighting on click. Decoupled from `view.panes` (which drives the heavy
@@ -48,6 +56,8 @@ export interface ViewSlice {
   requestComposerFocus: (threadId: string) => void;
   clearComposerFocusRequest: (threadId: string) => void;
   requestChatScrollToBottom: (threadId: string) => void;
+  requestChatScrollToPrompt: (threadId: string, queued?: boolean) => void;
+  clearChatPromptAnchor: (threadId: string) => void;
   setPendingActiveThread: (threadId: string | null) => void;
   openDraft: (projectId: string) => void;
   openDraftSideBySide: (projectId: string) => void;
@@ -94,8 +104,11 @@ export interface ViewSlice {
 export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
   view: { kind: "home" },
   focusedPaneId: null,
+  draftVisit: 0,
   pendingComposerFocusThreadId: null,
   chatScrollToBottomTokens: {},
+  chatScrollToPromptRequests: {},
+  chatPromptAnchorIds: {},
   pendingActiveThreadId: null,
   groupLayouts: {},
   setFocusedPane: (paneId) => set({ focusedPaneId: paneId }),
@@ -110,16 +123,54 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         ...state.chatScrollToBottomTokens,
         [threadId]: (state.chatScrollToBottomTokens[threadId] ?? 0) + 1,
       },
+      chatScrollToPromptRequests: Object.fromEntries(
+        Object.entries(state.chatScrollToPromptRequests).filter(([id]) => id !== threadId),
+      ),
     })),
+  requestChatScrollToPrompt: (threadId, queued = false) =>
+    set((state) => {
+      const ids = state.runtimeItemIdsByThread[threadId] ?? [];
+      const items = state.runtimeItemsByIdByThread[threadId];
+      const afterItemId =
+        ids.findLast((id) => items?.[id]?.type === "user_message" && !items[id]?.parentItemId) ??
+        null;
+      return {
+        chatScrollToPromptRequests: {
+          ...state.chatScrollToPromptRequests,
+          [threadId]: {
+            afterItemId,
+            remaining: queued
+              ? (state.chatScrollToPromptRequests[threadId]?.remaining ?? 0) + 1
+              : 1,
+          },
+        },
+      };
+    }),
+  clearChatPromptAnchor: (threadId) =>
+    set((state) => {
+      if (!state.chatPromptAnchorIds[threadId]) return {};
+      const anchors = { ...state.chatPromptAnchorIds };
+      delete anchors[threadId];
+      return { chatPromptAnchorIds: anchors };
+    }),
   setPendingActiveThread: (threadId) => set({ pendingActiveThreadId: threadId }),
-  openDraft: (projectId) => set({ view: { kind: "draft", projectId } }),
+  openDraft: (projectId) =>
+    set((state) => ({
+      view: { kind: "draft", projectId },
+      draftVisit: state.draftVisit + 1,
+    })),
   openDraftSideBySide: (projectId) =>
     set((state) => {
+      const draftVisit = state.draftVisit + 1;
       if (state.view.kind !== "thread") {
-        return { view: { kind: "draft", projectId } };
+        return { view: { kind: "draft", projectId }, draftVisit };
       }
       if (state.view.activeGroupId) {
-        return { groupLayouts: saveGroupLayout(state), view: { kind: "draft", projectId } };
+        return {
+          groupLayouts: saveGroupLayout(state),
+          view: { kind: "draft", projectId },
+          draftVisit,
+        };
       }
       const draftPaneId = makeDraftPaneId(projectId);
       const existing = state.view.panes;
@@ -144,6 +195,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
             panes: collectPaneIds(layout),
             paneLayout: layout,
           },
+          draftVisit,
         };
       }
       const rl = state.view.rowLayout;
@@ -160,6 +212,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       );
       return {
         view: nextView,
+        draftVisit,
       };
     }),
   openHome: () => set({ view: { kind: "home" } }),
@@ -198,6 +251,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           if (state.view.panes.includes(threadId)) {
             const cleared = clearFinished(state.threads, [threadId]);
             return {
+              focusedPaneId: threadId,
               ...(cleared ? { threads: cleared } : {}),
               ...keepAlivePatch(state, threadId),
             };
@@ -221,6 +275,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           };
           const cleared = clearFinished(state.threads, nextView.panes);
           return {
+            focusedPaneId: threadId,
             ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
             ...keepAlivePatch(state, threadId),
           };
@@ -229,6 +284,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const cleared = clearFinished(state.threads, [threadId]);
         const gl = saveGroupLayout(state);
         return {
+          focusedPaneId: threadId,
           groupLayouts: gl,
           view: nextView,
           ...(cleared ? { threads: cleared } : {}),
@@ -248,6 +304,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           if (nextView) {
             const cleared = clearFinished(state.threads, nextView.panes);
             return {
+              focusedPaneId: threadId,
               groupLayouts: gl,
               view: nextView,
               ...(cleared ? { threads: cleared } : {}),
@@ -261,6 +318,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         if (state.view.panes.includes(threadId)) {
           const cleared = clearFinished(state.threads, [threadId]);
           return {
+            focusedPaneId: threadId,
             ...(cleared ? { threads: cleared } : {}),
             ...keepAlivePatch(state, threadId),
           };
@@ -269,6 +327,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const nextPanes = nextView.kind === "thread" ? nextView.panes : [threadId];
         const cleared = clearFinished(state.threads, nextPanes);
         return {
+          focusedPaneId: threadId,
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
           ...keepAlivePatch(state, threadId),
         };
@@ -276,6 +335,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const nextView: AppView = { kind: "thread", panes: [threadId] };
       const cleared = clearFinished(state.threads, [threadId]);
       return {
+        focusedPaneId: threadId,
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
         ...keepAlivePatch(state, threadId),
       };

@@ -38,6 +38,7 @@ data class GithubOperationsEntry(
     val pendingConfirmation: GithubOperationRequest? = null,
     val lastOutcome: GithubMutationOutcome? = null,
     val failure: ProjectOperationFailure? = null,
+    val isCached: Boolean = false,
 )
 
 data class GithubOperationsState(
@@ -55,7 +56,9 @@ sealed interface GithubExecutionResult {
 class GithubOperationsController(
     private val session: StateFlow<ProjectHostLease?>,
     private val gateway: GithubOperationsGateway,
+    private val cache: ForgeReviewDiskCache? = null,
 ) : ProjectsChangedListener {
+    val forgeReview = ForgeReviewController(session, gateway as? ForgeReviewGateway, cache)
     private val revisions = ConcurrentHashMap<ProjectIdentity, AtomicLong>()
     private val readJobs = ConcurrentHashMap<ProjectIdentity, Job>()
     private val mutationLocks = ConcurrentHashMap<ProjectIdentity, Mutex>()
@@ -69,14 +72,24 @@ class GithubOperationsController(
         heavyReview = presenter
     }
 
-    suspend fun refresh(target: ProjectWorkspaceTarget): ProjectOperationResult<Unit> = read(
+    suspend fun refresh(target: ProjectWorkspaceTarget): ProjectOperationResult<Unit> {
+        val lease = session.value
+        val cacheScope = lease?.let { ForgeReviewDiskCache.listScope(it, target) }
+        if (lease != null && (!lease.online || !lease.ready) && ProjectCapability.Read.scope in lease.scopes) {
+            val revision = nextRevision(target.identity)
+            val cached = cacheScope?.let { cache?.readPullRequests(it) }
+            if (session.value?.key != lease.key || revisions[target.identity]?.get() != revision) return ProjectOperationResult.Stale
+            if (cached != null) {
+                update(target.identity) { it.copy(pullRequests = cached, available = true, isCached = true, loading = false, failure = null) }
+                return ProjectOperationResult.Success(Unit)
+            }
+        }
+        val result = read(
         target,
         listOf(
             GithubProcedure.CheckAvailable,
             GithubProcedure.ListPullRequests,
             GithubProcedure.ListPrs,
-            GithubProcedure.ListWorkflows,
-            GithubProcedure.ListWorkflowRuns,
         ),
     ) { entry, results ->
         val available = results.getValue(GithubProcedure.CheckAvailable)
@@ -84,10 +97,21 @@ class GithubOperationsController(
         entry.copy(
             available = available,
             pullRequests = results.getValue(GithubProcedure.ListPullRequests),
-            workflows = results.getValue(GithubProcedure.ListWorkflows),
-            workflowRuns = results.getValue(GithubProcedure.ListWorkflowRuns),
+            isCached = false,
         )
     }
+        if (result is ProjectOperationResult.Success && lease != null && session.isCurrent(lease) && cacheScope != null) {
+            state.value.entries[target.identity]?.pullRequests?.let { cache?.writePullRequests(cacheScope, it) }
+        }
+        return result
+    }
+
+    suspend fun refreshActions(target: ProjectWorkspaceTarget) = read(
+        target, listOf(GithubProcedure.ListWorkflows, GithubProcedure.ListWorkflowRuns),
+    ) { entry, results -> entry.copy(
+        workflows = results.getValue(GithubProcedure.ListWorkflows),
+        workflowRuns = results.getValue(GithubProcedure.ListWorkflowRuns),
+    ) }
 
     suspend fun discoverAccounts(target: ProjectWorkspaceTarget) = read(
         target,
@@ -203,9 +227,11 @@ class GithubOperationsController(
         readJobs.remove(identity)?.cancel()
         mutableState.update { it.copy(entries = it.entries - identity) }
         heavyReview?.present(null)
+        forgeReview.close(identity)
     }
 
     override fun onProjectsChanged(connectionId: com.poracode.app.model.ClientConnectionId) {
+        forgeReview.clear(connectionId)
         revisions.filterKeys { it.connectionId == connectionId }.values.forEach { it.incrementAndGet() }
         readJobs.filterKeys { it.connectionId == connectionId }.values.forEach { it.cancel() }
         mutableState.update { state ->

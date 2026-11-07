@@ -331,7 +331,10 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
       "after force stop\n\n@/tmp/reference.png ",
       { model: `${AGENT_KIND}/model` },
       segments,
-      { userMessageItemId: "user-after-force-stop" },
+      {
+        onPromptSubmitted: expect.any(Function),
+        userMessageItemId: "user-after-force-stop",
+      },
     );
     expect(manager.sessions.get(THREAD_ID)?.structuredSession).toBe(replacementSession);
   });

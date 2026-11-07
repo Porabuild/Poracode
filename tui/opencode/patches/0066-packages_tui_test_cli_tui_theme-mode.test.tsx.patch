@@ -1,0 +1,22 @@
+diff --git a/packages/tui/test/cli/tui/theme-mode.test.tsx b/packages/tui/test/cli/tui/theme-mode.test.tsx
+index d6d8718..837d44e 100644
+--- a/packages/tui/test/cli/tui/theme-mode.test.tsx
++++ b/packages/tui/test/cli/tui/theme-mode.test.tsx
+@@ -93,7 +93,7 @@ test.each([
+       light: getOpenCodeTheme().light,
+     },
+   ],
+-] as const)("falls back to OpenCode when configured V2 theme %s is invalid", async (_label, source) => {
++] as const)("falls back to Poracode when configured V2 theme %s is invalid", async (_label, source) => {
+   let themes: ReturnType<typeof useThemes> | undefined
+   let failure: ThemeError | undefined
+   let unsubscribe: (() => void) | undefined
+@@ -121,7 +121,7 @@ test.each([
+ 
+   try {
+     await wait(() => themes?.ready === true)
+-    expect(themes?.selected).toBe("opencode")
++    expect(themes?.selected).toBe("poracode")
+     expect(failure?.name).toBe("invalid")
+     expect(failure?.error).toBeInstanceOf(Error)
+     expect(failure?.error.message.length).toBeGreaterThan(0)

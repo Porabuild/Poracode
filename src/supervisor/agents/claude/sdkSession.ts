@@ -3,6 +3,7 @@ import { claudeContextWindowEnv, resolveClaudeContextWindowTokens } from "./cont
 import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import type {
   CanUseTool,
+  EffortLevel,
   ElicitationResult,
   OnElicitation,
   Options as ClaudeQueryOptions,
@@ -30,6 +31,7 @@ import type {
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual, isThreadConfigEqual } from "@/shared/contracts";
 import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
+import { msg } from "@/shared/messages";
 import { buildClaudeMcpServers } from "../userMcp";
 import {
   createKnownSessionRef,
@@ -48,10 +50,17 @@ import {
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { DeferredTurnCompletion } from "./deferredTurnCompletion";
-import { clearBackgroundTasks, hasAwaitedBackgroundWork } from "./canonicalMapping/backgroundTasks";
+import {
+  clearBackgroundTasks,
+  hasAwaitedBackgroundWork,
+  hasLiveBackgroundWork,
+} from "./canonicalMapping/backgroundTasks";
 import { ClaudeBackgroundTaskControls } from "./backgroundTaskControls";
-import { isSubAgentParentTool } from "./canonicalMapping/toolClassification";
-import { applyClaudeContextSuffix } from "./argv";
+import {
+  isExitPlanModeToolName,
+  isSubAgentParentTool,
+} from "./canonicalMapping/toolClassification";
+import { applyClaudeContextSuffix, claudeEffortAndUltracode } from "./argv";
 import {
   buildClaudeQuestionAnswerEvents,
   ClaudeUsageScopeTracker,
@@ -69,11 +78,13 @@ import {
   nonDiagnosticErrors,
   parseClaudeQuestions,
   readParentToolUseId,
+  settleMissingSubAgentTaskReports,
   startClaudeTurn,
   steerClaudeTurn,
   type ClaudeMapperState,
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
+import { ClaudeContextSteer } from "./contextSteer";
 import { AsyncPromptQueue } from "./promptQueue";
 import {
   ClaudeSteerDelivery,
@@ -95,11 +106,14 @@ import { buildSdkUserMessage } from "./sdkPrompt";
 import {
   basePermissionModeForConfig,
   buildDenyMessage,
+  canBypassPlanPermission,
+  exitPlanApprovalMode,
   isQuestionCancelResponse,
   normalizeQuestionAnswersForSdk,
   permissionDecision,
   permissionModeForConfig,
   rawQuestionAnswers,
+  type PendingPermission,
   type PendingRequest,
 } from "./sdkResponses";
 
@@ -132,11 +146,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions = { suppressResumeConfigOverrides: true };
   /** Inline instructions mean "skill not native" here, and a slash command must stay last. */
   readonly placesTurnContext = true;
+  /** Set only with `mayReceiveContextSteers`: see `ClaudeContextSteer`. */
+  readonly steerContext?: (text: string) => Promise<void>;
 
   private readonly input: CreateStructuredSessionInput;
   private listener: StructuredSessionListener | undefined;
   private mapperState: ClaudeMapperState;
   private promptQueue = new AsyncPromptQueue();
+  private pendingPromptAdmission: { generation: number; acknowledge: () => void } | undefined;
   private queryRuntime: Query | undefined;
   private queryReady: Promise<Query> | undefined;
   // Query.close() initiates shutdown; captured children prove it has finished.
@@ -155,8 +172,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private appliedContextSize: string | undefined;
   private sessionHasHistory = false;
   private appliedPermissionMode: PermissionMode | undefined;
+  private bypassPlanPermissions = false;
   private appliedSandboxDisabled = false;
   private readonly mcpServers: ClaudeSdkMcpServers;
+  private appliedEffort: string | undefined;
   private appliedUltracode = false;
   private appliedFast = false;
   private currentStatus: ThreadStatus = "idle";
@@ -176,6 +195,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private submissionGeneration = 0;
   private steerError: string | undefined;
   private readonly steerDelivery = new ClaudeSteerDelivery();
+  private readonly contextSteer: ClaudeContextSteer | undefined;
   // A turn's `result` settles its status immediately, but flipping the thread
   // to idle while a background subagent task is still live would mark a GUI
   // thread finished mid-work. Hold the completion status here until the
@@ -217,6 +237,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.backgroundTaskControls = new ClaudeBackgroundTaskControls(this.mapperState, () =>
       this.disposed ? undefined : this.queryRuntime,
     );
+    // Its hook costs a control round-trip per tool batch, so only a session
+    // the runtime may steer pays for it.
+    if (input.mayReceiveContextSteers) {
+      const contextSteer = new ClaudeContextSteer({
+        canTakeContext: () => !this.disposed && this.currentTurnInFlight && !this.interruptInFlight,
+      });
+      this.contextSteer = contextSteer;
+      this.steerContext = (text) => contextSteer.steer(text);
+    }
   }
 
   static create(input: CreateStructuredSessionInput): Promise<ClaudeSdkSession> {
@@ -359,6 +388,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     options?: StartTurnOptions,
   ): Promise<void> {
     if (this.disposed) return;
+    this.bypassPlanPermissions = false;
     // The CLI reads its auto-compact window at launch: applyFlagSettings does
     // not change the effective window (verified with SDK/CLI 0.3.296/2.1.296).
     // A relaunch would end the CLI's background tasks, so while any are live
@@ -389,15 +419,27 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     await this.syncModel(query, config);
     if (!isCurrent()) return;
     const permissionMode = permissionModeForConfig(config);
+    const basePermissionMode = basePermissionModeForConfig(config);
+    const bypassPlan = config.mode === "plan" && basePermissionMode === "bypassPermissions";
+    if (config.mode === "plan" && (bypassPlan || basePermissionMode === "auto")) {
+      // Native Plan entry remembers the preceding mode. Re-enter Auto so its
+      // classifier survives a policy/model change while already planning.
+      // Confirm Bypass is permitted before honoring it in canUseTool; the
+      // SDK's allowDangerouslySkipPermissions only makes it selectable.
+      await query.setPermissionMode(basePermissionMode);
+      this.appliedPermissionMode = basePermissionMode;
+      if (!isCurrent()) return;
+    }
     if (permissionMode !== this.appliedPermissionMode || config.mode === "plan") {
       await query.setPermissionMode(permissionMode);
       this.appliedPermissionMode = permissionMode;
     }
 
     if (!isCurrent()) return;
+    this.bypassPlanPermissions = bypassPlan;
     await this.syncSandbox(query, config);
     if (!isCurrent()) return;
-    await this.syncUltracodeFlag(query);
+    await this.syncEffortFlags(query);
     await this.syncFastMode(query);
 
     const message = await buildSdkUserMessage(
@@ -407,6 +449,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       options?.turnContext,
     );
     if (this.disposed || generation !== this.submissionGeneration) return;
+    this.pendingPromptAdmission = options?.onPromptSubmitted
+      ? { generation, acknowledge: options.onPromptSubmitted }
+      : undefined;
     this.promptQueue.push(message);
   }
 
@@ -637,7 +682,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   private async syncSandbox(runtime: Query, config: ThreadConfig): Promise<void> {
-    const disabled = permissionModeForConfig(config) === "bypassPermissions";
+    const disabled = basePermissionModeForConfig(config) === "bypassPermissions";
     if (disabled === this.appliedSandboxDisabled) return;
     // Bypass is Poracode's full-access choice. Inheriting a project's Bash
     // sandbox here prevents native browser launches even after tool approval.
@@ -647,21 +692,26 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   /**
-   * `ultracode` is not a model-level effort: it's a Claude Code session flag
-   * that sends `xhigh` to the model and enables dynamic-workflow orchestration.
-   * It lives in the flag-settings layer (CLI: `--settings '{"ultracode":true}'`;
-   * SDK: applyFlagSettings).
+   * Effort and `ultracode` live in the flag-settings layer once the query runs
+   * (CLI: `--effort` and `--settings '{"ultracode":true}'` at launch). Ultracode
+   * runs at any effort, but an `effortLevel` change sent without the
+   * `ultracode` key turns it off, so an effort change always carries both.
    */
-  private async syncUltracodeFlag(runtime: Query): Promise<void> {
-    const wantUltracode = this.currentConfig.effort === "ultracode";
-    if (wantUltracode === this.appliedUltracode) return;
+  private async syncEffortFlags(runtime: Query): Promise<void> {
+    const { effort, ultracode } = claudeEffortAndUltracode(this.currentConfig);
+    const effortChanged = effort !== this.appliedEffort;
+    if (!effortChanged && ultracode === this.appliedUltracode) return;
     try {
       await runtime.applyFlagSettings({
-        ultracode: wantUltracode ? true : null,
+        ...(effortChanged
+          ? { effortLevel: effort ? (effort.toLowerCase() as EffortLevel) : null }
+          : {}),
+        ultracode: ultracode ? true : null,
       });
-      this.appliedUltracode = wantUltracode;
+      this.appliedEffort = effort;
+      this.appliedUltracode = ultracode;
     } catch {
-      // Older CLIs ignore the unknown flag; effort still degrades to xhigh.
+      // Older CLIs reject unknown flags; the launch effort still applies.
     }
   }
 
@@ -785,6 +835,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.mapperState.activeSubAgentToolToTask?.clear();
     this.submissionGeneration++;
     this.steerDelivery.reset();
+    this.contextSteer?.cancel("The Claude query restarted before the context reached it.");
     this.currentTurnAssistantUuid = undefined;
     this.currentTurnInFlight = false;
     this.openedResumeSessionId = resumeSessionId;
@@ -801,6 +852,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.streamStarted = false;
     this.appliedModel = undefined;
     this.appliedPermissionMode = undefined;
+    this.bypassPlanPermissions = false;
     this.appliedUltracode = false;
     this.appliedFast = false;
     this.startQuery(resumeSessionId, resumeSessionAt, retirement);
@@ -822,6 +874,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.goalSteerInterruptInFlight = false;
     this.pendingSteers = this.steersSurvivingInterrupt(false);
     this.steerDelivery.reset();
+    this.contextSteer?.cancel("The Claude turn was stopped before the context reached it.");
     this.promptQueue.clear();
     this.submissionGeneration++;
     this.interruptInFlight = true;
@@ -843,6 +896,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
     this.pendingSteers = [];
     this.steerDelivery.reset();
+    this.contextSteer?.cancel("The Claude turn ended before the context reached it.");
     this.promptQueue.clear();
     this.submissionGeneration++;
     this.deferredCompletion.clear();
@@ -874,9 +928,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.settleElicitation(requestId, result);
       return;
     }
-    this.pendingRequests.delete(requestId);
-
     if (pending.kind === "question") {
+      this.pendingRequests.delete(requestId);
       if (isQuestionCancelResponse(response)) {
         pending.resolve({ behavior: "deny", message: "User cancelled tool execution." });
         this.emitRuntimeEvents([
@@ -917,14 +970,60 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       return;
     }
 
+    if (pending.resolving) return pending.resolving;
+    const resolving = this.resolvePermissionRequest(requestId, pending, response);
+    pending.resolving = resolving;
+    try {
+      await resolving;
+    } finally {
+      delete pending.resolving;
+    }
+  }
+
+  private async resolvePermissionRequest(
+    requestId: ThreadServerRequestId,
+    pending: PendingPermission,
+    response: unknown,
+  ): Promise<void> {
     const decision = permissionDecision(response);
+    if (
+      decision.kind === "acceptForSession" &&
+      (!pending.suggestions?.length ||
+        (decision.suggestionIndex !== undefined && !pending.suggestions[decision.suggestionIndex]))
+    ) {
+      // An older client may still display the former synthetic Always allow
+      // option. Keep the request open rather than silently treating it as once.
+      throw new Error(msg("thread.permission.persistentUnavailable"));
+    }
     if (decision.kind === "accept" || decision.kind === "acceptForSession") {
+      let approvedPlanMode: PermissionMode | undefined;
+      if (isExitPlanModeToolName(pending.toolName)) {
+        // Approval resumes this same turn, before the saved client config
+        // reaches startTurn. Leave native Plan active until the response's
+        // permission update atomically applies the selected policy.
+        this.bypassPlanPermissions = false;
+        approvedPlanMode =
+          exitPlanApprovalMode(response) ?? basePermissionModeForConfig(this.currentConfig);
+        const runtime = await this.requireQuery();
+        if (this.pendingRequests.get(requestId) !== pending) return;
+        const config: ThreadConfig = {
+          ...this.currentConfig,
+          mode: "agent",
+          approvalPolicy: approvedPlanMode,
+        };
+        await this.syncSandbox(runtime, config);
+        if (this.pendingRequests.get(requestId) !== pending) return;
+        this.currentConfig = config;
+        this.appliedPermissionMode = approvedPlanMode;
+      }
+      this.pendingRequests.delete(requestId);
       const pickedSuggestion =
         decision.suggestionIndex !== undefined
           ? pending.suggestions?.[decision.suggestionIndex]
           : undefined;
-      const updatedPermissions: PermissionUpdate[] | undefined =
-        decision.kind === "acceptForSession" && pending.suggestions
+      const updatedPermissions: PermissionUpdate[] | undefined = approvedPlanMode
+        ? [{ type: "setMode", mode: approvedPlanMode, destination: "session" }]
+        : decision.kind === "acceptForSession" && pending.suggestions
           ? pickedSuggestion
             ? [pickedSuggestion]
             : pending.suggestions
@@ -946,6 +1045,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       return;
     }
 
+    this.pendingRequests.delete(requestId);
     pending.resolve({
       behavior: "deny",
       message: buildDenyMessage(decision.kind, pending),
@@ -1080,6 +1180,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private closeSessionResources(): void {
     this.pendingSteers = [];
     this.steerDelivery.reset();
+    this.contextSteer?.cancel("The Claude session closed before the context reached it.");
     this.promptQueue.clear();
     this.submissionGeneration++;
     this.stopGoalTracking();
@@ -1306,6 +1407,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           break;
         }
       }
+      const launchEffort = claudeEffortAndUltracode(this.currentConfig).effort;
       const options: ClaudeQueryOptions = {
         cwd: projectCwd(this.input.projectLocation),
         model,
@@ -1326,17 +1428,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         forwardSubagentText: true,
         canUseTool: this.canUseTool,
         onElicitation: this.onElicitation,
+        ...(this.contextSteer ? { hooks: this.contextSteer.hooks } : {}),
         env: { ...env, ...claudeContextWindowEnv(contextSize) },
-        ...(this.currentConfig.effort
-          ? {
-              // `ultracode` is not a model-level effort value — the CLI rejects
-              // it on `--effort`. It maps to `xhigh` reasoning + dynamic
-              // workflows, where the workflows toggle is sent below via
-              // applyFlagSettings after the query starts.
-              effort: (this.currentConfig.effort === "ultracode"
-                ? "xhigh"
-                : this.currentConfig.effort) as NonNullable<ClaudeQueryOptions["effort"]>,
-            }
+        ...(launchEffort
+          ? { effort: launchEffort as NonNullable<ClaudeQueryOptions["effort"]> }
           : {}),
         ...(claudeExecutablePath ? { pathToClaudeCodeExecutable: claudeExecutablePath } : {}),
         ...(!deferMcp && Object.keys(mcpServers).length > 0
@@ -1358,7 +1453,9 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         permissionMode === "bypassPermissions" ? undefined : permissionMode;
       this.appliedSandboxDisabled = false;
       void this.refreshSlashCommands(this.queryRuntime);
-      void this.syncUltracodeFlag(this.queryRuntime);
+      // The ultracode flag is sent below via applyFlagSettings.
+      this.appliedEffort = launchEffort;
+      void this.syncEffortFlags(this.queryRuntime);
       void this.syncFastMode(this.queryRuntime);
       return this.queryRuntime;
     })();
@@ -1388,6 +1485,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           this.submissionGeneration++;
           this.pendingSteers = [];
           this.steerDelivery.reset();
+          this.contextSteer?.cancel("The Claude query failed before the context reached it.");
           this.promptQueue.clear();
           if (!this.disposed) {
             captureSupervisorException(error, {
@@ -1437,6 +1535,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
   private readonly canUseTool: CanUseTool = async (toolName, toolInput, callbackOptions) => {
     if (this.disposed) return { behavior: "deny", message: "Session closed." };
+    if (callbackOptions.signal.aborted)
+      return { behavior: "deny", message: "User cancelled tool execution." };
+    if (this.bypassPlanPermissions && canBypassPlanPermission(toolName, callbackOptions)) {
+      return { behavior: "allow", updatedInput: toolInput };
+    }
     if (toolName === "AskUserQuestion") {
       const requestId = `claude-question-${randomUUID()}` as ThreadServerRequestId;
       const questions = parseClaudeQuestions(toolInput);
@@ -1466,12 +1569,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
 
     const requestId = `claude-perm-${randomUUID()}` as ThreadServerRequestId;
+    const suggestions = callbackOptions.suppressAlwaysAllowRule
+      ? undefined
+      : callbackOptions.suggestions;
     return await new Promise<PermissionResult>((resolve) => {
       this.pendingRequests.set(requestId, {
         kind: "permission",
         toolName,
         toolInput,
-        ...(callbackOptions.suggestions ? { suggestions: [...callbackOptions.suggestions] } : {}),
+        ...(suggestions ? { suggestions: [...suggestions] } : {}),
         resolve,
       });
       callbackOptions.signal.addEventListener(
@@ -1495,7 +1601,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             ? { decisionReason: callbackOptions.decisionReason }
             : {}),
           ...(callbackOptions.toolUseID ? { toolUseID: callbackOptions.toolUseID } : {}),
-          ...(callbackOptions.suggestions ? { suggestions: callbackOptions.suggestions } : {}),
+          ...(suggestions ? { suggestions } : {}),
+          cwd: projectCwd(this.input.projectLocation),
         }),
       ]);
       this.updatePendingRequestStatus();
@@ -1543,6 +1650,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     ) {
       this.sessionHasHistory = true;
       this.activeResumeAt = undefined;
+      const admission = this.pendingPromptAdmission;
+      if (admission?.generation === this.submissionGeneration) {
+        this.pendingPromptAdmission = undefined;
+        admission.acknowledge();
+      }
     }
     const sessionId =
       "session_id" in message && typeof message.session_id === "string"
@@ -1617,6 +1729,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // Only main-thread assistant uuids are valid resume anchors; a sub-agent
       // uuid (parent_tool_use_id set) must never become a rollback resume point.
       this.currentTurnAssistantUuid = message.uuid;
+      this.contextSteer?.observeAssistantMessage(message);
     }
 
     let wasInterrupted = false;
@@ -1685,6 +1798,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       }
       this.currentTurnAssistantUuid = undefined;
       this.currentTurnInFlight = false;
+      // A later batch belongs to another turn: the caller falls back instead.
+      this.contextSteer?.cancel("The Claude turn ended before the context reached it.");
       const goalSteerInterrupt = this.goalSteerInterruptInFlight;
       this.goalSteerInterruptInFlight = false;
       // Stop the 15s goal-tracking poller on every turn end — including
@@ -1712,7 +1827,17 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         }
       }
       if (this.startPendingSteer()) return;
-      if (!failed && !wasInterrupted && hasAwaitedBackgroundWork(this.mapperState)) {
+      // A registered sub-agent edge whose task is missing from a known level is
+      // the only trace left of a run that ended unreported. Hold the clean
+      // completion for the resume grace and settle it in the flush callback;
+      // the flush itself sees no awaited work and arms that grace. Edge maps
+      // never hold the thread indefinitely while a level exists.
+      const hasRegisteredSubAgentEdges = (this.mapperState.activeSubAgentTaskToTool?.size ?? 0) > 0;
+      if (
+        !failed &&
+        !wasInterrupted &&
+        (hasAwaitedBackgroundWork(this.mapperState) || hasRegisteredSubAgentEdges)
+      ) {
         this.deferredCompletion.defer(completion);
       } else {
         this.emitUpdate(completion);
@@ -1722,16 +1847,14 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   /**
-   * Whether the CLI still owns live work, for process reuse and goal tracking:
-   * sub-agent runs (edge-tracked, closed by `task_notification`) or any task in
-   * the CLI's `background_tasks_changed` level set — plain backgrounded Bash
-   * and watchers included. Independent commands may outlive a completed response.
+   * Whether the CLI still owns live work, for process reuse, rollback and goal
+   * tracking. The authoritative `background_tasks_changed` level wins once it
+   * exists (plain backgrounded Bash, watchers and sub-agent runs alike);
+   * older CLIs without it fall back to the task_started/task_notification edge
+   * registry. Independent commands may outlive a completed response.
    */
   private hasLiveBackgroundWork(): boolean {
-    return (
-      (this.mapperState.activeSubAgentTaskToTool?.size ?? 0) > 0 ||
-      (this.mapperState.liveBackgroundTaskIds?.size ?? 0) > 0
-    );
+    return hasLiveBackgroundWork(this.mapperState);
   }
 
   /**
@@ -1774,6 +1897,24 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         this.steerDelivery.hasPending
       )
         return;
+      // Only a completion that is actually still held may settle a missing
+      // report; and only once the CLI has emitted a level. A rerun that opens a
+      // new turn clears the held completion, and a resume/notification that
+      // arrives inside this grace replaces the provisional error before it is
+      // ever emitted.
+      if (
+        this.deferredCompletion.hasPending &&
+        this.mapperState.liveBackgroundTaskIds !== undefined &&
+        !this.currentTurnInFlight
+      ) {
+        const settlementEvents = settleMissingSubAgentTaskReports(this.mapperState);
+        if (settlementEvents.length > 0) {
+          this.emitRuntimeEvents(settlementEvents);
+          // No awaited subagent is live at this point, so any child rows still
+          // tracked belong to the settled runs and can never receive a result.
+          this.emitRuntimeEvents(closeClaudeOpenItems(this.mapperState, { abandonChildren: true }));
+        }
+      }
       this.emitRuntimeEvents(completeActiveGoalOnTaskDrainEvents(this.mapperState));
       const update = this.deferredCompletion.take();
       if (update) this.emitUpdate(update);
@@ -1825,7 +1966,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     try {
       const runtime = this.queryRuntime;
       if (!runtime) return;
-      const usage = await runtime.getContextUsage();
+      // This refresh runs after every result and on the goal tick. `summary`
+      // answers from the last response's usage instead of issuing a
+      // token-count API call per category; CLIs that predate it ignore it.
+      const usage = await runtime.getContextUsage({ detail: "summary" });
       if (this.disposed || runtime !== this.queryRuntime) return;
       const event = mapClaudeContextUsageResponse(this.input.threadId, usage);
       if (event) this.emitRuntimeEvents([event]);

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { programStatusOscHint } from "../agents/base";
 import { ThreadOutputPipeline, resolveThreadStatusSource } from "./threadOutputPipeline";
 import type { SessionRuntime } from "./sessionTypes";
 
@@ -86,6 +87,30 @@ describe("resolveThreadStatusSource", () => {
         adapter: { capabilities: { presentationMode: "terminal" } },
       } as never),
     ).toBe("cli_hook");
+  });
+});
+
+describe("ThreadOutputPipeline error reason", () => {
+  it("retains an error reason only while the session remains in error", () => {
+    const p = pipeline();
+    const session = {
+      threadId: "t1",
+      status: "idle",
+      attention: "none",
+      agentKind: "codex",
+      config: {},
+      canResumeWithConfig: false,
+      adapter: { capabilities: { presentationMode: "gui" } },
+    } as unknown as SessionRuntime;
+
+    p.updateState(session, "error", "error", "boom");
+    expect(session.errorMessage).toBe("boom");
+
+    p.updateState(session, "error", "error");
+    expect(session.errorMessage).toBe("boom");
+
+    p.updateState(session, "idle", "none");
+    expect(session).not.toHaveProperty("errorMessage");
   });
 });
 
@@ -399,6 +424,54 @@ describe("ThreadOutputPipeline / CLI hook disables L2", () => {
 
     expect(session.status).toBe("working");
     expect(session.attention).toBe("working");
+  });
+
+  it("uses OSC 7501 program status to move a terminal thread to working", () => {
+    const p = pipeline();
+    const session = {
+      threadId: "t1",
+      status: "idle",
+      attention: "none",
+      config: {},
+      launchPrompt: "",
+      prevChunk: "",
+      outputLength: 0,
+      ptyOscCarry: "",
+      adapter: {
+        capabilities: { presentationMode: "terminal" },
+        handleOscProgramStatus: programStatusOscHint,
+      },
+      pty: { write: vi.fn<(data: string) => void>() },
+    } as unknown as SessionRuntime;
+
+    p.handlePtyData(session, "\x1b]7501;state=working:app=demo\x1b\\");
+
+    expect(session.status).toBe("working");
+    expect(session.attention).toBe("working");
+  });
+
+  it("uses OSC 7501 blocked/permission to move a terminal thread to needs_approval", () => {
+    const p = pipeline();
+    const session = {
+      threadId: "t1",
+      status: "working",
+      attention: "working",
+      config: {},
+      launchPrompt: "",
+      prevChunk: "",
+      outputLength: 0,
+      ptyOscCarry: "",
+      adapter: {
+        capabilities: { presentationMode: "terminal" },
+        handleOscProgramStatus: programStatusOscHint,
+      },
+      pty: { write: vi.fn<(data: string) => void>() },
+    } as unknown as SessionRuntime;
+
+    p.handlePtyData(session, "\x1b]7501;state=blocked:kind=permission:app=demo\x1b\\");
+
+    expect(session.status).toBe("needs_approval");
+    expect(session.attention).toBe("needs_approval");
   });
 
   it("uses Codex spinner titles as L2 fallback when hook env is present but hooks stay silent", async () => {
@@ -824,5 +897,93 @@ describe("ThreadOutputPipeline / emitState session config options", () => {
 
     p.emitState(sessionWithInventory(undefined));
     expect(emittedInventoryState(emit)).not.toHaveProperty("sessionConfigOptions");
+  });
+});
+
+describe("ThreadOutputPipeline / cut-off turn marker", () => {
+  function liveSession(overrides: Record<string, unknown> = {}) {
+    return {
+      threadId: "t1",
+      status: "working",
+      attention: "working",
+      agentKind: "claude",
+      config: {},
+      canResumeWithConfig: true,
+      adapter: { capabilities: { presentationMode: "gui" } },
+      ...overrides,
+    } as unknown as SessionRuntime;
+  }
+
+  function states(emit: ReturnType<typeof vi.fn<() => void>>) {
+    return (emit.mock.calls as unknown as Array<[Record<string, unknown>]>)
+      .map((call) => call[0])
+      .filter((event) => event.type === "thread-state");
+  }
+
+  it("marks a turn that ended in an error", () => {
+    const emit = vi.fn<() => void>();
+    pipeline(emit).updateState(liveSession(), "error", "error", "Rate limited");
+    expect(states(emit).at(-1)).toMatchObject({ status: "error", interruptedTurn: "error" });
+  });
+
+  it("never marks a turn the user stopped", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    const session = liveSession({ structuredTurnInterruptRequested: true });
+    p.noteTurnFailed(session);
+    p.updateState(session, "error", "error");
+    expect(states(emit)).toHaveLength(1);
+    expect(states(emit)[0]).not.toHaveProperty("interruptedTurn");
+  });
+
+  it("keeps a stopped turn unmarked after its stop request settled", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    // ACP reports the error status first; the failed turn event follows it.
+    const session = liveSession({ presentationMode: "gui", turnStopRequested: true });
+    p.updateState(session, "error", "error", "Quota exceeded");
+    p.noteTurnFailed(session);
+    expect(states(emit)).toHaveLength(1);
+    expect(states(emit)[0]).toMatchObject({ interruptedTurn: null, turnStopRequested: true });
+
+    // The next turn is the user's again: its failure marks it.
+    p.updateState(session, "working", "working");
+    p.updateState(session, "error", "error", "Quota exceeded");
+    expect(states(emit).at(-1)).toMatchObject({ status: "error", interruptedTurn: "error" });
+  });
+
+  it("carries a failed turn that settles idle, then clears it when the next turn starts", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    const session = liveSession();
+    // Claude reports the failed turn before its idle status.
+    p.noteTurnFailed(session);
+    expect(states(emit)).toHaveLength(0);
+    p.updateState(session, "idle", "none");
+    expect(states(emit).at(-1)).toMatchObject({ status: "idle", interruptedTurn: "error" });
+    p.updateState(session, "working", "working");
+    expect(states(emit).at(-1)).toMatchObject({ status: "working", interruptedTurn: null });
+  });
+
+  it("tells the host about the marker only when it changes", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    const session = liveSession();
+    p.updateState(session, "error", "error", "Rate limited");
+    // A later state change must not restore a marker the host retired.
+    p.updateState(session, "idle", "none");
+    expect(states(emit).at(-1)).not.toHaveProperty("interruptedTurn");
+    p.updateState(session, "working", "working");
+    expect(states(emit).at(-1)).toMatchObject({ interruptedTurn: null });
+  });
+
+  it("emits a failure reported after the turn already settled", () => {
+    const emit = vi.fn<() => void>();
+    const p = pipeline(emit);
+    const session = liveSession({ status: "idle", attention: "none" });
+    p.noteTurnFailed(session);
+    p.noteTurnFailed(session);
+    expect(states(emit)).toHaveLength(1);
+    expect(states(emit)[0]).toMatchObject({ status: "idle", interruptedTurn: "error" });
   });
 });

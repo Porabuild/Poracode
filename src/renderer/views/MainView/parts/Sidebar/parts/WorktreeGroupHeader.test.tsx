@@ -78,7 +78,7 @@ describe("WorktreeGroupHeader", () => {
       childTones: ["working", "finished"],
     });
 
-    expect(container.querySelector(".lucide-git-fork")).toHaveClass("text-[oklch(0.82_0.12_260)]");
+    expect(container.querySelector(".lucide-git-fork")).toHaveClass("text-[var(--finished-tone)]");
   });
 
   it("shows green for a working child when no child is finished", () => {

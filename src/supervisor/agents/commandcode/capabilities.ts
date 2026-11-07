@@ -88,7 +88,12 @@ export async function probeCommandCodeCapabilities(
         return efforts ? [[id, efforts]] : [];
       }),
     );
-    const unprobedModelIds = parsed.map(({ id }) => id).filter((id) => !(id in terminalAcpEfforts));
+    // ACP discovery can outlive a failed CLI catalog probe or list newer models.
+    const modelIds = new Set([
+      ...parsed.map(({ id }) => id),
+      ...(acp?.models ?? []).map(({ id }) => id.toLowerCase()),
+    ]);
+    const unprobedModelIds = [...modelIds].filter((id) => !acpEffortsById.has(id.toLowerCase()));
     const fallback =
       unprobedModelIds.length > 0
         ? await probeCommandCodeModelEfforts(
@@ -120,6 +125,9 @@ export async function probeCommandCodeCapabilities(
     preferTerminalLogin: true,
     ...(acp?.authState ? { authState: acp.authState } : {}),
     ...modelCapabilities,
+    // Models found only by the terminal effort probe declare no default; their
+    // ladders start at "low". ACP model defaults still take precedence.
+    defaultEffort: "medium",
     reportsSkillCatalog: supportsAcp,
     presentationModes: supportsAcp ? ["terminal", "gui"] : ["terminal"],
     mcpScope: { terminal: "launch", gui: supportsAcp ? "launch" : "none" },

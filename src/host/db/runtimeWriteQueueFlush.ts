@@ -28,7 +28,7 @@ export interface RuntimeFlushChunkBounds {
 
 export const DEFAULT_RUNTIME_FLUSH_CHUNK: RuntimeFlushChunkBounds = {
   maxEvents: 500,
-  maxBytes: 1024 * 1024,
+  maxBytes: 128 * 1024,
 };
 
 export interface RuntimeBudgetedFlushOptions {
@@ -158,7 +158,7 @@ const ATOMIC_MAX_BYTES = 4 * 1024 * 1024;
 
 /**
  * One visit per thread, oldest first. Atomic groups contain at most four
- * 500-event/1 MiB prefixes and at most 4 MiB of ordinary input. One indivisible
+ * 500-event/128 KiB prefixes and at most 4 MiB of ordinary input. One indivisible
  * event exceeding the chunk limit is separately reserved; a second ends the
  * group. Thus total input is <= 4 MiB + the largest selected oversize event,
  * still within four threads and the queue's hard single-event bound.

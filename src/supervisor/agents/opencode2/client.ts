@@ -1,4 +1,5 @@
 import { resolve as resolvePosixPath } from "node:path/posix";
+import { createHash } from "node:crypto";
 import { resolve as resolveWindowsPath } from "node:path/win32";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { resolveOpenCode2Binary } from "./binary";
@@ -40,6 +41,12 @@ export function resolveOpenCode2SessionDirectory(location: ProjectLocation): str
 function poolKey(location: ProjectLocation, database: OpenCode2Database): string {
   const runtime = location.kind === "wsl" ? `wsl:${location.distro}` : location.kind;
   return `${runtime}:${database}`;
+}
+
+function mcpFingerprint(servers: Record<string, OpenCode2McpServerConfig>): string {
+  return JSON.stringify(
+    Object.entries(servers).sort(([left], [right]) => left.localeCompare(right)),
+  );
 }
 
 export interface AcquiredOpenCode2Server {
@@ -210,9 +217,51 @@ async function spawnAndWire(
 export interface AcquireOpenCode2ServerInput {
   projectLocation: ProjectLocation;
   mcpServers?: readonly ResolvedMcpServer[];
+  /** Terminal MCP credentials can be thread-scoped; never replace a sibling's set. */
+  isolateMcpServers?: boolean;
   /** Resume pre-upgrade sessions without copying or replacing their conversations. */
   resumeSessionId?: string;
   database?: OpenCode2Database;
+}
+
+const terminalRetirements = new Map<string, Promise<void>>();
+
+function terminalRetirementKey(location: ProjectLocation, sessionID: string): string {
+  // Database resolution and directory changes must not bypass a session's
+  // previous interrupt. Native and legacy sessions share this fence.
+  return JSON.stringify([poolKey(location, "native"), sessionID]);
+}
+
+/** Fence a successor before the old TUI's asynchronous interrupt can reach it. */
+export function retireOpenCode2TerminalServer(
+  location: ProjectLocation,
+  sessionID: string | undefined,
+  acquired: AcquiredOpenCode2Server,
+): Promise<void> {
+  const cleanup = async () => {
+    try {
+      if (sessionID) {
+        await acquired.client.session.interrupt(
+          { sessionID },
+          { signal: AbortSignal.timeout(5_000) },
+        );
+      }
+    } finally {
+      await acquired.dispose({ closeServerIfIdle: true });
+    }
+  };
+  if (!sessionID) return cleanup();
+  const key = terminalRetirementKey(location, sessionID);
+  const retirement = (terminalRetirements.get(key) ?? Promise.resolve()).then(cleanup);
+  const settled = retirement.then(
+    () => undefined,
+    () => undefined,
+  );
+  terminalRetirements.set(key, settled);
+  void settled.then(() => {
+    if (terminalRetirements.get(key) === settled) terminalRetirements.delete(key);
+  });
+  return retirement;
 }
 
 async function addMcpServers(
@@ -255,9 +304,7 @@ async function syncLocationMcpServers(
   const state = existing ?? { sync: Promise.resolve() };
   if (!existing) entry.locationMcp.set(directory, state);
 
-  const nextFingerprint = JSON.stringify(
-    Object.entries(servers).sort(([left], [right]) => left.localeCompare(right)),
-  );
+  const nextFingerprint = mcpFingerprint(servers);
   const nextNames = new Set(Object.keys(servers));
   const operation = state.sync.then(async () => {
     if (state.managedMcpFingerprint === nextFingerprint) return;
@@ -294,6 +341,11 @@ async function syncLocationMcpServers(
 export async function acquireOpenCode2Server(
   input: AcquireOpenCode2ServerInput,
 ): Promise<AcquiredOpenCode2Server> {
+  if (input.resumeSessionId) {
+    const key = terminalRetirementKey(input.projectLocation, input.resumeSessionId);
+    let retirement;
+    while ((retirement = terminalRetirements.get(key))) await retirement;
+  }
   const acquired = await acquireResolvedOpenCode2Server(input);
   try {
     await synchronizeOpenCode2Credentials(input.projectLocation, acquired, (database) =>
@@ -371,7 +423,14 @@ async function acquireOpenCode2ServerInner(
   retryMcpConnectionLoss: boolean,
 ): Promise<AcquiredOpenCode2Server> {
   const database = input.database ?? "native";
-  const key = poolKey(input.projectLocation, database);
+  const runtimeKey = poolKey(input.projectLocation, database);
+  const key = input.isolateMcpServers
+    ? `${runtimeKey}:terminal:${createHash("sha256")
+        .update(resolveOpenCode2SessionDirectory(input.projectLocation))
+        .update("\0")
+        .update(mcpFingerprint(buildOpenCode2McpServers(input.mcpServers ?? [])))
+        .digest("hex")}`
+    : runtimeKey;
   let entry = pool.get(key);
 
   if (!entry) {

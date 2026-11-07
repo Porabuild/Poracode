@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useAppStore } from "./appStore";
 import { useInitialProjectDraftConfig, useProjectWithoutDraftConfig } from "./useThread";
@@ -40,6 +40,50 @@ describe("useProjectWithoutDraftConfig", () => {
       remoteId: "project-1",
     });
     expect(result.current).not.toHaveProperty("lastDraftConfig");
+  });
+
+  it("passes project MCP servers loaded after mount through to draft panes", () => {
+    const project = {
+      id: "project-1",
+      name: "Project",
+      location: { kind: "posix", path: "/repo" } as const,
+      createdAt: "2026-07-28T00:00:00.000Z",
+    };
+    useAppStore.setState({ projects: [project] });
+
+    const { result } = renderHook(() => useProjectWithoutDraftConfig("project-1"));
+    expect(result.current).not.toHaveProperty("mcpServers");
+
+    const vercel = {
+      id: "vercel",
+      name: "Vercel",
+      description: "",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "http", url: "https://mcp.vercel.com/", headers: {} },
+    } as const;
+    act(() => {
+      useAppStore.getState().updateProjectMcpServers("project-1", [vercel]);
+    });
+    expect(result.current?.mcpServers).toEqual([vercel]);
+  });
+
+  it("passes the pinned worktree base through to draft panes and follows pin changes", () => {
+    const project = {
+      id: "project-1",
+      name: "Project",
+      location: { kind: "posix", path: "/repo" } as const,
+      createdAt: "2026-07-28T00:00:00.000Z",
+    };
+    useAppStore.setState({ projects: [{ ...project, worktreeBaseBranch: "develop" }] });
+
+    const { result } = renderHook(() => useProjectWithoutDraftConfig("project-1"));
+    expect(result.current?.worktreeBaseBranch).toBe("develop");
+
+    act(() => {
+      useAppStore.getState().updateProjectWorktreeBaseBranch("project-1", undefined);
+    });
+    expect(result.current).not.toHaveProperty("worktreeBaseBranch");
   });
 
   it("keeps the initial draft config until the project changes and retries missing projects", () => {

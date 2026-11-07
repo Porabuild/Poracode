@@ -55,5 +55,5 @@
   "dependencies": {
     "zod": "^4.5.4"
   },
-  "packageManager": "bun@1.4.3-canary.20261017.1"
+  "packageManager": "bun@1.4.3-canary.20261021.1"
 }

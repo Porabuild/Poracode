@@ -46,6 +46,40 @@ describe("useScrollFade", () => {
     expect(result.current.scrollRef.current).toBeNull();
   });
 
+  it("keeps the top fade at zero while a row is flush at the top, then ramps in on scroll", async () => {
+    let scrollTop = 1200;
+    const { result } = renderHook(() =>
+      useScrollFade<HTMLDivElement>({ maxFadePx: 32, getTopFlushScrollTop: () => 1200 }),
+    );
+    const el = document.createElement("div");
+    Object.defineProperties(el, {
+      scrollTop: { configurable: true, get: () => scrollTop, set: () => undefined },
+      scrollHeight: { configurable: true, get: () => 3000 },
+      clientHeight: { configurable: true, get: () => 600 },
+    });
+    act(() => result.current.setScrollContainer(el));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(el.style.getPropertyValue("--top-fade-size")).toBe("0px");
+
+    const settle = () =>
+      act(async () => {
+        el.dispatchEvent(new Event("scroll"));
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      });
+    scrollTop = 1210;
+    await settle();
+    expect(el.style.getPropertyValue("--top-fade-size")).toBe("10px");
+    scrollTop = 1400;
+    await settle();
+    expect(el.style.getPropertyValue("--top-fade-size")).toBe("32px");
+    // Scrolling above the flush offset restores the regular fade.
+    scrollTop = 800;
+    await settle();
+    expect(el.style.getPropertyValue("--top-fade-size")).toBe("32px");
+  });
+
   it("does not rewrite identical fade CSS vars on repeated scroll updates", async () => {
     const { result } = renderHook(() => useScrollFade<HTMLDivElement>({ maxFadePx: 32 }));
     const el = document.createElement("div");

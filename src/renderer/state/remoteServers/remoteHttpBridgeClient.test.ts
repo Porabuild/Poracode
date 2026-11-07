@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { isRemoteTransportFailure, remoteMutationMayHaveCommitted } from "@/shared/remote/client";
 import {
   REMOTE_HTTP_BRIDGE_PORT_CHANNEL,
   REMOTE_HTTP_BRIDGE_VERSION,
@@ -213,6 +214,27 @@ describe("RemoteHttpBridgeClient", () => {
       status: 502,
       code: "certificate_fingerprint_mismatch",
     });
+  });
+
+  it("keeps bridge overload distinct from an unreachable host", async () => {
+    const harness = createHarness();
+    const pending = harness.client.fetch("https://host.test/api");
+    const requestId = await firstRequestId(harness);
+    const pair = createInMemoryBridgePortPair();
+    harness.deliver(envelope(requestId), pair.client);
+    pair.worker.postMessage({
+      v: V,
+      kind: "error",
+      requestId,
+      generation: 5,
+      code: "overloaded",
+      message: "Too many active remote requests.",
+    });
+    const error = await pending.catch((failure: unknown) => failure);
+    expect(error).toMatchObject({ status: 429, code: "overloaded" });
+    expect(isRemoteTransportFailure(error)).toBe(false);
+    expect(remoteMutationMayHaveCommitted(error)).toBe(false);
+    expect(harness.cancels).toEqual([]);
   });
 
   it("aborts while opening, cancels by id, and drops a late port", async () => {

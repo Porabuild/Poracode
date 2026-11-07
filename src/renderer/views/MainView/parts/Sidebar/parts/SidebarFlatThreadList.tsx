@@ -1,7 +1,10 @@
 import type { Project } from "@/shared/contracts";
-import { isHomeProject } from "@/shared/homeScope";
 import { ProjectIcon } from "@/renderer/components/common/ProjectIcon";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import {
+  ProjectEnvironmentIndicator,
+  useProjectEnvironmentMachineLookup,
+} from "@/renderer/components/common/ProjectEnvironment";
 import {
   ProjectRemoteServerChip,
   ProjectSelectorIcon,
@@ -23,16 +26,20 @@ import { NewThreadButton } from "./NewThreadButton";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
 import {
   buildSidebarProjectRows,
-  canReorderInFlatList,
   FLAT_THREAD_LIST_ID,
   SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE,
   type SidebarRow,
 } from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
+import { SidebarDoneRows } from "./SidebarDoneRows";
+import { DONE_SECTION_MAX_HEIGHT_PERCENT, useDoneViewportReveal } from "./useDoneViewportReveal";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { MobileQuickCompose } from "./MobileQuickCompose";
 import { useFlatListProjectFilterModel } from "./useFlatListProjectFilterModel";
+import { useProjectSwitchEntries } from "@/renderer/components/thread/projectSwitchGroups";
+import { pickGroupMember } from "@/renderer/state/projectGroups/useProjectGroups";
+import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
 
 /** Scope key for the pinned Done section's own "See more" pager. */
 const FLAT_DONE_SCOPE = `${FLAT_THREAD_LIST_ID}:done`;
@@ -55,6 +62,9 @@ function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | 
  */
 export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const compactLayout = useCompactLayout();
+  const newThreadEntries = useProjectSwitchEntries();
+  const machineFor = useProjectEnvironmentMachineLookup();
+  const lastUsedAt = useProjectGroupStore((state) => state.lastUsedAt);
   const {
     workspaceProjects,
     visibleProjects,
@@ -83,13 +93,6 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     maxFadePx: 10,
   });
 
-  // Offline machines remain browseable on mobile, but they are not valid
-  // composer targets until their connection comes back.
-  const newThreadProjects = [...actionableProjects].sort((a, b) => {
-    const rank = (project: Project) =>
-      isHomeProject(project) ? 0 : project.remoteServerId ? 2 : 1;
-    return rank(a) - rank(b);
-  });
   const threads =
     activeProjectFilter === null
       ? visibleThreads
@@ -124,7 +127,6 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     liveBackgroundThreadIds,
     openThreadIds: new Set(currentThreadIds),
     doneVisibleLimit,
-    canReorderThread: canReorderInFlatList,
     ...(experimentCandidateOrder.size > 0 ? { experimentCandidateOrder } : {}),
   });
   // The Done section is pinned below the scrolling rows: its header stays put
@@ -134,6 +136,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const listRows = doneStart === -1 ? rows : rows.slice(0, doneStart);
   const doneHeader = doneStart === -1 ? undefined : rows[doneStart];
   const doneRows = doneStart === -1 ? [] : rows.slice(doneStart + 1);
+  const doneViewportRef = useDoneViewportReveal(
+    doneHeader?.kind !== "section-label" || doneHeader.collapsed,
+  );
 
   const renderNewThreadButton = (inline: boolean) =>
     latestProjectId && !compactLayout ? (
@@ -144,17 +149,24 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         isActive={isDraftActive}
         isDraggingAnything={!!source}
         canOpenAsPanel={currentThreadCount > 0 && currentThreadCount < 3}
-        projectOptions={newThreadProjects.map((project) => {
+        projectOptions={newThreadEntries.map((entry) => {
+          const project = entry.members[0]!;
+          const target = pickGroupMember(entry.members, () => true, lastUsedAt)!;
           const remote = remoteServerFor(project);
           return {
-            id: project.id,
+            id: target.id,
             name: project.name,
-            icon: <ProjectSelectorIcon project={project} remote={remote} />,
-            ...(remote.serverName ? { description: remote.serverName } : {}),
+            icon: <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />,
+            trailingContent: (
+              <ProjectEnvironmentIndicator members={entry.environments} machineFor={machineFor} />
+            ),
           };
         })}
         onPress={() => openNewThread(latestProjectId)}
-        onSelectProject={openNewThread}
+        onSelectProject={(projectId) => {
+          useProjectGroupStore.getState().markProjectUsed(projectId);
+          openNewThread(projectId);
+        }}
         onOpenAsPanel={() => openNewThreadSideBySide(latestProjectId)}
       />
     ) : null;
@@ -244,11 +256,14 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
 
       {doneHeader ? (
         // Sized to its rows up to half the column; past that the rows scroll.
-        <div className="flex max-h-[50%] shrink-0 flex-col">
+        <div
+          className="poracode-flat-done-section flex shrink-0 flex-col"
+          style={{ maxHeight: `${DONE_SECTION_MAX_HEIGHT_PERCENT}%` }}
+        >
           {renderRow(doneHeader)}
-          {doneRows.length > 0 ? (
-            <div className={sidebarBodyScrollClass()}>{doneRows.map(renderRow)}</div>
-          ) : null}
+          <div ref={doneViewportRef} className={sidebarBodyScrollClass()}>
+            <SidebarDoneRows rows={doneRows} renderRow={renderRow} />
+          </div>
         </div>
       ) : null}
       {compactLayout && latestProjectId ? <MobileQuickCompose projectId={latestProjectId} /> : null}

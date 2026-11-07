@@ -1217,3 +1217,39 @@ describe("terminalFeed — unsubscribe and reentrancy", () => {
     expect(h.scheduler.size()).toBe(0);
   });
 });
+
+describe("terminal input disconnect notification", () => {
+  it.each([undefined, 1, 2] as const)(
+    "notifies watchers on socket loss and reset without changing v%s frames",
+    (cursorSyncVersion) => {
+      const feed = createTerminalFeed();
+      let disconnected = 0;
+      const { listener } = recordingListener();
+      const sent: RemoteWebSocketClientMessage[] = [];
+      feed.setSender(
+        (message) => {
+          sent.push(message);
+          return true;
+        },
+        cursorSyncVersion === undefined ? undefined : { cursorSyncVersion },
+      );
+      feed.watch("shell", {
+        ...listener,
+        onDisconnected: () => {
+          disconnected += 1;
+        },
+      });
+      expect(sent[0]?.type).toBe("terminal-watch");
+      feed.setSender(null);
+      expect(disconnected).toBe(1);
+      feed.setSender(null);
+      expect(disconnected).toBe(1);
+      feed.setSender(
+        () => true,
+        cursorSyncVersion === undefined ? undefined : { cursorSyncVersion },
+      );
+      feed.reset();
+      expect(disconnected).toBe(2);
+    },
+  );
+});

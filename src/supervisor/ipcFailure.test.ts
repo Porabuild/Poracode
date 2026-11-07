@@ -13,6 +13,7 @@ import {
 } from "./runtime/hostResourceAdmission";
 import { handleSupervisorIpcFailure } from "./ipcFailure";
 import { GIT_ADMISSION_QUEUE_FULL_CODE, GitProcessAdmissionError } from "./git/gitProcessAdmission";
+import { classifySupervisorIpcFailure } from "./diagnostics/sentry";
 
 describe("handleSupervisorIpcFailure", () => {
   it("preserves the caller rejection while reporting the original failure for classification", () => {
@@ -39,6 +40,22 @@ describe("handleSupervisorIpcFailure", () => {
       replyTo: "request-2",
       ok: false,
       error: "rejected",
+    });
+  });
+
+  it("keeps the actionable source-host credential error while suppressing its telemetry", () => {
+    const error = new Error(
+      "Configure credentials scoped to this exact source host in the project's runtime.",
+    );
+
+    expect(classifySupervisorIpcFailure(error, "ghGetPrForBranch")).toMatchObject({
+      treatment: "drop",
+      errorClass: "source-host-credentials-unconfigured",
+    });
+    expect(handleSupervisorIpcFailure(error, "ghGetPrForBranch", "request-gh-pr")).toEqual({
+      replyTo: "request-gh-pr",
+      ok: false,
+      error: "Configure credentials scoped to this exact source host in the project's runtime.",
     });
   });
 

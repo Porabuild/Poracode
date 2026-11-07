@@ -5,6 +5,7 @@ import {
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { currentProviderItemStart } from "./threadProviderEra";
+import { runtimeThreadItemsChanged } from "@/renderer/state/runtimeItemChanges";
 import { hasUnlocatedRuntimeHistoryControl } from "@/renderer/state/runtimeHistoryBoundary";
 
 export interface ThreadGoalDockState {
@@ -47,15 +48,20 @@ export function selectThreadGoalDockState(
   if (hasUnlocatedRuntimeHistoryControl(threadId)) return null;
   const itemIds = state.runtimeItemIdsByThread[threadId];
   const itemsById = state.runtimeItemsByIdByThread[threadId];
+  const itemsIndex = state.runtimeItemsByIdByThread;
   const cached = goalDockStateCache.get(threadId);
-  // Draft/settings updates retain the outer index. The reducer mutates inner
-  // thread indexes but replaces the outer one, so only that snapshot is a safe
-  // fast-path key. A weak reference must not retain old transcript maps.
+  const previousItemsIndex = cached?.itemsIndex.deref();
+  // Runtime snapshots replace the outer index even when this thread's inner
+  // map is untouched. Advance the weak key so the next commit can fast-hit.
   if (
     cached &&
     cached.itemIds === itemIds &&
-    cached.itemsIndex.deref() === state.runtimeItemsByIdByThread
+    previousItemsIndex !== undefined &&
+    !runtimeThreadItemsChanged(previousItemsIndex, itemsIndex, threadId)
   ) {
+    if (previousItemsIndex !== itemsIndex) {
+      cached.itemsIndex = new WeakRef(itemsIndex);
+    }
     return cached.result;
   }
   const latestGoalItem = selectLatestThreadGoalItem(itemIds, itemsById);

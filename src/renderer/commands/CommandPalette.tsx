@@ -5,6 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
+import { recordFeatureSignal } from "@/renderer/state/featureUsageStore";
 import { Button, Input, Modal } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -39,6 +40,8 @@ import {
   searchSettings,
   type SettingsSearchResult,
 } from "@/renderer/views/SettingsOverlay/parts/settingsSearchIndex";
+import { isSettingsSectionVisible } from "@/renderer/views/SettingsOverlay/parts/settingsNavigation";
+import type { SettingsSection } from "@/renderer/views/SettingsOverlay/parts/types";
 import { useCommandPaletteStore } from "./commandPaletteStore";
 import { useKeybindingStore } from "./keybindingStore";
 import { buildCommandRegistry, buildWhenContext, isCommandAvailable } from "./registry";
@@ -254,6 +257,7 @@ function SearchPaletteContent() {
     if (result.kind === "command" || result.kind === "action") {
       const target = originTarget;
       close();
+      recordFeatureSignal(`command:${result.command.id}`);
       requestAnimationFrame(() => void result.command.run(undefined, { target }));
       return;
     }
@@ -470,10 +474,13 @@ function resolveSettingMatches(
     remoteSession: isRemoteSession(),
     windows: readBridge().platform === "win32",
   };
-  if (query.trim()) return searchSettings(query, t, options);
+  // Match the sidebar: never open a section this client hides.
+  const visible = (entry: { section: SettingsSection }) =>
+    isSettingsSectionVisible(entry.section, options.remoteSession);
+  if (query.trim()) return searchSettings(query, t, options).filter(visible);
   if (category !== "settings") return [];
-  return SETTINGS_SEARCH_INDEX.filter((entry) =>
-    isSettingsSearchEntryAvailable(entry, options),
+  return SETTINGS_SEARCH_INDEX.filter(
+    (entry) => isSettingsSearchEntryAvailable(entry, options) && visible(entry),
   ).map((entry) => ({
     section: entry.section,
     anchor: entry.anchor,

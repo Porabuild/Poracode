@@ -333,6 +333,12 @@ export interface GitBranchInfo {
 export interface GitBranchListResult {
   current: string;
   branches: GitBranchInfo[];
+  /**
+   * Remote-qualified default branch (e.g. `origin/main`) resolved from the
+   * remote's `HEAD` symref. Absent when no remote HEAD is known or when the
+   * result came from an older host.
+   */
+  defaultBranch?: string;
 }
 
 export interface GitWorktreeInfo {

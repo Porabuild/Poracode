@@ -8,9 +8,11 @@ import type {
   ThreadFollowUpQueueState,
   ThreadConfig,
 } from "@/shared/contracts";
+import { threadCrewBinding } from "@/shared/crew";
 import {
   changeThreadConfig,
   resolveThreadServerRequest,
+  submitThreadInput,
 } from "@/renderer/actions/threadRuntimeActions";
 import { openFileInEditor } from "@/renderer/utils/gitHelpers";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
@@ -27,7 +29,7 @@ import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
 import { ThreadTodoDock } from "./ThreadTodoDock";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
-import type { ThreadErrorDockState } from "./threadErrorState";
+import { isRuntimeAuthError, type ThreadErrorDockState } from "./threadErrorState";
 import type { ThreadGoalDockState } from "./threadGoalState";
 import type { ThreadTodoDockState } from "./threadTodoState";
 
@@ -72,6 +74,8 @@ type ThreadComposerDocksProps = {
   onCancelPendingSteer: () => void;
   onRestoreComposerFocus?: (() => void) | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
+  /** Host-supplied prompt sender (remote clients); defaults to the local submit. */
+  onSubmitInput?: ((prompt: string) => Promise<void>) | undefined;
   onSlashActiveIndexChange: (index: number) => void;
   onSelectCommand: (command: AgentSlashCommand) => void;
 };
@@ -122,6 +126,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
     onSlashActiveIndexChange,
     onSelectCommand,
   } = props;
+  const crewBinding = threadCrewBinding(threadConfig);
 
   const firstInformationalDock = hasActiveSubAgent
     ? "agents"
@@ -140,6 +145,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
           threadId={threadId}
           projectLocation={projectLocation}
           placement="composer"
+          {...(crewBinding ? { crewBinding } : {})}
           showPlacementToggle={firstInformationalDock === "agents"}
         />
       ) : null}
@@ -151,7 +157,12 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
         />
       ) : null}
       {showContextInComposer ? (
-        <ThreadContextDock summary={contextSummary} onClose={onCloseContextDock} />
+        <ThreadContextDock
+          summary={contextSummary}
+          onClose={onCloseContextDock}
+          threadId={threadId}
+          {...(crewBinding ? { crewBinding } : {})}
+        />
       ) : null}
       {props.notice}
       {showErrorInComposer
@@ -183,7 +194,16 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
         />
       ) : null}
       {authRequired && agentStatus ? (
-        <ThreadAuthRequiredDock agentStatus={agentStatus} {...(project ? { project } : {})} />
+        <ThreadAuthRequiredDock
+          threadId={threadId}
+          agentStatus={agentStatus}
+          {...(project ? { project } : {})}
+          onAuthenticated={() => {
+            errorDockStates
+              .filter(isRuntimeAuthError)
+              .forEach((state) => onDismissError(state.sourceItemId));
+          }}
+        />
       ) : null}
       {pendingSteer ? (
         <ThreadPendingSteerStrip pending={pendingSteer} onCancel={onCancelPendingSteer} />
@@ -212,6 +232,11 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
                 ? { approvalPolicy: optionId }
                 : {}),
             })
+          }
+          onSubmitPlanFeedback={(message) =>
+            props.onSubmitInput
+              ? props.onSubmitInput(message)
+              : submitThreadInput(threadId, message)
           }
           onOpenPlanFile={
             project

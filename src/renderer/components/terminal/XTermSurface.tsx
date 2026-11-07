@@ -1,12 +1,16 @@
 import { ClipboardAddon } from "@xterm/addon-clipboard";
 import { FitAddon } from "@xterm/addon-fit";
 import { ImageAddon } from "@xterm/addon-image";
+import { ProgramStatusAddon } from "@xterm/addon-program-status";
 import { SearchAddon } from "@xterm/addon-search";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { TerminalLinkProvider } from "./TerminalLinkProvider";
 import { resolveTerminalColor } from "./terminalColors";
 import { TerminalReplayGate } from "./terminalReplayGate";
+import { TerminalWriteQueue } from "./terminalWriteQueue";
+import { TerminalInputQueue, registerTerminalInputQueue } from "./terminalInputQueue";
+import { readManagedLoopbackProcedureHost } from "@/renderer/remoteProcedureRouter";
 import { TerminalFeedStatus } from "./TerminalFeedStatus";
 import { applyTerminalFont, loadTerminalFonts, resolveTerminalFontFamily } from "./terminalFonts";
 import { Terminal } from "@xterm/xterm";
@@ -32,7 +36,8 @@ import type {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
-import { watchManagedTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { pairedTerminalOwner, watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
+import { readClientRuntime } from "@/renderer/clientRuntime";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
@@ -143,6 +148,12 @@ export const XTermSurface = forwardRef<
      * supervisor IPC event stream. Returns an unsubscribe.
      */
     outputSource?: (listener: TerminalFeedListener) => () => void;
+    /**
+     * Paired host that will own this terminal, when it is not registered yet (a shell
+     * the panel starts after this surface mounts). Routing then follows the host
+     * from the first byte instead of waiting for the shell to be owned.
+     */
+    outputOwner?: string;
     /** Override PTY input/resize for a terminal hosted on a remote Poracode server. */
     writeInput?: (data: string) => Promise<void>;
     resizeBackingTerminal?: (size: TerminalSize) => Promise<void>;
@@ -176,6 +187,7 @@ export const XTermSurface = forwardRef<
     suppressTouchKeyboard = false,
     themeBackgroundVar = "--content-background",
     outputSource,
+    outputOwner,
     initialScrollback,
     writeInput,
     resizeBackingTerminal,
@@ -204,8 +216,6 @@ export const XTermSurface = forwardRef<
   onTitleChangeRef.current = onTitleChange;
   const onTerminalResizeRef: RefObject<typeof onTerminalResize> = useRef(onTerminalResize);
   onTerminalResizeRef.current = onTerminalResize;
-  const writeInputRef: RefObject<typeof writeInput> = useRef(writeInput);
-  writeInputRef.current = writeInput;
   const resizeBackingTerminalRef: RefObject<typeof resizeBackingTerminal> =
     useRef(resizeBackingTerminal);
   resizeBackingTerminalRef.current = resizeBackingTerminal;
@@ -224,6 +234,7 @@ export const XTermSurface = forwardRef<
   const [hasSelection, setHasSelection] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [watchError, setWatchError] = useState<RemoteTerminalWatchResultError | null>(null);
+  const [inputFailed, setInputFailed] = useState(false);
   const [waitingForStart, setWaitingForStart] = useState(awaitingStart);
   const [scrollbar, setScrollbar] = useState({
     isVisible: false,
@@ -281,6 +292,7 @@ export const XTermSurface = forwardRef<
 
     const mac = isMac();
     let isActive = true;
+    let ptyEpoch = 0;
     let lastCols = -1;
     let lastRows = -1;
     let lastFitWidth = -1;
@@ -289,9 +301,11 @@ export const XTermSurface = forwardRef<
     let ptyResizeTimer = 0;
     let scrollbackHydrationToken = 0;
     let hydratingScrollback = false;
+    let pendingExit: { exitCode: number | null } | null = null;
     let bufferedOutputDuringHydration = "";
     let hydrationBufferOverflowed = false;
     let hydrationOverflowResyncs = 0;
+    let liveOverflowResyncs = 0;
     let hydrationBlocked = false;
     let resubscribeOutput: (() => void) | null = null;
     let resetBeforeInitialHydration = false;
@@ -314,12 +328,38 @@ export const XTermSurface = forwardRef<
     const RESIZE_DEBOUNCE_BUFFER_THRESHOLD = 200;
 
     // Resolve the PTY backend: a caller-provided override (a terminal hosted on
-    // a remote Poracode server) or the local supervisor bridge. Each reads its
-    // ref lazily so a later prop update is still honored.
-    const writeInputToPty = (data: string): Promise<void> =>
-      writeInputRef.current
-        ? writeInputRef.current(data)
-        : readBridge().writeTerminal({ threadId: terminalId, data });
+    // a remote Poracode server) or the local supervisor bridge. Pin input to
+    // this terminal's host; queued bytes must never follow a new target.
+    let inputBridge = readBridge();
+    let inputHost = readClientRuntime().procedures;
+    let inputOwner = pairedTerminalOwner(terminalId)?.desktopId;
+    let inputManagedHost = readManagedLoopbackProcedureHost();
+    let inputStarted = false;
+    const inputQueue = new TerminalInputQueue(
+      (data) =>
+        writeInput ? writeInput(data) : inputBridge.writeTerminal({ threadId: terminalId, data }),
+      () => {
+        // Deferred shells acquire their owner after the surface mounts.
+        if (!inputStarted) {
+          inputBridge = readBridge();
+          inputHost = readClientRuntime().procedures;
+          inputOwner = pairedTerminalOwner(terminalId)?.desktopId;
+          inputManagedHost = readManagedLoopbackProcedureHost();
+          inputStarted = true;
+        }
+        return (
+          isActive &&
+          readClientRuntime().procedures === inputHost &&
+          pairedTerminalOwner(terminalId)?.desktopId === inputOwner &&
+          (inputOwner !== undefined || readManagedLoopbackProcedureHost() === inputManagedHost)
+        );
+      },
+      () => setInputFailed(true),
+    );
+    setInputFailed(false);
+    const unregisterInput = readOnly
+      ? () => inputQueue.dispose()
+      : registerTerminalInputQueue(terminalId, inputQueue);
     const resizeBackingPty = (size: TerminalSize): Promise<void> =>
       resizeBackingTerminalRef.current
         ? resizeBackingTerminalRef.current(size)
@@ -353,6 +393,13 @@ export const XTermSurface = forwardRef<
       });
     };
 
+    const finishPendingExit = () => {
+      if (!pendingExit) return;
+      const { exitCode } = pendingExit;
+      pendingExit = null;
+      handleExited(exitCode);
+    };
+
     // End the hydration window: flush output that arrived while the replay was
     // parsing, then nudge repaint-in-place agents over the restored frame.
     const finishHydration = (token: number, restoredScrollback: boolean) => {
@@ -367,6 +414,7 @@ export const XTermSurface = forwardRef<
         hydrated = false;
         hydrationBufferOverflowed = false;
         bufferedOutputDuringHydration = "";
+        finishPendingExit();
         if (hydrationOverflowResyncs >= MAX_HYDRATION_OVERFLOW_RESYNCS) {
           hydrationOverflowResyncs = 0;
           hydrationBlocked = true;
@@ -391,10 +439,15 @@ export const XTermSurface = forwardRef<
       }
       hydrationOverflowResyncs = 0;
       if (bufferedOutputDuringHydration.length > 0) {
-        terminal.write(bufferedOutputDuringHydration);
+        const bufferedOutput = bufferedOutputDuringHydration;
         bufferedOutputDuringHydration = "";
+        writeLiveOutput(bufferedOutput);
       }
-      if (restoredScrollback) {
+      if (pendingExit && token === scrollbackHydrationToken) {
+        finishPendingExit();
+        return;
+      }
+      if (restoredScrollback && token === scrollbackHydrationToken && !hydrationBlocked) {
         forceAgentRepaint();
       }
     };
@@ -411,8 +464,9 @@ export const XTermSurface = forwardRef<
       // while they parse is buffered until the replay has fully parsed.
       const beginReplay = (scrollback: string) => {
         hydrated = true;
+        writeQueue.clear();
         replayGate.begin(scrollback, {
-          before: () => terminal.reset(),
+          before: resetTerminal,
           complete: () => finishHydration(token, scrollback.length > 0),
         });
       };
@@ -473,25 +527,46 @@ export const XTermSurface = forwardRef<
           if (restoredScrollback || !isActive || token !== scrollbackHydrationToken) {
             return;
           }
-          if (requireAuthoritativeScrollback && hydrationBlocked) return;
+          if (requireAuthoritativeScrollback && hydrationBlocked) {
+            hydratingScrollback = false;
+            bufferedOutputDuringHydration = "";
+            finishPendingExit();
+            return;
+          }
           finishHydration(token, false);
         });
     };
     const resetForNewPty = () => {
+      ptyEpoch += 1;
+      inputBridge = readBridge();
+      inputHost = readClientRuntime().procedures;
+      inputOwner = pairedTerminalOwner(terminalId)?.desktopId;
+      inputManagedHost = readManagedLoopbackProcedureHost();
+      inputStarted = false;
+      inputQueue.reset();
+      setInputFailed(false);
+      pendingExit = null;
       if (!initialHydrationStarted) resetBeforeInitialHydration = true;
       scrollbackHydrationToken++;
       hydratingScrollback = false;
       bufferedOutputDuringHydration = "";
       hydrationBufferOverflowed = false;
       hydrationOverflowResyncs = 0;
+      liveOverflowResyncs = 0;
       hydrationBlocked = false;
       hydrated = true;
-      terminal.reset();
+      writeQueue.clear();
+      resetTerminal();
+      if (!writeQueue.idle) {
+        terminal.write("", () => {
+          if (!writeQueue.disposed) resetTerminal();
+        });
+      }
       // A replay chunk may already be queued behind this reset. Wipe again
       // once it has fully parsed (the gate runs the cleanup between the stale
       // chunk and anything queued later) so historical text cannot land in the
       // fresh buffer; its queries were suppressed while parsing.
-      replayGate.cancel(() => terminal.reset());
+      replayGate.cancel(resetTerminal);
       onResetRef.current?.();
     };
 
@@ -538,7 +613,13 @@ export const XTermSurface = forwardRef<
           },
         },
       });
+    const writeQueue = cached?.writeQueue ?? new TerminalWriteQueue(terminal);
     const fit = cached?.fit ?? new FitAddon();
+    const programStatus = cached?.programStatus ?? new ProgramStatusAddon();
+    const resetTerminal = () => {
+      terminal.reset();
+      programStatus.clear();
+    };
 
     terminalRef.current = terminal;
     fitRef.current = fit;
@@ -682,6 +763,7 @@ export const XTermSurface = forwardRef<
       terminal.loadAddon(unicode11);
       terminal.unicode.activeVersion = "11";
       terminal.loadAddon(new ClipboardAddon());
+      terminal.loadAddon(programStatus);
       terminal.open(screen);
     }
     const linkDisposable = terminal.registerLinkProvider(
@@ -790,7 +872,7 @@ export const XTermSurface = forwardRef<
     };
     setRendererVisibleRef.current = setRendererVisible;
     setRendererVisible(!restored || visibleRef.current);
-    if (!restored && webglAddon) terminal.loadAddon(new ImageAddon());
+    if (!restored) terminal.loadAddon(new ImageAddon());
 
     // Query-reply gate for scrollback hydration. Created after every addon
     // that registers parser handlers (ImageAddon answers DA1/XTSMGRAPHICS,
@@ -929,10 +1011,8 @@ export const XTermSurface = forwardRef<
     if (!readOnly) {
       sessionDisposables.push(
         terminal.onData((data) => {
-          if (replayGate.isDroppingReplies) return;
-          void writeInputToPty(data).catch(() => {
-            // PTY may disappear during teardown; ignore stale writes.
-          });
+          if (replayGate.shouldDropReply(data)) return;
+          inputQueue.enqueue(data);
         }),
       );
     }
@@ -948,6 +1028,24 @@ export const XTermSurface = forwardRef<
     const handleReset = () => {
       setWatchError(null);
       resetForNewPty();
+    };
+    const writeLiveOutput = (data: string) => {
+      const wasIdle = writeQueue.idle;
+      if (writeQueue.write(data)) {
+        if (wasIdle) liveOverflowResyncs = 0;
+        return;
+      }
+      writeQueue.clear();
+      hydrated = false;
+      hydrationBlocked = true;
+      if (liveOverflowResyncs >= MAX_HYDRATION_OVERFLOW_RESYNCS) {
+        setWatchError({ status: "error", code: "unavailable", retryable: false });
+        return;
+      }
+      liveOverflowResyncs += 1;
+      setWatchError({ status: "error", code: "unavailable", retryable: true });
+      if (resubscribeOutput) resubscribeOutput();
+      else hydrateScrollback(true);
     };
     const handleOutput = (data: string) => {
       setWaitingForStart(false);
@@ -970,10 +1068,21 @@ export const XTermSurface = forwardRef<
         bufferedOutputDuringHydration += data;
         return;
       }
-      terminal.write(data);
+      writeLiveOutput(data);
     };
     const handleExited = (exitCode: number | null) => {
-      onExitedRef.current?.(exitCode);
+      inputQueue.dispose();
+      if (hydratingScrollback) {
+        pendingExit = { exitCode };
+        return;
+      }
+      const epoch = ptyEpoch;
+      writeQueue.flush();
+      terminal.write("", () => {
+        if (writeQueue.disposed || epoch !== ptyEpoch) return;
+        programStatus.processExited();
+        if (isActive) onExitedRef.current?.(exitCode);
+      });
     };
     const handleSnapshot = (snapshot: RemoteTerminalWatchResultReady) => {
       setWaitingForStart(false);
@@ -985,14 +1094,19 @@ export const XTermSurface = forwardRef<
       hydrated = false;
       bufferedOutputDuringHydration = "";
       hydrationBufferOverflowed = false;
+      writeQueue.clear();
       // A feed baseline replaces the display. Its historical queries must not
       // produce replies to the current PTY while reconciled live bytes wait.
       replayGate.begin(snapshot.data, {
-        before: () => terminal.reset(),
+        before: resetTerminal,
         complete: () => finishHydration(token, snapshot.data.length > 0),
       });
     };
 
+    const handleWatchError = (error: RemoteTerminalWatchResultError) => {
+      inputQueue.stop(false);
+      setWatchError(error);
+    };
     let unsubscribe: () => void;
     if (outputSource) {
       const outputListener = {
@@ -1000,7 +1114,8 @@ export const XTermSurface = forwardRef<
         onReset: handleReset,
         onExited: handleExited,
         onSnapshot: handleSnapshot,
-        onWatchError: setWatchError,
+        onWatchError: handleWatchError,
+        onDisconnected: () => inputQueue.stop(false),
       } satisfies TerminalFeedListener;
       const subscribeOutput = () => {
         unsubscribe = outputSource(outputListener);
@@ -1015,14 +1130,19 @@ export const XTermSurface = forwardRef<
       // V5 plan 2.5 / V6 B.6: local terminals subscribe through the unified
       // managed seam — loopback terminal-watch frames; no IPC thread-output
       // fallback. Resync drives scrollback rehydration on every leg flip.
-      unsubscribe = watchManagedTerminal(terminalId, {
-        onOutput: handleOutput,
-        onReset: handleReset,
-        onExited: handleExited,
-        onSnapshot: handleSnapshot,
-        onWatchError: setWatchError,
-        onResync: () => hydrateScrollback(true),
-      });
+      unsubscribe = watchRoutedTerminal(
+        terminalId,
+        {
+          onOutput: handleOutput,
+          onReset: handleReset,
+          onExited: handleExited,
+          onSnapshot: handleSnapshot,
+          onWatchError: handleWatchError,
+          onDisconnected: () => inputQueue.stop(false),
+          onResync: () => hydrateScrollback(true),
+        },
+        outputOwner,
+      );
     }
 
     // Fit synchronously before hydrating: reading clientWidth forces layout, so
@@ -1052,6 +1172,7 @@ export const XTermSurface = forwardRef<
 
     return () => {
       isActive = false;
+      unregisterInput();
       if (resizeFrame !== 0) {
         cancelAnimationFrame(resizeFrame);
       }
@@ -1081,14 +1202,17 @@ export const XTermSurface = forwardRef<
       if (persist) {
         stashXtermInstance(terminalId, {
           terminal,
+          writeQueue,
           fit,
           search,
+          programStatus,
           screen,
           hydrated: hydrated && !hydratingScrollback && !hydrationBlocked,
           replayGate,
         });
       } else {
         replayGate.dispose();
+        writeQueue.dispose();
         terminal.dispose();
       }
       terminalRef.current = null;
@@ -1098,8 +1222,8 @@ export const XTermSurface = forwardRef<
       revealRef.current = null;
       setRendererVisibleRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once: terminal is created once, readOnly/terminalId/appearance/touch behavior are captured at init
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one lifecycle per terminal id; other presentation options are captured at init
+  }, [terminalId]);
 
   useEffect(() => {
     const wasVisible = previousVisibleRef.current;
@@ -1261,64 +1385,67 @@ export const XTermSurface = forwardRef<
           } as CSSProperties
         }
       >
-        <div
-          ref={mountRef}
-          className={`poracode-terminal-pane h-full ${
-            fixedTerminalSize ? "min-w-max overflow-visible" : "min-w-0 overflow-hidden"
-          }`}
-        />
-        {watchError || waitingForStart ? (
-          <TerminalFeedStatus
-            error={watchError}
-            loading={waitingForStart && (!watchError || watchError.code === "not-found")}
+        <div className="poracode-terminal-viewport relative min-h-0 flex-1">
+          <div
+            ref={mountRef}
+            className={`poracode-terminal-pane h-full ${
+              fixedTerminalSize ? "min-w-max overflow-visible" : "min-w-0 overflow-hidden"
+            }`}
           />
-        ) : null}
-        {findOpen ? (
-          <div className="pointer-events-auto absolute right-2 top-2 z-20">
-            <FindBar
-              ref={findInputRef}
-              query={findQuery}
-              onQueryChange={setFindQuery}
-              caseSensitive={findCaseSensitive}
-              onToggleCaseSensitive={() => setFindCaseSensitive((value) => !value)}
-              matchCount={findResult.count}
-              currentIndex={findResult.index}
-              onNext={() => stepTerminalFind("next")}
-              onPrev={() => stepTerminalFind("prev")}
-              onClose={closeTerminalFind}
-              placeholder={t`Find in terminal`}
+          {inputFailed || watchError || waitingForStart ? (
+            <TerminalFeedStatus
+              inputFailed={inputFailed}
+              error={watchError}
+              loading={waitingForStart && (!watchError || watchError.code === "not-found")}
+            />
+          ) : null}
+          {findOpen ? (
+            <div className="pointer-events-auto absolute right-2 top-2 z-20">
+              <FindBar
+                ref={findInputRef}
+                query={findQuery}
+                onQueryChange={setFindQuery}
+                caseSensitive={findCaseSensitive}
+                onToggleCaseSensitive={() => setFindCaseSensitive((value) => !value)}
+                matchCount={findResult.count}
+                currentIndex={findResult.index}
+                onNext={() => stepTerminalFind("next")}
+                onPrev={() => stepTerminalFind("prev")}
+                onClose={closeTerminalFind}
+                placeholder={t`Find in terminal`}
+              />
+            </div>
+          ) : null}
+          <div
+            ref={scrollbarTrackRef}
+            className={`poracode-terminal-scrollbar absolute bottom-0 right-0 top-0 ${
+              scrollbar.isVisible ? "opacity-100" : "pointer-events-none opacity-0"
+            }`}
+            onPointerDown={handleScrollbarPointerDown}
+          >
+            <div
+              className="poracode-terminal-scrollbar__thumb"
+              style={{
+                height: `${scrollbar.thumbHeightPercent}%`,
+                top: `${scrollbar.thumbTopPercent}%`,
+              }}
             />
           </div>
-        ) : null}
-        <div
-          ref={scrollbarTrackRef}
-          className={`poracode-terminal-scrollbar absolute bottom-0 right-0 top-0 ${
-            scrollbar.isVisible ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
-          onPointerDown={handleScrollbarPointerDown}
-        >
-          <div
-            className="poracode-terminal-scrollbar__thumb"
-            style={{
-              height: `${scrollbar.thumbHeightPercent}%`,
-              top: `${scrollbar.thumbTopPercent}%`,
-            }}
-          />
-        </div>
-        <Button
-          isIconOnly
-          variant="tertiary"
-          size="sm"
-          aria-label={t`Scroll to bottom`}
-          onPress={() => terminalRef.current?.scrollToBottom()}
-          /* Centered via a negative margin, matching the chat pane without
+          <Button
+            isIconOnly
+            variant="tertiary"
+            size="sm"
+            aria-label={t`Scroll to bottom`}
+            onPress={() => terminalRef.current?.scrollToBottom()}
+            /* Centered via a negative margin, matching the chat pane without
              conflicting with HeroUI's pressed-state transform. */
-          className={`${floatingGlassSurfaceClass} absolute bottom-4 left-1/2 z-10 -ml-3.5 size-7 min-w-0 rounded-full transition-opacity duration-200 ease-out ${
-            showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"
-          }`}
-        >
-          <ArrowDown className="size-3.5" strokeWidth={2.5} />
-        </Button>
+            className={`${floatingGlassSurfaceClass} absolute bottom-4 left-1/2 z-10 -ml-3.5 size-7 min-w-0 rounded-full transition-opacity duration-200 ease-out ${
+              showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"
+            }`}
+          >
+            <ArrowDown className="size-3.5" strokeWidth={2.5} />
+          </Button>
+        </div>
       </div>
     </ContextMenu>
   );

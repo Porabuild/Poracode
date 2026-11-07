@@ -29,6 +29,13 @@ struct PullRequestOverviewView: View {
         }
       }
 
+      if let labels = details?.labels, !labels.isEmpty {
+        Section(PullRequestsStrings.labels) {
+          PullRequestLabelFlow(labels: labels)
+            .padding(.vertical, 2)
+        }
+      }
+
       if let body = details?.body, !body.isEmpty {
         Section(PullRequestsStrings.description) {
           Text(body)
@@ -56,6 +63,7 @@ struct PullRequestOverviewView: View {
 struct PullRequestFilesView: View {
   let files: [PullRequestReviewFile]
   let diff: String
+  var forge: ForgeReviewController? = nil
 
   var body: some View {
     List {
@@ -66,6 +74,7 @@ struct PullRequestFilesView: View {
         )
       } else {
         ForEach(files) { file in
+          HStack {
           NavigationLink {
             PullRequestDiffView(
               path: file.path,
@@ -83,6 +92,26 @@ struct PullRequestFilesView: View {
                 .foregroundStyle(.red)
             }
             .font(.caption)
+          }
+          if let forge, forge.capabilities["viewedFiles"]?.stringValue != nil {
+            Button {
+              guard let fingerprint = forge.viewedFingerprint(file.path) else { return }
+              Task {
+                await forge.mutate(.forgeSetPrFileViewed, fields: [
+                  "path": .string(file.path),
+                  "fingerprint": forge.viewedState(file.path) == "viewed" ? .null : .string(fingerprint),
+                ])
+              }
+            } label: {
+              Label(
+                PullRequestsStrings.guideText(forge.viewedState(file.path) == "changed" ? "Changed" : forge.capabilities["viewedFiles"]?.stringValue == "forge" ? "Viewed on source host" : "Viewed in Poracode"),
+                systemImage: forge.viewedState(file.path) == "viewed" ? "checkmark.circle.fill" : "circle"
+              )
+              .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .disabled(!forge.canMutate || forge.viewedFingerprint(file.path) == nil)
+          }
           }
         }
       }
@@ -169,10 +198,15 @@ struct PullRequestConversationView: View {
   let comments: [PullRequestReviewComment]
   let reviews: [PullRequestReviewSummary]
   let threads: [PullRequestReviewThread]
+  var forge: ForgeReviewController? = nil
+  var requestedReviewers: [GitHubReviewerSummary] = []
+  var timeline: [PullRequestTimelineEvent] = []
 
   var body: some View {
     List {
-      if comments.isEmpty && reviews.isEmpty && threads.isEmpty {
+      if comments.isEmpty && reviews.isEmpty && threads.isEmpty && requestedReviewers.isEmpty
+        && timeline.isEmpty
+      {
         ContentUnavailableView(
           PullRequestsStrings.conversation,
           systemImage: "bubble.left.and.bubble.right"
@@ -182,8 +216,12 @@ struct PullRequestConversationView: View {
         Section {
           ForEach(comments) { comment in
             conversationRow(author: comment.author.login, body: comment.body)
+            editableComment(comment, threadID: nil)
           }
         }
+      }
+      if !requestedReviewers.isEmpty {
+        PullRequestRequestedReviewersSection(reviewers: requestedReviewers)
       }
       if !reviews.isEmpty {
         Section {
@@ -217,13 +255,27 @@ struct PullRequestConversationView: View {
               }
               ForEach(thread.comments) { comment in
                 conversationRow(author: comment.author.login, body: comment.body)
+                editableComment(comment, threadID: thread.id)
               }
             }
           }
         }
       }
+      if !timeline.isEmpty {
+        PullRequestTimelineSection(events: timeline)
+      }
     }
     .listStyle(.insetGrouped)
+  }
+
+  @ViewBuilder
+  private func editableComment(_ comment: PullRequestReviewComment, threadID: String?) -> some View {
+    if let forge,
+      forge.viewerLogin?.caseInsensitiveCompare(comment.author.login) == .orderedSame,
+      forge.capabilities["commentEditing"]?.arrayValue?.contains(.string(threadID == nil ? "conversation" : "inline")) == true {
+      ForgeCommentEditor(forge: forge, comment: comment, threadID: threadID)
+        .id("\(comment.id):\(forge.viewerLogin ?? "")")
+    }
   }
 
   private func conversationRow(
@@ -247,5 +299,38 @@ struct PullRequestConversationView: View {
       }
     }
     .padding(.vertical, 2)
+  }
+}
+
+private struct ForgeCommentEditor: View {
+  let forge: ForgeReviewController
+  let comment: PullRequestReviewComment
+  let threadID: String?
+  @State private var editing = false
+  @State private var draft = ""
+  @State private var expectedBody = ""
+
+  var body: some View {
+    if editing {
+      TextField(GitHubOperationsStrings.body, text: $draft, axis: .vertical).lineLimit(3...10)
+      HStack {
+        Button(RemoteIntegrationsStrings.save) {
+          Task {
+            var fields: [String: GitHubJSONValue] = [
+              "commentId": .string(comment.id), "body": .string(draft), "expectedBody": .string(expectedBody),
+            ]
+            if let threadID { fields["threadId"] = .string(threadID) }
+            if await forge.mutate(.forgeEditPrComment, fields: fields) { editing = false }
+          }
+        }
+        .disabled(!forge.canMutate || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        Button(GitHubOperationsStrings.cancel) { editing = false }.disabled(forge.mutating)
+      }
+      .buttonStyle(.borderless)
+    } else {
+      Button(PullRequestsStrings.guideText("Edit comment")) { draft = comment.body; expectedBody = comment.body; editing = true }
+        .buttonStyle(.borderless)
+        .disabled(!forge.canMutate)
+    }
   }
 }

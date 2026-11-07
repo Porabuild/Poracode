@@ -1,5 +1,7 @@
 import type { TerminalReplayGate } from "./terminalReplayGate";
+import type { TerminalWriteQueue } from "./terminalWriteQueue";
 import type { FitAddon } from "@xterm/addon-fit";
+import type { ProgramStatusAddon } from "@xterm/addon-program-status";
 import type { SearchAddon } from "@xterm/addon-search";
 import type { Terminal } from "@xterm/xterm";
 import type { Thread } from "@/shared/contracts";
@@ -24,8 +26,10 @@ export function shouldPersistXtermInstance(terminalId: string, state: XtermPersi
  */
 export interface CachedXtermInstance {
   terminal: Terminal;
+  writeQueue: TerminalWriteQueue;
   fit: FitAddon;
   search: SearchAddon;
+  programStatus: ProgramStatusAddon;
   screen: HTMLElement;
   /** False when the previous surface unmounted before its history read finished. */
   hydrated: boolean;
@@ -46,6 +50,7 @@ export function stashXtermInstance(terminalId: string, instance: CachedXtermInst
   if (previous && previous !== instance) {
     previous.screen.remove();
     previous.replayGate?.dispose();
+    previous.writeQueue.dispose();
     previous.terminal.dispose();
   }
   instances.set(terminalId, instance);
@@ -64,6 +69,7 @@ export function resetXtermInstanceCacheForTests(): void {
   for (const instance of instances.values()) {
     instance.screen.remove();
     instance.replayGate?.dispose();
+    instance.writeQueue.dispose();
     instance.terminal.dispose();
   }
   instances.clear();

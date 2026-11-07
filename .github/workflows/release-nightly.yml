@@ -8,9 +8,16 @@ on:
         required: false
         type: boolean
         default: false
+      force:
+        description: "Release even if the latest nightly already ships this master commit"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  # Build jobs poll this run's artifacts for the TUI manifest (wait-for-run-artifact).
+  actions: read
 
 concurrency:
   group: release-nightly
@@ -25,6 +32,7 @@ jobs:
       version: ${{ steps.resolve.outputs.version }}
       base_version: ${{ steps.resolve.outputs.base_version }}
       source_ref: ${{ steps.resolve.outputs.source_ref }}
+      skip: ${{ steps.resolve.outputs.skip }}
 
     steps:
       - name: Checkout master
@@ -39,7 +47,19 @@ jobs:
 
       - name: Resolve nightly version
         id: resolve
+        env:
+          FORCE: ${{ inputs.force }}
         run: |
+          # A nightly tag points at its release commit, whose parent is the
+          # master commit it shipped. Runs queue behind each other, so a second
+          # dispatch for the same commit sees the first one's tag here.
+          LATEST=$(git for-each-ref --sort=-creatordate --count=1 --format='%(refname:short)' 'refs/tags/v*-nightly.*')
+          if [ -n "$LATEST" ] && [ "$FORCE" != "true" ] &&
+            [ "$(git rev-parse "$LATEST^{commit}^")" = "$(git rev-parse HEAD)" ]; then
+            echo "::notice::$LATEST already ships master $(git rev-parse --short HEAD); skipping. Dispatch with force to rebuild it."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           BASE=$(node scripts/resolve-release-version.mjs)
           TIMESTAMP=$(date -u +%Y%m%d%H%M)
           VERSION="${BASE}-nightly.${TIMESTAMP}"
@@ -55,15 +75,24 @@ jobs:
           echo "Resolved nightly tag: $TAG"
 
   # ── Step 2: Build installers for each platform ───────────────────
+  # ── Step 2c: Compile the per-target TUI binaries and manifest ────
+  tui_binaries:
+    needs: prepare
+    if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
+    uses: ./.github/workflows/_tui-binaries.yml
+    with:
+      ref: ${{ needs.prepare.outputs.source_ref }}
+
   build:
     needs: prepare
-    if: ${{ !inputs.dry_run }}
+    if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
     uses: ./.github/workflows/_build.yml
     with:
       ref: ${{ needs.prepare.outputs.source_ref }}
       version: ${{ needs.prepare.outputs.version }}
       channel: nightly
       sentry_environment: nightly
+      tui_manifest: true
     secrets:
       MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
       MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -75,17 +104,18 @@ jobs:
   # ── Step 2b: Build and qualify the standalone server artifact ────
   server_artifact:
     needs: prepare
-    if: ${{ !inputs.dry_run }}
+    if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
     uses: ./.github/workflows/_server-artifact.yml
     with:
       ref: ${{ needs.prepare.outputs.source_ref }}
       version: ${{ needs.prepare.outputs.version }}
       artifact_name: poracode-server-artifact
+      tui_manifest: true
 
   # ── Step 3: Create GitHub prerelease ─────────────────────────────
   release:
-    needs: [prepare, build, server_artifact]
-    if: ${{ !inputs.dry_run }}
+    needs: [prepare, build, server_artifact, tui_binaries]
+    if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -102,6 +132,18 @@ jobs:
           path: ${{ runner.temp }}/release-assets
           pattern: poracode-server-artifact-qualified-*
           merge-multiple: true
+
+      # The per-target compiled TUI binaries ship as release assets; the CLI
+      # downloads and verifies them against the staged manifest on first use.
+      - name: Download the TUI binaries
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/release-assets
+          pattern: poracode-tui-*
+          merge-multiple: true
+
+      - name: Flatten TUI binaries into the asset root
+        run: find "${{ runner.temp }}/release-assets" -mindepth 2 -name 'poracode-tui-*' -type f -exec mv -f '{}' "${{ runner.temp }}/release-assets/" \;
 
       - name: List release assets
         run: ls -lh "${{ runner.temp }}/release-assets"

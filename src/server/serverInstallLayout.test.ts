@@ -1,6 +1,6 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, toNamespacedPath } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   AGENT_PLUGINS_DIR_ENV,
@@ -40,6 +40,18 @@ function makeCheckoutShape(): { root: string; libDir: string } {
 }
 
 describe("resolveServerInstallLayout", () => {
+  it.skipIf(process.platform !== "win32")(
+    "resolves namespaced Windows bundle paths to one physical layout",
+    () => {
+      for (const { root, libDir } of [makePrefixShape({}), makeCheckoutShape()]) {
+        const layout = resolveServerInstallLayout({ libDir: toNamespacedPath(libDir) });
+        expect(layout.root).toBe(realpathSync.native(root));
+        expect(layout.libDir).toBe(realpathSync.native(libDir));
+        expect(layout.resourcesDir).toBe(join(realpathSync.native(root), "resources"));
+      }
+    },
+  );
+
   it("resolves the documented install prefix shape", () => {
     const { root, libDir } = makePrefixShape({});
     const layout = resolveServerInstallLayout({ libDir });

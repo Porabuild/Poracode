@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { installSidebarAutoConnect } from "./autoConnect";
+import { installSidebarAutoConnect, takeOverSidebarConnection } from "./autoConnect";
 
 const fixture = vi.hoisted(() => ({
   online: false,
@@ -64,6 +64,25 @@ describe("sidebar automatic connection", () => {
     expect(fixture.pairServer).not.toHaveBeenCalled();
     sendMessage.mockResolvedValue(bootstrap);
     await vi.advanceTimersByTimeAsync(4000);
+    expect(fixture.pairServer).toHaveBeenCalledOnce();
+    expect(onStatus).toHaveBeenLastCalledWith(null);
+  });
+
+  it("asks to take the connection back from another browser only when the user does", async () => {
+    const sendMessage = vi
+      .fn<(message: { cmd: string; takeOver?: boolean }) => Promise<unknown>>()
+      .mockResolvedValue({ issue: "inUseElsewhere" });
+    vi.stubGlobal("chrome", { runtime: { sendMessage } });
+    const onStatus = vi.fn<(error: unknown | null) => void>();
+    stop = installSidebarAutoConnect(onStatus);
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(onStatus).toHaveBeenLastCalledWith("inUseElsewhere");
+    expect(sendMessage.mock.calls.every(([message]) => message.takeOver === undefined)).toBe(true);
+
+    sendMessage.mockResolvedValue(bootstrap);
+    takeOverSidebarConnection();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sendMessage).toHaveBeenLastCalledWith({ cmd: "getChatBootstrap", takeOver: true });
     expect(fixture.pairServer).toHaveBeenCalledOnce();
     expect(onStatus).toHaveBeenLastCalledWith(null);
   });

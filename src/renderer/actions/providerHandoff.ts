@@ -5,6 +5,7 @@ import type {
   Thread,
 } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { handoffContextInstruction } from "@/shared/providerHandoff";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 
 /** Inline context is duplicated in prompt/segments and must fit the remote 1 MiB JSON limit. */
@@ -147,9 +148,3 @@ export function handoffInlineLabel(
  * treat it as background notes. A provider-produced summary keeps the
  * original wording.
  */
-function handoffContextInstruction(extractedContext: ExtractContextResult): string {
-  const source = extractedContext.sourceProvider;
-  return extractedContext.contentKind === "transcript"
-    ? `This task was handed off from a ${source} session. The attached file is the chat history of this conversation so far. Read it in full before answering, treat it as the prior turns of this conversation, and continue the user's task from where it left off.`
-    : `This task was handed off from a ${source} session. Use the attached context file as prior conversation context.`;
-}

@@ -27,6 +27,7 @@ struct RemoteEnvironmentDescriptor: Codable, Sendable, Equatable {
     }
 
     struct Capabilities: Codable, Sendable, Equatable {
+        var threadForks: VersionedCapability? = nil
         var pushRouting: VersionedCapability?
         /// Additive since browser-origin forward entry shipped. Absent on older
         /// hosts; unknown keys on newer hosts are ignored by the decoder.
@@ -141,6 +142,9 @@ struct ThreadConfig: Codable, Sendable, Hashable {
     var contextSize: String?
     var fast: Bool?
     var thinking: Bool?
+    /// Per-thread workflow mode (`threadConfigSchema.workflows`); only offered
+    /// for models the provider lists in `workflowModels`.
+    var workflows: Bool?
     var mode: String?
     var approvalPolicy: String?
     var approvalsReviewer: String?
@@ -149,9 +153,69 @@ struct ThreadConfig: Codable, Sendable, Hashable {
     var crossagentMcp: Bool?
     var computerUse: Bool?
     var chromeMcp: Bool?
+    var mcpServerOverrides: [String: Bool]?
+    var pluginOverrides: [String: Bool]?
     var executionEnvironment: RemoteExecutionEnvironment?
+    var crew: JSONValue? = nil
 
     static let empty = ThreadConfig(model: "default")
+}
+
+extension ThreadConfig {
+    private enum CodingKeys: String, CodingKey {
+        case model, effort, contextSize, fast, thinking, workflows, mode, approvalPolicy
+        case approvalsReviewer, sandboxMode, browserMcp, crossagentMcp, computerUse, chromeMcp
+        case mcpServerOverrides, pluginOverrides, executionEnvironment, crew
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        model = try values.decode(String.self, forKey: .model)
+        effort = try values.decodeIfPresent(String.self, forKey: .effort)
+        contextSize = try values.decodeIfPresent(String.self, forKey: .contextSize)
+        fast = try values.decodeIfPresent(Bool.self, forKey: .fast)
+        thinking = try values.decodeIfPresent(Bool.self, forKey: .thinking)
+        workflows = try values.decodeIfPresent(Bool.self, forKey: .workflows)
+        mode = try values.decodeIfPresent(String.self, forKey: .mode)
+        approvalPolicy = try values.decodeIfPresent(String.self, forKey: .approvalPolicy)
+        approvalsReviewer = try values.decodeIfPresent(String.self, forKey: .approvalsReviewer)
+        sandboxMode = try values.decodeIfPresent(String.self, forKey: .sandboxMode)
+        browserMcp = try values.decodeIfPresent(Bool.self, forKey: .browserMcp)
+        crossagentMcp = try values.decodeIfPresent(Bool.self, forKey: .crossagentMcp)
+        computerUse = try values.decodeIfPresent(Bool.self, forKey: .computerUse)
+        chromeMcp = try values.decodeIfPresent(Bool.self, forKey: .chromeMcp)
+        mcpServerOverrides = try values.decodeIfPresent([String: Bool].self, forKey: .mcpServerOverrides)
+        pluginOverrides = try values.decodeIfPresent([String: Bool].self, forKey: .pluginOverrides)
+        executionEnvironment = try values.decodeIfPresent(RemoteExecutionEnvironment.self, forKey: .executionEnvironment)
+        // Absent keeps the host's binding untouched; an explicit null is kept as `.null`.
+        if values.contains(.crew) {
+            crew = try values.decode(JSONValue.self, forKey: .crew)
+        } else {
+            crew = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(model, forKey: .model)
+        try values.encodeIfPresent(effort, forKey: .effort)
+        try values.encodeIfPresent(contextSize, forKey: .contextSize)
+        try values.encodeIfPresent(fast, forKey: .fast)
+        try values.encodeIfPresent(thinking, forKey: .thinking)
+        try values.encodeIfPresent(workflows, forKey: .workflows)
+        try values.encodeIfPresent(mode, forKey: .mode)
+        try values.encodeIfPresent(approvalPolicy, forKey: .approvalPolicy)
+        try values.encodeIfPresent(approvalsReviewer, forKey: .approvalsReviewer)
+        try values.encodeIfPresent(sandboxMode, forKey: .sandboxMode)
+        try values.encodeIfPresent(browserMcp, forKey: .browserMcp)
+        try values.encodeIfPresent(crossagentMcp, forKey: .crossagentMcp)
+        try values.encodeIfPresent(computerUse, forKey: .computerUse)
+        try values.encodeIfPresent(chromeMcp, forKey: .chromeMcp)
+        try values.encodeIfPresent(mcpServerOverrides, forKey: .mcpServerOverrides)
+        try values.encodeIfPresent(pluginOverrides, forKey: .pluginOverrides)
+        try values.encodeIfPresent(executionEnvironment, forKey: .executionEnvironment)
+        try values.encodeIfPresent(crew, forKey: .crew)
+    }
 }
 
 struct RemoteSlashCommand: Codable, Sendable, Hashable {
@@ -186,6 +250,7 @@ struct RemoteSessionRef: Codable, Sendable, Hashable {
 }
 
 struct RemoteThread: Codable, Sendable, Identifiable, Hashable {
+    var forkedFrom: JSONValue? = nil
     var id: String
     var remoteServerId: String?
     var remoteId: String?
@@ -218,6 +283,9 @@ struct RemoteThread: Codable, Sendable, Identifiable, Hashable {
     /// retires a retired session's inventory, `[]` is an active-but-empty
     /// session. Strict projection happens in the rich-chat composer catalog.
     var sessionConfigOptions: JSONValue? = nil
+    /// Host-owned cut-off marker (`error` | `restart`) for a turn that ended
+    /// unfinished without Stop; absent on older hosts and once a turn starts.
+    var interruptedTurn: String? = nil
     var parentThreadId: String?
     var groupId: String?
     var groupName: String?
@@ -256,6 +324,7 @@ struct RemoteShellSnapshot: Codable, Sendable, Equatable {
     var reads: String? = nil
     var threadsNextCursor: String? = nil
     var projectsNextCursor: String? = nil
+    var snapshotEpoch: String? = nil
 }
 
 extension RemoteShellSnapshot {
@@ -358,11 +427,17 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
     /// B1 durable history notice. Optional on the wire and absent on hosts
     /// without the feature; an omitted field never clears a retained notice.
     var runtimeNotice: RemoteHistoryNotice? = nil
+    /// Authoritative live background work. Raw JSON so the strict protocol
+    /// `backgroundTaskSchema` parser stays the single field decoder; `nil`
+    /// with `backgroundTasksPresent == false` means an old host that does not
+    /// report the roster, and retained live metadata must be preserved.
+    var backgroundTasks: [JSONValue]? = nil
+    var backgroundTasksPresent: Bool = false
 
     private enum CodingKeys: String, CodingKey {
         case snapshotSeq, thread, runtimeItems, runtimeNextCursor, completedTurns
         case contextUsage, terminalScrollback, updatedAt, followUpQueue
-        case completedTurnsNextCursor, reads, runtimeNotice
+        case completedTurnsNextCursor, reads, runtimeNotice, backgroundTasks
     }
 
     init(
@@ -378,7 +453,9 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         followUpQueuePresent: Bool = false,
         completedTurnsNextCursor: String? = nil,
         reads: String? = nil,
-        runtimeNotice: RemoteHistoryNotice? = nil
+        runtimeNotice: RemoteHistoryNotice? = nil,
+        backgroundTasks: [JSONValue]? = nil,
+        backgroundTasksPresent: Bool = false
     ) {
         self.snapshotSeq = snapshotSeq
         self.thread = thread
@@ -393,6 +470,8 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         self.completedTurnsNextCursor = completedTurnsNextCursor
         self.reads = reads
         self.runtimeNotice = runtimeNotice
+        self.backgroundTasks = backgroundTasks
+        self.backgroundTasksPresent = backgroundTasksPresent
     }
 
     init(from decoder: Decoder) throws {
@@ -417,6 +496,13 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         )
         reads = try container.decodeIfPresent(String.self, forKey: .reads)
         runtimeNotice = try container.decodeIfPresent(RemoteHistoryNotice.self, forKey: .runtimeNotice)
+        if container.contains(.backgroundTasks) {
+            backgroundTasksPresent = true
+            backgroundTasks = try container.decodeIfPresent([JSONValue].self, forKey: .backgroundTasks)
+        } else {
+            backgroundTasksPresent = false
+            backgroundTasks = nil
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -435,6 +521,9 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         try container.encodeIfPresent(completedTurnsNextCursor, forKey: .completedTurnsNextCursor)
         try container.encodeIfPresent(reads, forKey: .reads)
         try container.encodeIfPresent(runtimeNotice, forKey: .runtimeNotice)
+        if backgroundTasksPresent {
+            try container.encode(backgroundTasks, forKey: .backgroundTasks)
+        }
     }
 }
 
@@ -449,7 +538,8 @@ struct RemoteRuntimeItemsPage: Codable, Sendable, Equatable {
 // MARK: - WebSocket envelopes
 
 enum RemoteWebSocketServerMessage: Sendable, Equatable {
-    case ready(seq: Int)
+    /// `epoch` is present only on an `eventEpoch=v1` connection to a host that reports one.
+    case ready(seq: Int, epoch: String?)
     case event(seq: Int, event: JSONValue)
     case resyncRequired(seq: Int, reason: String)
     case pong(id: String?, sentAt: Double?, receivedAt: Double)
@@ -470,7 +560,8 @@ enum RemoteWebSocketServerMessage: Sendable, Equatable {
             guard let seq = object["seq"]?.numberInt else {
                 throw RemoteClientError.invalidResponse("ready missing seq")
             }
-            return .ready(seq: seq)
+            let epoch = object["epoch"]?.stringValue
+            return .ready(seq: seq, epoch: epoch?.isEmpty == false ? epoch : nil)
         case "event":
             guard let seq = object["seq"]?.numberInt,
                 let event = object["event"]

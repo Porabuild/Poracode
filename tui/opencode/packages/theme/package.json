@@ -1,0 +1,14 @@
+{
+  "name": "@opencode/theme",
+  "version": "2.1.4",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tui": "./src/tui/index.ts",
+    "./tui/v1": "./src/tui/v1.ts"
+  },
+  "dependencies": {
+    "@opentui/core": "catalog:",
+    "effect": "catalog:"
+  }
+}

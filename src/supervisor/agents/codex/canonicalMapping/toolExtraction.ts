@@ -6,7 +6,7 @@
  * item shapes.
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { extname } from "node:path";
 import type { CanonicalItemType } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
@@ -86,6 +86,13 @@ const IMAGE_MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   ".svg": "image/svg+xml",
 };
 
+// Keep base64 previews below the ordinary canonical envelope budget. Large
+// source images are decoded asynchronously before their tool row completes.
+const MAX_INLINE_IMAGE_BYTES = 512 * 1024;
+const MAX_PREVIEW_SOURCE_BYTES = 20 * 1024 * 1024;
+const MAX_CONCURRENT_IMAGE_PREVIEWS = 2;
+let activeImagePreviews = 0;
+
 /** Convert Codex's native `imageView.path` into the shared inline-image channel. */
 export function readCodexImageViewDataUrl(
   source: CodexItemPayload,
@@ -99,11 +106,51 @@ export function readCodexImageViewDataUrl(
   const hostPath =
     wslDistro && imagePath.startsWith("/") ? toWslUncPath(wslDistro, imagePath) : imagePath;
   try {
+    if (statSync(hostPath).size > MAX_INLINE_IMAGE_BYTES) return undefined;
     const bytes = readFileSync(hostPath);
-    return bytes.length > 0 ? `data:${mimeType};base64,${bytes.toString("base64")}` : undefined;
+    return bytes.length > 0 && bytes.length <= MAX_INLINE_IMAGE_BYTES
+      ? `data:${mimeType};base64,${bytes.toString("base64")}`
+      : undefined;
   } catch {
     return undefined;
   }
+}
+
+export async function readCodexImageViewPreview(
+  imagePath: string,
+  wslDistro?: string,
+): Promise<string | undefined> {
+  if (!IMAGE_MIME_BY_EXTENSION[extname(imagePath).toLowerCase()]) return undefined;
+  // Previews are optional; a burst must neither retain unbounded source buffers
+  // nor delay successful tool completions behind an image-processing queue.
+  if (activeImagePreviews >= MAX_CONCURRENT_IMAGE_PREVIEWS) return undefined;
+  activeImagePreviews += 1;
+  const hostPath =
+    wslDistro && imagePath.startsWith("/") ? toWslUncPath(wslDistro, imagePath) : imagePath;
+  try {
+    // Snapshot at tool completion: agents often overwrite the same screenshot
+    // path while an earlier preview is still being encoded.
+    const info = statSync(hostPath);
+    if (!info.isFile() || info.size <= 0 || info.size > MAX_PREVIEW_SOURCE_BYTES) return undefined;
+    const bytes = readFileSync(hostPath);
+    if (bytes.length > MAX_PREVIEW_SOURCE_BYTES) return undefined;
+    const { default: sharp } = await import("sharp");
+    for (const width of [1600, 800]) {
+      const preview = await sharp(bytes, { limitInputPixels: 64 * 1024 * 1024 })
+        .rotate()
+        .resize({ width, height: width, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toBuffer();
+      if (preview.length <= MAX_INLINE_IMAGE_BYTES) {
+        return `data:image/webp;base64,${preview.toString("base64")}`;
+      }
+    }
+  } catch {
+    // An unavailable preview must not fail an otherwise successful tool call.
+  } finally {
+    activeImagePreviews -= 1;
+  }
+  return undefined;
 }
 
 export function extractCodexFileChangePath(source: CodexItemPayload | unknown): string | undefined {

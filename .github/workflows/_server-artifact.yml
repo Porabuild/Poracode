@@ -41,6 +41,11 @@ on:
         required: false
         type: number
         default: 7
+      tui_manifest:
+        description: "Stage the tui-manifest artifact into resources/tui for the tarball"
+        required: false
+        type: boolean
+        default: false
     outputs:
       version:
         description: "Version embedded in the qualified artifacts"
@@ -48,6 +53,8 @@ on:
 
 permissions:
   contents: read
+  # wait-for-run-artifact.mjs reads this run's artifacts and jobs.
+  actions: read
 
 env:
   # Release runners are disposable single checkouts; keep native rebuilds on
@@ -129,8 +136,7 @@ jobs:
           platforms: arm64
 
       - name: Cross-build the linux-arm64 node-pty binding
-        # node-pty 1.1.0 publishes no Linux prebuilds (docs/STANDALONE_SERVER.md
-        # §8): build the arm64 binding in an emulated arm64 container and drop it
+        # Build the arm64 binding from source in an emulated container and drop it
         # where prepare-server-native.mjs picks cross targets up. Uses the
         # runner's Docker and the explicit binfmt setup above.
         #
@@ -150,14 +156,16 @@ jobs:
           ADDON_API_DIR="$(node -p "require('node:path').dirname(require.resolve('node-addon-api/package.json', { paths: [require('node:path').dirname(require.resolve('node-pty/package.json'))] }))")"
           cp -RL "$ADDON_API_DIR" dist/server-native-cross/node-pty/node_modules/node-addon-api
           docker run --rm --platform linux/arm64 \
-            -v "$PWD":/work -w /armbuild node:24-bookworm \
-            sh -c "cp -R /work/dist/server-native-cross/node-pty /armbuild/np && cd /armbuild/np && node -p 'require(\"node-addon-api\").include_dir' >/dev/null && rm -rf build && npm rebuild --offline && cp build/Release/pty.node /work/dist/server-native-cross/linux-arm64/pty.node"
+            -v "$PWD":/work -w /armbuild node:26-bookworm \
+            sh -c "cp -R /work/dist/server-native-cross/node-pty /armbuild/np && cd /armbuild/np && node -p 'require(\"node-addon-api\").include_dir' >/dev/null && rm -rf build && npm_config_build_from_source=true npm rebuild --offline && cp build/Release/pty.node /work/dist/server-native-cross/linux-arm64/pty.node"
         shell: bash
 
       - name: Build and assemble the server artifact
         env:
           REQUIRE_TARGETS: ${{ matrix.require_targets }}
           PORACODE_NODE_PTY_CROSS_BINDINGS: ${{ github.workspace }}/dist/server-native-cross
+          TUI_MANIFEST: ${{ inputs.tui_manifest }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           bun run codex-protocol:gen
@@ -174,6 +182,15 @@ jobs:
           bun run prepare:package-assets
           bun run prepare:agent-plugins
           bun run prepare:computer-use-helper
+          if [ "${RUNNER_OS}" = "Windows" ]; then
+            bun run prepare:service-launcher
+            node --test scripts/prepare-service-launcher.test.mjs
+          fi
+          if [ "${TUI_MANIFEST}" = "true" ]; then
+            # The TUI binaries build alongside this job (it no longer `needs:`
+            # them); only the tarball reads their manifest.
+            node scripts/wait-for-run-artifact.mjs tui-manifest resources/tui "tui_binaries /"
+          fi
           node scripts/assemble-server-tarball.mjs "${TARGET_ARGS[@]}"
           ls -lh dist/poracode-server-*.tar.gz dist/server-artifact.json
         shell: bash
@@ -230,7 +247,9 @@ jobs:
       - name: Upgrade a running install from the real tarball (vitest)
         # Required mode: the real-artifact upgrade gate must fail when the
         # freshly assembled tarball is missing or not D4-capable, never skip to
-        # green (src/server/serverUpgrade.integration.test.ts).
+        # green (src/server/serverUpgrade.integration.test.ts). Its tests run
+        # one after another: running them concurrently on the 4-core Windows
+        # runner tripled each npm install and timed out icacls and daemon stops.
         env:
           PORACODE_REQUIRE_SERVER_IT: "1"
         run: bun run vitest run --configLoader runner src/server/serverUpgrade.integration.test.ts
@@ -306,7 +325,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: Set the release version
         if: ${{ inputs.version != '' }}
@@ -357,7 +376,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: Download every build leg
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8

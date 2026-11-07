@@ -132,6 +132,12 @@ const MARKER_FAMILIES: MarkerFamily[] = [
     bytes: "\x1b]11;?\x07",
     registerSentinel: (t, sentinel) => t.parser.registerOscHandler(11, () => sentinel()),
   },
+  {
+    name: "KittyGraphicsQuery",
+    bytes: "\x1b_Ga=q,i=1\x1b\\",
+    registerSentinel: (t, sentinel) =>
+      t.parser.registerApcHandler({ final: "G" }, () => sentinel()),
+  },
 ];
 
 describe("terminalQuerySuppression", () => {

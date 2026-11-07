@@ -94,11 +94,14 @@ describe("DeepSeek browser login completion", () => {
     stop();
   });
 
-  it("never uses local auth to complete a paired-host login", async () => {
+  it.each([
+    ["row", { remoteServerId: "remote" }],
+    ["location", { location: { kind: "posix" as const, path: "/repo", remoteServerId: "remote" } }],
+  ])("never uses local auth to complete a paired-host login (%s)", async (_owner, ownership) => {
     const onAuthenticated = vi.fn<() => void>();
     const stop = watchDeepSeekLogin({
       status,
-      project: { ...project, remoteServerId: "remote" },
+      project: { ...project, ...ownership },
       onAuthenticated,
     });
     await vi.advanceTimersByTimeAsync(6000);

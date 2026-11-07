@@ -763,6 +763,7 @@ export function useGitReviewActions(args: UseGitReviewActionsArgs) {
       const watch = await applyDefaultPrAutomation({
         project,
         prNumber: pr.number,
+        ...(pr.source ? { source: pr.source } : {}),
         headBranch: effectiveBranch,
         ...(worktreePath ? { worktreePath } : {}),
       });

@@ -19,7 +19,12 @@ export const UNCOMPOSED_HOST_CAPABILITIES: HostServiceCapabilities = {
 
 export type HeadlessRemoteComposition = Pick<
   HeadlessRemoteHost,
-  "server" | "forwardOriginSecret" | "hostServices" | "start" | "dispose"
+  | "server"
+  | "forwardOriginSecret"
+  | "hostServices"
+  | "start"
+  | "startLocalAdministration"
+  | "dispose"
 >;
 
 /** Partial construction failed and its runtime could not confirm shutdown. */

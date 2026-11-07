@@ -64,6 +64,7 @@ fun ProjectWorkspaceScreen(
     target: ProjectWorkspaceTarget,
     projectName: String,
     onBack: () -> Unit,
+    guideWriters: List<com.poracode.app.model.AgentStatusEntry> = emptyList(),
     initialSection: ProjectWorkspaceSection = ProjectWorkspaceSection.Files,
     initialGithubSection: ProjectGithubSection = ProjectGithubSection.PullRequests,
     modifier: Modifier = Modifier,
@@ -392,6 +393,8 @@ fun ProjectWorkspaceScreen(
                         canRead = access.canRead,
                         canOperate = access.canWrite,
                         expanded = expanded,
+                        guideWriters = guideWriters,
+                        lease = lease,
                         initialSection = initialGithubSection,
                         modifier = Modifier.fillMaxSize(),
                     )

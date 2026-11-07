@@ -75,7 +75,11 @@ import {
 import { deriveToolDisplay } from "./toolDisplay";
 import { deriveWebSearchDisplay } from "./webSearchDisplay";
 import { FileContentPlaceholder, useReadAbsoluteFile } from "./useReadAbsoluteFile";
-import { useHistoryItemDetails, HistoryItemDetailPlaceholder } from "./useHistoryItemDetails";
+import {
+  useHistoryItemDetails,
+  HistoryItemDetailPlaceholder,
+  useResolvedDeferredItems,
+} from "./useHistoryItemDetails";
 
 interface ToolCallGroupProps {
   threadId: string;
@@ -363,13 +367,26 @@ function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary
  * diff, without nesting each patch behind its own disclosure row. Edits without
  * a renderable patch (e.g. still running) fall back to the regular inline row.
  */
-function SameFileEditGroupBody({ items }: { items: readonly RuntimeChatItem[] }) {
+function SameFileEditGroupBody({ items: source }: { items: readonly RuntimeChatItem[] }) {
   const { t } = useLingui();
+  // Deferred rows carry no body; the merged diff needs them resolved together.
+  const resolved = useResolvedDeferredItems(source);
+  if (resolved.status === "pending") return <HistoryItemDetailPlaceholder />;
+  if (resolved.status === "unmerged")
+    return (
+      <>
+        {source.map((item) => (
+          <div key={item.id} className="animate-tool-call-enter">
+            <GroupRowInline item={item} />
+          </div>
+        ))}
+      </>
+    );
   const diffRows: InlineRow[] = [];
   const nonDiffBodies: InlineRow[] = [];
   const fallbackItems: RuntimeChatItem[] = [];
 
-  for (const item of items) {
+  for (const item of resolved.items) {
     const row = getInlineRow(item, true, t);
     if (row?.bodyText && row.bodyKind === "diff") {
       diffRows.push(row);

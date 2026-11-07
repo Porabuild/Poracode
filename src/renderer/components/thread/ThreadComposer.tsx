@@ -1,12 +1,15 @@
 import { ReactNode, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, FileUp, MoreHorizontal, Square, X } from "lucide-react";
+import { ArrowUp, FileUp, MoreHorizontal, Play, SlidersHorizontal, Square, X } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
 import type { ButtonProps } from "@/renderer/components/common/Button";
-import { EffortContextMenu } from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
+import {
+  EffortContextMenu,
+  type EffortWorkflowsToggle,
+} from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
 import { ModelFamilyMenu } from "@/renderer/components/common/ProviderModelMenu/ModelFamilyMenu";
 import {
   modelFamilyMenuSummary,
@@ -17,6 +20,7 @@ import { ResponsiveMenuSurface } from "@/renderer/components/common/ResponsiveMe
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import {
   ProviderModelMenu,
+  type ProviderModelCrewSection,
   type ProviderModelMenuProvider,
   type ProviderModelSelection,
 } from "@/renderer/components/common/ProviderModelMenu/ProviderModelMenu";
@@ -27,6 +31,8 @@ import { isPlanModeControl } from "@/renderer/components/providers/composerContr
 import { isCompactClientSurface, readBridge } from "@/renderer/bridge";
 import type { LabeledOption, ThreadPresentationMode } from "@/shared/contracts";
 import { modelFamilyMemberDisplay } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
+import { CrewRosterMenu } from "@/renderer/components/crew/CrewRosterMenu";
+import type { CrewRosterModel } from "@/renderer/components/crew/crewComposerModel";
 
 export type OptionMenuOption = string | { id: string; label: string; hint?: string };
 
@@ -92,6 +98,7 @@ export type ComposerControl =
       providers: ProviderModelMenuProvider[];
       currentAgentKind: string;
       currentModel: string;
+      crewSection?: ProviderModelCrewSection;
       lockedAgentKind?: string;
       machineKey?: string;
       presentationMode?: ThreadPresentationMode;
@@ -115,16 +122,26 @@ export type ComposerControl =
       thinkingSupported?: boolean;
       thinkingValue?: boolean;
       onThinkingChange?: (value: boolean) => void;
+      workflows?: EffortWorkflowsToggle;
       familySelection?: ModelFamilyMenuSelection;
       icon?: ReactNode;
       isDisabled?: boolean;
       hideLabelOnWrap?: boolean;
       openSignal?: number;
       tier?: number | undefined;
+    }
+  | {
+      kind: "crew";
+      model: CrewRosterModel;
+      openSignal?: number;
+      isDisabled?: boolean;
+      hideLabelOnWrap?: boolean;
+      tier?: number | undefined;
     };
 
 export function resolveComposerControlIcon(control: ComposerControl): ReactNode | undefined {
   if (control.kind === "static") return control.icon;
+  if (control.kind === "crew") return <SlidersHorizontal className="size-4" />;
   if (control.kind === "provider-model" || control.kind === "effort-context") {
     return undefined;
   }
@@ -224,6 +241,7 @@ function resolveControlProbeLabel(control: ComposerControl, thinkingLabel: strin
     );
   }
 
+  if (control.kind === "crew") return control.model.summary;
   if (control.kind === "toggle") return control.label;
   if (control.kind === "static") return control.value;
   const selectedOption = control.options.find(
@@ -233,7 +251,13 @@ function resolveControlProbeLabel(control: ComposerControl, thinkingLabel: strin
 }
 
 function hasProbeIcon(control: ComposerControl): boolean {
-  if (control.kind === "provider-model" || control.kind === "effort-context") return true;
+  if (
+    control.kind === "provider-model" ||
+    control.kind === "effort-context" ||
+    control.kind === "crew"
+  ) {
+    return true;
+  }
   if (control.kind === "static") return Boolean(control.icon);
   return Boolean(control.icon || control.iconKind);
 }
@@ -253,6 +277,8 @@ export function ThreadComposer(props: {
   submitContent?: ReactNode;
   /** A caller-selected primary control, e.g. live voice on an empty composer. */
   submitControl?: ReactNode;
+  /** Takes the empty composer's send slot to pick a cut-off turn back up. */
+  resume?: { label: string; onPress: () => void } | undefined;
   submitVariant?: ButtonProps["variant"];
   submitDisabled: boolean;
   submitPending?: boolean;
@@ -284,6 +310,7 @@ export function ThreadComposer(props: {
     submitLabel,
     submitContent,
     submitControl,
+    resume,
     submitVariant,
     submitDisabled,
     submitPending = false,
@@ -329,6 +356,9 @@ export function ThreadComposer(props: {
       }
       if (control.kind === "effort-context") {
         return `effort-context:${control.effortValue ?? ""}:${control.contextValue ?? ""}:${control.thinkingValue ?? ""}:${control.familySelection ? modelFamilyMenuSummary(control.familySelection) : ""}:${control.hideLabelOnWrap ? "hide" : "show"}`;
+      }
+      if (control.kind === "crew") {
+        return `crew:${control.model.summary}:${control.model.binding.policy}:${control.model.binding.roles.length}:${control.hideLabelOnWrap ? "hide" : "show"}`;
       }
       if (control.kind === "toggle") {
         return `toggle:${control.label}:${control.isSelected}:${control.iconOnly ? "icon" : "label"}:${control.hideLabelOnWrap ? "hide" : "show"}`;
@@ -478,6 +508,7 @@ export function ThreadComposer(props: {
           providers={control.providers}
           currentAgentKind={control.currentAgentKind}
           currentModel={control.currentModel}
+          {...(control.crewSection ? { crewSection: control.crewSection } : {})}
           showFamilySelectionSummary={false}
           {...(control.lockedAgentKind ? { lockedAgentKind: control.lockedAgentKind } : {})}
           {...(control.machineKey ? { machineKey: control.machineKey } : {})}
@@ -492,6 +523,23 @@ export function ThreadComposer(props: {
               }
             : {})}
           onChange={control.onChange}
+          onOpenChange={(open) => {
+            if (!open) returnFocusToInput();
+          }}
+        />
+      );
+    }
+
+    if (control.kind === "crew") {
+      return (
+        <CrewRosterMenu
+          key={`crew-${index}`}
+          model={control.model}
+          isDisabled={control.isDisabled ?? control.model.isDisabled}
+          {...(control.openSignal !== undefined ? { openSignal: control.openSignal } : {})}
+          hideLabelOnWrap={hideOnWrap || shouldHideLabel}
+          forceHideLabel={shouldHideLabel}
+          {...(collapseTier !== undefined ? { collapseTier } : {})}
           onOpenChange={(open) => {
             if (!open) returnFocusToInput();
           }}
@@ -533,6 +581,7 @@ export function ThreadComposer(props: {
             : {})}
           {...(control.thinkingValue !== undefined ? { thinkingValue: control.thinkingValue } : {})}
           {...(control.onThinkingChange ? { onThinkingChange: control.onThinkingChange } : {})}
+          {...(control.workflows ? { workflows: control.workflows } : {})}
           {...(control.icon ? { icon: control.icon } : {})}
           {...(control.isDisabled !== undefined ? { isDisabled: control.isDisabled } : {})}
           {...(control.openSignal !== undefined ? { openSignal: control.openSignal } : {})}
@@ -723,10 +772,7 @@ export function ThreadComposer(props: {
   ) => {
     if (isPlanModeControl(control) && !control.isSelected) return null;
     const hideLabel = shouldHideControlLabel(control, targetWrapLevel, forceShowLabels);
-    const iconOnly =
-      control.kind !== "provider-model" &&
-      control.kind !== "effort-context" &&
-      control.iconOnly === true;
+    const iconOnly = "iconOnly" in control && control.iconOnly === true;
     const isStatic = control.kind === "static";
     const isToggle = control.kind === "toggle";
     const probeClassName = isStatic
@@ -902,6 +948,24 @@ export function ThreadComposer(props: {
           <Tooltip.Content>
             <Trans>Stop response</Trans>
           </Tooltip.Content>
+        </Tooltip>
+      );
+    }
+    if (resume) {
+      return (
+        <Tooltip delay={0}>
+          <Tooltip.Trigger>
+            <Button
+              isIconOnly
+              aria-label={resume.label}
+              className="poracode-composer-send"
+              onPress={resume.onPress}
+              size="sm"
+            >
+              <Play className="size-3.5 fill-current" />
+            </Button>
+          </Tooltip.Trigger>
+          <Tooltip.Content>{resume.label}</Tooltip.Content>
         </Tooltip>
       );
     }

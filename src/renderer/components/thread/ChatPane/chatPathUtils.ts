@@ -1,4 +1,5 @@
 import type { ProjectLocation } from "@/shared/contracts";
+import { normalizeWindowsDrivePath } from "@/shared/pathUtils";
 
 /** Normalize model / markdown paths to a project-relative POSIX path for the file editor. */
 export function normalizeChatRelativePath(raw: string): string {
@@ -18,7 +19,7 @@ function normalizeChatPath(raw: string, options: { preserveAbsolute: boolean }):
       /* keep */
     }
   }
-  s = s.replace(/^\.\//, "").replace(/\\/g, "/");
+  s = normalizeWindowsDrivePath(s).replace(/^\.\//, "").replace(/\\/g, "/");
   const collapsed = s.replace(/\/+/g, "/");
   // The leading double separator identifies a network host. Keep that root
   // when opening an absolute UNC path outside the active project.
@@ -43,7 +44,7 @@ export function toProjectRelativeDisplayPath(
   projectLocation: ProjectLocation,
 ): string {
   const { relative } = relativizeAgainstProjectRoots(raw, projectLocation);
-  if (relative === null) return raw;
+  if (relative === null) return normalizeWindowsDrivePath(raw);
   // A path that *is* the root (e.g. an action targeting the working dir itself)
   // collapses to an empty remainder — show "." so the row never renders blank.
   return relative.length > 0 ? relative : ".";

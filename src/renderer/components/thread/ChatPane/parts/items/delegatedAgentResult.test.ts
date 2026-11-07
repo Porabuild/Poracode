@@ -22,6 +22,22 @@ it.each([source, { error: source }])(
   },
 );
 
+it("localizes the missing background-task report in the active client locale", async () => {
+  const missingReport = msg("thread.backgroundTaskReportMissing");
+  const payload = {
+    name: "Agent",
+    status: "error" as const,
+    result: { error: missingReport },
+  };
+  await dynamicActivate("ru");
+  const translated = msg("thread.backgroundTaskReportMissing");
+  expect(translated).not.toBe(missingReport);
+  expect(delegatedAgentResultText(payload, translate)).toBe(translated);
+  await dynamicActivate("en");
+  expect(delegatedAgentResultText(payload, translate)).toBe(missingReport);
+  expect(payload.result).toEqual({ error: missingReport });
+});
+
 it("keeps partial output and provider errors intact", async () => {
   await dynamicActivate("ru");
   const result = { error: source, output: "Partial work" };

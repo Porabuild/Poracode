@@ -47,6 +47,7 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
 }));
 vi.mock("@/renderer/state/projectRootNamesStore", () => ({ useProjectRootNames: () => undefined }));
 vi.mock("./ChatScrollControls", () => ({ ChatScrollControls: () => null }));
+vi.mock("./ChatPromptRail", () => ({ ChatPromptRail: () => null }));
 vi.mock("./parts/items/SubAgentOverlay", () => ({ SubAgentOpenController: () => null }));
 vi.mock("./parts/MessageList", async () => {
   const { ImageView } = await import("./parts/items/ImageView");

@@ -24,4 +24,6 @@
     <string name="archived_threads_title">Archivierte Threads</string>
     <string name="archived_threads_description">Archivierte Threads wiederherstellen oder endgültig löschen.</string>
     <string name="archived_threads_empty">Keine archivierten Threads</string>
+    <string name="thread_status_starting_agent">Agent wird gestartet…</string>
+    <string name="thread_status_resuming">Sitzung wird fortgesetzt…</string>
 </resources>

@@ -22,9 +22,9 @@ function entry(kind: AgentKind, inputKey: string) {
 }
 function setup() {
   const adapters = new Map<AgentKind, AgentAdapter>();
-  const atInvalidation: AgentKind[][] = [];
-  const invalidateAgentStatuses = vi.fn<() => void>(() => {
-    atInvalidation.push([...adapters.keys()]);
+  const atReconciliation: AgentKind[][] = [];
+  const reconcileAgentRegistry = vi.fn<(changedKinds: readonly string[]) => void>(() => {
+    atReconciliation.push([...adapters.keys()]);
   });
   const service = new AgentRegistryService({
     adapters,
@@ -35,44 +35,50 @@ function setup() {
     sharedSettingsCache: {
       invalidate: vi.fn<() => void>(),
     } as unknown as SupervisorSharedSettingsCache,
-    getAgentStatusService: () => ({ invalidateAgentStatuses }) as unknown as AgentStatusService,
+    getAgentStatusService: () => ({ reconcileAgentRegistry }) as unknown as AgentStatusService,
     getActiveWslProjectDistros: () => [],
     closeThreadsForAgentKind: vi.fn<(agentKind: AgentKind) => Promise<void>>(async () => {}),
   });
-  return { service, adapters, invalidateAgentStatuses, atInvalidation };
+  return { service, adapters, reconcileAgentRegistry, atReconciliation };
 }
 
 describe("registry status publication ownership", () => {
   it("preserves warm-cache ownership on initial setup and unchanged polls", () => {
     fixtures.entries = [entry("acp-generic:first", "one")];
-    const { service, adapters, invalidateAgentStatuses } = setup();
+    const { service, adapters, reconcileAgentRegistry } = setup();
     service.refreshAgentRegistryAdapters();
+    expect(reconcileAgentRegistry).not.toHaveBeenCalled();
     const initial = adapters.get("acp-generic:first");
     fixtures.entries = [entry("acp-generic:first", "one")];
     service.refreshAgentRegistryAdapters();
     expect(adapters.get("acp-generic:first")).toBe(initial);
-    expect(invalidateAgentStatuses).not.toHaveBeenCalled();
+    expect(reconcileAgentRegistry).toHaveBeenCalledExactlyOnceWith([]);
   });
-  it("invalidates once after replacement, addition and removal are fully applied", () => {
+  it("reconciles replacement, addition and removal after they are fully applied", () => {
     fixtures.entries = [entry("acp-generic:first", "one"), entry("acp-generic:removed", "old")];
-    const { service, adapters, invalidateAgentStatuses, atInvalidation } = setup();
+    const { service, adapters, reconcileAgentRegistry, atReconciliation } = setup();
     service.refreshAgentRegistryAdapters();
     const initial = adapters.get("acp-generic:first");
     fixtures.entries = [entry("acp-generic:first", "two"), entry("acp-generic:added", "new")];
     service.refreshAgentRegistryAdapters();
     expect(adapters.get("acp-generic:first")).not.toBe(initial);
-    expect(invalidateAgentStatuses).toHaveBeenCalledTimes(1);
-    expect(atInvalidation).toEqual([["acp-generic:first", "acp-generic:added"]]);
+    expect(reconcileAgentRegistry).toHaveBeenCalledExactlyOnceWith([
+      "acp-generic:removed",
+      "acp-generic:first",
+      "acp-generic:added",
+    ]);
+    expect(atReconciliation).toEqual([["acp-generic:first", "acp-generic:added"]]);
     service.refreshAgentRegistryAdapters();
-    expect(invalidateAgentStatuses).toHaveBeenCalledTimes(1);
+    expect(reconcileAgentRegistry).toHaveBeenNthCalledWith(2, []);
+    expect(atReconciliation).toHaveLength(2);
   });
-  it("invalidates removal of the final registered adapter", () => {
+  it("reconciles removal of the final registered adapter", () => {
     fixtures.entries = [entry("acp-generic:first", "one")];
-    const { service, adapters, invalidateAgentStatuses } = setup();
+    const { service, adapters, reconcileAgentRegistry } = setup();
     service.refreshAgentRegistryAdapters();
     fixtures.entries = [];
     service.refreshAgentRegistryAdapters();
     expect(adapters.size).toBe(0);
-    expect(invalidateAgentStatuses).toHaveBeenCalledTimes(1);
+    expect(reconcileAgentRegistry).toHaveBeenCalledExactlyOnceWith(["acp-generic:first"]);
   });
 });

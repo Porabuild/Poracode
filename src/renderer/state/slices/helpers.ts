@@ -9,6 +9,7 @@ import {
   buildPaneLayoutFromLegacy,
   collectPaneIds,
   insertPaneInLayout,
+  normalizePaneSlots,
   removePaneFromLayout,
   replacePaneIdInLayout,
   type PaneLayout,
@@ -129,7 +130,9 @@ export function viewAfterPaneRemoval(
 }
 
 export function currentPaneLayout(view: Extract<AppView, { kind: "thread" }>): PaneLayout {
-  return view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout);
+  return view.paneLayout
+    ? normalizePaneSlots(view.paneLayout)
+    : buildPaneLayoutFromLegacy(view.panes, view.rowLayout);
 }
 
 export function saveGroupLayout(state: {
@@ -168,7 +171,7 @@ export function restoreGroupView(
       if (!restoredPanes.includes(t.id)) restoredPanes.push(t.id);
     }
     if (restoredPanes.length > 0) {
-      let paneLayout = saved.paneLayout;
+      let paneLayout = saved.paneLayout ? normalizePaneSlots(saved.paneLayout) : undefined;
       if (paneLayout) {
         const savedPaneIds = collectPaneIds(paneLayout);
         for (const paneId of savedPaneIds) {

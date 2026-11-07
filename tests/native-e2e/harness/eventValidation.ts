@@ -1,5 +1,6 @@
 import { agentStatusSchema } from "../../../src/shared/contracts/agent.ts";
 import { runtimeEventSchema } from "../../../src/shared/contracts/runtimeEvent.ts";
+import { remoteForgeActivityEventSchema } from "../../../src/shared/remote/protocol/forgeActivity.ts";
 import {
   remoteGitStateEventSchema,
   remoteGitSummariesEventSchema,
@@ -33,6 +34,9 @@ export function validateReplayableEvent(event: Record<string, unknown>): void {
     case "windows-agent-statuses":
     case "wsl-agent-statuses":
       for (const status of event.statuses as unknown[]) agentStatusSchema.parse(status);
+      break;
+    case "remote-forge-activity":
+      remoteForgeActivityEventSchema.parse(event);
       break;
     case "remote-git-summaries":
       remoteGitSummariesEventSchema.parse(event);

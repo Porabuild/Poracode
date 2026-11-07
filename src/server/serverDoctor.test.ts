@@ -4,8 +4,13 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { afterAll, describe, expect, it } from "vitest";
-import { HOST_CONTROL_DISCOVERY_VERSION } from "@/shared/hostControlProtocol";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import {
+  HOST_CONTROL_DISCOVERY_VERSION,
+  hostServiceCapabilities,
+} from "@/shared/hostControlProtocol";
+import * as control from "@/backend/ownership/hostControlClient";
+import * as pairing from "./pairingControl";
 import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 import { resolveHostRootPaths, type HostRootPaths } from "@/backend/ownership/hostRootPaths";
 import {
@@ -18,6 +23,10 @@ import { serverUpgradeJournalPath, writeServerUpgradeJournal } from "./serverUpg
 
 const DEAD_PID = 999_999_999;
 const fixtures: string[] = [];
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 afterAll(() => {
   for (const path of fixtures) rmSync(path, { recursive: true, force: true });
@@ -123,6 +132,149 @@ function buildProfileFixture(options: { withRoot?: boolean } = {}): ProfileFixtu
 }
 
 describe("collectServerDoctorReport", () => {
+  it("describes desktop credential and lifecycle custody without probing server status", async () => {
+    const fixture = buildProfileFixture();
+    rmSync(join(fixture.paths.dataRoot, "host-credentials.json"));
+    const generation = randomUUID();
+    vi.spyOn(pairing, "requestHostStatusFromRunningServer").mockResolvedValue({
+      requestId: randomUUID(),
+      ownerGeneration: generation,
+      description: {
+        profileNamespace: fixture.paths.profileNamespace,
+        dataRoot: fixture.paths.dataRoot,
+        mode: "desktop",
+        state: "ready",
+        endpoint: null,
+        operations: ["describe", "issue-pairing"],
+        capabilities: hostServiceCapabilities(),
+        remoteProtocolVersion: 14,
+      },
+    });
+    const probe = vi.spyOn(control, "callHostControl").mockRejectedValue(new Error("unsupported"));
+    const report = await collectServerDoctorReport({
+      profileNamespace: fixture.namespace,
+      libDir: fixture.prefixLibDir,
+      controlTimeoutMs: 300,
+    });
+    expect(probe).not.toHaveBeenCalled();
+    expect(report.credentials.mode).toBeNull();
+    expect(report.remoteAccess.liveStatus).toMatchObject({
+      reachable: true,
+      mode: "desktop",
+      ownerGeneration: generation,
+      statusSupported: false,
+      build: null,
+    });
+    const credentials = report.checks.find((check) => check.name === "credentials");
+    expect(credentials).toMatchObject({ status: "ok" });
+    expect(credentials?.detail).toContain("desktop owner");
+    expect(credentials?.detail).toContain("not inspected");
+    expect(credentials?.detail).not.toContain("not initialized");
+    const upgrade = report.checks.find((check) => check.name === "upgrade-identity");
+    expect(upgrade).toMatchObject({ status: "ok" });
+    expect(upgrade?.detail).toContain("desktop app");
+    expect(upgrade?.detail).toContain("do not apply");
+    expect(upgrade?.detail).not.toMatch(/predates|drained/);
+  });
+
+  it("pins the headless identity probe and does not mistake failed verification for an old owner", async () => {
+    const fixture = buildProfileFixture();
+    rmSync(join(fixture.paths.dataRoot, "host-credentials.json"));
+    const generation = randomUUID();
+    vi.spyOn(pairing, "requestHostStatusFromRunningServer").mockResolvedValue({
+      requestId: randomUUID(),
+      ownerGeneration: generation,
+      description: {
+        profileNamespace: fixture.paths.profileNamespace,
+        dataRoot: fixture.paths.dataRoot,
+        mode: "headless",
+        state: "ready",
+        endpoint: null,
+        operations: ["describe", "issue-pairing"],
+        capabilities: hostServiceCapabilities(),
+        remoteProtocolVersion: 14,
+      },
+    });
+    const probe = vi
+      .spyOn(control, "callHostControl")
+      .mockRejectedValue(new Error("Host owner changed"));
+    const report = await collectServerDoctorReport({
+      profileNamespace: fixture.namespace,
+      libDir: fixture.prefixLibDir,
+      controlTimeoutMs: 300,
+    });
+    expect(probe).toHaveBeenCalledExactlyOnceWith(fixture.paths, "status", {
+      timeoutMs: 300,
+      expectedGeneration: generation,
+    });
+    const credentials = report.checks.find((check) => check.name === "credentials");
+    expect(credentials).toMatchObject({ status: "warn" });
+    expect(credentials?.detail).toContain("not initialized");
+    const upgrade = report.checks.find((check) => check.name === "upgrade-identity");
+    expect(upgrade).toMatchObject({ status: "warn" });
+    expect(upgrade?.detail).toContain("not verified");
+    expect(upgrade?.detail).not.toMatch(/predates|drained/);
+  });
+
+  it.each(["headless", "desktop"] as const)(
+    "accepts detailed identity only when status keeps the described headless mode (%s)",
+    async (statusMode) => {
+      const fixture = buildProfileFixture();
+      const generation = randomUUID();
+      const description = {
+        profileNamespace: fixture.paths.profileNamespace,
+        dataRoot: fixture.paths.dataRoot,
+        mode: "headless" as const,
+        state: "ready" as const,
+        endpoint: null,
+        operations: ["describe" as const, "issue-pairing" as const],
+        capabilities: hostServiceCapabilities(),
+        remoteProtocolVersion: 14,
+      };
+      vi.spyOn(pairing, "requestHostStatusFromRunningServer").mockResolvedValue({
+        requestId: randomUUID(),
+        ownerGeneration: generation,
+        description,
+      });
+      const build = {
+        version: "2.0.0",
+        sourceRevision: null,
+        entrypointSha256: "c".repeat(64),
+        root: fixture.root,
+        layoutKind: "prefix" as const,
+      };
+      vi.spyOn(control, "callHostControl").mockResolvedValue({
+        requestId: randomUUID(),
+        ownerGeneration: generation,
+        result: {
+          profileNamespace: fixture.paths.profileNamespace,
+          dataRoot: fixture.paths.dataRoot,
+          mode: statusMode,
+          state: "ready",
+          admission: "held",
+          endpoint: null,
+          build,
+        },
+      });
+      const report = await collectServerDoctorReport({
+        profileNamespace: fixture.namespace,
+        libDir: fixture.prefixLibDir,
+        controlTimeoutMs: 300,
+      });
+      expect(report.remoteAccess.liveStatus).toMatchObject({
+        reachable: true,
+        mode: "headless",
+        statusSupported: statusMode === "headless",
+        build: statusMode === "headless" ? build : null,
+      });
+      const upgrade = report.checks.find((check) => check.name === "upgrade-identity");
+      expect(upgrade?.status).toBe("warn");
+      expect(upgrade?.detail).toContain(
+        statusMode === "headless" ? "admission held" : "not verified",
+      );
+    },
+  );
+
   it("reports profile, lease, credentials and discovery without secrets", async () => {
     const fixture = buildProfileFixture();
     const report = await collectServerDoctorReport({

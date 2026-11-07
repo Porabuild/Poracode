@@ -1,0 +1,13 @@
+diff --git a/packages/tui/src/component/dialog-pair.tsx b/packages/tui/src/component/dialog-pair.tsx
+index 0bc0ce4..53adeaf 100644
+--- a/packages/tui/src/component/dialog-pair.tsx
++++ b/packages/tui/src/component/dialog-pair.tsx
+@@ -68,7 +68,7 @@ export function DialogPair() {
+           </box>
+           <Show when={value.loopback}>
+             <text fg={theme.text.muted} wrapMode="word">
+-              Run `opencode service set hostname 0.0.0.0` to access the service remotely.
++              Run `poracode serve --host 0.0.0.0` to access the service remotely.
+             </text>
+           </Show>
+         </box>

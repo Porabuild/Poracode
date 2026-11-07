@@ -17,10 +17,19 @@ final class ProtocolDecodingTests: XCTestCase {
     func testDecodeReadyEnvelope() throws {
         let json = #"{"type":"ready","seq":12}"#
         let message = try RemoteWebSocketServerMessage.decode(from: Data(json.utf8))
-        guard case .ready(let seq) = message else {
+        guard case .ready(let seq, _) = message else {
             return XCTFail("expected ready")
         }
         XCTAssertEqual(seq, 12)
+    }
+
+    func testDecodeReadyEnvelopeCarriesOnlyADeclaredEpoch() throws {
+        let legacy = try RemoteWebSocketServerMessage.decode(from: Data(#"{"type":"ready","seq":12}"#.utf8))
+        XCTAssertEqual(legacy, .ready(seq: 12, epoch: nil))
+        let declared = try RemoteWebSocketServerMessage.decode(
+            from: Data(#"{"type":"ready","seq":12,"epoch":"e1"}"#.utf8)
+        )
+        XCTAssertEqual(declared, .ready(seq: 12, epoch: "e1"))
     }
 
     func testDecodeEventEnvelopeForwardCompatible() throws {
@@ -123,7 +132,7 @@ final class ProtocolDecodingTests: XCTestCase {
     func testDecodeGoldenWsReadyFixture() throws {
         let data = try Self.loadProtocolFixture("ws-ready.json")
         let message = try RemoteWebSocketServerMessage.decode(from: data)
-        guard case .ready(let seq) = message else {
+        guard case .ready(let seq, _) = message else {
             return XCTFail("expected ready")
         }
         XCTAssertEqual(seq, 42)

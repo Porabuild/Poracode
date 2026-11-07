@@ -2,7 +2,6 @@ import { Columns2, Loader2, PanelBottomClose, Play, Plus, Trash2 } from "lucide-
 import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { TerminalSize } from "@/shared/contracts";
-import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { useDevTerminalStore, type TerminalTab } from "@/renderer/state/devTerminalStore";
 import { ContextMenu } from "@/renderer/components/common/ContextMenu";
 import { PanelHeaderProjectName } from "@/renderer/components/layout/PanelHeaderProjectName";
@@ -35,7 +34,6 @@ export function BottomTerminalLayout<T extends TerminalTab>(props: {
   handleTabContextAction: (tab: T, key: string) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
   onTerminalExited?: (terminalId: string, exitCode: number | null) => void;
-  watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
   visible?: boolean;
 }) {
   const { t } = useLingui();
@@ -57,7 +55,6 @@ export function BottomTerminalLayout<T extends TerminalTab>(props: {
     handleTabContextAction,
     onTerminalResize,
     onTerminalExited,
-    watchTerminal,
     visible = true,
   } = props;
   const { sidebarRef, sidebarWidth, handleResizeStart, handleResizeKeyDown } =
@@ -198,7 +195,6 @@ export function BottomTerminalLayout<T extends TerminalTab>(props: {
           markTabActive={markTabActive}
           updateTabTitle={updateTabTitle}
           visible={visible}
-          {...(watchTerminal ? { watchTerminal } : {})}
           {...(onTerminalResize ? { onTerminalResize } : {})}
           {...(onTerminalExited ? { onTerminalExited } : {})}
         />

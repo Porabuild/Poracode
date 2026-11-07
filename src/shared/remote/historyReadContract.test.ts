@@ -22,7 +22,7 @@ describe("B4 history read contract", () => {
   it("keeps one caps table: 32 MiB wire / 64 MiB serialized-decode", () => {
     expect(CATALOG_HOST_WIRE_MAX_BYTES).toBe(32 * MiB);
     expect(CATALOG_HOST_DECODE_MAX_BYTES).toBe(64 * MiB);
-    expect(HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES).toBe(1 * MiB);
+    expect(HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES).toBe(2 * MiB);
     expect(HISTORY_TURNS_SOFT_PACK_WIRE_BYTES).toBe(256 * 1024);
     expect(HISTORY_COMPLETED_TURNS_DEFAULT_LIMIT).toBe(200);
     expect(HISTORY_COMPLETED_TURNS_MAX_LIMIT).toBe(500);

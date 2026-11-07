@@ -2,6 +2,14 @@ import { preloadable } from "@/renderer/utils/preloadable";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { createDeferredPrewarmRunner } from "@/renderer/utils/deferredPrewarm";
 
+export const DeferredFeedbackDialog = preloadable(() =>
+  import("@/renderer/components/common/FeedbackDialog").then((module) => module.FeedbackDialog),
+);
+
+export const DeferredThreadForkDialog = preloadable(() =>
+  import("@/renderer/components/thread/ThreadForkDialog").then((module) => module.ThreadForkDialog),
+);
+
 export const DeferredDeviceWorkspace = preloadable(() =>
   import("@/renderer/components/devices/DeviceWorkspace").then((module) => module.DeviceWorkspace),
 );
@@ -100,9 +108,9 @@ export const DeferredGitReviewOverlay = preloadable(() =>
   ),
 );
 
-export const DeferredPrReviewOverlay = preloadable(() =>
-  import("@/renderer/views/PrReviewOverlay/PrReviewOverlay").then(
-    (module) => module.PrReviewOverlay,
+export const DeferredPullRequestsOverlay = preloadable(() =>
+  import("@/renderer/views/PullRequestsOverlay/PullRequestsOverlay").then(
+    (module) => module.PullRequestsOverlay,
   ),
 );
 
@@ -146,7 +154,7 @@ const desktopPrewarmTasks = [
   DeferredFileEditorOverlay.preload,
   DeferredGitReviewPanel.preload,
   DeferredGitReviewOverlay.preload,
-  DeferredPrReviewOverlay.preload,
+  DeferredPullRequestsOverlay.preload,
   DeferredGitHubActionsView.preload,
   DeferredInlineDiffView.preload,
 ] as const;
@@ -158,7 +166,7 @@ const compactPrewarmTasks = [
   DeferredProjectSettingsOverlay.preload,
   DeferredGitReviewPanel.preload,
   DeferredGitReviewOverlay.preload,
-  DeferredPrReviewOverlay.preload,
+  DeferredPullRequestsOverlay.preload,
   DeferredGitHubActionsView.preload,
   DeferredInlineDiffView.preload,
 ] as const;

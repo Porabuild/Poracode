@@ -1,7 +1,7 @@
 import type { RuntimeEvent, Thread } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import { reuseRemoteRows } from "./remoteServers/rowReuse";
-import { carryPendingRootLaunchRuntime } from "./managedRootCatalog/rootLaunchRuntime";
+import { carryPendingRootLaunchRuntime } from "./hostLaunchRuntime";
 
 // Admission is renderer-local and never persisted or sent over the wire. Old
 // host rows remain valid; they simply cannot settle a prompt still being sent.
@@ -10,6 +10,19 @@ interface PendingInput {
   canonicalMessageSeen?: boolean;
 }
 const pendingInputs = new Map<string, Set<PendingInput>>();
+
+// How often the host has stated each thread's cut-off marker. A send that
+// fails restores the marker only when the host stayed silent meanwhile: a
+// Stop, or a turn that did start, already decided it.
+const interruptedTurnStatements = new Map<string, number>();
+
+export function noteThreadInterruptedTurnStated(threadId: string): void {
+  interruptedTurnStatements.set(threadId, (interruptedTurnStatements.get(threadId) ?? 0) + 1);
+}
+
+export function threadInterruptedTurnStatements(threadId: string): number {
+  return interruptedTurnStatements.get(threadId) ?? 0;
+}
 
 /** Read during the optimistic store updates that accompany input admission. */
 export function hasPendingThreadInput(threadId: string): boolean {

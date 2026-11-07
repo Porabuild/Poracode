@@ -12,7 +12,9 @@ import type {
   AcpRegistryListResult,
   AcpRegistryMutationResult,
   GetAgentStatusesPayload,
+  SelectedAgentProbePayload,
   AuthenticateAcpAgentPayload,
+  ControlAcpAuthenticationPayload,
   InstallAcpRegistryAgentPayload,
   LogoutAcpAgentPayload,
   SetAcpRegistryAgentAuthPayload,
@@ -21,11 +23,20 @@ import type {
   UpdateAgentBinaryResult,
   GetLatestAgentVersionPayload,
   GetLatestAgentVersionResult,
+  GetAgentConfigDefaultsPayload,
+  GetAgentConfigDefaultsResult,
   ResolveAgentAccountPayload,
   ResolveAgentAccountResult,
   RemoveAcpRegistryAgentPayload,
 } from "@/shared/contracts";
-import { acpGenericKind, extractAcpGenericInstanceId } from "@/shared/contracts";
+import {
+  acpGenericKind,
+  extractAcpGenericInstanceId,
+  controlAcpAuthenticationPayloadSchema,
+} from "@/shared/contracts";
+import type { ChildProcessLifetime } from "@/shared/childProcessLifetime";
+import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
+import { withAcpAuthenticationOwnership } from "../agents/acp/probe";
 import { msg } from "@/shared/messages";
 import { verifyAcpGenericAuthentication } from "../agents/acp-generic";
 import {
@@ -112,6 +123,19 @@ export interface AgentRegistryServiceDeps {
  * unchanged.
  */
 export class AgentRegistryService {
+  private authenticationStopped = false;
+  private readonly authentications = new Map<
+    string,
+    {
+      controller: AbortController;
+      pending: Promise<void>;
+      processes: Set<ChildProcessLifetime>;
+      settled: boolean;
+    }
+  >();
+  // Fresh UUIDs are mandatory. Bound replay/cancel-before-start receipts without
+  // expiring or evicting any live process custody.
+  private readonly retiredAuthentications = new Set<string>();
   private readonly wslRegistryMaintenance = new Map<string, Promise<void>>();
 
   /** Short-lived per-kind cache for resolved provider accounts, so reopening
@@ -381,12 +405,12 @@ export class AgentRegistryService {
     const settings = readAcpRegistrySettings(this.deps.settingsPath);
     const entries = buildAgentRegistryEntries(Object.values(settings.agentInstances));
     const nextKinds = new Set(entries.map((entry) => entry.adapter.kind));
-    let changed = false;
+    const changedKinds: string[] = [];
     for (const kind of [...this.deps.adapters.keys()]) {
       if (!nextKinds.has(kind)) {
         this.deps.adapters.delete(kind);
         this.adapterInputKeys.delete(kind);
-        changed = true;
+        changedKinds.push(kind);
       }
     }
     for (const { adapter, inputKey } of entries) {
@@ -394,11 +418,9 @@ export class AgentRegistryService {
       if (existing && this.adapterInputKeys.get(adapter.kind) === inputKey) continue;
       this.deps.adapters.set(adapter.kind, adapter);
       this.adapterInputKeys.set(adapter.kind, inputKey);
-      changed = true;
+      changedKinds.push(adapter.kind);
     }
-    if (this.registryInitialized && changed) {
-      this.agentStatusService.invalidateAgentStatuses();
-    }
+    if (this.registryInitialized) this.agentStatusService.reconcileAgentRegistry(changedKinds);
     this.registryInitialized = true;
   }
 
@@ -458,8 +480,14 @@ export class AgentRegistryService {
     this.deps.sharedSettingsCache.invalidate();
     this.refreshAgentRegistryAdapters();
     const response = await this.agentStatusService.refreshAgentStatuses(payload);
-    this.scheduleFirstClassAcpAutoInstall(response);
+    if (!payload.scope) this.scheduleFirstClassAcpAutoInstall(response);
     return response;
+  }
+
+  async probeSelectedAgent(payload: SelectedAgentProbePayload) {
+    this.deps.sharedSettingsCache.invalidate();
+    this.refreshAgentRegistryAdapters();
+    return this.agentStatusService.probeSelectedAgent(payload);
   }
 
   /**
@@ -668,6 +696,18 @@ export class AgentRegistryService {
     return getLatestVersionForAdapter(adapter);
   }
 
+  async getAgentConfigDefaults(
+    payload: GetAgentConfigDefaultsPayload,
+  ): Promise<GetAgentConfigDefaultsResult> {
+    const adapter = this.deps.adapters.get(payload.agentKind);
+    if (!adapter?.readConfigDefaults) return { defaults: {} };
+    const defaults = await adapter.readConfigDefaults().catch((error) => {
+      console.warn(`[supervisor] ${payload.agentKind} config defaults read failed:`, error);
+      return {};
+    });
+    return { defaults };
+  }
+
   async resolveAgentAccount(
     payload: ResolveAgentAccountPayload,
   ): Promise<ResolveAgentAccountResult> {
@@ -731,18 +771,109 @@ export class AgentRegistryService {
     return { installed };
   }
 
-  async authenticateAcpAgent(payload: AuthenticateAcpAgentPayload): Promise<void> {
+  async controlAcpAuthentication(input: ControlAcpAuthenticationPayload): Promise<void> {
+    const payload = controlAcpAuthenticationPayloadSchema.parse(input);
+    const remember = () => {
+      this.retiredAuthentications.add(payload.operationId);
+      if (this.retiredAuthentications.size > 128)
+        this.retiredAuthentications.delete(this.retiredAuthentications.values().next().value!);
+    };
+    if (payload.action === "cancel") {
+      const active = this.authentications.get(payload.operationId);
+      if (!active) {
+        // A cancel can overtake an async supervisor-start preparation.
+        remember();
+        return;
+      }
+      active.controller.abort(new Error("Provider login cancelled."));
+      await Promise.allSettled([active.pending]);
+      await joinRuntimeShutdown([...active.processes].map((process) => () => process.stop()));
+      return;
+    }
+    if (this.authenticationStopped) throw new Error("Provider authentication is shutting down.");
+    if (
+      this.authentications.has(payload.operationId) ||
+      this.retiredAuthentications.has(payload.operationId)
+    )
+      throw new Error("Authentication operation ID was already used; start a new login.");
+    if (payload.envKind === "wsl" || payload.wslDistro)
+      throw new Error(
+        "Cancellable ACP login is unavailable in WSL. Run provider login directly in the selected distro, or choose a terminal authentication method.",
+      );
+    if (this.authentications.size >= 8) throw new Error("Too many active provider logins.");
+    const controller = new AbortController();
+    const processes = new Set<ChildProcessLifetime>();
+    const retire = () => {
+      if (active.settled && processes.size === 0) {
+        this.authentications.delete(payload.operationId);
+        remember();
+      }
+    };
+    const control = {
+      signal: controller.signal,
+      onProcess: (process: ChildProcessLifetime) => {
+        processes.add(process);
+        void process.closed.then(() => {
+          processes.delete(process);
+          retire();
+        });
+      },
+    };
+    const pending = Promise.resolve().then(() =>
+      withAcpAuthenticationOwnership(control, () => this.authenticateAcpAgent(payload, control)),
+    );
+    const active = { controller, pending, processes, settled: false };
+    this.authentications.set(payload.operationId, active);
+    void pending
+      .finally(() => {
+        active.settled = true;
+        retire();
+        // Status refresh is an ordinary background read, outside auth custody.
+        void this.refreshAffectedAgentStatus(payload.agentKind);
+      })
+      .catch(() => undefined);
+    return pending;
+  }
+
+  async disposeAcpAuthentications(): Promise<void> {
+    this.authenticationStopped = true;
+    const active = [...this.authentications.values()];
+    for (const operation of active)
+      operation.controller.abort(new Error("Provider authentication is shutting down."));
+    await Promise.allSettled(active.map((operation) => operation.pending));
+    await joinRuntimeShutdown(
+      active.flatMap((operation) =>
+        [...operation.processes].map((process) => () => process.stop()),
+      ),
+    );
+  }
+
+  async authenticateAcpAgent(
+    payload: AuthenticateAcpAgentPayload,
+    control?: {
+      signal: AbortSignal;
+      onProcess: (process: ChildProcessLifetime) => void;
+    },
+  ): Promise<void> {
+    control?.signal.throwIfAborted();
     const adapter = this.deps.adapters.get(payload.agentKind);
     if (!adapter) {
       throw new Error(`Unknown agent: ${payload.agentKind}`);
     }
-    const ctx = envContextFromPayload(payload.envKind, payload.wslDistro);
+    const ctx = envContextFromPayload(
+      payload.envKind ??
+        (control ? (process.platform === "win32" ? "windows" : "posix") : undefined),
+      payload.wslDistro,
+    );
+    if (ctx && control) ctx.signal = control.signal;
     const executionCtx = await dispatchAcpAuthenticate({
       adapter,
       methodId: payload.methodId,
       ...(payload.envKind ? { envKind: payload.envKind } : {}),
       ...(payload.wslDistro ? { wslDistro: payload.wslDistro } : {}),
+      ...(control ? { signal: control.signal, onProcess: control.onProcess } : {}),
     });
+    control?.signal.throwIfAborted();
     // Generic ACP instances persist a per-env login acknowledgement so the
     // detection probe (which can't always tell whether the agent is signed in)
     // reports `authState: "authenticated"` on the next refresh. Native ACP
@@ -753,25 +884,28 @@ export class AgentRegistryService {
     if (instanceId !== undefined) {
       const instance = readAcpRegistrySettings(this.deps.settingsPath).agentInstances[instanceId];
       const verified =
-        instance !== undefined && (await verifyAcpGenericAuthentication(instance, executionCtx));
+        instance !== undefined &&
+        (await verifyAcpGenericAuthentication(instance, executionCtx ?? ctx));
+      control?.signal.throwIfAborted();
       if (!verified) {
         await setAcpGenericAgentAuthAcknowledged(this.deps, instanceId, executionCtx ?? ctx, false);
         this.deps.sharedSettingsCache.invalidate();
         this.refreshAgentRegistryAdapters();
-        void this.refreshAffectedAgentStatus(payload.agentKind);
+        if (!control) void this.refreshAffectedAgentStatus(payload.agentKind);
         throw new Error(msg("acp.authenticationUnverified", { agent: adapter.label }));
       }
       await setAcpGenericAgentAuthAcknowledged(this.deps, instanceId, executionCtx ?? ctx, true);
     } else {
       const status = await adapter.detectInstall(executionCtx);
+      control?.signal.throwIfAborted();
       if (status.authState === "missing") {
-        void this.refreshAffectedAgentStatus(payload.agentKind);
+        if (!control) void this.refreshAffectedAgentStatus(payload.agentKind);
         throw new Error(msg("acp.authenticationUnverified", { agent: adapter.label }));
       }
     }
     this.deps.sharedSettingsCache.invalidate();
     this.refreshAgentRegistryAdapters();
-    void this.refreshAffectedAgentStatus(payload.agentKind);
+    if (!control) void this.refreshAffectedAgentStatus(payload.agentKind);
   }
 
   async logoutAcpAgent(payload: LogoutAcpAgentPayload): Promise<void> {

@@ -24,6 +24,11 @@ function anchorsDeclaredInComponents(): Set<string> {
 const t = (descriptor: MessageDescriptor) => i18n._(descriptor);
 
 describe("SETTINGS_SEARCH_INDEX", () => {
+  it("makes audio settings searchable in PWA clients", () => {
+    const audio = SETTINGS_SEARCH_INDEX.filter((entry) => entry.section === "audio");
+    expect(audio.length).toBeGreaterThan(0);
+    expect(audio.every((entry) => !entry.desktopOnly)).toBe(true);
+  });
   it("uses unique anchors", () => {
     const anchors = SETTINGS_SEARCH_INDEX.map((entry) => entry.anchor);
     expect(new Set(anchors).size).toBe(anchors.length);
@@ -103,6 +108,12 @@ describe("searchSettings", () => {
     const anchors = searchSettings("appearance mode", t).map((result) => result.anchor);
     expect(anchors).toContain("appearance.mode");
     expect(searchSettings("appearance missing", t)).toEqual([]);
+  });
+
+  it("finds Computer Use options through plugin settings", () => {
+    expect(searchSettings("locked computer use", t).map((result) => result.anchor)).toContain(
+      "plugins.marketplace",
+    );
   });
 
   it("finds the Skills and MCP settings", () => {

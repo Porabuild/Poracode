@@ -2,6 +2,7 @@ import { startTransition, useState, type FormEvent } from "react";
 import { Tooltip } from "@heroui/react";
 import { Eye, EyeOff, LogOut } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
 import { Button, ToggleSwitch } from "@/renderer/components/common";
 import { ProviderUsageCircle } from "@/renderer/components/providers/ProviderUsageCircle";
 import { refreshAndMergeProviderUsage } from "@/renderer/components/providers/refreshProviderUsageSnapshot";
@@ -16,7 +17,7 @@ import {
 
 /**
  * Per-provider auto-refresh cadence as bare inline text: no border, no fill, no
- * stepper — just the number, editable in place. Empty inherits the global
+ * stepper — just the number, editable in place. Empty inherits the slower global/provider
  * default, which the dimmer placeholder shows. Typing is buffered so a
  * half-typed value never round-trips through settings; the draft commits on
  * blur or Enter and reverts on Escape.
@@ -32,6 +33,11 @@ function UsageCadenceField(props: { id: string; label: string }) {
 
   const override = providerRefreshIntervals[id];
   const text = draft ?? String(override ?? "");
+  const defaultMinutes = Math.max(
+    defaultIntervalMinutes,
+    allUsageProviderDescriptors().find((provider) => provider.id === id)?.refreshPolicy
+      ?.defaultIntervalMinutes ?? 0,
+  );
 
   const commit = () => {
     if (draft === null) return;
@@ -54,7 +60,7 @@ function UsageCadenceField(props: { id: string; label: string }) {
         inputMode="numeric"
         aria-label={t`${label} auto-refresh interval in minutes`}
         value={text}
-        placeholder={String(autoRefresh ? defaultIntervalMinutes : 0)}
+        placeholder={String(autoRefresh ? defaultMinutes : 0)}
         onChange={(e) => setDraft(e.target.value.replace(/[^\d]/g, ""))}
         onBlur={commit}
         onKeyDown={(e) => {

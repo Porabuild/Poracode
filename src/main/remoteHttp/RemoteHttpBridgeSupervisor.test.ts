@@ -203,7 +203,7 @@ describe("RemoteHttpBridgeSupervisor", () => {
   });
 
   it("refuses duplicate request ids and per-window admission overruns", async () => {
-    const { supervisor } = createHarness();
+    const { supervisor, channelPorts } = createHarness();
     const target = createTarget();
     const sharedId = crypto.randomUUID();
     await supervisor.open(target, request({ requestId: sharedId }));
@@ -217,7 +217,12 @@ describe("RemoteHttpBridgeSupervisor", () => {
     }
     await expect(
       supervisor.open(target, request({ requestId: crypto.randomUUID() })),
-    ).rejects.toThrow("Too many active remote requests for this window");
+    ).resolves.toEqual({ generation: 1 });
+    expect(
+      (channelPorts.at(-1)!.port1 as { postMessage: ReturnType<typeof vi.fn> }).postMessage,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "overloaded", generation: 1, kind: "error" }),
+    );
   });
 
   it("releases capacity when the utility settles a request", async () => {
@@ -470,8 +475,8 @@ describe("RemoteHttpBridgeSupervisor", () => {
     );
     await vi.waitFor(() => expect(forks).toHaveLength(1));
 
-    // Everything over either cap rejects before the utility has spawned, so
-    // these settle without the spawn event.
+    // Over-cap requests receive the existing typed error port without
+    // reserving work or waiting for the utility's spawn event.
     const remainingGlobalSlots =
       REMOTE_HTTP_MAX_ACTIVE_REQUESTS - REMOTE_HTTP_MAX_ACTIVE_REQUESTS_PER_WINDOW;
     const overCap = [
@@ -480,7 +485,7 @@ describe("RemoteHttpBridgeSupervisor", () => {
     ];
     const overCapResults = await Promise.allSettled(overCap);
     expect(overCapResults.map((result) => result.status)).toEqual(
-      Array.from({ length: overCap.length }, () => "rejected"),
+      Array.from({ length: overCap.length }, () => "fulfilled"),
     );
 
     forks[0]!.emitSpawn();
@@ -495,7 +500,7 @@ describe("RemoteHttpBridgeSupervisor", () => {
     expect(postedKinds(forks[0]!, "open")).toHaveLength(REMOTE_HTTP_MAX_ACTIVE_REQUESTS);
     await expect(
       supervisor.open(createTarget(99), request({ requestId: crypto.randomUUID() })),
-    ).rejects.toThrow("Too many active remote requests.");
+    ).resolves.toEqual({ generation: 1 });
 
     // Free one global slot: window A is still exactly at its own cap.
     forks[0]!.emitMessage({
@@ -510,7 +515,7 @@ describe("RemoteHttpBridgeSupervisor", () => {
     expect(supervisor.localStats().activeRequests).toBe(REMOTE_HTTP_MAX_ACTIVE_REQUESTS - 1);
     await expect(
       supervisor.open(windowA, request({ requestId: crypto.randomUUID() })),
-    ).rejects.toThrow("Too many active remote requests for this window");
+    ).resolves.toEqual({ generation: 1 });
   });
 
   it("rejects a duplicate id while its cold-start reservation is pending", async () => {

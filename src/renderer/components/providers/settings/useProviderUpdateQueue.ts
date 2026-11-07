@@ -1,11 +1,14 @@
 import { useRef, useState } from "react";
 import type { AgentStatus } from "@/shared/contracts";
 import { MAX_CONCURRENT_PROVIDER_UPDATES } from "@/shared/agents/updatePolicy";
+import { hostScopedKey } from "./agentManagementHost";
 
 export type ProviderUpdatePhase = "queued" | "updating" | "probing";
 export type ActiveProviderUpdatePhase = Exclude<ProviderUpdatePhase, "queued">;
 
 export interface ProviderUpdateTarget {
+  /** Management host that runs the update; separates the same kind across machines. */
+  hostKey: string;
   agent: AgentStatus;
   targetVersion: string;
 }
@@ -28,7 +31,7 @@ export function useProviderUpdateQueue(
   ) => Promise<void>,
   onError: (error: unknown, target: ProviderUpdateTarget) => void,
 ) {
-  const pendingKinds = useRef(new Set<string>());
+  const pendingKeys = useRef(new Set<string>());
   const bulkRunning = useRef(false);
   const [pendingUpdates, setPendingUpdates] = useState<
     ReadonlyMap<string, PendingProviderUpdateState>
@@ -40,7 +43,10 @@ export function useProviderUpdateQueue(
   function setPhase(target: ProviderUpdateTarget, phase: ProviderUpdatePhase): void {
     setPendingUpdates((current) => {
       const next = new Map(current);
-      next.set(target.agent.kind, { targetVersion: target.targetVersion, phase });
+      next.set(hostScopedKey(target.hostKey, target.agent.kind), {
+        targetVersion: target.targetVersion,
+        phase,
+      });
       return next;
     });
   }
@@ -52,26 +58,29 @@ export function useProviderUpdateQueue(
     } catch (error) {
       onError(error, target);
     } finally {
-      pendingKinds.current.delete(target.agent.kind);
+      const key = hostScopedKey(target.hostKey, target.agent.kind);
+      pendingKeys.current.delete(key);
       setPendingUpdates((current) => {
         const next = new Map(current);
-        next.delete(target.agent.kind);
+        next.delete(key);
         return next;
       });
     }
   }
 
   function updateKind(target: ProviderUpdateTarget): void {
-    if (bulkRunning.current || pendingKinds.current.has(target.agent.kind)) return;
-    pendingKinds.current.add(target.agent.kind);
+    const key = hostScopedKey(target.hostKey, target.agent.kind);
+    if (bulkRunning.current || pendingKeys.current.has(key)) return;
+    pendingKeys.current.add(key);
     void runPending(target);
   }
 
   function updateAll(candidates: readonly ProviderUpdateTarget[]): void {
     if (bulkRunning.current) return;
     const targets = candidates.filter((target) => {
-      if (pendingKinds.current.has(target.agent.kind)) return false;
-      pendingKinds.current.add(target.agent.kind);
+      const key = hostScopedKey(target.hostKey, target.agent.kind);
+      if (pendingKeys.current.has(key)) return false;
+      pendingKeys.current.add(key);
       return true;
     });
     if (targets.length === 0) return;
@@ -79,7 +88,10 @@ export function useProviderUpdateQueue(
     setPendingUpdates((current) => {
       const next = new Map(current);
       for (const target of targets) {
-        next.set(target.agent.kind, { targetVersion: target.targetVersion, phase: "queued" });
+        next.set(hostScopedKey(target.hostKey, target.agent.kind), {
+          targetVersion: target.targetVersion,
+          phase: "queued",
+        });
       }
       return next;
     });

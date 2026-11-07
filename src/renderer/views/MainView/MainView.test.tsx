@@ -38,9 +38,6 @@ vi.mock("@/renderer/hooks/useGitRefresh", () => ({ useGitRefresh: vi.fn<() => vo
 vi.mock("@/renderer/hooks/useRemoteServerConnection", () => ({
   useRemoteServerConnection: () => ({ checked: true }),
 }));
-vi.mock("@/renderer/hooks/useRestoredRemoteThreadLifecycle", () => ({
-  useRestoredRemoteThreadLifecycle: vi.fn<() => void>(),
-}));
 vi.mock("@/renderer/hooks/useRightPanelThreadLock", () => ({
   useRightPanelThreadLock: vi.fn<() => void>(),
 }));

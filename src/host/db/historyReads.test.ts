@@ -330,7 +330,7 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history reads (phase 1/2)", () => 
     });
     expect(
       metadataSql.some((sql) =>
-        /length\(CAST\(COALESCE\(payload, ''\) AS BLOB\)\) AS payload_bytes/u.test(sql),
+        /COALESCE\(octet_length\(payload\), 0\) AS payload_bytes/u.test(sql),
       ),
     ).toBe(true);
     // No statement may select both text columns for the candidate window, and

@@ -49,7 +49,7 @@ class SessionEventRouter(
     private val replayController: SequencedReplayController = SequencedReplayController(
         com.poracode.app.session.replay.HostStateCache(),
     ),
-    private val onReplaySideEffects: (ReplayOutcome) -> Unit = {},
+    private val onReplaySideEffects: (ReplayOutcome, Int) -> Unit = { _, _ -> },
     private val applyGitInterests: (List<com.poracode.app.protocol.git.GitInterest>) -> Unit = {},
     private val heavyReviewTarget: () -> HeavyReviewTarget? = { null },
     private val presentRemoteNotification: (
@@ -97,7 +97,7 @@ class SessionEventRouter(
                 if (replayOutcome.handled) {
                     if (replayOutcome.applied) {
                         mirrorReplayIntoState(replayOutcome)
-                        onReplaySideEffects(replayOutcome)
+                        onReplaySideEffects(replayOutcome, message.seq)
                         richChatEventSink(message.seq, message.event)
                         setLastSeenSeq(message.seq)
                     }

@@ -203,3 +203,32 @@ describe("EffortContextMenu deliberate same-value activation", () => {
     expect(onEffortChange).toHaveBeenCalledWith("high");
   });
 });
+
+describe("EffortContextMenu workflow mode", () => {
+  beforeEach(() => {
+    (window as unknown as { poracode?: unknown }).poracode = { appVersion: "remote" };
+  });
+  afterEach(() => {
+    delete (window as unknown as { poracode?: unknown }).poracode;
+  });
+
+  it("shows the provider's name in the trigger and toggles it from the options", () => {
+    const onChange = vi.fn<(value: boolean) => void>();
+    render(
+      <EffortContextMenu
+        efforts={EFFORTS}
+        effortValue="low"
+        contextSizes={[]}
+        workflows={{ label: "Ultracode", value: true, onChange }}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: /effort and context/i });
+    expect(trigger).toHaveTextContent("Low · Ultracode");
+    fireEvent.click(trigger);
+    const toggle = screen.getByRole("switch", { name: "Ultracode" });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+    expect(onChange).toHaveBeenCalledWith(false);
+  });
+});

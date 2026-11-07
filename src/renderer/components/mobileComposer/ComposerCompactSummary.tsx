@@ -3,6 +3,10 @@ import type { AgentStatus, Thread } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { canonicalProviderModelId } from "@/renderer/components/providers/modelConfig";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import { PoracodeGlyph } from "@/renderer/components/common/PoracodeGlyph";
+import { ChevronDown, Lock, SlidersHorizontal } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
+import { threadCrewBinding } from "@/shared/crew";
 import { getComposerControls } from "@/renderer/components/providers/providerComposer";
 import {
   resolveComposerControlIcon,
@@ -49,6 +53,7 @@ export function ComposerCompactSummary(props: {
     modelFamilyMemberLabel(presentationCapabilities, modelId) ??
     presentationCapabilities?.models.find((model) => model.id === modelId)?.label ??
     thread.config.model;
+  const crewBinding = threadCrewBinding(thread.config);
   const displayEffort = familyConfig?.effort ?? thread.config.effort;
   const effortLabel = displayEffort ? formatEffortLabel(displayEffort) : undefined;
   let controls: ComposerControl[] = [];
@@ -76,6 +81,9 @@ export function ComposerCompactSummary(props: {
       agentStatus={effectiveAgentStatus}
       modelLabel={modelLabel}
       effortLabel={effortLabel}
+      {...(crewBinding ? { crewName: crewBinding.name ?? "" } : {})}
+      {...(crewBinding ? { crewRoleCount: crewBinding.roles.length } : {})}
+      {...(crewBinding ? { crewOnly: crewBinding.policy === "crew-only" } : {})}
       controls={controls}
     />
   );
@@ -90,8 +98,12 @@ function ComposerSummaryBody(props: {
   readonly agentStatus: PresentedAgentStatus;
   readonly modelLabel: string;
   readonly effortLabel: string | undefined;
+  readonly crewName?: string;
+  readonly crewRoleCount?: number;
+  readonly crewOnly?: boolean;
   readonly controls: readonly ComposerControl[];
 }) {
+  const { t } = useLingui();
   const { thread, agentStatus } = props;
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -126,15 +138,30 @@ function ComposerSummaryBody(props: {
 
   return (
     <div ref={ref} className="m-compose-summary" aria-hidden="true">
-      <ProviderIcon
-        kind={thread.agentKind}
-        tone="active"
-        fallbackLabel={agentStatus.label}
-        className="size-3.5 shrink-0"
-        {...(agentStatus.icon ? { icon: agentStatus.icon } : {})}
-      />
-      <span className="m-compose-summary__model">{props.modelLabel}</span>
-      {props.effortLabel ? (
+      {props.crewName !== undefined ? (
+        <>
+          <PoracodeGlyph className="size-3.5 shrink-0 text-foreground" />
+          <span className="m-compose-summary__model">{props.crewName || t`Crew`}</span>
+          <span className="m-compose-summary__item">
+            <SlidersHorizontal className="size-3" />
+            {t`+${props.crewRoleCount ?? 0}`}
+            {props.crewOnly ? <Lock className="size-3" /> : null}
+            <ChevronDown className="size-3 text-muted" />
+          </span>
+        </>
+      ) : (
+        <>
+          <ProviderIcon
+            kind={thread.agentKind}
+            tone="active"
+            fallbackLabel={agentStatus.label}
+            className="size-3.5 shrink-0"
+            {...(agentStatus.icon ? { icon: agentStatus.icon } : {})}
+          />
+          <span className="m-compose-summary__model">{props.modelLabel}</span>
+        </>
+      )}
+      {props.crewName === undefined && props.effortLabel ? (
         <span className="m-compose-summary__effort">{props.effortLabel}</span>
       ) : null}
       {fastEnabled ? (

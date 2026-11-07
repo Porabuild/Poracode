@@ -264,7 +264,7 @@ describe("claudeCapabilitiesFromSdkModels", () => {
       models.map((value) => ({ value, displayName: value, description: "" })),
     );
     for (const model of models) {
-      expect(capabilities?.modelContextSizes?.[model]).toEqual(["1m", "400k"]);
+      expect(capabilities?.modelContextSizes?.[model]).toEqual(["400k", "1m"]);
     }
   });
 
@@ -299,9 +299,32 @@ describe("claudeCapabilitiesFromSdkModels", () => {
       "high",
       "xHigh",
       "max",
-      "ultracode",
     ]);
     expect(capabilities?.fastModels).toContain("claude-opus-5");
+    expect(capabilities?.workflowModels).toContain("claude-opus-5");
+  });
+
+  it("offers ultracode only on models that report xhigh effort", () => {
+    const capabilities = claudeCapabilitiesFromSdkModels([
+      {
+        value: "claude-fable-5-2",
+        displayName: "Fable 5.2",
+        description: "",
+        supportsEffort: true,
+        supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+      },
+      {
+        value: "claude-sonnet-5-1",
+        displayName: "Sonnet 5.1",
+        description: "",
+        supportsEffort: true,
+        supportedEffortLevels: ["low", "medium", "high", "max"],
+      },
+    ]);
+
+    expect(capabilities?.workflowModels).toContain("claude-fable-5-2");
+    expect(capabilities?.workflowModels).not.toContain("claude-sonnet-5-1");
+    expect(capabilities?.modelEfforts["claude-fable-5-2"]).not.toContain("ultracode");
   });
 
   it("does not erase explicit historical models absent from the current SDK catalog", () => {
@@ -340,7 +363,7 @@ describe("Claude SDK probe process handling", () => {
       agentSettings: { contextWindows: '["400k","512k","1m"]' },
     });
     expect(result?.contextSizes).toContainEqual({ id: "512k", label: "512k" });
-    expect(result?.modelContextSizes?.["claude-fable-5-1"]).toEqual(["1m", "400k", "512k"]);
+    expect(result?.modelContextSizes?.["claude-fable-5-1"]).toEqual(["400k", "512k", "1m"]);
   });
 
   it("contains probe-owned stdin EPIPE from the Claude SDK child", async () => {

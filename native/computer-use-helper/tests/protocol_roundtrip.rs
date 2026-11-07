@@ -2,6 +2,9 @@ use std::io::Write as _;
 use std::process::{Command, Stdio};
 
 use poracode_computer_use::protocol::actions::{ElementAction, RefusalCode};
+use poracode_computer_use::protocol::locked_use::{
+    LockedUseEndOutcome, LockedUseEndReason, LockedUseOutcome, LockedUseStage,
+};
 
 fn helper() -> Command {
     Command::new(env!("CARGO_BIN_EXE_poracode-computer-use"))
@@ -64,6 +67,11 @@ fn hello_flag_emits_bare_handshake() {
     assert!(hello["helperVersion"].is_string());
     assert!(hello["platform"].is_string());
     assert!(hello["capabilities"].is_object());
+    let locked_use = &hello["lockedUse"];
+    assert_eq!(locked_use["supported"], cfg!(target_os = "macos"));
+    // Test binaries are never Developer ID signed, so they can never unlock.
+    assert_eq!(locked_use["signed"], false);
+    assert_eq!(locked_use["active"], false);
 }
 
 #[test]
@@ -231,5 +239,49 @@ fn wire_enum_fixture_matches_rust() {
     assert_eq!(
         serde_json::to_value(refusal_codes).unwrap(),
         fixture["refusalCodes"]
+    );
+
+    let locked_use_outcomes = [
+        LockedUseOutcome::Unlocked,
+        LockedUseOutcome::NotLocked,
+        LockedUseOutcome::AlreadyActive,
+        LockedUseOutcome::Paused,
+        LockedUseOutcome::Unavailable,
+        LockedUseOutcome::Failed,
+    ];
+    let locked_use_stages = [
+        LockedUseStage::UnsupportedPlatform,
+        LockedUseStage::UnsignedBuild,
+        LockedUseStage::PluginNotInstalled,
+        LockedUseStage::GuardFailed,
+        LockedUseStage::NoPasswordField,
+        LockedUseStage::PasswordFieldNotEmpty,
+        LockedUseStage::NotConsumed,
+        LockedUseStage::StillLocked,
+        LockedUseStage::BudgetExhausted,
+    ];
+    let locked_use_end_reasons = [
+        LockedUseEndReason::TurnEnd,
+        LockedUseEndReason::Disabled,
+        LockedUseEndReason::Idle,
+        LockedUseEndReason::Shutdown,
+        LockedUseEndReason::HostRequest,
+    ];
+    let locked_use_end_outcomes = [LockedUseEndOutcome::Relocked, LockedUseEndOutcome::Inactive];
+    assert_eq!(
+        serde_json::to_value(locked_use_outcomes).unwrap(),
+        fixture["lockedUseOutcomes"]
+    );
+    assert_eq!(
+        serde_json::to_value(locked_use_stages).unwrap(),
+        fixture["lockedUseStages"]
+    );
+    assert_eq!(
+        serde_json::to_value(locked_use_end_reasons).unwrap(),
+        fixture["lockedUseEndReasons"]
+    );
+    assert_eq!(
+        serde_json::to_value(locked_use_end_outcomes).unwrap(),
+        fixture["lockedUseEndOutcomes"]
     );
 }

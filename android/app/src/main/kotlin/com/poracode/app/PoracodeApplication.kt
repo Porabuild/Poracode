@@ -118,12 +118,17 @@ class PoracodeApplication : Application() {
         session = AppSession(
             credentials = repository,
             hasEndpointPermission = ::hasEndpointPermission,
-            beforeHostRemoval = { id, credentials -> push.beforeHostRemoval(id, credentials) },
+            beforeHostRemoval = { id, credentials ->
+                push.beforeHostRemoval(id, credentials)
+                // Review snapshots hold private diffs and comments; removing a host removes them all.
+                java.io.File(cacheDir, "reviews-v1").deleteRecursively()
+            },
             remoteNotifications = RemoteUserNotificationPresentationCenter { notification ->
                 deviceSettings.state.value.allowsForegroundNotification(notification.category)
             },
         )
         projects = ProjectSessionRuntime(
+            reviewCache = com.poracode.app.session.projects.ForgeReviewDiskCache(java.io.File(cacheDir, "reviews-v1")),
             appState = session.state,
             repository = repository,
             remoteFactory = ProjectRemoteGatewayFactory { endpoint, token ->
@@ -213,8 +218,8 @@ class PoracodeApplication : Application() {
         session.setBrowserMirrorEventSink { generation, raw ->
             browserMirror.deliverSocketFrame(generation, raw)
         }
-        session.setReplaySideEffectSink { outcome ->
-            richChat.handleReplaySideEffect(outcome)
+        session.setReplaySideEffectSink { outcome, sequence ->
+            richChat.handleReplaySideEffect(outcome, sequence)
         }
         session.setHeavyReviewTargetSource { heavyReviewSource.current() }
         projects.githubOperations.setHeavyReviewPresenter(heavyReviewSource)

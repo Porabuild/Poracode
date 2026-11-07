@@ -1,5 +1,10 @@
 # Poracode Chrome Extension Changelog
 
+## 0.2.3 - 2026-11-01
+
+- After Poracode restarts, for example after an update, the extension reconnects within a few seconds instead of up to a minute and a half. It goes back to the last port that worked between other attempts, and when the sidebar is waiting it asks Poracode's browser helper for the app's current port.
+- With the extension in two browsers or two Chrome profiles, they no longer take turns disconnecting each other. The browser that connected last keeps Poracode; the other sidebar says Poracode is connected to another browser and offers **Use in this browser** to take it back. Browser control needs a Poracode version with this change; older apps keep the previous behavior.
+
 ## 0.2.2 - 2026-10-08
 
 - Security: sidebar reloads and reconnects now prove the current local app before sending credentials. Saved credentials from 0.2.1 and earlier are never reused by the updated sidebar; it pairs afresh and checks its proven connection before requests, token refreshes and event connections. Update and reload the extension to receive this protection.

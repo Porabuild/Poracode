@@ -1,5 +1,9 @@
 import type { IncomingMessage } from "node:http";
+import type { Server as NetServer } from "node:net";
+import { performance } from "node:perf_hooks";
 import { WebSocket, WebSocketServer } from "ws";
+import { recordHandlerTiming } from "@/shared/diagnostics/handlerTimingObservations";
+import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import {
   type RemoteAccessScopePreset,
@@ -20,6 +24,7 @@ import {
 import { ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { imageTickets } from "./server/imageTickets";
 import { fileMediaGrants } from "./server/fileMedia";
+import { projectWatchOwnerForSession } from "./server/projectWatchProcedure";
 import {
   handleRemoteAccessHttpRequest,
   handleRemoteAccessUpgrade,
@@ -67,6 +72,7 @@ import {
   classifyIngressRequest,
   resolveIngressAdmissionLimits,
   runIngressWork,
+  type IngressOperation,
 } from "./remoteAccessServerIngress";
 import {
   attachDesktopInternalClient,
@@ -83,6 +89,7 @@ import {
 import {
   exchangePairingCredential,
   issueIndependentPairingUrl,
+  issueIndependentPairingGrant,
   issuePairingUrl,
   mintLoopbackRendererCredential,
   recordAudit,
@@ -114,6 +121,9 @@ export type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "./remote
  *   `agent-status-updated`, `windows-agent-statuses`, `wsl-agent-statuses`).
  * - `src/renderer/state/remoteServersStore.ts` `shouldRefreshRemoteServerAfterEvent`
  *   (adds `remote-projects-changed` / `remote-threads-changed`).
+ * - `src/renderer/state/remoteServers/eventRouting.ts` `filterRemoteThreadEvents`
+ *   (adds `remote-forge-activity`, which `sync.ts` `dispatchRemoteSupervisorEvent`
+ *   hands to its `onForgeActivity` hook).
  *
  * `thread-output` is intentionally absent: it short-circuits to
  * `broadcastTerminalOutput` before reaching this allowlist.
@@ -134,6 +144,7 @@ const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> =
   "windows-agent-statuses",
   "wsl-agent-statuses",
   // Out-of-band remote events.
+  "remote-forge-activity",
   "remote-git-summaries",
   "remote-git-state",
   "remote-projects-changed",
@@ -250,6 +261,7 @@ export class RemoteAccessServer {
   private seq = 0;
   private info: RemoteAccessServerInfo | null = null;
   private activePairingCredential: string | null = null;
+  private loopbackGuard: NetServer | null = null;
   private stopping = false;
   private readonly listenCancellation = new AbortController();
   private starting: Promise<RemoteAccessServerInfo> | undefined;
@@ -370,11 +382,14 @@ export class RemoteAccessServer {
       }
       // Upgrades stay bulk: the control class is the stop/approval POST
       // routes, which need only HTTP. The upgrade handshake is cheap and the
-      // established socket never holds an ingress slot. The resolved address
-      // keys the pre-auth fairness bound (never identity).
+      // established socket never holds an ingress slot: a proxied upgrade
+      // returns it via `releaseIngress` once the 101 is relayed, while its
+      // operation and leases run until close. The resolved address keys the
+      // pre-auth fairness bound (never identity).
       const clientAddress = this.security.resolveClientAddress(req);
       void this.runIngressWork(
-        () => handleRemoteAccessUpgrade(this.context, req, socket, head),
+        (releaseIngress) =>
+          handleRemoteAccessUpgrade(this.context, req, socket, head, releaseIngress),
         socket,
         "bulk",
         clientAddress,
@@ -391,7 +406,23 @@ export class RemoteAccessServer {
   private buildContext(): RemoteServerContext {
     const server = this;
     const context: RemoteServerContext = {
-      options: this.options,
+      // All handler-side supervisor calls go through `ctx.options`, so one
+      // wrapper here times every relay; the caller's own options object (and
+      // `this.options` uses outside the context) keep the original function.
+      options: {
+        ...this.options,
+        callSupervisor: async <Name extends SupervisorProcedureName>(
+          name: Name,
+          payload: IpcProcedurePayload<Name>,
+        ) => {
+          const startedAt = performance.now();
+          try {
+            return await this.options.callSupervisor(name, payload);
+          } finally {
+            recordHandlerTiming(`supervisor:${name}`, performance.now() - startedAt);
+          }
+        },
+      },
       auth: this.auth,
       wss: this.wss,
       security: this.security,
@@ -462,7 +493,7 @@ export class RemoteAccessServer {
   }
 
   private runIngressWork<T>(
-    operation: () => T | PromiseLike<T>,
+    operation: IngressOperation<T>,
     source?: object,
     workClass: IngressWorkClass = "bulk",
     clientAddress?: string,
@@ -552,7 +583,8 @@ export class RemoteAccessServer {
   listAccessSessions(): RemoteAccessSessionSummary[] {
     const connectedSessions = new Set<string>();
     for (const [socket, session] of this.clients) {
-      if (socket.readyState === WebSocket.OPEN && session.expiresAtMs > Date.now()) {
+      const expiresAtMs = this.auth.accessSessionExpiresAtMs(session.sessionId) ?? 0;
+      if (socket.readyState === WebSocket.OPEN && expiresAtMs > Date.now()) {
         connectedSessions.add(session.sessionId);
       }
     }
@@ -562,28 +594,72 @@ export class RemoteAccessServer {
     }));
   }
 
+  listPairingCredentials() {
+    return this.auth.listPairingCredentials();
+  }
+
+  revokePairingCredentialById(id: string): boolean {
+    const revoked = this.auth.revokePairingCredentialById(id);
+    if (revoked) this.recordAudit("revoke", { detail: { pairingId: id } });
+    return revoked;
+  }
+
   /** Last-resort sync drain for process-fatal handlers (V6 A.8). */
   flushAuditSync(): void {
     this.options.audit?.flushSync?.();
   }
 
+  /**
+   * Throws when the durable write fails. The store may already have dropped
+   * the session in memory, so every live grant is torn down regardless (fail
+   * closed) before the error surfaces as "revocation not confirmed".
+   */
   revokeAccessSession(sessionId: string): boolean {
-    const revoked = this.auth.revokeAccessSession(sessionId);
-    if (!revoked) return false;
-    this.recordAudit("revoke", { detail: { sessionId } });
-    imageTickets.revokeSession(sessionId);
-    fileMediaGrants(this.auth).revokeSession(sessionId);
-    this.options.portForward?.revokeSessionTickets(sessionId);
+    let durableFailure: { readonly error: unknown } | null = null;
+    try {
+      if (!this.auth.revokeAccessSession(sessionId)) return false;
+      this.recordAudit("revoke", { detail: { sessionId } });
+    } catch (error) {
+      durableFailure = { error };
+    }
+    const teardownErrors = this.releaseLiveSession(sessionId);
+    if (durableFailure) throw durableFailure.error;
+    if (teardownErrors.length > 0) throw teardownErrors[0];
+    return true;
+  }
+
+  /** Each step runs even when an earlier one throws; returns what failed. */
+  private releaseLiveSession(sessionId: string): unknown[] {
+    const errors: unknown[] = [];
+    const step = (release: () => void) => {
+      try {
+        release();
+      } catch (error) {
+        errors.push(error);
+      }
+    };
+    step(() => imageTickets.revokeSession(sessionId));
+    step(() => fileMediaGrants(this.auth).revokeSession(sessionId));
+    step(() => this.options.portForward?.revokeSessionTickets(sessionId));
     // C1: a revoked parent session closes its environment proxy legs (and its
     // outstanding environment upgrade tickets, dropped by the auth store's
     // revoke path) so the session cannot keep a live child leg.
-    this.environmentProxy?.revokeSession(sessionId);
+    step(() => this.environmentProxy?.revokeSession(sessionId));
     for (const [client, session] of this.clients) {
       if (session.sessionId === sessionId) {
-        client.close(1008, "Remote access session revoked");
+        step(() => client.close(1008, "Remote access session revoked"));
       }
     }
-    return true;
+    // A managed window's leases belong to the shared managed owner, which no
+    // single ephemeral session ends; this releases only the paired owner.
+    step(() => {
+      void this.options.projectWatches
+        ?.releaseOwner(projectWatchOwnerForSession({ sessionId }))
+        .catch((error: unknown) => {
+          console.warn("[remote] project watch release failed after revoke:", error);
+        });
+    });
+    return errors;
   }
 
   private recordAudit(
@@ -662,6 +738,12 @@ export class RemoteAccessServer {
     options?: { readonly preset?: RemoteAccessScopePreset },
   ): string {
     return issueIndependentPairingUrl(this.asHost(), label, options);
+  }
+
+  issueIndependentPairingGrant(
+    input: Parameters<typeof issueIndependentPairingGrant>[1],
+  ): ReturnType<typeof issueIndependentPairingGrant> {
+    return issueIndependentPairingGrant(this.asHost(), input);
   }
 
   /**

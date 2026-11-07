@@ -261,17 +261,26 @@ function errorSnapshot(now: number, error: string): UsageSnapshot {
  */
 export async function collectKimi(host: HostPort, _opts?: CollectOptions): Promise<UsageSnapshot> {
   const now = host.now();
-  const [pastedValue, token] = await Promise.all([
-    host.credentials.getSecret(KIMI_PROVIDER_ID, "apiKey"),
-    host.credentials.getOAuthToken(KIMI_PROVIDER_ID),
-  ]);
+  const pastedValue = await host.credentials.getSecret(KIMI_PROVIDER_ID, "apiKey");
   const pasted = pastedValue?.trim();
+  const token = pasted ? undefined : await host.credentials.getOAuthToken(KIMI_PROVIDER_ID);
   const bearer = pasted || token?.accessToken?.trim();
   if (!bearer) return authMissing(now);
 
   // Identity headers belong to the CLI token; never send them with a pasted key.
   const extraHeaders = pasted ? {} : identityHeaders(token);
-  const res = await kimiRequest(host.http, resolveKimiUsagesUrl(token), bearer, extraHeaders);
+  let res = await kimiRequest(host.http, resolveKimiUsagesUrl(token), bearer, extraHeaders);
+  if ((res.status === 401 || res.status === 403) && !pasted && token) {
+    const renewed = await host.credentials.refreshOAuthToken?.(KIMI_PROVIDER_ID, token);
+    if (renewed?.accessToken && renewed.accessToken !== token.accessToken) {
+      res = await kimiRequest(
+        host.http,
+        resolveKimiUsagesUrl(renewed),
+        renewed.accessToken,
+        identityHeaders(renewed),
+      );
+    }
+  }
   if (res.status === 401 || res.status === 403) {
     return authMissing(now, `token rejected (${res.status})`);
   }

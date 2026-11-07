@@ -160,4 +160,75 @@ describe("SessionImportScanner", () => {
       ),
     ).toEqual({ a: true, b: false });
   });
+
+  it.each([
+    { pageSize: 1, expected: ["newer5", "older1"] },
+    { pageSize: 4, expected: ["newer5", "newer4", "newer3", "newer2", "older1", "older0"] },
+    {
+      pageSize: 6,
+      expected: ["newer5", "newer4", "newer3", "newer2", "newer1", "newer0", "older1", "older0"],
+    },
+    {
+      pageSize: 10,
+      expected: ["newer5", "newer4", "newer3", "newer2", "newer1", "newer0", "older1", "older0"],
+    },
+  ])(
+    "returns up to $pageSize sessions per provider, newest first",
+    async ({ pageSize, expected }) => {
+      const busy = store(
+        Array.from({ length: 6 }, (_, index) => ({ id: `newer${index}`, preview: "recent work" })),
+      );
+      const quiet = store([
+        { id: "older0", preview: "internship strategy" },
+        { id: "older1", preview: "interview prep" },
+      ]);
+      for (let index = 0; index < 6; index++) {
+        const time = new Date(Date.UTC(2026, 9, 19, 0, index));
+        utimesSync(join(busy.root, "nested", `newer${index}.jsonl`), time, time);
+      }
+      const scanner = new SessionImportScanner(
+        () => [
+          { agentKind: "quiet", source: quiet.source },
+          { agentKind: "busy", source: busy.source },
+        ],
+        { ...DEFAULT_SCAN_LIMITS, pageSize },
+      );
+
+      const result = await scanner.list({});
+
+      expect(result.sessions.map((session) => session.providerSessionId)).toEqual(expected);
+      expect(result.truncated).toBe(pageSize < 6);
+      const filtered = await scanner.list({ agentKind: "busy" });
+      expect(filtered.sessions.map((session) => session.providerSessionId)).toEqual(
+        ["newer5", "newer4", "newer3", "newer2", "newer1", "newer0"].slice(0, pageSize),
+      );
+    },
+  );
+
+  it.each(["files", "bytes"])(
+    "reserves the %s budget for the selected provider before unrelated stores",
+    async (budget) => {
+      const unrelated = store([{ id: "newer", preview: "unrelated" }]);
+      const selected = store([{ id: "older", preview: "internship strategy" }]);
+      const newer = new Date("2026-10-19T00:00:00.000Z");
+      utimesSync(join(unrelated.root, "nested", "newer.jsonl"), newer, newer);
+      const scanner = new SessionImportScanner(
+        () => [
+          { agentKind: "other", source: unrelated.source },
+          { agentKind: "selected", source: selected.source },
+        ],
+        {
+          ...DEFAULT_SCAN_LIMITS,
+          concurrency: 1,
+          ...(budget === "files" ? { maxFiles: 1 } : { scanBytes: 1 }),
+        },
+      );
+
+      const result = await scanner.list({ agentKind: "selected", query: "internship" });
+
+      expect(result.sessions.map((session) => session.providerSessionId)).toEqual(["older"]);
+      expect(result.truncated).toBe(true);
+      expect(unrelated.summarize).not.toHaveBeenCalled();
+    },
+  );
 });

@@ -4,6 +4,13 @@ import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
 import org.gradle.api.attributes.java.TargetJvmEnvironment
 
+buildscript {
+    dependencies {
+        // Align AGP's built-in Kotlin with the Compose and serialization plugins.
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10")
+    }
+}
+
 // Root build file — plugin versions are resolved via pluginManagement in settings.gradle.kts.
 plugins {
     id("com.android.application") version "9.3.1" apply false

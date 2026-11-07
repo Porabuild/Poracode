@@ -36,12 +36,14 @@ function targetKey(target: Pick<AgentStatus, "kind" | "envKind" | "envDistro">):
  */
 export class AgentStatusPublication {
   private readonly retired = new WeakSet<AgentStatusPublicationTicket>();
+  private readonly retiredTargets = new WeakMap<AgentStatusPublicationTicket, Set<string>>();
   private epoch = 0;
   private sequence = 0;
   private readonly owners = new Map<string, number>();
   private readonly completed = new Map<string, number>();
   private readonly ready = new Map<string, AgentStatus | null>();
   private ignoreCache = false;
+  private completeInventory = false;
 
   begin(targets: readonly AgentStatusTarget[]): AgentStatusPublicationTicket {
     const id = ++this.sequence;
@@ -67,26 +69,73 @@ export class AgentStatusPublication {
 
   /** Restore an older scoped job only where a cancelled successor left no owner. */
   resumeUnclaimed(ticket: AgentStatusPublicationTicket): AgentStatusPublicationTicket {
+    if (ticket.epoch !== this.epoch || this.retired.has(ticket)) return ticket;
     const available = [...ticket.targets].filter(
-      ([key, target]) => !this.owners.has(key) || this.owns(ticket, target),
+      ([key, target]) =>
+        !this.retiredTargets.get(ticket)?.has(key) &&
+        (!this.owners.has(key) || this.owns(ticket, target)),
     );
     const hasUnclaimed = available.some(([key]) => !this.owners.has(key));
     return hasUnclaimed ? this.begin(available.map(([, target]) => target)) : ticket;
   }
 
-  invalidate(): void {
+  invalidate(
+    retain: readonly AgentStatusPublicationTicket[] = [],
+  ): Map<AgentStatusPublicationTicket, AgentStatusPublicationTicket> {
+    const eligible = retain
+      .filter((ticket) => ticket.epoch === this.epoch && !this.retired.has(ticket))
+      .map((ticket) => ({
+        ticket,
+        targets: new Map(
+          [...ticket.targets].filter(([key]) => !this.retiredTargets.get(ticket)?.has(key)),
+        ),
+      }));
     this.epoch++;
     this.owners.clear();
     this.completed.clear();
     this.ready.clear();
+    this.completeInventory = false;
     // Best-effort unlink must not let a stale readable cache become current.
     this.ignoreCache = true;
+    // Carry only live scoped custody across a full refresh. These tickets own
+    // nothing until cancellation explicitly restores their unclaimed targets.
+    return new Map(
+      eligible.map(({ ticket, targets }) => [
+        ticket,
+        { epoch: this.epoch, id: ++this.sequence, targets },
+      ]),
+    );
+  }
+
+  discardKinds(
+    kinds: ReadonlySet<string>,
+    baseline: AgentStatusesResponse,
+    tickets: readonly AgentStatusPublicationTicket[],
+  ): void {
+    for (const ticket of tickets) {
+      const retired = this.retiredTargets.get(ticket) ?? new Set<string>();
+      for (const [key, target] of ticket.targets) if (kinds.has(target.kind)) retired.add(key);
+      this.retiredTargets.set(ticket, retired);
+    }
+    const keys = new Set([
+      ...this.owners.keys(),
+      ...this.ready.keys(),
+      ...[...baseline.windows, ...baseline.wsl].map(targetKey),
+    ]);
+    for (const key of keys) {
+      const [kind] = JSON.parse(key) as [string];
+      if (!kinds.has(kind)) continue;
+      this.owners.delete(key);
+      this.completed.delete(key);
+      this.ready.set(key, null);
+    }
   }
 
   owns(ticket: AgentStatusPublicationTicket, target: AgentStatusTarget): boolean {
     const key = targetKey(target);
     return (
       !this.retired.has(ticket) &&
+      !this.retiredTargets.get(ticket)?.has(key) &&
       ticket.epoch === this.epoch &&
       ticket.targets.has(key) &&
       this.owners.get(key) === ticket.id
@@ -122,25 +171,29 @@ export class AgentStatusPublication {
     return structuredClone(snapshot);
   }
 
-  complete(ticket: AgentStatusPublicationTicket): void {
+  complete(ticket: AgentStatusPublicationTicket, fullInventory = false): void {
+    if (fullInventory && ticket.epoch === this.epoch && !this.retired.has(ticket))
+      this.completeInventory = true;
     for (const [key, target] of ticket.targets) {
       if (this.owns(ticket, target)) this.completed.set(key, ticket.id);
     }
   }
 
-  canPersist(ticket: AgentStatusPublicationTicket): boolean {
+  canPersist(ticket: AgentStatusPublicationTicket, hasCachedBaseline: boolean): boolean {
     return (
+      (hasCachedBaseline || this.completeInventory) &&
       this.isActive(ticket) &&
       [...this.owners].every(([key, owner]) => this.completed.get(key) === owner)
     );
   }
 
-  persisted(ticket: AgentStatusPublicationTicket): void {
-    if (!this.canPersist(ticket)) return;
+  persisted(ticket: AgentStatusPublicationTicket, hasCachedBaseline: boolean): void {
+    if (!this.canPersist(ticket, hasCachedBaseline)) return;
     this.ignoreCache = false;
     // Once the complete view is durable, the valid cache is the last-known
     // source again. Retain live snapshots only during detection/write failure.
     this.ready.clear();
+    this.completeInventory = false;
   }
 
   view(baseline: AgentStatusesResponse, wslDistros?: readonly string[]): AgentStatusesResponse {

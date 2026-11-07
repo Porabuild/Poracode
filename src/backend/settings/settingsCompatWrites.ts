@@ -105,6 +105,28 @@ export class SettingsCompatWriter {
     return result;
   }
 
+  /** Trusted coupled intent, recomputed from each fresh CAS snapshot. */
+  async editSettingsFields<F extends keyof SharedSettings>(
+    fields: readonly F[],
+    compute: (current: SharedSettings) => Pick<SharedSettings, F>,
+  ): Promise<SettingsMutationResult> {
+    const subjects = fields.map((field) => ({ kind: "field", field }) as const);
+    return withSettingsRebase(() => {
+      const snapshot = this.authority.snapshot(subjects);
+      const next = compute(snapshot.settings);
+      return this.authority.mutate(
+        {
+          version: SETTINGS_TRANSACTION_VERSION,
+          authorityId: snapshot.authorityId,
+          edits: subjects.map((subject) =>
+            this.subjectEdit(subject, snapshot, next[subject.field]),
+          ),
+        },
+        authorizeSettingsCommandSubjects(subjects),
+      );
+    });
+  }
+
   /**
    * Trusted owner-runtime edits (supervisor registry records, hook verdicts)
    * that hold no revisions. Each attempt stamps the freshest revisions of the

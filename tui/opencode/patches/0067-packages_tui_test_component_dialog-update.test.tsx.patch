@@ -1,0 +1,15 @@
+diff --git a/packages/tui/test/component/dialog-update.test.tsx b/packages/tui/test/component/dialog-update.test.tsx
+index 066933e..6d17e34 100644
+--- a/packages/tui/test/component/dialog-update.test.tsx
++++ b/packages/tui/test/component/dialog-update.test.tsx
+@@ -48,8 +48,8 @@ test("installation progress replaces checking while the update job is still pend
+     setState({ type: "installing", version: "2.0.0" })
+     await app.waitForFrame(
+       (frame) =>
+-        frame.includes("Updating OpenCode") &&
+-        frame.includes("Installing OpenCode 2.0.0") &&
++        frame.includes("Updating Poracode") &&
++        frame.includes("Installing Poracode 2.0.0") &&
+         !frame.includes("Checking"),
+     )
+     expect(app.captureCharFrame()).not.toContain("Skip")

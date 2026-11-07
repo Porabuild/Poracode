@@ -22,13 +22,13 @@ export function prepareProjectUpsertStatement(
     INSERT INTO projects (
       id, name, icon, location_kind, location_path, location_distro, location_linux_path,
       location_unc_path, last_draft_config, scripts, search_settings, worktree_location,
-      mcp_servers, gh_account, workspace_id,
-      disabled, sort_order, created_at
+      mcp_servers, gh_account, worktree_base_branch, pinned_branches, plugin_overrides,
+      workspace_id, disabled, sort_order, created_at
     ) VALUES (
       @id, @name, @icon, @locationKind, @locationPath, @locationDistro, @locationLinuxPath,
       @locationUncPath, @lastDraftConfig, @scripts, @searchSettings, @worktreeLocation,
-      @mcpServers, @ghAccount, @workspaceId,
-      @disabled, @sortOrder, @createdAt
+      @mcpServers, @ghAccount, @worktreeBaseBranch, @pinnedBranches, @pluginOverrides,
+      @workspaceId, @disabled, @sortOrder, @createdAt
     )
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
@@ -44,6 +44,9 @@ export function prepareProjectUpsertStatement(
       worktree_location = excluded.worktree_location,
       mcp_servers = excluded.mcp_servers,
       gh_account = excluded.gh_account,
+      worktree_base_branch = excluded.worktree_base_branch,
+      pinned_branches = excluded.pinned_branches,
+      plugin_overrides = excluded.plugin_overrides,
       workspace_id = excluded.workspace_id,
       disabled = excluded.disabled,
       sort_order = excluded.sort_order
@@ -86,13 +89,13 @@ export function prepareThreadUpsertStatement(
     INSERT INTO threads (
       id, project_id, workspace_id, title, agent_kind, agent_instance_id, config, status,
       attention, thread_status_source, can_resume_with_config, session_ref, terminal_prompt, worktree_path,
-      worktree_branch, pr_number, group_id, group_name, parent_thread_id, archived, archived_at, done, done_at,
+      worktree_branch, pr_number, group_id, group_name, parent_thread_id, forked_from, archived, archived_at, done, done_at,
       starred, presentation_mode, sort_order, created_at, updated_at,
       active_turn_started_at, last_turn_started_at, last_turn_ended_at
     ) VALUES (
       @id, @projectId, @workspaceId, @title, @agentKind, @agentInstanceId, @config, @status,
       @attention, @threadStatusSource, @canResumeWithConfig, @sessionRef, NULL, @worktreePath,
-      @worktreeBranch, @prNumber, @groupId, @groupName, @parentThreadId, @archived, @archivedAt, @done, @doneAt,
+      @worktreeBranch, @prNumber, @groupId, @groupName, @parentThreadId, @forkedFrom, @archived, @archivedAt, @done, @doneAt,
       @starred, @presentationMode, @sortOrder, @createdAt, @updatedAt,
       @activeTurnStartedAt, @lastTurnStartedAt, @lastTurnEndedAt
     )
@@ -117,6 +120,7 @@ export function prepareThreadUpsertStatement(
       group_id = excluded.group_id,
       group_name = excluded.group_name,
       parent_thread_id = excluded.parent_thread_id,
+      forked_from = excluded.forked_from,
       archived = excluded.archived,
       archived_at = excluded.archived_at,
       done = excluded.done,
@@ -162,6 +166,7 @@ export function runThreadUpsert(
         groupId: thread.groupId ?? null,
         groupName: thread.groupName ?? null,
         parentThreadId: thread.parentThreadId ?? null,
+        forkedFrom: thread.forkedFrom ? JSON.stringify(thread.forkedFrom) : null,
         archived: thread.archived ? 1 : 0,
         archivedAt: thread.archivedAt ?? null,
         done: thread.done ? 1 : 0,

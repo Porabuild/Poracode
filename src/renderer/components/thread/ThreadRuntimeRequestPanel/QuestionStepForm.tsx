@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode, type KeyboardEvent } from "react";
-import { handleQuestionOptionKey } from "./questionOptionKeyboard";
+import { handleOptionKey } from "./optionKeyboard";
 
 export function isQuestionStepEnter(event: KeyboardEvent): boolean {
   return (
@@ -18,21 +18,37 @@ export function QuestionStepForm(props: {
   id: string;
   activeStep: string;
   isLastStep: boolean;
-  canAdvance: boolean;
+  /** Single-step forms only submit, so they need no advance. */
+  canAdvance?: boolean;
   isDisabled: boolean;
-  onAdvance: () => void;
+  onAdvance?: () => void;
   onSubmit: () => void;
+  header?: ReactNode;
   children: ReactNode;
+  footer?: ReactNode;
 }) {
-  const { id, activeStep, isLastStep, canAdvance, isDisabled, onAdvance, onSubmit, children } =
-    props;
+  const {
+    id,
+    activeStep,
+    isLastStep,
+    canAdvance = false,
+    isDisabled,
+    onAdvance,
+    onSubmit,
+    children,
+  } = props;
   const formRef = useRef<HTMLFormElement>(null);
   const previousStep = useRef(activeStep);
   useLayoutEffect(() => {
-    if (previousStep.current !== activeStep) {
+    // Move into the new step at its Tab stop, unless the step tabs are being
+    // driven from the keyboard and must keep focus.
+    if (
+      previousStep.current !== activeStep &&
+      !document.activeElement?.closest('[role="tablist"]')
+    ) {
       formRef.current
         ?.querySelector<HTMLElement>(
-          "[data-question-step] button:not(:disabled), [data-question-step] input:not(:disabled), [data-question-step] textarea:not(:disabled)",
+          '[data-question-step] :is(button, input, textarea):not(:disabled):not([tabindex="-1"])',
         )
         ?.focus();
     }
@@ -42,7 +58,7 @@ export function QuestionStepForm(props: {
   function advanceOrSubmit() {
     if (isDisabled) return;
     if (isLastStep) onSubmit();
-    else if (canAdvance) onAdvance();
+    else if (canAdvance) onAdvance?.();
   }
 
   return (
@@ -50,9 +66,9 @@ export function QuestionStepForm(props: {
       id={id}
       ref={formRef}
       noValidate
-      className="space-y-2 border-t border-[color:var(--border)] px-2 py-1.5"
       onKeyDownCapture={(event) => {
-        if (!isDisabled && handleQuestionOptionKey(event, event.currentTarget)) return;
+        if (!isDisabled && handleOptionKey(event, event.currentTarget, "[data-question-option]"))
+          return;
         if ((event.target as HTMLElement).closest("[data-question-enter-local]")) return;
         // Modified Enter must not fall through to native implicit submission.
         // Shift+Enter in a textarea retains its normal newline behavior.
@@ -77,7 +93,9 @@ export function QuestionStepForm(props: {
         advanceOrSubmit();
       }}
     >
-      {children}
+      {props.header}
+      <div className="space-y-2 p-2">{children}</div>
+      {props.footer}
     </form>
   );
 }

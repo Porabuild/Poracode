@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ThreadCrewBinding } from "@/shared/crew";
 import type { ProjectDraftConfig, ProviderDraftConfig } from "@/shared/contracts";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "../clientRuntime";
@@ -31,6 +32,18 @@ const reduced: ProviderDraftConfig = {
     ...bound.selectionBinding!,
     inertValues: { effort: "", contextSize: "", thinking: false },
   },
+};
+const firstCrew: ThreadCrewBinding = {
+  version: 1,
+  name: "Ship crew",
+  policy: "crew-only",
+  roles: [
+    {
+      id: "builder",
+      label: "Builder",
+      selection: { agentKind: "codex", model: "gpt-5.5" },
+    },
+  ],
 };
 
 describe("complete draft selection persistence", () => {
@@ -102,5 +115,35 @@ describe("complete draft selection persistence", () => {
     useAppStore.getState().updateProjectDraftConfig(project.id, structuredClone(next));
     expect(current()).toBe(previous);
     expect(useAppStore.getState().projects).toBe(projects);
+  });
+
+  it("persists provider and project draft changes that affect only the crew", async () => {
+    const providerWithCrew: ProviderDraftConfig = { ...bare, crew: firstCrew };
+    useSharedSettings.getState().setProviderConfig(provider, providerWithCrew);
+    const changedCrew = { ...firstCrew, policy: "crew-first" as const };
+    const providerCrewOnlyChange: ProviderDraftConfig = { ...bare, crew: changedCrew };
+    useSharedSettings.getState().setProviderConfig(provider, providerCrewOnlyChange);
+    expect(useSharedSettings.getState().providerConfigs[provider]).toStrictEqual(
+      providerCrewOnlyChange,
+    );
+
+    installBrowserClientRuntime({} as PoracodeBridge);
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/draft-crew" });
+    const projectWithCrew: ProjectDraftConfig = {
+      ...bare,
+      agentKind: provider,
+      crew: firstCrew,
+    };
+    useAppStore.getState().updateProjectDraftConfig(project.id, projectWithCrew);
+    const projectCrewOnlyChange: ProjectDraftConfig = {
+      ...bare,
+      agentKind: provider,
+      crew: changedCrew,
+    };
+    useAppStore.getState().updateProjectDraftConfig(project.id, projectCrewOnlyChange);
+    expect(
+      useAppStore.getState().projects.find((candidate) => candidate.id === project.id)
+        ?.lastDraftConfig,
+    ).toStrictEqual(projectCrewOnlyChange);
   });
 });

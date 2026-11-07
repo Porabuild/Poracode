@@ -12,6 +12,7 @@ export const PR_REVIEW_THREADS_QUERY = `
             isOutdated
             path
             line
+            diffSide
             comments(first: 100) {
               nodes {
                 id
@@ -57,6 +58,11 @@ function mapPrReviewThread(raw: unknown): PrReviewThread | null {
     isOutdated: value.isOutdated === true,
     ...(typeof value.path === "string" ? { path: value.path } : {}),
     ...(typeof value.line === "number" ? { line: value.line } : {}),
+    // `diffSide` is the side `line` is on; GitHub clears `line` for an outdated thread, so a
+    // side without a line is never reported.
+    ...(typeof value.line === "number" && (value.diffSide === "LEFT" || value.diffSide === "RIGHT")
+      ? { side: value.diffSide }
+      : {}),
     comments,
   };
 }

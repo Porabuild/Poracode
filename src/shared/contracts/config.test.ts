@@ -6,7 +6,9 @@ import {
   providerDraftConfigSchema,
   projectDraftConfigSchema,
   threadConfigSchema,
+  retainThreadToolOverrides,
 } from "./config";
+import { threadCrewBinding } from "../crew";
 import type { SelectionBinding } from "../selectionBinding.schemas";
 
 const stamp: SelectionBinding = {
@@ -16,6 +18,105 @@ const stamp: SelectionBinding = {
   model: "member-a",
   inertValues: { effort: "", fast: false },
 };
+
+describe("thread tool choices", () => {
+  it("retains overrides omitted by an older client and permits explicit clearing", () => {
+    const previous = {
+      model: "old",
+      mcpServerOverrides: { custom: true },
+      pluginOverrides: { github: false },
+    };
+    expect(retainThreadToolOverrides({ model: "new" }, previous)).toEqual({
+      ...previous,
+      model: "new",
+    });
+    const cleared = { model: "new", mcpServerOverrides: {}, pluginOverrides: {} };
+    expect(retainThreadToolOverrides(cleared, previous)).toEqual(cleared);
+  });
+  it("keeps pre-upgrade config unchanged and round-trips new overrides", () => {
+    const previous = { model: "fixture", browserMcp: false };
+    expect(threadConfigSchema.parse(previous)).toEqual(previous);
+    const next = {
+      ...previous,
+      mcpServerOverrides: { custom: true },
+      pluginOverrides: { github: false },
+    };
+    expect(threadConfigSchema.parse(next)).toEqual(next);
+    expect(isThreadConfigEqual(previous, next)).toBe(false);
+    expect(isThreadConfigEqual(next, { ...next, pluginOverrides: { github: true } })).toBe(false);
+    expect(isThreadConfigEqual(next, { ...next, mcpServerOverrides: { custom: false } })).toBe(
+      false,
+    );
+    expect(
+      isThreadConfigEqual(
+        { ...previous, pluginOverrides: { a: true, b: false } },
+        { ...previous, pluginOverrides: { b: false, a: true } },
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("thread crew binding", () => {
+  const crew = {
+    version: 1 as const,
+    crewId: "ship",
+    name: "Ship crew",
+    policy: "crew-only" as const,
+    roles: [
+      {
+        id: "builder",
+        label: "Builder",
+        selection: { agentKind: "codex", model: "gpt-5.5" },
+      },
+    ],
+  };
+
+  it("keeps pre-crew configs unchanged and retains omitted crew from older writers", () => {
+    const old = { model: "fixture", browserMcp: false };
+    expect(threadConfigSchema.parse(old)).toEqual(old);
+    expect(retainThreadToolOverrides({ model: "new" }, { model: "old", crew })).toEqual({
+      model: "new",
+      crew,
+    });
+  });
+
+  it("treats null as explicit clear and bindings as replacements", () => {
+    const previous = { model: "old", crew };
+    expect(retainThreadToolOverrides({ model: "new" }, { model: "old", crew: null })).toEqual({
+      model: "new",
+      crew: null,
+    });
+    expect(retainThreadToolOverrides({ model: "new", crew: null }, previous)).toEqual({
+      model: "new",
+      crew: null,
+    });
+    const replacement = { ...crew, name: "Review board" };
+    expect(retainThreadToolOverrides({ model: "new", crew: replacement }, previous).crew).toEqual(
+      replacement,
+    );
+  });
+
+  it("includes the crew in structural equality", () => {
+    expect(isThreadConfigEqual({ model: "same" }, { model: "same", crew: null })).toBe(true);
+    expect(isThreadConfigEqual({ model: "same", crew }, { model: "same" })).toBe(false);
+    expect(
+      isThreadConfigEqual(
+        { model: "same", crew },
+        { model: "same", crew: { ...crew, policy: "crew-first" } },
+      ),
+    ).toBe(false);
+  });
+
+  it("preserves future crew bindings opaquely and keeps strict parsing for v1", () => {
+    const future = { version: 2, futureField: { retained: true } };
+    expect(threadConfigSchema.parse({ model: "fixture", crew: future }).crew).toEqual(future);
+    expect(threadCrewBinding({ crew: future })).toBeUndefined();
+    expect(threadConfigSchema.strict().parse({ model: "fixture", crew })).toEqual({
+      model: "fixture",
+      crew,
+    });
+  });
+});
 
 describe("thread execution environment", () => {
   it("persists a selected WSL distro", () => {

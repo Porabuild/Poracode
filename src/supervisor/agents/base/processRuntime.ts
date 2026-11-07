@@ -227,6 +227,13 @@ export function findPosixExecutableInWellKnownDirs(binary: string): string | und
 }
 
 export function resolveExecutablePath(command: string): string | undefined {
+  const cached = execPathCache.get(command);
+  if (
+    cached &&
+    Date.now() - cached.ts < EXEC_CACHE_TTL_MS &&
+    (cached.path === undefined || existsSync(cached.path))
+  )
+    return cached.path;
   if (process.platform === "win32") {
     const resolved = resolveWindowsExecutablePath(command);
     if (resolved) return resolved;
@@ -495,9 +502,11 @@ async function probeWslLaunchEnvironment(
     const parsed = parseWslEnvProbeOutput(bridged.stdout);
     if (parsed.shellPath) return parsed;
   }
+  // `--exec`, not `--`: `--` runs the line through the user's default shell,
+  // which expands `$shell` to empty before `sh` ever sees the script.
   const direct = await readCommandOutputAsync(
     getWslCommand(),
-    ["-d", distro, "--", "sh", "-lc", WSL_ENV_PROBE_SCRIPT],
+    ["-d", distro, "--exec", "sh", "-lc", WSL_ENV_PROBE_SCRIPT],
     { timeout: WSL_ENV_PROBE_TIMEOUT_MS },
   );
   return direct.ok ? parseWslEnvProbeOutput(direct.stdout) : {};
@@ -711,12 +720,14 @@ export function clearExecutablePathCache(): void {
   wslProjectShellEnvResolved.clear();
 }
 
-/** Sync read of the cached binary path. Returns undefined if absent or stale. */
+/**
+ * Last detected launch path. The caller validates that it is still executable.
+ * The probe TTL controls discovery freshness, not launch identity: a project's
+ * Node version may have no copy of a CLI installed under the user's default.
+ * This process-local cache has no persisted format to migrate.
+ */
 export function getCachedExecutablePath(command: string): string | undefined {
-  const cached = execPathCache.get(command);
-  if (!cached) return undefined;
-  if (Date.now() - cached.ts > EXEC_CACHE_TTL_MS) return undefined;
-  return cached.path;
+  return execPathCache.get(command)?.path;
 }
 
 /** Env captured from the user's login shell during prime; undefined until then. */

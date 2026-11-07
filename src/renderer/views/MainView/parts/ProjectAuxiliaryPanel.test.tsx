@@ -12,10 +12,10 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { useAppStore } from "@/renderer/state/appStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
 import { applySideChatPanel } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { ProjectAuxiliaryPanel } from "./ProjectAuxiliaryPanel";
 import { GlobalTerminalPanel } from "@/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel";
@@ -32,11 +32,16 @@ vi.mock("@/renderer/state/gitRefresh", () => ({
   ),
 }));
 
+const prefetchGitPanelPrData = vi.mocked(prefetchVisibleGitPanelPrData);
+
 interface CapturedRightPanelProps {
   conversationModel?: ReactNode;
   subagentTitle?: ReactNode;
   activeTab: string;
   projectName?: string;
+  gitContent?: ReactElement<{
+    gitPanelContext: { projectId: string; worktreePath?: string } | null;
+  }>;
   docksContent?: ReactElement;
   docksHeaderActions?: ReactElement;
   notesContent?: ReactElement<{ projectId: string }>;
@@ -129,6 +134,10 @@ function focusThread(threadId: string): void {
   });
 }
 
+function shownGitPanelContext() {
+  return unifiedRightPanelProps.current?.gitContent?.props.gitPanelContext;
+}
+
 function seedImageOnlyThread(): void {
   useAppStore.setState({
     runtimeItemIdsByThread: { [threadA.id]: ["user-image"] },
@@ -157,7 +166,7 @@ function seedImageOnlyThread(): void {
 }
 
 describe("ProjectAuxiliaryPanel", () => {
-  it("keeps panel navigation above device-only header targets without adding a row to Notes", async () => {
+  it("keeps device title and actions inside the shared panel header", async () => {
     const { UnifiedRightPanel } = await vi.importActual<
       typeof import("@/renderer/components/layout/UnifiedRightPanel")
     >("@/renderer/components/layout/UnifiedRightPanel");
@@ -189,12 +198,10 @@ describe("ProjectAuxiliaryPanel", () => {
     );
     const view = render(panel("devices"));
     const rows = view.container.querySelectorAll(".poracode-overlay-header");
-    expect(rows).toHaveLength(2);
-    expect(rows[1]).toHaveClass("poracode-overlay-header--no-drag");
+    expect(rows).toHaveLength(1);
     expect(rows[0]?.contains(document.getElementById("panel-devices-thread-a"))).toBe(true);
-    expect(title.mock.calls.at(-1)?.[0]?.parentElement).toBe(rows[1]);
-    expect(actions.mock.calls.at(-1)?.[0]?.parentElement).toBe(rows[1]);
-    expect(rows[1]?.querySelector('[title="Hide panel"]')).toBeNull();
+    expect(rows[0]?.contains(title.mock.calls.at(-1)?.[0] ?? null)).toBe(true);
+    expect(rows[0]?.contains(actions.mock.calls.at(-1)?.[0] ?? null)).toBe(true);
     view.rerender(panel("notes"));
     expect(view.container.querySelectorAll(".poracode-overlay-header")).toHaveLength(1);
     expect(view.container.querySelector("[data-device-header]")).toBeNull();
@@ -224,6 +231,7 @@ describe("ProjectAuxiliaryPanel", () => {
     applySideChatPanel(null);
     localStorage.clear();
     unifiedRightPanelProps.current = null;
+    prefetchGitPanelPrData.mockClear();
     focusThread(threadA.id);
     useAppStore.setState({
       projects: [],
@@ -550,6 +558,105 @@ describe("ProjectAuxiliaryPanel", () => {
     });
   });
 
+  it("keeps the remote Mac panel and prefetches its checkout while the local draft project changes", async () => {
+    const localProject = makeProject("local-project");
+    const macProject: Project = {
+      id: "remote:mac-desktop:project:mac-project",
+      remoteServerId: "mac-desktop",
+      remoteId: "mac-project",
+      name: "Mac Project",
+      location: { kind: "posix", path: "/Users/me/repo", remoteServerId: "mac-desktop" },
+      createdAt: "2026-08-01T00:00:00.000Z",
+    };
+    const remoteWorktreePath = "/Users/me/repo/.poracode/worktrees/mac-branch";
+    const remoteContext = { projectId: macProject.id, worktreePath: remoteWorktreePath };
+    useAppStore.setState({
+      projects: [localProject, macProject],
+      view: { kind: "draft", projectId: localProject.id },
+      focusedPaneId: null,
+    });
+    usePanelStore.setState({
+      gitReviewContext: remoteContext,
+      gitReviewAsPanel: true,
+      rightPanelFollowsThread: false,
+      rightPanelTab: "git",
+    });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() =>
+      expect(prefetchGitPanelPrData).toHaveBeenCalledWith(macProject.id, remoteWorktreePath),
+    );
+    expect(shownGitPanelContext()).toEqual(remoteContext);
+
+    await act(async () => {
+      useAppStore.setState({ view: { kind: "draft", projectId: macProject.id } });
+    });
+    expect(shownGitPanelContext()).toEqual(remoteContext);
+    await act(async () => {
+      useAppStore.setState({ view: { kind: "draft", projectId: localProject.id } });
+    });
+    expect(shownGitPanelContext()).toEqual(remoteContext);
+
+    // The draft target never becomes the prefetch target, even when the draft
+    // itself is on the remote project (which would use its root, not the worktree).
+    expect(prefetchGitPanelPrData.mock.calls).toEqual([[macProject.id, remoteWorktreePath]]);
+  });
+
+  it("prefetches the pinned panel checkout while another thread is focused", async () => {
+    focusThread(threadA.id);
+    usePanelStore.setState({
+      gitReviewContext: {
+        projectId: threadB.projectId,
+        worktreePath: threadB.worktreePath!,
+      },
+      gitReviewAsPanel: true,
+      rightPanelFollowsThread: false,
+      rightPanelTab: "git",
+    });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() =>
+      expect(prefetchGitPanelPrData).toHaveBeenCalledWith(threadB.projectId, threadB.worktreePath),
+    );
+    expect(prefetchGitPanelPrData).not.toHaveBeenCalledWith(
+      threadA.projectId,
+      threadA.worktreePath,
+    );
+  });
+
+  it("still prefetches a local panel checkout", async () => {
+    focusThread(threadA.id);
+    usePanelStore.setState({
+      gitReviewContext: {
+        projectId: threadA.projectId,
+        worktreePath: threadA.worktreePath!,
+      },
+      gitReviewAsPanel: true,
+      rightPanelFollowsThread: true,
+      rightPanelTab: "git",
+    });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() =>
+      expect(prefetchGitPanelPrData).toHaveBeenCalledWith(threadA.projectId, threadA.worktreePath),
+    );
+  });
+
   it.each([false, true])(
     "returns to Thread Info even if the last agent finished: %s",
     (completed) => {
@@ -638,10 +745,7 @@ describe("ProjectAuxiliaryPanel", () => {
     );
 
     await waitFor(() => expect(unifiedRightPanelProps.current?.docksContent).toBeDefined());
-    expect(unifiedRightPanelProps.current?.docksHeaderActions).toMatchObject({
-      type: ThreadDocksPlacementToggle,
-      props: { placement: "right" },
-    });
+    expect(unifiedRightPanelProps.current?.docksHeaderActions).toBeUndefined();
     expect(
       unifiedRightPanelProps.current?.docksContent?.props as {
         projectLocation?: { kind: string; path: string };
@@ -669,7 +773,7 @@ describe("ProjectAuxiliaryPanel", () => {
     expect(result.current.rightPanelOpen).toBe(false);
   });
 
-  it("opens image-focused Thread info while informational docks stay above the composer", async () => {
+  it("opens image-focused Thread info with a saved composer placement", async () => {
     seedImageOnlyThread();
     usePanelStore.setState({
       threadDocksPanelOpen: true,
@@ -694,10 +798,7 @@ describe("ProjectAuxiliaryPanel", () => {
       expect(unifiedRightPanelProps.current?.conversationModel).toBeUndefined();
     });
     expect(unifiedRightPanelProps.current?.docksContent).toBeDefined();
-    expect(unifiedRightPanelProps.current?.docksHeaderActions).toMatchObject({
-      type: ThreadDocksPlacementToggle,
-      props: { placement: "composer" },
-    });
+    expect(unifiedRightPanelProps.current?.docksHeaderActions).toBeUndefined();
   });
 
   it("leaves the browser tab when the browser panel was dismissed with it selected", async () => {

@@ -90,6 +90,12 @@ enum RemoteSocketPolicy {
     static let streamingBodyResourceTimeoutSeconds: Double = 600
     static let healthPingIntervalMs: Double = 25_000
     static let healthPingTimeoutMs: Double = 5_000
+    /// A pong deadline that fires later than this was delayed (a stalled or
+    /// suspended process), so the reply may already be queued behind it.
+    static let healthDeadlineStallSlackMs: Double = 1_000
+    /// Extra pong windows granted to a stalled or still-active socket before it
+    /// is declared dead (`socketPolicy.ts`).
+    static let healthDeadlineMaxExtensions = 3
     static let connectTimeoutMs: Double = 15_000
     static let requestTimeoutSeconds: TimeInterval = 60
 
@@ -100,5 +106,23 @@ enum RemoteSocketPolicy {
 
     static func isUnauthorizedClose(code: Int, reason: String) -> Bool {
         code == unauthorizedCloseCode || reason == sessionExpiredReason
+    }
+
+    /// Whether an expired pong deadline gets one more window instead of a forced
+    /// reconnect (mirrors `RemoteSocketHealthMonitor` in `socketPolicy.ts`). A
+    /// deadline that fired late means the process stalled, so the pong may be
+    /// queued right behind it; frames during the window prove the peer is alive.
+    /// Bounded so a socket that truly went silent is still declared dead.
+    static func shouldExtendHealthDeadline(
+        nowMs: Double,
+        deadlineAtMs: Double,
+        windowStartedAtMs: Double,
+        lastInboundAtMs: Double?,
+        extensions: Int
+    ) -> Bool {
+        guard extensions < healthDeadlineMaxExtensions else { return false }
+        let stalled = nowMs - deadlineAtMs > healthDeadlineStallSlackMs
+        let active = (lastInboundAtMs ?? -.infinity) >= windowStartedAtMs
+        return stalled || active
     }
 }

@@ -39,6 +39,14 @@ export function UpdateButtons(props: {
       total,
     );
 
+    const statusDetail = (
+      <>
+        <Trans>Downloading update</Trans>
+        {determinate ? ` — ${percent}%` : ""}
+        {byteLine ? ` · ${byteLine}` : ""}
+      </>
+    );
+
     if (iconOnly) {
       return (
         <Tooltip delay={150}>
@@ -48,37 +56,50 @@ export function UpdateButtons(props: {
             </div>
           </Tooltip.Trigger>
           <Tooltip.Content placement={tooltipPlacement} className="pointer-events-none">
-            <Trans>Downloading update</Trans>
-            {determinate ? ` — ${percent}%` : ""}
-            {byteLine ? ` · ${byteLine}` : ""}
+            {statusDetail}
           </Tooltip.Content>
         </Tooltip>
       );
     }
 
-    // Compact, fixed-height status: one line (bytes + percent) over a thin bar.
-    // The long target version is omitted — it overflowed/clipped and the About
-    // page already surfaces it. `tabular-nums` keeps the digits from reflowing.
+    // Compact, fixed-height status: a single line (icon + thin bar + percent)
+    // on the same box as a SidebarButton row, so the swap to the install button
+    // doesn't shift the footer. Byte telemetry lives in the hover tooltip and
+    // aria-valuetext. `tabular-nums` keeps the digits from reflowing.
     return (
-      <div className="flex w-full items-center gap-2 rounded-3xl px-2 py-1.5 text-muted">
-        <Download className="size-4 shrink-0 animate-pulse text-muted" />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex min-w-0 items-center justify-between gap-2 text-xs tabular-nums">
-            <span className="truncate">{byteLine ?? <Trans>Downloading update</Trans>}</span>
-            {determinate ? (
-              <AnimatedNumber className="shrink-0" value={percent} suffix="%" />
-            ) : null}
+      <Tooltip delay={150}>
+        <Tooltip.Trigger className="flex w-full min-h-0 flex-col" tabIndex={-1} role="none">
+          <div
+            role="progressbar"
+            aria-label={t`Downloading update`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            {...(determinate ? { "aria-valuenow": percent } : {})}
+            {...(byteLine
+              ? { "aria-valuetext": determinate ? `${percent}% · ${byteLine}` : byteLine }
+              : {})}
+            className="flex w-full shrink-0 items-center gap-2 rounded-3xl px-2 py-1.5 text-sm text-muted"
+          >
+            <Download className="size-4 shrink-0" />
+            <div className="flex h-5 min-w-0 flex-1 items-center gap-2 tabular-nums">
+              <div className="h-1 min-w-6 flex-1 overflow-hidden rounded-full bg-[var(--row-active)]">
+                <div
+                  className={`h-1 rounded-full bg-foreground ${
+                    determinate ? "transition-[width] duration-300" : "w-1/2 animate-pulse"
+                  }`}
+                  style={determinate ? { width: `${percent}%` } : undefined}
+                />
+              </div>
+              {determinate ? (
+                <AnimatedNumber className="w-9 shrink-0 text-right" value={percent} suffix="%" />
+              ) : null}
+            </div>
           </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--row-active)]">
-            <div
-              className={`h-1 rounded-full bg-foreground ${
-                determinate ? "transition-[width] duration-300" : "w-1/2 animate-pulse"
-              }`}
-              style={determinate ? { width: `${percent}%` } : undefined}
-            />
-          </div>
-        </div>
-      </div>
+        </Tooltip.Trigger>
+        <Tooltip.Content placement="right" showArrow className="max-w-[28rem] text-xs">
+          {statusDetail}
+        </Tooltip.Content>
+      </Tooltip>
     );
   }
 

@@ -217,6 +217,75 @@ try {
       }),
       createdAt,
     });
+    if (hasFlag("fork-fixture")) {
+      // Seed before launch; runtime writes belong to the backend once it starts.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS threads (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          title TEXT NOT NULL, agent_kind TEXT NOT NULL, config TEXT NOT NULL,
+          status TEXT NOT NULL, attention TEXT NOT NULL,
+          can_resume_with_config INTEGER NOT NULL DEFAULT 0,
+          session_ref TEXT, terminal_prompt TEXT, worktree_path TEXT,
+          worktree_branch TEXT, pr_number INTEGER,
+          archived INTEGER NOT NULL DEFAULT 0, archived_at TEXT,
+          done INTEGER NOT NULL DEFAULT 0, done_at TEXT,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+          active_turn_started_at TEXT, last_turn_started_at TEXT, last_turn_ended_at TEXT,
+          presentation_mode TEXT NOT NULL DEFAULT 'terminal'
+        );
+        CREATE TABLE IF NOT EXISTS thread_runtime_items (
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          item_id TEXT NOT NULL, position INTEGER NOT NULL, type TEXT NOT NULL,
+          state TEXT NOT NULL, payload TEXT, streams TEXT,
+          PRIMARY KEY (thread_id, item_id)
+        );
+        CREATE TABLE IF NOT EXISTS thread_completed_turns (
+          thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          idx INTEGER NOT NULL, started_at TEXT NOT NULL, ended_at TEXT NOT NULL,
+          anchor_item_id TEXT, PRIMARY KEY (thread_id, idx)
+        );
+      `);
+      db.prepare(`INSERT INTO threads (
+        id, project_id, title, agent_kind, config, status, attention,
+        can_resume_with_config, presentation_mode, created_at, updated_at
+      ) VALUES ('smoke-fork-source', ?, 'Fork smoke source', 'codex',
+        '{"model":"smoke-model"}', 'inactive', 'none', 1, 'gui', ?, ?)`).run(
+        projectId,
+        createdAt,
+        createdAt,
+      );
+      const insertItem = db.prepare(`INSERT INTO thread_runtime_items
+        (thread_id, item_id, position, type, state, payload, streams)
+        VALUES ('smoke-fork-source', ?, ?, ?, 'completed', ?, ?)`);
+      const insertTurn = db.prepare(`INSERT INTO thread_completed_turns
+        (thread_id, idx, started_at, ended_at, anchor_item_id)
+        VALUES ('smoke-fork-source', ?, ?, ?, ?)`);
+      for (const index of [1, 2]) {
+        const label = index === 1 ? "First" : "Later";
+        insertItem.run(
+          `fork-user-${index}`,
+          index * 2 - 2,
+          "user_message",
+          JSON.stringify({ content: [{ kind: "text", text: `${label} source prompt` }] }),
+          "{}",
+        );
+        insertItem.run(
+          `fork-answer-${index}`,
+          index * 2 - 1,
+          "assistant_message",
+          null,
+          JSON.stringify({ assistant_text: `${label} source answer` }),
+        );
+        insertTurn.run(
+          index - 1,
+          `2026-10-20T10:0${index}:00.000Z`,
+          `2026-10-20T10:0${index}:02.000Z`,
+          `fork-answer-${index}`,
+        );
+      }
+    }
     setState.run({
       key: "view",
       value: JSON.stringify({ kind: "draft", projectId }),

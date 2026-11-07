@@ -86,6 +86,63 @@ describe("remote socket policy", () => {
     expect(onDead).toHaveBeenCalledWith(socket);
   });
 
+  describe("a deadline that is not evidence of death", () => {
+    function makeMonitor() {
+      const socket = {};
+      const send = vi.fn<(socket: object, payload: string) => void>();
+      const onDead = vi.fn<(socket: object) => void>();
+      const monitor = new RemoteSocketHealthMonitor({
+        isCurrent: (candidate) => candidate === socket,
+        isOpen: () => true,
+        send,
+        onDead,
+      });
+      const pingId = () => (JSON.parse(send.mock.calls.at(-1)![1]) as { id: string }).id;
+      return { socket, monitor, onDead, pingId };
+    }
+
+    it("waits for a pong queued behind a timer that a stalled event loop ran late", async () => {
+      const { socket, monitor, onDead, pingId } = makeMonitor();
+      monitor.probe(socket);
+      // A saturated machine blocks the loop past the deadline: the clock moves
+      // on while the timer (and the already-received pong) wait in the queue.
+      vi.setSystemTime(Date.now() + 6_500);
+      await vi.advanceTimersByTimeAsync(5_001);
+      expect(onDead).not.toHaveBeenCalled();
+
+      expect(monitor.acceptPong(pingId())).toBe(true);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(onDead).not.toHaveBeenCalled();
+    });
+
+    it("treats frames during the window as liveness, then catches a socket that goes silent", async () => {
+      const { socket, monitor, onDead } = makeMonitor();
+      monitor.probe(socket);
+      await vi.advanceTimersByTimeAsync(4_000);
+      monitor.noteActivity();
+      await vi.advanceTimersByTimeAsync(1_001);
+      // Event traffic arrived ahead of the pong: not dead.
+      expect(onDead).not.toHaveBeenCalled();
+
+      // No pong and no frames in the extended window: dead.
+      await vi.advanceTimersByTimeAsync(5_001);
+      expect(onDead).toHaveBeenCalledWith(socket);
+    });
+
+    it("still declares a socket dead after a bounded number of stalled windows", async () => {
+      const { socket, monitor, onDead } = makeMonitor();
+      monitor.probe(socket);
+      for (let window = 0; window < 3; window += 1) {
+        vi.setSystemTime(Date.now() + 6_500);
+        await vi.advanceTimersByTimeAsync(5_001);
+        expect(onDead).not.toHaveBeenCalled();
+      }
+      vi.setSystemTime(Date.now() + 6_500);
+      await vi.advanceTimersByTimeAsync(5_001);
+      expect(onDead).toHaveBeenCalledWith(socket);
+    });
+  });
+
   it("releases a pending probe when its socket is no longer current", async () => {
     const socket = {};
     let current = true;

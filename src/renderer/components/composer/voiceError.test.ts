@@ -8,12 +8,14 @@ type ToastOptions = {
 const dangerToast = vi.hoisted(() => vi.fn<(title: string, options?: ToastOptions) => void>());
 const isMac = vi.hoisted(() => vi.fn<() => boolean>());
 const isWindows = vi.hoisted(() => vi.fn<() => boolean>());
+const isRemoteSession = vi.hoisted(() => vi.fn<() => boolean>());
 const openMicrophoneSettings = vi.hoisted(() => vi.fn<() => Promise<void>>());
 
 vi.mock("@heroui/react", () => ({ toast: { danger: dangerToast } }));
 vi.mock("@/renderer/bridge", () => ({
   isMac,
   isWindows,
+  isRemoteSession,
   readBridge: () => ({ openMicrophoneSettings }),
 }));
 vi.mock("@/shared/messages", () => ({
@@ -27,6 +29,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   isMac.mockReturnValue(false);
   isWindows.mockReturnValue(false);
+  isRemoteSession.mockReturnValue(false);
   openMicrophoneSettings.mockResolvedValue(undefined);
 });
 
@@ -47,6 +50,15 @@ describe("formatVoiceError", () => {
 });
 
 describe("showVoiceCaptureError", () => {
+  it("directs PWA permission errors to browser settings, not the host OS", () => {
+    isRemoteSession.mockReturnValue(true);
+    isMac.mockReturnValue(true);
+    showVoiceCaptureError(new DOMException("denied", "NotAllowedError"));
+    expect(dangerToast).toHaveBeenCalledWith("Microphone permission was denied.", {
+      description: "Allow microphone access in your browser's site settings, then try again.",
+    });
+    expect(openMicrophoneSettings).not.toHaveBeenCalled();
+  });
   it("on macOS, shows an actionable toast whose action opens microphone settings", () => {
     isMac.mockReturnValue(true);
     showVoiceCaptureError(new DOMException("x", "NotAllowedError"));

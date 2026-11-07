@@ -1,0 +1,12 @@
+diff --git a/packages/theme/src/tui/types.ts b/packages/theme/src/tui/types.ts
+index 6503e69..189a02f 100644
+--- a/packages/theme/src/tui/types.ts
++++ b/packages/theme/src/tui/types.ts
+@@ -30,6 +30,7 @@ export type ResolvedThemeTokens = {
+   readonly decrease: (color: RGBA, amount?: number) => RGBA
+   readonly text: {
+     readonly base: RGBA
++    readonly brand: RGBA
+     readonly muted: RGBA
+     readonly faint: RGBA
+     readonly action: Readonly<Record<ActionVariant, StatefulColor>>

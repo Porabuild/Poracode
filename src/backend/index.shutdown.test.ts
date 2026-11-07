@@ -9,6 +9,7 @@ import {
 
 const state = vi.hoisted(() => ({
   closed: false,
+  configureKey: vi.fn<() => void>(),
   order: [] as string[],
   sent: [] as BackendHostOutboundMessage[],
   requestNative: null as ((request: BackendNativeRequest) => Promise<unknown>) | null,
@@ -23,7 +24,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@/shared/diagnostics/nodePerformanceDiagnostics", () => ({
   startNodePerformanceDiagnostics: () => undefined,
 }));
-vi.mock("@/shared/secretStorage", () => ({ configureSecretStorageKey() {} }));
+vi.mock("@/shared/secretStorage", () => ({ configureSecretStorageKey: state.configureKey }));
 vi.mock("@/host/db/databaseRpc", () => ({ callDatabaseRpc: () => null }));
 vi.mock("./BackendHostCore", () => ({
   BackendEventRouter: class {
@@ -82,6 +83,7 @@ let deliver: (request: BackendHostRequest) => void;
 beforeEach(async () => {
   vi.resetModules();
   state.closed = false;
+  state.configureKey.mockClear();
   state.order = [];
   state.sent = [];
   state.requestNative = null;
@@ -147,6 +149,46 @@ function initialize(): void {
     },
   });
 }
+
+it.each([
+  null,
+  0,
+  { version: 2, profileNamespace: "/unused", ownerGeneration: "future" },
+  {
+    version: 1,
+    profileNamespace: "/unused",
+    ownerGeneration: "11111111-1111-4111-8111-111111111111",
+  },
+])(
+  "refuses a malformed, future or foreign local control grant before configuring keys or constructing a host: %j",
+  async (grant) => {
+    deliver({
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      id: "future-local-control",
+      operation: "initialize",
+      payload: {
+        baseDir: "/never-open",
+        dbPath: "/never-open/state.sqlite",
+        supervisor: {
+          appVersion: "fixture",
+          isDev: false,
+          supervisorPath: "/never-spawn",
+          wslHelpersDir: "/unused",
+          secretStorageKey: "never-configure",
+        },
+        desktop: {
+          channel: "stable",
+          settingsPath: "/never-open/settings.json",
+          localControl: grant,
+        },
+      },
+    } as unknown as BackendHostRequest);
+    expect(await reply("future-local-control")).toMatchObject({ ok: false });
+    expect(state.configureKey).not.toHaveBeenCalled();
+    expect(state.prepareLaunch).toBeNull();
+    expect(state.supervisor).not.toHaveBeenCalled();
+  },
+);
 
 function dispose(id = "dispose"): void {
   deliver({ version: BACKEND_HOST_PROTOCOL_VERSION, id, operation: "dispose", payload: {} });

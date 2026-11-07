@@ -1,7 +1,7 @@
 import type { Project, Thread } from "@/shared/contracts";
-import type { AppView } from "@/shared/contracts/appView";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
+import { getManagedParentAuthorityState } from "@/renderer/state/remoteServers/managedLoopbackOwner";
 import {
   visibleCatalogProjects,
   confirmProjectRemoval,
@@ -9,15 +9,11 @@ import {
 } from "@/renderer/state/projectRemovalIntents";
 import { finalizeProjectRemoval } from "../projectRemovalPresentation";
 import { applyProjectStateSnapshot } from "@/renderer/state/projectStateSync";
-import { clearThreadHistoryNotice } from "@/renderer/state/remote/historyNoticeStore";
-import { reuseRemoteRows } from "@/renderer/state/remoteServers/rowReuse";
-import { removePaneFromView } from "@/renderer/state/slices/helpers";
-import { dropPendingManagedRootLaunch } from "./rootCatalogStore";
-import { carryPendingRootLaunchRuntime } from "./rootLaunchRuntime";
-import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
-import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
-import { carryActiveTurnTiming } from "../activeTurnTiming";
-import { carryPendingThreadInput } from "../pendingThreadInput";
+import { reuseRemoteRows, reuseRow } from "@/renderer/state/remoteServers/rowReuse";
+import { closePanesForHostArchivedRows, mergeHostThreadRow } from "../hostThreadRowMerge";
+import { removeConfirmedHostThread } from "../hostThreadRowRemoval";
+import { orderHostRows } from "../hostCatalogRowOrder";
+import { retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { projectPendingCatalogEdit, forgetPendingCatalogEdit } from "../pendingCatalogEdits";
 
 /**
@@ -135,19 +131,13 @@ export function applyRootCatalogThreadRows(
       // Host housekeeping archives rows without a forwarded user command: the
       // documented startup policy closes the archived thread's visible pane.
       if (!existing.archived && incoming.archived) archivedNow.add(existing.id);
-      changed = true;
-      return preservePendingThreadConfig(
-        carryVolatileSessionConfigOptions(
-          existing,
-          carryActiveTurnTiming(
-            existing,
-            existing.presentationMode === "gui"
-              ? carryPendingThreadInput(existing, incoming)
-              : carryPendingRootLaunchRuntime(existing, incoming),
-          ),
-        ),
+      const merged = mergeHostThreadRow(
+        existing,
+        incoming,
         state.pendingThreadConfigByThreadId[existing.id],
       );
+      if (merged !== existing) changed = true;
+      return merged;
     });
     for (const row of rows) {
       const incoming = incomingById.get(row.id);
@@ -156,34 +146,19 @@ export function applyRootCatalogThreadRows(
       changed = true;
       next.push(incoming);
     }
-    if (!changed) return state;
+    const pendingThreadConfigByThreadId = retainPendingThreadConfigs(
+      state.pendingThreadConfigByThreadId,
+      next,
+    );
+    if (!changed && pendingThreadConfigByThreadId === state.pendingThreadConfigByThreadId)
+      return state;
     return {
-      threads: next,
-      pendingThreadConfigByThreadId: retainPendingThreadConfigs(
-        state.pendingThreadConfigByThreadId,
-        next,
-      ),
+      ...(changed ? { threads: next } : {}),
+      pendingThreadConfigByThreadId,
     };
   });
   syncRootRuntimeConfigs(rows, preserveThreadIds);
-  if (archivedNow.size > 0) closePanesForArchivedRootRows(archivedNow);
-}
-
-/**
- * Client projection effect for a host-archived root row: drop its visible
- * pane (the documented auto-archive behavior), never a durable write.
- */
-function closePanesForArchivedRootRows(threadIds: ReadonlySet<string>): void {
-  useAppStore.setState((state) => {
-    if (state.view.kind !== "thread") return state;
-    let nextView: AppView = state.view;
-    for (const threadId of threadIds) {
-      if (nextView.kind === "thread" && nextView.panes.includes(threadId)) {
-        nextView = removePaneFromView(nextView, threadId);
-      }
-    }
-    return nextView === state.view ? state : { view: nextView };
-  });
+  closePanesForHostArchivedRows(archivedNow);
 }
 
 export function applyRootCatalogProjectRows(rows: readonly Project[]): void {
@@ -209,10 +184,16 @@ export function applyRootCatalogProjectRows(rows: readonly Project[]): void {
       // project-settings endpoint), so a catalog-only refresh must re-attach
       // the row's already-loaded projection — the mirrored-rows rule in
       // `syncRemoteAppRows`. Without the carry, every pass would erase it.
-      changed = true;
-      return existing.mcpServers === undefined
-        ? incoming
-        : { ...incoming, mcpServers: existing.mcpServers };
+      // A page that restates the row unchanged keeps the resident row (and
+      // with it the array) instead of re-rendering its subscribers.
+      const row = reuseRow(
+        existing,
+        existing.mcpServers === undefined
+          ? incoming
+          : { ...incoming, mcpServers: existing.mcpServers },
+      );
+      if (row !== existing) changed = true;
+      return row;
     });
     for (const row of rows) {
       const incoming = incomingById.get(row.id);
@@ -232,17 +213,12 @@ export function applyRootCatalogProjectRows(rows: readonly Project[]): void {
  */
 export function removeRootCatalogThreads(threadIds: readonly string[]): void {
   if (threadIds.length === 0) return;
-  const removed = new Set<string>();
+  const parent = getManagedParentAuthorityState();
+  const visualHostId = parent.status === "ready" ? parent.authority.ref.hostDesktopId : undefined;
   for (const threadId of threadIds) {
     const row = useAppStore.getState().threads.find((thread) => thread.id === threadId);
     if (row && !isManagedRootRow(row)) continue;
-    removed.add(threadId);
-    forgetPendingCatalogEdit("thread", threadId);
-    useAppStore.getState().deleteThread(threadId);
-  }
-  for (const threadId of removed) {
-    dropPendingManagedRootLaunch(threadId);
-    clearThreadHistoryNotice(threadId);
+    removeConfirmedHostThread({ viewThreadId: threadId, hostThreadId: threadId, visualHostId });
   }
 }
 
@@ -297,32 +273,9 @@ function syncRootRuntimeConfigs(
  * order; non-root rows keep their slots.
  */
 export function applyRootCatalogOrder(orderedIds: readonly string[]): void {
-  if (orderedIds.length === 0) return;
   useAppStore.setState((state) => {
-    const rootRows = state.threads.filter(isManagedRootRow);
-    if (rootRows.length < 2) return state;
-    const byId = new Map(rootRows.map((row) => [row.id, row]));
-    const named = new Set<string>();
-    const nextRoot: Thread[] = [];
-    for (const id of orderedIds) {
-      const row = byId.get(id);
-      if (!row || named.has(id)) continue;
-      named.add(id);
-      nextRoot.push(row);
-    }
-    for (const row of rootRows) {
-      if (!named.has(row.id)) nextRoot.push(row);
-    }
-    let changed = false;
-    let cursor = 0;
-    const next = state.threads.map((row) => {
-      if (!isManagedRootRow(row)) return row;
-      const replacement = nextRoot[cursor++]!;
-      if (replacement !== row) changed = true;
-      return replacement;
-    });
-    if (!changed) return state;
-    return { threads: next };
+    const threads = orderHostRows(state.threads, isManagedRootRow, orderedIds);
+    return threads === state.threads ? state : { threads: [...threads] };
   });
 }
 
@@ -332,32 +285,9 @@ export function applyRootCatalogOrder(orderedIds: readonly string[]): void {
  * relative order; non-root rows keep their slots.
  */
 export function applyRootCatalogProjectOrder(orderedIds: readonly string[]): void {
-  if (orderedIds.length === 0) return;
   useAppStore.setState((state) => {
-    const rootRows = state.projects.filter(isManagedRootRow);
-    if (rootRows.length < 2) return state;
-    const byId = new Map(rootRows.map((row) => [row.id, row]));
-    const named = new Set<string>();
-    const nextRoot: Project[] = [];
-    for (const id of orderedIds) {
-      const row = byId.get(id);
-      if (!row || named.has(id)) continue;
-      named.add(id);
-      nextRoot.push(row);
-    }
-    for (const row of rootRows) {
-      if (!named.has(row.id)) nextRoot.push(row);
-    }
-    let changed = false;
-    let cursor = 0;
-    const next = state.projects.map((row) => {
-      if (!isManagedRootRow(row)) return row;
-      const replacement = nextRoot[cursor++]!;
-      if (replacement !== row) changed = true;
-      return replacement;
-    });
-    if (!changed) return state;
-    return { projects: next };
+    const projects = orderHostRows(state.projects, isManagedRootRow, orderedIds);
+    return projects === state.projects ? state : { projects: [...projects] };
   });
 }
 

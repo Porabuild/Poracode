@@ -11,10 +11,11 @@ vi.mock("@/renderer/clientRuntime", async (importOriginal) => ({
 
 const lifecycle = vi.hoisted(() => ({
   dispose: vi.fn<() => void>(),
-  reconnect: undefined as (() => void | Promise<void>) | undefined,
+  reconnect: undefined as ResumeReconnect | undefined,
 }));
+type ResumeReconnect = (signal: { forceTransportReconnect: boolean }) => void | Promise<void>;
 vi.mock("@/renderer/state/remoteServers/lifecycle", () => ({
-  installRemoteServerLifecycle: (reconnect: () => void | Promise<void>) => {
+  installRemoteServerLifecycle: (reconnect: ResumeReconnect) => {
     lifecycle.reconnect = reconnect;
     return lifecycle.dispose;
   },
@@ -31,9 +32,11 @@ function deferred() {
 }
 
 const originalConnectAll = useRemoteServersStore.getState().connectAll;
+const originalVerifyConnections = useRemoteServersStore.getState().verifyConnections;
 let connectAll: ReturnType<
   typeof vi.fn<(options?: { forceTransportReconnect?: boolean }) => Promise<void>>
 >;
+let verifyConnections: ReturnType<typeof vi.fn<() => Promise<void>>>;
 
 beforeEach(() => {
   runtime.browser = true;
@@ -42,12 +45,16 @@ beforeEach(() => {
   connectAll = vi.fn<(options?: { forceTransportReconnect?: boolean }) => Promise<void>>(
     async () => {},
   );
-  useRemoteServersStore.setState({ connectAll });
+  verifyConnections = vi.fn<() => Promise<void>>(async () => {});
+  useRemoteServersStore.setState({ connectAll, verifyConnections });
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
-  useRemoteServersStore.setState({ connectAll: originalConnectAll });
+  useRemoteServersStore.setState({
+    connectAll: originalConnectAll,
+    verifyConnections: originalVerifyConnections,
+  });
 });
 
 function mockHydration(hydrated: boolean) {
@@ -128,13 +135,19 @@ describe("useRemoteServerConnection", () => {
     expect(result.current.checked).toBe(true);
   });
 
-  it("force-reconnects on page resume and disposes the lifecycle on unmount", () => {
+  it("verifies on a tab switch, force-reconnects a suspended page, and disposes on unmount", () => {
     mockHydration(true);
     const { unmount } = renderHook(() => useRemoteServerConnection());
     expect(lifecycle.reconnect).toBeDefined();
+    connectAll.mockClear();
 
-    void lifecycle.reconnect?.();
+    void lifecycle.reconnect?.({ forceTransportReconnect: false });
+    expect(verifyConnections).toHaveBeenCalledTimes(1);
+    expect(connectAll).not.toHaveBeenCalled();
+
+    void lifecycle.reconnect?.({ forceTransportReconnect: true });
     expect(connectAll).toHaveBeenLastCalledWith({ forceTransportReconnect: true });
+    expect(verifyConnections).toHaveBeenCalledTimes(1);
     expect(lifecycle.dispose).not.toHaveBeenCalled();
     unmount();
     expect(lifecycle.dispose).toHaveBeenCalledTimes(1);

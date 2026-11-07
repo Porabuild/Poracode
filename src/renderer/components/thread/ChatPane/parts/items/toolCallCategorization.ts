@@ -17,11 +17,12 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { getToolLikePayload, isToolLikeItem } from "@/shared/runtimeItemVisibility";
 import { parseMcpName } from "@/shared/toolCallClassification";
 import { extractAcpDiffSummary, readAcpStringField } from "./acpToolPayload";
 import { commandIntentDisplay } from "./commandSummary";
 import { isContextCompactionToolCall } from "./ContextCompaction";
-import { isPlanProposalToolCall } from "./PlanProposal";
+import { isPlanProposalToolCall } from "./planProposalToolCall";
 import { deriveToolDisplay, isDelegatedAgentTool } from "./toolDisplay";
 
 export type GroupCategory =
@@ -378,18 +379,7 @@ function deriveItemCategory(item: RuntimeChatItem): GroupCategory {
   return categorizeVerbPrefix(payload.name ?? "");
 }
 
-export function isToolLikeItem(item: RuntimeChatItem): boolean {
-  return (
-    item.type === "tool_call" ||
-    item.type === "mcp_tool_call" ||
-    item.type === "image_view" ||
-    item.type === "dynamic_tool_call"
-  );
-}
-
-export function getToolLikePayload(item: RuntimeChatItem): ToolCallPayload | undefined {
-  return isToolLikeItem(item) ? (item.payload as ToolCallPayload | undefined) : undefined;
-}
+export { isToolLikeItem, getToolLikePayload };
 
 export function categorizeCommandExecution(item: RuntimeChatItem): GroupCategory {
   const payload = getRuntimeItemPayload<CommandExecutionPayload>(item, "command_execution");

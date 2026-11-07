@@ -18,6 +18,17 @@ enum RichPromptSegment: Sendable, Equatable {
   case thread(threadID: String, title: String)
 }
 
+extension RichPromptSegment {
+  /// Typed text, or an attachment on its own: the host's sendable-input rule.
+  static func isSendable(prompt: String, segments: [RichPromptSegment]?) -> Bool {
+    if !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
+    return segments?.contains { segment in
+      if case .attachment = segment { return true }
+      return false
+    } ?? false
+  }
+}
+
 struct RichPendingSteer: Sendable, Equatable, Identifiable {
   let id: String
   let prompt: String

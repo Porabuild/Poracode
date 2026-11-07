@@ -50,8 +50,20 @@ export {
   serializedWireByteLength,
 } from "./catalogReadContract";
 
-/** Soft packing target for one bounded history item page (wire UTF-8). */
-export const HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES = 1024 * 1024;
+/**
+ * Soft packing target for one bounded history item page (wire UTF-8). Sized so
+ * an initial tail reaches the latest prompt of a long tool-heavy turn; a few
+ * large tool or sub-agent results can push one turn past 1 MiB. Clients with a
+ * smaller negotiated `maxBytes` still cap it.
+ */
+export const HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES = 2 * 1024 * 1024;
+
+/**
+ * A tail read admits the turn of the newest prompt past the soft target up to
+ * this ceiling (or the client's smaller `maxBytes`), so first paint shows the
+ * prompt with its reply; a larger turn falls back to the soft cut.
+ */
+export const HISTORY_LATEST_TURN_MAX_WIRE_BYTES = 8 * 1024 * 1024;
 
 /** Soft packing target for one completed-turn page (wire UTF-8). */
 export const HISTORY_TURNS_SOFT_PACK_WIRE_BYTES = 256 * 1024;

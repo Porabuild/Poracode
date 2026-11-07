@@ -1,6 +1,6 @@
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
-import { CLAUDE_EFFORT_TIERS } from "@/shared/agents/claudeEfforts";
+import { CLAUDE_PROFILE_EFFORT_CHOICES } from "@/shared/agents/claudeEfforts";
 import type {
   AgentInstanceConfig,
   AgentInstanceEnvVar,
@@ -190,9 +190,9 @@ export const PROFILE_PRESETS: readonly ProfilePreset[] = [
     label: msg`MiniMax`,
     envRows: MINIMAX_PRESET_ROWS,
     models: [{ id: "MiniMax-M3", label: "MiniMax M3" }],
-    efforts: CLAUDE_EFFORT_TIERS,
+    efforts: CLAUDE_PROFILE_EFFORT_CHOICES,
     defaultEffort: "high",
-    modelEfforts: { "MiniMax-M3": CLAUDE_EFFORT_TIERS },
+    modelEfforts: { "MiniMax-M3": CLAUDE_PROFILE_EFFORT_CHOICES },
   },
   {
     id: "kimi-code",
@@ -256,7 +256,7 @@ export function profileUsesExternalProvider(
   const hasEffortOverride =
     config.efforts !== undefined &&
     config.efforts.length > 0 &&
-    config.efforts.length < CLAUDE_EFFORT_TIERS.length;
+    config.efforts.length < CLAUDE_PROFILE_EFFORT_CHOICES.length;
   return Boolean(instance.environment || config.models?.length || hasEffortOverride);
 }
 
@@ -384,7 +384,7 @@ export function modelEffortsFromRows(
   const modelEfforts: NonNullable<ClaudeProfileInstanceConfig["modelEfforts"]> = {};
   for (const { id, row } of dedupedModelRows(rows)) {
     if (!row.efforts) continue;
-    modelEfforts[id] = CLAUDE_EFFORT_TIERS.filter(
+    modelEfforts[id] = CLAUDE_PROFILE_EFFORT_CHOICES.filter(
       (tier) => allowedEfforts.has(tier) && row.efforts?.has(tier),
     );
   }
@@ -394,16 +394,16 @@ export function modelEffortsFromRows(
 export function selectedEffortsFromConfig(efforts: readonly string[] | undefined): Set<string> {
   return new Set(
     efforts && efforts.length > 0
-      ? CLAUDE_EFFORT_TIERS.filter((tier) => efforts.includes(tier))
-      : CLAUDE_EFFORT_TIERS,
+      ? CLAUDE_PROFILE_EFFORT_CHOICES.filter((tier) => efforts.includes(tier))
+      : CLAUDE_PROFILE_EFFORT_CHOICES,
   );
 }
 
 export function effortsConfigFromSelection(
   selectedEfforts: ReadonlySet<string>,
 ): string[] | undefined {
-  const selected = CLAUDE_EFFORT_TIERS.filter((tier) => selectedEfforts.has(tier));
-  return selected.length === 0 || selected.length === CLAUDE_EFFORT_TIERS.length
+  const selected = CLAUDE_PROFILE_EFFORT_CHOICES.filter((tier) => selectedEfforts.has(tier));
+  return selected.length === 0 || selected.length === CLAUDE_PROFILE_EFFORT_CHOICES.length
     ? undefined
     : selected;
 }

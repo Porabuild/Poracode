@@ -65,7 +65,7 @@ async function pairBrowserDesktopFromUrl(href: string, cleanCurrentUrl = false):
 async function showBrowserPairing(href: string, cleanCurrentUrl = false): Promise<void> {
   if (!parsePairingUrlParts(href)) return;
   const [{ toast }, { i18n }] = await Promise.all([import("@heroui/react"), import("./i18n/i18n")]);
-  const toastKey = toast.info(i18n._(msg`Connecting…`), { isLoading: true, timeout: 0 });
+  const toastKey = toast.info(i18n._(msg`Connecting to host…`), { isLoading: true, timeout: 0 });
   try {
     await pairBrowserDesktopFromUrl(href, cleanCurrentUrl);
     toast.close(toastKey);

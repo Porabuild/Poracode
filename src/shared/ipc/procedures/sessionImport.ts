@@ -1,6 +1,7 @@
 import {
   importSessionTranscriptPayloadSchema,
   listImportableSessionsPayloadSchema,
+  listImportableSessionsResultSchema,
   type ImportSessionTranscriptPayload,
   type ImportSessionTranscriptResult,
   type ListImportableSessionsPayload,
@@ -8,13 +9,22 @@ import {
 } from "../../contracts";
 import { definePayloadProcedure } from "../core";
 
-/** Desktop-local: transcripts live on the supervisor host and are not remote-routable. */
+/**
+ * Transcripts live on the supervisor's host. Listing is remote-routable; remote
+ * clients import through the `import-session` thread command, so the replay
+ * procedure stays local.
+ */
 export const sessionImportProcedures = {
   listImportableSessions: definePayloadProcedure<
     ListImportableSessionsPayload,
     ListImportableSessionsResult,
     "supervisor"
-  >("listImportableSessions", "supervisor", listImportableSessionsPayloadSchema),
+  >(
+    "listImportableSessions",
+    "supervisor",
+    listImportableSessionsPayloadSchema,
+    listImportableSessionsResultSchema,
+  ),
   importSessionTranscript: definePayloadProcedure<
     ImportSessionTranscriptPayload,
     ImportSessionTranscriptResult,

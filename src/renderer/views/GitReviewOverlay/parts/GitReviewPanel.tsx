@@ -14,11 +14,7 @@ import type { Project, ProjectLocation, GitStatusResult } from "@/shared/contrac
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useGitStore } from "@/renderer/state/gitStore";
-import {
-  mightBeGitHubRemote,
-  refreshGitProject,
-  refreshSinglePr,
-} from "@/renderer/state/gitRefresh";
+import { refreshGitProject, refreshSinglePr } from "@/renderer/state/gitRefresh";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { BranchSelector } from "@/renderer/components/common";
 import { overlaySidebarSurfaceClass } from "@/renderer/components/layout/sidebarChrome";
@@ -111,17 +107,17 @@ export function GitReviewPanel(props: {
   // Refetch the worktree's PR (data + details) into `prData[worktreePath]` so the
   // PR block's merge state / checks update on manual refresh — otherwise the only
   // worktree PR refetch is the background poll, which fires only while checks are
-  // still pending. Gated on gh availability + a GitHub-ish remote so non-GitHub
-  // repos skip the `gh pr list` spawn. Hits the main project location, so it's
+  // still pending. Gated on the supervisor's source-host review availability.
+  // Hits the main project location, so it's
   // independent of the worktree status fetch and can overlap it.
   async function refreshWorktreePrData() {
     if (!worktreePath || !worktreeBranch) return;
     const gitState = useGitStore.getState();
     if (!gitState.ghAvailable[project.id]) return;
-    if (!mightBeGitHubRemote(gitState.statuses[project.id]?.remoteInfo?.platform)) return;
     const prNumber = gitState.prData[worktreePath]?.number;
     await refreshSinglePr({
       projectLocation: project.location,
+      projectId: project.id,
       prKey: worktreePath,
       branch: worktreeBranch,
       ...(prNumber ? { prNumber, detailsCacheKey: `${project.id}#${prNumber}` } : {}),

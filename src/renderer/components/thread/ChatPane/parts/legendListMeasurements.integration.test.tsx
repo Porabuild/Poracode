@@ -1,8 +1,9 @@
-import { act, render } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
 import { createRequire } from "node:module";
 import { flushSync } from "react-dom";
 import { describe, expect, it, vi } from "vitest";
-import { LegendList } from "@legendapp/list/react";
+import { LegendList, type AnchoredEndSpaceConfig } from "@legendapp/list/react";
+import { PROMPT_FLOOR_CSS_VAR, usePromptReserveFloor } from "./usePromptReserveFloor";
 import type { Row } from "./legendListMeasurementFixtures";
 import {
   useCaptureContext,
@@ -26,6 +27,123 @@ import {
 } from "./legendListMeasurementFixtures";
 
 describe("actual LegendList measurement retirement", () => {
+  it("shrinks prompt trailing space as the reply grows without moving the prompt", () => {
+    const onSizeChanged = vi.fn<(size: number) => void>();
+    const view = mount(rows(0, 2), {
+      anchoredEndSpace: { anchorIndex: 1, anchorOffset: 0, onSizeChanged },
+    });
+    view.update(rows(0, 2));
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(200);
+    view.scroll(40);
+    view.update(rows(0, 3));
+    settle();
+    measure("row-2", 180);
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(20);
+    expect(view.offset("row-1")).toBe(0);
+    measure("row-2", 250);
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(0);
+    expect(view.offset("row-1")).toBe(0);
+  });
+
+  it("recomputes prompt trailing space when only the list footer resizes", () => {
+    const onSizeChanged = vi.fn<(size: number) => void>();
+    fixture.heights.set("footer", 30);
+    const view = mount(rows(0, 2), {
+      anchoredEndSpace: { anchorIndex: 1, anchorOffset: 0, onSizeChanged },
+      ListFooterComponent: () => <div data-row="footer" />,
+    });
+    // The library wraps ListFooterComponent in its own measured LayoutView.
+    const footerContainer =
+      document.querySelector<HTMLElement>("[data-row='footer']")!.parentElement!;
+    const resizeFooter = (height: number) => {
+      fixture.heights.set("footer", height);
+      queuedDelivery([snapshotEntry(footerContainer)])();
+      settle();
+    };
+    // A same-data props refresh lands the first ready end-space computation
+    // (rows measured at mount, footer measured as 30): 240 - 40 - 30.
+    view.update(rows(0, 2));
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(170);
+    resizeFooter(70);
+    expect(onSizeChanged).toHaveBeenLastCalledWith(130);
+    resizeFooter(10);
+    expect(onSizeChanged).toHaveBeenLastCalledWith(190);
+  });
+
+  it("shrinks prompt trailing space when an appended reply row measures exactly at its estimate", () => {
+    const onSizeChanged = vi.fn<(size: number) => void>();
+    const view = mount(rows(0, 2), {
+      anchoredEndSpace: { anchorIndex: 1, anchorOffset: 0, onSizeChanged },
+    });
+    view.update(rows(0, 2));
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(200);
+    view.update(rows(0, 3));
+    settle();
+    measure("row-2", 40);
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(160);
+  });
+
+  it("reports a new prompt's trailing space when its first measurement matches the estimate", () => {
+    const onSizeChanged = vi.fn<(size: number) => void>();
+    const onReady = vi.fn<NonNullable<AnchoredEndSpaceConfig["onReady"]>>();
+    const view = mount(rows(0, 2), {
+      anchoredEndSpace: { anchorIndex: 2, anchorOffset: 0, onSizeChanged, onReady },
+    });
+    view.update(rows(0, 2));
+    settle();
+    view.update(rows(0, 3));
+    settle();
+    measure("row-2", 40);
+    settle();
+    expect(onSizeChanged).toHaveBeenLastCalledWith(200);
+    expect(onReady).toHaveBeenLastCalledWith({ anchorIndex: 2, anchorKey: "row-2", size: 200 });
+  });
+
+  it("applies the prompt floor and follows the anchored row's position", () => {
+    mount(rows(0, 3), {});
+    settle();
+    const content = document.querySelector<HTMLElement>(".legend-list-content-container")!;
+    const contentElementRef = { current: content };
+    const { unmount } = renderHook(() =>
+      usePromptReserveFloor({
+        anchorKey: "row-1",
+        listRef: fixture.listRef,
+        contentElementRef,
+      }),
+    );
+    expect(content.style.getPropertyValue(PROMPT_FLOOR_CSS_VAR)).toBe("40px");
+    measure("row-0", 90);
+    settle();
+    expect(content.style.getPropertyValue(PROMPT_FLOOR_CSS_VAR)).toBe("90px");
+    unmount();
+    expect(content.style.getPropertyValue(PROMPT_FLOOR_CSS_VAR)).toBe("");
+  });
+
+  it.each([false, true])(
+    "honors explicit parent width over a measured bootstrap width, explicit=%s",
+    (explicit) => {
+      const view = mount(rows(), explicit ? { style: { width: "100%" } } : {});
+      setViewportWidth(0);
+      queuedDelivery([snapshotEntry(view.scrollElement)])();
+      settle();
+      act(() => fixture.listRef.current!.setItemSize("row-1", { height: 40, width: 46 }));
+      settle();
+
+      expect(view.scrollElement.style.width).toBe(explicit ? "100%" : "46px");
+
+      setViewportWidth(920);
+      queuedDelivery([snapshotEntry(view.scrollElement)])();
+      settle();
+      expect(view.scrollElement.style.width).toBe(explicit ? "100%" : "46px");
+    },
+  );
+
   it("prunes both maps after a prefix revision and preserves an old reader's anchor, offscreen measurements, averages and list identity", () => {
     const data = rows();
     const view = mount(data);

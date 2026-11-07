@@ -19,5 +19,5 @@
   "devDependencies": {
     "@openai/codex": "0.155.1"
   },
-  "packageManager": "bun@1.4.3-canary.20261017.1"
+  "packageManager": "bun@1.4.3-canary.20261021.1"
 }

@@ -31,28 +31,51 @@ const task = (id: string, dependsOn: string[] = [], writeScope: string[] = []): 
   writeScope,
   request: { agent: "worker", prompt: `Do ${id}` },
 });
+const roleTask = (id: string): WorkflowTask => ({
+  ...task(id),
+  request: {
+    agent: "worker",
+    prompt: `Do ${id}`,
+    crewRole: { id: "builder", label: "Builder", parallel: 1 },
+  },
+});
 
 function harness(capacity = 2) {
   const listeners = new Set<(event: "changed" | "closed") => void>();
   const runs = new Map<
     string,
     {
+      parentId: string;
+      request: SpawnAgentRequest;
       result: SubagentWaitResult;
       resolve: (result: SubagentWaitResult) => void;
       promise: Promise<SubagentWaitResult>;
     }
   >();
+  const outsideRoleCounts = new Map<string, number>();
   const host: SubagentWorkflowHost = {
     validate: vi.fn<SubagentWorkflowHost["validate"]>(),
-    spawn: vi.fn<SubagentWorkflowHost["spawn"]>(
-      (_parentId: string, _request: SpawnAgentRequest) => {
-        const runId = `run-${runs.size}`;
-        const { promise, resolve } = Promise.withResolvers<SubagentWaitResult>();
-        runs.set(runId, { result: { status: "running", output: "" }, resolve, promise });
-        emit("changed");
-        return { runId };
-      },
-    ),
+    spawn: vi.fn<SubagentWorkflowHost["spawn"]>((parentId: string, request: SpawnAgentRequest) => {
+      const runId = `run-${runs.size}`;
+      const { promise, resolve } = Promise.withResolvers<SubagentWaitResult>();
+      runs.set(runId, {
+        parentId,
+        request,
+        result: { status: "running", output: "" },
+        resolve,
+        promise,
+      });
+      emit("changed");
+      return { runId };
+    }),
+    roleRunningCount: (_parentId, roleId) =>
+      (outsideRoleCounts.get(roleId) ?? 0) +
+      [...runs.values()].filter(
+        (run) =>
+          run.parentId === _parentId &&
+          run.result.status === "running" &&
+          run.request.crewRole?.id === roleId,
+      ).length,
     getCapacity: () =>
       capacity - [...runs.values()].filter((run) => run.result.status === "running").length,
     waitForSettlement: async (_parentId, runId) => runs.get(runId)!.promise,
@@ -85,10 +108,65 @@ function harness(capacity = 2) {
       capacity = value;
       emit("changed");
     },
+    setOutsideRoleRunningCount: (roleId: string, count: number) => {
+      outsideRoleCounts.set(roleId, count);
+      emit("changed");
+    },
   };
 }
 
 describe("SubagentWorkflowManager", () => {
+  it("starts ready role tasks one at a time when their parallel limit is one", async () => {
+    const h = harness(2);
+    const { workflowId } = h.manager.start("parent", [roleTask("a"), roleTask("b"), roleTask("c")]);
+    await flush();
+    expect(h.host.spawn).toHaveBeenCalledTimes(1);
+    expect(h.manager.getStatus("parent", workflowId).tasks.map((item) => item.status)).toEqual([
+      "running",
+      "queued",
+      "queued",
+    ]);
+
+    h.settle("run-0");
+    await flush();
+    expect(h.host.spawn).toHaveBeenCalledTimes(2);
+    expect(h.manager.getStatus("parent", workflowId).tasks.map((item) => item.status)).toEqual([
+      "completed",
+      "running",
+      "queued",
+    ]);
+
+    h.settle("run-1");
+    await flush();
+    expect(h.host.spawn).toHaveBeenCalledTimes(3);
+    h.settle("run-2");
+    await flush();
+    expect(h.manager.getStatus("parent", workflowId).status).toBe("completed");
+  });
+
+  it("restarts a queued role task when an outside role run settles", async () => {
+    const h = harness(2);
+    h.setOutsideRoleRunningCount("builder", 1);
+    const { workflowId } = h.manager.start("parent", [roleTask("a")]);
+    await flush();
+    expect(h.host.spawn).not.toHaveBeenCalled();
+    expect(h.manager.getStatus("parent", workflowId).tasks[0]?.status).toBe("queued");
+
+    h.setOutsideRoleRunningCount("builder", 0);
+    await flush();
+    expect(h.host.spawn).toHaveBeenCalledOnce();
+    expect(h.manager.getStatus("parent", workflowId).tasks[0]?.status).toBe("running");
+  });
+
+  it("keeps non-crew workflow scheduling unaffected by role saturation", async () => {
+    const h = harness(2);
+    h.setOutsideRoleRunningCount("builder", 2);
+    const { workflowId } = h.manager.start("parent", [task("a")]);
+    await flush();
+    expect(h.host.spawn).toHaveBeenCalledOnce();
+    expect(h.manager.getStatus("parent", workflowId).tasks[0]?.status).toBe("running");
+  });
+
   it("keeps a workflow wait open past four minutes and returns at completion", async () => {
     vi.useFakeTimers();
     try {

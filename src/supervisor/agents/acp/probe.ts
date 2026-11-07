@@ -9,12 +9,12 @@
  */
 
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { Readable, Writable } from "node:stream";
 import {
   ClientSideConnection,
   ndJsonStream,
   PROTOCOL_VERSION,
-  RequestError,
   type Client,
   type AuthMethod,
   type AuthMethodAgent,
@@ -29,6 +29,7 @@ import type {
 } from "@/shared/contracts";
 import { canonicalizeEffortId, sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { ChildProcessLifetime } from "@/shared/childProcessLifetime";
 import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { projectModelConfigGroups } from "./modelConfigGroups";
 import {
@@ -42,6 +43,7 @@ import {
   isThinkingToggleConfig,
   resolveThoughtLevelToggleValues,
 } from "./thoughtLevel";
+import { isAcpAuthRequiredError } from "./sessionErrors";
 import { filterAcpStdoutNonJsonLines } from "./sessionStreamFilter";
 import {
   readUnstableInitializeModels,
@@ -50,24 +52,26 @@ import {
   type UnstableSessionModelState,
 } from "./unstableModelCompat";
 
-const ACP_AUTH_REQUIRED_ERROR = RequestError.authRequired();
+const authenticationOwnership = new AsyncLocalStorage<{
+  signal: AbortSignal;
+  onProcess: (process: ChildProcessLifetime) => void;
+  active: boolean;
+}>();
 
-function isAcpAuthRequiredError(error: unknown): boolean {
-  if (error instanceof RequestError) {
-    return (
-      error.code === ACP_AUTH_REQUIRED_ERROR.code &&
-      error.message.startsWith(ACP_AUTH_REQUIRED_ERROR.message)
-    );
-  }
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const candidate = error as { code: unknown; message?: unknown };
-    return (
-      candidate.code === ACP_AUTH_REQUIRED_ERROR.code &&
-      typeof candidate.message === "string" &&
-      candidate.message.startsWith(ACP_AUTH_REQUIRED_ERROR.message)
-    );
-  }
-  return false;
+/** Include post-login ACP verification probes in the same process custody. */
+export function withAcpAuthenticationOwnership<T>(
+  control: { signal: AbortSignal; onProcess: (process: ChildProcessLifetime) => void },
+  operation: () => Promise<T>,
+): Promise<T> {
+  const scope = { ...control, active: true };
+  return authenticationOwnership.run(scope, async () => {
+    try {
+      return await operation();
+    } finally {
+      // Detached status refreshes after this operation use ordinary probe ownership.
+      scope.active = false;
+    }
+  });
 }
 
 // ── Types ────────────────────────────────────────────────────────
@@ -567,10 +571,17 @@ export async function probeAcpCapabilities(
     onFailureDetail?: (reason: string) => void;
   },
 ): Promise<AcpProbeResult | undefined> {
+  const scope = authenticationOwnership.getStore();
+  const ownership = scope?.active ? scope : undefined;
+  const signal =
+    ownership && options?.signal
+      ? AbortSignal.any([ownership.signal, options.signal])
+      : (ownership?.signal ?? options?.signal);
   const timeoutMs = options?.timeoutMs ?? 15_000;
   const deadline = Date.now() + timeoutMs;
   const tag = options?.label ? `[acp-probe:${options.label}]` : "[acp-probe]";
   let child: ReturnType<typeof spawn> | undefined;
+  let lifetime: ChildProcessLifetime | undefined;
   let abortProbe: (() => void) | undefined;
   let connection: ClientSideConnection | undefined;
   let probeSessionId: string | undefined;
@@ -579,7 +590,7 @@ export async function probeAcpCapabilities(
   const ownedProcessGroup = process.platform !== "win32";
   const probeResult: AcpProbeResult = {};
 
-  if (options?.signal?.aborted) return undefined;
+  if (signal?.aborted) return undefined;
 
   try {
     const configOptionsWaiters: ConfigOptionsWaiter[] = [];
@@ -601,6 +612,10 @@ export async function probeAcpCapabilities(
       windowsHide: true,
       detached: ownedProcessGroup,
     });
+    if (ownership) {
+      lifetime = new ChildProcessLifetime(child);
+      ownership.onProcess(lifetime);
+    }
 
     let childExited = false;
     const childClosed = new Promise<void>((resolve) => {
@@ -620,8 +635,8 @@ export async function probeAcpCapabilities(
       probeWasAborted = true;
       resolveProbeAborted?.();
     };
-    options?.signal?.addEventListener("abort", abortProbe, { once: true });
-    if (options?.signal?.aborted) abortProbe();
+    signal?.addEventListener("abort", abortProbe, { once: true });
+    if (signal?.aborted) abortProbe();
     const remainingBudgetMs = () => Math.max(0, deadline - Date.now() - cleanupReserveMs);
     const waitForProbeWindow = async (maxMs: number): Promise<void> => {
       const waitMs = Math.min(maxMs, remainingBudgetMs());
@@ -994,8 +1009,8 @@ export async function probeAcpCapabilities(
     options?.onFailureDetail?.(error instanceof Error ? error.message : String(error));
     return undefined;
   } finally {
-    if (abortProbe) options?.signal?.removeEventListener("abort", abortProbe);
-    const cleanupBudgetMs = Math.max(0, deadline - Date.now());
+    if (abortProbe) signal?.removeEventListener("abort", abortProbe);
+    const cleanupBudgetMs = ownership && signal?.aborted ? 0 : Math.max(0, deadline - Date.now());
     if (
       connection &&
       probeSessionId &&
@@ -1040,6 +1055,7 @@ export async function probeAcpCapabilities(
       }
       terminateChildProcessTree(child, { ownedProcessGroup });
     }
+    if (lifetime) await lifetime.stop();
   }
 }
 
@@ -1052,13 +1068,21 @@ export async function authenticateAcpAgent(
     env?: Record<string, string>;
     label?: string;
     timeoutMs?: number;
+    signal?: AbortSignal;
+    onProcess?: (process: ChildProcessLifetime) => void;
   },
 ): Promise<void> {
   const tag = `[acp-auth:${options?.label ?? command}]`;
   const timeoutMs = options?.timeoutMs ?? 10 * 60_000;
   let child: ChildProcessWithoutNullStreams | undefined;
+  let lifetime: ChildProcessLifetime | undefined;
+  let authentication: Promise<void> | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let abort: (() => void) | undefined;
+  const ownedProcessGroup = process.platform !== "win32";
 
   try {
+    options?.signal?.throwIfAborted();
     // Mock-QA enforcement: sign-in executes the real provider CLI's auth flow
     // and mutates real credentials — mock sessions refuse it outright.
     assertAgentLaunchAllowed("session-auth");
@@ -1068,7 +1092,10 @@ export async function authenticateAcpAgent(
       env: { ...process.env, TERM: "xterm-256color", ...(options?.env ?? {}) },
       shell: false,
       windowsHide: true,
+      detached: ownedProcessGroup,
     });
+    lifetime = new ChildProcessLifetime(child);
+    options?.onProcess?.(lifetime);
 
     const spawnReady = new Promise<void>((resolve, reject) => {
       child?.on("error", (err) => reject(new Error(`ACP agent failed to start: ${err.message}`)));
@@ -1079,47 +1106,61 @@ export async function authenticateAcpAgent(
       console.log("%s stderr: %s", tag, String(chunk).trimEnd());
     });
 
+    authentication = (async () => {
+      await spawnReady;
+      const toAgent = Writable.toWeb(child!.stdin) as WritableStream<Uint8Array>;
+      const fromAgent = Readable.toWeb(child!.stdout) as ReadableStream<Uint8Array>;
+      const connection = new ClientSideConnection(
+        (_agent): Client => ({
+          requestPermission() {
+            throw new Error("ACP auth did not request permission support.");
+          },
+          sessionUpdate() {
+            return Promise.resolve();
+          },
+          extNotification() {
+            return Promise.resolve();
+          },
+        }),
+        ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
+      );
+      const initResult = await connection.initialize({
+        protocolVersion: PROTOCOL_VERSION,
+        clientInfo: { name: "poracode-auth", version: "0.1.0" },
+      });
+      if (!initResult.authMethods?.some((method) => method.id === methodId)) {
+        throw new Error(`ACP auth method not found: ${methodId}`);
+      }
+      console.log("%s authenticating with method: %s", tag, methodId);
+      await connection.authenticate({ methodId });
+    })();
+    const cancelled = new Promise<never>((_, reject) => {
+      abort = () => reject(options?.signal?.reason ?? new Error("Provider login cancelled."));
+      options?.signal?.addEventListener("abort", abort, { once: true });
+      if (options?.signal?.aborted) abort();
+    });
     await Promise.race([
-      (async () => {
-        await spawnReady;
-        const toAgent = Writable.toWeb(child!.stdin) as WritableStream<Uint8Array>;
-        const fromAgent = Readable.toWeb(child!.stdout) as ReadableStream<Uint8Array>;
-        const connection = new ClientSideConnection(
-          (_agent): Client => ({
-            requestPermission() {
-              throw new Error("ACP auth did not request permission support.");
-            },
-            sessionUpdate() {
-              return Promise.resolve();
-            },
-            extNotification() {
-              return Promise.resolve();
-            },
-          }),
-          ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
-        );
-        const initResult = await connection.initialize({
-          protocolVersion: PROTOCOL_VERSION,
-          clientInfo: { name: "poracode-auth", version: "0.1.0" },
-        });
-        if (!initResult.authMethods?.some((method) => method.id === methodId)) {
-          throw new Error(`ACP auth method not found: ${methodId}`);
-        }
-        console.log("%s authenticating with method: %s", tag, methodId);
-        await connection.authenticate({ methodId });
-      })(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("ACP auth timed out")), timeoutMs),
+      authentication,
+      cancelled,
+      new Promise<never>(
+        (_, reject) =>
+          (timer = setTimeout(() => reject(new Error("ACP auth timed out")), timeoutMs)),
       ),
     ]);
+    options?.signal?.throwIfAborted();
   } finally {
-    if (child && !child.killed) {
+    clearTimeout(timer);
+    if (abort) options?.signal?.removeEventListener("abort", abort);
+    if (child && lifetime) {
       try {
         child.stdin?.destroy();
       } catch {
         /* ignore */
       }
-      terminateChildProcessTree(child);
+      if (child.exitCode === null && child.signalCode === null)
+        terminateChildProcessTree(child, { ownedProcessGroup });
+      await lifetime.stop();
+      await authentication?.catch(() => undefined);
     }
   }
 }

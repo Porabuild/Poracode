@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import type { DragSourceData } from "@/renderer/dnd";
 import { resolveThreadReorder } from "@/renderer/hooks/useDndHandlers";
+import { dispatchHostThreadReorder } from "@/renderer/state/hostCatalogReorder";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { removeRemoteAppRows, syncRemoteAppRows } from "@/renderer/state/remoteServers/appRows";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import {
   buildSidebarProjectRows,
-  canReorderInFlatList,
   FLAT_THREAD_LIST_ID,
   type SidebarRow,
 } from "./sidebarProjectRows";
@@ -58,7 +58,6 @@ function flatRows(): ThreadRow[] {
     sortMode: "manual",
     collapsedWorktrees: {},
     visibleLimit: 20,
-    canReorderThread: canReorderInFlatList,
   }).filter((row): row is ThreadRow => row.kind === "thread");
 }
 
@@ -78,7 +77,10 @@ function dragData(threadId: string): Extract<DragSourceData, { type: "thread" }>
   };
 }
 
-/** Drags one row onto another and applies the result the way `useDndHandlers` does. */
+/**
+ * Drags one row onto another and applies the result the way `useDndHandlers`
+ * does: the host-resolved dispatch owns the optimistic paint.
+ */
 function drop(sourceId: string, targetId: string): boolean {
   const source = dragData(sourceId);
   const target = dragData(targetId);
@@ -90,10 +92,20 @@ function drop(sourceId: string, targetId: string): boolean {
     finalIndex: target.sortIndex ?? 0,
   });
   if (!reorder) return false;
-  useAppStore
-    .getState()
-    .reorderThreadsAcrossProjects(sourceId, reorder.targetId, reorder.placement);
-  return true;
+  let painted = false;
+  dispatchHostThreadReorder({
+    threadId: sourceId,
+    targetThreadId: reorder.targetId,
+    placement: reorder.placement,
+    scope: "catalog",
+    paint: () => {
+      painted = true;
+      useAppStore
+        .getState()
+        .reorderThreadsAcrossProjects(sourceId, reorder.targetId, reorder.placement);
+    },
+  });
+  return painted;
 }
 
 describe("flat Manual order with remote mirrors", () => {
@@ -112,16 +124,17 @@ describe("flat Manual order with remote mirrors", () => {
     syncRemoteAppRows("d1", hostProjects, hostThreads);
   });
 
-  it("locks remote rows so their placement can't be changed and then lost", () => {
+  it("leaves remote rows draggable, but never across hosts", () => {
     expect(flatRows().map((row) => [row.thread.id, row.sortDisabled === true])).toEqual([
       ["a1", false],
       ["b1", false],
-      [r1, true],
-      [r2, true],
+      [r1, false],
+      [r2, false],
     ]);
 
+    // Each host orders its own threads; a drop onto another host's row is
+    // refused without any local paint that the next snapshot would undo.
     expect(drop(r2, "a1")).toBe(false);
-    expect(drop("a1", r1)).toBe(false);
     expect(flatOrder()).toEqual(["a1", "b1", r1, r2]);
   });
 

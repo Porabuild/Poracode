@@ -1,4 +1,7 @@
 import { isImagePath, toLocalFileUrl } from "./promptContent";
+import { isAbsoluteFsPath } from "./pathUtils";
+import { chatVideoFilePath, isChatVideoSource, isVideoPath } from "./chatVideo";
+import { chatFileLocalPath, isChatDownloadPath, isChatFileSource } from "./chatFile";
 
 export interface MarkdownLocalImageOptions {
   /** Project / worktree filesystem root for project-relative image paths. */
@@ -20,6 +23,7 @@ export function rewriteMarkdownLocalImageUrls(
   text: string,
   options?: MarkdownLocalImageOptions,
 ): string {
+  text = rewriteMarkdownLocalResourceUrls(text, options);
   if (!text.includes("![")) return text;
   // Only complete `![…](…)` forms — incomplete streaming tails stay untouched.
   return text.replace(
@@ -27,10 +31,77 @@ export function rewriteMarkdownLocalImageUrls(
     (full, alt: string, angleUrl: string | undefined, bareUrl: string | undefined) => {
       const rawUrl = (angleUrl ?? bareUrl ?? "").trim();
       if (!rawUrl) return full;
+      // Videos already passed through code-aware rewriting above.
+      if (isVideoPath(rawUrl)) return full;
       const rewritten = resolveMarkdownImageUrl(rawUrl, options);
       if (!rewritten) return full;
       // Angle brackets keep the URL opaque to markdown's backslash escapes.
       return `![${alt}](<${rewritten}>)`;
+    },
+  );
+}
+
+/**
+ * Preserve Windows video and downloadable-artifact destinations before
+ * CommonMark consumes backslashes, rewriting them to opaque canonical local
+ * URLs. Eligible plain `[…](…)` artifact links become chat file cards;
+ * images (`![…](…)`) keep their existing image/video handling, and fenced or
+ * indented code is skipped.
+ */
+export function rewriteMarkdownLocalResourceUrls(
+  text: string,
+  options?: MarkdownLocalImageOptions,
+): string {
+  if (!text.includes("](")) return text;
+  let fence: { marker: string; length: number } | undefined;
+  let prose = "";
+  let result = "";
+  for (const line of text.match(/[^\n]*(?:\n|$)/g) ?? []) {
+    const match = /^ {0,3}(`{3,}|~{3,})(.*?)(?:\r?\n)?$/.exec(line);
+    if (fence) {
+      result += line;
+      if (
+        match &&
+        match[1]![0] === fence.marker &&
+        match[1]!.length >= fence.length &&
+        !match[2]!.trim()
+      )
+        fence = undefined;
+    } else if (match && !(match[1]![0] === "`" && match[2]!.includes("`"))) {
+      result += rewriteLocalResourceProse(prose, options) + line;
+      prose = "";
+      fence = { marker: match[1]![0]!, length: match[1]!.length };
+    } else if (/^(?: {4}|\t)/u.test(line)) {
+      result += rewriteLocalResourceProse(prose, options) + line;
+      prose = "";
+    } else {
+      prose += line;
+    }
+  }
+  return result + rewriteLocalResourceProse(prose, options);
+}
+
+function rewriteLocalResourceProse(text: string, options?: MarkdownLocalImageOptions): string {
+  return text.replace(
+    /(`+)[\s\S]*?(?<!`)\1(?!`)|(!?\[[^\]]*\])\((?:<([^>\n]+)>|([^)\n]+))\)/g,
+    (
+      full,
+      code: string | undefined,
+      label: string | undefined,
+      angleUrl: string | undefined,
+      bareUrl: string | undefined,
+    ) => {
+      if (code || !label) return full;
+      const url = (angleUrl ?? bareUrl ?? "").trim();
+      if (isChatVideoSource(url)) {
+        const path = chatVideoFilePath(url);
+        const rewritten = path ? resolveMarkdownImageUrl(path, options) : null;
+        return rewritten ? `${label}(<${rewritten}>)` : full;
+      }
+      // Downloadable artifact links only; image labels keep the image pipeline.
+      if (label.startsWith("!")) return full;
+      const rewritten = resolveMarkdownFileUrl(url, options);
+      return rewritten ? `${label}(<${rewritten}>)` : full;
     },
   );
 }
@@ -57,13 +128,51 @@ export function resolveMarkdownImageUrl(
   }
 
   // Windows drive, UNC (`\\` / `//`), or POSIX absolute.
-  if (/^[A-Za-z]:[\\/]/.test(trimmed) || trimmed.startsWith("\\\\") || trimmed.startsWith("/")) {
+  if (isAbsoluteFsPath(trimmed)) {
     return toLocalFileUrl(trimmed);
   }
 
-  if (!isImagePath(trimmed) || trimmed.includes("://")) return null;
+  if ((!isImagePath(trimmed) && !isVideoPath(trimmed)) || trimmed.includes("://")) return null;
 
   const absolute = resolveRelativeImagePath(trimmed, options);
+  return absolute ? toLocalFileUrl(absolute) : null;
+}
+
+/**
+ * Map a plain markdown link destination to a canonical local URL for a
+ * download card, or null when it is not a safe local artifact reference.
+ * Already-canonical `poracode-local://` hrefs are left unchanged; `file://`
+ * is re-canonicalized. Remote URLs and non-artifact extensions stay on the
+ * external-link / path-chip routes.
+ */
+export function resolveMarkdownFileUrl(
+  url: string,
+  options?: MarkdownLocalImageOptions,
+): string | null {
+  const trimmed = url.trim();
+  if (!trimmed || !isChatFileSource(trimmed)) return null;
+  let path = chatFileLocalPath(trimmed);
+  if (!path) return null;
+  if (/^poracode-local:\/\//iu.test(trimmed)) return null;
+  // Markdown link destinations are URLs: decode valid percent encoding once.
+  // Typed canonical file paths never pass through here, so literal `%` in
+  // on-disk names stays untouched outside this URL context.
+  if (!/^file:\/\//iu.test(trimmed)) {
+    try {
+      path = decodeURIComponent(path);
+    } catch {
+      return null;
+    }
+  }
+  if (!isChatDownloadPath(path)) return null;
+  if (/^file:\/\//iu.test(trimmed)) return toLocalFileUrl(path);
+
+  // Windows drive, UNC (`\\` / `//`), or POSIX absolute.
+  if (isAbsoluteFsPath(path)) {
+    return toLocalFileUrl(path);
+  }
+
+  const absolute = resolveRelativeImagePath(path, options);
   return absolute ? toLocalFileUrl(absolute) : null;
 }
 

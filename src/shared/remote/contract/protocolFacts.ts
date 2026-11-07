@@ -88,6 +88,7 @@ export const REMOTE_REPLAYABLE_EVENT_TYPES: readonly string[] = [
   "agent-status-updated",
   "windows-agent-statuses",
   "wsl-agent-statuses",
+  "remote-forge-activity",
   "remote-git-summaries",
   "remote-git-state",
   "remote-projects-changed",
@@ -101,6 +102,7 @@ export const REMOTE_REPLAYABLE_EVENT_TYPES: readonly string[] = [
  * the generator asserts the subset invariant.
  */
 export const REMOTE_OUT_OF_BAND_WS_MESSAGES: readonly string[] = [
+  "agent-vision-frame",
   "browser-state",
   "browser-frame",
   "browser-mirror-status",

@@ -5,8 +5,15 @@ import type { Project, ProjectLocation } from "./contracts";
 export const HOME_PROJECT_ID = "__lightcode_home__";
 export const HOME_PROJECT_NAME = "Home";
 
+// Browser clients mirror the host's Home under the projected row id
+// `remote:<server>:project:<id>` (renderer `remoteProjectId`); that row is Home too.
+const MIRRORED_HOME_PROJECT_ID_SUFFIX = `:project:${HOME_PROJECT_ID}`;
+
 export function isHomeProjectId(projectId: string | undefined): boolean {
-  return projectId === HOME_PROJECT_ID;
+  if (projectId === HOME_PROJECT_ID) return true;
+  return (
+    projectId?.startsWith("remote:") === true && projectId.endsWith(MIRRORED_HOME_PROJECT_ID_SUFFIX)
+  );
 }
 
 export function isHomeProject(project: Pick<Project, "id" | "remoteId"> | undefined): boolean {

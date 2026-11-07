@@ -1,4 +1,5 @@
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
+import type { ProjectSettingsSection } from "./projectSettings/sections";
 import { create } from "zustand";
 import type { ThreadDockKind } from "@/shared/settings";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -131,7 +132,10 @@ interface PanelState {
   gitReviewContext: GitReviewContext | null;
   gitReviewAsPanel: boolean;
   gitOverlayOpen: boolean;
+  /** The selected review inside the pull-request overlay; null shows the list only. */
   prReviewContext: PrReviewContext | null;
+  /** The pull-request overlay is open on its list even without a selected review. */
+  pullRequestsOverlayOpen: boolean;
   githubActionsContext: GitHubActionsContext | null;
   filesPanelContext: FilesPanelContext | null;
   subAgentPanelContext: SubAgentPanelContext | null;
@@ -163,9 +167,7 @@ interface PanelState {
   sideChatPanelOpen: boolean;
   /**
    * Session-scoped: whether the focused thread's Docks tab (goal, plan, agents,
-   * background tasks, or images in the right panel) is showing. Informational
-   * docks require `threadDocksPlacement` to be "right"; images can explicitly
-   * open it in either mode. Closing it leaves the placement mode alone.
+   * background tasks, or images in the right panel) is showing.
    */
   threadDocksPanelOpen: boolean;
   /** Keep a returned Thread Info page available if its last task has finished. */
@@ -183,6 +185,8 @@ interface PanelState {
   /** Optional setting row to scroll to after opening a deep-linked section. */
   settingsAnchor: string | null;
   projectSettingsId: string | null;
+  /** Section the project settings view opens on (e.g. "mcp"); null = its default page. */
+  projectSettingsSection: ProjectSettingsSection | null;
   threadSortMode: ThreadSortMode;
   threadListLayout: ThreadListLayout;
   /** Whether the "Start from scratch" create-project modal is open. */
@@ -197,6 +201,10 @@ interface PanelState {
   setGitReviewAsPanel: (v: boolean) => void;
   setGitOverlayOpen: (v: boolean) => void;
   setPrReviewContext: (ctx: PrReviewContext | null) => void;
+  /** Opens the pull-request overlay on its list, keeping any selected review. */
+  openPullRequestsOverlay: () => void;
+  /** Closes the overlay and clears its selection. */
+  closePullRequestsOverlay: () => void;
   setGitHubActionsContext: (ctx: GitHubActionsContext | null) => void;
   setFilesPanelContext: (ctx: FilesPanelContext | null) => void;
   setSubAgentPanelContext: (ctx: SubAgentPanelContext | null) => void;
@@ -230,7 +238,7 @@ interface PanelState {
   clearSettingsSection: () => void;
   setActiveSettingsSection: (section: string) => void;
   closeSettings: () => void;
-  openProjectSettings: (projectId: string) => void;
+  openProjectSettings: (projectId: string, section?: ProjectSettingsSection) => void;
   closeProjectSettings: () => void;
   openCreateProjectModal: () => void;
   closeCreateProjectModal: () => void;
@@ -341,6 +349,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   gitReviewAsPanel: false,
   gitOverlayOpen: false,
   prReviewContext: null,
+  pullRequestsOverlayOpen: false,
   githubActionsContext: null,
   filesPanelContext: null,
   subAgentPanelContext: null,
@@ -372,6 +381,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   activeSettingsSection: null,
   settingsAnchor: null,
   projectSettingsId: null,
+  projectSettingsSection: null,
   threadSortMode: sanitizeThreadSortMode(initialPersisted?.threadSortMode),
   threadListLayout: sanitizeThreadListLayout(initialPersisted?.threadListLayout),
   createProjectModalOpen: false,
@@ -416,6 +426,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
       }
       return { prReviewContext: ctx };
     }),
+  openPullRequestsOverlay: () =>
+    set((state) => (state.pullRequestsOverlayOpen ? {} : { pullRequestsOverlayOpen: true })),
+  closePullRequestsOverlay: () =>
+    set((state) =>
+      !state.pullRequestsOverlayOpen && state.prReviewContext === null
+        ? {}
+        : { pullRequestsOverlayOpen: false, prReviewContext: null },
+    ),
   setGitHubActionsContext: (ctx) =>
     set((state) => {
       const prev = state.githubActionsContext;
@@ -714,23 +732,27 @@ export const usePanelStore = create<PanelState>()((set) => ({
       ...(state.settingsOpen ? { settingsOpen: false } : {}),
       ...(state.mobileUtilityPage === "settings" ? { mobileUtilityPage: null } : {}),
     })),
-  openProjectSettings: (projectId) =>
+  openProjectSettings: (projectId, section) =>
     set((state) => {
       const compactLayout = isCompactLayoutViewport();
+      const projectSettingsSection = section ?? null;
       if (
         state.projectSettingsId === projectId &&
+        state.projectSettingsSection === projectSettingsSection &&
         (!compactLayout || state.mobileUtilityPage === "projectSettings")
       ) {
         return {};
       }
       return {
         projectSettingsId: projectId,
+        projectSettingsSection,
         ...(compactLayout ? { mobileUtilityPage: "projectSettings" as const } : {}),
       };
     }),
   closeProjectSettings: () =>
     set((state) => ({
       ...(state.projectSettingsId !== null ? { projectSettingsId: null } : {}),
+      ...(state.projectSettingsSection !== null ? { projectSettingsSection: null } : {}),
       ...(state.mobileUtilityPage === "projectSettings" ? { mobileUtilityPage: null } : {}),
     })),
   openCreateProjectModal: () =>
@@ -745,14 +767,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => ({
       ...(state.mobileUtilityPage === page ? {} : { mobileUtilityPage: page }),
       ...(page !== "projectSettings" && state.projectSettingsId !== null
-        ? { projectSettingsId: null }
+        ? { projectSettingsId: null, projectSettingsSection: null }
         : {}),
     })),
   closeMobileUtilityPage: () =>
     set((state) => ({
       ...(state.mobileUtilityPage !== null ? { mobileUtilityPage: null } : {}),
       ...(state.mobileUtilityPage === "projectSettings" && state.projectSettingsId !== null
-        ? { projectSettingsId: null }
+        ? { projectSettingsId: null, projectSettingsSection: null }
         : {}),
     })),
   closeAllPanels: () => {
@@ -837,7 +859,7 @@ export function selectAnyObstructingOverlayOpen(): boolean {
     p.settingsOpen ||
     p.projectSettingsId !== null ||
     p.gitOverlayOpen ||
-    p.prReviewContext !== null ||
+    selectPullRequestsOverlayVisible(p) ||
     p.githubActionsContext !== null ||
     useCommandPaletteStore.getState().isOpen
   ) {
@@ -869,4 +891,11 @@ export function useFilesPanelWorktreePath(): string | undefined {
 }
 export function useRightPanelTab(): RightPanelTab {
   return usePanelStore((s) => s.rightPanelTab);
+}
+
+/** The pull-request overlay shows its list, a selected review, or both. */
+export function selectPullRequestsOverlayVisible(
+  state: Pick<PanelState, "pullRequestsOverlayOpen" | "prReviewContext">,
+): boolean {
+  return state.pullRequestsOverlayOpen || state.prReviewContext !== null;
 }

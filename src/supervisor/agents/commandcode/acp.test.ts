@@ -1,3 +1,4 @@
+import { RequestError } from "@agentclientprotocol/sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { AcpStructuredSession } from "../acp/session";
@@ -9,10 +10,11 @@ import {
   buildCommandCodeAcpCommand,
   commandCodeSupportsAcp,
   resolveCommandCodeAcpMode,
+  resolveCommandCodePromptErrorReason,
 } from "./acp";
 import { buildCommandCodeArgs } from "./argv";
 import { normalizeCommandCodePermissionRequest } from "./acpRequests";
-import { normalizeCommandCodeSessionUpdate } from "./acpUpdates";
+import { CommandCodeSubagentSteps, normalizeCommandCodeSessionUpdate } from "./acpUpdates";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -134,8 +136,11 @@ describe("Command Code native ACP", () => {
 
   it("creates the shared GUI session with the native mode resolver and updater suppression", async () => {
     vi.spyOn(binaryResolver, "resolveAgentBinaryPath").mockReturnValue(process.execPath);
+    const attachExternalSessionUpdateSource =
+      vi.fn<AcpStructuredSession["attachExternalSessionUpdateSource"]>();
     const fake = {
       sessionId: "native-session",
+      attachExternalSessionUpdateSource,
     } as unknown as AcpStructuredSession;
     const created = vi.spyOn(AcpStructuredSession, "create").mockReturnValue(fake);
     const adapter = createCommandCodeAdapter();
@@ -159,11 +164,45 @@ describe("Command Code native ACP", () => {
     expect(created.mock.calls[0]?.[3]).toMatchObject({
       resolveMode: resolveCommandCodeAcpMode,
       permissionRequestTransform: normalizeCommandCodePermissionRequest,
+      promptErrorReason: resolveCommandCodePromptErrorReason,
       sessionUpdateTransform: normalizeCommandCodeSessionUpdate,
       behavior: { promptUsageReportsContext: false, strictConfigSelection: true },
       fsTextCapability: false,
       terminalCapability: false,
       mcpServers: [],
     });
+    expect(attachExternalSessionUpdateSource).toHaveBeenCalledExactlyOnceWith(
+      expect.any(CommandCodeSubagentSteps),
+    );
+  });
+});
+
+describe("Command Code sign-in failures", () => {
+  // Captured from command-code 1.82.4 `acp` with a rejected stored key.
+  const rejectedKey = new RequestError(
+    -32603,
+    "POST /alpha/generate → 401 error: Invalid 'Authorization' header or token.",
+    { status: 401 },
+  );
+
+  it("maps a 401 prompt rejection to auth_required from its structured status", () => {
+    expect(resolveCommandCodePromptErrorReason(rejectedKey)).toBe("auth_required");
+    expect(
+      resolveCommandCodePromptErrorReason(JSON.parse(JSON.stringify(rejectedKey)) as unknown),
+    ).toBe("auth_required");
+  });
+
+  it.each<[string, unknown]>([
+    [
+      "insufficient credits",
+      new RequestError(-32603, "POST /alpha/generate → 400", { status: 400 }),
+    ],
+    ["server errors", new RequestError(-32603, "POST /alpha/generate → 500", { status: 500 })],
+    ["a string status", new RequestError(-32603, "401", { status: "401" })],
+    ["no data", new RequestError(-32603, "Invalid 'Authorization' header or token.")],
+    ["a plain error", new Error("401 Invalid 'Authorization' header or token.")],
+    ["a non-object", "401"],
+  ])("leaves %s without a reason", (_label, error) => {
+    expect(resolveCommandCodePromptErrorReason(error)).toBeUndefined();
   });
 });

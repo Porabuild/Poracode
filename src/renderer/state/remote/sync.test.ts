@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionConfigOptions } from "@/shared/contracts/sessionConfigOptions";
 import type { SessionRef, Thread, ThreadFollowUpQueueState } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
+import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import { useAppStore } from "@/renderer/state/appStore";
 import type {
   OpenRuntimeRequest,
@@ -12,6 +13,7 @@ import {
   useThreadFollowUpQueueStore,
 } from "@/renderer/state/threadFollowUpQueueStore";
 import { projectRemoteThreadSnapshot } from "../remoteProjection";
+import { recordPendingThreadConfig } from "../pendingThreadConfig";
 import {
   applyThreadSnapshot,
   clearPendingRuntimeEvents,
@@ -238,6 +240,76 @@ describe("remote thread stale-snapshot arbitration", () => {
     expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([
       expect.objectContaining({ requestId: "req-1", threadId: thread.id }),
     ]);
+  });
+});
+
+describe("host history metadata identity", () => {
+  it.each([undefined, "desktop-1"])(
+    "keeps sidebar subscribers stable on unchanged history from %s",
+    (remoteServerId) => {
+      const base = snapshot(undefined, { ...(remoteServerId ? { remoteServerId } : {}) });
+      const initial = {
+        ...base,
+        thread: { ...base.thread, ...(remoteServerId ? { remoteId: "host-thread-1" } : {}) },
+      };
+      useAppStore.setState({ threads: [initial.thread], pendingThreadConfigByThreadId: {} });
+      const threads = useAppStore.getState().threads;
+      let listChanges = 0;
+      const unsubscribe = useAppStore.subscribe((state, previous) => {
+        if (state.threads !== previous.threads) listChanges++;
+      });
+      try {
+        for (let index = 0; index < 5; index++) {
+          applyThreadSnapshot(structuredClone(initial), {
+            fromServer: true,
+            preserveRuntimeHistory: true,
+          });
+        }
+        expect(useAppStore.getState().threads).toBe(threads);
+        expect(listChanges).toBe(0);
+
+        applyThreadSnapshot(
+          { ...initial, thread: { ...initial.thread, title: "Updated on host" } },
+          { fromServer: true, preserveRuntimeHistory: true },
+        );
+        expect(useAppStore.getState().threads[0]?.title).toBe("Updated on host");
+        expect(listChanges).toBe(1);
+      } finally {
+        unsubscribe();
+      }
+    },
+  );
+
+  it("retires unsupported pending config even when the host row is unchanged", () => {
+    const current: Thread = {
+      ...thread,
+      presentationMode: "gui",
+      sessionConfigOptions: [
+        {
+          id: "model",
+          type: "select",
+          role: "model",
+          currentValue: "default",
+          values: [{ value: "default" }],
+          groups: [],
+        },
+      ],
+    };
+    const pending = recordPendingThreadConfig(current, { ...current.config, effort: "high" });
+    expect(pending).toBeDefined();
+    useAppStore.setState({
+      threads: [current],
+      pendingThreadConfigByThreadId: { [current.id]: pending! },
+    });
+    const threads = useAppStore.getState().threads;
+
+    applyThreadSnapshot(
+      { ...snapshot(), thread: structuredClone(current) },
+      { fromServer: true, preserveRuntimeHistory: true },
+    );
+
+    expect(useAppStore.getState().threads).toBe(threads);
+    expect(useAppStore.getState().pendingThreadConfigByThreadId).toEqual({});
   });
 });
 
@@ -558,5 +630,32 @@ describe("remote thread snapshot inventory replacement", () => {
       thread: snapshotThread({ status: "inactive" }),
     });
     expect(residentInventory()).toBeUndefined();
+  });
+});
+
+describe("remote forge activity events", () => {
+  it("forwards a parsed forge-activity event to the hook exactly once", () => {
+    const onForgeActivity = vi.fn<(event: RemoteForgeActivityEvent) => void>();
+    dispatchRemoteSupervisorEvent(
+      { type: "remote-forge-activity", projectId: "p", threadId: "t", action: "create" },
+      { onForgeActivity },
+    );
+
+    expect(onForgeActivity).toHaveBeenCalledExactlyOnceWith({
+      type: "remote-forge-activity",
+      projectId: "p",
+      threadId: "t",
+      action: "create",
+    });
+  });
+
+  it("ignores a malformed forge-activity event", () => {
+    const onForgeActivity = vi.fn<(event: RemoteForgeActivityEvent) => void>();
+    dispatchRemoteSupervisorEvent(
+      { type: "remote-forge-activity", threadId: "t", action: "create" },
+      { onForgeActivity },
+    );
+
+    expect(onForgeActivity).not.toHaveBeenCalled();
   });
 });

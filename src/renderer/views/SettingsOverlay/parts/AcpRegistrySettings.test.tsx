@@ -91,8 +91,10 @@ vi.mock("@/renderer/state/appStore", () => {
 });
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
-  useSharedSettings: (selector: (state: typeof settingsState) => unknown) =>
-    selector(settingsState),
+  useSharedSettings: Object.assign(
+    (selector: (state: typeof settingsState) => unknown) => selector(settingsState),
+    { getState: () => settingsState },
+  ),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -520,14 +522,17 @@ describe("AcpRegistrySettings", () => {
       within(cursorCard as HTMLElement).getByText(/SDK v1\.0\.31 \(global npm\)/u),
     ).toBeInTheDocument();
 
+    bridge.getLatestAgentVersion.mockResolvedValue({ source: "npm", version: "1.0.40" });
     fireEvent.click(within(cursorCard as HTMLElement).getByRole("button", { name: "Update SDK" }));
 
-    expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        label: "Update Cursor SDK",
-        command: expect.any(Function),
-        onCommandComplete: expect.any(Function),
-      }),
+    await waitFor(() =>
+      expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          label: "Update Cursor SDK",
+          command: expect.any(Function),
+          onCommandComplete: expect.any(Function),
+        }),
+      ),
     );
     const updateInput = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
       | { command: (project: Project) => string }
@@ -540,7 +545,7 @@ describe("AcpRegistrySettings", () => {
           location: { kind: "posix", path: "/repo" },
         }),
       ),
-    ).toContain("npm install -g '@cursor/sdk@^1.0.38'");
+    ).toContain("npm install -g '@cursor/sdk@1.0.40'");
   });
 
   it("shows externally managed SDK versions without a misleading update action", async () => {
@@ -1204,6 +1209,9 @@ describe("AcpRegistrySettings", () => {
       "curl -fsSL https://gh.io/copilot-install | bash",
     );
     expect(entries.get("copilot")?.installCommand(wslProject)).not.toContain("brew install");
+    expect(entries.get("fx")?.installCommand(wslProject)).toContain(
+      "curl -fsSL https://fx.sh/setup.sh | bash",
+    );
 
     withHostPlatform("darwin", () => {
       expect(entries.get("codex")?.installCommand(macProject)).toContain(
@@ -1219,6 +1227,9 @@ describe("AcpRegistrySettings", () => {
       expect(entries.get("qwen")?.installCommand(macProject)).toContain("brew install qwen-code");
       expect(entries.get("copilot")?.installCommand(macProject)).toContain(
         "brew install --cask copilot-cli",
+      );
+      expect(entries.get("fx")?.installCommand(macProject)).toContain(
+        "curl -fsSL https://fx.sh/setup.sh | bash",
       );
     });
 

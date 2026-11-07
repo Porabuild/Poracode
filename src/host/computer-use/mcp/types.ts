@@ -1,6 +1,11 @@
 import type {
   ComputerUseHelperCapabilities,
   ComputerUseHelperHello,
+  ComputerUseLockedUseBeginInput,
+  ComputerUseLockedUseBeginResult,
+  ComputerUseLockedUseEndInput,
+  ComputerUseLockedUseEndResult,
+  ComputerUseLockedUseStatus,
 } from "@/shared/contracts/computerUse";
 
 export interface ComputerUseWindow {
@@ -271,4 +276,12 @@ export interface ComputerUseDriver {
     verify?: ComputerUseVerification;
     window: ComputerUseWindow;
   }): Promise<ComputerUseInteractiveResult>;
+  /**
+   * Locked Computer Use (macOS, helper protocol 4). Optional: the legacy
+   * drivers have no unlock route, and a caller treats a missing method as
+   * `unavailable`. Only the host's locked-use coordinator calls these.
+   */
+  lockedUseBegin?(input: ComputerUseLockedUseBeginInput): Promise<ComputerUseLockedUseBeginResult>;
+  lockedUseEnd?(input: ComputerUseLockedUseEndInput): Promise<ComputerUseLockedUseEndResult>;
+  lockedUseStatus?(): Promise<ComputerUseLockedUseStatus>;
 }

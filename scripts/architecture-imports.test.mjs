@@ -9,6 +9,7 @@ import {
   buildInventory,
   collectBuildEntries,
   createResolver,
+  discoverSourceFiles,
   expandGlob,
   findConsumers,
   findElectronChains,
@@ -39,6 +40,18 @@ function fixtureGraph(files) {
   const root = writeFixture(tempDir(), files);
   return { root, graph: buildImportGraph({ rootDir: root, followFile: true }) };
 }
+
+void test("source discovery ignores the nested TUI vendor tree", () => {
+  const root = writeFixture(tempDir(), {
+    "src/entry.ts": "export {}",
+    "tui/opencode/packages/tui/src/app.tsx": "export {}",
+  });
+  const files = discoverSourceFiles({ rootDir: root, include: ["src", "tui"] });
+  assert.deepEqual(
+    files.map((file) => relative(root, file).replaceAll(sep, "/")),
+    ["src/entry.ts"],
+  );
+});
 
 function findEdge(graph, from, to) {
   return graph.edges.find((edge) => edge.from === from && edge.to === to);

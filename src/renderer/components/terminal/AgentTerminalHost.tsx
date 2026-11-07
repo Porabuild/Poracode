@@ -1,7 +1,6 @@
 import { useShallow } from "zustand/shallow";
 import { selectHiddenHostedAgentTerminalIds } from "@/renderer/components/terminal/hostedAgentTerminalIds";
 import { TerminalPane } from "@/renderer/components/thread/TerminalPane";
-import { useRemoteTerminalTransport } from "@/renderer/components/thread/useRemoteTerminalTransport";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThread } from "@/renderer/state/useThread";
 
@@ -27,16 +26,10 @@ export function AgentTerminalHost() {
 
 function HostedHiddenAgentTerminal(props: { threadId: string }) {
   const thread = useThread(props.threadId);
-  const remoteTransport = useRemoteTerminalTransport(props.threadId);
   if (!thread) return null;
   return (
     <div className="h-[480px] w-[800px]">
-      <TerminalPane
-        threadId={props.threadId}
-        status={thread.status}
-        hidden
-        {...(remoteTransport ? { remoteTransport } : {})}
-      />
+      <TerminalPane threadId={props.threadId} status={thread.status} hidden />
     </div>
   );
 }

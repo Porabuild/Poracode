@@ -8,6 +8,7 @@ import { IPC_WINDOW_CHANNELS, quickComposerSubmissionSchema } from "@/shared/ipc
 import { createLocalIpcHandlers } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
 import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
+import { notifyRendererStartupReady } from "./window/deferredDevTools";
 import { requestTrackedRendererReload } from "./window/windowHardening";
 import { registerSideChatWindowIpc } from "./window/sideChatWindows";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
@@ -16,13 +17,7 @@ import type { BackendHostClient } from "./backend/BackendHostClient";
 import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 import type { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
 import { updatePowerSaveBlocker } from "./desktopAppShell";
-import {
-  desktopApp,
-  isDev,
-  legacyBaseDirOverride,
-  legacyElectronUserDataDir,
-  requirePoracodePaths,
-} from "./desktopAppState";
+import { desktopApp, isDev, requirePoracodePaths } from "./desktopAppState";
 import {
   extractBrowserToWindow,
   finishQuickComposerDismiss,
@@ -51,8 +46,6 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       getBrowserPanelManager: () => desktopApp.browserPanelManager,
       sshConnectionManager: deps.ssh,
       requirePoracodePaths,
-      legacyElectronUserDataDir,
-      ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
       updatePowerSaveBlocker,
       autoUpdater: deps.autoUpdater,
       onKeybindingsChanged: (file) => deps.quickComposerShortcutManager.apply(file),
@@ -70,6 +63,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       hostOffersAutoUpdate: () => desktopApp.hostServices?.capabilities.autoUpdate === true,
       hostOffersOsNotifications: () =>
         desktopApp.hostServices?.capabilities.osNotifications === true,
+      lockedComputerUse: () => desktopApp.hostServices?.lockedComputerUse ?? null,
     }),
     callSupervisor: (name, payload) => deps.backendHost.call(name, payload),
   });
@@ -99,6 +93,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerMainReady, (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (!window || window !== desktopApp.mainWindow || window.isDestroyed()) return;
+    notifyRendererStartupReady(window.webContents);
     desktopApp.quickComposerLifecycle?.handleMainReady();
     flushTrayThreadOpen();
     flushPendingThreadCommands();

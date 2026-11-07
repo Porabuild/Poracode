@@ -1,11 +1,14 @@
 import { randomBytes } from "node:crypto";
+import { join } from "node:path";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
-import { dbGetProject, dbGetProjects, dbGetThreads } from "@/host/db";
+import { dbFindProjectByLocation, dbGetProject, dbGetProjects, dbGetThreads } from "@/host/db";
+import { resolveWorktreePlacement } from "@/shared/worktree";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { toErrorMessage } from "@/shared/errorMessage";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import {
   pickRemoteSettings,
+  remoteHostWorkspaces,
   type RemoteAccessPairingInfo,
   type RemoteGitSummaries,
 } from "@/shared/remote";
@@ -18,13 +21,23 @@ import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
+  remoteAccessPort,
   remoteForwardBaseUrl,
   resolveRemoteAccessPort,
 } from "@/host/remote/config";
 import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
+import {
+  listeningPortOf,
+  preferredRemoteAccessPort,
+  rememberRemoteAccessPort,
+} from "@/host/remote/remoteAccessPortMemory";
 import { createForwardOriginIdentity } from "@/host/remote/portForward/forwardOriginIdentity";
 import { readOrCreateForwardOriginSecret } from "@/host/remote/portForward/forwardOriginSecret";
-import { setImagePreviewGenerator } from "@/host/remote/server/imagePreview";
+import {
+  setImagePreviewGenerator,
+  setImagePreviewStoreDir,
+} from "@/host/remote/server/imagePreview";
+import { setImageCardVariantGenerator } from "@/host/remote/server/imageCardVariant";
 import {
   createPortForwarding,
   type PortForwarding,
@@ -68,6 +81,8 @@ export interface DesktopRemoteAccessStartRefs {
   pushCoordinator: PushCoordinator | null;
   mdnsAdvertiser: MdnsAdvertiser | null;
   portForwarding: PortForwarding | null;
+  /** `bindHost:port` the live `portForwarding` was built for. */
+  portForwardingBind: string | null;
   remoteTailscaleServeActiveUrl: string | null;
   remoteGitSummaries: RemoteGitSummaries;
 }
@@ -118,16 +133,22 @@ export async function performDesktopRemoteAccessStart(
     const identity = readOrCreateRemoteAccessIdentity(options.paths.baseDir);
     // The always-on instance pins the LOOPBACK bind regardless of bind-mode
     // env: a disabled desktop must never expose a wide listener just because
-    // it is running (V5 plan 2.5 completion).
-    const lanEnabled =
-      !attempt.loopbackOnly &&
-      readSharedSettingsFile(options.paths.settingsPath).remoteAccessLanEnabled;
+    // it is running (V5 plan 2.5 completion). The user-enabled instance listens
+    // on the LAN, so the single Remote Access switch is the only exposure gate.
     const remoteHost = attempt.loopbackOnly
       ? DEFAULT_REMOTE_ACCESS_HOST
-      : remoteAccessHost(
-          lanEnabled ? { defaultMode: "lan", plaintextLanAcknowledged: true } : undefined,
-        );
-    const port = await resolveRemoteAccessPort({ host: remoteHost });
+      : remoteAccessHost({ defaultMode: "lan", plaintextLanAcknowledged: true });
+    // Paired clients store the LAN listener's full endpoint, so an
+    // automatically chosen port returns to the previous one. The loopback-only
+    // instance is rediscovered by the co-located renderer and keeps the plain
+    // scan, with no wait.
+    const remembersPort = !attempt.loopbackOnly && remoteAccessPort() === undefined;
+    const port = await resolveRemoteAccessPort({
+      host: remoteHost,
+      ...(remembersPort
+        ? { preferredPort: preferredRemoteAccessPort(options.paths.baseDir, remoteHost) }
+        : {}),
+    });
     // Dedicated persistent origin secret + configured HTTPS base → the
     // browser-forward child-origin identity. A malformed explicit
     // PORACODE_REMOTE_FORWARD_BASE_URL fails startup loudly; absence only
@@ -197,12 +218,20 @@ export async function performDesktopRemoteAccessStart(
       devWebAppUrl = devUrl.toString();
     }
     const authStore = createPersistentRemoteAuthStore(options.paths.baseDir);
-    // It owns live TCP listeners, so rebuild only after a full disable/failure.
+    // It owns live TCP listeners, so rebuild it only when the bind changes
+    // (loopback <-> enabled) or after a full disable/failure.
+    const portForwardingBind = `${remoteHost}:${port}`;
+    if (refs.portForwarding && refs.portForwardingBind !== portForwardingBind) {
+      const stale = refs.portForwarding;
+      refs.portForwarding = null;
+      stale.dispose();
+    }
     refs.portForwarding ??= createPortForwarding({
       bindHost: remoteHost,
       remoteAccessPort: port,
       ...(forwardOrigin ? { forwardOrigin } : {}),
     });
+    refs.portForwardingBind = portForwardingBind;
     attempt.forwarding = refs.portForwarding;
     const pushGatewayOptions = {
       onError: (error: unknown) =>
@@ -226,8 +255,18 @@ export async function performDesktopRemoteAccessStart(
     attempt.coordinator = coordinator;
     refs.pushCoordinator = coordinator;
     setImagePreviewGenerator(options.imagePreviewGenerator ?? null);
+    // Previews persist as a derived, disposable file cache so the first
+    // thread open after a restart shows the blurred stand-in instead of an
+    // empty box. Only a composition with a generator can produce them.
+    await setImagePreviewStoreDir(
+      options.imagePreviewGenerator
+        ? join(resolvePoracodePaths(options.paths.baseDir).cacheDir, "image-previews-v1")
+        : null,
+    );
+    setImageCardVariantGenerator(options.imageCardVariantGenerator ?? null);
     const server: RemoteAccessServer = new RemoteAccessServer({
       ...(options.deviceWorkspace ? { deviceWorkspace: options.deviceWorkspace } : {}),
+      ...(options.readAgentVision ? { readAgentVision: options.readAgentVision } : {}),
       appVersion: options.appVersion,
       ...(options.environments
         ? environmentRemoteAccessOptions(options.environments, authStore, () => {
@@ -252,7 +291,7 @@ export async function performDesktopRemoteAccessStart(
       // contained by the sink (warn + drop), never the request path.
       audit: createRemoteAuditLog(options.paths.baseDir),
       host: remoteHost,
-      ...(lanEnabled ? { plaintextLanAcknowledged: true } : {}),
+      ...(attempt.loopbackOnly ? {} : { plaintextLanAcknowledged: true }),
       port,
       advertisedHost,
       ...(advertisedResolution.advertisedBaseUrl
@@ -273,10 +312,16 @@ export async function performDesktopRemoteAccessStart(
       ...(options.revertCheckpoint ? { revertCheckpoint: options.revertCheckpoint } : {}),
       ...(options.experimentAuthority ? { experimentAuthority: options.experimentAuthority } : {}),
       dispatchThreadCommand: options.dispatchThreadCommand,
-      resolveMcpLaunchSnapshot: (projectId) => {
+      resolveMcpLaunchSnapshot: (projectId, overrides) => {
         const settings = readSharedSettingsFile(options.paths.settingsPath);
-        return resolveMcpLaunchSnapshot(settings, dbGetProject(projectId)?.mcpServers ?? []);
+        return resolveMcpLaunchSnapshot(settings, dbGetProject(projectId), overrides);
       },
+      resolveWorktreePlacement: (location) =>
+        resolveWorktreePlacement(
+          readSharedSettingsFile(options.paths.settingsPath),
+          dbFindProjectByLocation(location)?.worktreeLocation,
+          location,
+        ),
       ...(options.browser
         ? { browser: options.browser }
         : options.getBrowserPanelManager
@@ -294,8 +339,11 @@ export async function performDesktopRemoteAccessStart(
         : {}),
       gitSummaries: () => refs.remoteGitSummaries,
       gitState: options.gitStateService,
+      ...(options.projectWatchLeases ? { projectWatches: options.projectWatchLeases } : {}),
       settings: {
         read: () => pickRemoteSettings(readSharedSettingsFile(options.paths.settingsPath)),
+        readWorkspaces: () =>
+          remoteHostWorkspaces(readSharedSettingsFile(options.paths.settingsPath)),
         // Remote `POST /api/settings` as scoped CAS edits; a surviving
         // conflict rejects the route instead of last-writer-wins (mirrors
         // the headless composition).
@@ -345,6 +393,10 @@ export async function performDesktopRemoteAccessStart(
       await stopMdnsAdvertiser();
       console.log("[poracode] loopback remote server ready at %s", info.localHttpBaseUrl);
       return info;
+    }
+    const listeningPort = remembersPort ? listeningPortOf(info.localHttpBaseUrl) : null;
+    if (listeningPort !== null) {
+      rememberRemoteAccessPort(options.paths.baseDir, remoteHost, listeningPort);
     }
     maybeAdvertiseMdns(info);
     console.log("[poracode] remote access enabled at %s", info.httpBaseUrl);

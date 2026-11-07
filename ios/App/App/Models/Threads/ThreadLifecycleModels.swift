@@ -18,6 +18,7 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
   var contextSize: String?
   var fast: Bool?
   var thinking: Bool?
+  var workflows: Bool?
   var mode: String?
   var approvalPolicy: String?
   var approvalsReviewer: String?
@@ -26,7 +27,10 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
   var crossagentMcp: Bool?
   var computerUse: Bool?
   var chromeMcp: Bool?
+  var mcpServerOverrides: [String: Bool]?
+  var pluginOverrides: [String: Bool]?
   var executionEnvironment: RemoteExecutionEnvironment?
+  var crew: JSONValue?
 
   init(
     model: String,
@@ -34,6 +38,7 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     contextSize: String? = nil,
     fast: Bool? = nil,
     thinking: Bool? = nil,
+    workflows: Bool? = nil,
     mode: String? = nil,
     approvalPolicy: String? = nil,
     approvalsReviewer: String? = nil,
@@ -42,13 +47,17 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     crossagentMcp: Bool? = nil,
     computerUse: Bool? = nil,
     chromeMcp: Bool? = nil,
-    executionEnvironment: RemoteExecutionEnvironment? = nil
+    executionEnvironment: RemoteExecutionEnvironment? = nil,
+    mcpServerOverrides: [String: Bool]? = nil,
+    pluginOverrides: [String: Bool]? = nil,
+    crew: JSONValue? = nil
   ) {
     self.model = model
     self.effort = effort
     self.contextSize = contextSize
     self.fast = fast
     self.thinking = thinking
+    self.workflows = workflows
     self.mode = mode
     self.approvalPolicy = approvalPolicy
     self.approvalsReviewer = approvalsReviewer
@@ -58,6 +67,9 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     self.computerUse = computerUse
     self.chromeMcp = chromeMcp
     self.executionEnvironment = executionEnvironment
+    self.mcpServerOverrides = mcpServerOverrides
+    self.pluginOverrides = pluginOverrides
+    self.crew = crew
   }
 }
 

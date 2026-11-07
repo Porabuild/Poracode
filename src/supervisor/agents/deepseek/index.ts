@@ -6,6 +6,7 @@ import { deepSeekDefaultCapabilities, deepSeekDetectionSpec } from "./detection"
 import { runDeepSeekOneShot } from "./oneShot";
 import { normalizeDeepSeekConfig, stageDeepSeekPermissions } from "./permissions";
 import { manageDeepSeekModelProviders } from "./modelProviders";
+import { deepSeekGoalExtension } from "./goals";
 
 export const DEEPSEEK_ACP_SESSION_BEHAVIOR: AcpSessionBehavior = {
   // Harness advertises images for its initial route, which can differ from
@@ -78,6 +79,7 @@ export function createDeepSeekAdapter(): AgentAdapter {
         );
         const session = createAcpStructuredSession(command, input, {
           behavior: DEEPSEEK_ACP_SESSION_BEHAVIOR,
+          textStreamExtension: deepSeekGoalExtension,
         });
         if (!session) {
           await staged.cleanup();

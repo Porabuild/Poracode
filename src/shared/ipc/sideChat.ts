@@ -20,6 +20,11 @@ export const sideChatBootstrapSchema = z.object({
   selection: sideChatSelectionSchema.optional(),
 });
 export type SideChatBootstrap = z.infer<typeof sideChatBootstrapSchema>;
+// Same-build window commands add transient input; persisted bootstrap v1 stays unchanged.
+export const sideChatOpenInputSchema = sideChatBootstrapSchema.extend({
+  appendText: z.string().optional(),
+});
+export type SideChatOpenInput = z.infer<typeof sideChatOpenInputSchema>;
 export const sideChatThreadBindingSchema = z.object({
   thread: threadSchema.optional(),
   id: z.string().optional(),
@@ -37,4 +42,5 @@ export interface SideChatWindowsChanged {
   panels?: SideChatBootstrap[];
   detachedIds?: string[];
   disposing?: z.infer<typeof threadSchema>[];
+  composerInput?: { composerId: string; text: string };
 }

@@ -304,6 +304,10 @@ export async function proxyLoopbackHttpRequest(
  * socket pair is piped bidirectionally with buffered `head` bytes replayed, so
  * frames stay byte-transparent. The pending dial and both legs are revoked by
  * `lifetime`; a client going away cancels only its own operation.
+ *
+ * `onUpgraded` runs once, after a validated 101 has been relayed and both legs
+ * are piped — never for a rejection, a failed dial, or a revoked or abandoned
+ * handshake. The returned promise still settles only when both legs close.
  */
 export async function proxyLoopbackWebSocketUpgrade(
   req: IncomingMessage,
@@ -311,6 +315,7 @@ export async function proxyLoopbackWebSocketUpgrade(
   head: Buffer,
   lifetime: LoopbackProxyLifetime,
   plan: LoopbackProxyRequestPlan,
+  onUpgraded?: () => void,
 ): Promise<void> {
   const work = new AsyncWorkTracker();
   trackProxyStream(work, clientSocket);
@@ -345,6 +350,14 @@ export async function proxyLoopbackWebSocketUpgrade(
     await work.drain();
     return;
   }
+  // Until the upstream answers, a WebSocket client has nothing to send, so
+  // early bytes or a half-close mean it abandoned the handshake. Reading is
+  // what surfaces that EOF: an upgraded `http.Server` socket allows half-open
+  // and is otherwise unread, so a client giving up on a stalled child would
+  // never `close` it.
+  const onAbandoned = (): void => teardown();
+  clientSocket.on("data", onAbandoned);
+  clientSocket.on("end", onAbandoned);
 
   /** Re-serializes the parsed upstream handshake/rejection to the visitor,
    * filtering cookies pairwise and applying the optional upgrade header
@@ -352,6 +365,8 @@ export async function proxyLoopbackWebSocketUpgrade(
    * status code. */
   const writeParsedResponse = (res: IncomingMessage): number => {
     answered = true;
+    clientSocket.removeListener("data", onAbandoned);
+    clientSocket.removeListener("end", onAbandoned);
     const keepUpgradeHeader = plan.keepUpgradeResponseHeader;
     const lines = [`HTTP/1.1 ${res.statusCode} ${res.statusMessage ?? ""}`.trimEnd()];
     for (let index = 0; index < res.rawHeaders.length; index += 2) {
@@ -402,6 +417,7 @@ export async function proxyLoopbackWebSocketUpgrade(
       if (head.length > 0) socket.write(head);
       socket.pipe(clientSocket);
       clientSocket.pipe(socket);
+      onUpgraded?.();
     });
 
     upgradeReq.once("response", (res) => {

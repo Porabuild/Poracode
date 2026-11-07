@@ -26,9 +26,10 @@ export const REMOTE_BINDING_FORMAT_VERSION = 2 as const;
  * UTF-16. The IR layout and public protocol are unchanged; v3 bindings must regenerate.
  */
 // v5 adds portable cron, time-zone, automation and run-state validation.
+// v7 adds portable source-host, review-edit and persisted watch-scope validation.
 // v6 escapes Swift string-enum identifiers without changing member names or wire values.
 // Regenerate v5 bindings; the wire protocol and binding format remain unchanged.
-export const REMOTE_GENERATOR_VERSION = 6 as const;
+export const REMOTE_GENERATOR_VERSION = 7 as const;
 
 export const REMOTE_CONTRACT_NAME = "poracode.remote" as const;
 

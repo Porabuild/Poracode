@@ -12,7 +12,8 @@ const { useThreadHasBackgroundActivityMock, useThreadIsWaitingForBackgroundMock 
   }),
 );
 
-vi.mock("@heroui/react", () => ({
+vi.mock("@heroui/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@heroui/react")>()),
   Tooltip: Object.assign((props: { children: ReactNode }) => <>{props.children}</>, {
     Trigger: (props: { children: ReactNode }) => <>{props.children}</>,
     Content: (props: { children: ReactNode }) => <>{props.children}</>,
@@ -117,8 +118,8 @@ describe("ThreadHeaderStatusButton", () => {
     );
 
     expect(
-      getByRole("button", { name: "Claude: Connecting…. Hover for status details." }),
+      getByRole("button", { name: "Claude: Resuming session…. Hover for status details." }),
     ).toBeInTheDocument();
-    expect(getByText("Connecting…")).toBeInTheDocument();
+    expect(getByText("Resuming session…")).toBeInTheDocument();
   });
 });

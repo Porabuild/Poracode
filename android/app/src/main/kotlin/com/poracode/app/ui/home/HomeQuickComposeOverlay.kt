@@ -36,6 +36,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import com.poracode.app.ui.richchat.RichChatSkillReference
+import com.poracode.app.ui.richchat.RichChatSlashCommandOption
+import com.poracode.app.ui.richchat.RichChatSlashSuggestions
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
 import com.poracode.app.chat.RichPromptSegment
@@ -95,6 +100,8 @@ internal fun HomeQuickComposeOverlay(
     }
     val threadId = rememberSaveable { UUID.randomUUID().toString().lowercase() }
     var prompt by rememberSaveable { mutableStateOf("") }
+    var editorValue by remember { mutableStateOf(TextFieldValue()) }
+    val inputValue = if (editorValue.text == prompt) editorValue else TextFieldValue(prompt, TextRange(prompt.length))
     var selectedAgentKind by rememberSaveable { mutableStateOf("") }
     var selectedPresentationWireValue by rememberSaveable {
         mutableStateOf(ThreadPresentationMode.Gui.wireValue)
@@ -205,6 +212,7 @@ internal fun HomeQuickComposeOverlay(
         selectedWorktreePath = ""
         createdWorktree = null
         selectedSkill = null
+        queuedMentionSegments = queuedMentionSegments.filterNot { it is RichPromptSegment.Skill }
     }
     LaunchedEffect(project?.id, selectedAgent?.kind, normalizedMode) {
         val key = listOf(project?.id, selectedAgent?.kind ?: defaults?.agentKind, normalizedMode)
@@ -214,12 +222,13 @@ internal fun HomeQuickComposeOverlay(
         val base = if (selectedAgent?.kind == defaults?.agentKind && defaults != null) {
             defaults.config
         } else {
-            ThreadConfig(
-                model = selectedCatalog?.models
+                ThreadConfig(
+                    model = selectedCatalog?.models
                     ?.firstOrNull { it.id != modelSeed }
-                    ?.id
-                    ?: modelSeed.ifBlank { "default" },
-            )
+                        ?.id
+                        ?: modelSeed.ifBlank { "default" },
+                    crew = configuration.crew,
+                )
         }
         configuration = selectedAgent?.let {
             HomeQuickComposeCatalog(it, normalizedMode, base, userHiddenModels).normalize(base)
@@ -287,21 +296,43 @@ internal fun HomeQuickComposeOverlay(
                             selectedAgentKind = it
                             configurationSelectionKey = null
                             selectedSkill = null
+                            queuedMentionSegments = queuedMentionSegments.filterNot { it is RichPromptSegment.Skill }
                         },
                         onModeSelected = {
                             selectedPresentationWireValue = it
                             configurationSelectionKey = null
                             selectedSkill = null
+                            queuedMentionSegments = queuedMentionSegments.filterNot { it is RichPromptSegment.Skill }
                         },
                     )
 
+                    val skillReference = RichChatSkillReference.atCaret(
+                        prompt, inputValue.selection.start, inputValue.selection.end,
+                    )
+                    val skillSuggestions = if (skillReference == null) emptyList() else slashCommands
+                        .mapNotNull { command ->
+                            command.skill?.takeIf { it.name.contains(skillReference.query, ignoreCase = true) }
+                                ?.let { skill ->
+                                    RichChatSlashCommandOption(command.id, skill.name, command.label, command.description, command.argumentHint, skill)
+                                }
+                        }.take(6)
+                    RichChatSlashSuggestions(skillSuggestions, onSelect = { option ->
+                        val reference = skillReference ?: return@RichChatSlashSuggestions
+                        option.skill?.let { skill ->
+                            if (queuedMentionSegments.none { it == skill }) queuedMentionSegments += skill
+                        }
+                        prompt = reference.removingToken(prompt)
+                        editorValue = TextFieldValue(prompt, TextRange(reference.start))
+                    })
+
                     OutlinedTextField(
-                        value = prompt,
+                        value = inputValue,
                         onValueChange = {
-                            prompt = it
+                            editorValue = it
+                            prompt = it.text
                             failed = false
                             selectedSkill = selectedSkill?.takeIf { skill ->
-                                it.contains(skill.invocation)
+                                it.text.contains(skill.invocation)
                             }
                         },
                         placeholder = { Text(stringResource(R.string.home_quick_compose_prompt)) },
@@ -364,7 +395,8 @@ internal fun HomeQuickComposeOverlay(
                         canOperate = state.canSessionOperate,
                         busy = busy,
                         uploading = uploading,
-                        canStart = prompt.isNotBlank() && !busy && !uploading &&
+                        canStart = (prompt.isNotBlank() || queuedMentionSegments.isNotEmpty() ||
+                            attachments.isNotEmpty()) && !busy && !uploading &&
                             state.canSessionOperate,
                         onCaptureFromCamera = captureFromCamera,
                         onPickAttachment = { attachmentLauncher.launch(arrayOf("*/*")) },

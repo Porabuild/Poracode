@@ -1,12 +1,14 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   GitBranchListResult,
   GitStatusResult,
   GitWorktreeInfo,
   PrData,
   PrDetails,
+  ForgeRepository,
 } from "@/shared/contracts";
 import { resetGitStoreCache, summaryBackfillMissed, useGitStore } from "./gitStore";
+import { repoIdentityKey } from "@/shared/repoIdentity";
 
 const baseStatus: GitStatusResult = {
   isRepo: true,
@@ -103,6 +105,29 @@ const basePrDetails: PrDetails = {
   checks: [{ name: "CI", state: "IN_PROGRESS", conclusion: "", workflowName: "CI" }],
 };
 
+const forgeSource: ForgeRepository = {
+  forge: "github",
+  host: "https://github.com",
+  repository: "owner/repo",
+  remote: "origin",
+  account: { forge: "github", host: "https://github.com", login: "alice" },
+  capabilities: {
+    mergeMethods: ["merge", "squash", "rebase"],
+    reviewDecisions: ["approve", "request-changes", "comment"],
+    draft: true,
+    reopen: true,
+    updateBranch: true,
+    rebaseBranch: true,
+    edit: true,
+    checks: true,
+    reviewThreads: true,
+    expectedHeadMerge: true,
+    autoMerge: true,
+    autoFix: true,
+    adminMerge: true,
+  },
+};
+
 describe("gitStore batch updates", () => {
   beforeEach(() => {
     useGitStore.setState({
@@ -118,12 +143,71 @@ describe("gitStore batch updates", () => {
 
   it("clears in-memory and persisted cache state immediately", () => {
     useGitStore.getState().setStatus("p1", baseStatus);
-    localStorage.setItem("poracode-git-cache-v1", "stale-desktop-cache");
+    localStorage.setItem("poracode-git-cache-v2", "stale-desktop-cache");
 
     resetGitStoreCache();
 
     expect(useGitStore.getState().statuses).toEqual({});
-    expect(localStorage.getItem("poracode-git-cache-v1")).toBeNull();
+    expect(localStorage.getItem("poracode-git-cache-v2")).toBeNull();
+  });
+
+  it("recomputes released v1 GitHub availability and repository caches without rewriting them", async () => {
+    resetGitStoreCache();
+    const previous = JSON.stringify({
+      v: 1,
+      ts: Date.now(),
+      statuses: { p1: baseStatus },
+      ghAvailable: { p1: true },
+      prData: { "/wt/a": basePr },
+    });
+    localStorage.setItem("poracode-git-cache-v1", previous);
+    vi.resetModules();
+    const upgraded = await import("./gitStore");
+    try {
+      expect(upgraded.useGitStore.getState().statuses).toEqual({});
+      expect(upgraded.useGitStore.getState().ghAvailable).toEqual({});
+      expect(upgraded.useGitStore.getState().prData).toEqual({});
+      expect(localStorage.getItem("poracode-git-cache-v1")).toBe(previous);
+    } finally {
+      upgraded.resetGitStoreCache();
+      localStorage.removeItem("poracode-git-cache-v1");
+      vi.resetModules();
+    }
+  });
+
+  it("keeps released v2 raw SSH statuses but treats their origins as unconfirmed until a canonical refresh", async () => {
+    resetGitStoreCache();
+    const alias = {
+      ...baseStatus,
+      remoteInfo: { ...baseStatus.remoteInfo!, url: "git@github.com-personal:owner/repo.git" },
+    };
+    const resolvedSsh = {
+      ...baseStatus,
+      remoteInfo: { ...baseStatus.remoteInfo!, url: "ssh://git@github.com/owner/repo.git" },
+    };
+    localStorage.setItem(
+      "poracode-git-cache-v2",
+      JSON.stringify({ v: 2, ts: Date.now(), statuses: { p1: alias, p2: resolvedSsh } }),
+    );
+    vi.resetModules();
+    const upgraded = await import("./gitStore");
+    try {
+      expect(upgraded.useGitStore.getState().statuses).toEqual({ p1: alias, p2: resolvedSsh });
+      expect(repoIdentityKey(alias.remoteInfo)).toBeNull();
+      expect(repoIdentityKey(resolvedSsh.remoteInfo)).toBeNull();
+
+      const canonical = {
+        ...alias,
+        remoteInfo: { ...alias.remoteInfo!, url: "https://github.com/owner/repo.git" },
+      };
+      upgraded.useGitStore.getState().setProjectSnapshot("p1", { status: canonical });
+      expect(upgraded.useGitStore.getState().statuses.p1).toEqual(canonical);
+      expect(repoIdentityKey(canonical.remoteInfo)).toBe("https://github.com/owner/repo");
+      expect(repoIdentityKey(upgraded.useGitStore.getState().statuses.p2?.remoteInfo)).toBeNull();
+    } finally {
+      upgraded.resetGitStoreCache();
+      vi.resetModules();
+    }
   });
 
   it("skips replacing project records when snapshot data is unchanged", () => {
@@ -374,6 +458,48 @@ describe("gitStore batch updates", () => {
     expect(useGitStore.getState().prData["/wt/a"]).toBe(next);
   });
 
+  it.each(["single", "batch"])(
+    "upgrades a pre-forge cache and refreshes identity and safeguards via %s writes",
+    (mode) => {
+      useGitStore.getState().setPrData("/wt/a", basePr);
+      const apply = (value: PrData) =>
+        mode === "single"
+          ? useGitStore.getState().setPrData("/wt/a", value)
+          : useGitStore.getState().setPrDataBatch({ "/wt/a": value });
+      const upgraded = { ...basePr, source: forgeSource, isCrossRepository: false };
+      apply(upgraded);
+      expect(useGitStore.getState().prData["/wt/a"]).toBe(upgraded);
+      apply(structuredClone(upgraded));
+      expect(useGitStore.getState().prData["/wt/a"]).toBe(upgraded);
+      const changed = {
+        ...upgraded,
+        isCrossRepository: true,
+        source: { ...forgeSource, capabilities: { ...forgeSource.capabilities, autoFix: false } },
+      };
+      apply(changed);
+      expect(useGitStore.getState().prData["/wt/a"]).toBe(changed);
+      const switched = {
+        ...changed,
+        source: { ...changed.source, account: { ...forgeSource.account!, login: "bob" } },
+      };
+      apply(switched);
+      expect(useGitStore.getState().prData["/wt/a"]).toBe(switched);
+    },
+  );
+
+  it("refreshes detail metadata even when the review content is unchanged", () => {
+    useGitStore.getState().setPrDetails("p1#42", basePrDetails);
+    const upgraded = { ...basePrDetails, source: forgeSource };
+    useGitStore.getState().setPrDetails("p1#42", upgraded);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBe(upgraded);
+    const changed = {
+      ...upgraded,
+      source: { ...forgeSource, capabilities: { ...forgeSource.capabilities, autoMerge: false } },
+    };
+    useGitStore.getState().setPrDetails("p1#42", changed);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBe(changed);
+  });
+
   it("preserves merged PR details after a late refresh", () => {
     const merged = { ...basePrDetails, mergedAt: "2026-04-04T00:10:00.000Z" };
     useGitStore.getState().setPrDetails("p1#42", merged);
@@ -424,6 +550,37 @@ describe("gitStore batch updates", () => {
     const secondDetails = useGitStore.getState().prDetails;
     expect(secondDetails).not.toBe(firstDetails);
     expect(secondDetails["p1#42"]?.checks[0]?.conclusion).toBe("SUCCESS");
+  });
+
+  it("replaces PR details when only labels, reviewers, reactions or the timeline change", () => {
+    useGitStore.getState().setPrDetails("p1#42", basePrDetails);
+    const comment = {
+      id: "c1",
+      author: { login: "ann" },
+      body: "hi",
+      createdAt: "2026-04-04T00:00:00.000Z",
+    };
+    const changes: Partial<PrDetails>[] = [
+      { labels: [{ name: "bug" }] },
+      { requestedReviewers: [{ id: "u1", login: "ann" }] },
+      { reactions: [{ content: "+1", count: 1, viewerReacted: true }] },
+      {
+        timeline: [{ id: "e1", kind: "closed", createdAt: "2026-04-04T00:00:00.000Z" }],
+      },
+    ];
+    let current: PrDetails = { ...basePrDetails, comments: [comment] };
+    useGitStore.getState().setPrDetails("p1#42", current);
+    for (const change of changes) {
+      current = { ...current, ...change };
+      useGitStore.getState().setPrDetails("p1#42", current);
+      expect(useGitStore.getState().prDetails["p1#42"]).toBe(current);
+    }
+    current = {
+      ...current,
+      comments: [{ ...comment, reactions: [{ content: "heart", count: 1, viewerReacted: true }] }],
+    };
+    useGitStore.getState().setPrDetails("p1#42", current);
+    expect(useGitStore.getState().prDetails["p1#42"]).toBe(current);
   });
 
   it("replaces PR details when check timing changes", () => {
@@ -500,5 +657,19 @@ describe("summaryBackfillMissed", () => {
       unstaged: [{ path: "new.ts", status: "?", staged: false, insertions: 0, deletions: 0 }],
     });
     expect(summaryBackfillMissed(previous, incoming)).toBe(true);
+  });
+});
+
+describe("setBranches", () => {
+  it("publishes a branch list whose only change is the remote default branch", () => {
+    const list: GitBranchListResult = {
+      current: "main",
+      branches: [{ name: "main", current: true, commit: "abc", isRemote: false }],
+    };
+    useGitStore.setState({ branches: { p1: list } });
+
+    useGitStore.getState().setBranches("p1", { ...list, defaultBranch: "origin/main" });
+
+    expect(useGitStore.getState().branches.p1?.defaultBranch).toBe("origin/main");
   });
 });

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComputerUseMcpIngress, type ComputerUseMcpIngressOptions } from "./ComputerUseMcpIngress";
+import { AgentVisionService } from "@/host/AgentVisionService";
 import { StreamableHttpMcpIngress } from "../mcp/StreamableHttpMcpIngress";
 import type { ComputerUseDriver, ComputerUseInteractiveResult } from "./mcp/types";
 
@@ -91,6 +92,49 @@ afterEach(async () => {
 });
 
 describe("ComputerUseMcpIngress", () => {
+  it("previews only the observed window and stops capturing when the user exits", async () => {
+    const vision = new AgentVisionService();
+    const window = { app: "test.app", id: 7, title: "Test window" };
+    const state = {
+      window,
+      mode: "passive" as const,
+      accessibility: null,
+      screenshots: [{ id: "shot", zIndex: 0, mimeType: "image/jpeg", data: "aGVsbG8=" }],
+    };
+    const observationGate = Promise.withResolvers<typeof state>();
+    const driver = createDriver({
+      getWindowState: vi
+        .fn<ComputerUseDriver["getWindowState"]>()
+        .mockReturnValueOnce(observationGate.promise)
+        .mockResolvedValue(state),
+    });
+    ingress = new ComputerUseMcpIngress({ driver, vision, observationSettleMs: 0 });
+    const info = await ingress.start();
+    const observing = callTool(info, "get_window_state", { window });
+    await vi.waitFor(() => expect(driver.getWindowState).toHaveBeenCalledOnce());
+    expect(await vision.read("thread-1")).toMatchObject({
+      status: "running",
+      image: "data:image/jpeg;base64,aGVsbG8=",
+    });
+    observationGate.resolve(state);
+    expect((await observing).status).toBe(200);
+    expect(await vision.read("thread-1", false)).toMatchObject({
+      source: "computer",
+      target: "Test window",
+    });
+    expect(driver.getWindowState).toHaveBeenCalledTimes(2);
+    expect(await vision.read("thread-1")).toMatchObject({
+      image: "data:image/jpeg;base64,aGVsbG8=",
+    });
+    expect(driver.getWindowState).toHaveBeenLastCalledWith(
+      expect.objectContaining({ window, include_text: false, max_dimension: 960 }),
+    );
+    ingress.interruptActiveActions(["thread-1"]);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 2000);
+    await vision.read("thread-1");
+    clock.mockRestore();
+    expect(driver.getWindowState).toHaveBeenCalledTimes(2);
+  });
   it("prewarms the native driver after the MCP ingress starts", async () => {
     const driver = createDriver();
     ingress = new ComputerUseMcpIngress({ driver, observationSettleMs: 0 });
@@ -738,4 +782,115 @@ it("initiates native cancellation before awaiting an admitted tool that needs it
     held.resolve([]);
     await Promise.allSettled([request, closing]);
   }
+});
+
+describe("ComputerUseMcpIngress locked use", () => {
+  function lockedDriver(
+    begin: Awaited<ReturnType<NonNullable<ComputerUseDriver["lockedUseBegin"]>>>,
+  ) {
+    let active = false;
+    return createDriver({
+      lockedUseStatus: vi.fn<NonNullable<ComputerUseDriver["lockedUseStatus"]>>(async () => ({
+        supported: true,
+        signed: true,
+        paused: false,
+        active,
+        screenLocked: !active,
+      })),
+      lockedUseBegin: vi.fn<NonNullable<ComputerUseDriver["lockedUseBegin"]>>(async () => {
+        if (begin.outcome === "unlocked") active = true;
+        return begin;
+      }),
+      lockedUseEnd: vi.fn<NonNullable<ComputerUseDriver["lockedUseEnd"]>>(async () => {
+        const wasActive = active;
+        active = false;
+        return { outcome: wasActive ? "relocked" : "inactive" };
+      }),
+    });
+  }
+
+  function lockedOptions(
+    audit: unknown[] = [],
+  ): NonNullable<ComputerUseMcpIngressOptions["lockedUse"]> {
+    return {
+      platform: "darwin",
+      isSettingEnabled: () => true,
+      isInstalled: async () => true,
+      audit: (entry) => audit.push(entry),
+    };
+  }
+
+  it("unlocks before the tool for a running, enabled thread and relocks on disable", async () => {
+    const driver = lockedDriver({ outcome: "unlocked" });
+    const audit: unknown[] = [];
+    ingress = new ComputerUseMcpIngress({
+      driver,
+      observationSettleMs: 0,
+      lockedUse: lockedOptions(audit),
+    });
+    const info = await ingress.start();
+    ingress.setThreadTurnActive("thread-1", true);
+    // Before enable: Computer Use is not enabled for the thread.
+    await callTool(info, "list_windows", {});
+    expect(driver.lockedUseBegin).not.toHaveBeenCalled();
+    await callTool(info, "enable", {});
+    await callTool(info, "list_windows", {});
+    expect(driver.lockedUseBegin).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: "thread-1" }),
+    );
+    const order = [
+      (driver.lockedUseBegin as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0],
+      (driver.listWindows as ReturnType<typeof vi.fn>).mock.invocationCallOrder.at(-1),
+    ];
+    expect(order[0]).toBeLessThan(order[1] ?? 0);
+    await callTool(info, "disable", {});
+    expect(driver.lockedUseEnd).toHaveBeenCalledWith({ reason: "disabled" });
+    expect(audit).toHaveLength(2);
+  });
+
+  it("relocks when the thread's turn ends", async () => {
+    const driver = lockedDriver({ outcome: "unlocked" });
+    ingress = new ComputerUseMcpIngress({
+      driver,
+      observationSettleMs: 0,
+      lockedUse: lockedOptions(),
+    });
+    const info = await ingress.start();
+    ingress.setThreadTurnActive("thread-1", true);
+    await callTool(info, "enable", {});
+    await callTool(info, "list_windows", {});
+    ingress.setThreadTurnActive("thread-1", false);
+    await vi.waitFor(() =>
+      expect(driver.lockedUseEnd).toHaveBeenCalledWith({ reason: "turn_end" }),
+    );
+  });
+
+  it("adds a locked_use note to a refused result when the Mac stays locked", async () => {
+    const driver = lockedDriver({ outcome: "failed", stage: "no_password_field" });
+    ingress = new ComputerUseMcpIngress({
+      driver,
+      observationSettleMs: 0,
+      lockedUse: lockedOptions(),
+    });
+    const info = await ingress.start();
+    ingress.setThreadTurnActive("thread-1", true);
+    await callTool(info, "enable", {});
+    const response = await callTool(info, "list_windows", {});
+    const body = (await response.json()) as { result: { content: { text?: string }[] } };
+    expect(body.result.content[0]?.text).toContain("locked_use_failed:no_password_field");
+    expect(driver.listWindows).toHaveBeenCalled();
+  });
+
+  it("does not unlock for a thread whose turn is not running", async () => {
+    const driver = lockedDriver({ outcome: "unlocked" });
+    ingress = new ComputerUseMcpIngress({
+      driver,
+      observationSettleMs: 0,
+      lockedUse: lockedOptions(),
+    });
+    const info = await ingress.start();
+    await callTool(info, "enable", {});
+    await callTool(info, "list_windows", {});
+    expect(driver.lockedUseBegin).not.toHaveBeenCalled();
+  });
 });

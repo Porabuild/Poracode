@@ -32,7 +32,7 @@ import type {
   McpTransportKind,
   ResolvedMcpServer,
 } from "@/shared/contracts";
-import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
+import type { OscNotification, OscProgramStatus, OscShellEvent, OscTitle } from "@/shared/osc";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { HostDiagnosticsSnapshot } from "@/shared/lsp";
 import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
@@ -115,6 +115,8 @@ export interface StructuredSessionListener {
 
 export interface StartTurnOptions {
   userMessageItemId?: string;
+  /** Called only after the provider accepts the outgoing prompt. */
+  onPromptSubmitted?: () => void;
   /**
    * Portable-skills fallback: inline SKILL.md instructions for invoked skills
    * the provider cannot load natively. Appended to the outgoing provider
@@ -174,6 +176,12 @@ export interface StructuredSessionHandle {
   /** Whether a provider-native root or child session belongs to this thread. */
   ownsProviderSession?(providerSessionId: string): boolean;
   activate?(): Promise<void>;
+  /**
+   * Disposal can retire this handle while openThread is pending. A late open
+   * result must neither adopt session state nor acquire new process resources.
+   * Absent: startup joins openThread before disposal.
+   */
+  readonly supportsOpenCancellation?: boolean;
   openThread?(config: ThreadConfig, sessionRef?: SessionRef): Promise<string>;
   ensureResumeArtifacts?(): Promise<void>;
   waitForRolloutFile?(timeoutMs?: number): Promise<void>;
@@ -211,6 +219,17 @@ export interface StructuredSessionHandle {
    * prompt, and fresh `startTurn` accounting.
    */
   prepareSteerInterrupt?(): Promise<void>;
+  /**
+   * Delivers hidden client guidance (`text`) into the turn in flight, such as
+   * the crew lead's delegation reminder. It never interrupts that turn, never
+   * starts one, and never shows or echoes the text as a user message: not
+   * live, and not on reload, resume, import or terminal replay. Resolves once
+   * the provider took the text into the running turn; rejects when no turn is
+   * running or the provider refuses it, and the runtime then keeps the
+   * guidance for the next prompt. Absent: guidance always waits for the next
+   * prompt.
+   */
+  steerContext?(text: string): Promise<void>;
   /** Authoritative provider-reported background work still live in this session. */
   getBackgroundTasks?(): readonly BackgroundTask[];
   interruptTurn?(): Promise<void>;
@@ -316,6 +335,16 @@ export interface CreateStructuredSessionInput {
    * The caller's signal fences requests retired by the session lifecycle.
    */
   readHostDiagnostics?: (signal: AbortSignal) => Promise<HostDiagnosticsSnapshot | undefined>;
+  /**
+   * The runtime may call `StructuredSessionHandle.steerContext` on this
+   * session. The shared launch pipeline sets it for a GUI crew lead whose crew
+   * has a role that may edit and whose launch attached Crossagents. A provider
+   * whose `steerContext` costs something on every turn (a hook the provider
+   * calls after each tool batch, say) installs it, and exposes `steerContext`,
+   * only when this is set; providers whose delivery costs nothing until used
+   * may ignore it.
+   */
+  mayReceiveContextSteers?: boolean;
   loadSessionErrorRewriter?: (error: unknown, sessionId: string) => Error;
   /**
    * Provider-boundary guard for ACP agents that can incorrectly return a
@@ -780,6 +809,14 @@ export interface AgentDetector {
     status?: AgentStatus;
     wslDistros: string[];
   }): Promise<AgentProviderMetadata | undefined>;
+  /**
+   * Read-only values the provider's own config file already sets on this
+   * machine, keyed by the agent-setting key each backs (plus any
+   * provider-defined hint keys), so Settings can show what applies when the
+   * user leaves a setting empty. Must never write, and resolves to an empty
+   * record when the file is missing or unreadable.
+   */
+  readConfigDefaults?(): Promise<Record<string, string>>;
 }
 
 /**
@@ -814,6 +851,11 @@ export interface AgentPromptFormatter {
   buildTerminalPreInputs?(config: ThreadConfig): string[][] | undefined;
   /** Translate a canonical goal control into the provider's native prompt command. */
   buildGoalControlPrompt?(control: ThreadGoalControl): string | undefined;
+  /**
+   * The provider has no goal pause verb; interrupting its running turn pauses
+   * the active goal, so route canonical `pause` control to thread interruption.
+   */
+  goalPauseInterruptsTurn?: boolean;
   buildDirectInput?(
     prompt: string,
     segments?: PromptSegment[],
@@ -851,6 +893,8 @@ export interface AgentTerminalObserver {
   handleOscNotification?(notification: OscNotification): TerminalStatusHint | null;
   handleOscTitle?(title: OscTitle): TerminalStatusHint | null;
   handleOscShellEvent?(event: OscShellEvent): TerminalStatusHint | null;
+  /** Map an OSC 7501 Program Status update to a terminal status hint. */
+  handleOscProgramStatus?(status: OscProgramStatus): TerminalStatusHint | null;
   oscHintsDeferToHookPlugin?: boolean;
   syncConfigFromTerminalState?(input: SyncConfigFromTerminalStateInput): ThreadConfig | undefined;
 }
@@ -1146,6 +1190,9 @@ export interface AgentAdapter
 
   /** Isolate user/plugin MCP connection failures instead of aborting GUI turns. */
   readonly mcpRequiresConnectionFailureIsolation?: boolean;
+
+  /** Omit malformed Unicode regex constraints when a model gateway rejects the entire tool catalog. */
+  readonly mcpRequiresPortableSchemaPatterns?: boolean;
 
   /**
    * Refresh shared OAuth on MCP connection instead of before launch. Requires a

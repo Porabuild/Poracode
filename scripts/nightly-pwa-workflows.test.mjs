@@ -62,7 +62,11 @@ void test("core qualification has an unconditional gate covering every CI job", 
 void test("nightly publication is triggered by qualification, with one serialized alias owner", async () => {
   const workflow = await load("deploy-nightly-pwa");
   assert.equal(workflow.on.push, undefined, "A master push must not deploy independently of CI");
-  assert.deepEqual([...workflow.on.workflow_run.workflows].sort(), ["CI", "Native clients"]);
+  assert.deepEqual(
+    workflow.on.workflow_run.workflows,
+    ["CI"],
+    "A native-only failure must not freeze the web-only nightly",
+  );
   assert.deepEqual(workflow.on.workflow_run.types, ["completed"]);
   assert.deepEqual(workflow.on.workflow_run.branches, ["master"]);
   assert.ok(Object.hasOwn(workflow.on, "workflow_dispatch"));

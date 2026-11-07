@@ -1,12 +1,14 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { z } from "zod";
 
 /**
  * Standalone-server configuration file (plan item 4.9, finding H7).
  *
  * `poracode-server serve` reads an optional JSON config file — by default
- * `poracode-server.json` in the profile namespace, overridable with
- * `--config <path>` — and maps every recognized field onto the documented
+ * `<profile>.server.json` beside the profile namespace (an existing
+ * `poracode-server.json` inside the namespace takes precedence), overridable
+ * with `--config <path>` — and maps every recognized field onto the documented
  * environment contract the composed host already reads:
  *
  * | config field             | environment variable                     |
@@ -38,6 +40,11 @@ import { z } from "zod";
  */
 
 export const SERVER_CONFIG_FILE_NAME = "poracode-server.json";
+
+export function defaultServerConfigPath(profile: string): string {
+  const existing = join(profile, SERVER_CONFIG_FILE_NAME);
+  return existsSync(existing) ? existing : `${resolve(profile)}.server.json`;
+}
 
 /** Documented environment variables this CLI maps configuration onto. The
  * names are the published deployment contract (docs/STANDALONE_SERVER.md and
@@ -108,6 +115,8 @@ export type ServerConfigFile = z.infer<typeof serverConfigFileSchema>;
 
 /** Parsed-but-not-applied CLI options for `poracode-server [serve]`. */
 export interface ServeCliOptions {
+  /** Open the local web client; this invocation-only option is never persisted. */
+  readonly open?: boolean;
   /** `--config <path>`: an explicit config file location. */
   readonly config?: string;
   /** `--host <host>`: bind host override. */
@@ -119,11 +128,12 @@ export interface ServeCliOptions {
 }
 
 export const SERVE_USAGE =
-  "Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>]]";
+  "Usage: poracode-server [serve] [--open|--no-open] [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>]";
 
 /** Parses `[serve] --config/--host/--port` options; anything else is a usage
  * error. `serve` itself is optional (bare `poracode-server` still serves). */
 export function parseServeCliOptions(args: readonly string[]): ServeCliOptions {
+  let open: boolean | undefined;
   let config: string | undefined;
   let host: string | undefined;
   let port: number | undefined;
@@ -137,7 +147,10 @@ export function parseServeCliOptions(args: readonly string[]): ServeCliOptions {
       index += 1;
       return next;
     };
-    if (argument === "--config") config = value();
+    if (argument === "--open" || argument === "--no-open") {
+      if (open !== undefined) throw new Error(SERVE_USAGE);
+      open = argument === "--open";
+    } else if (argument === "--config") config = value();
     else if (argument === "--host") host = value();
     else if (argument === "--port") {
       const parsed = Number(value());
@@ -149,6 +162,7 @@ export function parseServeCliOptions(args: readonly string[]): ServeCliOptions {
     else throw new Error(SERVE_USAGE);
   }
   return {
+    ...(open !== undefined ? { open } : {}),
     ...(config !== undefined ? { config } : {}),
     ...(host !== undefined ? { host } : {}),
     ...(port !== undefined ? { port } : {}),
@@ -180,13 +194,9 @@ export function loadServerConfigFile(input: {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
-  } catch (error) {
-    throw new Error(
-      `Server config file ${input.path} is not valid JSON: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-      { cause: error },
-    );
+  } catch {
+    // Parser messages and their causes can contain private input excerpts.
+    throw new Error(`Server config file ${input.path} is not valid JSON. Check its JSON syntax.`);
   }
   const result = serverConfigFileSchema.safeParse(parsed);
   if (!result.success) {
@@ -239,8 +249,25 @@ function envLevel(raw: string | undefined): ServerLogLevel | undefined {
  * Returns the values the CLI should apply plus everything it decided; tests
  * inject `readText`, production reads the filesystem.
  */
-export function resolveServeSettings(input: ResolveServeSettingsInput): ResolvedServeSettings {
+export function resolveServeSettings(input: ResolveServeSettingsInput): ResolvedServeSettings & {
+  readonly sources: Readonly<
+    Record<keyof ServerConfigFile, "flag" | "environment" | "config" | "default">
+  >;
+} {
   const warnings: string[] = [];
+  const sources: Record<keyof ServerConfigFile, "flag" | "environment" | "config" | "default"> = {
+    host: "default",
+    port: "default",
+    bindMode: "default",
+    relayUrl: "default",
+    tlsCert: "default",
+    tlsKey: "default",
+    trustedProxies: "default",
+    logLevel: "default",
+    logMaxBytes: "default",
+    logMaxFiles: "default",
+    shutdownDrainDeadlineMs: "default",
+  };
   const configPath = input.flags.config ?? input.defaultConfigPath;
   const file = loadServerConfigFile({
     path: configPath,
@@ -248,23 +275,28 @@ export function resolveServeSettings(input: ResolveServeSettingsInput): Resolved
   });
 
   const pick = <T>(
-    name: string,
+    name: keyof ServerConfigFile,
     flag: T | undefined,
     envName: string | undefined,
     envValue: string | undefined,
     fileValue: T | undefined,
     parseEnv?: (raw: string) => T | undefined,
   ): { value?: T; warning?: string } => {
-    if (flag !== undefined) return { value: flag };
+    if (flag !== undefined) {
+      sources[name] = "flag";
+      return { value: flag };
+    }
     if (envName !== undefined && envValue !== undefined && envValue.trim() !== "") {
       const parsed = parseEnv ? parseEnv(envValue) : (envValue as unknown as T);
       if (parsed === undefined) {
         warnings.push(`Ignoring invalid ${envName} value "${envValue}".`);
         return {};
       }
+      sources[name] = "environment";
       return { value: parsed };
     }
     if (fileValue !== undefined) {
+      sources[name] = "config";
       const warning =
         envName === undefined ? undefined : `${name} from ${configPath} (env ${envName} unset)`;
       return warning === undefined ? { value: fileValue } : { value: fileValue, warning };
@@ -343,6 +375,13 @@ export function resolveServeSettings(input: ResolveServeSettingsInput): Resolved
     warnings.push(`Ignoring invalid ${LOG_LEVEL_ENV} value "${input.env[LOG_LEVEL_ENV]}".`);
   }
   const logLevel = envLogLevel ?? file?.logLevel ?? DEFAULT_LOG_LEVEL;
+  sources.logLevel = envLogLevel
+    ? "environment"
+    : file?.logLevel !== undefined
+      ? "config"
+      : "default";
+  sources.logMaxBytes = file?.logMaxBytes !== undefined ? "config" : "default";
+  sources.logMaxFiles = file?.logMaxFiles !== undefined ? "config" : "default";
 
   const rawDeadline =
     input.env[SHUTDOWN_DRAIN_DEADLINE_ENV]?.trim() !== undefined &&
@@ -350,8 +389,11 @@ export function resolveServeSettings(input: ResolveServeSettingsInput): Resolved
       ? Number(input.env[SHUTDOWN_DRAIN_DEADLINE_ENV])
       : undefined;
   let shutdownDrainDeadlineMs = file?.shutdownDrainDeadlineMs ?? DEFAULT_SHUTDOWN_DRAIN_DEADLINE_MS;
+  sources.shutdownDrainDeadlineMs =
+    file?.shutdownDrainDeadlineMs !== undefined ? "config" : "default";
   if (rawDeadline !== undefined) {
     if (Number.isSafeInteger(rawDeadline)) {
+      sources.shutdownDrainDeadlineMs = "environment";
       shutdownDrainDeadlineMs = Math.min(
         MAX_SHUTDOWN_DRAIN_DEADLINE_MS,
         Math.max(MIN_SHUTDOWN_DRAIN_DEADLINE_MS, rawDeadline),
@@ -376,6 +418,7 @@ export function resolveServeSettings(input: ResolveServeSettingsInput): Resolved
     logMaxBytes: file?.logMaxBytes ?? DEFAULT_LOG_MAX_BYTES,
     logMaxFiles: file?.logMaxFiles ?? DEFAULT_LOG_MAX_FILES,
     shutdownDrainDeadlineMs,
+    sources,
     warnings,
   };
 }

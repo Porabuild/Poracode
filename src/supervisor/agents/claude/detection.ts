@@ -7,6 +7,7 @@ import {
   CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES,
   CLAUDE_BUILTIN_MODEL_EFFORTS,
   CLAUDE_BUILTIN_MODELS,
+  CLAUDE_BUILTIN_WORKFLOW_MODELS,
   CLAUDE_PREMIUM_EFFORT_TIERS,
 } from "./models";
 import { probeClaudeCapabilities } from "./probe";
@@ -38,10 +39,13 @@ export const claudeCapabilities: AgentCapability = {
   contextSizes: CLAUDE_CONTEXT_SIZES,
   contextSizeChangeReloadsSession: true,
   // Order matters: the first entry is the per-model default. Frontier models
-  // default to 1M (the long-context build users select these for).
+  // default to 400k; 1M stays selectable (see CLAUDE_LONG_CONTEXT_SIZES).
   modelContextSizes: CLAUDE_BUILTIN_MODEL_CONTEXT_SIZES,
   defaultContextSize: "200k",
   fastModels: CLAUDE_BUILTIN_FAST_MODELS,
+  workflowModels: CLAUDE_BUILTIN_WORKFLOW_MODELS,
+  // Claude Code's own name for its standing dynamic-workflow mode.
+  workflowLabel: "Ultracode",
   modes: ["agent", "plan"],
   approvalPolicies: [
     { id: "default", label: "Default" },
@@ -53,6 +57,7 @@ export const claudeCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  supportsReadOnlyOneShotWorkspace: true,
   supportsTextOnlyOneShot: true,
   supportsDirectInput: true,
   readsPdfAttachmentsFromHost: true,

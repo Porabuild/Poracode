@@ -24,6 +24,7 @@ import { DEVIN_ACP_CLIENT_CAPABILITY_MANIFEST } from "./acp/capabilityManifest";
 import { prepareDevinProfileLaunch } from "./launchContext";
 import { resolveDevinVolatileCatalogScope } from "./volatileCatalog";
 import { resolveDevinAuthStateForContext } from "./profileAuth";
+import { DEVIN_GOAL_THREAD_TITLE_COMMAND } from "./goals";
 
 type DevinProbeAuthMethod = NonNullable<AcpProbeResult["authMethods"]>[number];
 
@@ -48,6 +49,8 @@ export const devinDefaultCapabilities: AgentCapability = {
   mcpScope: { terminal: "none", gui: "launch" },
   defaultApprovalPolicy: "smart",
   presentationCapabilities: { gui: { defaultApprovalPolicy: "bypass" } },
+  // Goal objectives title new Devin threads instead of the literal command.
+  threadTitleCommands: [DEVIN_GOAL_THREAD_TITLE_COMMAND],
   bypassPermissions: { approvalPolicy: "bypass" },
   settingDefs: [],
 };

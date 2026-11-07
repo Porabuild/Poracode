@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { agentVisionResponseSchema, type AgentVision } from "../agentVision";
 import {
   remoteHostDescribeSchema,
   UNKNOWN_HOST_SERVICE_CAPABILITIES,
@@ -68,6 +69,7 @@ import {
   type PrWatch,
   type PrWatchAgentSync,
   type PrWatchInput,
+  type ForgePrWatchInput,
   type PrWatchKey,
   type ProjectNotes,
   type ProviderUsageResponse,
@@ -602,6 +604,16 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
     await this.requestJson("/api/pr-watches", { method: "DELETE", body: input });
   }
 
+  async upsertForgePrWatch(input: ForgePrWatchInput): Promise<PrWatch> {
+    const result = parseResponse(
+      prWatchResponseSchema,
+      await this.requestJson("/api/pr-watches/scoped", { method: "POST", body: input }),
+      "PR automation",
+    );
+    if (!result.watch) throw new Error("The desktop did not return the PR automation state.");
+    return result.watch;
+  }
+
   async syncPrWatchAgent(input: PrWatchAgentSync): Promise<void> {
     await this.requestJson("/api/pr-watches/agent", { method: "POST", body: input });
   }
@@ -652,6 +664,21 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
       "browser state",
     );
     return result.state;
+  }
+
+  async agentVision(
+    threadId: string,
+    preview = true,
+    signal?: AbortSignal,
+  ): Promise<AgentVision | null> {
+    return parseResponse(
+      agentVisionResponseSchema,
+      await this.requestJson(
+        `/api/threads/${encodeURIComponent(threadId)}/agent-vision?preview=${preview ? "1" : "0"}`,
+        { ...(signal ? { signal } : {}) },
+      ),
+      "agent vision",
+    );
   }
 
   /** Tab mutation (create/close/activate/navigate/…); returns the new state. */

@@ -1,4 +1,6 @@
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import type { AgentVisionService } from "@/host/AgentVisionService";
+import { runScreenshotTool } from "./mcp/tools/screenshot";
 import type { BrowserPanelManager } from "./BrowserPanelManager";
 import {
   StreamableHttpMcpIngress,
@@ -23,6 +25,7 @@ export type BrowserMcpIngressInfo = StreamableHttpMcpIngressInfo;
  * with the computer-use ingress via {@link StreamableHttpMcpIngress}.
  */
 export class BrowserMcpIngress {
+  private vision: AgentVisionService | undefined;
   private allowEval = false;
   private allowDataAccess = false;
   private getManager: (() => BrowserPanelManager | null) | null = null;
@@ -38,12 +41,70 @@ export class BrowserMcpIngress {
     // onBeforeToolCall reveal hook.
     buildContext: (identity) => this.buildContext(identity),
     contextUnavailableMessage: "browser panel not ready",
-    dispatchTool,
+    dispatchTool: (name, args, ctx) => this.dispatchWithVision(name, args, ctx),
     formatToolResult,
   });
 
   setManagerAccessor(getter: () => BrowserPanelManager | null): void {
     this.getManager = getter;
+  }
+
+  setAgentVision(vision: AgentVisionService): void {
+    this.vision = vision;
+  }
+
+  private async dispatchWithVision(
+    name: string,
+    args: Record<string, unknown>,
+    ctx: ToolContext,
+  ): Promise<unknown> {
+    if (!this.vision || !ctx.threadId || ["api", "status", "list_tabs"].includes(name))
+      return dispatchTool(name, args, ctx);
+    if (name === "disable") {
+      this.vision?.stop(ctx.threadId);
+      return dispatchTool(name, args, ctx);
+    }
+    let tabId = typeof args.tabId === "string" ? args.tabId : ctx.manager.getActiveTab()?.tabId;
+    const capture = async () => {
+      const tab = tabId ? ctx.manager.getTab(tabId) : null;
+      if (!tab || tab.isDestroyed() || !tab.isAttached()) return null;
+      const shot = (await runScreenshotTool(ctx, {
+        tabId,
+        format: "jpeg",
+        quality: 60,
+        maxDimension: 960,
+        maxBytes: 2 * 1024 * 1024,
+      })) as { mimeType?: string; base64?: string };
+      return shot.base64 && shot.mimeType
+        ? { image: `data:${shot.mimeType};base64,${shot.base64}` }
+        : null;
+    };
+    const initialTarget = ctx.manager.snapshot().tabs.find((tab) => tab.tabId === tabId)?.url;
+    const activity = this.vision.begin(ctx.threadId, "browser", name, {
+      ...(name !== "new_tab"
+        ? { capture, ...(initialTarget ? { target: initialTarget } : {}) }
+        : {}),
+    });
+    try {
+      const result = await dispatchTool(name, args, ctx);
+      const returnedTab =
+        result && typeof result === "object" ? (result as { tabId?: string }).tabId : undefined;
+      tabId = returnedTab ?? tabId;
+      const target = ctx.manager.snapshot().tabs.find((tab) => tab.tabId === tabId)?.url;
+      activity?.finish({
+        failed: Boolean(
+          result &&
+          typeof result === "object" &&
+          ("error" in result || ("timedOut" in result && result.timedOut === true)),
+        ),
+        ...(target ? { target } : {}),
+        capture,
+      });
+      return result;
+    } catch (error) {
+      activity?.finish({ failed: true });
+      throw error;
+    }
   }
 
   setAllowEval(allow: boolean): void {

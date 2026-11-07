@@ -14,6 +14,7 @@ import {
   type RendererCrashReport,
 } from "./RendererCrashScreen";
 import { isIgnorableRejection, isIgnorableWindowError } from "./rendererGlobalErrors";
+import { reloadForStaleBuild } from "./staleBuildRecovery";
 import { bootstrapAppThemeFromCache } from "./theme/applyAppTheme";
 import { bootstrapAppLocaleFromCache } from "./i18n/i18n";
 
@@ -124,6 +125,7 @@ function showCrash(
   source?: string,
   options: { capture?: boolean } = {},
 ): void {
+  if (reloadForStaleBuild(error)) return;
   renderCrashScreen(
     createRendererCrashReport({
       kind,
@@ -170,6 +172,7 @@ reactRoot = createRoot(root, {
   },
   onUncaughtError(error, errorInfo) {
     reportRootError("uncaught", error, errorInfo);
+    if (reloadForStaleBuild(error)) return;
     renderCrashScreen(
       createRendererCrashReport({
         kind: "react",

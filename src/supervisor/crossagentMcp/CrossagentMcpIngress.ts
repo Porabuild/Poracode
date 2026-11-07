@@ -3,7 +3,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 import pluginManifest from "../../../resources/plugins/subagent-delegation/plugin.json";
 import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp";
 import type { CrossagentRoutingOverride } from "@/shared/settings";
+import type { ThreadCrewBinding } from "@/shared/crew";
 import type { SubagentRunManager } from "./SubagentRunManager";
+import { crewSetBriefText, crewToolDescriptionNote } from "./crewBrief";
 import { buildSubagentInstructions, dispatchTool, isKnownToolName, TOOLS } from "./toolRegistry";
 import { errorResult } from "./toolResult";
 import { keepJsonResponseAlive } from "./jsonResponseKeepalive";
@@ -18,6 +20,7 @@ export interface CrossagentMcpIngressDeps {
   runManager: SubagentRunManager;
   /** Catalog of installed + authenticated agents the caller may spawn. */
   getSpawnableAgents: (tags?: readonly string[]) => Promise<SpawnableAgent[]>;
+  getThreadCrew?: (threadId: string) => ThreadCrewBinding | undefined;
   /** Resolve a trusted provider-native session id to its live Poracode parent. */
   resolveProviderSessionThreadId?: (sessionId: string) => string | undefined;
   /** Optional user-provided routing guide appended to the MCP instructions (phase 3). */
@@ -335,6 +338,10 @@ export class CrossagentMcpIngress {
     const { id = null, method, params } = message;
     try {
       if (method === "initialize") {
+        const crew = auth.mode === "thread" ? this.deps.getThreadCrew?.(auth.threadId) : undefined;
+        const instructions = buildSubagentInstructions(this.deps.getRoutingGuide?.(), {
+          crew: crew !== undefined,
+        });
         return {
           jsonrpc: "2.0",
           id,
@@ -342,7 +349,7 @@ export class CrossagentMcpIngress {
             protocolVersion: MCP_PROTOCOL_VERSION,
             capabilities: { tools: {} },
             serverInfo: { name: "crossagents", version: pluginManifest.version },
-            instructions: buildSubagentInstructions(this.deps.getRoutingGuide?.()),
+            instructions: crew ? `${instructions}\n\n${crewSetBriefText(crew)}` : instructions,
           },
         };
       }
@@ -361,6 +368,8 @@ export class CrossagentMcpIngress {
           auth.mode === "thread"
             ? (this.disabledToolsByThread.get(auth.threadId) ?? new Set<string>())
             : new Set<string>();
+        const crew = auth.mode === "thread" ? this.deps.getThreadCrew?.(auth.threadId) : undefined;
+        const crewNote = crew ? crewToolDescriptionNote(crew) : undefined;
         return {
           jsonrpc: "2.0",
           id,
@@ -369,6 +378,10 @@ export class CrossagentMcpIngress {
               (tool) =>
                 !disabled.has(tool.name) &&
                 !disabled.has(TOOL_PERMISSION_ALIASES.get(tool.name) ?? ""),
+            ).map((tool) =>
+              crewNote && (tool.name === "spawn_agent" || tool.name === "run_workflow")
+                ? { ...tool, description: `${tool.description} ${crewNote}` }
+                : tool,
             ),
           },
         };
@@ -406,6 +419,9 @@ export class CrossagentMcpIngress {
           parentThreadId: threadId,
           runManager: this.deps.runManager,
           listSpawnableAgents: this.deps.getSpawnableAgents,
+          ...(this.deps.getThreadCrew
+            ? { getCrew: () => this.deps.getThreadCrew?.(threadId) }
+            : {}),
           ...(this.deps.recordExplicitSelections
             ? { recordExplicitSelections: this.deps.recordExplicitSelections }
             : {}),

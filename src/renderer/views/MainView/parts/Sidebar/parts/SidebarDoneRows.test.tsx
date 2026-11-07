@@ -1,0 +1,179 @@
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SidebarDoneRows } from "./SidebarDoneRows";
+import type { SidebarRow } from "./sidebarProjectRows";
+import type { Thread } from "@/shared/contracts";
+import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
+
+const selection = vi.hoisted(() => ({ openThreadIds: ["selected"] }));
+vi.mock("@/renderer/hooks/uiSelectors", () => ({
+  useCurrentThreadIds: () => selection.openThreadIds,
+}));
+
+const rows: SidebarRow[] = ["first", "second", "selected", "last"].map((id, index) => ({
+  kind: "thread",
+  key: id,
+  thread: { id } as Thread,
+  threadIndex: index,
+  group: "done",
+  showWorktreeBadge: false,
+}));
+const renderRow = (row: SidebarRow) => (
+  <button key={row.key} type="button">
+    {row.key}
+  </button>
+);
+
+afterEach(() => vi.useRealTimers());
+beforeEach(() => {
+  selection.openThreadIds = ["selected"];
+});
+
+describe("SidebarDoneRows", () => {
+  it("slides neighboring rows inside one clip while keeping selected rows separate", () => {
+    render(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+
+    const clip = screen.getByRole("button", { name: "first" }).closest(".grid");
+    expect(clip).toContainElement(screen.getByRole("button", { name: "second" }));
+    expect(clip).not.toContainElement(screen.getByRole("button", { name: "selected" }));
+  });
+
+  it("reveals a row added to a block that is already on screen", () => {
+    const { rerender } = render(<SidebarDoneRows rows={[rows[0]!]} renderRow={renderRow} />);
+    const first = screen.getByRole("button", { name: "first" });
+
+    rerender(<SidebarDoneRows rows={[rows[0]!, rows[1]!]} renderRow={renderRow} />);
+
+    const second = screen.getByRole("button", { name: "second" });
+    const reveal = second.parentElement!.parentElement!;
+    expect(reveal.className).toContain("starting:grid-rows-[0fr]");
+    expect(reveal.className).toContain("grid-rows-[1fr]");
+    expect(reveal).not.toContainElement(first);
+    expect(screen.getByRole("button", { name: "first" })).toBe(first);
+  });
+
+  it("keeps the reveal clip until the insertion frame is painted", async () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<SidebarDoneRows rows={[rows[0]!]} renderRow={renderRow} />);
+    rerender(<SidebarDoneRows rows={[rows[0]!, rows[1]!]} renderRow={renderRow} />);
+    const second = screen.getByRole("button", { name: "second" });
+    const reveal = second.parentElement!.parentElement!;
+
+    await act(() => vi.advanceTimersByTime(16));
+    rerender(<SidebarDoneRows rows={[rows[0]!, rows[1]!]} renderRow={renderRow} />);
+
+    expect(reveal.className).toContain("starting:grid-rows-[0fr]");
+  });
+
+  it("drops the reveal clip after the first paint without remounting the row", async () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<SidebarDoneRows rows={[rows[0]!]} renderRow={renderRow} />);
+    rerender(<SidebarDoneRows rows={[rows[0]!, rows[1]!]} renderRow={renderRow} />);
+    const second = screen.getByRole("button", { name: "second" });
+    const reveal = second.parentElement!.parentElement!;
+
+    await act(() => vi.advanceTimersByTime(50));
+
+    expect(screen.getByRole("button", { name: "second" })).toBe(second);
+    expect(reveal.className).not.toContain("starting:grid-rows-[0fr]");
+    expect(reveal.className).toContain("grid-rows-[1fr]");
+  });
+
+  it("reveals the section as one block clip when it opens from empty", () => {
+    const { rerender } = render(<SidebarDoneRows rows={[]} renderRow={renderRow} />);
+
+    rerender(<SidebarDoneRows rows={[rows[0]!, rows[1]!]} renderRow={renderRow} />);
+
+    const first = screen.getByRole("button", { name: "first" });
+    const clip = first.closest(".grid")!;
+    expect(clip.className).toContain("starting:grid-rows-[0fr]");
+    expect(clip).toContainElement(screen.getByRole("button", { name: "second" }));
+  });
+
+  it("never animates the block holding an open thread", () => {
+    render(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+
+    const selectedBlock = screen.getByRole("button", { name: "selected" }).closest(".grid")!;
+    expect(selectedBlock.className).not.toContain("starting:grid-rows-[0fr]");
+    expect(selectedBlock.className).toContain("grid-rows-[1fr]");
+  });
+
+  it("does not replay the section reveal when opening or switching Done threads", async () => {
+    vi.useFakeTimers();
+    selection.openThreadIds = [];
+    const { rerender } = render(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+    await act(() => vi.advanceTimersByTime(50));
+
+    for (const openThreadIds of [["second"], ["last"], ["second", "selected"], []]) {
+      selection.openThreadIds = openThreadIds;
+      rerender(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+
+      for (const button of screen.getAllByRole("button")) {
+        expect(button.closest(".grid")!.className).not.toContain("starting:grid-rows-[0fr]");
+        expect(button.closest(".grid")!.className).toContain("grid-rows-[1fr]");
+      }
+    }
+  });
+
+  it("keeps outgoing rows for the animation without exposing them to interaction", async () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+    const selected = screen.getByRole("button", { name: "selected" });
+
+    rerender(<SidebarDoneRows rows={[rows[2]!]} renderRow={renderRow} />);
+
+    expect(screen.queryByRole("button", { name: "first" })).toBeNull();
+    expect(screen.getByText("first").closest("[inert]")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "selected" })).toBe(selected);
+    await act(() => vi.advanceTimersByTime(200));
+    expect(screen.queryByText("first")).toBeNull();
+    expect(screen.getByRole("button", { name: "selected" })).toBe(selected);
+  });
+
+  it("reverses a closing section without removing rows that reopened", async () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+    const first = screen.getByRole("button", { name: "first" });
+    rerender(<SidebarDoneRows rows={[]} renderRow={renderRow} />);
+    await act(() => vi.advanceTimersByTime(100));
+    rerender(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+    await act(() => vi.advanceTimersByTime(200));
+
+    expect(screen.getByRole("button", { name: "first" })).toBe(first);
+    expect(first.closest("[inert]")).toBeNull();
+    expect(screen.getAllByRole("button")).toHaveLength(4);
+  });
+
+  it("cleans up a pending exit when unmounted", () => {
+    vi.useFakeTimers();
+    const { rerender, unmount } = render(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+    rerender(<SidebarDoneRows rows={[]} renderRow={renderRow} />);
+    unmount();
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("swaps rows without any reveal or exit animation on a workspace switch", () => {
+    const { rerender } = render(<SidebarDoneRows rows={[rows[0]!]} renderRow={renderRow} />);
+
+    act(() => useWorkspaceStore.getState().setActiveWorkspaceId("other-workspace"));
+    rerender(<SidebarDoneRows rows={[rows[1]!, rows[3]!]} renderRow={renderRow} />);
+
+    expect(screen.queryByText("first")).toBeNull();
+    const second = screen.getByRole("button", { name: "second" });
+    expect(second.closest("[inert]")).toBeNull();
+    expect(second.closest(".grid")!.className).not.toContain("starting:");
+    expect(screen.getByRole("button", { name: "last" }).closest(".grid")!.className).not.toContain(
+      "starting:",
+    );
+  });
+
+  it("mounts an already-open section without a reveal after a workspace switch", () => {
+    act(() => useWorkspaceStore.getState().setActiveWorkspaceId("another-workspace"));
+    render(<SidebarDoneRows rows={rows} renderRow={renderRow} />);
+
+    expect(screen.getByRole("button", { name: "first" }).closest(".grid")!.className).not.toContain(
+      "starting:",
+    );
+  });
+});

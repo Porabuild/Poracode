@@ -21,6 +21,7 @@ export function projectGitReadModelIntoLegacyStore(
   const store = useGitStore.getState();
 
   for (const [key, project] of Object.entries(snapshot.projects)) {
+    store.setGithubPollingProblem(project.ref.projectId, project.githubPollingProblem ?? null);
     const previousProject = previous?.projects[key];
     store.setProjectSnapshot(project.ref.projectId, {
       ...(project.status && !areGitStatusesEqual(previousProject?.status, project.status)

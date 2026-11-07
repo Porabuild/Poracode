@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { gitSafeIntSchema, gitSafeNonNegIntSchema } from "./gitResults";
+import { forgeRepositorySchema } from "./forge";
+import { prLabelSchema, prReviewerSchema } from "./prMetadata";
+import type { PrData, PullRequestSummary } from "./github";
 
 const safeInt = gitSafeIntSchema;
 const safeNonNegInt = gitSafeNonNegIntSchema;
@@ -38,9 +41,11 @@ export const prAuthorSchema = z.object({
 });
 
 export const prDataSchema = z.object({
+  source: forgeRepositorySchema.optional(),
   number: safePosInt,
   state: prStateSchema,
   headSha: z.string().optional(),
+  isCrossRepository: z.boolean().optional(),
   title: z.string(),
   url: z.string(),
   baseBranch: z.string(),
@@ -79,12 +84,32 @@ export const prCommitSummarySchema = z.object({
   url: z.string().optional(),
 });
 
+export const prReactionSchema = z.object({
+  content: z.string().min(1).max(64),
+  count: safeNonNegInt,
+  viewerReacted: z.boolean(),
+});
+
+// `kind` stays an open string: native decoders reject unknown enum literals.
+export const prTimelineEventSchema = z.object({
+  id: z.string().min(1),
+  kind: z.string().min(1).max(64),
+  createdAt: z.string(),
+  actor: prAuthorSchema.optional(),
+  label: prLabelSchema.optional(),
+  reviewer: prReviewerSchema.optional(),
+  fromRef: z.string().optional(),
+  toRef: z.string().optional(),
+  text: z.string().optional(),
+});
+
 export const prCommentSchema = z.object({
   id: z.string(),
   author: prAuthorSchema,
   body: z.string(),
   createdAt: z.string(),
   url: z.string().optional(),
+  reactions: z.array(prReactionSchema).optional(),
 });
 
 export const prReviewThreadSchema = z.object({
@@ -93,6 +118,8 @@ export const prReviewThreadSchema = z.object({
   isOutdated: z.boolean(),
   path: z.string().optional(),
   line: safeInt.optional(),
+  // `side` stays an open string ("LEFT" | "RIGHT"): native decoders reject unknown enum literals.
+  side: z.string().min(1).max(64).optional(),
   comments: z.array(prCommentSchema),
 });
 
@@ -106,6 +133,7 @@ export const prReviewSummarySchema = z.object({
 });
 
 export const prDetailsSchema = z.object({
+  source: forgeRepositorySchema.optional(),
   number: safePosInt,
   title: z.string(),
   body: z.string(),
@@ -123,6 +151,11 @@ export const prDetailsSchema = z.object({
   comments: z.array(prCommentSchema),
   reviews: z.array(prReviewSummarySchema),
   checks: z.array(prCheckSchema),
+  reviewThreads: z.array(prReviewThreadSchema).optional(),
+  labels: z.array(prLabelSchema).optional(),
+  requestedReviewers: z.array(prReviewerSchema).optional(),
+  timeline: z.array(prTimelineEventSchema).optional(),
+  reactions: z.array(prReactionSchema).optional(),
 });
 
 export const ghCheckAvailableResultSchema = z.object({
@@ -141,12 +174,38 @@ export const pullRequestSummarySchema = z.object({
   deletions: safeInt,
   repository: z.string(),
   reviewRequested: z.boolean(),
+  labels: z.array(prLabelSchema).optional(),
 });
 
 export const ghListPullRequestsResultSchema = z.object({
   pullRequests: z.array(pullRequestSummarySchema),
   viewerLogin: z.string().optional(),
 });
+
+export const githubPollingProblemSchema = z.object({
+  kind: z.enum(["authentication", "unavailable"]),
+  executionHost: z.string(),
+  retryAt: z.string(),
+});
+export type GithubPollingProblem = z.infer<typeof githubPollingProblemSchema>;
+
+export const ghPollPullRequestsResultSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("ready"),
+    prs: z.record(z.string(), prDataSchema),
+    pullRequests: z.array(pullRequestSummarySchema),
+    viewerLogin: z.string().optional(),
+  }),
+  z.object({ status: z.literal("blocked"), problem: githubPollingProblemSchema }),
+]);
+export type GhPollPullRequestsResult =
+  | {
+      status: "ready";
+      prs: Record<string, PrData>;
+      pullRequests: PullRequestSummary[];
+      viewerLogin?: string;
+    }
+  | { status: "blocked"; problem: GithubPollingProblem };
 
 export const githubActionsWorkflowSchema = z.object({
   id: safeInt,

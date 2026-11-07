@@ -34,21 +34,50 @@ const MODELS: Array<[string, number, number, number, number, number, string, num
   ["gpt-5.3-codex", 1.75, 14, 0.175, 0, 0, OPENAI_SOURCE],
 ];
 
-export const HISTORICAL_PRICES: readonly HistoricalPrice[] = MODELS.map(
-  ([model, input, output, cacheRead, cacheWrite, cacheWrite1h, source, maxInputTokens]) => ({
-    id: `${model}:${REVIEWED}`,
-    model,
-    input,
-    output,
-    cacheRead,
-    cacheWrite,
-    cacheWrite1h,
-    source,
-    reviewedAt: REVIEWED,
-    effectiveFrom: REVIEWED,
-    ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),
-  }),
-);
+// Standard-tier list rates (no Fast or data-residency premiums). OpenAI rows use
+// the short-context rate without a cap: Codex reports cumulative deltas that can
+// span several requests, so a per-request context cap cannot be applied to them.
+const REVIEWED_2026_10_28 = "2026-10-28";
+const MODELS_2026_10_28: typeof MODELS = [
+  ["claude-fable-5-1", 10, 50, 0.25, 12.5, 20, CLAUDE_SOURCE],
+  ["claude-fable-5", 10, 50, 1, 12.5, 20, CLAUDE_SOURCE],
+  ["claude-opus-5-5", 4, 20, 0.2, 5, 8, CLAUDE_SOURCE],
+  ["claude-opus-5", 5, 25, 0.5, 6.25, 10, CLAUDE_SOURCE],
+  ["claude-opus-4-8", 5, 25, 0.5, 6.25, 10, CLAUDE_SOURCE],
+  ["claude-sonnet-5-5", 2, 10, 0.1, 2.5, 4, CLAUDE_SOURCE],
+  ["claude-sonnet-5", 2, 10, 0.2, 2.5, 4, CLAUDE_SOURCE],
+  ["gpt-6-astra", 10, 50, 1, 0, 0, OPENAI_SOURCE],
+  ["gpt-6.1-sol", 2, 10, 0.1, 0, 0, OPENAI_SOURCE],
+  ["gpt-6.1-terra", 1, 5, 0.05, 0, 0, OPENAI_SOURCE],
+  ["gpt-6-sol", 2, 10, 0.2, 0, 0, OPENAI_SOURCE],
+  ["gpt-6-luna", 0.1, 0.5, 0.01, 0, 0, OPENAI_SOURCE],
+  ["gpt-5.6-sol", 4, 20, 0.4, 0, 0, OPENAI_SOURCE],
+  ["gpt-5.6-terra", 2, 12, 0.2, 0, 0, OPENAI_SOURCE],
+  ["gpt-5.6-luna", 0.2, 1.2, 0.02, 0, 0, OPENAI_SOURCE],
+];
+
+function snapshots(reviewed: string, rows: typeof MODELS): HistoricalPrice[] {
+  return rows.map(
+    ([model, input, output, cacheRead, cacheWrite, cacheWrite1h, source, maxInputTokens]) => ({
+      id: `${model}:${reviewed}`,
+      model,
+      input,
+      output,
+      cacheRead,
+      cacheWrite,
+      cacheWrite1h,
+      source,
+      reviewedAt: reviewed,
+      effectiveFrom: reviewed,
+      ...(maxInputTokens !== undefined ? { maxInputTokens } : {}),
+    }),
+  );
+}
+
+export const HISTORICAL_PRICES: readonly HistoricalPrice[] = [
+  ...snapshots(REVIEWED, MODELS),
+  ...snapshots(REVIEWED_2026_10_28, MODELS_2026_10_28),
+];
 
 export function historicalTokenEstimate(
   model: string | undefined,

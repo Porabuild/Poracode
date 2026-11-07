@@ -1,0 +1,76 @@
+diff --git a/packages/tui/test/mini/theme.test.ts b/packages/tui/test/mini/theme.test.ts
+index a8bdfc9..4be769e 100644
+--- a/packages/tui/test/mini/theme.test.ts
++++ b/packages/tui/test/mini/theme.test.ts
+@@ -10,7 +10,7 @@ import {
+   resolveRunTheme,
+   type RunTheme,
+ } from "../../src/mini/theme"
+-import { DEFAULT_THEMES, getOpenCodeTheme, parseTheme } from "../../src/theme"
++import { DEFAULT_THEMES, getOpenCodeTheme, getPoracodeTheme, parseTheme } from "../../src/theme"
+ import { generateSystem } from "../../src/theme/system"
+ import { tmpdir } from "../fixture/fixture"
+ 
+@@ -155,7 +155,7 @@ test.each(["light", "dark"] as const)("uses shared %s defaults and named built-i
+   for (const name of [undefined, "opencode", "tokyonight"] as const) {
+     const theme = await resolveRunTheme(renderer({ colors }), { name, mode })
+     const expected = resolveThemeDocument(
+-      name === undefined || name === "opencode" ? getOpenCodeTheme() : parseTheme(DEFAULT_THEMES[name]),
++      name === undefined ? getPoracodeTheme() : name === "opencode" ? getOpenCodeTheme() : parseTheme(DEFAULT_THEMES[name]),
+       mode,
+     )
+     try {
+@@ -256,7 +256,7 @@ test.each(["light", "dark"] as const)(
+ test.each(["light", "dark"] as const)(
+   "falls back to shared %s defaults for unknown or invalid themes",
+   async (mode) => {
+-    const expected = resolveThemeDocument(getOpenCodeTheme(), mode)
++    const expected = resolveThemeDocument(getPoracodeTheme(), mode)
+     for (const source of [
+       { [mode]: { categorical: [] } },
+       { [mode]: { text: { base: "$missing" } } },
+@@ -285,7 +285,7 @@ test.each(["light", "dark"] as const)("resolves dark-only Aura on an automatic %
+   try {
+     expectFooter(
+       theme,
+-      resolveThemeDocument(mode === "light" ? getOpenCodeTheme() : parseTheme(DEFAULT_THEMES.aura), mode),
++      resolveThemeDocument(mode === "light" ? getPoracodeTheme() : parseTheme(DEFAULT_THEMES.aura), mode),
+     )
+     expect(rgba(theme.background).toInts()).toEqual(RGBA.fromHex(colors.defaultBackground!).toInts())
+   } finally {
+@@ -309,7 +309,7 @@ test.each(["light", "dark"] as const)(
+       try {
+         expectFooter(
+           theme,
+-          resolveThemeDocument(requested === mode ? parseTheme(source) : getOpenCodeTheme(), requested),
++          resolveThemeDocument(requested === mode ? parseTheme(source) : getPoracodeTheme(), requested),
+         )
+       } finally {
+         theme.block.syntax?.destroy()
+@@ -319,7 +319,7 @@ test.each(["light", "dark"] as const)(
+ )
+ 
+ test.each(["light", "dark"] as const)("handles unavailable palettes in %s mode", async (mode) => {
+-  const expected = resolveThemeDocument(getOpenCodeTheme(), mode)
++  const expected = resolveThemeDocument(getPoracodeTheme(), mode)
+   for (const input of [
+     { fail: true },
+     { colors: emptyColors },
+@@ -332,7 +332,7 @@ test.each(["light", "dark"] as const)("handles unavailable palettes in %s mode",
+   }
+   const theme = await resolveRunTheme(renderer({ fail: true }), { name: "opencode", mode })
+   try {
+-    expectFooter(theme, expected)
++    expectFooter(theme, resolveThemeDocument(getOpenCodeTheme(), mode))
+   } finally {
+     theme.block.syntax?.destroy()
+   }
+@@ -355,7 +355,7 @@ test("uses refreshed background brightness rather than stale mode or ANSI slot z
+ })
+ 
+ test.each(["light", "dark"] as const)("follows physical %s mode over opposite configuration", async (mode) => {
+-  const expected = resolveThemeDocument(getOpenCodeTheme(), mode)
++  const expected = resolveThemeDocument(getPoracodeTheme(), mode)
+   for (const fail of [false, true]) {
+     const theme = await resolveRunTheme(renderer({ colors: terminalColors({}, mode), themeMode: mode, fail }), {
+       mode: mode === "light" ? "dark" : "light",

@@ -29,6 +29,13 @@ describe("isHomeProjectId", () => {
   it("returns false for undefined", () => {
     expect(isHomeProjectId(undefined)).toBe(false);
   });
+
+  it("recognizes a browser client's mirrored host Home row id", () => {
+    expect(isHomeProjectId("remote:host:project:__lightcode_home__")).toBe(true);
+    expect(isHomeProjectId("remote:host:project:repo")).toBe(false);
+    expect(isHomeProjectId("remote:host:thread:__lightcode_home__")).toBe(false);
+    expect(isHomeProjectId("local:project:__lightcode_home__")).toBe(false);
+  });
 });
 
 describe("isHomeProject", () => {

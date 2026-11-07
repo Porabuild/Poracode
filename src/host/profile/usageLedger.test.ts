@@ -12,6 +12,7 @@ import { createClaudeUsageSpentEvent } from "@/supervisor/agents/claude/canonica
 import { createCodexUsageSpentEvent } from "@/supervisor/agents/codex/canonicalMapping/usage";
 import { computeProfileTokenStats } from "./tokenStats";
 import { dbGetAllUsageEvents } from "../db/usageEvents";
+import { readThreadTokenUsageInSqlite } from "../db/runtimeItemsWriter";
 
 const serverNativeBinding = join(process.cwd(), "dist", "server-native", "better_sqlite3.node");
 let nativeBindingEnv: string | undefined;
@@ -588,5 +589,160 @@ describe.skipIf(!sqliteAvailable)("usageLedger (real sqlite round-trip)", () => 
 
     expect(tokenRows()).toEqual([]);
     expect(sampleCount()).toBe(0);
+  });
+
+  it("bills forwarded helper usage to the helper and splits thread totals by member", () => {
+    recordUsageSpentFromRuntimeEvents(THREAD_ID, [
+      spent({
+        counterKind: "per-call",
+        counter: 300,
+        scopeId: "lead-scope",
+        occurredAt: 1000,
+        tokens: { input: 100, output: 50, cacheRead: 150, cacheWrite: 0 },
+      }),
+      spent({
+        counter: 1000,
+        fresh: true,
+        scopeId: "helper-scope",
+        occurredAt: 1100,
+        model: "gpt-6-luna",
+        tokens: { input: 600, output: 300, cacheRead: 100, cacheWrite: 0 },
+        helper: { agentKind: "codex", crewRoleId: "builder" },
+      }),
+      spent({
+        counter: 1500,
+        scopeId: "helper-scope",
+        occurredAt: 1200,
+        model: "gpt-6-luna",
+        tokens: { input: 900, output: 450, cacheRead: 150, cacheWrite: 0 },
+        helper: { agentKind: "codex", crewRoleId: "builder" },
+      }),
+      spent({
+        counterKind: "per-call",
+        counter: 40,
+        scopeId: "loose-scope",
+        occurredAt: 1300,
+        helper: { agentKind: "codex" },
+      }),
+    ]);
+
+    expect(tokenRows().map(({ provider, model, value }) => ({ provider, model, value }))).toEqual([
+      { provider: "claude:work", model: "claude-sonnet-4", value: 300 },
+      { provider: "codex", model: "gpt-6-luna", value: 1000 },
+      { provider: "codex", model: "gpt-6-luna", value: 500 },
+      // The thread's selected model describes the lead, never a helper.
+      { provider: "codex", model: null, value: 40 },
+    ]);
+    expect(readThreadTokenUsageInSqlite(getSqlite(), THREAD_ID)).toEqual({
+      version: 1,
+      members: [
+        {
+          member: "helper",
+          provider: "codex",
+          tokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          total: 40,
+          costUsd: 0,
+          pricedTotal: 0,
+        },
+        {
+          member: "lead",
+          provider: "claude:work",
+          model: "claude-sonnet-4",
+          tokens: { input: 100, output: 50, cacheRead: 150, cacheWrite: 0 },
+          total: 300,
+          costUsd: 0,
+          pricedTotal: 0,
+        },
+        {
+          member: "role:builder",
+          provider: "codex",
+          model: "gpt-6-luna",
+          tokens: { input: 900, output: 450, cacheRead: 150, cacheWrite: 0 },
+          total: 1500,
+          costUsd: 0,
+          pricedTotal: 0,
+        },
+      ],
+    });
+  });
+
+  it("counts a streamed call's growing output once, and never recounts legacy samples", () => {
+    const call = (counter: number, output: number) =>
+      spent({
+        counterKind: "per-call",
+        counter,
+        sampleId: "msg-1:req-1",
+        occurredAt: 2000,
+        tokens: { input: 10, output, cacheRead: 900, cacheWrite: 0 },
+      });
+    recordUsageSpentFromRuntimeEvents(THREAD_ID, [call(915, 5), call(915, 5), call(1410, 500)]);
+    expect(tokenRows().map((row) => row.value)).toEqual([915, 495]);
+    expect(readThreadTokenUsageInSqlite(getSqlite(), THREAD_ID)?.members[0]).toMatchObject({
+      member: "lead",
+      tokens: { input: 10, output: 500, cacheRead: 900, cacheWrite: 0 },
+      total: 1410,
+    });
+
+    // A sample recorded before the counted basis existed stays exact-once.
+    getSqlite()
+      .prepare("INSERT INTO usage_token_samples (sample_id, ts) VALUES ('legacy', 1)")
+      .run();
+    recordUsageSpentFromRuntimeEvents(THREAD_ID, [
+      spent({ counterKind: "per-call", counter: 5000, sampleId: "legacy", occurredAt: 3000 }),
+    ]);
+    expect(tokenRows()).toHaveLength(2);
+  });
+
+  it("estimates dollars per member from list prices", () => {
+    const at = Date.parse("2026-10-29T12:00:00.000Z");
+    recordUsageSpentFromRuntimeEvents(THREAD_ID, [
+      spent({
+        counterKind: "per-call",
+        counter: 1_100_000,
+        scopeId: "lead-scope",
+        occurredAt: at,
+        model: "claude-opus-5-5",
+        tokens: {
+          input: 0,
+          output: 100_000,
+          cacheRead: 900_000,
+          cacheWrite: 100_000,
+          cacheWrite1h: 100_000,
+        },
+      }),
+      spent({
+        counter: 1_000_000,
+        fresh: true,
+        scopeId: "helper-scope",
+        occurredAt: at,
+        model: "gpt-6-luna",
+        tokens: { input: 100_000, output: 100_000, cacheRead: 800_000, cacheWrite: 0 },
+        helper: { agentKind: "codex", crewRoleId: "builder" },
+      }),
+    ]);
+    const members = readThreadTokenUsageInSqlite(getSqlite(), THREAD_ID)?.members ?? [];
+    // Opus 5.5: 100k output x $20 + 900k cache reads x $0.20 + 100k 1h writes x $8.
+    expect(members.find((m) => m.member === "lead")?.costUsd).toBeCloseTo(2 + 0.18 + 0.8, 6);
+    // 6 Luna: 100k input x $0.10 + 100k output x $0.50 + 800k cached x $0.01.
+    expect(members.find((m) => m.member === "role:builder")?.costUsd).toBeCloseTo(
+      0.01 + 0.05 + 0.008,
+      6,
+    );
+    expect(members.map((m) => m.pricedTotal)).toEqual([1_100_000, 1_000_000]);
+  });
+
+  it("counts nothing for a helper scope's baseline sample, then its deltas", () => {
+    const helper = { agentKind: "codex", crewRoleId: "builder" };
+    recordUsageSpentFromRuntimeEvents(THREAD_ID, [
+      spent({ counter: 700, scopeId: "resumed-helper", helper }),
+    ]);
+    expect(readThreadTokenUsageInSqlite(getSqlite(), THREAD_ID)).toBeNull();
+
+    recordUsageSpentFromRuntimeEvents(THREAD_ID, [
+      spent({ counter: 900, scopeId: "resumed-helper", helper }),
+    ]);
+    expect(readThreadTokenUsageInSqlite(getSqlite(), THREAD_ID)?.members).toEqual([
+      expect.objectContaining({ member: "role:builder", provider: "codex", total: 200 }),
+    ]);
   });
 });

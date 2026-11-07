@@ -148,12 +148,12 @@ function assertNativeBinaries(resourcesDir, electronPlatformName, arch) {
     }
   }
 
-  // 3. node-pty must ship a loadable binary for this arch. It loads from
-  //    build/Release/pty.node (Linux, which has no prebuild) OR from a
-  //    prebuilds/<plat>-<arch>/pty.node (mac/win ship prebuilts).
+  // 3. node-pty loads conpty.node on Windows and pty.node on POSIX, from
+  //    build/Release or the target platform/architecture prebuild directory.
+  const ptyBinaryName = platTag === "win32" ? "conpty.node" : "pty.node";
   const ptyCandidates = [
-    join(unpacked, "node-pty", "build", "Release", "pty.node"),
-    join(unpacked, "node-pty", "prebuilds", `${platTag}-${archName}`, "pty.node"),
+    join(unpacked, "node-pty", "build", "Release", ptyBinaryName),
+    join(unpacked, "node-pty", "prebuilds", `${platTag}-${archName}`, ptyBinaryName),
   ];
   if (!ptyCandidates.some((p) => existsSync(p))) {
     throw new Error(
@@ -292,6 +292,12 @@ module.exports = async function afterPack(context) {
     throw new Error(
       `[afterPack] FATAL: could not locate resources dir for platform ${context.electronPlatformName}`,
     );
+  }
+  if (
+    context.electronPlatformName === "linux" &&
+    existsSync(join(resourcesDir, "desktop-cli", "manifest.json"))
+  ) {
+    require("./linux-cli.cjs").writeLinuxAppRun(resourcesDir, context.appOutDir);
   }
   const archName = ARCH_NAME[context.arch];
   const removed = pruneForeignNativePrebuilds(resourcesDir, context.electronPlatformName, archName);

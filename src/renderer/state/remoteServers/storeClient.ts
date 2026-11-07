@@ -1,13 +1,14 @@
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
-import { friendlyError, msg as sharedMsg } from "@/shared/messages";
+import { msg as sharedMsg } from "@/shared/messages";
 import {
   isRemoteBoundedReadProtocolError,
   isRemoteTransportFailure,
+  isUnauthorizedRemoteError,
   type RemoteDesktopClient,
 } from "@/shared/remote/client";
+import { remoteServerFailureMessage } from "./failureMessage";
 import { i18n } from "@/renderer/i18n/i18n";
-import { resetTruncateReloadBackoff } from "@/renderer/state/remote/truncateRecovery";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import { environmentSessionForServer } from "./environmentSessions";
 import { directImageSessionFor } from "./directImages";
@@ -21,11 +22,18 @@ import {
   connectionRefreshSubject,
   deleteRefreshTokenFromVault,
   ensureConnectionIncarnation,
+  forgetRefreshTokenForSubject,
   ownsConnectionIncarnation,
   refreshTokenForDesktop,
   rememberRefreshToken,
-  writeRefreshTokenToVault,
 } from "./refreshTokens";
+import {
+  commitSharedRefresh,
+  runSharedRefresh,
+  type SharedCredentialCustody,
+} from "./sharedCredentials";
+import { noteDesktopTokenCommitted } from "./tokenVault";
+import { SessionRenewal } from "./sessionRenewal";
 import type { RemoteServerRecord, RemoteServersState } from "./types";
 import type { TerminalConnectionCapabilities } from "./terminalCapabilities";
 
@@ -43,9 +51,18 @@ export interface RemoteServersStoreApi {
   readonly get: RemoteServersStoreGet;
 }
 
+/** The shared persisted copy every renderer realm of this origin writes. */
+export interface SharedServerRecords {
+  /** The record now in shared storage; undefined once another realm removed it. */
+  durableServer(connectionKey: string): RemoteServerRecord | undefined;
+  /** A bearer custody already committed, so persisting the store skips it. */
+  acknowledgeBearer(connectionKey: string, accessToken: string): void;
+}
+
 export function createRemoteServerClientBindings(
   api: RemoteServersStoreApi,
   certPinForDesktop: (desktopId: string) => string | undefined,
+  shared?: SharedServerRecords,
 ) {
   const { set, get } = api;
 
@@ -54,7 +71,6 @@ export function createRemoteServerClientBindings(
     status: "offline" | "error",
     message: string,
   ) => {
-    const previous = get().runtime[desktopId]?.status;
     set((state) => {
       const current = state.runtime[desktopId];
       if (!current) return {};
@@ -66,7 +82,6 @@ export function createRemoteServerClientBindings(
     // Offline/error drops re-arm unknown-checkpoint reload budgets without
     // clearing installed authoritative baselines (transport flap, not a
     // server restart).
-    if (previous !== status) resetTruncateReloadBackoff(desktopId);
     syncDesktopBrowserBridgeClient(get());
   };
 
@@ -79,13 +94,30 @@ export function createRemoteServerClientBindings(
     // prose is English-only: the caller's localized fallback is the message,
     // and the host stays reachable (error, never offline).
     const protocolViolation = isRemoteBoundedReadProtocolError(error);
-    const message = protocolViolation ? fallback : friendlyError(error) || fallback;
+    const message = protocolViolation ? fallback : remoteServerFailureMessage(error, fallback);
     toast.danger(message);
     setRemoteServerFailure(
       desktopId,
       !protocolViolation && isRemoteTransportFailure(error) ? "offline" : "error",
       message,
     );
+  };
+
+  const persistAccessToken = (connectionKey: string, accessToken: string): void => {
+    if (
+      !get().servers.some(
+        (entry) =>
+          remoteConnectionKey(entry) === connectionKey && entry.accessToken !== accessToken,
+      )
+    )
+      return;
+    // Use the store's existing secure persistence path so future clients and
+    // reloads use the rotated bearer without storing credentials in plaintext.
+    set((state) => ({
+      servers: state.servers.map((entry) =>
+        remoteConnectionKey(entry) === connectionKey ? { ...entry, accessToken } : entry,
+      ),
+    }));
   };
 
   /**
@@ -106,7 +138,6 @@ export function createRemoteServerClientBindings(
       }
       return session.client;
     }
-    const client = get().clientFactory(server.endpoint, server.accessToken);
     // The refresh grant is per connection, like every other session map. For
     // direct/ssh records the connection key equals the host identity, so v1
     // `refresh.<desktopId>` slots keep their exact key.
@@ -115,26 +146,73 @@ export function createRemoteServerClientBindings(
     // client of this connection (including the long-lived parent session), so
     // clients never revoke each other's valid rotation. A record removed during
     // this client's life has no incarnation: its callback stays inert.
-    const present = get().servers.some((entry) => remoteConnectionKey(entry) === connectionKey);
-    const incarnation = present ? ensureConnectionIncarnation(connectionKey) : undefined;
+    const current = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+    // Reconnect callbacks can retain a record from before a rotation. Read the
+    // current bearer only for the same endpoint; never send it to a stale one.
+    const accessToken =
+      current?.endpoint === server.endpoint ? current.accessToken : server.accessToken;
+    const client = get().clientFactory(server.endpoint, accessToken);
+    const incarnation = current ? ensureConnectionIncarnation(connectionKey) : undefined;
+    const isCurrent = () =>
+      incarnation !== undefined &&
+      ownsConnectionIncarnation(connectionKey, incarnation) &&
+      get().servers.some(
+        (entry) =>
+          remoteConnectionKey(entry) === connectionKey && entry.endpoint === server.endpoint,
+      );
+    const currentAccessToken = () =>
+      isCurrent()
+        ? get().servers.find(
+            (entry) =>
+              remoteConnectionKey(entry) === connectionKey && entry.endpoint === server.endpoint,
+          )?.accessToken
+        : undefined;
+    const subject = connectionRefreshSubject(connectionKey);
+    // A delayed rotation from a removed or re-paired connection can neither
+    // resurrect a deleted grant nor overwrite a freshly paired one (`isCurrent`
+    // fences memory; the vault commit is a compare-and-set).
+    const custody: SharedCredentialCustody = {
+      subject,
+      bearerConnectionKey: connectionKey,
+      isCurrent,
+      canAdopt: () => !shared || shared.durableServer(connectionKey)?.endpoint === server.endpoint,
+      current: () => ({
+        accessToken: currentAccessToken(),
+        refreshToken: refreshTokenForDesktop(connectionKey),
+      }),
+      apply: (pair, durable) => {
+        if (pair.refreshToken !== undefined) rememberRefreshToken(connectionKey, pair.refreshToken);
+        else forgetRefreshTokenForSubject(subject);
+        if (pair.accessToken === undefined) return;
+        if (durable) noteDesktopTokenCommitted(connectionKey, pair.accessToken);
+        shared?.acknowledgeBearer(connectionKey, pair.accessToken);
+        persistAccessToken(connectionKey, pair.accessToken);
+      },
+    };
     client.setTokenLifecycle({
-      refreshToken: () => refreshTokenForDesktop(connectionKey),
+      accessToken: currentAccessToken,
+      refreshToken: () => (isCurrent() ? refreshTokenForDesktop(connectionKey) : undefined),
       onTokensRefreshed: (tokens) => {
-        // A delayed rotation from a removed or re-paired connection can neither
-        // resurrect a deleted grant nor overwrite a freshly paired one.
-        if (incarnation === undefined || !ownsConnectionIncarnation(connectionKey, incarnation)) {
-          return;
-        }
-        if (tokens.refreshToken) {
-          rememberRefreshToken(connectionKey, tokens.refreshToken);
-          void writeRefreshTokenToVault(
-            connectionRefreshSubject(connectionKey),
-            tokens.refreshToken,
-            incarnation,
-          );
-        } else {
-          void deleteRefreshTokenFromVault(connectionRefreshSubject(connectionKey));
-        }
+        // A rotation reports the new bearer's deadline: renew a lead before it,
+        // as the desktop host's session does, instead of meeting the expiry.
+        if (isCurrent()) sessionRenewalFor(connectionKey).schedule(tokens.accessTokenExpiresAt);
+        return commitSharedRefresh(custody, tokens);
+      },
+      runExclusive: (run) => runSharedRefresh(custody, run),
+      // A 401 the refresh path could not repair: only a REFUSED grant (401/403
+      // from the grant endpoint) is dead — transport-class refresh failures
+      // (429, network) are retryable and must keep the grant. A dead grant
+      // never recovers by retrying (the host revoked the family or rebuilt its
+      // auth state), so drop it from memory and the vault and stop reporting
+      // it as a usable connection: the reconnect ladder would otherwise loop
+      // "Pairing expired" forever, which reads as the app endlessly
+      // reconnecting.
+      onUnauthorized: (refreshFailure) => {
+        if (!isCurrent()) return;
+        if (!isUnauthorizedRemoteError(refreshFailure)) return;
+        forgetRefreshTokenForSubject(subject);
+        void deleteRefreshTokenFromVault(subject).catch(() => undefined);
+        setRemoteServerFailure(server.desktopId, "error", sharedMsg("remote.session.expired"));
       },
     });
     const pin = certPinForDesktop(remoteConnectionKey(server));
@@ -158,6 +236,40 @@ export function createRemoteServerClientBindings(
     if (!server || server.transport?.kind === "environment") return undefined;
     const identity = `${server.endpoint}\0${server.accessToken}\0${certPinForDesktop(connectionKey) ?? ""}`;
     return directImageSessionFor(connectionKey, identity, () => clientForServer(server));
+  };
+
+  const sessionRenewals = new Map<string, SessionRenewal>();
+  /** The proactive renewal of one connection's session, through its current client. */
+  const sessionRenewalFor = (connectionKey: string): SessionRenewal => {
+    let renewal = sessionRenewals.get(connectionKey);
+    if (!renewal) {
+      const owned = new SessionRenewal(async () => {
+        if (!get().servers.some((entry) => remoteConnectionKey(entry) === connectionKey)) {
+          // The connection was removed: nothing left to renew.
+          owned.dispose();
+          sessionRenewals.delete(connectionKey);
+          return false;
+        }
+        try {
+          // Straight through the client, not `withClient`: a transport hiccup
+          // in a background renewal must not flip a healthy host to offline.
+          return (await requireClient(connectionKey).refreshTokens()) !== null;
+        } catch (error) {
+          // A refused grant is dead (re-pair); anything else is retried.
+          if (isUnauthorizedRemoteError(error)) return false;
+          throw error;
+        }
+      }, "remote");
+      renewal = owned;
+      sessionRenewals.set(connectionKey, renewal);
+    }
+    return renewal;
+  };
+
+  /** Stops a removed connection's renewal, so a re-paired one never inherits its timer. */
+  const disposeSessionRenewal = (connectionKey: string): void => {
+    sessionRenewals.get(connectionKey)?.dispose();
+    sessionRenewals.delete(connectionKey);
   };
 
   const withClient = async <Result>(
@@ -185,7 +297,6 @@ export function createRemoteServerClientBindings(
         });
         // Reactivation re-arms bounded reloads (offline cleared them, but
         // an explicit success proves reachability again).
-        resetTruncateReloadBackoff(desktopId);
         syncDesktopBrowserBridgeClient(get());
       }
       return result;
@@ -221,10 +332,12 @@ export function createRemoteServerClientBindings(
   return {
     setRemoteServerFailure,
     reportRemoteServerError,
+    persistAccessToken,
     clientForServer,
     requireClient,
     directImagesFor,
     withClient,
+    disposeSessionRenewal,
     checkHostUpdateInBackground,
   };
 }

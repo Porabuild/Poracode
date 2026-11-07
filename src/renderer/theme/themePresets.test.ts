@@ -22,12 +22,14 @@ const semanticTokens = {
     danger: "oklch(0.48 0.2 25)",
     prMerged: "oklch(0.5 0.18 292)",
     gitBranch: "oklch(0.5 0.13 265)",
+    finished: "oklch(0.56 0.19 262)",
   },
   dark: {
     success: "oklch(0.7329 0.1935 150.81)",
     warning: "oklch(0.8203 0.1388 76.34)",
     danger: "oklch(0.64 0.2 24.63)",
     prMerged: "oklch(0.7 0.17 292)",
+    finished: "oklch(0.82 0.12 260)",
   },
 } as const;
 
@@ -143,12 +145,14 @@ describe("theme presets", () => {
         danger: oklchToHex(semanticTokens.light.danger),
         prMerged: oklchToHex(semanticTokens.light.prMerged),
         gitBranch: oklchToHex(semanticTokens.light.gitBranch),
+        finished: oklchToHex(semanticTokens.light.finished),
       },
       dark: {
         success: oklchToHex(semanticTokens.dark.success),
         warning: oklchToHex(semanticTokens.dark.warning),
         danger: oklchToHex(semanticTokens.dark.danger),
         prMerged: oklchToHex(semanticTokens.dark.prMerged),
+        finished: oklchToHex(semanticTokens.dark.finished),
       },
     } as const;
 
@@ -187,6 +191,7 @@ describe("theme presets", () => {
           ["warning/content", sem.warning, content, UI_BOUNDARY_FLOOR],
           ["danger/content", sem.danger, content, UI_BOUNDARY_FLOOR],
           ["pr-merged/content", sem.prMerged, content, UI_BOUNDARY_FLOOR],
+          ["finished/content", sem.finished, content, UI_BOUNDARY_FLOOR],
           ["git-branch/content", gitBranch, content, UI_BOUNDARY_FLOOR],
           // Fill floor is light-only (dark uses the quieter stock fill), measured
           // against --content-background where the tool panels/overlays render.

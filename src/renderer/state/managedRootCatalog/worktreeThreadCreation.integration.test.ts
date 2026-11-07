@@ -1,3 +1,4 @@
+import { peekPendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getSqlite } from "@/host/db/connection";
@@ -14,7 +15,6 @@ import {
 import { archiveThread, deleteThread, deleteThreadRecord } from "@/renderer/actions/threadActions";
 import { moveThreadToWorktree } from "@/renderer/actions/moveThreadToWorktreeActions";
 import { applyRootCatalogThreadRows } from "./rootCatalogRows";
-import { peekPendingManagedRootLaunch } from "./rootCatalogStore";
 import { forgetPendingCatalogEdit } from "@/renderer/state/pendingCatalogEdits";
 import { __resetManagedRootLaunchMetadataCapabilityForTest } from "./rootLaunchMetadataCapability";
 import { sendManagedRootThreadCommand } from "./rootCatalogCommands";
@@ -339,7 +339,7 @@ describe("worktree thread creation over the real host authority", () => {
     mocks.createWorktree.mockResolvedValue({ path: "/tmp/repo/worktrees/feature" });
     supervisorTrace.startThreadFailures = 1;
     await expect(startThreadFromDraft(project, draft)).rejects.toBeInstanceOf(Error);
-    const pending = peekPendingManagedRootLaunch(draft.threadId)!;
+    const pending = peekPendingThreadLaunch(draft.threadId)!;
     expect(pending).toMatchObject({
       metadataCreated: true,
       replay: { projectLocation: { kind: "posix", path: "/tmp/repo/worktrees/feature" } },
@@ -353,7 +353,7 @@ describe("worktree thread creation over the real host authority", () => {
       }),
     ).rejects.toMatchObject({ code: "command_outcome_uncertain" });
     expect(supervisorTrace.startThreadCalls).toBe(1);
-    expect(peekPendingManagedRootLaunch(draft.threadId)).toEqual(pending);
+    expect(peekPendingThreadLaunch(draft.threadId)).toEqual(pending);
     expect(
       getSqlite()
         .prepare(
@@ -397,7 +397,7 @@ describe("worktree thread creation over the real host authority", () => {
     // outstanding deletion instead of retiring its provisioning marker.
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(launchCompleted).toBe(false);
-    expect(peekPendingManagedRootLaunch(draft.threadId)?.removal).toBeDefined();
+    expect(peekPendingThreadLaunch(draft.threadId)?.removal).toBeDefined();
     expect(mocks.performWorktreeRemoval).not.toHaveBeenCalled();
     deletion.resolve();
     await removal;
@@ -431,7 +431,7 @@ describe("worktree thread creation over the real host authority", () => {
         unsubscribe();
       }
       expect(hostThreadRow(draft.threadId)?.status).toBe("inactive");
-      expect(peekPendingManagedRootLaunch(draft.threadId)).toMatchObject(
+      expect(peekPendingThreadLaunch(draft.threadId)).toMatchObject(
         existence === "present" ? { metadataCreated: true } : { metadataCreationUncertain: true },
       );
       applyRootCatalogThreadRows([dbGetThread(draft.threadId)!], new Set());
@@ -441,7 +441,7 @@ describe("worktree thread creation over the real host authority", () => {
       await deleteThreadRecord(threadRow(draft.threadId)!);
       expect(hostThreadRow(draft.threadId)).toBeUndefined();
       expect(threadRow(draft.threadId)).toBeUndefined();
-      expect(peekPendingManagedRootLaunch(draft.threadId)).toBeUndefined();
+      expect(peekPendingThreadLaunch(draft.threadId)).toBeUndefined();
       expect(supervisorTrace.startThreadCalls).toBe(0);
     },
   );
@@ -479,7 +479,7 @@ describe("worktree thread creation over the real host authority", () => {
     await launch;
     expect(hostThreadRow(draft.threadId)).toBeUndefined();
     expect(threadRow(draft.threadId)).toBeUndefined();
-    expect(peekPendingManagedRootLaunch(draft.threadId)).toBeUndefined();
+    expect(peekPendingThreadLaunch(draft.threadId)).toBeUndefined();
     expect(mocks.createWorktree).not.toHaveBeenCalled();
     expect(mocks.generateTitleWithFallback).not.toHaveBeenCalled();
     expect(supervisorTrace.startThreadCalls).toBe(0);

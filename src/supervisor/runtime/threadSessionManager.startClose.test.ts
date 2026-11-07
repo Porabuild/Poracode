@@ -82,6 +82,7 @@ function createManager(
     kind: "powershell" as const,
     args: ["-NoLogo"],
   }),
+  extraOptions: Partial<ConstructorParameters<typeof ThreadSessionManager>[0]> = {},
 ): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-start-close-"));
   tempDirs.push(tempDir);
@@ -93,6 +94,7 @@ function createManager(
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[agentKind, adapter]]),
     resolveWindowsShell,
+    ...extraOptions,
   });
   managersToDispose.push(manager);
   return manager;
@@ -184,6 +186,11 @@ const guardedStructuredProviders = ["codex", "opencode"] as const;
 const managersToDispose: ThreadSessionManager[] = [];
 const tempDirs: string[] = [];
 
+beforeEach(() => {
+  vi.stubEnv("PORACODE_APP_CONTROLS_MCP_URL", undefined);
+  vi.stubEnv("PORACODE_APP_CONTROLS_MCP_TOKEN", undefined);
+});
+
 afterEach(async () => {
   for (const manager of managersToDispose.splice(0)) {
     await manager.dispose();
@@ -191,6 +198,105 @@ afterEach(async () => {
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
+  vi.unstubAllEnvs();
+});
+
+describe("MCP App startup ownership", () => {
+  it.each(["factory-failure", "close-during-prepare"])(
+    "retires prepared routes after %s",
+    async (scenario) => {
+      const prepared = deferred<[]>();
+      const structured = createStructuredSession(Promise.resolve());
+      const adapter = createAdapter("codex", structured);
+      if (scenario === "factory-failure")
+        vi.mocked(adapter.createStructuredSession!).mockRejectedValueOnce(
+          new Error("factory failed"),
+        );
+      const mcpApps = {
+        prepare: vi.fn<
+          NonNullable<ConstructorParameters<typeof ThreadSessionManager>[0]["mcpApps"]>["prepare"]
+        >(() => prepared.promise),
+        releaseThread: vi.fn<(threadId: string) => Promise<void>>().mockResolvedValue(undefined),
+        modelContext: vi.fn<(threadId: string) => string | undefined>(),
+      };
+      const manager = createManager("codex", adapter, undefined, undefined, { mcpApps });
+      const starting = manager.startThread({
+        threadId: "app-start",
+        projectLocation: { kind: "posix", path: process.cwd() },
+        agentKind: "codex",
+        config: { model: "test" },
+        prompt: "",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      });
+      const settled = starting.catch((error: unknown) => error);
+      await vi.waitFor(() => expect(mcpApps.prepare).toHaveBeenCalledOnce());
+      mcpApps.releaseThread.mockClear();
+      const closing =
+        scenario === "close-during-prepare"
+          ? manager.closeThread({ threadId: "app-start" })
+          : Promise.resolve();
+      prepared.resolve([]);
+      await Promise.all([settled, closing]);
+      expect(manager.sessions.has("app-start")).toBe(false);
+      expect(mcpApps.releaseThread).toHaveBeenCalledWith("app-start");
+    },
+  );
+});
+
+describe("accepted structured turn interruption", () => {
+  it("does not offer resume when the owner deliberately retires an accepted turn", async () => {
+    const structured = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("fixture", structured);
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", adapter, (event) => events.push(event));
+    await manager.startThread({
+      threadId: "retired-close",
+      agentKind: "fixture",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "fixture/model" },
+      prompt: "Explain the code",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    });
+    const session = manager.sessions.get("retired-close")!;
+    const listener = vi.mocked(structured.setListener).mock.calls.at(-1)![0];
+    vi.mocked(structured.dispose).mockImplementation(async () => listener.onClose());
+    await manager.closeThread({ threadId: session.threadId });
+    expect(session.interruptedTurn).toBeNull();
+    expect(
+      events.some((event) => event.type === "thread-state" && event.interruptedTurn === "error"),
+    ).toBe(false);
+  });
+
+  it.each([false, true])(
+    "marks unexpected close after accepted start (stop=%s)",
+    async (stopped) => {
+      const structured = createStructuredSession(Promise.resolve());
+      const adapter = createAdapter("fixture", structured);
+      const events: SupervisorEvent[] = [];
+      const manager = createManager("fixture", adapter, (event) => events.push(event));
+      await manager.startThread({
+        threadId: "accepted-close",
+        agentKind: "fixture",
+        projectLocation: { kind: "posix", path: process.cwd() },
+        config: { model: "fixture/model" },
+        prompt: "Explain the code",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      });
+      const session = manager.sessions.get("accepted-close")!;
+      expect(session.status).toBe("working");
+      session.turnStopRequested = stopped;
+      const listener = vi.mocked(structured.setListener).mock.calls.at(-1)![0];
+      listener.onClose();
+      expect(session.status).toBe("inactive");
+      expect(session.interruptedTurn).toBe(stopped ? null : "error");
+      expect(
+        events.some((event) => event.type === "thread-state" && event.interruptedTurn === "error"),
+      ).toBe(!stopped);
+    },
+  );
 });
 
 describe("ThreadSessionManager provider-session routing", () => {
@@ -211,6 +317,75 @@ describe("ThreadSessionManager provider-session routing", () => {
     delete adapter.capabilities.crossagentMcpRouting;
     expect(manager.getThreadIdByProviderSessionId("ses_existing")).toBeUndefined();
   });
+});
+
+describe("ThreadSessionManager always-on Poracode MCP", () => {
+  beforeEach(() => {
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_URL", "http://127.0.0.1:9321");
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_TOKEN", "fixture-token");
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each([
+    ["gui", false, false],
+    ["gui", true, false],
+    ["terminal", false, false],
+    ["terminal", true, false],
+    ["gui", false, true],
+    ["gui", true, true],
+    ["terminal", false, true],
+    ["terminal", true, true],
+  ] as const)(
+    "attaches for %s (resume=%s, provider settings=%s) despite old client disables",
+    async (presentationMode, resume, providerSettings) => {
+      const structured = createStructuredSession(Promise.resolve());
+      const adapter = createAdapter("fixture", structured);
+      if (providerSettings) adapter.capabilities.mcpConfigSource = "agentSettings";
+      const manager = createManager("fixture", adapter);
+      await manager.startThread({
+        threadId: "always-on",
+        agentKind: "fixture",
+        projectLocation: { kind: "posix", path: process.cwd() },
+        config: { model: "fixture/model", pluginOverrides: { "app-controls": false } },
+        prompt: "",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode,
+        ...(resume
+          ? {
+              sessionRef: {
+                providerSessionId: "ses_existing",
+                discoveredAt: "2026-10-21T00:00:00.000Z",
+              },
+            }
+          : {}),
+        disabledBuiltInMcpServerIds: ["app-controls"],
+        disabledBuiltInMcpTools: { "app-controls": ["create_thread"] },
+      });
+      expect(adapter.createStructuredSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mcpServers: [
+            expect.objectContaining({
+              id: "app-controls",
+              name: "poracode",
+              disabledTools: ["create_thread"],
+              transport: expect.objectContaining({ type: "http" }),
+            }),
+          ],
+        }),
+      );
+      const input = vi.mocked(adapter.createStructuredSession!).mock.calls[0]![0];
+      const transport = input.mcpServers![0]!.transport;
+      expect(transport.type).toBe("http");
+      if (transport.type !== "http") throw new Error("Expected HTTP MCP transport");
+      expect(new URL(transport.url).searchParams.getAll("disable")).toEqual(["create_thread"]);
+      const buildArgv = resume ? adapter.buildResumeArgv : adapter.buildLaunchArgv;
+      const terminalServers =
+        presentationMode === "terminal"
+          ? vi.mocked(buildArgv).mock.calls[0]?.[4]?.mcpServers
+          : input.mcpServers;
+      expect(terminalServers).toEqual(input.mcpServers);
+    },
+  );
 });
 
 describe("ThreadSessionManager revert anchors (WS2 stage 3)", () => {
@@ -454,6 +629,9 @@ describe("ThreadSessionManager start guards", () => {
         status: "error",
         errorMessage: "The selected configuration was rejected",
         forceCloseActiveTurn: true,
+        // The submitted message never ran: offer to resume it.
+        interruptedTurn: "error",
+        canResumeWithConfig: true,
       }),
     );
     const runtimeEvents = events.flatMap((event) =>
@@ -1025,7 +1203,60 @@ describe("ThreadSessionManager start guards", () => {
       attention: "none",
       canResumeWithConfig: false,
       forceCloseActiveTurn: true,
+      interruptedTurn: null,
     });
+  });
+
+  it("retires a cut-off turn when Stop reaches a live session after the failure", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const emit = vi.fn<(event: SupervisorEvent) => void>();
+    const manager = createManager("codex", adapter, emit);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    runtime.status = "error";
+    runtime.interruptedTurn = "error";
+    manager.sessions.set(runtime.threadId, runtime);
+
+    await manager.interruptThread({ threadId: runtime.threadId });
+
+    expect(runtime.interruptedTurn).toBeNull();
+    expect(runtime.turnStopRequested).toBe(true);
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: runtime.threadId,
+        interruptedTurn: null,
+      }),
+    );
+  });
+
+  it("publishes accepted Stop before the provider acknowledges cancellation", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const emit = vi.fn<(event: SupervisorEvent) => void>();
+    const manager = createManager("codex", adapter, emit);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    runtime.status = "working";
+    runtime.interruptedTurn = null;
+    runtime.reportedInterruptedTurn = null;
+    manager.sessions.set(runtime.threadId, runtime);
+    const cancellation = deferred<void>();
+    structuredSession.interruptTurn = vi.fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>(
+      () => cancellation.promise,
+    );
+
+    const stopping = manager.interruptThread({ threadId: runtime.threadId });
+
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread-state",
+        status: "working",
+        interruptedTurn: null,
+        turnStopRequested: true,
+      }),
+    );
+    cancellation.resolve();
+    await stopping;
   });
 
   it("preserves bookkeeping errors for never-known session ids", async () => {
@@ -1097,7 +1328,6 @@ describe("ThreadSessionManager start guards", () => {
       prompt: "hello",
       initialSize: { cols: 80, rows: 24 },
       presentationMode: "gui",
-      disabledBuiltInMcpServerIds: ["app-controls"],
     });
 
     expect(adapter.createStructuredSession).toHaveBeenCalledWith(
@@ -1287,6 +1517,10 @@ describe("ThreadSessionManager start guards", () => {
 });
 
 describe("ThreadSessionManager fork mention handoff", () => {
+  beforeEach(() => {
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_URL", "http://127.0.0.1:9321");
+    vi.stubEnv("PORACODE_APP_CONTROLS_MCP_TOKEN", "fixture-token");
+  });
   function forkLaunchPayload() {
     return {
       threadId: "thread-fork-mention",
@@ -1301,9 +1535,9 @@ describe("ThreadSessionManager fork mention handoff", () => {
       ],
       initialSize: { cols: 80, rows: 24 },
       presentationMode: "gui" as const,
-      // The app-controls server carries `read_thread`; disabling it makes the
+      // The app-controls server carries `read_thread`; restricting it makes the
       // mention unresolvable for this session.
-      disabledBuiltInMcpServerIds: ["app-controls" as const],
+      disabledBuiltInMcpTools: { "app-controls": ["read_thread"] },
     };
   }
 

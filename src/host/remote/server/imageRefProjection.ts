@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   classifyInlineImageCandidate,
   collectInlineImageLocationsDeep,
@@ -11,6 +12,7 @@ import type { PersistedRuntimeItem } from "@/shared/ipc";
 import { dbGetThreadRuntimeItem, dbGetThreadRuntimeItemCommitted } from "@/host/db";
 import { canReadCommittedRuntimeItem } from "@/host/db/runtimePersistenceRuntime";
 import { getCachedImagePreview, imagePreviewKey, scheduleImagePreview } from "./imagePreview";
+import { getCachedImageBytes, putCachedImageBytes } from "./imageBytesCache";
 
 /**
  * Replaces inline image bytes in remote-bound payloads with host-minted
@@ -80,7 +82,7 @@ export function projectPayloadImageRefs(
     const dimensions = readImageDimensions(location.value, location.classification);
     // A blurred stand-in for the reserved slot. Only ever read from cache here —
     // generation is queued so a multi-megabyte decode never blocks this response.
-    const previewKey = imagePreviewKey(threadId, itemId, location.path);
+    const previewKey = `${imagePreviewKey(threadId, itemId, location.path)}\0${createHash("sha256").update(location.value, "utf8").digest("hex")}`;
     const preview = getCachedImagePreview(previewKey);
     if (preview === undefined) {
       scheduleInlineImagePreview(previewKey, bytes, location.value, location.classification);
@@ -162,8 +164,16 @@ export async function resolveImageRefAfterFence(
   path: InlineImagePath,
 ): Promise<ResolvedRefImage | null> {
   if (canReadCommittedRuntimeItem(threadId, itemId)) {
+    // Same gate as the committed read below: a queued write for this item
+    // (or a pending thread mutation) disables both, and the writer's
+    // post-commit listener drops the entry when that write lands.
+    const cached = getCachedImageBytes(threadId, itemId, path);
+    if (cached) return cached;
     const committed = resolveImageRef(threadId, itemId, path);
-    if (committed) return committed;
+    if (committed) {
+      putCachedImageBytes(threadId, itemId, path, committed);
+      return committed;
+    }
   }
   const item = await dbGetThreadRuntimeItem(threadId, itemId, { includeStreams: false });
   return resolveImagePayload(item?.payload, path);

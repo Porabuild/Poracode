@@ -49,6 +49,7 @@ const deps = {
     "zod",
     "@sindresorhus/slugify",
     /^@poracode\/agents-usage(?:\/|$)/,
+    /^@kitlangton\/hex(?:\/|$)/,
   ],
   onlyBundle: false as const,
   neverBundle: [
@@ -74,11 +75,12 @@ const shared = {
   deps,
 };
 
-const cliShared = {
+const loggedShared = {
   ...shared,
-  // CLI entrypoints need their operational logs in production builds. The
-  // desktop bundle can drop console noise, but `pnpm run server` and
-  // `pnpm run relay` are otherwise silent after tsdown minification.
+  // Host entrypoints need their operational logs in production builds:
+  // `pnpm run server` and `pnpm run relay` are otherwise silent after tsdown
+  // minification, and the desktop backend host mirrors its console into
+  // `<host root>/logs/server.log`, which stays empty if the calls are dropped.
   minify: isProd ? ({ compress: { dropDebugger: true } } as const) : false,
 };
 
@@ -90,7 +92,7 @@ const standaloneMcpOptions = {
   format: "esm" as const,
   sourcemap,
   dts: false,
-  minify: false,
+  minify: isProd,
   define: buildDefines,
   deps: {
     ...deps,
@@ -116,7 +118,7 @@ export default defineConfig(
       entry: { backendHost: "src/backend/index.ts" },
       plugins: [runtimeDeclaration("src/backend/index.ts")],
       clean: false,
-      ...shared,
+      ...loggedShared,
     },
     {
       // Off-main remote HTTP bridge (V4 F8): a lazily forked utilityProcess
@@ -134,11 +136,6 @@ export default defineConfig(
       ...shared,
     },
     {
-      entry: { legacyMigrationWorker: "src/backend/legacyMigrationWorker.ts" },
-      clean: false,
-      ...shared,
-    },
-    {
       entry: { preload: "src/main/preload.ts" },
       clean: false,
       ...shared,
@@ -149,6 +146,7 @@ export default defineConfig(
       entry: {
         supervisor: "src/supervisor/index.ts",
         wslStagingWorker: "src/supervisor/wsl/staging/worker.ts",
+        ptyBroker: "src/supervisor/pty/ptyBroker.ts",
       },
       clean: false,
       plugins: [runtimeDeclaration("src/supervisor/index.ts", "supervisor")],
@@ -163,17 +161,18 @@ export default defineConfig(
       entry: {
         server: "src/server/cli.ts",
         databaseReadWorker: "src/host/db/databaseReadWorker.ts",
+        sessionExportWorker: "src/server/sessionExportWorker.ts",
       },
       clean: false,
       plugins: [runtimeDeclaration("src/server/cli.ts", "server")],
-      ...cliShared,
+      ...loggedShared,
     },
     {
       // Self-hostable relay for cross-network access (Phase 5). A dumb HTTP+WS
       // tunnel between NAT'd servers and devices. See docs/REMOTE_ARCHITECTURE.md.
       entry: { relay: "src/server/relay/cli.ts" },
       clean: false,
-      ...cliShared,
+      ...loggedShared,
     },
     {
       // Build-time helper used to embed the exact desktop SSH runtime in native
@@ -216,7 +215,7 @@ export default defineConfig(
       target: "node22" as const,
       sourcemap,
       dts: false,
-      minify: false,
+      minify: isProd,
       define: buildDefines,
       deps,
     },

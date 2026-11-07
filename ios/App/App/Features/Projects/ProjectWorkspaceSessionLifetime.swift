@@ -18,3 +18,9 @@ struct ProjectWorkspaceSessionID: Hashable {
   let projectLocation: ProjectLocation
   let workspaceLocation: ProjectLocation
 }
+
+enum ProjectWorkspaceEntryPoint: Hashable, Sendable {
+  case workspace(ProjectWorkspaceMode)
+  case gitHubActions
+  case pullRequest(PullRequestReviewRoute)
+}

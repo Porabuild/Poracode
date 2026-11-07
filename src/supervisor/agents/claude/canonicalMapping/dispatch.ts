@@ -1,4 +1,6 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { readToolVideoSources } from "@/shared/chatVideo";
 import type { RuntimeEvent, ToolCallProgress, TurnState } from "@/shared/contracts";
 import { readFileChangePath, readStringField } from "../../fileChangeSummary";
 import type { ClaudeMapperState } from "../sdkCanonicalMappingState";
@@ -29,6 +31,8 @@ import {
   applyTaskLifecycle,
   applyTaskNotification,
   applyTaskUpdated,
+  forgetSubAgentParentAlias,
+  isAsyncSubAgentLaunchResult,
   mapPermissionDenied,
   registerSubAgentTaskIfNeeded,
   resolveSubAgentParentToolUseId,
@@ -44,6 +48,8 @@ import {
   applyBackgroundTasksChanged,
   classifyBackgroundTaskLaunch,
   forgetBackgroundTask,
+  readBackgroundTaskResultId,
+  recordBackgroundTaskToolMetadata,
 } from "./backgroundTasks";
 import { toolPayload } from "./toolPayload";
 import { createClaudeUsageSpentEvent, readClaudeAssistantSpendTokens } from "./usageSpent";
@@ -81,6 +87,9 @@ function tagParent(
     stepCount: prevCount + taggedStarts,
   };
   parent.progress = nextProgress;
+  // A settled missing-report row may still receive forwarded child metadata,
+  // but its completed error payload must never be revived as "running".
+  if (parent.awaitingTaskReport === true) return parentScopedEvents;
   parentScopedEvents.push({
     type: "item.updated",
     threadId: state.threadId,
@@ -130,6 +139,7 @@ function flushSubAgentAssistantMessage(
   state: ClaudeMapperState,
 ): RuntimeEvent[] {
   const events: RuntimeEvent[] = [...syncSubAgentModelFromChildAssistant(message, state)];
+  const parentItemId = readSubAgentParentItemId(message, state);
   const content = (message as { message?: { content?: unknown } }).message?.content;
   if (!Array.isArray(content)) return events;
   for (const block of content) {
@@ -185,7 +195,12 @@ function flushSubAgentAssistantMessage(
       // Plan-aggregator tools inside a sub-agent would pollute the main plan
       // item; skip them (their result is dropped too — they're child-scoped).
       if (tool.planAggregatorRole) continue;
-      if (!state.toolItemsById.has(itemId)) state.toolItemsById.set(itemId, tool);
+      if (!state.toolItemsById.has(itemId)) {
+        // Only a NEW child records its owning parent row. A duplicate forwarded
+        // block must not re-home a child already tracked under another run.
+        if (parentItemId) tool.subAgentParentItemId = parentItemId;
+        state.toolItemsById.set(itemId, tool);
+      }
       (state.subAgentChildToolItemIds ??= new Set<string>()).add(itemId);
       events.push({
         type: "item.started",
@@ -221,6 +236,9 @@ function syncSubAgentModelFromChildAssistant(
   const model = readStringField(inner as Record<string, unknown>, "model");
   if (!model) return [];
   tool.progress = { ...tool.progress, model };
+  // Enrich the retained row's metadata, but never emit a running payload for a
+  // parent already settled with the missing-report error.
+  if (tool.awaitingTaskReport === true) return [];
   return [
     {
       type: "item.updated",
@@ -537,6 +555,20 @@ function mapClaudeSdkMessageInner(
       if (!tool) continue;
       const text = extractText(obj.content);
       const images = extractToolResultImages(obj.content);
+      const mcpResult = (message as { tool_use_result?: unknown }).tool_use_result;
+      // The launch command/task category may only be provable here (a Bash
+      // `backgroundTaskId` or a Monitor `taskId` in the typed result), while
+      // the tool row still exists — do it before any completion path removes it.
+      const resultTaskId = readBackgroundTaskResultId(tool, mcpResult);
+      if (resultTaskId) {
+        events.push(...recordBackgroundTaskToolMetadata(state, resultTaskId, tool));
+      }
+      const resourceResult =
+        readMcpAppResource(mcpResult) || readToolVideoSources(mcpResult).length > 0
+          ? mcpResult
+          : readToolVideoSources({ content: obj.content }).length > 0
+            ? { content: obj.content }
+            : text;
       if (tool.toolName === "Workflow") {
         const workflow = workflowFromToolUseResult(
           (message as { tool_use_result?: unknown }).tool_use_result,
@@ -559,7 +591,23 @@ function mapClaudeSdkMessageInner(
       // arrives immediately while the subagent keeps running. Keep the parent
       // tool_call alive (running) instead of completing/deleting it — the
       // authoritative `task_notification` closes it later (applyTaskNotification).
-      if (state.activeSubAgentToolToTask?.has(toolUseId)) {
+      // A foreground launch (`is_backgrounded: false`) is different: its result
+      // is its natural close, unless the structured AgentOutput says the tool
+      // actually moved the run to the background before task_updated landed.
+      const registeredTaskId = state.activeSubAgentToolToTask?.get(toolUseId);
+      if (
+        registeredTaskId &&
+        tool.subAgentForeground === true &&
+        isAsyncSubAgentLaunchResult(mcpResult)
+      ) {
+        delete tool.subAgentForeground;
+      }
+      if (registeredTaskId && tool.subAgentForeground === true) {
+        state.activeSubAgentTaskToTool?.delete(registeredTaskId);
+        state.activeSubAgentToolToTask?.delete(toolUseId);
+        forgetSubAgentParentAlias(state, registeredTaskId);
+      }
+      if (registeredTaskId && tool.subAgentForeground !== true) {
         events.push({
           type: "item.updated",
           threadId: state.threadId,
@@ -597,7 +645,7 @@ function mapClaudeSdkMessageInner(
         itemId: tool.itemId,
         payload:
           hasToolCallPayload(tool.itemType) || tool.itemType === "file_change"
-            ? toolPayload(tool, isError ? "error" : "success", text, images)
+            ? toolPayload(tool, isError ? "error" : "success", resourceResult, images)
             : toolPayload(tool, isError ? "error" : "success"),
       });
       events.push({ type: "item.completed", threadId: state.threadId, itemId: tool.itemId });
@@ -632,7 +680,7 @@ function mapClaudeSdkMessageInner(
 
   if (message.type === "system" && message.subtype === "task_started") {
     if (message.ambient === true) return [];
-    registerSubAgentTaskIfNeeded(message, state);
+    events.push(...registerSubAgentTaskIfNeeded(message, state));
     events.push(...applyTaskLifecycle(message, state));
     events.push(...classifyBackgroundTaskLaunch(message, state));
     return events;

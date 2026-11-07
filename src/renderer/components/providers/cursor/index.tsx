@@ -10,7 +10,11 @@ import {
   CURSOR_SDK_PACKAGE_NAME,
 } from "@/shared/agents/cursorSdkPackage";
 import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
-import { cursorRuntimeInstallState, cursorSdkUpdateCommand } from "./runtimeInstall";
+import {
+  canUpdateCursorSdk,
+  cursorRuntimeInstallState,
+  cursorSdkUpdateCommand,
+} from "./runtimeInstall";
 import { fullAccessToggle, planWorkToggle } from "../composerControlBuilders";
 import { registerProviderIcon } from "../ProviderIcon";
 import { registerComposerControls, registerComposerRuntimeUpdate } from "../providerComposer";
@@ -26,11 +30,13 @@ import { registerTitleGenDefaults } from "../titleGen";
 const PROVIDER_KIND = providerManifest.kind;
 
 registerProviderIcon(PROVIDER_KIND, CursorIcon);
-// The SDK runtime reports no session commands, so the GUI slash menu offers
-// Poracode's composer-local set (mode, model, fast). ACP sessions keep the
-// commands cursor-agent reports via `available_commands_update` instead.
+// The SDK runtime reports only feature-detected session commands (`/summarize`
+// on @cursor/sdk >= 1.2.0), appended to Poracode's composer-local set (mode,
+// model, fast). ACP sessions keep the commands cursor-agent reports via
+// `available_commands_update` instead.
 registerGuiSlashCommands(PROVIDER_KIND, {
   isEnabled: ({ runtimeLabel }) => runtimeLabel === "SDK",
+  includeSessionCommands: true,
   buildCommands: buildStandardGuiSlashCommands,
   resolveLocalAction: resolveStandardLocalSlashAction,
 });
@@ -38,14 +44,15 @@ registerComposerRuntimeUpdate(PROVIDER_KIND, ({ agentStatus, project }) => {
   const runtimeLabel = agentStatus.capabilities.runtimeLabel;
   if (runtimeLabel !== "SDK") return undefined;
   const sdk = cursorRuntimeInstallState(agentStatus);
-  const command = cursorSdkUpdateCommand(agentStatus, project);
+  const updatable = canUpdateCursorSdk(agentStatus);
   return {
     label: `${agentStatus.label} ${runtimeLabel}`,
     installed: sdk.sdkInstalled,
     ...(sdk.sdkVersion ? { installedVersion: sdk.sdkVersion } : {}),
-    ...(command
+    ...(updatable
       ? {
-          command,
+          commandForVersion: (version: string) =>
+            cursorSdkUpdateCommand(agentStatus, project, version),
           npmPackage: {
             name: CURSOR_SDK_PACKAGE_NAME,
             minVersion: CURSOR_SDK_MIN_SUPPORTED_VERSION,

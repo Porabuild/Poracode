@@ -75,6 +75,18 @@
   "httpRoutes": [
     {
       "auth": "bearer",
+      "id": "thread-agent-vision",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/agent-vision",
+      "queryParameters": [
+        "preview"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "conversation-search",
       "method": "GET",
       "path": "/api/search/conversations",
@@ -416,7 +428,8 @@
       "path": "/api/files/image",
       "queryParameters": [
         "path",
-        "ticket"
+        "ticket",
+        "variant"
       ],
       "scopes": [
         "session:read"
@@ -508,7 +521,8 @@
       "path": "/api/threads/{threadId}/items/{itemId}/image",
       "queryParameters": [
         "path",
-        "ticket"
+        "ticket",
+        "variant"
       ],
       "scopes": [
         "session:read"
@@ -719,6 +733,15 @@
     },
     {
       "auth": "bearer",
+      "id": "pr-watch-scoped-upsert",
+      "method": "POST",
+      "path": "/api/pr-watches/scoped",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "pr-watch-delete",
       "method": "DELETE",
       "path": "/api/pr-watches",
@@ -869,6 +892,15 @@
     },
     {
       "auth": "bearer",
+      "id": "thread-history-prompts",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/history/prompts",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "thread-history-changes",
       "method": "GET",
       "path": "/api/threads/{threadId}/history/changes",
@@ -892,6 +924,7 @@
       "path": "/api/threads/{threadId}/history/items",
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "beforePosition",
@@ -911,6 +944,7 @@
       "path": "/api/threads/{threadId}/history",
       "queryParameters": [
         "projection",
+        "deferBodies",
         "reads",
         "notices",
         "runtimePage",
@@ -1283,6 +1317,11 @@
   ],
   "procedures": [
     {
+      "name": "hexVoice",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
       "name": "getProviderUsage",
       "owner": "desktop",
       "scope": "session:read"
@@ -1291,6 +1330,40 @@
       "name": "refreshProviderUsage",
       "owner": "desktop",
       "scope": "session:operate"
+    },
+    {
+      "name": "listImportableSessions",
+      "owner": "desktop",
+      "scope": "projects:manage"
+    },
+    {
+      "name": "getLatestAgentVersion",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
+      "name": "refreshAgentStatuses",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "listAcpRegistry",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "updateAgentBinary",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "updateAcpRegistryAgent",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "listThreadSessionActions",
@@ -1391,6 +1464,11 @@
       "name": "workflowAgentChat",
       "owner": "location",
       "scope": "session:read"
+    },
+    {
+      "name": "controlMcpApp",
+      "owner": "thread",
+      "scope": "session:operate"
     },
     {
       "name": "scanSkills",
@@ -1584,7 +1662,102 @@
       "scope": "session:read"
     },
     {
+      "name": "ghPollPullRequests",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
       "name": "ghListPrs",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetRepository",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrViewedFiles",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrReviewGuide",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeWritePrReviewGuide",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSetPrFileViewed",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeEditPrComment",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeGetPrForBranch",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrs",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPullRequests",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrChecks",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrFiles",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrDiff",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrDetails",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrReviewComments",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPullRequestsInState",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrLabelCandidates",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeListPrReviewerCandidates",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "forgeGetPrCommitDiff",
       "owner": "projectLocation",
       "scope": "session:read"
     },
@@ -1803,6 +1976,87 @@
       "timeout": "long"
     },
     {
+      "name": "forgeCreatePr",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeMergePr",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeMergePrAtHead",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeClosePr",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeReopenPr",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeMarkPrReady",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSubmitPrReview",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgeUpdatePrBranch",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "forgePostPrComment",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeEditPr",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSetPrLabels",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeRequestPrReviewers",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeConvertPrToDraft",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSetPrReaction",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "forgeSubmitPrReviewDraft",
+      "owner": "projectLocation",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
       "name": "ghMergePr",
       "owner": "projectLocation",
       "scope": "session:operate",
@@ -1878,12 +2132,14 @@
     {
       "name": "startThread",
       "owner": "projectLocation",
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "ensureThreadRunning",
       "owner": "projectLocation",
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "createRevertAnchor",
@@ -1963,6 +2219,8 @@
   ],
   "webSocket": {
     "clientMessages": [
+      "agent-vision-unwatch",
+      "agent-vision-watch",
       "browser-input",
       "browser-unwatch",
       "browser-watch",
@@ -1974,6 +2232,7 @@
       "thread-item-interests"
     ],
     "outOfBandMessages": [
+      "agent-vision-frame",
       "browser-state",
       "browser-frame",
       "browser-mirror-status",
@@ -1993,6 +2252,7 @@
       "agent-status-updated",
       "windows-agent-statuses",
       "wsl-agent-statuses",
+      "remote-forge-activity",
       "remote-git-summaries",
       "remote-git-state",
       "remote-projects-changed",
@@ -2018,6 +2278,7 @@
       "warning"
     ],
     "serverMessages": [
+      "agent-vision-frame",
       "browser-frame",
       "browser-mirror-status",
       "browser-state",
@@ -2041,7 +2302,9 @@
       "lastSeenSeq",
       "threadItemInterests",
       "desktopInternal",
-      "lastDesktopSeq"
+      "lastDesktopSeq",
+      "eventEpoch",
+      "lastSeenEpoch"
     ]
   }
 }

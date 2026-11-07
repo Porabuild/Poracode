@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServerStatus } from "./types";
@@ -26,4 +27,24 @@ export function isRemoteProjectUnreachable(project: Pick<Project, "remoteServerI
     project,
     useRemoteServersStore.getState().runtime[remoteServerId]?.status,
   );
+}
+
+/**
+ * Selector-side counterpart of `isRemoteProjectUnreachable`: a predicate that
+ * keeps local projects and projects on a paired server this client can reach.
+ * Pickers and fan-out lists use it to leave offline machines out instead of
+ * offering rows whose every action fails; the sidebar keeps showing them,
+ * dimmed, so the user can see which machine is down.
+ */
+export function useReachableProjectFilter(): (project: Pick<Project, "remoteServerId">) => boolean {
+  const reachableServerIds = useRemoteServersStore(
+    useShallow((state) =>
+      Object.keys(state.runtime).filter(
+        (id) =>
+          !isRemoteProjectStatusUnreachable({ remoteServerId: id }, state.runtime[id]?.status),
+      ),
+    ),
+  );
+  return (project) =>
+    !project.remoteServerId || reachableServerIds.includes(project.remoteServerId);
 }

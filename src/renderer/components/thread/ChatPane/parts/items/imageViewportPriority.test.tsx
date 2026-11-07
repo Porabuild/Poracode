@@ -149,15 +149,20 @@ it.each(
   act(() =>
     observer.visibility([target(cards[0]!), true], [target(cards[1]!), mode === "hidden pane"]),
   );
+  const firstImage = kind === "attachment" ? cards[0]!.querySelector("img") : null;
+  const sameNode = (card: Element) =>
+    kind === "attachment" ? firstImage : card.querySelector("img");
   await complete(0);
   await waitFor(() => expect(cards[0]!.querySelector("img")?.src).toBe("blob:visible-1"));
+  expect(cards[0]!.querySelector("img")).toBe(sameNode(cards[0]!));
+  expect(kind === "attachment" ? observer.elements.has(firstImage!) : true).toBe(true);
 
   if (mode === "hidden pane") view.rerender(fixture([false, true]));
   else act(() => observer.visibility([target(cards[0]!), false], [target(cards[1]!), true]));
   await waitFor(() => expect(fetches).toHaveLength(2));
   await complete(1);
   await waitFor(() => expect(cards[1]!.querySelector("img")?.src).toBe("blob:visible-2"));
-  expect(cards[0]!.querySelector("img")).toBeNull();
+  expect(cards[0]!.querySelector("img")?.getAttribute("src") ?? "").toBe("");
 
   // No retry-clock advance: leaving the viewport released foreground demand,
   // so this background eviction must not impose the 15-second failure latch.
@@ -166,8 +171,79 @@ it.each(
   await waitFor(() => expect(fetches).toHaveLength(3));
   await complete(2);
   await waitFor(() => expect(cards[0]!.querySelector("img")?.src).toBe("blob:visible-3"));
+  expect(cards[0]!.querySelector("img")).toBe(sameNode(cards[0]!));
   expect([...view.container.querySelectorAll(selector)]).toEqual(cards);
   view.unmount();
   expect(observer.elements.size).toBe(0);
   expect(observer.disconnect).toHaveBeenCalledOnce();
+});
+
+it("loads queued transcript images from the bottom row up", async () => {
+  const fetches: { path: string; done: (bytes: RemoteEnvironmentImageBytes) => void }[] = [];
+  const imageCache = new RemoteEnvironmentImageCache({
+    maxConcurrentFetches: 1,
+    fetchBytes: (path) =>
+      new Promise((resolve) => {
+        fetches.push({ path, done: resolve });
+      }),
+    createObjectUrl: () => "blob:row",
+    revokeObjectUrl: () => undefined,
+  });
+  cache = imageCache;
+  const readiness = createCacheImageReadiness(imageCache);
+  const items: RuntimeChatItem[] = [0, 1, 2, 3].map((index) => ({
+    id: `row-image-${index}`,
+    type: "image_view",
+    state: "completed",
+    streams: {},
+    payload: {
+      name: "images",
+      status: "success",
+      args: {},
+      images: [
+        remoteImageRef({
+          threadId: "ranked-rows",
+          itemId: `row-image-${index}`,
+          path: ["images", 0],
+          mime: "image/png",
+          bytes: 4,
+          width: 800,
+          height: 600,
+        }),
+      ],
+    },
+  }));
+  const view = render(
+    <AppProvider syncWindowChrome={false}>
+      <ChatPaneActionsContext.Provider value={{ remoteImageReadiness: readiness }}>
+        {items.map((item, index) => (
+          <div key={item.id} data-chat-virtual-row="true" data-index={index}>
+            <ImageView item={item} />
+          </div>
+        ))}
+      </ChatPaneActionsContext.Provider>
+    </AppProvider>,
+  );
+  const cards = [...view.container.querySelectorAll("[data-poracode-image-card]")];
+  const show = (...rows: number[]) =>
+    act(() =>
+      ImageObserver.instances[0]!.visibility(
+        ...rows.map((row): [Element, boolean] => [cards[row]!, true]),
+      ),
+    );
+  // Like the transcript opening at its end: the bottom window shows first,
+  // then rows above it, so the most recent demand is not the newest row.
+  show(2, 3);
+  show(0, 1);
+  // The top row took the only free slot as it mounted; the rest queued.
+  expect(fetches).toHaveLength(1);
+  expect(fetches[0]!.path).toContain("row-image-0");
+  for (const expected of ["row-image-3", "row-image-2", "row-image-1"]) {
+    const index = fetches.length;
+    await act(async () => {
+      fetches[index - 1]!.done({ bytes: new Uint8Array([index]), contentType: "image/png" });
+    });
+    await waitFor(() => expect(fetches).toHaveLength(index + 1));
+    expect(fetches[index]!.path).toContain(expected);
+  }
 });

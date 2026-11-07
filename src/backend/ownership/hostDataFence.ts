@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { closeSync, lstatSync, openSync } from "node:fs";
-import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
 
 export const HOST_DATA_FENCE_DATABASE_VERSION = 1;
 // Same brief concurrent first-open allowance as the kernel lease.

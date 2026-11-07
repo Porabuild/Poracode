@@ -8,8 +8,10 @@ export interface SleepInhibitor {
   dispose(): void;
 }
 
+type PowerSaveBlockerType = "prevent-app-suspension" | "prevent-display-sleep";
+
 interface PowerSaveBlockerApi {
-  start(type: "prevent-app-suspension"): number;
+  start(type: PowerSaveBlockerType): number;
   stop(id: number): void;
   isStarted(id: number): boolean;
 }
@@ -27,19 +29,57 @@ interface SleepInhibitorOptions {
   logger?: (message: string) => void;
 }
 
+/** One native inhibitor command; Linux tries a channel's candidates in order. */
+interface LinuxInhibitorCommand {
+  command: string;
+  args: readonly string[];
+}
+
+// System sleep: suspend-only inhibitors, so the display can still turn off.
+const LINUX_SLEEP_COMMANDS: readonly LinuxInhibitorCommand[] = [
+  {
+    command: "systemd-inhibit",
+    args: ["--what=sleep", "--who=Poracode", "--why=Poracode is active", "--mode=block", "cat"],
+  },
+  {
+    command: "gnome-session-inhibit",
+    args: ["--inhibit", "suspend", "--reason", "Poracode is active", "cat"],
+  },
+];
+
+// Screen lock: idle inhibitors keep the session from going idle, which is what
+// starts the screensaver, display blanking and the idle lock. GNOME ignores
+// logind idle inhibitors, so its session inhibitor goes first.
+const LINUX_SCREEN_LOCK_COMMANDS: readonly LinuxInhibitorCommand[] = [
+  {
+    command: "gnome-session-inhibit",
+    args: ["--inhibit", "idle", "--reason", "Poracode is keeping the screen awake", "cat"],
+  },
+  {
+    command: "systemd-inhibit",
+    args: [
+      "--what=idle",
+      "--who=Poracode",
+      "--why=Poracode is keeping the screen awake",
+      "--mode=block",
+      "cat",
+    ],
+  },
+];
+
 class ElectronInhibitor implements SleepInhibitor {
   private blockerId: number | null = null;
 
   constructor(
     private readonly blocker: PowerSaveBlockerApi,
+    private readonly type: PowerSaveBlockerType,
     private readonly log: (message: string) => void,
   ) {}
 
   setActive(active: boolean): void {
     if (active) {
       if (this.blockerId !== null) return;
-      // Keep background work running while allowing the display to turn off.
-      const id = this.blocker.start("prevent-app-suspension");
+      const id = this.blocker.start(this.type);
       if (!this.blocker.isStarted(id)) {
         this.log(`${LOG_PREFIX} powerSaveBlocker.start did not activate (id=${id})`);
       }
@@ -61,10 +101,11 @@ class ElectronInhibitor implements SleepInhibitor {
 class LinuxInhibitor implements SleepInhibitor {
   private child: ChildProcess | null = null;
   private active = false;
-  private useGnome = false;
+  private candidateIndex = 0;
   private disabled = false;
 
   constructor(
+    private readonly candidates: readonly LinuxInhibitorCommand[],
     private readonly spawnFn: SpawnFn,
     private readonly log: (message: string) => void,
   ) {}
@@ -85,10 +126,9 @@ class LinuxInhibitor implements SleepInhibitor {
   }
 
   private spawnChild(): void {
-    const command = this.useGnome ? "gnome-session-inhibit" : "systemd-inhibit";
-    const args = this.useGnome
-      ? ["--inhibit", "suspend", "--reason", "Poracode is active", "cat"]
-      : ["--what=sleep", "--who=Poracode", "--why=Poracode is active", "--mode=block", "cat"];
+    const candidate = this.candidates[this.candidateIndex];
+    if (!candidate) return;
+    const { command, args } = candidate;
     let child: ChildProcess;
     try {
       child = this.spawnFn(command, args, {
@@ -115,11 +155,11 @@ class LinuxInhibitor implements SleepInhibitor {
 
   private fallback(message: string): void {
     this.log(`${LOG_PREFIX} ${message}`);
-    if (this.useGnome) {
+    this.candidateIndex += 1;
+    if (this.candidateIndex >= this.candidates.length) {
       this.disabled = true;
       return;
     }
-    this.useGnome = true;
     if (this.active) this.spawnChild();
   }
 
@@ -146,16 +186,34 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function createSleepInhibitor(options: SleepInhibitorOptions = {}): SleepInhibitor {
-  const platform = options.platform ?? process.platform;
-  const log = options.logger ?? ((message: string) => console.warn(message));
-  const blocker = options.electronBlocker ?? powerSaveBlocker;
-  const spawnFn = options.spawnFn ?? (nodeSpawn as unknown as SpawnFn);
+function resolveOptions(options: SleepInhibitorOptions) {
+  return {
+    platform: options.platform ?? process.platform,
+    log: options.logger ?? ((message: string) => console.warn(message)),
+    blocker: options.electronBlocker ?? powerSaveBlocker,
+    spawnFn: options.spawnFn ?? (nodeSpawn as unknown as SpawnFn),
+  };
+}
 
+/** Prevents system sleep while allowing the display to turn off. */
+export function createSleepInhibitor(options: SleepInhibitorOptions = {}): SleepInhibitor {
+  const { platform, log, blocker, spawnFn } = resolveOptions(options);
   if (platform === "linux") {
     // Electron 44 also suspends the screensaver for app-suspension blockers,
     // preventing Wayland display-off. Native suspend-only inhibitors avoid it.
-    return new LinuxInhibitor(spawnFn, log);
+    return new LinuxInhibitor(LINUX_SLEEP_COMMANDS, spawnFn, log);
   }
-  return new ElectronInhibitor(blocker, log);
+  // Keep background work running while allowing the display to turn off.
+  return new ElectronInhibitor(blocker, "prevent-app-suspension", log);
+}
+
+/**
+ * Keeps the display awake, so idle display sleep cannot trigger the OS idle
+ * screen lock. On macOS this is the `PreventUserIdleDisplaySleep` assertion.
+ * Manual locking, lid close, and enforced lock policies are not affected.
+ */
+export function createScreenLockInhibitor(options: SleepInhibitorOptions = {}): SleepInhibitor {
+  const { platform, log, blocker, spawnFn } = resolveOptions(options);
+  if (platform === "linux") return new LinuxInhibitor(LINUX_SCREEN_LOCK_COMMANDS, spawnFn, log);
+  return new ElectronInhibitor(blocker, "prevent-display-sleep", log);
 }

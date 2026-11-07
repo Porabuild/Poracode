@@ -52,8 +52,8 @@ export const REMOTE_PROCEDURE_ROUTES = {
  * any unclassified fall-through or missing justification.
  */
 export const NON_ROUTER_PROJECT_PROCEDURES = {
-  listImportableSessions: "local-shell: enumerates transcripts on the host filesystem",
-  importSessionTranscript: "local-shell: imports a transcript from the host filesystem",
+  importSessionTranscript:
+    "local-shell: legacy desktop replay; every client imports through the host's import-session thread command",
 
   // Native dialogs, clipboard, and local files
   pickFolder: "local-shell: native folder dialog on this machine",
@@ -79,7 +79,6 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   openExternalNative: "local-shell: opens a URL via this machine's OS shell",
   openMicrophoneSettings: "local-shell: opens this machine's OS settings app",
   showNotification: "local-shell: OS notification",
-  requestLegacyDataMigration: "local-shell: one-time migration of this machine's legacy data",
   getHomeScopeLocation: "local-shell: this machine's home directory as the default project parent",
   listWslDistros: "local-shell: enumerates this machine's WSL distros for location picking",
   getAvailableWindowsShells: "local-shell: this machine's terminal shell inventory",
@@ -96,6 +95,12 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   // Host-owned destructive-retirement check (housekeeping purge)
   closeThreadConfirmed:
     "local-shell: host-owned confirmed-retirement close for destructive housekeeping; the renderer never issues it and no remote route exists",
+  controlThreadExecution:
+    "local-shell: local administration owns provider execution and confirmed retirement on this supervisor",
+  reserveThreadExecution:
+    "local-shell: local administration reserves execution custody on this supervisor before launching",
+  controlledThreadRequest:
+    "local-shell: local administration binds answers to this supervisor's exact pending request incarnation",
   ghMergePrAtHead:
     "local-shell: app-controls invokes this host's guarded merge directly; older supervisors reject its distinct name and no remote route exists",
 
@@ -127,6 +132,10 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   // the remote data plane (the experiment judge walks them).
   dbGetThreadRuntimeItems:
     "local-shell: unbounded full-transcript read; remote clients page the bounded history-items route instead of one raw DB read",
+  // Per-thread crew spend is read from this desktop's own usage ledger; the
+  // remote protocol does not carry it yet, so remote clients show no breakdown.
+  dbGetThreadTokenUsage:
+    "local-shell: per-thread crew spend reads this desktop's usage ledger; the remote protocol does not carry it yet",
 
   // Remote-access server control — the host's own trust surface
   getRemoteAccessPairing:
@@ -136,7 +145,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   setRemoteAccessEnabled:
     "local-shell: toggles this host's remote-access server; trust-surface control stays with the physical host",
   setRemoteAccessLanEnabled:
-    "local-shell: changes this host's network exposure; trust-surface control stays with the physical host",
+    "local-shell: retired no-op kept for client/host hop compatibility; trust-surface control stays with the physical host",
   revokeRemoteAccessSession:
     "local-shell: revokes sessions on this host's server; trust-surface control stays with the physical host",
   getRemoteAccessTailscaleStatus:
@@ -147,6 +156,13 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
     "local-shell: launches this host's Tailscale GUI; trust-surface control stays with the physical host",
   setRemoteAccessAdvertisedUrl:
     "local-shell: overrides this host's advertised URL; trust-surface control stays with the physical host",
+  // Locked Computer Use changes this Mac's login rules behind an admin prompt
+  getLockedComputerUseStatus:
+    "local-shell: reads this Mac's Locked Computer Use plug-in and login rule",
+  installLockedComputerUse:
+    "local-shell: installs a login plug-in on this Mac behind an administrator prompt; a remote client must never trigger it",
+  uninstallLockedComputerUse:
+    "local-shell: removes this Mac's login plug-in behind an administrator prompt; a remote client must never trigger it",
   probeTlsCertificateFingerprint:
     "local-shell: probes a TLS host from this machine's network stack for pairing pinning",
 
@@ -213,21 +229,22 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   getAgentStatuses:
     "local-shell: this machine's CLI agent inventory; remote clients read via the agent-statuses registry route",
   cancelAgentDiscovery: "local-shell: cancels this machine's full agent discovery sweep",
-  refreshAgentStatuses: "local-shell: re-probes this machine's CLI agent installs",
+  probeSelectedAgent: "local-shell: local administration probes an exact provider on this machine",
   getAgentHookPluginStatuses: "local-shell: this machine's agent hook plugin inventory",
   installAgentHookPlugin: "local-shell: installs into this machine's CLI hook plugins",
   uninstallAgentHookPlugin: "local-shell: uninstalls from this machine's CLI hook plugins",
-  listAcpRegistry: "local-shell: this machine's ACP registry catalog",
   installAcpRegistryAgent: "local-shell: installs a CLI agent on this machine",
-  updateAcpRegistryAgent: "local-shell: updates a CLI agent install on this machine",
   removeAcpRegistryAgent: "local-shell: removes a CLI agent install from this machine",
   setAcpRegistryAgentAuth: "local-shell: stores agent auth on this machine",
   confirmSupervisorSettingsEdits: "local-shell: this device's settings owner acknowledgement",
   authenticateAcpAgent: "local-shell: runs this machine's agent OAuth window and secret store",
+  controlAcpAuthentication:
+    "local-shell: supervisor-owned authentication operation IDs and cancellation stay on this host",
+  controlMcpAuthentication:
+    "local-shell: supervisor-owned integration OAuth operations and cancellation stay on this host",
   logoutAcpAgent: "local-shell: clears agent auth on this machine",
   resolveAgentAccount: "local-shell: resolves accounts against this machine's agent auth",
-  updateAgentBinary: "local-shell: downloads and swaps this machine's agent binaries",
-  getLatestAgentVersion: "local-shell: version probe for this machine's agent installs",
+  getAgentConfigDefaults: "local-shell: reads this machine's agent config file, read-only",
   manageAgentPlugins: "local-shell: manages this machine's agent plugin packages",
   manageAgentCredentials: "local-shell: this machine's keychain-stored agent credentials",
   manageModelProviders: "local-shell: edits this machine's native model routes and credentials",
@@ -238,6 +255,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
 
   // Cross-agent routing and memory — this device's config
   getCrossagentRouting: "local-shell: this device's cross-agent routing config",
+  cancelCrossagentRun: "local-shell: cancels this host's crossagent child runs",
   confirmCrossagentRoutingOverride: "local-shell: this device's routing override decision",
   removeCrossagentRoutingOverride: "local-shell: this device's routing override decision",
   updateCrossagentMemoryEntryTags: "local-shell: this device's memory catalog",

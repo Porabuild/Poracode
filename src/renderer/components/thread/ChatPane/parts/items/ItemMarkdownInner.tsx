@@ -24,18 +24,23 @@ import {
   resolveMarkdownImageUrl,
   rewriteMarkdownLocalImageUrls,
 } from "@/shared/markdownLocalImages";
+import { isChatVideoSource } from "@/shared/chatVideo";
+import { isChatDownloadSource } from "@/shared/chatFile";
 import { getProjectFsPath } from "@/shared/wsl";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { CodeBlock } from "./CodeBlock";
 import { CopyTextButton } from "./CopyTextButton";
 import { MarkdownImage } from "./MarkdownImage";
+import { MarkdownFile } from "./MarkdownFile";
+import { MarkdownVideo } from "./MarkdownVideo";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
 import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
 import { normalizeHighlightLanguage } from "./languageDetect";
-import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
+import { parseChatPathRef, parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
+import { normalizeWindowsDrivePath } from "@/shared/pathUtils";
 import { chatRemarkMath, withChatMathRehype } from "@/renderer/markdown/mathPlugins";
 import { splitStreamdownMarkdownBlocks } from "@/renderer/markdown/streamdownBlockSplitter";
 import {
@@ -75,6 +80,7 @@ function buildRehypePlugins(): RehypePlugins {
         return [
           rehypeLocalImageUrls,
           allowLocalImageProtocol(plugin),
+          rehypeFileOnlyLists,
           [rehypeStrongTextRunComponents, STRONG_TEXT_RUN_OPTIONS],
         ];
       }
@@ -177,11 +183,11 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
             rootNames: rootNames ? [...rootNames].sort() : null,
           }),
           parsePathRef: (token: string) => {
-            const ref = parseProjectPathRef(token, { rootNames });
+            const ref = parseChatPathRef(token, rootNames);
             const projectLocation = actions?.projectLocation;
             if (ref || !projectLocation) return ref;
             const normalized = normalizeChatProjectPath(token, projectLocation);
-            return normalized === token ? null : parseProjectPathRef(normalized, { rootNames });
+            return normalized === token ? null : parseChatPathRef(normalized, rootNames);
           },
         },
       ],
@@ -189,9 +195,8 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
     ],
     [actions, rootNames],
   );
-  const projectRoot = actions?.projectLocation
-    ? getProjectFsPath(actions.projectLocation)
-    : undefined;
+  const mediaLocation = actions?.mediaLocation ?? actions?.projectLocation;
+  const projectRoot = mediaLocation ? getProjectFsPath(mediaLocation) : undefined;
   const extraRoots = actions?.markdownImageRoots;
   const formatTranscript = actions?.formatTranscriptMarkdown ?? identityMarkdown;
   const formattedText = formatTranscript(text);
@@ -272,7 +277,32 @@ const MD_COMPONENTS: StreamdownComponents = {
   a({ href, children }) {
     return <MdAnchor href={href ?? ""}>{children}</MdAnchor>;
   },
-  img: MarkdownImage,
+  img(props) {
+    return typeof props.src === "string" && isChatVideoSource(props.src) ? (
+      <MarkdownVideo src={props.src} {...(props.alt ? { name: props.alt } : {})} />
+    ) : (
+      <MarkdownImage {...props} />
+    );
+  },
+  video({ src, children, title }) {
+    const source = Children.toArray(children).find(
+      (child) => isValidElement<{ src?: unknown }>(child) && typeof child.props.src === "string",
+    );
+    const url =
+      typeof src === "string"
+        ? src
+        : isValidElement<{ src: string }>(source)
+          ? source.props.src
+          : "";
+    return url ? (
+      <MarkdownVideo
+        src={url}
+        mimeType="video/*"
+        {...(typeof title === "string" ? { name: title } : {})}
+      />
+    ) : null;
+  },
+  source: () => null,
   // Render a clean native table with HeroUI-themed styling. Override
   // Streamdown's default wrapper (which includes copy/download/fullscreen
   // controls) and replace its memoized sub-components with native HTML
@@ -312,7 +342,13 @@ const inlineCodeChipClass =
 const markdownCodeBlockClass =
   "not-prose my-2 min-w-0 overflow-x-hidden rounded bg-foreground/10 px-[0.5em] py-[0.25em] font-mono text-[0.875em] leading-snug text-foreground";
 const transformMarkdownUrl: UrlTransform = (url, key, node) =>
-  key === "src" && node.tagName === "img" && url.startsWith("poracode-local://")
+  (key === "src" && node.tagName === "img" && url.startsWith("poracode-local://")) ||
+  ((key === "src" || key === "href") &&
+    isChatVideoSource(
+      url,
+      node.tagName === "video" || node.tagName === "source" ? "video/*" : undefined,
+    )) ||
+  (key === "href" && isChatDownloadSource(url))
     ? url
     : defaultUrlTransform(url, key, node);
 
@@ -322,6 +358,32 @@ interface MarkdownHastNode {
   tagName?: string;
   properties?: Record<string, unknown>;
   children?: MarkdownHastNode[];
+}
+
+/**
+ * True only for a `<ul>` whose items are each exactly one standalone artifact
+ * link (optionally wrapped in a single `<p>`). Mixed, nested, task, source or
+ * prose lists keep ordinary bullets.
+ */
+function isFileOnlyMarkdownList(node: MarkdownHastNode | undefined): boolean {
+  const meaningful = (children: MarkdownHastNode[] | undefined) =>
+    (children ?? []).filter((child) => !(child.type === "text" && !(child.value ?? "").trim()));
+  const singleArtifactAnchor = (children: MarkdownHastNode[] | undefined): boolean => {
+    const parts = meaningful(children);
+    if (parts.length !== 1) return false;
+    const [part] = parts;
+    if (part?.tagName === "a")
+      return (
+        typeof part.properties?.href === "string" && isChatDownloadSource(part.properties.href)
+      );
+    if (part?.tagName === "p") return singleArtifactAnchor(part.children);
+    return false;
+  };
+  const items = meaningful(node?.children);
+  return (
+    items.length > 0 &&
+    items.every((li) => li.tagName === "li" && singleArtifactAnchor(li.children))
+  );
 }
 
 function replaceRawHtmlWithText(node: MarkdownHastNode): void {
@@ -335,6 +397,27 @@ function replaceRawHtmlWithText(node: MarkdownHastNode): void {
 function rehypeLocalImageUrls() {
   return (tree: MarkdownHastNode) => {
     rewriteLocalImageUrls(tree);
+  };
+}
+
+/** Marks artifact-only unordered lists so CSS can drop their bullets/indent. */
+function rehypeFileOnlyLists() {
+  return (tree: MarkdownHastNode) => {
+    const pending = [tree];
+    while (pending.length > 0) {
+      const node = pending.pop();
+      if (!node?.children) continue;
+      if (node.tagName === "ul" && isFileOnlyMarkdownList(node)) {
+        const props = (node.properties ??= {});
+        const existing = props.className;
+        const classes = [
+          ...(Array.isArray(existing) ? existing : typeof existing === "string" ? [existing] : []),
+          "poracode-chat-file-list",
+        ];
+        props.className = classes;
+      }
+      for (const child of node.children) pending.push(child);
+    }
   };
 }
 
@@ -354,15 +437,24 @@ function allowLocalImageProtocol(plugin: RehypePlugins[number]): RehypePlugins[n
   const [transformer, rawSchema] = plugin;
   const schema = rawSchema as {
     protocols?: Record<string, readonly string[] | null | undefined>;
+    tagNames?: string[];
+    attributes?: Record<string, unknown[]>;
   };
   const protocols = schema.protocols ?? {};
   return [
     transformer,
     {
       ...schema,
+      tagNames: [...(schema.tagNames ?? []), "video", "source"],
+      attributes: {
+        ...schema.attributes,
+        video: ["src", "title"],
+        source: ["src", "type"],
+      },
       protocols: {
         ...protocols,
-        src: [...(protocols.src ?? []), "poracode-local"],
+        src: [...(protocols.src ?? []), "poracode-local", "file"],
+        href: [...(protocols.href ?? []), "poracode-local", "file"],
       },
     },
   ] as RehypePlugins[number];
@@ -444,7 +536,6 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
   const actions = useChatPaneActions();
   const href = props.href?.trim() ?? "";
   if (!href) return <span>{props.children}</span>;
-
   const explicitPathRef = parsePathRefUrl(href);
   if (explicitPathRef) {
     return actions ? (
@@ -452,6 +543,17 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
     ) : (
       <span>{props.children}</span>
     );
+  }
+
+  if (isChatVideoSource(href)) {
+    return <MarkdownVideo src={href} name={flattenMdChildren(props.children)} />;
+  }
+
+  // A recognized local artifact link uses the file chip before the
+  // project path/folder chip fallback gets a chance to claim it.
+  if (isChatDownloadSource(href)) {
+    // The chip shows the real basename; the link label stays out of the name.
+    return <MarkdownFile src={href} />;
   }
 
   if (/^(https?|mailto):/i.test(href)) {
@@ -507,7 +609,12 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
       );
     }
   }
-  if (href.startsWith("/") || href.startsWith("file:")) {
+  // Without a project, a relative path link has nothing to open; keep its label.
+  if (
+    href.startsWith("/") ||
+    href.startsWith("file:") ||
+    (!actions?.projectLocation && parseProjectPathRef(href))
+  ) {
     return <span>{props.children}</span>;
   }
   return (
@@ -541,7 +648,7 @@ function renderPathChip(
 ) {
   const normalized = projectLocation
     ? normalizeChatProjectPath(ref.path, projectLocation)
-    : ref.path;
+    : normalizeWindowsDrivePath(ref.path);
   if (ref.kind === "file") {
     return (
       <InlineFilePathChip

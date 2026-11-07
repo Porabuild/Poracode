@@ -21,6 +21,10 @@ vi.mock("./codex/plugin/install", async (importOriginal) => {
   };
 });
 
+// These are argv-shaping fixtures with synthetic Windows/WSL locations, not
+// live Codex installations. Native config discovery has separate coverage.
+vi.mock("./codex/nativeMcp", () => ({ readCodexNativeMcpNames: async () => [] }));
+
 // Skip slow PATH / WSL probes. These tests only exercise argv-shaping logic;
 // resolving the binary against the host or distro PATH is irrelevant and
 // flakes under parallel load when many suites spawn wsl.exe at once.
@@ -60,6 +64,7 @@ import {
 import { createClaudeAdapter } from "./claude";
 import { createCopilotAdapter } from "./copilot";
 import { buildCodexAppServerCommand, createCodexAdapter } from "./codex";
+import { primeCodexAgentsConfigSupport } from "./codex/agentsConfigSupport";
 import { buildCodexArgvFor, primeCodexGoalsSupport } from "./codex/argv";
 import { createCursorAdapter } from "./cursor";
 import { createGrokAdapter } from "./grok";
@@ -197,6 +202,64 @@ describe("agent command builders", () => {
     expect(cmdArgs).not.toContain("--session-source");
   });
 
+  it("passes configured Codex sub-agent defaults to the app-server and terminal sessions", async () => {
+    const agentSettings = {
+      subagentModel: "gpt-6-luna",
+      subagentReasoningEffort: "max",
+      maxSubagents: "10",
+    };
+    const expected = [
+      'agents.default_subagent_model="gpt-6-luna"',
+      'agents.default_subagent_reasoning_effort="max"',
+      "agents.max_concurrent_threads_per_session=10",
+    ];
+
+    const appServer = parseWindowsSpec(
+      await buildCodexAppServerCommand(windowsProject, { agentSettings }),
+    );
+    const terminal = await buildCodexArgvFor(windowsProject, config, "hello", undefined, {
+      agentSettings,
+    });
+
+    for (const override of expected) {
+      expect(appServer.cmdArgs).toContain(override);
+      expect(terminal.args).toContain(override);
+    }
+    expect(appServer.cmdArgs.at(-1)).toBe("app-server");
+  });
+
+  it("omits the agents.* overrides for a Codex CLI older than 0.145", async () => {
+    const agentSettings = {
+      subagentModel: "gpt-6-luna",
+      maxSubagents: "10",
+      planModeReasoningEffort: "high",
+    };
+    primeCodexAgentsConfigSupport(windowsProject, "codex-cli 0.144.0");
+    try {
+      const appServer = parseWindowsSpec(
+        await buildCodexAppServerCommand(windowsProject, { agentSettings }),
+      );
+      const terminal = await buildCodexArgvFor(windowsProject, config, "hello", undefined, {
+        agentSettings,
+      });
+
+      for (const args of [appServer.cmdArgs, terminal.args]) {
+        expect(args.join(" ")).not.toContain("agents.");
+        expect(args).toContain('plan_mode_reasoning_effort="high"');
+      }
+    } finally {
+      primeCodexAgentsConfigSupport(windowsProject, "codex-cli 999.0.0");
+    }
+  });
+
+  it("adds no sub-agent overrides when the settings are unset", async () => {
+    const spec = await buildCodexArgvFor(windowsProject, config, "hello", undefined, {
+      agentSettings: { subagentModel: "" },
+    });
+
+    expect(spec.args.join(" ")).not.toContain("agents.");
+  });
+
   it("passes the Codex approvals reviewer override to terminal sessions", async () => {
     const spec = await buildCodexArgvFor(
       windowsProject,
@@ -207,6 +270,25 @@ describe("agent command builders", () => {
     expect(spec.args).toContain("-c");
     expect(spec.args).toContain('approvals_reviewer="auto_review"');
   });
+
+  it.each([undefined, "", "auto_review"])(
+    "resets the reviewer for full-access terminal sessions with saved reviewer %j",
+    async (approvalsReviewer) => {
+      const spec = await buildCodexArgvFor(
+        windowsProject,
+        {
+          ...config,
+          approvalPolicy: "never",
+          sandboxMode: "danger-full-access",
+          ...(approvalsReviewer !== undefined ? { approvalsReviewer } : {}),
+        },
+        "hello",
+      );
+
+      expect(spec.args).toContain('approvals_reviewer="user"');
+      expect(spec.args).not.toContain('approvals_reviewer="auto_review"');
+    },
+  );
 
   it("passes the Codex context window and compact limit to terminal sessions", async () => {
     const spec = await buildCodexArgvFor(windowsProject, { ...config, contextSize: "1m" }, "hello");
@@ -594,12 +676,17 @@ describe("agent command builders", () => {
         "--fallback-model",
         "haiku",
         "--no-session-persistence",
+        "--safe-mode",
+        "--restricted",
+        "--disable-slash-commands",
+        "--tools",
+        "Read,Glob,Grep",
         "--permission-mode",
         "plan",
         "--allowedTools",
         "Read,Glob,Grep",
         "--disallowedTools",
-        "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill",
+        "Bash,Edit,Write,NotebookEdit,WebFetch,WebSearch,Task,Skill,mcp__*",
         "--mcp-config",
         '{"mcpServers":{}}',
         "--strict-mcp-config",

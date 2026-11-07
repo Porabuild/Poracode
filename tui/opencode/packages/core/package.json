@@ -1,0 +1,9 @@
+{
+  "name": "@opencode/core",
+  "version": "2.1.4",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  }
+}

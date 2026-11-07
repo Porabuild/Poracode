@@ -310,6 +310,87 @@ describe("ThreadSlashCommands", () => {
     expect(editor.textContent).toBe("/review ");
   });
 
+  it.each([
+    { surface: "thread", mode: "gui", accept: "Enter", invocation: "$review-code" },
+    { surface: "thread", mode: "terminal", accept: "Tab", invocation: "/review-code" },
+    { surface: "draft", mode: "gui", accept: " ", invocation: "/skill review-code" },
+    {
+      surface: "draft",
+      mode: "terminal",
+      accept: "mouse",
+      invocation: "Use the review-code skill.",
+    },
+  ] as const)(
+    "selects an inline dollar skill in the $surface $mode composer with $accept",
+    async ({ surface, mode, accept, invocation }) => {
+      const commands = [
+        { id: "review-command", label: "review-command" },
+        {
+          id: "skill:review-code",
+          label: "review-code",
+          section: "skills" as const,
+          skillName: "review-code",
+          skillPath: "/skills/review-code/SKILL.md",
+          skillInvocation: invocation,
+          skillProvider: "Shared",
+          skillScope: "global" as const,
+        },
+      ];
+      const agent = makeAgentStatus();
+      agent.capabilities.slashCommands = commands;
+      if (surface === "draft") await renderDraftComposer(agent, undefined, mode);
+      else
+        await renderThread(makeThread({ presentationMode: mode, slashCommands: commands }), agent);
+
+      const editor = screen.getByRole("textbox");
+      typeSlashQuery(editor, "Please $rev after checking this");
+      const text = editor.firstChild!;
+      mockSelection(text, "Please $rev".length);
+      fireEvent.click(editor);
+
+      const option = screen.getByRole("option", { name: "Skill: review-code" });
+      expect(screen.queryByText("Commands")).not.toBeInTheDocument();
+      expect(option.querySelector("mark")).toHaveTextContent("rev");
+      if (accept === " ") {
+        mockSelection(text, "Please $review-code".length);
+        text.textContent = "Please $review-code after checking this";
+        fireEvent.input(editor);
+      }
+      if (accept === "mouse") {
+        fireEvent.mouseDown(option);
+        fireEvent.click(option);
+      } else fireEvent.keyDown(editor, { key: accept });
+
+      expect(editor.querySelector("[data-skill-name]")).toHaveAttribute(
+        "data-skill-name",
+        "review-code",
+      );
+      expect(editor.querySelector("[data-skill-name]")).toHaveAttribute(
+        "data-skill-invocation",
+        invocation,
+      );
+      expect(editor.textContent).toBe("Please review-code  after checking this");
+      expect(screen.queryByRole("option", { name: "Skill: review-code" })).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(["Please /rev", "price$rev", "Please $rev "])(
+    "does not open suggestions for %s",
+    async (input) => {
+      await renderThread(
+        makeThread({
+          slashCommands: [
+            { id: "review", label: "review" },
+            { id: "review-code", label: "review-code", section: "skills" },
+          ],
+        }),
+        makeAgentStatus(),
+      );
+      typeSlashQuery(screen.getByRole("textbox"), input);
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    },
+  );
+
   it("renders thread-scoped slash commands in the terminal composer", async () => {
     const baseCapabilities = makeAgentStatus().capabilities;
     await renderThread(
@@ -531,6 +612,56 @@ describe("ThreadSlashCommands", () => {
       },
     ]);
   });
+
+  it.each([
+    { pluginId: "review-tools", pluginName: "Review", expectedPluginName: "Review" },
+    { pluginId: "review-tools", pluginName: undefined, expectedPluginName: undefined },
+    { pluginId: "other-plugin", pluginName: "Review", expectedPluginName: undefined },
+    { pluginId: undefined, pluginName: "Review", expectedPluginName: undefined },
+  ])(
+    "rebinds $pluginId with plugin label $pluginName to $expectedPluginName",
+    ({ pluginId, pluginName, expectedPluginName }) => {
+      const [rebound] = rebindSkillSegments(
+        [
+          {
+            kind: "skill",
+            name: "review-code",
+            path: "/old/SKILL.md",
+            invocation: "$review-code",
+            provider: "Codex",
+            scope: "global",
+            pluginId: "review-tools",
+            ...(pluginName ? { pluginName } : {}),
+          },
+        ],
+        [
+          {
+            id: "review-code",
+            label: "review-code",
+            section: "skills",
+            skillName: "review-code",
+            skillPath: "/project/.gemini/skills/review-code/SKILL.md",
+            skillInvocation: "/review-code",
+            skillProvider: "Gemini",
+            skillScope: "project",
+            ...(pluginId ? { pluginId } : {}),
+          },
+        ],
+        (name) => `Use the ${name} skill.`,
+      );
+
+      expect(rebound).toEqual({
+        kind: "skill",
+        name: "review-code",
+        path: "/project/.gemini/skills/review-code/SKILL.md",
+        invocation: "/review-code",
+        provider: "Gemini",
+        scope: "project",
+        ...(pluginId ? { pluginId } : {}),
+        ...(expectedPluginName ? { pluginName: expectedPluginName } : {}),
+      });
+    },
+  );
 
   it("binds typed leading skill text to a skill segment with the provider invocation", () => {
     expect(
@@ -1066,6 +1197,7 @@ describe("ThreadSlashCommands", () => {
   });
 
   it("binds a seeded plugin and enables its built-in MCP servers", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
     const onConfigChange = vi.fn<(patch: Partial<Thread["config"]>) => void>((patch) => {
       if (patch.computerUse !== true) return;
       expect(screen.getByLabelText("Computer Use")).toBeInTheDocument();
@@ -1134,7 +1266,7 @@ describe("ThreadSlashCommands", () => {
       enableMcpServerIds: ["computer-use"],
     });
 
-    await renderDraftComposer(makeAgentStatus(), vi.fn(), "gui", onConfigChange);
+    await renderDraftComposer(makeAgentStatus(), onStart, "gui", onConfigChange);
 
     await waitFor(() => expect(onConfigChange).toHaveBeenCalledWith({ computerUse: true }));
     const pluginChip = screen.getByLabelText("Computer Use");
@@ -1142,6 +1274,22 @@ describe("ThreadSlashCommands", () => {
     expect(pluginChip.querySelector("svg")).not.toBeNull();
     expect(screen.getByRole("textbox")).toHaveTextContent("Computer Use Inspect the desktop");
     expect(useAppStore.getState().pendingComposerSeeds[draftProject.id]).toBeUndefined();
+
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        segments: expect.arrayContaining([
+          expect.objectContaining({
+            kind: "skill",
+            name: "operate-desktop",
+            invocation: "$operate-desktop",
+            pluginId: "computer-use",
+            pluginName: "Computer Use",
+          }),
+        ]),
+      }),
+    );
   });
 
   it("saves draft composer content on ordinary unmount", () => {
@@ -1234,7 +1382,7 @@ describe("ThreadSlashCommands", () => {
       const restoredThumb = await screen.findByAltText("Image 1.png");
       expect(restoredThumb).toHaveAttribute(
         "src",
-        "poracode-local://local/C:/attachments/draft-project-1/image-1.png",
+        "poracode-local://local/C:/attachments/draft-project-1/image-1.png?thumb=32",
       );
       // Drafts persist as the composer's crash-recovery mirror (cleared on
       // submit, not on mount-restore); the mirror carries the durable path.
@@ -1242,6 +1390,94 @@ describe("ThreadSlashCommands", () => {
       expect(mirrored?.attachments[0]?.path).toBe("C:\\attachments\\draft-project-1\\image-1.png");
       expect(mirrored?.attachments[0]).not.toHaveProperty("previewUrl");
       unmountRestored();
+    } finally {
+      Reflect.deleteProperty(URL, "createObjectURL");
+      Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
+  });
+
+  it("restores submitted editor text and attachments when a disconnected composer rejects", async () => {
+    // jsdom does not implement object URLs.
+    const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/failure-draft-1");
+    const revokeObjectURL = vi.fn<(url: string) => void>();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    try {
+      let rejectSubmit!: (error: Error) => void;
+      const onStart = vi.fn<(input: unknown) => Promise<void>>(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectSubmit = reject;
+          }),
+      );
+      const renderComposer = () =>
+        render(
+          <AppProvider>
+            <ThreadDraftComposerArea
+              project={draftProject}
+              selectedAgent={makeAgentStatus()}
+              controls={[]}
+              config={{ model: "gemini-2.5-pro" }}
+              compact={false}
+              paneCount={1}
+              gitBranch={undefined}
+              worktreeMode={false}
+              supportsModePicker={false}
+              presentationMode="terminal"
+              onConfigChange={() => {}}
+              onWorktreeModeChange={() => {}}
+              onSwitchBranch={() => {}}
+              onRememberPresentationMode={() => {}}
+              onStart={onStart}
+            />
+          </AppProvider>,
+        );
+      const view = renderComposer();
+      const editor = screen.getByRole("textbox");
+      typeSlashQuery(editor, "Recover this submitted intent");
+      const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });
+      const pasteEvent = new Event("paste", { bubbles: true, cancelable: true });
+      Object.defineProperty(pasteEvent, "clipboardData", {
+        value: {
+          files: [file],
+          items: [{ type: file.type, getAsFile: () => file }],
+          getData: () => "",
+        },
+      });
+      fireEvent(editor, pasteEvent);
+      await screen.findByAltText("Image 1.png");
+
+      fireEvent.keyDown(editor, { key: "Enter" });
+      await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+      const submitted = onStart.mock.calls[0]?.[0] as {
+        prompt: string;
+        segments: PromptSegment[];
+      };
+      expect(submitted.prompt).toBe("Recover this submitted intent");
+      // The wire payload includes the attachment token alongside the editor text.
+      expect(submitted.segments.some((segment) => segment.kind === "attachment")).toBe(true);
+
+      // A connection drop unmounts the whole draft, so the editor ref is gone
+      // when the rejected launch settles and the checkpoint must use the
+      // segments captured before submit.
+      view.unmount();
+      await act(async () => {
+        rejectSubmit(new Error("host disconnected"));
+        await Promise.resolve();
+      });
+
+      const saved = useAppStore.getState().draftContents[draftProject.id];
+      expect(saved?.segments).toEqual([{ kind: "text", content: "Recover this submitted intent" }]);
+      expect(saved?.attachments).toHaveLength(1);
+
+      // Reconnect and remount: the editor text and attachment bar restore as
+      // separate carriers, with no duplicated attachment token.
+      const restored = renderComposer();
+      expect(screen.getByRole("textbox").textContent).toBe("Recover this submitted intent");
+      expect(screen.getAllByAltText("Image 1.png")).toHaveLength(1);
+      expect(useAppStore.getState().draftContents[draftProject.id]?.segments).toEqual([
+        { kind: "text", content: "Recover this submitted intent" },
+      ]);
+      restored.unmount();
     } finally {
       Reflect.deleteProperty(URL, "createObjectURL");
       Reflect.deleteProperty(URL, "revokeObjectURL");

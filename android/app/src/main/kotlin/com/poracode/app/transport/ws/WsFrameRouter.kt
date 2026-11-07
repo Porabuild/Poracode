@@ -28,12 +28,24 @@ class WsFrameRouter(
         }
         when (message) {
             is RemoteWebSocketServerMessage.Ready -> {
+                // A host that stops reporting an epoch under a bound cursor was
+                // replaced by an older build that cannot verify it: re-baseline
+                // once from its head (the binding is cleared with it).
+                var epochWithdrawn = false
+                var alreadyPending = false
                 synchronized(state.cursorLock) {
-                    state.cursor.noteReady(message.seq)
+                    if (state.cursor.noteReady(message.seq, message.epoch)) {
+                        epochWithdrawn = true
+                        alreadyPending = state.cursor.resyncPending
+                        state.cursor.replaceFromResyncRequired(message.seq)
+                    }
                 }
                 onReady(gen)
                 if (state.generationGate.isCurrent(gen)) {
                     state.listenerRef.get()?.onMessage(message)
+                    if (epochWithdrawn && !alreadyPending) {
+                        state.listenerRef.get()?.onResyncRequired("event stream epoch withdrawn")
+                    }
                 }
             }
 

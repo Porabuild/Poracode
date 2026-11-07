@@ -146,4 +146,77 @@ class EventStreamCursorTest {
         assertEquals(0, cursor.appliedSeq)
         assertEquals(EventStreamCursor.EventDisposition.Apply, cursor.disposition(1))
     }
+
+    @Test
+    fun anUnboundCursorStaysUnboundUntilAResyncBindsTheConnectionEpoch() {
+        val cursor = EventStreamCursor()
+        cursor.beginConnection()
+        assertFalse(cursor.noteReady(0, "e1"))
+        assertNull(cursor.epoch)
+        cursor.replaceFromResyncRequired(3)
+        assertEquals("e1", cursor.epoch)
+    }
+
+    @Test
+    fun positiveCursorBindsANewEpochOnlyThroughResyncRequired() {
+        val cursor = EventStreamCursor()
+        cursor.restore(5, "e1")
+        cursor.beginConnection()
+        assertFalse(cursor.noteReady(8, "e2"))
+        // A lost resync frame keeps the old binding for the next reconnect.
+        assertEquals("e1", cursor.epoch)
+        assertEquals(5, cursor.appliedSeq)
+        cursor.replaceFromResyncRequired(8)
+        assertEquals("e2", cursor.epoch)
+        assertEquals(8, cursor.appliedSeq)
+        assertTrue(cursor.resyncPending)
+    }
+
+    @Test
+    fun aResyncOnALaterConnectionNeverBindsAnEarlierConnectionsEpoch() {
+        val cursor = EventStreamCursor()
+        cursor.restore(5, "e1")
+        cursor.beginConnection()
+        cursor.noteReady(8, "e2")
+        cursor.beginConnection()
+        cursor.replaceFromResyncRequired(8)
+        assertNull(cursor.epoch)
+    }
+
+    @Test
+    fun sameEpochResumeKeepsTheBindingAndReplays() {
+        val cursor = EventStreamCursor()
+        cursor.restore(5, "e1")
+        cursor.beginConnection()
+        assertFalse(cursor.noteReady(7, "e1"))
+        assertEquals(EventStreamCursor.EventDisposition.Apply, cursor.disposition(6))
+        cursor.markEventApplied(6)
+        assertEquals("e1", cursor.epoch)
+    }
+
+    @Test
+    fun hostWithoutEpochsStaysUnboundAndWithdrawalAsksForOneResync() {
+        val legacy = EventStreamCursor(appliedSeq = 4)
+        legacy.beginConnection()
+        assertFalse(legacy.noteReady(4, null))
+        assertNull(legacy.epoch)
+
+        val bound = EventStreamCursor()
+        bound.restore(5, "e1")
+        bound.beginConnection()
+        assertTrue(bound.noteReady(9, null))
+        bound.replaceFromResyncRequired(9)
+        assertNull(bound.epoch)
+        bound.beginConnection()
+        assertFalse(bound.noteReady(9, null))
+    }
+
+    @Test
+    fun resetForgetsTheEpoch() {
+        val cursor = EventStreamCursor()
+        cursor.restore(5, "e1")
+        cursor.reset()
+        assertNull(cursor.epoch)
+        assertNull(cursor.appliedSeq)
+    }
 }

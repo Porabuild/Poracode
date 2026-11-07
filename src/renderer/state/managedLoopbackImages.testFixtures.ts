@@ -187,6 +187,7 @@ export function installImageEnvironmentProjection() {
   useRemoteServersStore.setState({ servers: [parent, child] });
   configureEnvironmentSessions({
     getState: () => useRemoteServersStore.getState(),
+    persistAccessToken: () => undefined,
     clientFactory: () => (endpoint, accessToken) => new RemoteDesktopClient(endpoint, accessToken),
     certPinForConnection: () => "approved-parent-pin",
     refreshTokenForSubject: () => undefined,
@@ -208,6 +209,7 @@ export function setupManagedImageFixture(): void {
   backendResetListeners.clear();
   configureEnvironmentSessions({
     getState: () => useRemoteServersStore.getState(),
+    persistAccessToken: () => undefined,
     clientFactory: () => useRemoteServersStore.getState().clientFactory,
     certPinForConnection: () => undefined,
     refreshTokenForSubject: () => undefined,

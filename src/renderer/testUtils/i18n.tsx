@@ -1,7 +1,11 @@
-import type { ReactElement } from "react";
+import type { PropsWithChildren, ReactElement } from "react";
 import { render, type RenderOptions, type RenderResult } from "@testing-library/react";
 import { I18nProvider } from "@lingui/react";
 import { i18n } from "@/renderer/i18n/i18n";
+
+export function I18nTestWrapper({ children }: PropsWithChildren) {
+  return <I18nProvider i18n={i18n}>{children}</I18nProvider>;
+}
 
 /**
  * Render under test wrapped in an `I18nProvider`, so components using Lingui
@@ -20,7 +24,7 @@ export function renderWithI18n(
   options?: Omit<RenderOptions, "wrapper">,
 ): RenderResult {
   return render(ui, {
-    wrapper: ({ children }) => <I18nProvider i18n={i18n}>{children}</I18nProvider>,
+    wrapper: I18nTestWrapper,
     ...options,
   });
 }

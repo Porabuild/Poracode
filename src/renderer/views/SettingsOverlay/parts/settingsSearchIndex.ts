@@ -75,6 +75,21 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "general",
+    anchor: "general.newsLine",
+    title: msg`News line`,
+    description: msg`Show updates, tips, and community links below the new-thread composer.`,
+    keywords: "news changelog updates tips promotion github star x twitter follow ticker",
+  },
+  {
+    section: "general",
+    anchor: "general.newsLineActivity",
+    title: msg`Activity highlights`,
+    description: msg`Include your streaks, prompt counts, and usage limits in the news line.`,
+    keywords: "news insights stats streak prompts usage limits personal",
+    conditional: true,
+  },
+  {
+    section: "general",
     anchor: "general.sidebarShortcuts",
     title: msg`Sidebar shortcuts`,
     description: msg`Choose which shortcuts appear in the sidebar footer.`,
@@ -86,9 +101,18 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "general",
     anchor: "general.preventSleep",
     title: msg`Prevent system sleep`,
-    description: msg`Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged.`,
+    description: msg`Keep the system awake while any selected condition applies. Working includes Computer Use threads. The display can still turn off.`,
     keywords:
-      "sleep awake wake idle power system display lock server connection remote always computer use automation",
+      "sleep awake wake idle power system server connection remote always computer use automation",
+    desktopOnly: true,
+  },
+  {
+    section: "general",
+    anchor: "general.preventScreenLock",
+    title: msg`Prevent screen lock`,
+    description: msg`Keep the display on while any selected condition applies, so the screen does not lock from inactivity. Manual locking, closing the lid, and enforced lock policies still apply.`,
+    keywords:
+      "screen lock locking unlock display monitor awake idle screensaver power computer use remote always",
     desktopOnly: true,
   },
   {
@@ -133,7 +157,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Show voice input button`,
     description: msg`Show the microphone button in the composer.`,
     keywords: "mic microphone dictation speech composer",
-    desktopOnly: true,
   },
   {
     section: "audio",
@@ -141,7 +164,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Microphone`,
     description: msg`Device used by the composer voice input button.`,
     keywords: "mic input device audio source",
-    desktopOnly: true,
   },
   {
     section: "audio",
@@ -149,7 +171,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Test microphone`,
     description: msg`Check the live input level from the selected device.`,
     keywords: "mic check level meter input test",
-    desktopOnly: true,
   },
   {
     section: "audio",
@@ -157,7 +178,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Voice input language`,
     description: msg`Language the speech model should expect when transcribing composer dictation.`,
     keywords: "transcription dictation speech locale",
-    desktopOnly: true,
   },
   {
     section: "audio",
@@ -165,7 +185,28 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Voice input model`,
     description: msg`Fastest uses Whisper tiny; Better uses Whisper base.`,
     keywords: "whisper transcription speech model tiny base quality speed",
-    desktopOnly: true,
+  },
+  {
+    section: "audio",
+    anchor: "audio.transcriptionBackend",
+    title: msg`Transcription engine`,
+    description: msg`Built-in runs on this device. Hex uses a native engine on the connected host.`,
+    keywords: "hex transformers transcription dictation speech parakeet whisper native backend",
+  },
+  {
+    section: "audio",
+    anchor: "audio.hexModel",
+    title: msg`Hex setup`,
+    description: msg`Models available on the connected host for the selected language.`,
+    keywords: "hex native model install setup download prepare parakeet whisper",
+    conditional: true,
+  },
+  {
+    section: "audio",
+    anchor: "audio.testDictation",
+    title: msg`Test dictation`,
+    description: msg`Use the microphone to try your selected engine and model.`,
+    keywords: "audio speech microphone test transcription preview",
   },
   {
     section: "audio",
@@ -173,7 +214,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Use WebGPU acceleration`,
     description: msg`Run local transcription on the GPU when available.`,
     keywords: "gpu acceleration hardware transcription performance",
-    desktopOnly: true,
   },
 
   // Appearance
@@ -190,14 +230,6 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Theme`,
     description: msg`Popular editor themes adapted to Poracode. Each follows the light or dark mode above.`,
     keywords: "color preset editor theme gallery swatch palette",
-  },
-  {
-    section: "appearance",
-    anchor: "appearance.threadDocksPlacement",
-    title: msg`Thread docks`,
-    description: msg`Where a thread's goal, plan, agents, and background tasks appear. In the right panel, compact bubbles above the composer open them.`,
-    keywords:
-      "docks plan goal agents subagents background tasks right panel composer bubbles layout",
   },
   {
     section: "appearance",
@@ -559,6 +591,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
       "mcp model context protocol tools server stdio http sse workspace user built-in crossagent routing crossagents subagent delegate delegation guide instructions spawn agent model",
     desktopOnly: true,
   },
+  {
+    section: "mcpServers",
+    anchor: "mcpServers.projects",
+    title: msg`Project MCP servers`,
+    description: msg`Servers in a project's settings apply only to that project and override global servers with the same name. To move a global server, edit it and change its scope.`,
+    keywords: "mcp project workspace scope per-project move override",
+    desktopOnly: true,
+  },
 
   // Plugins
   {
@@ -566,8 +606,17 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     anchor: "plugins.marketplace",
     title: msg`Plugins`,
     description: msg`Install bundles of skills and MCP servers built for the Agent Plugins specification.`,
-    keywords: "plugins marketplace extensions apps mcp skills bundles install",
+    keywords:
+      "plugins marketplace extensions apps mcp skills bundles install computer use locked unlock dim brightness",
     desktopOnly: true,
+  },
+  {
+    section: "crews",
+    anchor: "crews.list",
+    title: msg`Crews`,
+    description: msg`Saved crews: a lead and the helpers it hands work to. Pick one under Poracode in any model picker.`,
+    keywords:
+      "crews crew lead roles sidekick builder reviewer scout helpers crossagents fusion team",
   },
 
   // Browser
@@ -607,7 +656,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "usage",
     anchor: "usage.autoRefreshMinutes",
     title: msg`Default auto-refresh (minutes)`,
-    description: msg`The default background refresh cadence, used for any provider without its own interval set below. Set to 0 to turn off (manual only). The 2-minute floor respects provider rate limits.`,
+    description: msg`The default background refresh cadence. Providers may use a slower default unless an interval is set below. Set to 0 to turn off (manual only). The minimum interval is 2 minutes.`,
     keywords:
       "automatic update poll interval background fetch refresh frequency default per provider",
     desktopOnly: true,

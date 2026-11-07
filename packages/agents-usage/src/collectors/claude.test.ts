@@ -32,8 +32,15 @@ const FIXTURE = {
 describe("formatClaudePlan", () => {
   it("title-cases and appends Subscription when absent", () => {
     expect(formatClaudePlan("claude_pro")).toBe("Claude Pro Subscription");
-    expect(formatClaudePlan("Max Subscription")).toBe("Max Subscription");
     expect(formatClaudePlan(undefined)).toBeUndefined();
+  });
+
+  it("labels Max 20x as Ultra and keeps Max 5x as Max", () => {
+    expect(formatClaudePlan("max", "default_claude_max_20x")).toBe("Ultra");
+    expect(formatClaudePlan("max", "default_claude_max_5x")).toBe("Max");
+    expect(formatClaudePlan("max")).toBe("Max");
+    expect(formatClaudePlan("Max Subscription")).toBe("Max");
+    expect(formatClaudePlan("ultra")).toBe("Ultra");
   });
 });
 
@@ -204,6 +211,22 @@ describe("collectClaude", () => {
     expect(captured?.Authorization).toBe("Bearer tok");
   });
 
+  it("reads the rate-limit tier from the token to label Ultra plans", async () => {
+    const snap = await collectClaude(
+      createFakeHost({
+        tokens: {
+          claude: {
+            accessToken: "tok",
+            subscriptionType: "max",
+            raw: { rateLimitTier: "default_claude_max_20x" },
+          },
+        },
+        routes: { [CLAUDE_USAGE_ENDPOINT]: { body: JSON.stringify(FIXTURE) } },
+      }),
+    );
+    expect(snap.plan).toBe("Ultra");
+  });
+
   it("maps 429 to rate-limited and 401 to auth-missing", async () => {
     const rate = await collectClaude(
       createFakeHost({
@@ -245,7 +268,7 @@ describe("collectClaude", () => {
     const snap = await collectClaude(host);
 
     expect(snap.status).toBe("ok");
-    expect(snap.plan).toBe("Max Subscription");
+    expect(snap.plan).toBe("Max");
     expect(authorizations).toEqual(["Bearer old", "Bearer fresh"]);
   });
 

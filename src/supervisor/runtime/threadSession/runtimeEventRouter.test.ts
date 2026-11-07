@@ -27,6 +27,33 @@ function collectEmittedRuntimeEvents(
 }
 
 describe("RuntimeEventRouter", () => {
+  it("observes request custody immediately with the producer's authoritative thread while delivery is paused", () => {
+    const observed = vi.fn<(threadId: string, event: RuntimeEvent) => void>();
+    const emit = vi.fn<(event: SupervisorEvent) => void>();
+    const router = new RuntimeEventRouter(emit, { onRequestEvent: observed });
+    router.setPaused(true);
+    const opened = {
+      type: "request.opened" as const,
+      threadId: "payload-thread",
+      requestId: "ask",
+      requestType: "tool_call_approval" as const,
+      payload: { summary: "Allow?" },
+    };
+    const resolved = {
+      type: "request.resolved" as const,
+      threadId: "payload-thread",
+      requestId: "ask",
+      outcome: "cancelled" as const,
+    };
+    router.append("producer-thread", opened);
+    router.append("producer-thread", resolved);
+    expect(observed.mock.calls).toEqual([
+      ["producer-thread", opened],
+      ["producer-thread", resolved],
+    ]);
+    expect(emit).not.toHaveBeenCalled();
+    router.flushAllForShutdown();
+  });
   beforeEach(() => {
     vi.useFakeTimers();
   });

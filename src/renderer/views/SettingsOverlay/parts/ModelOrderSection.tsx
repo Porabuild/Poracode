@@ -198,8 +198,8 @@ export function ModelOrderSection() {
     if (orderLocked) setProviderOrder(next);
     else setMachineProviderOrder(selectedMachine.id, next);
   };
-  // Update actions run on the local supervisor only.
-  const updates = useProviderUpdates(isRemoteMachine ? [] : orderedAgents, selectedMachine.id);
+  // Update actions run on the selected machine's host.
+  const updates = useProviderUpdates(orderedAgents, selectedMachine);
   const outdatedCount = updates.outdatedKinds.length;
   const updateAllProgress = updates.updateAllProgress;
   const updateAllProgressAriaLabel = updateAllProgress

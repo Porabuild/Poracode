@@ -62,7 +62,7 @@ env:
 jobs:
   providers:
     name: Live provider lifecycle (strict mode)
-    # Enroll the runner with exactly these labels. Node 24 + Bun must be
+    # Enroll the runner with exactly these labels. Node 26 + Bun must be
     # reachable through the actions below (they provision both), and the host
     # must carry installed + authenticated provider CLIs for every kind named
     # in required_providers.

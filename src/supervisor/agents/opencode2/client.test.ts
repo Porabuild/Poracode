@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChildProcess } from "node:child_process";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import type { CommandSpec } from "../base";
-import type { OpenCode2Client } from "./clientTypes";
+import type { OpenCode2Client, SessionInterruptResponse } from "./clientTypes";
 import type { OpenCode2ServerHandle } from "./server";
 
 const mocks = vi.hoisted(() => ({
@@ -213,6 +213,147 @@ describe("acquireOpenCode2Server", () => {
     );
 
     await acquired.dispose();
+  });
+
+  it("keeps terminal MCP sets separate from GUI and sibling credentials while retaining the PTY lease", async () => {
+    vi.useFakeTimers();
+    const guiHandle = makeHandle("http://127.0.0.1:4300");
+    const terminalHandle = makeHandle("http://127.0.0.1:4301");
+    const siblingHandle = makeHandle("http://127.0.0.1:4302");
+    mocks.spawnOpenCode2Server
+      .mockReturnValueOnce(guiHandle)
+      .mockReturnValueOnce(terminalHandle)
+      .mockReturnValueOnce(siblingHandle);
+    const { acquireOpenCode2Server } = await import("./client");
+    const projectLocation = { kind: "posix", path: "/repo" } as const;
+    const servers = [remoteMcp("poracode", "http://127.0.0.1:9/mcp?thread=first")];
+    const gui = await acquireOpenCode2Server({ projectLocation, mcpServers: servers });
+    const preparation = await acquireOpenCode2Server({
+      projectLocation,
+      mcpServers: servers,
+      isolateMcpServers: true,
+    });
+    const terminal = await acquireOpenCode2Server({
+      projectLocation,
+      mcpServers: servers,
+      isolateMcpServers: true,
+    });
+    const sibling = await acquireOpenCode2Server({
+      projectLocation,
+      mcpServers: [remoteMcp("poracode", "http://127.0.0.1:9/mcp?thread=second")],
+      isolateMcpServers: true,
+    });
+    expect(mocks.spawnOpenCode2Server).toHaveBeenCalledTimes(3);
+    expect(terminal.handle).toBe(preparation.handle);
+    expect(terminal.handle).not.toBe(gui.handle);
+    expect(terminal.handle).not.toBe(sibling.handle);
+    await preparation.dispose();
+    await vi.advanceTimersByTimeAsync(30_001);
+    expect(terminalHandle.dispose).not.toHaveBeenCalled();
+    await terminal.dispose();
+    await vi.advanceTimersByTimeAsync(30_001);
+    expect(terminalHandle.dispose).toHaveBeenCalledOnce();
+    expect(siblingHandle.dispose).not.toHaveBeenCalled();
+    await gui.dispose();
+    await sibling.dispose();
+  });
+
+  it.each([
+    { database: "native" as const, interruptFails: false },
+    { database: "legacy-isolated" as const, interruptFails: true },
+  ])(
+    "fences $database resume through interrupt and disposal, even on failure",
+    async ({ database, interruptFails }) => {
+      const interrupt = Promise.withResolvers<SessionInterruptResponse>();
+      const disposal = Promise.withResolvers<void>();
+      const oldHandle = makeHandle("http://127.0.0.1:4300");
+      oldHandle.dispose.mockReturnValue(disposal.promise);
+      const client = makeClientStub();
+      const interruptSession = vi
+        .fn<OpenCode2Client["session"]["interrupt"]>()
+        .mockReturnValue(interrupt.promise);
+      client.session.interrupt = interruptSession;
+      mocks.makeOpenCodeClient.mockReturnValueOnce(client);
+      mocks.spawnOpenCode2Server
+        .mockReturnValueOnce(oldHandle)
+        .mockReturnValueOnce(makeHandle("http://127.0.0.1:4301"))
+        .mockReturnValueOnce(makeHandle("http://127.0.0.1:4302"));
+      const { acquireOpenCode2Server, retireOpenCode2TerminalServer } = await import("./client");
+      const { rememberOpenCode2SessionDatabase } = await import("./database");
+      const location = { kind: "posix", path: "/repo" } as const;
+      rememberOpenCode2SessionDatabase(location, "ses_retiring", database);
+      const old = await acquireOpenCode2Server({
+        projectLocation: location,
+        database,
+        isolateMcpServers: true,
+        mcpServers: [],
+      });
+      const retirement = retireOpenCode2TerminalServer(location, "ses_retiring", old);
+      const retirementOutcome = retirement.then(
+        () => null,
+        (error: unknown) => error,
+      );
+      let resumed = false;
+      // A session spans directories; changing cwd cannot escape its old interrupt.
+      const successor = acquireOpenCode2Server({
+        projectLocation: { ...location, path: "/other" },
+        resumeSessionId: "ses_retiring",
+        isolateMcpServers: true,
+        mcpServers: [],
+      }).then((value) => {
+        resumed = true;
+        return value;
+      });
+      await vi.waitFor(() => expect(interruptSession).toHaveBeenCalledOnce());
+      expect(resumed).toBe(false);
+      expect(mocks.spawnOpenCode2Server).toHaveBeenCalledOnce();
+      // Independent fresh sessions must not wait behind this retirement.
+      const fresh = await acquireOpenCode2Server({ projectLocation: location });
+      await fresh.dispose({ closeServerIfIdle: true });
+      if (interruptFails) interrupt.reject(new Error("interrupt failed"));
+      else interrupt.resolve({ interrupted: true });
+      await vi.waitFor(() => expect(oldHandle.dispose).toHaveBeenCalledOnce());
+      expect(resumed).toBe(false);
+      expect(mocks.spawnOpenCode2Server).toHaveBeenCalledTimes(2);
+      disposal.resolve();
+      expect(await retirementOutcome).toEqual(
+        interruptFails ? new Error("interrupt failed") : null,
+      );
+      const acquired = await successor;
+      expect(acquired.database).toBe(database);
+      expect(mocks.spawnOpenCode2Server).toHaveBeenCalledTimes(3);
+      await acquired.dispose({ closeServerIfIdle: true });
+    },
+  );
+
+  it("keeps a resume fenced through overlapping terminal retirements", async () => {
+    const first = Promise.withResolvers<void>();
+    const second = Promise.withResolvers<void>();
+    const { acquireOpenCode2Server, retireOpenCode2TerminalServer } = await import("./client");
+    const { rememberOpenCode2SessionDatabase } = await import("./database");
+    const location = { kind: "posix", path: "/repo" } as const;
+    rememberOpenCode2SessionDatabase(location, "ses_overlap", "native");
+    const dispose = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const retiring = (completion: Promise<void>) =>
+      ({
+        client: { session: { interrupt: () => completion } },
+        dispose,
+      }) as unknown as Awaited<ReturnType<typeof acquireOpenCode2Server>>;
+    const old = retireOpenCode2TerminalServer(location, "ses_overlap", retiring(first.promise));
+    const latest = retireOpenCode2TerminalServer(location, "ses_overlap", retiring(second.promise));
+    mocks.spawnOpenCode2Server.mockReturnValue(makeHandle("http://127.0.0.1:4300"));
+    const successor = acquireOpenCode2Server({
+      projectLocation: location,
+      resumeSessionId: "ses_overlap",
+    });
+    first.resolve();
+    await old;
+    expect(mocks.spawnOpenCode2Server).not.toHaveBeenCalled();
+    second.resolve();
+    await latest;
+    const acquired = await successor;
+    expect(dispose).toHaveBeenCalledTimes(2);
+    await acquired.dispose({ closeServerIfIdle: true });
   });
 
   it("pools WSL directories by distro and confirms reachability first", async () => {

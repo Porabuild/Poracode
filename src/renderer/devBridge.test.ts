@@ -14,6 +14,7 @@ vi.mock("./speech/liveVoice", () => ({
   useLiveVoice: {},
 }));
 vi.mock("./state/browserAttachInbox", () => ({ useBrowserAttachInbox: {} }));
+vi.mock("./actions/threadActions", () => ({ openThread: vi.fn<() => void>() }));
 
 vi.mock("./views/FileEditorOverlay/parts/FileEditorPane/parts/localMonacoEditor", () => ({
   default: {},
@@ -31,6 +32,7 @@ type SmokeGlobal = typeof globalThis & {
     }>;
     loadLiveVoice(): Promise<typeof import("./speech/liveVoice")>;
     loadBrowserAttachInbox(): Promise<typeof import("./state/browserAttachInbox")>;
+    loadThreadNavigation(): Promise<typeof import("./actions/threadActions")>;
   };
 };
 const target = globalThis as SmokeGlobal;
@@ -45,6 +47,7 @@ it("loads the voice and attachment modules through the bundled development bridg
   installDevBridge();
   expect((await target.__poracodeDev!.loadLiveVoice()).liveVoice.stop).toBeTypeOf("function");
   expect((await target.__poracodeDev!.loadBrowserAttachInbox()).useBrowserAttachInbox).toEqual({});
+  expect((await target.__poracodeDev!.loadThreadNavigation()).openThread).toBeTypeOf("function");
 });
 
 it("does not install renderer smoke module access in production", () => {

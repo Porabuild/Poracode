@@ -1,6 +1,10 @@
 // @vitest-environment node
 
 import { describe, expect, it, vi } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { agentCapabilitySchema, loadedPluginSchema, threadConfigSchema } from "@/shared/contracts";
 import type { Project, RemoteThreadCommand, StartThreadPayload, Thread } from "@/shared/contracts";
 import { defaultSharedSettings } from "@/shared/settings";
 import type { AppThreadLauncherDeps, CreateAppThreadRequest } from "./appThreadLauncher";
@@ -51,6 +55,7 @@ function setup(overrides: Partial<AppThreadLauncherDeps> = {}): {
       startPayloads.push(payload);
     },
     getAgentStatuses: async () => ({ fromCache: true, windows: [], wsl: [] }),
+    getPlugins: async () => [],
     addWorktree: async ({ branch }) => {
       events.push("addWorktree");
       return { path: `/work/alpha/.worktrees/${branch}` };
@@ -203,6 +208,204 @@ describe("createAppThread selection carriage", () => {
     expect("fast" in exactConfig!).toBe(true);
     expect("thinking" in exactConfig!).toBe(false);
   });
+});
+
+describe("createAppThread new-thread MCP defaults", () => {
+  it("allows a bundled tool plugin installed without a persisted settings entry", async () => {
+    const plugin = loadedPluginSchema.parse({
+      name: "browser-tools",
+      source: "bundled",
+      root: "/plugins/browser",
+      manifest: {
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "browser-tools",
+        version: "1.0.0",
+      },
+      poracode: { builtInMcpServerIds: ["browser"] },
+      skills: [],
+      mcpServers: [],
+      diagnostics: [],
+    });
+    const { deps, threads } = setup({ getPlugins: async () => [plugin] });
+    const { threadId } = await createAppThread(deps, {
+      ...fullSelectionRequest,
+      plugins: { "browser-tools": false },
+    });
+    expect(threads.get(threadId)?.config.pluginOverrides).toEqual({ "browser-tools": false });
+    expect(defaultSharedSettings.installedPlugins).toEqual({});
+  });
+  it("applies explicit choices and sends file and image attachments through the normal segment path", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "thread-attachments-"));
+    try {
+      const image = join(directory, "image.png");
+      const file = join(directory, "notes.txt");
+      await writeFile(image, new Uint8Array([137, 80, 78, 71]));
+      await writeFile(file, "Notes");
+      const settings = {
+        ...defaultSharedSettings,
+        enabledMcpServers: { crossagents: true },
+        installedPlugins: {
+          github: {
+            version: "1.0.0",
+            enabled: false,
+            disabledSkillIds: [],
+            disabledMcpServerNames: [],
+          },
+        },
+        mcpServers: [
+          {
+            id: "custom",
+            name: "custom",
+            description: "",
+            enabled: false,
+            timeoutMs: 30000,
+            transport: { type: "http" as const, url: "https://example.test/mcp", headers: {} },
+          },
+        ],
+      };
+      const { deps, threads, commands, startPayloads } = setup({
+        getSharedSettings: () => settings,
+        getPlugins: async () => [
+          loadedPluginSchema.parse({
+            name: "github",
+            source: "user",
+            root: directory,
+            manifest: {
+              $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+              name: "github",
+              version: "1.0.0",
+            },
+            poracode: {},
+            skills: [],
+            mcpServers: [],
+            diagnostics: [],
+          }),
+        ],
+        getAgentStatuses: async () => ({
+          fromCache: true,
+          windows: [
+            {
+              kind: fullSelectionRequest.agentKind,
+              label: "Fixture",
+              installed: true,
+              authState: "unknown",
+              capabilities: agentCapabilitySchema.parse({}),
+            },
+          ],
+          wsl: [],
+        }),
+      });
+      const { threadId } = await createAppThread(deps, {
+        ...fullSelectionRequest,
+        browserMcp: true,
+        crossagentMcp: false,
+        chromeMcp: true,
+        computerUse: true,
+        mcpServers: { custom: true },
+        plugins: { github: true },
+        attachments: [{ path: image }, { path: file }],
+      });
+      const config = threads.get(threadId)!.config;
+      expect(config).toMatchObject({
+        browserMcp: true,
+        chromeMcp: true,
+        computerUse: true,
+        mcpServerOverrides: { custom: true },
+        pluginOverrides: { github: true },
+      });
+      expect(config.crossagentMcp).toBe(false);
+      expect(startPayloads[0]?.mcpServers?.[0]?.id).toBe("custom");
+      const segments = [
+        { kind: "attachment", path: image, mimeType: "image/png" },
+        { kind: "attachment", path: file, mimeType: "text/plain" },
+        { kind: "text", content: fullSelectionRequest.prompt },
+      ];
+      expect(startPayloads[0]?.segments).toEqual(segments);
+      expect(commands[0]).toMatchObject({ kind: "start", segments, config });
+      expect(settings.enabledMcpServers).toEqual({ crossagents: true });
+      expect(settings.installedPlugins.github.enabled).toBe(false);
+      expect(settings.mcpServers[0]?.enabled).toBe(false);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses unknown tool ids and invalid attachments before persistence or launch", async () => {
+    for (const controls of [
+      { mcpServers: { unknown: true } },
+      { plugins: { unknown: true } },
+      { attachments: [{ path: "relative.png" }] },
+    ]) {
+      const { deps, events } = setup();
+      await expect(createAppThread(deps, { ...fullSelectionRequest, ...controls })).rejects.toThrow(
+        /Unknown MCP server|Plugin is not installed|Attachment must/,
+      );
+      expect(events).toEqual([]);
+    }
+  });
+
+  it.each([true, false])(
+    "persists and launches composer defaults with a connected UI: %s",
+    async (connected) => {
+      const settings = {
+        ...defaultSharedSettings,
+        enabledMcpServers: {
+          browser: true,
+          crossagents: true,
+          chrome: false,
+          "computer-use": true,
+        },
+        mcpServers: [
+          {
+            id: "custom",
+            name: "custom",
+            description: "",
+            enabled: true,
+            timeoutMs: 30000,
+            transport: { type: "http" as const, url: "https://example.test/mcp", headers: {} },
+          },
+        ],
+      };
+      const { deps, threads, commands, startPayloads } = setup({
+        getSharedSettings: () => settings,
+        getAgentStatuses: async () => ({
+          fromCache: true,
+          windows: [
+            {
+              kind: fullSelectionRequest.agentKind,
+              label: "Fixture agent",
+              installed: true,
+              authState: "unknown",
+              capabilities: agentCapabilitySchema.parse({}),
+            },
+          ],
+          wsl: [],
+        }),
+        sendThreadCommand: (command) => {
+          commands.push(command);
+          return connected;
+        },
+      });
+
+      const { threadId } = await createAppThread(deps, fullSelectionRequest);
+      const config = threads.get(threadId)!.config;
+      expect(config).toMatchObject({ browserMcp: true, crossagentMcp: true, computerUse: true });
+      expect(config).not.toHaveProperty("chromeMcp");
+      expect(startPayloads[0]?.config).toEqual(config);
+      expect(startPayloads[0]?.mcpServers).toEqual(settings.mcpServers);
+      expect(commands[0]).toMatchObject({
+        kind: "start",
+        config,
+        launchRuntime: false,
+        focus: false,
+      });
+      // Existing persisted threads retain their opt-ins; defaults apply only to new rows.
+      expect(threadConfigSchema.parse({ model: "old-model", browserMcp: false })).toEqual({
+        model: "old-model",
+        browserMcp: false,
+      });
+    },
+  );
 });
 
 describe("createAppThread launch admission", () => {

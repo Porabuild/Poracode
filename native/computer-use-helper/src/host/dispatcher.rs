@@ -21,6 +21,7 @@ use crate::protocol::actions::{
     WindowOnlyInput, WindowStateResult,
 };
 use crate::protocol::keys::parse_chord;
+use crate::protocol::locked_use::{LockedUseBeginInput, LockedUseEndInput};
 use crate::protocol::version::{MIN_CLIENT_PROTOCOL_VERSION, PROTOCOL_VERSION};
 use crate::protocol::window::WindowRef;
 use crate::protocol::{ErrorCode, HelperError, Request, RequestId, Response, Result};
@@ -147,8 +148,11 @@ impl Drop for Dispatcher {
 
 fn lane_for(action: &str) -> Lane {
     match action {
+        // A locked-use begin holds the input lane while it unlocks: input
+        // queued behind it is pointless until the desktop is reachable. End and
+        // status stay on the passive lane so a relock never waits behind input.
         "activate_window" | "click" | "press_key" | "type_text" | "scroll" | "drag"
-        | "launch_app" | "invoke_element" | "set_element_value" => Lane::Input,
+        | "launch_app" | "invoke_element" | "set_element_value" | "locked_use_begin" => Lane::Input,
         _ => Lane::Passive,
     }
 }
@@ -156,6 +160,11 @@ fn lane_for(action: &str) -> Lane {
 fn timeout_for(action: &str) -> Duration {
     match action {
         "launch_app" => Duration::from_secs(20),
+        // Begin's own budget is guard start (5 s) + trigger + unlock wait (8 s);
+        // end may wait for an in-flight begin to unwind before it relocks. Both
+        // stay well clear of their own internal deadlines so a timeout never
+        // abandons a thread that still owns the guard.
+        "locked_use_begin" | "locked_use_end" => Duration::from_secs(30),
         // A click shares the reads' budget: on a Chromium shell the press route
         // first acquires the page's tree, which can legally spend the same
         // ~3.3 s of accessibility waits (web-area debounce plus page publish)
@@ -339,7 +348,7 @@ pub fn dispatch_request(
                     ),
                 ));
             }
-            serialize(build_hello(backend.hello()))
+            serialize(build_hello(backend))
         }
         "list_windows" => serialize(backend.list_windows()?),
         "list_apps" => {
@@ -525,6 +534,15 @@ pub fn dispatch_request(
                 cancel,
             )?)
         }
+        "locked_use_begin" => {
+            let request = parse::<LockedUseBeginInput>(&request.input)?.validate()?;
+            serialize(backend.locked_use_begin(&request, cancel)?)
+        }
+        "locked_use_end" => {
+            let input: LockedUseEndInput = parse(&request.input)?;
+            serialize(backend.locked_use_end(input.reason)?)
+        }
+        "locked_use_status" => serialize(backend.locked_use_status()),
         "cancel" | "shutdown" => Err(HelperError::invalid_input(format!(
             "{} must be handled by the host",
             request.action
@@ -876,5 +894,76 @@ mod tests {
                 .code,
             ErrorCode::ProtocolMismatch
         );
+        let hello = dispatch_request(&HelloBackend, &good, &CancelToken::default()).unwrap();
+        assert_eq!(
+            hello["lockedUse"],
+            json!({ "supported": false, "signed": false, "paused": false, "active": false })
+        );
+    }
+
+    fn locked_use(action: &str, input: Value) -> Result<Value> {
+        dispatch_request(
+            &backend(),
+            &Request {
+                id: 1,
+                action: action.into(),
+                input,
+            },
+            &CancelToken::default(),
+        )
+    }
+
+    /// A backend without Locked Computer Use answers every locked-use action
+    /// rather than reporting `unknown_action`, so a protocol-4 host can ask any
+    /// helper.
+    #[test]
+    fn locked_use_actions_are_answered_where_unsupported() {
+        assert_eq!(
+            locked_use("locked_use_begin", json!({ "threadId": "t-1" })).unwrap(),
+            json!({ "outcome": "unavailable", "stage": "unsupported_platform" })
+        );
+        assert_eq!(
+            locked_use("locked_use_end", json!({ "reason": "turn_end" })).unwrap(),
+            json!({ "outcome": "inactive" })
+        );
+        assert_eq!(
+            locked_use("locked_use_status", json!({})).unwrap(),
+            json!({
+                "supported": false,
+                "signed": false,
+                "paused": false,
+                "active": false,
+                "screenLocked": false
+            })
+        );
+    }
+
+    #[test]
+    fn locked_use_inputs_are_validated_before_the_backend_runs() {
+        for input in [
+            json!({}),
+            json!({ "threadId": "bad id" }),
+            json!({ "threadId": "t", "maxSessionMs": 0 }),
+        ] {
+            assert_eq!(
+                locked_use("locked_use_begin", input).unwrap_err().code,
+                ErrorCode::InvalidInput
+            );
+        }
+        assert_eq!(
+            locked_use("locked_use_end", json!({ "reason": "whenever" }))
+                .unwrap_err()
+                .code,
+            ErrorCode::InvalidInput
+        );
+    }
+
+    #[test]
+    fn locked_use_begin_holds_the_input_lane_and_end_does_not() {
+        assert_eq!(lane_for("locked_use_begin"), Lane::Input);
+        assert_eq!(lane_for("locked_use_end"), Lane::Passive);
+        assert_eq!(lane_for("locked_use_status"), Lane::Passive);
+        assert!(timeout_for("locked_use_begin") > Duration::from_secs(15));
+        assert!(timeout_for("locked_use_end") > Duration::from_secs(15));
     }
 }

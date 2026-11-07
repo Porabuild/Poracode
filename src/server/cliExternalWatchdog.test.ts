@@ -67,10 +67,9 @@ describe.skipIf(process.platform === "win32")("external parent watchdog", () => 
       [profile, "wedge", String(DRAIN_DEADLINE_MS), String(WATCHDOG_MS)],
       {
         execArgv: [
-          "--experimental-transform-types",
           "--disable-warning=ExperimentalWarning",
           "--import",
-          fileURLToPath(new URL("../../scripts/remote-v3-ts-register.mjs", import.meta.url)),
+          new URL("../../scripts/remote-v3-ts-register.mjs", import.meta.url).href,
         ],
         env: environment,
         stdio: ["ignore", "ignore", "pipe", "ipc"],

@@ -24,12 +24,14 @@
 import { existsSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
+import { afterEach, describe, expect, it } from "vitest";
 import { HostControlServer } from "@/backend/ownership/HostControlServer";
 import { callHostControl, HostControlRefusedError } from "@/backend/ownership/hostControlClient";
 import { readHostControlDiscovery } from "@/backend/ownership/hostControlDiscovery";
 import {
   acquireHostDataFenceWithWait,
+  HostDataFence,
   HostDataFenceInUseError,
 } from "@/backend/ownership/hostDataFence";
 import { HostOwnerLease, HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
@@ -39,7 +41,9 @@ import {
   resolveHostRootPaths,
   type HostRootPaths,
 } from "@/backend/ownership/hostRootPaths";
-import { startDesktopHostControl } from "@/main/backend/desktopHostControl";
+import { DesktopHostAdministration } from "@/backend/DesktopHostAdministration";
+import { delegatedDesktopControl } from "@/backend/ownership/delegatedHostControl";
+import { defaultSharedSettings } from "@/shared/settings";
 import {
   acquireDesktopOwnerLeaseWithReprobe,
   admitDesktopManagedOwner,
@@ -92,10 +96,28 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
     // the manifest would make the namespace resolvers refuse the profile, and
     // the desktop mapping is not on HostOwnerController yet (Gate 2.5).
     lease.setPhase("ready");
-    const reportError = vi.fn<(error: unknown) => void>();
-    const control = startDesktopHostControl({
-      lease,
-      reportError,
+    const fence = HostDataFence.acquire(paths.dataFencePath);
+    const control = new DesktopHostAdministration({
+      authority: delegatedDesktopControl({
+        grant: { version: 1, profileNamespace: namespace, ownerGeneration: lease.generation },
+        dataRoot: paths.dataRoot,
+        dataFencePath: paths.dataFencePath,
+        custody: fence,
+        ownerPid: process.pid,
+        assertParentActive() {}, // In-process drill; actual IPC is exercised by managed Electron.
+      }),
+      call: async () => undefined as never,
+      server: () => {
+        throw new Error("No administration requested in this attach-admission drill");
+      },
+      settings: {} as never,
+      readSettings: () => defaultSharedSettings,
+      statusCachePath: resolvePoracodePaths(paths.dataRoot).statusCachePath,
+      assertCanPersistSecrets: () => fence.assertActive(),
+      sessions: {
+        readThread: () => null,
+        readPage: async () => ({ threads: [], nextCursor: null }),
+      },
       capabilities: {
         ssh: true,
         browserPanel: true,
@@ -107,7 +129,7 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
         osNotifications: false,
       },
     });
-    expect(control).not.toBeNull();
+    await control.start();
 
     try {
       await waitForDiscovery(paths);
@@ -131,12 +153,10 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
 
       // A second desktop admission never acquires: bounded reprobe, then a
       // loud refusal whose guidance matches the holder kind.
-      await expect(
-        admitDesktopManagedOwner({ baseDir: namespace, channel: "stable" }),
-      ).rejects.toThrow(HostRootInUseError);
-      await expect(
-        admitDesktopManagedOwner({ baseDir: namespace, channel: "stable" }),
-      ).rejects.toThrow(/Quit the running Poracode app/);
+      await expect(admitDesktopManagedOwner(namespace)).rejects.toThrow(HostRootInUseError);
+      await expect(admitDesktopManagedOwner(namespace)).rejects.toThrow(
+        /Quit the running Poracode app/,
+      );
       expect(() => HostOwnerLease.acquire(paths, "desktop")).toThrow(HostRootInUseError);
 
       // The desktop owner mints no attach pairings: the handler failure maps
@@ -147,11 +167,9 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
       );
       expect(pairingError).toBeInstanceOf(HostControlRefusedError);
       expect((pairingError as HostControlRefusedError).code).toBe("unavailable");
-
-      // Control publication is additive: it started cleanly.
-      expect(reportError).not.toHaveBeenCalled();
     } finally {
       await control?.dispose();
+      fence.release();
       lease.release();
     }
   });
@@ -165,9 +183,7 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
 
       // Lease is free, so admission gets past the lease and must refuse on
       // the fence probe — the orphaned-backend window is closed.
-      await expect(
-        admitDesktopManagedOwner({ baseDir: namespace, channel: "stable" }),
-      ).rejects.toThrow(HostDataFenceInUseError);
+      await expect(admitDesktopManagedOwner(namespace)).rejects.toThrow(HostDataFenceInUseError);
 
       // The refused admission released its lease before throwing: a clean
       // owner can acquire immediately.

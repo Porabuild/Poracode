@@ -1,0 +1,1551 @@
+{
+  "//": "Live devin acp 3000.11.205 /goal lifecycle (local, client fs+terminal). Each scenario is one session/prompt: its text, stop reason, and the session/update notifications received until its response (thought chunks, usage, plan and config updates dropped). Workspace paths rewritten to C:\\fixture\\project; sessionId rewritten.",
+  "statusEmpty": {
+    "prompt": "/goal",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "No goal set. Usage: `/goal [<objective>|resume|clear]`"
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      }
+    ]
+  },
+  "complete": {
+    "prompt": "/goal Work in exactly three separate turns. Turn 1: create goal-a.txt containing alpha, then end your turn immediately without calling update_goal. Turn 2: create goal-b.txt containing beta, then end your turn. Turn 3: verify both files exist and call update_goal with status complete.",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Work in exactly three separate turns. Turn 1: create goal-a.txt containing alpha, then end your turn immediately without calling update_goal. Turn 2: create goal-b.txt containing beta, then end your turn. Turn 3: verify both files exist and call update_goal with status complete.",
+              "status": "running",
+              "turns": 0
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "title": "Work in exactly three separate turns. Turn 1: create goal-a.txt containing al..."
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920436760,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "working",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "title": "Create goal-a.txt and goal-b.txt, then verify and mark complete"
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "call_bAMRNb9zbM5N7gLfmXJThLM5",
+          "title": "Listed .\\",
+          "kind": "execute",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "resource",
+                "resource": {
+                  "mimeType": "text/x-shellscript",
+                  "text": "ls",
+                  "uri": "tool://preview"
+                },
+                "_meta": {
+                  "cognition.ai/preview_is_shell_command": true
+                }
+              }
+            }
+          ],
+          "rawInput": {
+            "command": "ls"
+          },
+          "_meta": {
+            "cognition.ai/commandNames": ["ls"],
+            "cognition.ai/inferenceToolName": "exec",
+            "cognition.ai/timestamp": "2026-10-25T09:27:25.048566900+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_bAMRNb9zbM5N7gLfmXJThLM5",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_bAMRNb9zbM5N7gLfmXJThLM5",
+          "status": "completed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Exited with code 0"
+              }
+            }
+          ],
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "call_508RHuILQc7ggC7r6fOS0A0w",
+          "title": "Patched .\\goal-a.txt",
+          "kind": "edit",
+          "content": [
+            {
+              "type": "diff",
+              "path": "C:/fixture/project/goal-a.txt",
+              "newText": "alpha\n",
+              "_meta": {
+                "cognition.ai/linesAdded": 1,
+                "cognition.ai/linesRemoved": 0
+              }
+            }
+          ],
+          "rawInput": "*** Begin Patch\n*** Add File: C:/fixture/project/goal-a.txt\n+alpha\n*** End Patch\n",
+          "_meta": {
+            "cognition.ai/suppressApproval": true,
+            "cognition.ai/inferenceToolName": "apply_patch",
+            "cognition.ai/timestamp": "2026-10-25T09:27:28.522801+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_508RHuILQc7ggC7r6fOS0A0w",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "apply_patch"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_508RHuILQc7ggC7r6fOS0A0w",
+          "status": "failed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Failed to write C:/fixture/project/goal-a.txt: Parse error: {\n  \"error\": \"invalid type: null, expected struct WriteTextFileResponse\",\n  \"json\": null,\n  \"phase\": \"deserialization\"\n}"
+              }
+            }
+          ],
+          "_meta": {
+            "cognition.ai/inferenceToolName": "apply_patch"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "call_mbh1tWeNskA9B0vQj7cMiOJa",
+          "title": "Listed .\\",
+          "kind": "execute",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "resource",
+                "resource": {
+                  "mimeType": "text/x-shellscript",
+                  "text": "ls",
+                  "uri": "tool://preview"
+                },
+                "_meta": {
+                  "cognition.ai/preview_is_shell_command": true
+                }
+              }
+            }
+          ],
+          "rawInput": {
+            "command": "ls"
+          },
+          "_meta": {
+            "cognition.ai/commandNames": ["ls"],
+            "cognition.ai/inferenceToolName": "exec",
+            "cognition.ai/timestamp": "2026-10-25T09:27:31.990031200+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_mbh1tWeNskA9B0vQj7cMiOJa",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_mbh1tWeNskA9B0vQj7cMiOJa",
+          "status": "completed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Exited with code 0"
+              }
+            }
+          ],
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Created `goal-a.txt` containing `alpha`."
+          },
+          "_meta": {
+            "cognition.ai/timestamp": "2026-10-25T09:27:33.746748700+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920454190,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "blocked",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Work in exactly three separate turns. Turn 1: create goal-a.txt containing alpha, then end your turn immediately without calling update_goal. Turn 2: create goal-b.txt containing beta, then end your turn. Turn 3: verify both files exist and call update_goal with status complete.",
+              "status": "running",
+              "turns": 1
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Continuing goal (turn 2)"
+          },
+          "_meta": {
+            "cognition.ai/displayMessage": true
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920454402,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "working",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "call_i6F1TKdnxSwOCQ4j29AvpoT0",
+          "title": "Listed .\\",
+          "kind": "execute",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "resource",
+                "resource": {
+                  "mimeType": "text/x-shellscript",
+                  "text": "ls",
+                  "uri": "tool://preview"
+                },
+                "_meta": {
+                  "cognition.ai/preview_is_shell_command": true
+                }
+              }
+            }
+          ],
+          "rawInput": {
+            "command": "ls"
+          },
+          "_meta": {
+            "cognition.ai/commandNames": ["ls"],
+            "cognition.ai/inferenceToolName": "exec",
+            "cognition.ai/timestamp": "2026-10-25T09:27:37.869857800+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_i6F1TKdnxSwOCQ4j29AvpoT0",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_i6F1TKdnxSwOCQ4j29AvpoT0",
+          "status": "completed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Exited with code 0"
+              }
+            }
+          ],
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "call_mh7BWE1oZ1JDhqevb0lEiryf",
+          "title": "Patched .\\goal-b.txt",
+          "kind": "edit",
+          "content": [
+            {
+              "type": "diff",
+              "path": "C:/fixture/project/goal-b.txt",
+              "newText": "beta\n",
+              "_meta": {
+                "cognition.ai/linesAdded": 1,
+                "cognition.ai/linesRemoved": 0
+              }
+            }
+          ],
+          "rawInput": "*** Begin Patch\n*** Add File: C:/fixture/project/goal-b.txt\n+beta\n*** End Patch\n",
+          "_meta": {
+            "cognition.ai/suppressApproval": true,
+            "cognition.ai/inferenceToolName": "apply_patch",
+            "cognition.ai/timestamp": "2026-10-25T09:27:41.917464800+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_mh7BWE1oZ1JDhqevb0lEiryf",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "apply_patch"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_mh7BWE1oZ1JDhqevb0lEiryf",
+          "status": "failed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Failed to write C:/fixture/project/goal-b.txt: Parse error: {\n  \"error\": \"invalid type: null, expected struct WriteTextFileResponse\",\n  \"json\": null,\n  \"phase\": \"deserialization\"\n}"
+              }
+            }
+          ],
+          "_meta": {
+            "cognition.ai/inferenceToolName": "apply_patch"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Submitted `goal-b.txt` containing `beta`. The tool returned a response-parsing error; I’ll verify both files in turn 3."
+          },
+          "_meta": {
+            "cognition.ai/timestamp": "2026-10-25T09:27:45.603756700+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920466009,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "blocked",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Work in exactly three separate turns. Turn 1: create goal-a.txt containing alpha, then end your turn immediately without calling update_goal. Turn 2: create goal-b.txt containing beta, then end your turn. Turn 3: verify both files exist and call update_goal with status complete.",
+              "status": "running",
+              "turns": 2
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Continuing goal (turn 3)"
+          },
+          "_meta": {
+            "cognition.ai/displayMessage": true
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920466090,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "working",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "call_IUXt0y8QESzWxp9CvJSrdQjJ",
+          "title": "Ran command",
+          "kind": "execute",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "resource",
+                "resource": {
+                  "mimeType": "text/x-shellscript",
+                  "text": "ls; Get-Content \"goal-a.txt\"; Get-Content \"goal-b.txt\"; if ((Test-Path \"goal-a.txt\" -PathType Leaf) -and (Test-Path \"goal-b.txt\" -PathType Leaf) -and ((Get-Content \"goal-a.txt\" -Raw).TrimEnd() -ceq \"alpha\") -and ((Get-Content \"goal-b.txt\" -Raw).TrimEnd() -ceq \"beta\")) { Write-Output \"Verified both files and expected contents.\" } else { throw \"File verification failed.\" }",
+                  "uri": "tool://preview"
+                },
+                "_meta": {
+                  "cognition.ai/preview_is_shell_command": true
+                }
+              }
+            }
+          ],
+          "rawInput": {
+            "command": "ls; Get-Content \"goal-a.txt\"; Get-Content \"goal-b.txt\"; if ((Test-Path \"goal-a.txt\" -PathType Leaf) -and (Test-Path \"goal-b.txt\" -PathType Leaf) -and ((Get-Content \"goal-a.txt\" -Raw).TrimEnd() -ceq \"alpha\") -and ((Get-Content \"goal-b.txt\" -Raw).TrimEnd() -ceq \"beta\")) { Write-Output \"Verified both files and expected contents.\" } else { throw \"File verification failed.\" }"
+          },
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec",
+            "cognition.ai/timestamp": "2026-10-25T09:27:48.373790+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_IUXt0y8QESzWxp9CvJSrdQjJ",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_IUXt0y8QESzWxp9CvJSrdQjJ",
+          "status": "completed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Exited with code 0"
+              }
+            }
+          ],
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "call_hfvHpqUcmIrLeXTKLGakojKX",
+          "title": "Goal Complete",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Completed in three turns: created goal-a.txt containing alpha in turn 1, created goal-b.txt containing beta in turn 2, and verified both files exist with the expected contents in turn 3. Verification exited successfully."
+              }
+            }
+          ],
+          "rawInput": {
+            "status": "complete",
+            "summary": "Completed in three turns: created goal-a.txt containing alpha in turn 1, created goal-b.txt containing beta in turn 2, and verified both files exist with the expected contents in turn 3. Verification exited successfully."
+          },
+          "_meta": {
+            "cognition.ai/inferenceToolName": "update_goal",
+            "cognition.ai/timestamp": "2026-10-25T09:27:54.885106300+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_hfvHpqUcmIrLeXTKLGakojKX",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "update_goal"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "call_hfvHpqUcmIrLeXTKLGakojKX",
+          "status": "completed",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "update_goal"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Completed in three turns. Verified both files exist:\n- `goal-a.txt`: `alpha`\n- `goal-b.txt`: `beta`"
+          },
+          "_meta": {
+            "cognition.ai/timestamp": "2026-10-25T09:27:57.002797600+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920477446,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "blocked",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Work in exactly three separate turns. Turn 1: create goal-a.txt containing alpha, then end your turn immediately without calling update_goal. Turn 2: create goal-b.txt containing beta, then end your turn. Turn 3: verify both files exist and call update_goal with status complete.",
+              "status": "complete",
+              "turns": 3
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Work in exactly three separate turns. Turn 1: create goal-a.txt containing alpha, then end your turn immediately without calling update_goal. Turn 2: create goal-b.txt containing beta, then end your turn. Turn 3: verify both files exist and call update_goal with status complete.",
+              "status": "complete",
+              "turns": 3
+            }
+          }
+        }
+      }
+    ]
+  },
+  "statusComplete": {
+    "prompt": "/goal",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "✓ Goal Complete (3 turns)\n\nWork in exactly three separate turns. Turn 1: create goal-a.txt containing alpha, then end your turn immediately without calling update_goal. Turn 2: create goal-b.txt containing beta, then end your turn. Turn 3: verify both files exist and call update_goal with status complete."
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      }
+    ]
+  },
+  "clear": {
+    "prompt": "/goal clear",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Work in exactly three separate turns. Turn 1: create goal-a.txt containing alpha, then end your turn immediately without calling update_goal. Turn 2: create goal-b.txt containing beta, then end your turn. Turn 3: verify both files exist and call update_goal with status complete.",
+              "status": "cleared",
+              "turns": 3
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Goal cleared."
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      }
+    ]
+  },
+  "blocked": {
+    "prompt": "/goal Read the file missing-input.txt in the current directory and report its exact content. Do not create or modify that file yourself. If the file does not exist, call update_goal with status blocked and ask the user to create it. Once the file exists, report its content and call update_goal with status complete.",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Read the file missing-input.txt in the current directory and report its exact content. Do not create or modify that file yourself. If the file does not exist, call update_goal with status blocked and ask the user to create it. Once the file exists, report its content and call update_goal with status complete.",
+              "status": "running",
+              "turns": 0
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "title": "Read the file missing-input.txt in the current directory and report its exact..."
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920752732,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "working",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "exec:0#f7facc0d1ed04cf29cd247577e94ccee",
+          "title": "Ran type",
+          "kind": "execute",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "resource",
+                "resource": {
+                  "mimeType": "text/x-shellscript",
+                  "text": "type missing-input.txt",
+                  "uri": "tool://preview"
+                },
+                "_meta": {
+                  "cognition.ai/preview_is_shell_command": true
+                }
+              }
+            }
+          ],
+          "rawInput": {
+            "command": "type missing-input.txt"
+          },
+          "_meta": {
+            "cognition.ai/commandNames": ["type"],
+            "cognition.ai/inferenceToolName": "exec",
+            "cognition.ai/timestamp": "2026-10-25T09:32:35.471637+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec:0#f7facc0d1ed04cf29cd247577e94ccee",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec:0#f7facc0d1ed04cf29cd247577e94ccee",
+          "status": "completed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Exited with code 1"
+              }
+            }
+          ],
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "title": "Report Exact Content of missing-input.txt"
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "The file `missing-input.txt` does not exist in the current directory (`C:\\fixture\\project`). I cannot create or modify it per the task constraints."
+          },
+          "_meta": {
+            "cognition.ai/timestamp": "2026-10-25T09:32:37.327702900+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "update_goal:0#ae73255b8f344573a60c231a5c57c0cf",
+          "title": "Goal Blocked",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "missing-input.txt does not exist in C:\\fixture\\project. The task forbids me from creating it. Please create the file in that directory with the desired content; once it exists I will read it and report its exact content."
+              }
+            }
+          ],
+          "rawInput": {
+            "status": "blocked",
+            "summary": "missing-input.txt does not exist in C:\\fixture\\project. The task forbids me from creating it. Please create the file in that directory with the desired content; once it exists I will read it and report its exact content."
+          },
+          "_meta": {
+            "cognition.ai/inferenceToolName": "update_goal",
+            "cognition.ai/timestamp": "2026-10-25T09:32:37.619994500+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "update_goal:0#ae73255b8f344573a60c231a5c57c0cf",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "update_goal"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "update_goal:0#ae73255b8f344573a60c231a5c57c0cf",
+          "status": "completed",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "update_goal"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "The file `missing-input.txt` is missing from the working directory:\n\n`C:\\fixture\\project`\n\nSince I'm not allowed to create it, I've marked the goal blocked. Please create `missing-input.txt` in that directory, then resume the goal and I'll read it and report its exact content."
+          },
+          "_meta": {
+            "cognition.ai/timestamp": "2026-10-25T09:32:38.137735700+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920758882,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "blocked",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Read the file missing-input.txt in the current directory and report its exact content. Do not create or modify that file yourself. If the file does not exist, call update_goal with status blocked and ask the user to create it. Once the file exists, report its content and call update_goal with status complete.",
+              "status": "blocked",
+              "turns": 1
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Read the file missing-input.txt in the current directory and report its exact content. Do not create or modify that file yourself. If the file does not exist, call update_goal with status blocked and ask the user to create it. Once the file exists, report its content and call update_goal with status complete.",
+              "status": "blocked",
+              "turns": 1
+            }
+          }
+        }
+      }
+    ]
+  },
+  "statusBlocked": {
+    "prompt": "/goal",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Goal Blocked (1 turn)\n\nRead the file missing-input.txt in the current directory and report its exact content. Do not create or modify that file yourself. If the file does not exist, call update_goal with status blocked and ask the user to create it. Once the file exists, report its content and call update_goal with status complete.\n\n/goal resume to continue · /goal clear to drop it"
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      }
+    ]
+  },
+  "replaceBlocked": {
+    "prompt": "/goal Write a short poem about the sea",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "1",
+              "objective": "Write a short poem about the sea",
+              "status": "running",
+              "turns": 0
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920762092,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "working",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "**The Sea**\n\nThe sea keeps no calendar, no clock —\nonly the slow rehearsal of the waves,\neach one a sentence half-remembered,\nbreaking against the shore it craves.\n\nSalt writes its letters on the wind;\nthe tide comes in, the tide retreats.\nAnd somewhere in the deep, unbothered,\nthe dark heart of the ocean beats."
+          },
+          "_meta": {
+            "cognition.ai/timestamp": "2026-10-25T09:32:43.021764800+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "update_goal:0#92cb31930294447ba8f0f39af77533b3",
+          "title": "Goal Complete",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Wrote a short original poem about the sea (two stanzas, delivered in the response above)."
+              }
+            }
+          ],
+          "rawInput": {
+            "status": "complete",
+            "summary": "Wrote a short original poem about the sea (two stanzas, delivered in the response above)."
+          },
+          "_meta": {
+            "cognition.ai/inferenceToolName": "update_goal",
+            "cognition.ai/timestamp": "2026-10-25T09:32:43.942258100+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "update_goal:0#92cb31930294447ba8f0f39af77533b3",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "update_goal"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "update_goal:0#92cb31930294447ba8f0f39af77533b3",
+          "status": "completed",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "update_goal"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Done — wrote a short two-stanza poem about the sea, shown above."
+          },
+          "_meta": {
+            "cognition.ai/timestamp": "2026-10-25T09:32:44.471216500+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920764745,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "blocked",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "1",
+              "objective": "Write a short poem about the sea",
+              "status": "complete",
+              "turns": 1
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "1",
+              "objective": "Write a short poem about the sea",
+              "status": "complete",
+              "turns": 1
+            }
+          }
+        }
+      }
+    ]
+  },
+  "resumeComplete": {
+    "prompt": "/goal resume",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "The goal is already complete."
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      }
+    ]
+  },
+  "clearNone": {
+    "prompt": "/goal clear",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "No goal to clear."
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      }
+    ]
+  },
+  "interrupt": {
+    "prompt": "/goal Run exactly this command and wait for it to finish: ping -n 25 127.0.0.1 . After it finishes, call update_goal with status complete.",
+    "stopReason": "cancelled",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Run exactly this command and wait for it to finish: ping -n 25 127.0.0.1 . After it finishes, call update_goal with status complete.",
+              "status": "running",
+              "turns": 0
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "title": "Run exactly this command and wait for it to finish: ping -n 25 127.0.0.1 . Af..."
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920752348,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "working",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "I'll run the ping command. With 25 pings it takes roughly 24 seconds, so I'll give it a generous timeout."
+          },
+          "_meta": {
+            "cognition.ai/timestamp": "2026-10-25T09:32:35.143917700+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call",
+          "toolCallId": "exec:0#0f52950635464fb09b3774da682a3a1a",
+          "title": "Ran ping",
+          "kind": "execute",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "resource",
+                "resource": {
+                  "mimeType": "text/x-shellscript",
+                  "text": "ping -n 25 127.0.0.1",
+                  "uri": "tool://preview"
+                },
+                "_meta": {
+                  "cognition.ai/preview_is_shell_command": true
+                }
+              }
+            }
+          ],
+          "rawInput": {
+            "command": "ping -n 25 127.0.0.1"
+          },
+          "_meta": {
+            "cognition.ai/timeoutMs": 60000,
+            "cognition.ai/commandNames": ["ping"],
+            "cognition.ai/inferenceToolName": "exec",
+            "cognition.ai/timestamp": "2026-10-25T09:32:35.180327500+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec:0#0f52950635464fb09b3774da682a3a1a",
+          "status": "in_progress",
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "title": "Run a Localhost Ping Command and Mark Goal Complete"
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec:0#0f52950635464fb09b3774da682a3a1a",
+          "status": "failed",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Canceled due to user interrupt"
+              }
+            }
+          ],
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec",
+            "cognition.ai/canceled": true
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920767225,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "blocked",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Run exactly this command and wait for it to finish: ping -n 25 127.0.0.1 . After it finishes, call update_goal with status complete.",
+              "status": "paused",
+              "turns": 1
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Run exactly this command and wait for it to finish: ping -n 25 127.0.0.1 . After it finishes, call update_goal with status complete.",
+              "status": "paused",
+              "turns": 1
+            }
+          }
+        }
+      }
+    ]
+  },
+  "statusPaused": {
+    "prompt": "/goal",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Goal Paused (1 turn)\n\nRun exactly this command and wait for it to finish: ping -n 25 127.0.0.1 . After it finishes, call update_goal with status complete.\n\n/goal resume to continue · /goal clear to drop it"
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      }
+    ]
+  },
+  "resume": {
+    "prompt": "/goal resume",
+    "stopReason": "cancelled",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Run exactly this command and wait for it to finish: ping -n 25 127.0.0.1 . After it finishes, call update_goal with status complete.",
+              "status": "running",
+              "turns": 2
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Continuing goal (turn 3)"
+          },
+          "_meta": {
+            "cognition.ai/displayMessage": true
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920782534,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "working",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Let me check whether the background ping already finished."
+          },
+          "_meta": {
+            "cognition.ai/timestamp": "2026-10-25T09:33:03.803842300+00:00"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec:0#bee51da2661844b584aec1c5e33543d3",
+          "status": "in_progress",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "\r\nPinging 127.0.0.1 with 32 bytes of data:\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\n"
+              }
+            }
+          ],
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "It's still running — 12 of 25 replies so far. Waiting for the remaining ~13 seconds."
+          },
+          "_meta": {
+            "cognition.ai/timestamp": "2026-10-25T09:33:05.965719100+00:00"
+          }
+        }
+      }
+    ]
+  },
+  "clearMidRun": {
+    "prompt": "/goal clear",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/goal": {
+              "id": "0",
+              "objective": "Run exactly this command and wait for it to finish: ping -n 25 127.0.0.1 . After it finishes, call update_goal with status complete.",
+              "status": "cleared",
+              "turns": 2
+            }
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "Goal cleared."
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "tool_call_update",
+          "toolCallId": "exec:0#bee51da2661844b584aec1c5e33543d3",
+          "status": "in_progress",
+          "content": [
+            {
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": "Canceled due to user interrupt"
+              }
+            }
+          ],
+          "_meta": {
+            "cognition.ai/inferenceToolName": "exec"
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792920790407,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "blocked",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      }
+    ]
+  },
+  "reloadStatus": {
+    "prompt": "/goal",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "No goal set. Usage: `/goal [<objective>|resume|clear]`"
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      }
+    ]
+  },
+  "reloadResume": {
+    "prompt": "/goal resume",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "No goal to resume. Usage: `/goal [<objective>|resume|clear]`"
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      }
+    ]
+  },
+  "reloadClear": {
+    "prompt": "/goal clear",
+    "stopReason": "end_turn",
+    "notifications": [
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "session_info_update",
+          "_meta": {
+            "cognition.ai/timestamp": 1792921000955,
+            "cognition.ai/eventType": "status_update",
+            "cognition.ai/statusEnum": "blocked",
+            "cognition.ai/userActionRequired": null
+          }
+        }
+      },
+      {
+        "sessionId": "fixture-session",
+        "update": {
+          "sessionUpdate": "agent_message_chunk",
+          "content": {
+            "type": "text",
+            "text": "No goal to clear."
+          },
+          "_meta": {
+            "cognition.ai/instant": true
+          }
+        }
+      }
+    ]
+  }
+}

@@ -353,7 +353,7 @@ struct ProjectThreadsView: View {
   }
 
   private func threadAccessibilityLabel(_ thread: RemoteThread) -> String {
-    var parts = [thread.title, ThreadLifecycleStrings.status(thread.status)]
+    var parts = [thread.title, ThreadLifecycleStrings.status(thread.status, hasSessionRef: thread.sessionRef != nil)]
     if thread.isStarred { parts.append(HomeStrings.starred) }
     if hasDraft(thread) { parts.append(HomeStrings.unsentDraft) }
     if thread.isDone { parts.append(SettingsUIStrings.done) }

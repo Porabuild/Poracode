@@ -1,4 +1,5 @@
 import { unlinkSync } from "node:fs";
+import type { HostControlAuthority } from "./HostControlServer";
 import { join } from "node:path";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import {
@@ -8,7 +9,7 @@ import {
   hostControlDiscoverySchema,
   type HostControlDiscovery,
 } from "@/shared/hostControlProtocol";
-import { readHostOwnerRecord, type HostOwnerLease } from "./hostOwnerLease";
+import { readHostOwnerRecord } from "./hostOwnerLease";
 import type { HostRootPaths } from "./hostRootPaths";
 import { readPrivateHostFile } from "./privateHostFile";
 
@@ -43,7 +44,7 @@ export function readHostControlDiscovery(paths: HostRootPaths): HostControlDisco
 }
 
 export function publishHostControlDiscovery(
-  lease: HostOwnerLease,
+  lease: HostControlAuthority,
   port: number,
   token: string,
 ): HostControlDiscovery {
@@ -63,7 +64,7 @@ export function publishHostControlDiscovery(
   return record;
 }
 
-export function removeHostControlDiscovery(lease: HostOwnerLease): void {
+export function removeHostControlDiscovery(lease: HostControlAuthority): void {
   lease.assertActive();
   let current: HostControlDiscovery;
   try {

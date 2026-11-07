@@ -149,10 +149,21 @@ export class SteerCoordinator {
    * replaceable by the normal direct-steer admission rules.
    */
   async waitForPendingSteerAdmission(threadId: string): Promise<void> {
-    const pending = [...this.pendingReplacementAdmissions.values()].find(
-      ({ session }) => session.threadId === threadId,
-    );
-    await pending?.admission.promise.catch(() => undefined);
+    await this.pendingReplacementFor(threadId)?.admission.promise.catch(() => undefined);
+  }
+
+  /** A fallback steer's startTurn was invoked and awaits its canonical start. */
+  hasPendingSteerAdmission(threadId: string): boolean {
+    return this.pendingReplacementFor(threadId) !== undefined;
+  }
+
+  private pendingReplacementFor(
+    threadId: string,
+  ): { session: SessionRuntime; admission: PendingSteerAdmission } | undefined {
+    for (const pending of this.pendingReplacementAdmissions.values()) {
+      if (pending.session.threadId === threadId) return pending;
+    }
+    return undefined;
   }
 
   private rejectPendingReplacement(session: SessionRuntime, error: unknown): void {
@@ -479,7 +490,9 @@ export class SteerCoordinator {
         : undefined;
     const steerOptions = {
       ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
-      ...structuredTurnTextOptions(session, turn),
+      // "Last turn you edited files…" does not fit a turn still running, so
+      // that reminder stays for the next submitted prompt.
+      ...structuredTurnTextOptions(session, turn, { steersRunningTurn: true }),
     };
     this.ctx.noteDirectSteerSubmitted?.(session);
     const steer = steerTurn.call(

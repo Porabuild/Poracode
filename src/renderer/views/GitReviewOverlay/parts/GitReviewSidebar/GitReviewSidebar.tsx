@@ -52,6 +52,7 @@ import { useConflictResolver, type ConflictResolverLaunchInput } from "./parts/u
 import { ConflictResolutionActions } from "./parts/ConflictResolutionActions";
 import { CommitSyncPanel } from "./parts/CommitSyncPanel";
 import { PrSection } from "./parts/PrSection";
+import { GithubPollingNotice } from "@/renderer/components/common/GithubPollingNotice";
 import { CreatePrModal } from "./parts/CreatePrModal";
 import { ActionPhaseLabel } from "./parts/ActionPhaseLabel";
 import { GitReviewSection } from "./parts/GitReviewSection";
@@ -130,10 +131,7 @@ export function GitReviewSidebar(props: {
   const commitDefaultAction = useSharedSettings((s) => s.commitDefaultAction);
   const setCommitDefaultAction = useSharedSettings((s) => s.setCommitDefaultAction);
 
-  // Treat "unknown" as "might be GitHub" — covers SSH host aliases where the
-  // remote URL hostname doesn't contain "github" but resolves to github.com.
-  const remotePlatform = gitStatus?.remoteInfo?.platform;
-  const isGitHub = remotePlatform === "github" || remotePlatform === "unknown";
+  const supportsReviews = gitStatus?.hasRemote ?? false;
   const ghAvailable = useGitStore((s) => s.ghAvailable[project.id] ?? false);
   const effectiveBranch = worktreeBranch ?? gitStatus?.branch;
   const effectivePrKey =
@@ -146,7 +144,7 @@ export function GitReviewSidebar(props: {
   const sourceBranch = useSourceBranch(effectivePrKey) ?? null;
   const commitsAhead = useCommitsAhead(effectivePrKey);
   const sourceAhead = useSourceAhead(effectivePrKey);
-  const showPrSection = Boolean(isGitHub && effectiveBranch);
+  const showPrSection = Boolean(supportsReviews && effectiveBranch);
 
   const mergeConflicting = gitStatus?.mergeInProgress ?? false;
   const mergeConflictFiles = gitStatus?.conflictFiles ?? [];
@@ -155,7 +153,7 @@ export function GitReviewSidebar(props: {
     project,
     effectiveBranch,
     effectivePrKey,
-    isGitHub,
+    supportsReviews,
     ghAvailable,
     preferredSourceBranch: prBaseBranch,
     refreshKey,
@@ -571,6 +569,7 @@ export function GitReviewSidebar(props: {
             />
           )}
 
+          <GithubPollingNotice project={project} onRecovered={onRefresh} />
           {showPrSection && ghAvailable && hasPr && effectivePrKey && (
             <PrSection
               prKey={effectivePrKey}

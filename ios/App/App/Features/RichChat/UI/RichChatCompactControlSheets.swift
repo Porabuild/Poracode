@@ -87,6 +87,73 @@ struct RichChatContextControlSheet: View {
   }
 }
 
+struct RichChatBackgroundTasksSheet: View {
+  let suite: RichChatControllerSuite
+  let canOperate: Bool
+  @Environment(\.dismiss) private var dismiss
+  @State private var selection: RichChatBackgroundTaskSelection?
+  /// Persistent across details close/reopen so the reader can reuse its single
+  /// in-flight transport attempt.
+  @State private var reader: RichChatBackgroundTaskDetailsController
+
+  init(suite: RichChatControllerSuite, canOperate: Bool) {
+    self.suite = suite
+    self.canOperate = canOperate
+    _selection = State(initialValue: nil)
+    _reader = State(
+      initialValue: RichChatBackgroundTaskDetailsController(
+        sessionActions: suite.sessionActions
+      )
+    )
+  }
+
+  private var tasks: [RichBackgroundTaskPresentation] {
+    (suite.transcript.state.backgroundTasks ?? []).map(RichBackgroundTaskPresentation.init)
+  }
+
+  var body: some View {
+    NavigationStack {
+      VStack(spacing: 0) {
+        if tasks.isEmpty {
+          Color.clear
+        } else {
+          List {
+            ForEach(tasks) { task in
+              RichChatBackgroundTaskRow(task: task) {
+                selection = RichChatBackgroundTaskSelection(taskID: task.id)
+              }
+              .listRowBackground(Color.clear)
+            }
+          }
+          .listStyle(.insetGrouped)
+        }
+      }
+      .navigationTitle(RichChatStrings.backgroundTasks)
+      .navigationBarTitleDisplayMode(.inline)
+      .sheet(item: $selection) { selection in
+        RichChatBackgroundTaskDetailsView(
+          suite: suite,
+          taskID: selection.taskID,
+          canOperate: canOperate,
+          reader: reader
+        )
+      }
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button(RichChatStrings.done) { dismiss() }
+        }
+      }
+      .accessibilityElement(children: .contain)
+      .accessibilityIdentifier("background-tasks-panel")
+      .onChange(of: tasks.map(\.id)) { _, ids in
+        if ids.isEmpty { dismiss() }
+        if let selected = selection, !ids.contains(selected.taskID) { selection = nil }
+      }
+    }
+    .presentationDetents([.medium, .large])
+  }
+}
+
 struct RichChatGoalControlSheet: View {
   let transcript: RichTranscriptState?
   let pendingSteer: RichPendingSteer?

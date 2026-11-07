@@ -31,10 +31,15 @@ must not turn provider session discovery into a second thread index.
 - ACP resource paths resolve from the active project root. Relative mentions
   and attachments are normalized before ACP conversion so Windows, WSL, spaces,
   and `file://` URIs stay valid.
-- GUI ACP threads steer via follow-up submits while working: a submit during
-  `working` interrupts the active turn, queues the follow-up as structured
-  `{ prompt, segments, config }`, and drains queued turns FIFO once the session
-  returns to `idle` / `needs_reply`.
+- GUI ACP follow-ups use the negotiated native steering path below when available. Otherwise, interrupt-and-drain interrupts the active turn, queues the follow-up as structured `{ prompt, segments, config }`, and drains it through the existing turn coordinator once the active turn settles.
+- An adapter can declare `promptSteering` (`acp/promptSteering.ts`) for an
+  agent that accepts a marked second `session/prompt` during a turn. The
+  session then exposes `steerTurn` once `initialize` advertises support: a
+  text steer joins the running turn without a cancel, and the turn closes only
+  after the agent answers every steer. A rejected steer, or one with non-text
+  content, is sent as an ordinary prompt within the same turn. An agent whose
+  reply always starts a new assistant item sets `repliesInNewAssistantItem` so
+  the steer row is painted without closing the in-flight message.
 - Terminal presentation stays PTY-owned. Do not add queueing or fake
   stop/steering UI to terminal-native threads.
 
@@ -59,6 +64,23 @@ A late replacement of an existing canonical item is a history correction, not a
 new autonomous turn: a nonempty batch of only replacing text deltas must neither
 reopen work nor extend an orphan turn's idle window. New items, appends, and
 other lifecycle events keep the ordinary activity rules.
+
+### Command tool calls and client terminals
+
+Command execution tools may stream `rawInput.command` and `rawInput.cwd` after
+the call opens; the shared mapper refreshes those fields as they arrive.
+`AcpSessionBehavior.unreferencedTerminalCorrelation` controls client-hosted
+terminals that are not referenced from tool content: the default `lookup`
+matches output by command text, while `attribute-on-create` binds a newly
+created terminal to the oldest open command call with the exact normalized
+command. Providers may declare `poracodeCommandStatus` metadata when a command
+tool's text content is a completion status line rather than command output.
+The provider parses its own status format; the shared mapper composes the
+terminal output with that line and applies a declared `exitCode`.
+Search calls that report matches as resource links use decoded file targets or
+their URI/name when no text result exists. Windows client-terminal wrappers
+propagate native exit codes because PowerShell otherwise reports `1` for any
+failing native command.
 
 ### Prompt usage and notifications
 

@@ -146,6 +146,17 @@ describe("serializeComposerContent", () => {
     expect(serializeComposerContent(container)).toBe("@README.md");
   });
 
+  it("keeps a goal chip serialized as a slash command with its target icon", () => {
+    const chip = createSlashCommandChipElement("goal");
+    container.appendChild(chip);
+    container.appendChild(document.createTextNode(" ship it"));
+
+    expect(chip.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(chip.querySelectorAll("circle")).toHaveLength(3);
+    expect(serializeComposerContent(container)).toBe("/goal ship it");
+    expect(serializeToSegments(container)).toEqual([{ kind: "text", content: "/goal ship it" }]);
+  });
+
   it("preserves skill metadata and uses the provider invocation when flattened", () => {
     const chip = createSlashCommandChipElement({
       id: "review-code",

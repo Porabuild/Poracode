@@ -37,6 +37,12 @@ if (typeof document.elementFromPoint !== "function") {
   document.elementFromPoint = () => null;
 }
 
+// dnd-kit's pointer sensor captures the pointer on drag start and cancels the
+// drag when that throws, which it would under jsdom's missing pointer capture.
+if (typeof Element.prototype.setPointerCapture !== "function") {
+  Element.prototype.setPointerCapture = () => undefined;
+}
+
 /** Runs a few animation frames inside act so dnd-kit's scheduled writes land. */
 export async function settleDndAttributes() {
   for (let frame = 0; frame < 3; frame += 1) {

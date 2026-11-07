@@ -1,4 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -16,8 +17,10 @@ import {
   type HostResourceBusyError,
 } from "./hostResourceAdmission";
 import type { ThreadSessionManagerOptions } from "./threadSession/managerOptions";
+import type { TerminalPtyFactory } from "../pty/managedPty";
 import { isUnsupportedThreadPresentationError } from "./threadSession/presentationSupport";
 import { STRUCTURED_INTERRUPT_FORCE_STOP_MS } from "./threadSession/userInterrupt";
+import { controlledThreadLaunchSchema } from "@/shared/contracts/threadExecution";
 
 interface FakePty {
   pid: number;
@@ -292,6 +295,134 @@ function terminalPayload(threadId: string): StartThreadPayload {
     presentationMode: "terminal",
   };
 }
+
+it("refuses public request resolution on a reserved thread before any provider effect", async () => {
+  const resolve = vi.fn<(requestId: unknown, response: unknown) => Promise<void>>(
+    async () => undefined,
+  );
+  const handle = createHandle({ resolveServerRequest: resolve });
+  const adapter = createAdapter({ presentationMode: "gui", structured: handle });
+  const manager = createManager(adapter, policy());
+  const operation = await manager.controlThreadExecution({
+    version: 1,
+    action: "prepare",
+    threadId: "owned-request",
+  });
+  await manager.controlThreadExecution({
+    version: 1,
+    action: "start",
+    operationId: operation.operationId,
+    launch: controlledThreadLaunchSchema.parse(guiPayload("owned-request")),
+  });
+  await expect(
+    manager.resolveThreadServerRequest({
+      threadId: "owned-request",
+      requestId: "permission",
+      method: "session/request_permission",
+      response: { decision: "allow" },
+    }),
+  ).rejects.toThrow("Another client");
+  expect(resolve).not.toHaveBeenCalled();
+  const target = {
+    version: 2 as const,
+    operationId: operation.operationId,
+    threadId: "owned-request",
+  };
+  await expect(
+    manager.controlledThreadRequest({ ...target, action: "qualify" }),
+  ).resolves.toMatchObject({ state: "qualified" });
+  handle.listener?.onRuntimeEvent?.({
+    type: "request.opened",
+    threadId: "foreign",
+    requestId: "spoofed",
+    requestType: "tool_call_approval",
+    payload: { summary: "Wrong producer scope" },
+  });
+  await expect(
+    manager.controlledThreadRequest({
+      ...target,
+      action: "respond",
+      requestId: "spoofed",
+      requestToken: randomUUID(),
+      response: { optionId: "allow" },
+    }),
+  ).rejects.toThrow("no longer pending");
+  handle.listener?.onRuntimeEvent?.({
+    type: "request.opened",
+    threadId: "owned-request",
+    requestId: "permission",
+    requestType: "tool_call_approval",
+    payload: { summary: "Allow fixture?" },
+  });
+  const read = await manager.controlledThreadRequest({
+    ...target,
+    action: "read",
+    requestId: "permission",
+  });
+  if (read.state !== "read" || !read.request) throw new Error("Expected pending request");
+  const answer = {
+    ...target,
+    action: "respond" as const,
+    requestId: "permission",
+    requestToken: read.request.requestToken,
+    response: { optionId: "allow" },
+  };
+  await expect(manager.controlledThreadRequest(answer)).resolves.toMatchObject({
+    state: "responded",
+  });
+  expect(resolve).toHaveBeenCalledExactlyOnceWith("permission", { optionId: "allow" });
+  await expect(manager.controlledThreadRequest(answer)).rejects.toThrow("no longer pending");
+});
+
+it("derives controlled PTY ownership from its registry, never launch flags or shell callers", async () => {
+  const factory = vi.fn<TerminalPtyFactory>(
+    () => createFakePty() as unknown as ReturnType<TerminalPtyFactory>,
+  );
+  const adapter = createAdapter({ presentationMode: "terminal" });
+  const manager = createManager(adapter, policy(), {
+    createPty: factory,
+    readDisableCliHookPlugin: () => true,
+  });
+  const ordinary = { ...terminalPayload("ordinary-factory"), controlled: true };
+  await manager.startThread(ordinary);
+  expect(factory.mock.calls.at(-1)?.[4]).toBe(false);
+  const owned = {
+    threadId: "owned-factory",
+    agentKind: THREAD_AGENT,
+    projectLocation: ordinary.projectLocation,
+    config: ordinary.config,
+    prompt: "",
+    initialSize: { cols: 80, rows: 24 },
+    presentationMode: "terminal" as const,
+  };
+  const spoofed = { ...owned, controlled: false };
+  const operation = await manager.controlThreadExecution({
+    version: 1,
+    action: "prepare",
+    threadId: owned.threadId,
+  });
+  await expect(
+    manager.controlThreadExecution({
+      version: 1,
+      action: "start",
+      operationId: operation.operationId,
+      launch: spoofed,
+    }),
+  ).rejects.toThrow("Unrecognized key");
+  expect(factory).toHaveBeenCalledOnce();
+  await manager.controlThreadExecution({
+    version: 1,
+    action: "start",
+    operationId: operation.operationId,
+    launch: owned,
+  });
+  expect(factory.mock.calls.at(-1)?.[4]).toBe(true);
+  await manager.startShell({
+    shellId: "ordinary-shell",
+    projectLocation: ordinary.projectLocation,
+  });
+  expect(factory.mock.calls.at(-1)?.[4]).toBe(false);
+});
 
 async function expectBusy(promise: Promise<unknown>): Promise<HostResourceBusyError> {
   try {

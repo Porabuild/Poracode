@@ -178,7 +178,11 @@ describe.skipIf(!sqliteAvailable)("reserved admission through controller durabil
 
   it("age gate still records the exact canonical refusal after a prior grant", () => {
     let now = 1000;
-    const c = controller({ now: () => now, bounds: { maxPendingAgeMs: 100 } });
+    const c = controller({
+      now: () => now,
+      bounds: { maxPendingAgeMs: 100 },
+      capacityRelief: false,
+    });
     const events = [started("a")];
     const id = grant(c, "a", events);
     c.admit("b", [started("b")]);

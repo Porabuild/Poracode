@@ -54,6 +54,7 @@ export interface PluginMcpRuntimeContext {
   nativePluginNames?: ReadonlySet<string>;
   /** Live built-in policy reads do not need to stage external launch transports. */
   includeExternalServers?: boolean;
+  pluginOverrides?: Record<string, boolean>;
 }
 
 export interface ResolvedPluginMcpServers {
@@ -190,7 +191,7 @@ export function resolvePluginMcpServers(
   const diagnostics: PluginDiagnostic[] = [];
 
   for (const plugin of plugins) {
-    const state = resolveInstalledPluginState(plugin, installedPlugins);
+    const state = resolveInstalledPluginState(plugin, installedPlugins, context.pluginOverrides);
     if (
       !state?.enabled ||
       isPluginProvidedNatively(plugin, context.nativePluginNames) ||

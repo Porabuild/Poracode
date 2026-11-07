@@ -8,6 +8,7 @@ import {
   type RemoteScope,
 } from "./constants.ts";
 import { assertConfiguredProcedureSchemas, LabProcedureWorkspace } from "./contractFixtures.ts";
+import { BackgroundTaskLab, type BackgroundTaskStage } from "./backgroundTaskLab.ts";
 import {
   emitRequestForFixture,
   faultConfigForFixture,
@@ -20,7 +21,7 @@ import { FaultEngine } from "./faultEngine.ts";
 import { assertEventFixtures, validateReplayableEvent } from "./eventValidation.ts";
 import { joinBasePath } from "./httpIo.ts";
 import { LabAuthStore, LabHttpError, type AuthenticatedSession } from "./labAuth.ts";
-import { buildReplayableEvent } from "./labFixtures.ts";
+import { buildReplayableEvent, FIXTURE_THREAD_ID } from "./labFixtures.ts";
 import { bearerToken, handleLabHttp } from "./labHttpDispatch.ts";
 import { handleLabUpgrade } from "./labWsRouter.ts";
 import { loadProtocolManifest, type ProtocolManifest } from "./manifest.ts";
@@ -50,7 +51,8 @@ export class WireLab {
   readonly observationLedger = new ObservationLedger();
   readonly ledger: CoverageLedger;
   readonly manifest: ProtocolManifest;
-  readonly workspace = new LabProcedureWorkspace();
+  readonly backgroundTasks = new BackgroundTaskLab();
+  readonly workspace = new LabProcedureWorkspace(this.backgroundTasks);
   readonly lifecycle = new LabLifecycleState();
   readonly routes = new LabRouteWorkspace();
   readonly basePath: string;
@@ -85,6 +87,7 @@ export class WireLab {
     this.manifest = loadProtocolManifest();
     this.ledger = ledger ?? new CoverageLedger(() => this.manifest);
     this.ring = new ReplayRing(options.replayLimit);
+    this.backgroundTasks.onChanged = (tasks) => this.installBackgroundTaskRoster(tasks);
     this.basePath = normalizeLabBasePath(options.basePath);
     this.desktopId = options.desktopId ?? "native-e2e-lab";
     this.hostId = options.hostId ?? "primary";
@@ -209,6 +212,7 @@ export class WireLab {
     this.faults.reset();
     this.ring.reset();
     this.ledger.reset();
+    this.backgroundTasks.reset();
     this.workspace.reset();
     this.lifecycle.reset();
     this.routes.reset();
@@ -252,6 +256,7 @@ export class WireLab {
     this.faults.reset();
     this.ring.reset();
     this.ledger.reset();
+    this.backgroundTasks.reset();
     this.workspace.reset();
     this.lifecycle.reset();
     this.routes.reset();
@@ -344,6 +349,29 @@ export class WireLab {
   publishEvent(event: Record<string, unknown>, options?: WirePublishOptions): number {
     validateReplayableEvent(event);
     return publishWireEvent(this, event, options);
+  }
+
+  /**
+   * Selects one shared background-task fixture stage and publishes the single
+   * authoritative `background_tasks.changed` replacement. The thread snapshot
+   * is updated first, so a reconnect between the event and the next history
+   * read can never observe a different roster.
+   */
+  setBackgroundTaskStage(stage: BackgroundTaskStage): void {
+    this.installBackgroundTaskRoster(this.backgroundTasks.setStage(stage));
+  }
+
+  private installBackgroundTaskRoster(tasks: ReturnType<BackgroundTaskLab["list"]>): void {
+    this.lifecycle.setBackgroundTasks(tasks);
+    this.publishEvent({
+      type: "thread-runtime-event",
+      threadId: FIXTURE_THREAD_ID,
+      event: {
+        type: "background_tasks.changed",
+        threadId: FIXTURE_THREAD_ID,
+        tasks,
+      },
+    });
   }
 
   private persistScript(entry: DurableScriptDraft): void {

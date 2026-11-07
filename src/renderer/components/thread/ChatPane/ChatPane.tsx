@@ -1,29 +1,21 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ConversationSearchJump } from "./ConversationSearchJump";
-import { Trans } from "@lingui/react/macro";
-import { Button } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { toast } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
-import {
-  remoteBridgeImageRefUrl,
-  remoteBridgeLocalImageUrl,
-  resolveRemoteBridgeLocalImagePath,
-} from "@/renderer/browser/remoteBridge";
-import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
+import { isRemoteSession } from "@/renderer/bridge";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
+import { resolveRemoteBridgeLocalImagePath } from "@/renderer/browser/remoteBridge";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import {
   useThreadHasBackgroundActivity,
   useThreadIsWaitingForBackground,
 } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
-import {
-  hydrateThreadRuntimeItems,
-  loadOlderThreadRuntimeItems,
-  releaseThreadRuntimeItems,
-  retainThreadRuntimeItems,
-} from "@/renderer/state/chatRuntimePersister";
+import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
+import { loadOlderThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { adoptRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
 import { useInitialTimelineLayout } from "./parts/useInitialTimelineLayout";
 import {
@@ -31,21 +23,21 @@ import {
   hydrateFileCheckpoints,
 } from "@/renderer/state/fileCheckpointActions";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { useManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
 import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { threadImageReadinessFor } from "../threadImageReadiness";
+import { useThreadImageAuthority } from "../threadImageAuthority";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatReaderFollowContext, createChatReaderFollowSignal } from "./chatReaderFollow";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
-import { ThreadHistoryNoticeBanner } from "./parts/HistoryNoticeBanner";
+import { ChatStatusBubble } from "./ChatStatusBubble";
+import { threadRuntimeStatusLabel } from "../ThreadHeaderStatus";
 import {
-  ChatConnectingFooter,
+  ChatShimmerStatus,
+  ChatTailStatus,
   ChatTurnElapsedFooter,
-  ChatWorktreeProvisioningFooter,
+  ChatTurnStatus,
   type TurnTiming,
 } from "./ChatTurnElapsed";
 import {
@@ -59,9 +51,12 @@ import { createChatPaneFileActions } from "./chatPaneFileActions";
 import { createMarkdownLocalImageAuthority } from "./markdownLocalImageAuthority";
 import { ImportedThreadNotice } from "./parts/ImportedThreadNotice";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
+import { ThreadForkOrigin, ThreadForkTurnAction } from "../ThreadForkControls";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
-import { StickyPrompt } from "./StickyPrompt";
-import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
+import { ChatPromptOverlays } from "./ChatPromptOverlays";
+import { promptAnchorScrollTop } from "./promptAnchorScrollTop";
+import { usePromptJump } from "./usePromptJump";
+import { resolveThreadMarkdownImageRoots, threadHostHomeDir } from "../threadMarkdownImageRoots";
 import { resolveThreadTranscriptMarkdownFormatter } from "../threadTranscriptMarkdown";
 
 interface ChatPaneProps {
@@ -78,12 +73,11 @@ interface ChatPaneProps {
   canShowProjectEntryInExplorer?: boolean | undefined;
   paneActionsOverride?: ChatPaneActions | undefined;
   checkpointActions?: CheckpointRevertActions | undefined;
-  checkpointProjectLocation?: ProjectLocation | undefined;
   initialScrollRevealDelayMs?: number | undefined;
   onInitialScrollSettled?: (() => void) | undefined;
+  /** Space a floating composer covers at the bottom; the list scrolls past it. */
+  bottomInset?: number | undefined;
 }
-
-const unavailableImageRefUrl = () => "";
 
 const EMPTY_COMPLETED_TURNS: NonNullable<
   ReturnType<typeof useAppStore.getState>["runtimeCompletedTurnsByThread"][string]
@@ -117,31 +111,35 @@ export function ChatPane(props: ChatPaneProps) {
     canShowProjectEntryInExplorer,
     paneActionsOverride,
     checkpointActions,
-    checkpointProjectLocation,
   } = props;
+  const { t } = useLingui();
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
-  const browserImageReadiness = useRemoteBridgeImageReadiness();
-  const managedImageSession = useManagedLoopbackImageSession();
+  const imageAuthority = useThreadImageAuthority(thread);
   const isManagedThread = managedRootOwner(thread) !== undefined;
-  const remoteImageServer = useRemoteServersStore((state) =>
-    thread.remoteServerId
-      ? state.servers.find(
-          (server) => (server.connectionId ?? server.desktopId) === thread.remoteServerId,
-        )
-      : undefined,
-  );
-  const isRemoteThread = thread.remoteServerId !== undefined;
-  const hasValidRemoteServerId =
-    typeof thread.remoteServerId === "string" && thread.remoteServerId.length > 0;
+  const isRemoteThread = !hostRunsOnThisMachine(thread);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
   const registerScrollToIndex = (handler: ScrollToIndex | null) => {
     scrollToIndexRef.current = handler;
   };
+  // Leave the tail before a jump so a streaming reply cannot re-pin the view
+  // to the bottom while it scrolls up.
+  const leaveTail = () => {
+    scrollControlsRef.current?.markUserScrollIntent();
+    scrollControlsRef.current?.disableStickToBottom();
+  };
+  const scrollToEntry = (index: number) => {
+    leaveTail();
+    scrollToIndexRef.current?.(index, { align: "start", animated: true });
+  };
   // `scrollEl` mirrors the LegendList-owned scroll node as React state for the
   // find controller and the shared scroll controls.
   const { setScrollContainer, scrollRef, scrollEl, scrollFadeStyle } =
-    useScrollFade<HTMLDivElement>({ contentRef });
+    useScrollFade<HTMLDivElement>({
+      contentRef,
+      // A freshly sent prompt is parked flush at the top; the top fade would dim it.
+      getTopFlushScrollTop: (el) => promptAnchorScrollTop(el, threadId),
+    });
   const [initialScrollSettlement, setInitialScrollSettlement] = useState<{
     threadId: string;
     hasVisibleHistory: boolean;
@@ -154,6 +152,16 @@ export function ChatPane(props: ChatPaneProps) {
   const timelineEntries = useAppStore(
     useShallow((s) => selectVisibleThreadTimelineEntries(s, threadId, hiddenRuntimeItemId)),
   );
+  const promptJump = usePromptJump({
+    threadId,
+    entries: timelineEntries,
+    scrollToIndexRef,
+    beforeScroll: leaveTail,
+    onUnavailable: () => toast.warning(t`That prompt is no longer available.`),
+  });
+  // While a jump pages history in, every consumer of the list index space (the
+  // transcript, sticky prompt, rail) keeps the snapshot the rows were built from.
+  const listEntries = promptJump.frozenEntries ?? timelineEntries;
   // Settling the empty loading placeholder does not settle the first history
   // rows. A later initial response must be measured and pinned before reveal.
   const isInitialScrollSettled =
@@ -177,6 +185,7 @@ export function ChatPane(props: ChatPaneProps) {
   // Session-media roots (e.g. Grok `image_gen` → session `images/N.jpg`) so
   // markdown can resolve those relative paths via poracode-local://.
   const providerSessionId = thread.sessionRef?.providerSessionId;
+  const homeDir = threadHostHomeDir(thread);
   const markdownImageRoots = useMemo(() => {
     const projectLocation = targetContext?.projectLocation;
     if (!projectLocation) return undefined;
@@ -184,10 +193,9 @@ export function ChatPane(props: ChatPaneProps) {
       agentKind: thread.agentKind,
       ...(providerSessionId ? { sessionId: providerSessionId } : {}),
       projectLocation,
-      ...(readBridge().homeDir ? { homeDir: readBridge().homeDir as string } : {}),
-      ...(isRemoteThread ? { isRemote: true as const } : {}),
+      ...(homeDir ? { homeDir } : {}),
     });
-  }, [isRemoteThread, thread.agentKind, providerSessionId, targetContext?.projectLocation]);
+  }, [homeDir, thread.agentKind, providerSessionId, targetContext?.projectLocation]);
   const formatTranscriptMarkdown = resolveThreadTranscriptMarkdownFormatter(thread.agentKind);
 
   // `onOpenThread` arrives as an inline arrow whose identity churns per parent
@@ -201,29 +209,15 @@ export function ChatPane(props: ChatPaneProps) {
   }, [onOpenThread]);
   const paneActions: ChatPaneActions | null = useMemo(() => {
     const openThread = (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId);
-    const contentImageReadiness = threadImageReadinessFor(
-      {
-        id: threadId,
-        ...(thread.remoteServerId !== undefined ? { remoteServerId: thread.remoteServerId } : {}),
-      },
-      managedImageSession,
-      browserImageReadiness,
-    );
+    // Images follow the thread's own connection; only owner-less rows use the
+    // bound bridge host (see resolveThreadImageAuthority).
+    const contentImageReadiness = imageAuthority.readiness;
     const contentActions: ChatPaneActions = {
       threadId,
+      ...(targetContext ? { mediaLocation: targetContext.projectLocation } : {}),
       // Image custody is independent of project/file actions, including Home.
       // An explicit empty owner resolver must never fall through globally.
-      remoteImageRefUrl: isRemoteSession()
-        ? !isRemoteThread || hasValidRemoteServerId
-          ? remoteBridgeImageRefUrl
-          : unavailableImageRefUrl
-        : isRemoteThread
-          ? remoteImageServer
-            ? (ref) => useRemoteServersStore.getState().imageRefUrl(thread.remoteServerId!, ref)
-            : unavailableImageRefUrl
-          : isManagedThread
-            ? (managedImageSession?.readiness.resolveRef ?? unavailableImageRefUrl)
-            : unavailableImageRefUrl,
+      remoteImageRefUrl: imageAuthority.refUrl,
       ...(contentImageReadiness ? { remoteImageReadiness: contentImageReadiness } : {}),
       ...createMarkdownLocalImageAuthority({
         projectLocation: targetContext?.projectLocation,
@@ -231,17 +225,12 @@ export function ChatPane(props: ChatPaneProps) {
         ...(isRemoteSession() || isRemoteThread
           ? {
               remote: {
-                available: isRemoteSession()
-                  ? !isRemoteThread || hasValidRemoteServerId
-                  : remoteImageServer !== undefined,
+                available: imageAuthority.available,
                 readiness: contentImageReadiness,
                 ...(!isRemoteThread && isRemoteSession()
                   ? { pathForUrl: resolveRemoteBridgeLocalImagePath }
                   : {}),
-                resolvePath: isRemoteSession()
-                  ? remoteBridgeLocalImageUrl
-                  : (path) =>
-                      useRemoteServersStore.getState().localImageUrl(thread.remoteServerId!, path),
+                resolvePath: imageAuthority.localImageUrl,
               },
             }
           : {}),
@@ -291,25 +280,15 @@ export function ChatPane(props: ChatPaneProps) {
     hasOpenThread,
     onRevealProjectFolderInTree,
     canShowProjectEntryInExplorer,
-    thread.remoteServerId,
-    browserImageReadiness,
+    imageAuthority,
     isManagedThread,
     isRemoteThread,
-    managedImageSession,
-    remoteImageServer,
-    hasValidRemoteServerId,
   ]);
 
   useEffect(() => {
-    if (isRemoteThread) {
-      retainThreadRuntimeItems(threadId);
-      void hydrateThreadRuntimeItems(threadId);
-      return () => releaseThreadRuntimeItems(threadId);
-    }
-
     const reader = adoptRuntimeThreadReader(threadId);
     return () => reader.release();
-  }, [isRemoteThread, threadId]);
+  }, [threadId]);
 
   useEffect(() => {
     if (!targetContext || isHomeScope) return;
@@ -366,17 +345,14 @@ export function ChatPane(props: ChatPaneProps) {
   );
   const isConnecting = useAppStore((s) => s.connectingThreadIds[threadId] !== undefined);
   const hydrationStatus = useAppStore((s) => s.runtimeHydrationStatus[threadId]);
-  // Remote only: the server deleted transcript this pane could not confirm
-  // (bounded authoritative reloads exhausted), so the view may lag the host.
-  const truncateReloadBlocked = useAppStore((s) => {
-    if (!thread.remoteServerId || !thread.remoteId) return false;
-    return s.truncateReloadExhausted[`${thread.remoteServerId}\u0000${thread.remoteId}`] === true;
-  });
-  const remoteServerOffline = useRemoteServersStore((s) => {
-    if (!thread.remoteServerId) return false;
-    const runtimeStatus = s.runtime[thread.remoteServerId]?.status;
-    return runtimeStatus === "offline" || runtimeStatus === "error";
-  });
+  // Published while the thread's composer bubble row is mounted; missing means
+  // this pane has no bubble row and the status stays in the transcript tail.
+  const statusSlot = useComposerBubbleSlotStore((s) => s.status[threadId] ?? null);
+  // The row floats over the transcript, so reserve its band at the scroll end
+  // and never let the tail come to rest underneath the bubbles. The compact
+  // composer and the bubble row never coexist, so either one owns the inset.
+  const bubbleRowInset = useComposerBubbleSlotStore((s) => s.endInset[threadId] ?? 0);
+  const bottomInset = props.bottomInset ?? bubbleRowInset;
   // Detached background work keeps the thread doing real work after the
   // foreground turn settles. Treat that as "still working" for the tail-loader
   // timer (so it keeps ticking "Working for ...") without touching `status` -
@@ -398,6 +374,12 @@ export function ChatPane(props: ChatPaneProps) {
   );
   const completedTurnsByAnchor = useAppStore((s) => selectCompletedTurnsByAnchorItem(s, threadId));
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
+  const completedTurnHasAssistantActions = useAppStore(
+    (state) =>
+      mostRecentCompletedTurnAnchor !== null &&
+      state.runtimeItemsByIdByThread[threadId]?.[mostRecentCompletedTurnAnchor]?.type ===
+        "assistant_message",
+  );
   const completedTurnAnchorAtTail = isCompletedTurnAnchorAtTimelineTail(
     mostRecentCompletedTurnAnchor,
     timelineEntries,
@@ -430,9 +412,33 @@ export function ChatPane(props: ChatPaneProps) {
   // request before that round-trip completes, leaving status stuck at
   // `needs_approval` even though the user has already answered.
   const isTurnPaused = hasOpenRuntimeRequest;
+  const tailForkAction =
+    completedTurnCanRenderInTail &&
+    !completedTurnHasAssistantActions &&
+    mostRecentDisplayableCompletedTurn?.anchorItemId ? (
+      <div className="mx-auto w-full max-w-[920px] px-4 pb-2">
+        <ThreadForkTurnAction
+          threadId={threadId}
+          itemId={mostRecentDisplayableCompletedTurn.anchorItemId}
+          startedAt={mostRecentDisplayableCompletedTurn.startedAt}
+        />
+      </div>
+    ) : null;
+  // The live status rides the bubble row's leading edge when the thread has
+  // one; otherwise it stays in the transcript tail.
+  const liveStatus = isWorktreeProvisioning ? (
+    <ChatShimmerStatus text={t`Creating worktree…`} />
+  ) : isConnecting || status === "launching" ? (
+    <ChatShimmerStatus text={threadRuntimeStatusLabel(thread, t, { isConnecting })} />
+  ) : showWorkingTimer && turn ? (
+    <ChatTurnStatus
+      turn={turn}
+      isPaused={isTurnPaused}
+      isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
+    />
+  ) : null;
   const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
   const isHydrating = isEmpty && hydrationStatus === "pending";
-  const hydrationFailed = isEmpty && hydrationStatus === "failed";
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
@@ -464,41 +470,12 @@ export function ChatPane(props: ChatPaneProps) {
   return (
     <ChatReaderFollowContext.Provider value={readerFollow}>
       <ChatPaneActionsContext.Provider value={paneActionsOverride ?? paneActions}>
-        <div className="flex h-full min-h-0 flex-col">
+        <div className="flex h-full min-h-0 flex-col" data-thread-id={thread.id}>
           {thread.config.importedFrom ? (
             <ImportedThreadNotice importedFrom={thread.config.importedFrom} />
           ) : null}
-          <div className="relative min-h-0 flex-1">
-            {truncateReloadBlocked ? (
-              <div className="flex items-center justify-between gap-2 border-b border-warning-soft-foreground/20 bg-warning-soft/60 px-3 py-1.5 text-xs text-warning-soft-foreground">
-                <span>
-                  <Trans>
-                    A message deletion could not be confirmed. Refresh to resync this conversation.
-                  </Trans>
-                </span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onPress={() => {
-                    if (thread.remoteServerId) {
-                      void useRemoteServersStore
-                        .getState()
-                        .refreshServer(thread.remoteServerId, { includeAgentStatuses: false });
-                    }
-                  }}
-                >
-                  <Trans>Refresh</Trans>
-                </Button>
-              </div>
-            ) : remoteServerOffline ? (
-              <div
-                className="border-b border-border bg-surface-container/60 px-3 py-1.5 text-xs text-muted"
-                role="status"
-              >
-                <Trans>Server offline — this conversation may be out of date.</Trans>
-              </div>
-            ) : null}
-            <ThreadHistoryNoticeBanner threadId={threadId} />
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            <ThreadForkOrigin threadId={threadId} />
             <ConversationSearchJump
               threadId={threadId}
               ready={isInitialScrollSettled}
@@ -512,19 +489,21 @@ export function ChatPane(props: ChatPaneProps) {
             <MessageList
               key={threadId}
               threadId={threadId}
-              entries={timelineEntries}
+              entries={listEntries}
               isTurnActive={isLive}
-              {...(isManagedThread
-                ? {
-                    onInitialLayoutReady: () => {
-                      if (timelineEntries.length > 0 && (scrollRef.current?.clientHeight ?? 0) > 0)
-                        initialTimelineLayout.markReady();
-                    },
-                  }
-                : {})}
+              {...(bottomInset ? { bottomInset } : {})}
+              onInitialLayoutReady={() => {
+                if (timelineEntries.length > 0 && (scrollRef.current?.clientHeight ?? 0) > 0)
+                  initialTimelineLayout.markReady();
+              }}
               setScrollContainer={setScrollContainer}
               scrollContentRef={contentRef}
               onContentHeightChange={() => scrollControlsRef.current?.onContentHeightChange()}
+              onNewPrompt={() => {
+                readerFollow.resume();
+                scrollControlsRef.current?.anchorToPrompt();
+              }}
+              onPromptScrollWrite={(top) => scrollControlsRef.current?.noteProgrammaticScroll(top)}
               onVirtualizerLayoutChange={() =>
                 scrollControlsRef.current?.beginVirtualizerLayoutChange()
               }
@@ -534,25 +513,13 @@ export function ChatPane(props: ChatPaneProps) {
               registerVirtualScrollToBottom={(handler) => {
                 virtualScrollToBottomRef.current = handler;
               }}
-              scrollClassName="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
+              scrollClassName={`min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable] transition-opacity duration-150 motion-reduce:transition-none ${
+                promptJump.hidden ? "opacity-0" : ""
+              }`}
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
-                hydrationFailed ? (
-                  <div className="flex h-full flex-col items-center justify-center gap-3 text-foreground-muted">
-                    <span>
-                      <Trans>Messages could not be loaded.</Trans>
-                    </span>
-                    <Button
-                      variant="tertiary"
-                      onPress={() => {
-                        void hydrateThreadRuntimeItems(threadId);
-                      }}
-                    >
-                      <Trans>Retry</Trans>
-                    </Button>
-                  </div>
-                ) : isEmpty && !showTailLoader && showEmptyHint ? (
+                isEmpty && !showTailLoader && showEmptyHint ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
                     <span>
                       <Trans>No messages yet</Trans>
@@ -561,24 +528,33 @@ export function ChatPane(props: ChatPaneProps) {
                 ) : null
               }
               footer={
-                isWorktreeProvisioning ? (
-                  <ChatWorktreeProvisioningFooter />
-                ) : isConnecting ? (
-                  <ChatConnectingFooter />
-                ) : isHydrating && !showWorkingTimer ? (
-                  <ChatConnectingFooter />
-                ) : showTailLoader && tailTurn ? (
-                  <ChatTurnElapsedFooter
-                    turn={tailTurn}
-                    isPaused={isTurnPaused}
-                    isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
-                  />
+                liveStatus ? (
+                  // With a bubble row the status rides it and the row's end
+                  // inset already reserves that band, so the tail keeps only
+                  // the completed turn's fork row while reconnecting.
+                  statusSlot && !tailForkAction ? null : (
+                    <div className="group/checkpoint">
+                      {statusSlot ? null : <ChatTailStatus>{liveStatus}</ChatTailStatus>}
+                      {tailForkAction}
+                    </div>
+                  )
+                ) : !isHydrating && showTailLoader && tailTurn ? (
+                  <div className="group/checkpoint">
+                    <ChatTurnElapsedFooter
+                      turn={tailTurn}
+                      isPaused={isTurnPaused}
+                      isWaitingForBackground={isWaitingForBackground && !isTurnPaused}
+                    />
+                    {tailForkAction}
+                  </div>
                 ) : null
               }
               onWheelCapture={(event) => {
                 if (event.deltaY < 0) {
                   scrollControlsRef.current?.markUserScrollIntent();
                   scrollControlsRef.current?.disableStickToBottom();
+                } else if (event.deltaY > 0) {
+                  scrollControlsRef.current?.markUserScrollTowardEnd();
                 }
               }}
               onPointerDownCapture={(event) => {
@@ -615,10 +591,7 @@ export function ChatPane(props: ChatPaneProps) {
               canRevertCheckpoints={!isLive && !isHomeScope}
               checkpointGuard={checkpointGuard}
               checkpointActions={checkpointActions}
-              projectLocation={
-                checkpointProjectLocation ??
-                (isHomeScope ? undefined : targetContext?.projectLocation)
-              }
+              projectLocation={isHomeScope ? undefined : targetContext?.projectLocation}
             />
             <ChatScrollControls
               key={`scroll:${threadId}`}
@@ -643,6 +616,9 @@ export function ChatPane(props: ChatPaneProps) {
                 props.onInitialScrollSettled?.();
               }}
             />
+            {statusSlot && liveStatus ? (
+              <ChatStatusBubble slot={statusSlot}>{liveStatus}</ChatStatusBubble>
+            ) : null}
             <SubAgentOpenController
               key={`subagent:${threadId}`}
               threadId={threadId}
@@ -655,19 +631,15 @@ export function ChatPane(props: ChatPaneProps) {
                 showSubAgentPanel(threadId, parentItemId, projectLocation);
               }}
             />
-            <StickyPrompt
-              key={`sticky-prompt:${threadId}`}
+            <ChatPromptOverlays
+              key={`prompt-chrome:${threadId}`}
               threadId={threadId}
-              entries={timelineEntries}
+              entries={listEntries}
               scrollElement={scrollEl}
               isEnabled={isInitialScrollSettled}
-              onScrollToEntry={(index) => {
-                // Leave the tail before the jump so a streaming reply cannot
-                // re-pin the view to the bottom while it scrolls up.
-                scrollControlsRef.current?.markUserScrollIntent();
-                scrollControlsRef.current?.disableStickToBottom();
-                scrollToIndexRef.current?.(index, { align: "start", animated: true });
-              }}
+              pendingPromptId={promptJump.pendingId}
+              onScrollToEntry={scrollToEntry}
+              onJumpToPrompt={promptJump.jumpToPrompt}
             />
             <ChatFindBar
               threadId={threadId}

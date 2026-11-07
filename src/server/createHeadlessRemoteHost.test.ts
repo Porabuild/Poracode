@@ -31,6 +31,9 @@ import { requestPairingFromRunningServer } from "./pairingControl";
 import { PushRegistrationStore, pushRegistrationsFilePath } from "@/host/remote/push";
 import type { SendPush } from "@/host/remote/push/pushGateway";
 import * as remoteConfig from "@/host/remote/config";
+import { requestHostAdministration } from "./cliAdmin";
+import { callHostControl } from "@/backend/ownership/hostControlClient";
+import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 
 // Mutable state shared with the hoisted vi.mock factories.
 const h = vi.hoisted(() => ({
@@ -38,9 +41,11 @@ const h = vi.hoisted(() => ({
   tmpRoot: "",
   capturedOnEvent: undefined as ((event: unknown) => void) | undefined,
   capturedOnReset: undefined as (() => void) | undefined,
+  capturedOnStarted: undefined as (() => void) | undefined,
   supervisorStart: vi.fn<() => void>(),
   supervisorDispose: vi.fn<() => Promise<void>>(),
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
+  supervisorProvenAbsent: vi.fn<() => boolean>(() => false),
   initDatabase: vi.fn<(dbPath: string) => void>(),
   closeDatabase: vi.fn<() => void>(),
   assertPreparedDatabaseForWrite: vi.fn<(dataRoot: string) => void>(),
@@ -153,9 +158,15 @@ vi.mock("@/host/supervisor/SupervisorClient", () => ({
     start = h.supervisorStart;
     dispose = h.supervisorDispose;
     call = h.supervisorCall;
-    constructor(options: { onEvent: (event: unknown) => void; onReset: () => void }) {
+    isSupervisorProvenAbsent = h.supervisorProvenAbsent;
+    constructor(options: {
+      onEvent: (event: unknown) => void;
+      onReset: () => void;
+      onStarted?: () => void;
+    }) {
       h.capturedOnEvent = options.onEvent;
       h.capturedOnReset = options.onReset;
+      h.capturedOnStarted = options.onStarted;
     }
   },
 }));
@@ -173,19 +184,27 @@ vi.mock("@/host/sharedSettingsFile", async (importOriginal) => {
   };
 });
 
-function makeHost(overrides: Partial<Parameters<typeof createHeadlessRemoteHost>[0]> = {}) {
-  return createHeadlessRemoteHost({
+type HeadlessHostOptions = Parameters<typeof createHeadlessRemoteHost>[0];
+
+/** Loopback without an explicit port: the host chooses its own. */
+function automaticPortHostOptions(
+  overrides: Partial<HeadlessHostOptions> = {},
+): HeadlessHostOptions {
+  return {
     appVersion: "9.9.9-test",
     baseDir: h.tmpBase,
     supervisorPath: "/dev/null/supervisor.cjs",
     wslHelpersDir: "/dev/null/wsl",
     environmentKey: Buffer.alloc(32, 7).toString("base64"),
-    // Loopback + ephemeral port: no LAN probing, no port conflicts.
     host: "127.0.0.1",
     advertisedHost: "127.0.0.1",
-    port: 0,
     ...overrides,
-  });
+  };
+}
+
+function makeHost(overrides: Partial<HeadlessHostOptions> = {}) {
+  // Loopback + ephemeral port: no LAN probing, no port conflicts.
+  return createHeadlessRemoteHost(automaticPortHostOptions({ port: 0, ...overrides }));
 }
 
 describe("createHeadlessRemoteHost", () => {
@@ -194,6 +213,7 @@ describe("createHeadlessRemoteHost", () => {
     h.tmpBase = join(h.tmpRoot, "profile");
     h.capturedOnEvent = undefined;
     h.capturedOnReset = undefined;
+    h.capturedOnStarted = undefined;
     h.supervisorStart.mockReset();
     h.supervisorDispose.mockReset();
     h.supervisorDispose.mockResolvedValue();
@@ -202,6 +222,8 @@ describe("createHeadlessRemoteHost", () => {
     h.assertPreparedDatabaseForWrite.mockReset();
     h.supervisorCall.mockReset();
     h.supervisorCall.mockResolvedValue({});
+    h.supervisorProvenAbsent.mockReset();
+    h.supervisorProvenAbsent.mockReturnValue(false);
     h.sendPush.mockReset();
     h.sendPush.mockResolvedValue({ ok: true, status: 200, unregistered: false });
     h.projects = [];
@@ -444,6 +466,35 @@ describe("createHeadlessRemoteHost", () => {
     }
   });
 
+  it("restarts an automatically chosen listener on the port its paired clients know", async () => {
+    // The resolver's preference is the unit under test elsewhere; here it
+    // resolves to an ephemeral port so the restart proves the round trip.
+    const resolvePort = vi.spyOn(remoteConfig, "resolveRemoteAccessPort").mockResolvedValue(0);
+    const automatic = automaticPortHostOptions();
+    let servedPort = 0;
+    try {
+      const first = await createHeadlessRemoteHost(automatic);
+      try {
+        await first.start();
+        servedPort = Number(new URL(first.server.getInfo()!.localHttpBaseUrl).port);
+      } finally {
+        await first.dispose();
+      }
+      expect(resolvePort).toHaveBeenLastCalledWith(
+        expect.objectContaining({ preferredPort: remoteConfig.DEFAULT_REMOTE_ACCESS_PORT }),
+      );
+
+      const second = await createHeadlessRemoteHost(automatic);
+      await second.dispose();
+      expect(servedPort).toBeGreaterThan(0);
+      expect(resolvePort).toHaveBeenLastCalledWith(
+        expect.objectContaining({ preferredPort: servedPort }),
+      );
+    } finally {
+      resolvePort.mockRestore();
+    }
+  });
+
   it("starts the durable background services (host housekeeping) after the listener is up", async () => {
     const startBackgroundServices = vi
       .spyOn(BackendDurableServices.prototype, "startBackgroundServices")
@@ -458,37 +509,87 @@ describe("createHeadlessRemoteHost", () => {
     }
   });
 
-  it("joins a held startup before releasing the owner and never starts HTTP after stop", async () => {
-    const host = await makeHost();
-    const ingress = Promise.withResolvers<void>();
-    const startIngress = vi
-      .spyOn(BackendDurableServices.prototype, "startIngress")
-      .mockReturnValue(ingress.promise);
-    const startHttp = vi.spyOn(RemoteAccessServer.prototype, "start");
-    const starting = host.start();
-    const startOutcome = starting.catch((error: unknown) => error);
-    const closing = host.dispose();
-    let closed = false;
-    void closing.then(() => {
-      closed = true;
-    });
+  it.each([false, true])(
+    "joins held startup before releasing the owner (local-only: %s)",
+    async (localOnly) => {
+      const host = await makeHost({ localAdministrationOnly: localOnly });
+      const ingress = Promise.withResolvers<void>();
+      const startIngress = vi
+        .spyOn(BackendDurableServices.prototype, "startIngress")
+        .mockReturnValue(ingress.promise);
+      const startHttp = vi.spyOn(RemoteAccessServer.prototype, "start");
+      const starting = localOnly ? host.startLocalAdministration() : host.start();
+      const startOutcome = starting.catch((error: unknown) => error);
+      const closing = host.dispose();
+      let closed = false;
+      void closing.then(() => {
+        closed = true;
+      });
+      try {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect(closed).toBe(false);
+        expect(h.closeDatabase).not.toHaveBeenCalled();
+        expect(() => HostOwnerController.acquire(h.tmpBase, "desktop")).toThrow(HostRootInUseError);
+        ingress.resolve();
+        expect(await startOutcome).toBeInstanceOf(Error);
+        await closing;
+        expect(startHttp).not.toHaveBeenCalled();
+        expect(h.closeDatabase).toHaveBeenCalledOnce();
+      } finally {
+        ingress.resolve();
+        await startOutcome;
+        await closing;
+        startIngress.mockRestore();
+        startHttp.mockRestore();
+      }
+    },
+  );
+
+  it("starts local administration without paired access, deployment TLS or background jobs", async () => {
+    vi.stubEnv("PORACODE_REMOTE_TLS_CERT", "/missing/cert.pem");
+    vi.stubEnv("PORACODE_REMOTE_TLS_KEY", "/missing/key.pem");
+    vi.stubEnv("PORACODE_REMOTE_FORWARD_BASE_URL", "invalid-deployment-url");
+    vi.stubEnv("PORACODE_REMOTE_ACCESS_HOST", "invalid-deployment-host");
+    const http = vi.spyOn(RemoteAccessServer.prototype, "start");
+    const background = vi.spyOn(BackendDurableServices.prototype, "startBackgroundServices");
+    const host = await makeHost({ localAdministrationOnly: true });
     try {
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
-      expect(closed).toBe(false);
-      expect(h.closeDatabase).not.toHaveBeenCalled();
+      await Promise.all([host.startLocalAdministration(), host.startLocalAdministration()]);
+      const reply = await callHostControl(resolveHostRootPaths(h.tmpBase), "describe");
+      expect(reply.result.state).toBe("ready");
+      expect(reply.result.endpoint).toBeNull();
+      expect(host.server.getInfo()).toBeNull();
+      expect(http).not.toHaveBeenCalled();
+      expect(background).not.toHaveBeenCalled();
+      await expect(host.start()).rejects.toThrow("cannot start paired access");
       expect(() => HostOwnerController.acquire(h.tmpBase, "desktop")).toThrow(HostRootInUseError);
-      ingress.resolve();
-      expect(await startOutcome).toBeInstanceOf(Error);
-      await closing;
-      expect(startHttp).not.toHaveBeenCalled();
-      expect(h.closeDatabase).toHaveBeenCalledOnce();
     } finally {
-      ingress.resolve();
-      await startOutcome;
-      await closing;
-      startIngress.mockRestore();
-      startHttp.mockRestore();
+      await host.dispose();
+      http.mockRestore();
+      background.mockRestore();
     }
+  });
+
+  it("refuses to switch a normal host into local-task mode", async () => {
+    const host = await makeHost();
+    try {
+      await expect(host.startLocalAdministration()).rejects.toThrow("server access");
+      expect(host.server.getInfo()).toBeNull();
+    } finally {
+      await host.dispose();
+    }
+  });
+
+  it.each([
+    { staging: true },
+    { relayUrl: "wss://unused.invalid" },
+    { registerChromeNativeHost: true },
+  ])("refuses incompatible task ownership before root preparation: %j", async (change) => {
+    await expect(makeHost({ localAdministrationOnly: true, ...change })).rejects.toThrow(
+      "Local task ownership cannot",
+    );
+    expect(existsSync(h.tmpBase)).toBe(false);
+    expect(existsSync(resolveHostRootPaths(h.tmpBase).dataRoot)).toBe(false);
   });
 
   it.each(["success", "failure"])(
@@ -525,7 +626,7 @@ describe("createHeadlessRemoteHost", () => {
         await entered.promise;
         await expect.soft(host.start()).rejects.toThrow("shutting down");
         expect.soft(stopDurable).toHaveBeenCalledOnce();
-        expect.soft(h.supervisorDispose).toHaveBeenCalledOnce();
+        await vi.waitFor(() => expect(h.supervisorDispose).toHaveBeenCalledOnce());
         expect(h.closeDatabase).not.toHaveBeenCalled();
         http.resolve();
         // Give a rejected HTTP stop the opportunity to incorrectly break the join.
@@ -644,7 +745,11 @@ describe("createHeadlessRemoteHost", () => {
             scopes: ["ports:forward"],
           }),
         });
-        expect(tokenResponse.status).toBe(200);
+        const tokenReply =
+          tokenResponse.status === 200
+            ? { status: 200 }
+            : { status: tokenResponse.status, error: await tokenResponse.text() };
+        expect(tokenReply).toEqual({ status: 200 });
         const { accessToken } = (await tokenResponse.json()) as { accessToken: string };
         const created = await fetch(new URL("api/ports/forward", publicUrl), {
           method: "POST",
@@ -780,6 +885,19 @@ describe("createHeadlessRemoteHost", () => {
     await expect(requestPairingFromRunningServer(h.tmpBase)).rejects.toThrow("unavailable");
   });
 
+  it("does not launch a proven-absent supervisor for the startup live snapshot seed", async () => {
+    h.supervisorProvenAbsent.mockReturnValue(true);
+    const host = await makeHost();
+    try {
+      await host.start();
+      expect(h.supervisorProvenAbsent).toHaveBeenCalled();
+      expect(h.supervisorCall).not.toHaveBeenCalled();
+      expect(h.supervisorStart).not.toHaveBeenCalled();
+    } finally {
+      await host.dispose();
+    }
+  });
+
   it("does not warm Git state through the supervisor for existing idle threads", async () => {
     h.threads = [
       {
@@ -832,6 +950,77 @@ describe("createHeadlessRemoteHost", () => {
     await host.dispose();
   });
 
+  it("routes paired watch procedures through the durable leases and restores them on supervisor start", async () => {
+    const root = { kind: "posix", path: "/repo" };
+    h.projects = [{ id: "project-1", name: "Repo", location: root, createdAt: "2026-01-01" }];
+    const host = await makeHost();
+    await host.start();
+    try {
+      const info = host.server.getInfo()!;
+      const exchange = async (pairingUrl: string) => {
+        const url = new URL(pairingUrl);
+        const response = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            grantType: "pairing-token",
+            credential: new URLSearchParams(url.hash.slice(1)).get("token"),
+            scopes: ["session:read", "session:operate"],
+          }),
+        });
+        expect(response.status).toBe(200);
+        return ((await response.json()) as { accessToken: string }).accessToken;
+      };
+      const call = (token: string, procedure: string, payload: Record<string, unknown>) =>
+        fetch(new URL("/api/git/call", info.httpBaseUrl), {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token}`,
+            "content-type": "application/json",
+            [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+          },
+          body: JSON.stringify({ procedure, payload }),
+        });
+      const supervisorNames = () =>
+        (h.supervisorCall.mock.calls as unknown as Array<[string, unknown]>).map(([name]) => name);
+      const first = await exchange(info.pairingUrl);
+      const second = await exchange(host.server.issueIndependentPairingUrl("Second client"));
+
+      const watched = await call(first, "gitWatchProject", {
+        projectId: "project-1",
+        projectLocation: root,
+      });
+      expect(watched.status).toBe(200);
+      expect((await call(second, "gitUnwatchProject", { projectId: "project-1" })).status).toBe(
+        200,
+      );
+      expect(supervisorNames()).toContain("gitWatchProject");
+      expect(supervisorNames()).not.toContain("gitUnwatchProject");
+
+      // A restarted supervisor gets the watches back from its start callback,
+      // with no lease change and without starting a supervisor itself.
+      h.supervisorCall.mockClear();
+      h.capturedOnReset?.();
+      expect(h.capturedOnStarted).toBeTypeOf("function");
+      h.capturedOnStarted?.();
+      await vi.waitFor(() => expect(h.supervisorCall).toHaveBeenCalled());
+      expect(h.supervisorCall.mock.calls as unknown[]).toEqual([
+        [
+          "gitWatchProject",
+          { projectId: "project-1", projectLocation: root },
+          { startIfNeeded: false },
+        ],
+      ]);
+    } finally {
+      await host.dispose();
+    }
+    h.supervisorCall.mockClear();
+    h.capturedOnReset?.();
+    h.capturedOnStarted?.();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(h.supervisorCall).not.toHaveBeenCalled();
+  });
+
   it("resolves MCP launch settings from the headless settings file and project row", async () => {
     const globalServer: SharedSettings["mcpServers"][number] = {
       id: "global-memory",
@@ -876,6 +1065,7 @@ describe("createHeadlessRemoteHost", () => {
       mcpServers: [projectServer],
       disabledBuiltInMcpServerIds: ["chrome"],
       disabledBuiltInMcpTools: {},
+      projectPluginOverrides: {},
     });
     await host.dispose();
   });
@@ -886,13 +1076,13 @@ describe("createHeadlessRemoteHost", () => {
       host.server as unknown as {
         options: {
           attachments?: {
-            save(input: { threadId: string; fileName: string; data: Uint8Array }): string;
+            save(input: { threadId: string; fileName: string; data: Uint8Array }): Promise<string>;
           };
         };
       }
     ).options.attachments?.save;
 
-    const path = save?.({
+    const path = await save?.({
       threadId: "thread-1",
       fileName: "notes.md",
       data: new TextEncoder().encode("helper upload"),
@@ -911,6 +1101,76 @@ describe("createHeadlessRemoteHost", () => {
     expect(h.supervisorDispose).toHaveBeenCalledTimes(1);
     expect(h.closeDatabase).toHaveBeenCalledTimes(1);
   });
+
+  it.each([false, true])(
+    "joins held authentication cancellation before supervisor/lease release (caller abort: %s)",
+    async (cancelCaller) => {
+      const entered = Promise.withResolvers<void>();
+      const cancelling = Promise.withResolvers<void>();
+      const retired = Promise.withResolvers<void>();
+      let operationId: string | undefined;
+      h.supervisorCall.mockImplementation(async (...args: unknown[]) => {
+        const [name, payload] = args as [string, { action?: string; operationId?: string }];
+        if (name === "refreshAgentStatuses")
+          return {
+            windows: [
+              {
+                kind: "fixture",
+                installed: true,
+                authMethods: [{ id: "approval", name: "Fixture approval" }],
+              },
+            ],
+            wsl: [],
+            fromCache: false,
+          };
+        if (name === "controlAcpAuthentication") {
+          if (payload.action === "start") {
+            operationId = payload.operationId;
+            entered.resolve();
+            await retired.promise;
+            throw new Error("Fixture authentication cancelled");
+          }
+          if (payload.operationId !== operationId)
+            throw new Error("Fixture cancellation ID did not match its start");
+          cancelling.resolve();
+          await retired.promise;
+        }
+        return {};
+      });
+      const host = await makeHost();
+      await host.start();
+      const controller = new AbortController();
+      const login = requestHostAdministration(
+        host.profileNamespace,
+        { action: "auth-login", agentKind: "fixture" },
+        controller.signal,
+      ).then(
+        () => "unexpected success",
+        (error: unknown) => error,
+      );
+      let disposal: Promise<void> | undefined;
+      try {
+        await entered.promise;
+        if (cancelCaller) controller.abort();
+        disposal = host.dispose();
+        await cancelling.promise;
+        expect(h.supervisorDispose).not.toHaveBeenCalled();
+        expect(h.closeDatabase).not.toHaveBeenCalled();
+        expect(() => HostOwnerController.acquire(host.profileNamespace, "headless")).toThrow(
+          HostRootInUseError,
+        );
+        retired.resolve();
+        expect(await login).toBeInstanceOf(Error);
+        await disposal;
+        expect(h.supervisorDispose).toHaveBeenCalledOnce();
+        expect(h.closeDatabase).toHaveBeenCalledOnce();
+      } finally {
+        retired.resolve();
+        await login;
+        await (disposal ?? host.dispose());
+      }
+    },
+  );
 
   it("does not resolve headless disposal or close SQLite before the supervisor joins", async () => {
     let finishSupervisor!: () => void;

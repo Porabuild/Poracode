@@ -30,6 +30,20 @@ describe("runtimeEventSchema discriminated union", () => {
     };
     expect(messageItemPayloadSchema.parse(roundTrip(current))).toEqual(current);
   });
+  it("keeps uncorrelated answers valid and round-trips their optional source item", () => {
+    const previous = {
+      content: [{ kind: "text", text: "Which scope?\nA" }],
+      questionAnswer: {
+        questions: [{ header: "", question: "Which scope?", selected: [{ label: "A" }] }],
+      },
+    };
+    expect(messageItemPayloadSchema.parse(roundTrip(previous))).toEqual(previous);
+    const current = {
+      ...previous,
+      questionAnswer: { ...previous.questionAnswer, sourceItemId: "question-1" },
+    };
+    expect(messageItemPayloadSchema.parse(roundTrip(current))).toEqual(current);
+  });
   it("preserves pre-reply-form messages and round-trips optional non-blocking questions", () => {
     const previous = { content: [{ kind: "text", text: "Which scope?\n- A\n- B" }] };
     expect(messageItemPayloadSchema.parse(roundTrip(previous))).toEqual(previous);
@@ -251,6 +265,22 @@ describe("runtimeEventSchema discriminated union", () => {
     expect(errorItemPayloadSchema.parse(roundTrip({ message: "broke" }))).toEqual({
       message: "broke",
     });
+  });
+
+  it("round-trips an error reason and keeps pre-field errors valid", () => {
+    const authError = { type: "error", threadId: "t", message: "expired", reason: "auth_required" };
+    expect(runtimeEventSchema.parse(roundTrip(authError))).toEqual(authError);
+    expect(
+      errorItemPayloadSchema.parse(roundTrip({ message: "expired", reason: "auth_required" })),
+    ).toEqual({ message: "expired", reason: "auth_required" });
+    // Errors written before `reason` existed still parse, without one.
+    expect(
+      runtimeEventSchema.parse(roundTrip({ type: "error", threadId: "t", message: "old" })),
+    ).not.toHaveProperty("reason");
+    // A reason this build does not know is kept, not rejected, so a newer
+    // host cannot make an older reader drop the error.
+    expect(runtimeEventSchema.safeParse({ ...authError, reason: "quota" }).success).toBe(true);
+    expect(runtimeEventSchema.safeParse({ ...authError, reason: "" }).success).toBe(false);
   });
 
   it("rejects an event without a discriminator", () => {

@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
@@ -8,8 +8,12 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
+import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
+import { useGitStore } from "@/renderer/state/gitStore";
 import { SidebarFlatThreadList } from "./SidebarFlatThreadList";
 
+// The suite switches workspaces in setup, which must not mute section reveals.
+vi.mock("./workspaceSwitchSettling", () => ({ isWorkspaceSwitchSettling: () => false }));
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
   // sidebarBodyScrollClass (scroll gutter classes) reads the platform.
@@ -25,6 +29,10 @@ vi.mock("@/renderer/dnd", () => ({
 const newThreadCalls = vi.hoisted(
   () => [] as Array<{ projectId: string; inline: boolean | undefined }>,
 );
+const newThreadOptions = vi.hoisted(() => ({
+  value: undefined as readonly { id: string; name: string; description?: string }[] | undefined,
+  onSelect: undefined as ((projectId: string) => void) | undefined,
+}));
 const layoutMock = vi.hoisted(() => ({ compact: false }));
 const quickComposeCalls = vi.hoisted(() => [] as string[]);
 
@@ -33,8 +41,15 @@ vi.mock("@/renderer/adaptiveLayout", () => ({
 }));
 
 vi.mock("./NewThreadButton", () => ({
-  NewThreadButton: (props: { projectId: string; inline?: boolean }) => {
+  NewThreadButton: (props: {
+    projectId: string;
+    inline?: boolean;
+    projectOptions?: readonly { id: string; name: string; description?: string }[];
+    onSelectProject?: (projectId: string) => void;
+  }) => {
     newThreadCalls.push({ projectId: props.projectId, inline: props.inline });
+    newThreadOptions.value = props.projectOptions;
+    newThreadOptions.onSelect = props.onSelectProject;
     return <button type="button">new-thread:{props.projectId}</button>;
   },
 }));
@@ -142,6 +157,8 @@ describe("SidebarFlatThreadList", () => {
     layoutMock.compact = false;
     quickComposeCalls.length = 0;
     useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: {} });
+    useGitStore.setState({ statuses: {} });
     useSharedSettings.setState({
       homeScopeEnabled: true,
       workspaces: [{ id: "w1", name: "Side Hustle" }],
@@ -153,6 +170,50 @@ describe("SidebarFlatThreadList", () => {
       threadListLimits: {},
     });
     newThreadCalls.length = 0;
+  });
+
+  it("offers one new-thread target per project and remembers its reachable environment", async () => {
+    const mac = { ...unreachableRemoteProject, name: localProject.name };
+    useAppStore.setState({ projects: [homeProject, localProject, mac], threads: [] });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "MacBook" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useProjectGroupStore.setState({ lastUsedAt: { [mac.id]: 1 } });
+    render(<SidebarFlatThreadList sortMode="updated" />);
+    expect(newThreadOptions.value).toEqual([
+      expect.objectContaining({ id: HOME_PROJECT_ID, name: HOME_PROJECT_NAME }),
+      expect.objectContaining({
+        id: mac.id,
+        name: localProject.name,
+      }),
+    ]);
+    expect(newThreadOptions.value?.[1]).not.toHaveProperty("description");
+    await act(async () => {
+      useProjectGroupStore.getState().markProjectUsed(localProject.id, 2);
+    });
+    expect(newThreadOptions.value?.[1]?.id).toBe(localProject.id);
+    await act(async () => {
+      useProjectGroupStore.getState().markProjectUsed(mac.id, 3);
+    });
+    expect(newThreadOptions.value?.[1]?.id).toBe(mac.id);
+    await act(async () => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+      } as never);
+    });
+    expect(newThreadOptions.value?.map((p) => p.id)).toEqual([HOME_PROJECT_ID, localProject.id]);
+    await act(async () => {
+      newThreadOptions.onSelect?.(localProject.id);
+    });
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: localProject.id });
+    expect(useProjectGroupStore.getState().lastUsedAt[localProject.id]).toBeGreaterThan(3);
+    await act(async () => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+      } as never);
+    });
+    expect(newThreadOptions.value?.[1]?.id).toBe(localProject.id);
   });
 
   it("uses the old PWA quick composer instead of the desktop new-thread row on mobile", () => {
@@ -221,7 +282,7 @@ describe("SidebarFlatThreadList", () => {
     expect(scroller?.contains(screen.getByText(/^done-label in/))).toBe(false);
   });
 
-  it("locks remote mirror rows in manual order and keeps them in the stored order", () => {
+  it("leaves remote mirror rows draggable in manual order and keeps them in the stored order", () => {
     useRemoteServersStore.setState({
       runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
     } as never);
@@ -243,7 +304,7 @@ describe("SidebarFlatThreadList", () => {
       rows.map((row) => [row.textContent?.split(" in ")[0], row.dataset.sortDisabled]),
     ).toEqual([
       ["thread:p1", "false"],
-      ["thread:r1", "true"],
+      ["thread:r1", "false"],
       ["thread:p2", "false"],
     ]);
   });
@@ -295,6 +356,27 @@ describe("SidebarFlatThreadList", () => {
     render(<SidebarFlatThreadList sortMode="updated" />);
 
     expect(screen.queryByText(/thread:r1/)).not.toBeInTheDocument();
+  });
+
+  it("keeps a reconnecting machine's threads listed but not as new-thread targets", () => {
+    // Every brief event-socket reconnect passes through "connecting"; hiding
+    // the host's rows there blanked its whole list on each reconnect.
+    useRemoteServersStore.setState({
+      runtime: { "desktop-1": { status: "connecting", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({
+      projects: [homeProject, unreachableRemoteProject],
+      threads: [
+        makeThread("h1", HOME_PROJECT_ID, "2026-08-02T10:00:00.000Z"),
+        makeThread("r1", "remote-1", "2026-08-03T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByText(/thread:r1/)).toBeInTheDocument();
+    expect(screen.queryByText("new-thread:remote-1")).not.toBeInTheDocument();
+    expect(screen.getByText(`new-thread:${HOME_PROJECT_ID}`)).toBeInTheDocument();
   });
 
   it("keeps cached threads from unavailable machines in the compact all-machine list", () => {
@@ -490,6 +572,76 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.getByText("new-thread:local-1")).toBeInTheDocument();
   });
 
+  it("expands a saved filter to every machine of the selected project", () => {
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "mac", label: "Poracode on MacBook" }],
+      runtime: { mac: { status: "online", projects: [], threads: [] } },
+    } as never);
+    const mirror = {
+      ...localProject,
+      id: "remote:mac:project:p",
+      remoteServerId: "mac",
+      remoteId: "p",
+      location: { kind: "posix", path: "/repo", remoteServerId: "mac" },
+    } as Project;
+    // Saved when only the local copy existed; the Mac's copy joined later.
+    useSidebarUiStore.setState({ flatListProjectFilter: ["local-1"] });
+    useAppStore.setState({
+      projects: [homeProject, localProject, mirror, secondLocalProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("m1", mirror.id, "2026-08-02T10:00:00.000Z"),
+        makeThread("s1", "local-2", "2026-08-03T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByText(/thread:p1 in/)).toBeInTheDocument();
+    expect(screen.getByText(/thread:m1 in/)).toBeInTheDocument();
+    expect(screen.queryByText(/thread:s1/)).not.toBeInTheDocument();
+  });
+
+  it("ignores a saved selection that is not visible here, even when a sibling is", () => {
+    const wslSibling = {
+      ...localProject,
+      id: "wsl-1",
+      location: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/me/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\repo",
+      },
+    } as Project;
+    // Selected in another workspace; only its WSL sibling is filed here.
+    useSharedSettings.setState({
+      homeScopeEnabled: true,
+      workspaces: [
+        { id: "w1", name: "Side Hustle" },
+        { id: "w2", name: "Work" },
+      ],
+    } as never);
+    useSidebarUiStore.setState({ flatListProjectFilter: ["local-1"] });
+    useAppStore.setState({
+      projects: [
+        homeProject,
+        { ...localProject, workspaceId: "w2" },
+        wslSibling,
+        secondLocalProject,
+      ],
+      threads: [
+        makeThread("w1", "wsl-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("s1", "local-2", "2026-08-02T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByTestId("project-filter")).toHaveTextContent(/^all /);
+    expect(screen.getByText(/thread:w1 in/)).toBeInTheDocument();
+    expect(screen.getByText(/thread:s1 in/)).toBeInTheDocument();
+  });
+
   it("treats a persisted selection covering every visible project as no filter", () => {
     useSidebarUiStore.setState({ flatListProjectFilter: [HOME_PROJECT_ID, "local-1"] });
     useAppStore.setState({
@@ -624,6 +776,38 @@ describe("SidebarFlatThreadList", () => {
     // Only the done rows scroll inside the pinned section; its header stays put.
     expect(doneHeader.closest(".overflow-y-auto")).toBeNull();
     expect(doneRow.closest(".overflow-y-auto")).not.toBeNull();
+  });
+
+  it("eases the capped Done viewport open only when the section expands", () => {
+    useSidebarUiStore.setState({ collapsedWorktrees: { "done:__flat__": true } });
+    useAppStore.setState({
+      projects: [homeProject, localProject],
+      threads: [makeThread("d1", "local-1", "2026-08-01T09:00:00.000Z", { done: true })],
+    });
+    const animate = vi.fn<(keyframes: Keyframe[], timing: KeyframeAnimationOptions) => Animation>(
+      () => ({ playState: "finished" }) as Animation,
+    );
+    Object.defineProperty(HTMLElement.prototype, "animate", { configurable: true, value: animate });
+    const clientHeight = vi
+      .spyOn(HTMLElement.prototype, "clientHeight", "get")
+      .mockReturnValue(800);
+
+    try {
+      render(<SidebarFlatThreadList sortMode="updated" />);
+      const section = screen.getByText(/^done-label in/).parentElement!;
+      expect(section).toHaveStyle({ maxHeight: "50%" });
+      expect(animate).not.toHaveBeenCalled();
+
+      act(() => useSidebarUiStore.getState().toggleWorktreeCollapsed("done:__flat__"));
+
+      expect(animate).toHaveBeenCalledOnce();
+      expect(animate.mock.contexts[0]).toBe(
+        screen.getByText(/^thread:d1 in/).closest(".overflow-y-auto"),
+      );
+    } finally {
+      clientHeight.mockRestore();
+      delete (HTMLElement.prototype as { animate?: unknown }).animate;
+    }
   });
 
   it("pages the pinned Done section without paging the main list", () => {

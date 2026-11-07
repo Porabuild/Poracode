@@ -56,6 +56,7 @@ class LiveConnectionCapabilitySerializationTest {
         val api = FakeApiGateway(endpoint = "https://host-a.test", accessToken = "t")
         val sockets = FakeSocketFactory()
         val owner = SessionOperationOwner()
+        val lifecycleGate = AppLifecycleGate()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         // Publication pause coordination.
@@ -95,7 +96,7 @@ class LiveConnectionCapabilitySerializationTest {
             scope = scope,
             jobs = SessionLifecycleJobs(),
             owner = owner,
-            lifecycleGate = AppLifecycleGate(),
+            lifecycleGate = lifecycleGate,
             interestEpoch = InterestEpochGate(),
             apiFactory = { _, _ -> api },
             socketFactory = { sockets.create() },
@@ -108,6 +109,57 @@ class LiveConnectionCapabilitySerializationTest {
 
         fun close() {
             scope.cancel()
+        }
+    }
+
+    @Test
+    fun bootstrapSnapshotsBindBothImmediateAndSuspendedSocketStarts() {
+        for (bounded in listOf(false, true)) {
+            for (suspended in listOf(false, true)) {
+                val h = Harness()
+                h.pauseNextSupported.set(false)
+                try {
+                    val controller = h.controller()
+                    val client = controller.installApi("https://host-a.test", "t")
+                    val snapshot = h.api.shellSnapshot.copy(snapshotSeq = 12, snapshotEpoch = "epoch-a")
+                    if (bounded) controller.mergeShellSnapshot(snapshot, true)
+                    else controller.applyShellSnapshot(snapshot, true)
+                    if (suspended) controller.closeLifecycleGate()
+                    controller.startWebSocket(client)
+                    val socket = h.sockets.sockets.single()
+                    assertEquals(12, socket.lastStartSeq)
+                    assertEquals("epoch-a", socket.lastStartEpoch)
+                    assertEquals(suspended, socket.suspended)
+                } finally {
+                    h.close()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun replacingASocketKeepsItsAppliedEpochInsteadOfTheBootstrapEpoch() {
+        val h = Harness()
+        h.pauseNextSupported.set(false)
+        try {
+            val controller = h.controller()
+            val client = controller.installApi("https://host-a.test", "t")
+            controller.applyShellSnapshot(
+                h.api.shellSnapshot.copy(snapshotSeq = 12, snapshotEpoch = "bootstrap-epoch"), true,
+            )
+            controller.startWebSocket(client)
+            val previous = h.sockets.sockets.single()
+            previous.epoch = "live-epoch"
+            previous.noteAuthoritativeSnapshot(17)
+            controller.closeLifecycleGate()
+            controller.startWebSocket(client)
+            val replacement = h.sockets.sockets.last()
+            assertTrue(previous.destroyed)
+            assertEquals(17, replacement.lastStartSeq)
+            assertEquals("live-epoch", replacement.lastStartEpoch)
+            assertTrue(replacement.suspended)
+        } finally {
+            h.close()
         }
     }
 

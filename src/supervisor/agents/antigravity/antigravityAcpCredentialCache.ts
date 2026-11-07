@@ -5,6 +5,7 @@ import {
   parseAntigravityAcpCredentials,
   readAntigravityAcpKeychainFingerprint,
   resolveAntigravityAcpCredentials,
+  resolveAntigravityAcpFileCredentials,
   type AntigravityAcpCredentials,
 } from "./antigravityAcpCredentials";
 
@@ -70,6 +71,7 @@ export function createAntigravityAcpCredentialCache(
   readKeychainFingerprint: () => Promise<
     string | undefined
   > = readAntigravityAcpKeychainFingerprint,
+  resolveFileCredentials: ResolveCredentials = resolveAntigravityAcpFileCredentials,
 ): AntigravityAcpCredentialCache {
   let cached: AntigravityAcpCredentials | undefined;
   let readPersisted = true;
@@ -96,19 +98,28 @@ export function createAntigravityAcpCredentialCache(
         // value is cleared, rather than resurrecting it or overwriting its clear.
         await invalidation;
         if (readPersisted) {
-          readPersisted = false;
           // The attribute read doubles as an existence check: a removed item
           // (logout) must not restore the grant. Its value is deliberately
           // not compared to the saved fingerprint — the owning server
           // recreates the item on every start (see parseSavedCredentials).
-          const fingerprint = await readKeychainFingerprint().catch(() => undefined);
-          if (fingerprint) {
-            const saved = await store
-              .getSecret(PROVIDER_ID, CREDENTIALS_SECRET_KEY)
-              .catch(() => undefined);
-            if (saved) cached = parseSavedCredentials(saved);
-            if (cached) keychainSourced.add(cached);
+          const saved = await store
+            .getSecret(PROVIDER_ID, CREDENTIALS_SECRET_KEY)
+            .catch(() => undefined);
+          const grant = saved ? parseSavedCredentials(saved) : undefined;
+          if (grant) {
+            const fingerprint = await readKeychainFingerprint().catch(() => undefined);
+            if (!fingerprint) {
+              // The server can be between delete/add while starting. Keep the
+              // saved grant eligible for the next metadata check instead of
+              // requesting the recreated item's password and prompting again.
+              // A deliberate move to file storage must still remain usable.
+              cached = await resolveFileCredentials();
+              return cached;
+            }
+            cached = grant;
+            keychainSourced.add(cached);
           }
+          readPersisted = false;
           if (cached) return cached;
         }
 

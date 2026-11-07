@@ -3,7 +3,6 @@ import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Loader2, Play, Plus, X } from "lucide-react";
 import type { TerminalSize } from "@/shared/contracts";
-import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { useKeyboardOffset } from "@/renderer/components/mobileComposer/useKeyboardOffset";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { MobileTerminalAccessory } from "./MobileTerminalAccessory";
@@ -22,7 +21,6 @@ export function MobileTerminalLayout(props: {
   handleCloseTab: (tab: DevTerminalTab) => void;
   handleSelectionChange: (key: string | number) => void;
   onTerminalResize?: (terminalId: string, size: TerminalSize) => void;
-  watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
 }) {
   const { t } = useLingui();
   const keyboardOffset = useKeyboardOffset();
@@ -47,7 +45,6 @@ export function MobileTerminalLayout(props: {
           updateTabTitle={props.updateTabTitle}
           mobile
           allowSplit={false}
-          {...(props.watchTerminal ? { watchTerminal: props.watchTerminal } : {})}
           {...(props.onTerminalResize ? { onTerminalResize: props.onTerminalResize } : {})}
         />
         {props.emptyState}

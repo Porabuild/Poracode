@@ -76,6 +76,10 @@ object RichChatUiLogic {
         "file_change_output",
     )
 
+    /** Host-authored source for a background task settled without a report. */
+    private const val BACKGROUND_TASK_REPORT_MISSING_MESSAGE =
+        "The task ended without a completion report."
+
     fun generationActive(activeOperations: Set<String>, hasOpenTurn: Boolean): Boolean =
         "send" in activeOperations || hasOpenTurn
 
@@ -95,6 +99,65 @@ object RichChatUiLogic {
         return listOf("title", "name", "summary", "message", "command", "path", "result")
             .firstNotNullOfOrNull { key -> payload[key].displayScalar() }
             .orEmpty()
+    }
+
+    /**
+     * The host settles a sub-agent task whose run ended without its terminal
+     * report by completing the tool row with this exact app-authored error.
+     * Generic [itemText] prefers the row's title/name, which would hide it, so
+     * the timeline surfaces the localized equivalent for this one canonical
+     * payload only. Actual output and provider-authored errors are untouched.
+     */
+    fun backgroundTaskReportMissing(item: RichRuntimeItem): Boolean {
+        if (item.type != RichItemTypes.TOOL_CALL) return false
+        val payload = item.payload as? JsonObject ?: return false
+        if (payload["status"].displayScalar() != "error") return false
+        val result = payload["result"] as? JsonObject ?: return false
+        if (result.size != 1) return false
+        return result["error"].displayScalar() == BACKGROUND_TASK_REPORT_MISSING_MESSAGE
+    }
+
+    /**
+     * Display body for a message — streams live text while streaming,
+     * otherwise joins TEXT blocks only so typed file paths never duplicate
+     * inside the visible prose (they render as cards via [chatFiles]).
+     */
+    fun messageBody(item: RichRuntimeItem): String {
+        val streamed = preferredStreams.mapNotNull(item.streams::get)
+            .filter(String::isNotBlank)
+            .joinToString("\n")
+        if (streamed.isNotBlank()) return streamed
+        val cards = chatFiles(item)
+        if (cards.isEmpty()) return itemText(item)
+        // Only the typed local File blocks rendered as cards leave the prose;
+        // every other structured block keeps its existing text form.
+        val cardPaths = cards.mapTo(HashSet()) { it.path }
+        return RichContentDecoder.decodeMessageContent(item.payload).orEmpty()
+            .filter { block ->
+                block !is RichContentBlock.File ||
+                    block.path !in cardPaths ||
+                    block.mimeType?.startsWith("image/", ignoreCase = true) == true
+            }
+            .mapNotNull(::blockText)
+            .filter(String::isNotBlank)
+            .joinToString("\n")
+    }
+
+    /**
+     * Typed `kind:"file"` payloads as download-card refs for ASSISTANT items;
+     * user file references keep their existing attachment/prose treatment.
+     */
+    fun chatFiles(item: RichRuntimeItem): List<com.poracode.app.chat.RichChatFileRef> {
+        if (item.type != RichItemTypes.ASSISTANT_MESSAGE) return emptyList()
+        return RichContentDecoder.decodeMessageContent(item.payload).orEmpty()
+            .filterIsInstance<RichContentBlock.File>()
+            .filter { it.mimeType?.startsWith("image/", ignoreCase = true) != true }
+            .mapNotNull { block ->
+                com.poracode.app.chat.RichChatFilePolicy.typedFileRef(
+                    path = block.path,
+                    name = block.name,
+                )
+            }
     }
 
     fun images(item: RichRuntimeItem): List<RichImageSource> {

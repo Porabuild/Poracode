@@ -2,10 +2,20 @@ import { memo, useContext, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
+import { isChatVideoSource } from "@/shared/chatVideo";
+import { isChatFileSource } from "@/shared/chatFile";
+import { MarkdownFile } from "./MarkdownFile";
+import { MarkdownVideo } from "./MarkdownVideo";
+import { splitInlineVisuals } from "@/shared/inlineVisuals";
+import { RUNTIME_STREAM_ELISION_NOTICE_PREFIX } from "@/shared/runtimeStreamRetentionPolicy";
+import { MAX_NATIVE_VISUALS_PER_MESSAGE } from "@/shared/nativeVisuals";
 import type { MessageItemPayload } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useShallow } from "zustand/react/shallow";
+import { formatMessageTimestamp } from "@/renderer/utils/formatTime";
 import type { RuntimeStreamRetention } from "@/renderer/state/slices/runtimeStreamRetention";
+import { HYDRATED_STREAM_HEAD_CHARS } from "@/renderer/state/slices/runtimeStreamRetention";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
@@ -16,10 +26,14 @@ import { ChatReaderFollowContext } from "../../chatReaderFollow";
 import { CopyTextButton } from "./CopyTextButton";
 import { RemoteImageCard } from "./RemoteImageCard";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
+import { InlineVisual } from "./InlineVisual";
+import { NativeVisual } from "./NativeVisual";
 import { SmoothItemMarkdown } from "./ItemMarkdown";
 import { WindowedPlainText } from "./WindowedPlainText";
 import { useWindowedAssistantText } from "./useWindowedAssistantText";
 import { isMessageReplyFormFallback } from "../../../messageReplyForms";
+import { selectAssistantTurnRowState } from "../../chatPaneSelectors";
+import { ThreadForkTurnAction } from "../../../ThreadForkControls";
 
 interface AssistantMessageProps {
   threadId: string;
@@ -32,7 +46,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   item,
   isTurnActive,
 }: AssistantMessageProps) {
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const actions = useChatPaneActions();
   // The copy action only appears under a turn's *final* answer: the message
   // must be the last top-level item of its turn — any trailing item (another
@@ -43,20 +57,14 @@ export const AssistantMessage = memo(function AssistantMessage({
   // terminal status. A completed item at the live tail is still an
   // intermediate update until the turn itself settles, so it must not expose
   // a copy action yet.
-  const finalAnswerStatus = useAppStore((state): "confirmed" | "candidate" | "none" => {
-    if (item.parentItemId) return "none";
-    const ids = state.runtimeItemIdsByThread[threadId];
-    const byId = state.runtimeItemsByIdByThread[threadId];
-    if (!ids || !byId) return "none";
-    const index = ids.indexOf(item.id);
-    if (index < 0) return "none";
-    for (let i = index + 1; i < ids.length; i += 1) {
-      const next = byId[ids[i]!];
-      if (!next || next.parentItemId) continue;
-      return next.type === "user_message" ? "confirmed" : "none";
-    }
-    return isTurnActive ? "candidate" : "confirmed";
-  });
+  const {
+    completedTurnStartedAt,
+    completedTurnEndedAt,
+    latestCompletedAnswerId,
+    finalAnswerStatus,
+  } = useAppStore(
+    useShallow((state) => selectAssistantTurnRowState(state, threadId, item, isTurnActive)),
+  );
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
   const isStreaming = item.state !== "completed";
   // Stream/payload arbitration lives in the shared helper so find-in-chat and
@@ -83,6 +91,18 @@ export const AssistantMessage = memo(function AssistantMessage({
     [actions?.remoteImageRefUrl, actions?.remoteImageReadiness, payload?.content],
   );
   const showCopyButton = finalAnswerStatus === "confirmed" && !isStreaming && rawText.length > 0;
+  const keepActionsVisible = showCopyButton && item.id === latestCompletedAnswerId;
+  const videos = (payload?.content ?? []).filter(
+    (block) => block.kind === "file" && isChatVideoSource(block.path, block.mimeType),
+  );
+  // Canonical file blocks explicitly declare a file, so any safe local ref
+  // (any extension) becomes a file chip; unsafe refs stay inert.
+  const fileCards = (payload?.content ?? []).filter(
+    (block) =>
+      block.kind === "file" &&
+      !isChatVideoSource(block.path, block.mimeType) &&
+      (isChatFileSource(block.path) || /^https?:\/\//iu.test(block.path)),
+  );
   // The tail answer's copy action becomes available only once its turn
   // settles. Reserve the same strip while the answer is still a candidate so
   // revealing the button cannot grow the virtual row and move the transcript
@@ -94,6 +114,10 @@ export const AssistantMessage = memo(function AssistantMessage({
         key={isStreamText ? "stream" : "payload"}
         text={rawText}
         isStreaming={isStreaming}
+        threadId={threadId}
+        itemId={item.id}
+        isTurnActive={isTurnActive}
+        initialRevealKey={item.observedLive && isTurnActive ? `${threadId}\0${item.id}` : undefined}
         {...(retention ? { retention } : {})}
       />
     ) : null;
@@ -101,6 +125,26 @@ export const AssistantMessage = memo(function AssistantMessage({
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="min-w-0 leading-snug">
         {textBody}
+        {videos.map((block, index) =>
+          block.kind === "file" ? (
+            <MarkdownVideo
+              key={`${block.path}:${index}`}
+              src={block.path}
+              {...(block.name ? { name: block.name } : {})}
+              {...(block.mimeType ? { mimeType: block.mimeType } : {})}
+            />
+          ) : null,
+        )}
+        {fileCards.map((block, index) =>
+          block.kind === "file" ? (
+            <MarkdownFile
+              key={`${block.path}:${index}`}
+              src={block.path}
+              {...(block.name ? { name: block.name } : {})}
+              {...(block.mimeType ? { mimeType: block.mimeType } : {})}
+            />
+          ) : null,
+        )}
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
             {imageSources.map((source, index) => (
@@ -111,19 +155,44 @@ export const AssistantMessage = memo(function AssistantMessage({
             ))}
           </div>
         ) : null}
-        {isStreaming && rawText.length === 0 && imageSources.length === 0 ? (
+        {isStreaming &&
+        rawText.length === 0 &&
+        imageSources.length === 0 &&
+        videos.length === 0 &&
+        fileCards.length === 0 ? (
           <div className="text-foreground-muted">
             <PixelLoader size="xxs" />
           </div>
         ) : null}
       </div>
-      {reserveCopyButtonSpace ? (
-        <div className="poracode-message-action-strip mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+      {reserveCopyButtonSpace || completedTurnStartedAt !== undefined ? (
+        <div
+          className={`poracode-message-action-strip mt-1 flex min-h-6 items-center gap-0.5 opacity-100 transition-opacity ${keepActionsVisible ? "" : "[@media(hover:hover)]:opacity-0"} [@media(hover:hover)]:group-hover/checkpoint:opacity-100 focus-within:opacity-100`}
+        >
           {showCopyButton ? (
             <CopyTextButton text={rawText} label={t`Copy message`} />
-          ) : (
-            <span aria-hidden="true" className="block size-5" />
-          )}
+          ) : reserveCopyButtonSpace ? (
+            <span aria-hidden="true" className="block size-[var(--m-tap-min,1.5rem)]" />
+          ) : null}
+          {completedTurnStartedAt !== undefined ? (
+            <ThreadForkTurnAction
+              threadId={threadId}
+              itemId={item.id}
+              startedAt={completedTurnStartedAt}
+              alwaysVisible={keepActionsVisible}
+            />
+          ) : null}
+          {showCopyButton && completedTurnEndedAt !== undefined ? (
+            /* A 24px line box matches the icon buttons, so the text snaps to
+               pixels with them instead of drifting 1px at fractional offsets. */
+            <time
+              dateTime={new Date(completedTurnEndedAt).toISOString()}
+              title={i18n.date(completedTurnEndedAt, { dateStyle: "full", timeStyle: "long" })}
+              className="ml-1 whitespace-nowrap text-[length:var(--lc-chat-font-size-meta)] leading-6 tabular-nums text-muted"
+            >
+              {formatMessageTimestamp(completedTurnEndedAt, i18n.locale)}
+            </time>
+          ) : null}
         </div>
       ) : null}
     </Surface>
@@ -134,10 +203,82 @@ function AssistantTextBody({
   text,
   isStreaming,
   retention,
+  threadId,
+  itemId,
+  isTurnActive,
+  initialRevealKey,
 }: {
   text: string;
   isStreaming: boolean;
   retention?: RuntimeStreamRetention;
+  threadId: string;
+  itemId: string;
+  isTurnActive: boolean;
+  initialRevealKey: string | undefined;
+}) {
+  // Retained head/tail text cannot prove a fenced source block is intact.
+  // Hydrated history has no local offsets, so also recognize its prefix notice.
+  const elided =
+    (retention?.elidedChars ?? 0) > 0 ||
+    text.slice(0, HYDRATED_STREAM_HEAD_CHARS).includes(RUNTIME_STREAM_ELISION_NOTICE_PREFIX);
+  const parts =
+    !elided && (text.includes("poracode-html-v") || text.includes("poracode-visual-v"))
+      ? splitInlineVisuals(text)
+      : undefined;
+  let nativeCount = 0;
+  if (parts?.some((part) => part.kind !== "markdown")) {
+    return parts.map((part, index) =>
+      part.kind === "visual" ? (
+        <InlineVisual
+          key={index}
+          html={part.html}
+          title={part.title}
+          complete={part.complete}
+          isStreaming={isStreaming}
+        />
+      ) : part.kind === "native" ? (
+        <NativeVisual
+          key={index}
+          source={part.source}
+          title={part.title}
+          version={part.version}
+          complete={part.complete && !isStreaming}
+          isStreaming={isStreaming && isTurnActive}
+          threadId={threadId}
+          itemId={itemId}
+          ordinal={nativeCount}
+          limited={nativeCount++ >= MAX_NATIVE_VISUALS_PER_MESSAGE}
+        />
+      ) : (
+        <AssistantProseTextBody
+          key={index}
+          text={part.text}
+          isStreaming={isStreaming}
+          initialRevealKey={initialRevealKey}
+        />
+      ),
+    );
+  }
+  return (
+    <AssistantProseTextBody
+      text={text}
+      isStreaming={isStreaming}
+      initialRevealKey={initialRevealKey}
+      {...(retention ? { retention } : {})}
+    />
+  );
+}
+
+function AssistantProseTextBody({
+  text,
+  isStreaming,
+  retention,
+  initialRevealKey,
+}: {
+  text: string;
+  isStreaming: boolean;
+  retention?: RuntimeStreamRetention;
+  initialRevealKey: string | undefined;
 }) {
   const readerFollow = useContext(ChatReaderFollowContext);
   const body = useWindowedAssistantText(text, isStreaming, retention, readerFollow);
@@ -150,6 +291,10 @@ function AssistantTextBody({
       onLatest={body.showLatest}
     />
   ) : (
-    <SmoothItemMarkdown text={text} isStreaming={isStreaming} />
+    <SmoothItemMarkdown
+      text={text}
+      isStreaming={isStreaming}
+      {...(initialRevealKey ? { initialRevealKey } : {})}
+    />
   );
 }

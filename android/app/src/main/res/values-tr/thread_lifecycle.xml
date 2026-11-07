@@ -24,4 +24,6 @@
     <string name="archived_threads_title">Arşivlenmiş başlıklar</string>
     <string name="archived_threads_description">Arşivlediğiniz başlıkları geri yükleyin veya kalıcı olarak silin.</string>
     <string name="archived_threads_empty">Arşivlenmiş başlık yok</string>
+    <string name="thread_status_starting_agent">Ajan başlatılıyor…</string>
+    <string name="thread_status_resuming">Oturum sürdürülüyor…</string>
 </resources>

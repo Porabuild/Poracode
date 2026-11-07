@@ -24,6 +24,12 @@ describe("base control styles", () => {
     }
   });
 
+  it("keeps small button icons and labels spaced and vertically centered", () => {
+    expect(styles).toMatch(
+      /@layer components\s*\{\s*\.button--sm\s*\{\s*line-height:\s*1rem;\s*\}\s*\.button--sm svg:not\(\[data-slot="spinner"\] svg, \[data-slot="link-icon"\] svg\)\s*\{\s*margin-inline:\s*0;/,
+    );
+  });
+
   it("uses dark, low-alpha liquid glass for macOS floating chrome", () => {
     expect(styles).toMatch(
       /html\[data-platform="darwin"\]\s*\{[^}]*--floating-chrome-surface:\s*color-mix\(in oklab, var\(--sidebar-background\) 38%, transparent\);[^}]*--floating-chrome-backdrop:\s*blur\(12px\) saturate\(140%\);/s,
@@ -100,6 +106,37 @@ describe("base control styles", () => {
     );
     expect(styles).toContain("[data-input-has-content]");
     expect(styles).not.toContain("[contenteditable]:not(:empty)");
+  });
+
+  it("keeps direct and tooltip-wrapped send controls in the collapsed composer", () => {
+    const selector = styles.match(
+      /(html\[data-compact-layout\]\s+\.m-thread-compose-dock[^{}]+?\.poracode-composer-toolbar\s+> :has\(\.poracode-composer-send\)\s+> [^{}]+)\s*\{\s*display:\s*none;/,
+    )?.[1];
+    if (!selector) throw new Error("Missing collapsed composer control rule");
+    const fixture = document.createElement("div");
+    fixture.innerHTML = `
+      <div class="m-thread-compose-dock" data-input-has-content>
+        <div class="poracode-composer-shell"><div class="poracode-composer-toolbar">
+          <div>
+            <button id="unrelated">Attach</button>
+            <button id="direct" class="poracode-composer-send">Send</button>
+            <div id="wrapped" class="tooltip__trigger">
+              <button class="poracode-composer-send">Resume</button>
+            </div>
+          </div>
+        </div></div>
+      </div>`;
+    const wasCompact = document.documentElement.hasAttribute("data-compact-layout");
+    document.documentElement.setAttribute("data-compact-layout", "");
+    document.body.append(fixture);
+    try {
+      expect([...document.querySelectorAll(selector)].map((element) => element.id)).toEqual([
+        "unrelated",
+      ]);
+    } finally {
+      fixture.remove();
+      document.documentElement.toggleAttribute("data-compact-layout", wasCompact);
+    }
   });
 
   it("uses one safe-zone token for compact headers and under-header page scrolling", () => {

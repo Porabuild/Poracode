@@ -2,12 +2,14 @@ import { useLingui } from "@lingui/react/macro";
 import { isHomeProject } from "@/shared/homeScope";
 import { SkillsManager } from "@/renderer/components/skills/SkillsManager";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
 import { SettingsPage } from "./SettingsForm";
 
 export function SkillsSettings() {
   const { t } = useLingui();
+  const isReachable = useReachableProjectFilter();
   const projects = useAppStore((state) => state.projects)
-    .filter((project) => !isHomeProject(project))
+    .filter((project) => !isHomeProject(project) && isReachable(project))
     .map(({ id, name, location, icon }) => ({ id, name, location, ...(icon ? { icon } : {}) }));
 
   return (

@@ -4,13 +4,15 @@ import { Check, ChevronDown } from "lucide-react";
 import { Header, Label, ListBox, Tooltip } from "@heroui/react";
 import type { LabeledOption } from "@/shared/contracts";
 import { Button } from "../Button";
+import { ToggleSwitch } from "../ToggleSwitch";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { shouldConfirmContextSizeReload } from "@/renderer/state/contextSizeReloadPreference";
 import { ContextSizeReloadPopover } from "./ContextSizeReloadPopover";
 
 export interface EffortContextMenuProps {
-  /** Full-width field trigger for a menu embedded in a configuration panel. */
-  triggerAppearance?: "composer" | "field";
+  /** Full-width field trigger for a configuration panel; "label" is a bare text
+   * trigger for inline rows (crew member quick settings). */
+  triggerAppearance?: "composer" | "field" | "label";
   /** Localized accessible name when a panel supplies its own visible field label. */
   label?: string;
   efforts: readonly LabeledOption[];
@@ -26,6 +28,8 @@ export interface EffortContextMenuProps {
   thinkingSupported?: boolean;
   thinkingValue?: boolean;
   onThinkingChange?: (value: boolean) => void;
+  /** Present when the model offers a workflow mode independent of effort. */
+  workflows?: EffortWorkflowsToggle;
   /** Optional icon to show in the trigger (e.g., effort indicator). */
   icon?: ReactNode;
   isDisabled?: boolean;
@@ -34,6 +38,13 @@ export interface EffortContextMenuProps {
   collapseTier?: number;
   openSignal?: number;
   onOpenChange?: (open: boolean) => void;
+}
+
+export interface EffortWorkflowsToggle {
+  /** Display name: the provider's own name, or the localized generic one. */
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
 }
 
 export function EffortContextMenu(props: EffortContextMenuProps) {
@@ -50,6 +61,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
     thinkingSupported = false,
     thinkingValue = false,
     onThinkingChange,
+    workflows,
     icon,
     isDisabled,
     hideLabelOnWrap,
@@ -71,6 +83,8 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
   const hasEffort = efforts.length > 0;
   const hasContext = contextSizes.length > 0;
   const hasThinking = thinkingSupported;
+  const hasWorkflows = workflows !== undefined;
+  const hasOptions = hasThinking || hasWorkflows;
 
   // An external `openSignal` bump opens the menu. Tracked as a render snapshot
   // (instead of a sync setState in an effect) with the exact re-run semantics
@@ -81,28 +95,28 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
     disabled: isDisabled,
     effort: hasEffort,
     context: hasContext,
-    thinking: hasThinking,
+    options: hasOptions,
   });
   if (
     prevOpenRequest.signal !== openSignal ||
     prevOpenRequest.disabled !== isDisabled ||
     prevOpenRequest.effort !== hasEffort ||
     prevOpenRequest.context !== hasContext ||
-    prevOpenRequest.thinking !== hasThinking
+    prevOpenRequest.options !== hasOptions
   ) {
     setPrevOpenRequest({
       signal: openSignal,
       disabled: isDisabled,
       effort: hasEffort,
       context: hasContext,
-      thinking: hasThinking,
+      options: hasOptions,
     });
-    if (openSignal !== undefined && !isDisabled && (hasEffort || hasContext || hasThinking)) {
+    if (openSignal !== undefined && !isDisabled && (hasEffort || hasContext || hasOptions)) {
       setIsOpen(true);
     }
   }
 
-  if (!hasEffort && !hasContext && !hasThinking) return null;
+  if (!hasEffort && !hasContext && !hasOptions) return null;
 
   const effortLabel = hasEffort
     ? (efforts.find((o) => o.id === effortValue)?.label ?? effortValue ?? "")
@@ -111,9 +125,11 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
     ? (contextSizes.find((o) => o.id === contextValue)?.label ?? contextValue ?? "")
     : "";
 
+  const workflowsLabel = workflows?.value ? workflows.label : "";
+
   const triggerLabel =
-    [effortLabel, contextLabel].filter((p) => p.length > 0).join(" · ") ||
-    (hasThinking ? t`Thinking` : "");
+    [effortLabel, contextLabel, workflowsLabel].filter((p) => p.length > 0).join(" · ") ||
+    (hasThinking ? t`Thinking` : t`Options`);
 
   function handleOpenChange(open: boolean) {
     setIsOpen(open);
@@ -163,59 +179,60 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
       className={
         triggerAppearance === "field"
           ? "w-full min-w-0 justify-between px-2"
-          : "poracode-composer-menu poracode-composer-effort-control min-w-0 px-2.5"
+          : triggerAppearance === "label"
+            ? "h-4 min-w-0 max-w-full gap-0 rounded px-1 leading-4 text-muted hover:bg-foreground/5 hover:text-foreground"
+            : "poracode-composer-menu poracode-composer-effort-control min-w-0 px-2.5"
       }
       {...(mobile ? { onPress: () => handleOpenChange(true) } : {})}
     >
-      {icon}
-      <span
-        data-collapse-tier={collapseTier}
-        className={
-          hideLabelOnWrap
-            ? `poracode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
-            : "truncate"
-        }
-      >
-        {triggerLabel}
-      </span>
-      <ChevronDown
-        data-collapse-tier={collapseTier}
-        className={
-          hideLabelOnWrap
-            ? `poracode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
-            : "size-3.5 text-muted"
-        }
-      />
+      {triggerAppearance === "label" ? (
+        <span className="truncate text-[11px]">{triggerLabel}</span>
+      ) : (
+        <>
+          {icon}
+          <span
+            data-collapse-tier={collapseTier}
+            className={
+              hideLabelOnWrap
+                ? `poracode-composer-label-hideable truncate${forceHideLabel ? " is-hidden" : ""}`
+                : "truncate"
+            }
+          >
+            {triggerLabel}
+          </span>
+          <ChevronDown
+            data-collapse-tier={collapseTier}
+            className={
+              hideLabelOnWrap
+                ? `poracode-composer-label-hideable size-3.5 text-muted${forceHideLabel ? " is-hidden" : ""}`
+                : "size-3.5 text-muted"
+            }
+          />
+        </>
+      )}
     </Button>
   );
 
   const columnCount = (hasEffort ? 1 : 0) + (hasContext ? 1 : 0);
   const popoverWidth = columnCount === 2 ? "w-72" : "w-44";
 
-  const thinkingToggle = hasThinking ? (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={thinkingValue}
-      aria-label={t`Thinking`}
-      className="flex h-9 w-full items-center justify-between gap-3 px-3 text-left text-sm text-foreground hover:bg-surface-hover focus-visible:outline-none"
-      onClick={() => startTransition(() => onThinkingChange?.(!thinkingValue))}
-    >
-      <span className="truncate">
-        <Trans>Thinking</Trans>
-      </span>
-      <span
-        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
-          thinkingValue ? "bg-success" : "bg-surface-tertiary"
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 size-4 rounded-full bg-white transition-transform ${
-            thinkingValue ? "translate-x-[18px]" : "translate-x-0.5"
-          }`}
+  const optionToggles = hasOptions ? (
+    <>
+      {hasThinking ? (
+        <OptionSwitch
+          label={t`Thinking`}
+          value={thinkingValue}
+          onChange={(value) => onThinkingChange?.(value)}
         />
-      </span>
-    </button>
+      ) : null}
+      {workflows ? (
+        <OptionSwitch
+          label={workflows.label}
+          value={workflows.value}
+          onChange={workflows.onChange}
+        />
+      ) : null}
+    </>
   ) : null;
 
   const desktopContent = (
@@ -245,12 +262,12 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
           ) : null}
         </div>
       ) : null}
-      {thinkingToggle ? (
-        <div className={columnCount > 0 ? "border-t border-border" : ""}>
-          <Header className="block border-b border-border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted/80">
+      {optionToggles ? (
+        <div className={columnCount > 0 ? "border-t border-[var(--hairline)]" : ""}>
+          <Header className="block px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80">
             <Trans>Options</Trans>
           </Header>
-          {thinkingToggle}
+          {optionToggles}
         </div>
       ) : null}
     </>
@@ -276,10 +293,10 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
           onSelect={handleEffort}
         />
       ) : null}
-      {thinkingToggle ? (
+      {optionToggles ? (
         <div>
           <MobileSectionHeader label={t`Options`} />
-          {thinkingToggle}
+          {optionToggles}
         </div>
       ) : null}
     </div>
@@ -290,7 +307,11 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
       label={label ?? t`Effort and context`}
-      {...(triggerAppearance === "field" ? { triggerClassName: "w-full min-w-0" } : {})}
+      {...(triggerAppearance === "field"
+        ? { triggerClassName: "w-full min-w-0" }
+        : triggerAppearance === "label"
+          ? { triggerClassName: "inline-flex min-w-0 max-w-full" }
+          : {})}
       trigger={
         mobile ? (
           trigger
@@ -327,6 +348,25 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
         />
       ) : null}
     </>
+  );
+}
+
+function OptionSwitch(props: {
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  const { label, value, onChange } = props;
+  return (
+    <div className="flex h-9 items-center justify-between gap-3 px-3 text-sm text-foreground">
+      <span className="truncate">{label}</span>
+      <ToggleSwitch
+        size="sm"
+        aria-label={label}
+        isSelected={value}
+        onChange={(selected) => startTransition(() => onChange(selected))}
+      />
+    </div>
   );
 }
 
@@ -395,8 +435,8 @@ function Column(props: {
     forwardedId: null,
   });
   return (
-    <div className={hasNeighbor ? "border-r border-border" : ""}>
-      <Header className="block border-b border-border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted/80">
+    <div className={hasNeighbor ? "border-r border-[var(--hairline)]" : ""}>
+      <Header className="block px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80">
         {label}
       </Header>
       <ListBox

@@ -1,11 +1,16 @@
+import "fake-indexeddb/auto";
+import type { ReactNode } from "react";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "@heroui/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { refreshGitProject } from "@/renderer/state/gitRefresh";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 
-const { bridge, installedStatus, installedStatuses, settingsState } = vi.hoisted(() => {
+const { bridge, installedStatus, settingsState } = vi.hoisted(() => {
   const status = {
     kind: "codex",
     label: "Codex",
@@ -19,8 +24,7 @@ const { bridge, installedStatus, installedStatuses, settingsState } = vi.hoisted
   };
   return {
     installedStatus: status,
-    installedStatuses: [status],
-    settingsState: { homeScopeEnabled: false, disabledAgents: [] as string[] },
+    settingsState: { homeScopeEnabled: false, disabledAgents: [] as string[], workspaces: [] },
     bridge: {
       windowKind: "quickComposer",
       getAgentStatuses: vi
@@ -52,9 +56,23 @@ const { bridge, installedStatus, installedStatuses, settingsState } = vi.hoisted
   };
 });
 
-vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
-vi.mock("@/shared/agentStatus", () => ({
-  getProjectAgentStatuses: () => installedStatuses,
+vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge, isRemoteSession: () => false }));
+vi.mock("@/renderer/components/ui/provider", () => ({
+  AppProvider: ({ children }: { children: ReactNode }) => children,
+}));
+vi.mock("@/renderer/components/composer/ImageLightbox", () => ({
+  ImageLightboxHost: () => null,
+}));
+vi.mock("@/renderer/hooks/useAppHydration", () => ({
+  useAppHydration: () => ({
+    initialLoading: false,
+    runtimeSnapshotsReady: true,
+    storeHydrated: true,
+    loadT0: 0,
+  }),
+}));
+vi.mock("@/renderer/analytics/useProductViewTracking", () => ({
+  useStandaloneWindowViewTracking: () => undefined,
 }));
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   useSharedSettings: (selector: (state: Record<string, unknown>) => unknown) =>
@@ -66,14 +84,24 @@ vi.mock("@/renderer/state/gitRefresh", () => ({
 vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
   ThreadDraftView: (props: {
     project: { id: string; name: string };
+    agentStatuses: Array<{ kind: string }>;
+    pickFiles?: () => Promise<string[] | null>;
+    saveClipboardImage?: unknown;
     onProjectChange?: (projectId: string) => void;
     onStart: (input: unknown) => void | Promise<void>;
   }) => (
     <div>
       <span>{props.project.name}</span>
+      <output data-testid="agent-statuses">
+        {props.agentStatuses.map((status) => status.kind).join(",")}
+      </output>
+      {props.saveClipboardImage ? <output data-testid="has-clipboard-save">true</output> : null}
       <div data-composer-input-anchor="">
         <div role="textbox" contentEditable aria-label="Composer input" />
       </div>
+      <button type="button" onClick={() => void props.pickFiles?.()}>
+        Pick files fixture
+      </button>
       <button type="button" onClick={() => props.onProjectChange?.("project-2")}>
         Switch test project
       </button>
@@ -97,6 +125,7 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
   ),
 }));
 
+import { QuickComposerWindowApp } from "@/renderer/windowApps/QuickComposerWindowApp";
 import { QuickComposerOverlay, resolveQuickComposerProject } from "./QuickComposerOverlay";
 
 const project = {
@@ -106,11 +135,30 @@ const project = {
   createdAt: "2026-07-10T00:00:00.000Z",
 };
 const otherProject = { ...project, id: "project-2", name: "Other" };
+const canonicalHome = {
+  ...project,
+  id: HOME_PROJECT_ID,
+  name: "Home",
+  location: { kind: "windows" as const, path: "C:\\Users\\local" },
+  disabled: true,
+};
+const remoteHome = {
+  ...project,
+  id: `remote:studio:project:${HOME_PROJECT_ID}`,
+  name: "Studio Home",
+  location: { kind: "windows" as const, path: "C:\\Users\\studio" },
+  remoteServerId: "studio",
+  remoteId: HOME_PROJECT_ID,
+  disabled: true,
+};
 
 describe("QuickComposerOverlay", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    settingsState.disabledAgents = [];
+    settingsState.homeScopeEnabled = false;
+    useRemoteServersStore.setState({ runtime: {} });
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     useAppStore.setState((state) => ({
       ...state,
@@ -124,6 +172,53 @@ describe("QuickComposerOverlay", () => {
       windowsLoaded: true,
       wslLoaded: true,
     });
+  });
+
+  it("initializes remote server connections in the window wrapper", async () => {
+    const hasHydrated = vi
+      .spyOn(useRemoteServersStore.persist, "hasHydrated")
+      .mockReturnValue(true);
+    const connectAll = vi
+      .spyOn(useRemoteServersStore.getState(), "connectAll")
+      .mockResolvedValue(undefined);
+
+    render(<QuickComposerWindowApp />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(hasHydrated).toHaveBeenCalled();
+    expect(connectAll).toHaveBeenCalledOnce();
+    hasHydrated.mockRestore();
+    connectAll.mockRestore();
+  });
+
+  it("opens the composer as soon as an enabled provider finishes while discovery remains pending", async () => {
+    useAgentStatusesStore.setState({ agentStatuses: [], windowsLoaded: false });
+    bridge.getAgentStatuses.mockResolvedValueOnce({ windows: [], wsl: [], fromCache: false });
+    render(<QuickComposerOverlay />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText("Detecting agents…")).toBeInTheDocument();
+    act(() => {
+      bridge.onSupervisorEvent.mock.calls[0]?.[0]({
+        type: "agent-detected",
+        status: installedStatus,
+      });
+    });
+    expect(screen.getByRole("textbox", { name: "Composer input" })).toBeInTheDocument();
+    expect(screen.queryByText("Detecting agents…")).not.toBeInTheDocument();
+    expect(useAgentStatusesStore.getState().windowsLoaded).toBe(false);
+  });
+
+  it("keeps loading when a partial inventory contains only disabled providers", () => {
+    settingsState.disabledAgents = [installedStatus.kind];
+    useAgentStatusesStore.setState({ windowsLoaded: false });
+    bridge.getAgentStatuses.mockResolvedValueOnce({ windows: [], wsl: [], fromCache: false });
+    render(<QuickComposerOverlay />);
+    expect(screen.getByText("Detecting agents…")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
   it("focuses the composer input whenever the native overlay appears", () => {
@@ -197,6 +292,10 @@ describe("QuickComposerOverlay", () => {
   });
 
   it("reopens after native hide/show without a DOM visibility or focus transition", async () => {
+    const rehydrate = vi.spyOn(useAppStore.persist, "rehydrate").mockResolvedValue(undefined);
+    const verifyConnections = vi
+      .spyOn(useRemoteServersStore.getState(), "verifyConnections")
+      .mockResolvedValue(undefined);
     const { container } = render(<QuickComposerOverlay />);
     await act(async () => {
       vi.advanceTimersByTime(220);
@@ -208,15 +307,24 @@ describe("QuickComposerOverlay", () => {
     expect(bridge.dismissQuickComposer).toHaveBeenCalledOnce();
     expect(container.querySelector(".quick-composer-root--closing")).toBeInTheDocument();
 
+    const refreshes = bridge.getAgentStatuses.mock.calls.length;
     act(() => {
       bridge.onQuickComposerShown.mock.calls[0]?.[0]();
     });
+    expect(verifyConnections).toHaveBeenCalledOnce();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(bridge.getAgentStatuses).toHaveBeenCalledTimes(refreshes + 1);
     expect(document.visibilityState).toBe("visible");
     expect(container.querySelector(".quick-composer-root--opening")).toBeInTheDocument();
     await act(async () => {
       vi.advanceTimersByTime(220);
     });
     expect(container.querySelector(".quick-composer-root--idle")).toBeInTheDocument();
+    rehydrate.mockRestore();
+    verifyConnections.mockRestore();
   });
 
   it("does not replay the enter animation or refetch when a file dialog returns focus", async () => {
@@ -283,6 +391,180 @@ describe("QuickComposerOverlay", () => {
     expect(bridge.dismissQuickComposer).not.toHaveBeenCalled();
   });
 
+  it("uses a mirrored Home host's agent statuses, detection, and file access", async () => {
+    settingsState.homeScopeEnabled = true;
+    const remoteStatus = { ...installedStatus, kind: "remote-codex", label: "Remote Codex" };
+    const upload = vi
+      .spyOn(useRemoteServersStore.getState(), "pickAndUploadFiles")
+      .mockResolvedValue(["C:\\studio\\file.txt"]);
+    useRemoteServersStore.setState({
+      runtime: { studio: { status: "connecting", projects: [], threads: [] } },
+    });
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [project, remoteHome],
+      threads: [],
+      view: { kind: "draft", projectId: remoteHome.id },
+    }));
+    render(<QuickComposerOverlay />);
+
+    // Local providers exist, but this project's statuses come from its host.
+    expect(screen.getByText("Detecting agents…")).toBeInTheDocument();
+
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: {
+          studio: {
+            status: "online",
+            projects: [],
+            threads: [],
+            agentStatuses: {
+              windows: [remoteStatus as never],
+              wsl: [],
+              updatedAt: "2026-11-04T00:00:00Z",
+            },
+          },
+        },
+      });
+    });
+    expect(screen.getByText("Studio Home")).toBeInTheDocument();
+    expect(screen.getByTestId("agent-statuses")).toHaveTextContent("remote-codex");
+    expect(screen.getByTestId("has-clipboard-save")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pick files fixture" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(upload).toHaveBeenCalledWith("studio", `draft-${HOME_PROJECT_ID}`);
+    expect(bridge.pickQuickComposerFiles).not.toHaveBeenCalled();
+    upload.mockRestore();
+  });
+
+  it("shows the offline host reason and keeps the machine switch instead of no agents", () => {
+    settingsState.homeScopeEnabled = true;
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "studio", label: "Poracode on MacBook" }],
+      runtime: {
+        studio: {
+          status: "offline",
+          message: "Host is restarting",
+          projects: [],
+          threads: [],
+        },
+      },
+    } as never);
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [canonicalHome, remoteHome],
+      threads: [],
+      view: { kind: "draft", projectId: remoteHome.id },
+    }));
+    render(<QuickComposerOverlay />);
+
+    expect(screen.getByText("Host is restarting")).toBeInTheDocument();
+    expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Machine: MacBook" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch project" })).toBeInTheDocument();
+
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: { studio: { status: "offline", projects: [], threads: [] } },
+      });
+    });
+    expect(
+      screen.getByText("This project's remote server is offline. Reconnect it to start a thread."),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps a submitted form mounted when its remote host disconnects", async () => {
+    settingsState.homeScopeEnabled = true;
+    const remoteStatus = { ...installedStatus, kind: "remote-codex", label: "Remote Codex" };
+    let resolve!: () => void;
+    bridge.submitQuickComposer.mockReturnValueOnce(
+      new Promise<void>((yes) => {
+        resolve = yes;
+      }),
+    );
+    const verifyConnections = vi
+      .spyOn(useRemoteServersStore.getState(), "verifyConnections")
+      .mockResolvedValue(undefined);
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "studio", label: "Poracode on MacBook" }],
+      runtime: {
+        studio: {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [remoteStatus as never],
+            wsl: [],
+            updatedAt: "2026-11-06T00:00:00Z",
+          },
+        },
+      },
+    } as never);
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [remoteHome],
+      threads: [],
+      view: { kind: "draft", projectId: remoteHome.id },
+    }));
+    const { container } = render(<QuickComposerOverlay />);
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("textbox", { name: "Composer input" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Send overlay" }));
+    expect(container.querySelector(".quick-composer-root--sending")).toBeInTheDocument();
+
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: { studio: { status: "offline", projects: [], threads: [] } },
+      });
+    });
+    expect(screen.getByRole("textbox", { name: "Composer input" })).toBeInTheDocument();
+    expect(screen.queryByText(/remote server is offline/i)).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+      await Promise.resolve();
+    });
+    verifyConnections.mockRestore();
+  });
+
+  it("keeps the local quick composer file dialog for a local project", async () => {
+    render(<QuickComposerOverlay />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Pick files fixture" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(bridge.pickQuickComposerFiles).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId("has-clipboard-save")).not.toBeInTheDocument();
+  });
+
+  it("does not refresh Git for a mirrored Home", () => {
+    settingsState.homeScopeEnabled = true;
+    useRemoteServersStore.setState({
+      runtime: { studio: { status: "connecting", projects: [], threads: [] } },
+    });
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [remoteHome],
+      threads: [],
+      view: { kind: "draft", projectId: remoteHome.id },
+    }));
+    render(<QuickComposerOverlay />);
+
+    expect(refreshGitProject).not.toHaveBeenCalled();
+  });
+
   it("prefers the project represented by the active pane", () => {
     expect(
       resolveQuickComposerProject({
@@ -320,6 +602,40 @@ describe("QuickComposerOverlay", () => {
         selectedProjectId: otherProject.id,
       }),
     ).toEqual(otherProject);
+  });
+
+  it("resolves a selected disabled mirrored Home while Home is enabled", () => {
+    expect(
+      resolveQuickComposerProject({
+        projects: [remoteHome, otherProject],
+        threads: [],
+        view: { kind: "draft", projectId: otherProject.id },
+        homeScopeEnabled: true,
+        selectedProjectId: remoteHome.id,
+      }),
+    ).toEqual(remoteHome);
+  });
+
+  it("rejects both canonical and mirrored Home while the Home scope is disabled", () => {
+    expect(
+      resolveQuickComposerProject({
+        projects: [remoteHome, canonicalHome],
+        threads: [],
+        view: { kind: "draft", projectId: remoteHome.id },
+        homeScopeEnabled: false,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("prefers the canonical Home fallback when a mirrored Home is listed first", () => {
+    expect(
+      resolveQuickComposerProject({
+        projects: [remoteHome, canonicalHome],
+        threads: [],
+        view: { kind: "draft", projectId: "missing" },
+        homeScopeEnabled: true,
+      }),
+    ).toEqual(canonicalHome);
   });
 
   it("applies live agent status from the loopback-backed supervisor subscription", () => {

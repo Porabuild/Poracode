@@ -60,10 +60,10 @@ describe("remote WS/runtime inventory goldens", () => {
       manifest.webSocket.replayableEventTypes.length,
     );
     expect(REMOTE_CONTRACT_INVENTORY.runtimeEventTypes).toBe(runtime.length);
-    expect(REMOTE_CONTRACT_INVENTORY.replayableEventTypes).toBe(16);
+    expect(REMOTE_CONTRACT_INVENTORY.replayableEventTypes).toBe(17);
     expect(REMOTE_CONTRACT_INVENTORY.runtimeEventTypes).toBe(16);
-    expect(REMOTE_CONTRACT_INVENTORY.webSocketClientMessages).toBe(9);
-    // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
-    expect(REMOTE_CONTRACT_INVENTORY.webSocketServerMessages).toBe(11);
+    expect(REMOTE_CONTRACT_INVENTORY.webSocketClientMessages).toBe(11);
+    // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
+    expect(REMOTE_CONTRACT_INVENTORY.webSocketServerMessages).toBe(12);
   });
 });

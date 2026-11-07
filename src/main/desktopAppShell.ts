@@ -12,14 +12,14 @@ import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
-import { WindowsJobObjectManager } from "./windowsJobObject";
+import { createWindowsJobObjectOwner } from "./windowsNativeJobObject";
 import { captureMainException } from "./diagnostics/sentry";
 import { installLocalFileProtocolHandler } from "./attachments/localFiles";
 import { installPickerProtocolHandler } from "./browser";
 import { startUsageLoginCookieMirror } from "./usageLogin/UsageLoginCookieMirror";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { shouldStartMinimized, syncWindowsStartupRegistration } from "./startupSettings";
-import { shouldPreventSystemSleep } from "./sleepPolicy";
+import { shouldPreventScreenLock, shouldPreventSystemSleep } from "./sleepPolicy";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 import { desktopApp, isDev, requirePoracodePaths } from "./desktopAppState";
 import type { NativeThreadActivityChange } from "@/shared/backendHostProtocol";
@@ -40,6 +40,7 @@ let committedSharedSettings: SharedSettings | null = null;
 // Last values applied to the native power surfaces. A working-thread or
 // settings-event storm that leaves the derived values unchanged is a no-op.
 let lastAppliedPreventSleep: boolean | null = null;
+let lastAppliedPreventScreenLock: boolean | null = null;
 
 function resolveCommittedSharedSettings(): SharedSettings {
   if (committedSharedSettings) return committedSharedSettings;
@@ -62,13 +63,34 @@ function syncStartupSettings(settings?: SharedSettings): void {
   }
 }
 
+/**
+ * Re-derives both native power channels (system sleep, screen lock) from the
+ * committed settings, the working-thread set, and Computer Use activity.
+ */
 export function updatePowerSaveBlocker(): void {
   const settings = resolveCommittedSharedSettings();
-  const preventSleep = shouldPreventSystemSleep(settings, desktopApp.workingThreads.size);
+  const activity = {
+    workingThreadCount: desktopApp.workingThreads.size,
+    computerUseActive: [...desktopApp.computerUseThreads].some((threadId) =>
+      desktopApp.workingThreads.has(threadId),
+    ),
+  };
+  const preventSleep = shouldPreventSystemSleep(settings, activity);
   if (preventSleep !== lastAppliedPreventSleep) {
     lastAppliedPreventSleep = preventSleep;
     desktopApp.sleepInhibitor.setActive(preventSleep);
   }
+  const preventScreenLock = shouldPreventScreenLock(settings, activity);
+  if (preventScreenLock !== lastAppliedPreventScreenLock) {
+    lastAppliedPreventScreenLock = preventScreenLock;
+    desktopApp.screenLockInhibitor.setActive(preventScreenLock);
+  }
+}
+
+/** Computer Use session threads from the desktop overlay's activity reduction. */
+export function setComputerUseThreads(threadIds: readonly string[]): void {
+  desktopApp.computerUseThreads = new Set(threadIds);
+  updatePowerSaveBlocker();
 }
 
 /**
@@ -81,6 +103,8 @@ export function updatePowerSaveBlocker(): void {
 export function applyThreadActivity(changes: readonly NativeThreadActivityChange[]): void {
   let changed = false;
   for (const change of changes) {
+    desktopApp.hostServices?.observeThreadActivity(change.threadId, change.active);
+    if (!change.active) desktopApp.hostServices?.agentVision.stop(change.threadId);
     if (change.active) {
       if (desktopApp.workingThreads.has(change.threadId)) continue;
       desktopApp.workingThreads.add(change.threadId);
@@ -98,6 +122,8 @@ export function applyThreadActivity(changes: readonly NativeThreadActivityChange
  * thread here. Without this a restart could keep a stale sleep blocker.
  */
 export function resetThreadActivity(): void {
+  desktopApp.hostServices?.agentVision.stopAll();
+  desktopApp.hostServices?.resetThreadActivity();
   desktopApp.workingThreads.clear();
   updatePowerSaveBlocker();
 }
@@ -186,7 +212,7 @@ export function prepareDesktopNativeShell(): DesktopNativeShellBootstrap {
   );
   let jobObjectReady: Promise<void> = Promise.resolve();
   if (process.platform === "win32") {
-    const manager = new WindowsJobObjectManager();
+    const manager = createWindowsJobObjectOwner(bundledOrResourcesDir("pty-job-owner"));
     desktopApp.windowsJobObjectManager = manager;
     jobObjectReady = manager.start().catch((error) => {
       console.error(

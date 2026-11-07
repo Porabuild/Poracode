@@ -7,6 +7,8 @@ import {
 } from "./agentPluginAssetSources.ts";
 import type { RuntimeResourceIdentity } from "./sshRuntimeManifest";
 import { readBoundedRuntimeFileSync } from "./readBoundedRuntimeFile.ts";
+import { ptyJobOwnerManifestSchema, type PtyJobOwnerTarget } from "./contracts/ptyJobOwner.ts";
+import { readPtyJobOwnerArtifact } from "./ptyJobOwnerArtifact.ts";
 
 const MAX_RESOURCE_FILES = 4096;
 const MAX_RESOURCE_FILE_BYTES = 8 * 1024 * 1024;
@@ -78,20 +80,47 @@ export function runtimeResourceIdentity(
   return { kind, sha256: digest.digest("hex") };
 }
 
+export function ptyJobOwnerResource(root: string) {
+  const manifest = ptyJobOwnerManifestSchema.parse(
+    JSON.parse(readBoundedRuntimeFileSync(join(root, "manifest.json"), 16_384).toString("utf8")),
+  );
+  for (const target of Object.keys(manifest.targets) as PtyJobOwnerTarget[])
+    readPtyJobOwnerArtifact(root, target);
+  const declared = new Set([
+    "manifest.json",
+    ...Object.values(manifest.targets).flatMap((artifact) =>
+      artifact ? [artifact.relativePath] : [],
+    ),
+  ]);
+  const files = runtimeDirectoryFiles(root);
+  if (files.length !== declared.size || files.some((file) => !declared.has(file.path)))
+    throw new Error(
+      "The PTY job owner directory contains undeclared or partial files; preserve and inspect it.",
+    );
+  return { files, manifest };
+}
+
 export function verifyRuntimeResources(
   expected: readonly RuntimeResourceIdentity[],
   roots: {
     readonly agentPlugins: { readonly path: string; readonly layout: "source" | "staged" };
     readonly bundledPlugins: string;
+    readonly ptyJobOwner?: string;
   },
 ): void {
   for (const resource of expected) {
+    if (resource.kind === "pty-job-owner" && !roots.ptyJobOwner)
+      throw new Error(
+        "The declared PTY job owner resource is missing. Rebuild the runtime and its assets.",
+      );
     const files =
       resource.kind === "agent-plugins"
         ? roots.agentPlugins.layout === "source"
           ? sourceAgentPluginFiles(roots.agentPlugins.path)
           : runtimeDirectoryFiles(roots.agentPlugins.path)
-        : runtimeDirectoryFiles(roots.bundledPlugins);
+        : resource.kind === "bundled-plugins"
+          ? runtimeDirectoryFiles(roots.bundledPlugins)
+          : ptyJobOwnerResource(roots.ptyJobOwner!).files;
     if (runtimeResourceIdentity(resource.kind, files).sha256 !== resource.sha256)
       throw new Error(
         `Runtime resource declaration differs: ${resource.kind}. Rebuild the runtime and its assets.`,

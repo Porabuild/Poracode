@@ -81,6 +81,30 @@ final class RuntimeBackgroundTasksReduceTests: XCTestCase {
     )
   }
 
+  func testGeneratedBackgroundTaskOutputDTOValidatesBounds() throws {
+    let decoded = try JSONDecoder().decode(
+      RemoteBackgroundTaskOutput.self,
+      from: Data(#"{"output":"tail","totalBytes":42,"truncated":true}"#.utf8)
+    )
+    XCTAssertEqual(decoded.output, "tail")
+    XCTAssertEqual(decoded.totalBytes, 42)
+    XCTAssertTrue(decoded.truncated)
+    XCTAssertTrue(decoded.isValid)
+
+    XCTAssertFalse(RemoteBackgroundTaskOutput(
+      output: "x", totalBytes: -1, truncated: false).isValid)
+    XCTAssertFalse(RemoteBackgroundTaskOutput(
+      output: "x", totalBytes: 1.5, truncated: false).isValid)
+    XCTAssertFalse(RemoteBackgroundTaskOutput(
+      output: "x", totalBytes: 9_007_199_254_740_992, truncated: false).isValid)
+    XCTAssertFalse(RemoteBackgroundTaskOutput(
+      output: String(repeating: "a", count: 16_385), totalBytes: 1, truncated: false).isValid)
+    XCTAssertTrue(RemoteBackgroundTaskOutput(
+      output: String(repeating: "a", count: 16_384),
+      totalBytes: 9_007_199_254_740_991,
+      truncated: true).isValid)
+  }
+
   func testKindEnumAcceptsCommandAndOtherOnly() {
     XCTAssertNotNil(decode(event(tasks: tasksArray(("a", "command", "d")))))
     XCTAssertNotNil(decode(event(tasks: tasksArray(("a", "other", "d")))))
@@ -113,6 +137,10 @@ final class RuntimeBackgroundTasksReduceTests: XCTestCase {
     XCTAssertEqual(rich.lastProgressAt, 1770000010000)
     XCTAssertEqual(rich.progress, "Server ready")
     XCTAssertEqual(rich.stopAction?.payload["token"], "run-fixture-001")
+    XCTAssertEqual(rich.category, "command")
+    XCTAssertEqual(rich.command, "pnpm test")
+    XCTAssertEqual(rich.outputAction?.id, "background-task.output.v1")
+    XCTAssertEqual(rich.outputAction?.payload["token"], "run-fixture-001")
     var domain = RuntimeThreadDomainState(backgroundTasks: [RuntimeBackgroundTask(taskId: rich.taskId, kind: rich.kind, description: rich.description)])
     RuntimeEventReducer.applyDomain(event: parsed, threadId: try XCTUnwrap(parsed.threadId), domain: &domain)
     XCTAssertEqual(domain.backgroundTasks, parsed.backgroundTasks)
@@ -122,6 +150,12 @@ final class RuntimeBackgroundTasksReduceTests: XCTestCase {
     bad.removeValue(forKey: "startedAt")
     bad["stopAction"] = .object(["id": .string("stop"), "payload": .object(["task": .number(1)])])
     XCTAssertNil(decode(event(tasks: [.object(bad)])))
+    bad.removeValue(forKey: "stopAction")
+    bad["category"] = .string("watcher")
+    XCTAssertNil(decode(event(tasks: [.object(bad)])))
+    bad["category"] = .string("tool")
+    bad["outputAction"] = .object(["id": .string("out"), "payload": .object(["task": .string("a")])])
+    XCTAssertNotNil(decode(event(tasks: [.object(bad)])))
   }
 
   func testOptionalStringBoundsCountUnicodeScalarsLikeZod() {

@@ -3,14 +3,14 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:e78f3045a2e3b146869f782aaf67ee4ea5fc25eb2a0115cd10864e648520885b",
-  "keyCount": 298,
+  "manifestHash": "sha256:58c27ed5a199c273ec5a17bb1da030559e3d7f2f47593072b29986ddd2049010",
+  "keyCount": 347,
   "counts": {
-    "route": 116,
-    "procedure": 130,
-    "ws-client": 9,
-    "ws-server": 11,
-    "replay": 16,
+    "route": 119,
+    "procedure": 172,
+    "ws-client": 11,
+    "ws-server": 12,
+    "replay": 17,
     "runtime": 16
   },
   "operations": {
@@ -37,6 +37,10 @@
     "procedure:connectThreadVoice": {
       "kind": "procedure",
       "id": "connectThreadVoice"
+    },
+    "procedure:controlMcpApp": {
+      "kind": "procedure",
+      "id": "controlMcpApp"
     },
     "procedure:createFileCheckpoint": {
       "kind": "procedure",
@@ -86,6 +90,138 @@
       "kind": "procedure",
       "id": "finalizeFileCheckpoint"
     },
+    "procedure:forgeClosePr": {
+      "kind": "procedure",
+      "id": "forgeClosePr"
+    },
+    "procedure:forgeConvertPrToDraft": {
+      "kind": "procedure",
+      "id": "forgeConvertPrToDraft"
+    },
+    "procedure:forgeCreatePr": {
+      "kind": "procedure",
+      "id": "forgeCreatePr"
+    },
+    "procedure:forgeEditPr": {
+      "kind": "procedure",
+      "id": "forgeEditPr"
+    },
+    "procedure:forgeEditPrComment": {
+      "kind": "procedure",
+      "id": "forgeEditPrComment"
+    },
+    "procedure:forgeGetPrChecks": {
+      "kind": "procedure",
+      "id": "forgeGetPrChecks"
+    },
+    "procedure:forgeGetPrCommitDiff": {
+      "kind": "procedure",
+      "id": "forgeGetPrCommitDiff"
+    },
+    "procedure:forgeGetPrDetails": {
+      "kind": "procedure",
+      "id": "forgeGetPrDetails"
+    },
+    "procedure:forgeGetPrDiff": {
+      "kind": "procedure",
+      "id": "forgeGetPrDiff"
+    },
+    "procedure:forgeGetPrFiles": {
+      "kind": "procedure",
+      "id": "forgeGetPrFiles"
+    },
+    "procedure:forgeGetPrForBranch": {
+      "kind": "procedure",
+      "id": "forgeGetPrForBranch"
+    },
+    "procedure:forgeGetPrReviewComments": {
+      "kind": "procedure",
+      "id": "forgeGetPrReviewComments"
+    },
+    "procedure:forgeGetPrReviewGuide": {
+      "kind": "procedure",
+      "id": "forgeGetPrReviewGuide"
+    },
+    "procedure:forgeGetPrViewedFiles": {
+      "kind": "procedure",
+      "id": "forgeGetPrViewedFiles"
+    },
+    "procedure:forgeGetRepository": {
+      "kind": "procedure",
+      "id": "forgeGetRepository"
+    },
+    "procedure:forgeListPrLabelCandidates": {
+      "kind": "procedure",
+      "id": "forgeListPrLabelCandidates"
+    },
+    "procedure:forgeListPrReviewerCandidates": {
+      "kind": "procedure",
+      "id": "forgeListPrReviewerCandidates"
+    },
+    "procedure:forgeListPrs": {
+      "kind": "procedure",
+      "id": "forgeListPrs"
+    },
+    "procedure:forgeListPullRequests": {
+      "kind": "procedure",
+      "id": "forgeListPullRequests"
+    },
+    "procedure:forgeListPullRequestsInState": {
+      "kind": "procedure",
+      "id": "forgeListPullRequestsInState"
+    },
+    "procedure:forgeMarkPrReady": {
+      "kind": "procedure",
+      "id": "forgeMarkPrReady"
+    },
+    "procedure:forgeMergePr": {
+      "kind": "procedure",
+      "id": "forgeMergePr"
+    },
+    "procedure:forgeMergePrAtHead": {
+      "kind": "procedure",
+      "id": "forgeMergePrAtHead"
+    },
+    "procedure:forgePostPrComment": {
+      "kind": "procedure",
+      "id": "forgePostPrComment"
+    },
+    "procedure:forgeReopenPr": {
+      "kind": "procedure",
+      "id": "forgeReopenPr"
+    },
+    "procedure:forgeRequestPrReviewers": {
+      "kind": "procedure",
+      "id": "forgeRequestPrReviewers"
+    },
+    "procedure:forgeSetPrFileViewed": {
+      "kind": "procedure",
+      "id": "forgeSetPrFileViewed"
+    },
+    "procedure:forgeSetPrLabels": {
+      "kind": "procedure",
+      "id": "forgeSetPrLabels"
+    },
+    "procedure:forgeSetPrReaction": {
+      "kind": "procedure",
+      "id": "forgeSetPrReaction"
+    },
+    "procedure:forgeSubmitPrReview": {
+      "kind": "procedure",
+      "id": "forgeSubmitPrReview"
+    },
+    "procedure:forgeSubmitPrReviewDraft": {
+      "kind": "procedure",
+      "id": "forgeSubmitPrReviewDraft"
+    },
+    "procedure:forgeUpdatePrBranch": {
+      "kind": "procedure",
+      "id": "forgeUpdatePrBranch"
+    },
+    "procedure:forgeWritePrReviewGuide": {
+      "kind": "procedure",
+      "id": "forgeWritePrReviewGuide"
+    },
     "procedure:generateCommitMessage": {
       "kind": "procedure",
       "id": "generateCommitMessage"
@@ -113,6 +249,10 @@
     "procedure:getGitStatus": {
       "kind": "procedure",
       "id": "getGitStatus"
+    },
+    "procedure:getLatestAgentVersion": {
+      "kind": "procedure",
+      "id": "getLatestAgentVersion"
     },
     "procedure:getMcpOauthStatus": {
       "kind": "procedure",
@@ -213,6 +353,10 @@
     "procedure:ghMergePr": {
       "kind": "procedure",
       "id": "ghMergePr"
+    },
+    "procedure:ghPollPullRequests": {
+      "kind": "procedure",
+      "id": "ghPollPullRequests"
     },
     "procedure:ghPostPrComment": {
       "kind": "procedure",
@@ -366,6 +510,10 @@
       "kind": "procedure",
       "id": "gitWorktreeStatusBatch"
     },
+    "procedure:hexVoice": {
+      "kind": "procedure",
+      "id": "hexVoice"
+    },
     "procedure:importSkills": {
       "kind": "procedure",
       "id": "importSkills"
@@ -378,9 +526,17 @@
       "kind": "procedure",
       "id": "invokeThreadSessionAction"
     },
+    "procedure:listAcpRegistry": {
+      "kind": "procedure",
+      "id": "listAcpRegistry"
+    },
     "procedure:listFileCheckpoints": {
       "kind": "procedure",
       "id": "listFileCheckpoints"
+    },
+    "procedure:listImportableSessions": {
+      "kind": "procedure",
+      "id": "listImportableSessions"
     },
     "procedure:listProjectTree": {
       "kind": "procedure",
@@ -441,6 +597,10 @@
     "procedure:readThreadBackgroundTasks": {
       "kind": "procedure",
       "id": "readThreadBackgroundTasks"
+    },
+    "procedure:refreshAgentStatuses": {
+      "kind": "procedure",
+      "id": "refreshAgentStatuses"
     },
     "procedure:refreshProviderUsage": {
       "kind": "procedure",
@@ -514,6 +674,14 @@
       "kind": "procedure",
       "id": "subagentUnsubscribe"
     },
+    "procedure:updateAcpRegistryAgent": {
+      "kind": "procedure",
+      "id": "updateAcpRegistryAgent"
+    },
+    "procedure:updateAgentBinary": {
+      "kind": "procedure",
+      "id": "updateAgentBinary"
+    },
     "procedure:waitMcpServerOauth": {
       "kind": "procedure",
       "id": "waitMcpServerOauth"
@@ -537,6 +705,10 @@
     "replay:agent-status-updated": {
       "kind": "replay",
       "id": "agent-status-updated"
+    },
+    "replay:remote-forge-activity": {
+      "kind": "replay",
+      "id": "remote-forge-activity"
     },
     "replay:remote-git-state": {
       "kind": "replay",
@@ -866,6 +1038,10 @@
       "kind": "route",
       "id": "pr-watch-read"
     },
+    "route:pr-watch-scoped-upsert": {
+      "kind": "route",
+      "id": "pr-watch-scoped-upsert"
+    },
     "route:pr-watch-upsert": {
       "kind": "route",
       "id": "pr-watch-upsert"
@@ -982,6 +1158,10 @@
       "kind": "route",
       "id": "terminal-write"
     },
+    "route:thread-agent-vision": {
+      "kind": "route",
+      "id": "thread-agent-vision"
+    },
     "route:thread-checkpoint-revert": {
       "kind": "route",
       "id": "thread-checkpoint-revert"
@@ -1013,6 +1193,10 @@
     "route:thread-history-items": {
       "kind": "route",
       "id": "thread-history-items"
+    },
+    "route:thread-history-prompts": {
+      "kind": "route",
+      "id": "thread-history-prompts"
     },
     "route:thread-interrupt": {
       "kind": "route",
@@ -1126,6 +1310,14 @@
       "kind": "runtime",
       "id": "warning"
     },
+    "ws-client:agent-vision-unwatch": {
+      "kind": "ws-client",
+      "id": "agent-vision-unwatch"
+    },
+    "ws-client:agent-vision-watch": {
+      "kind": "ws-client",
+      "id": "agent-vision-watch"
+    },
     "ws-client:browser-input": {
       "kind": "ws-client",
       "id": "browser-input"
@@ -1161,6 +1353,10 @@
     "ws-client:thread-item-interests": {
       "kind": "ws-client",
       "id": "thread-item-interests"
+    },
+    "ws-server:agent-vision-frame": {
+      "kind": "ws-server",
+      "id": "agent-vision-frame"
     },
     "ws-server:browser-frame": {
       "kind": "ws-server",

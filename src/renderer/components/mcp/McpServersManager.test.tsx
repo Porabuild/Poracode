@@ -401,6 +401,36 @@ describe("McpServersManager", () => {
     expect(bridge.getMcpOauthStatus).toHaveBeenCalledWith({ projectLocation });
   });
 
+  it("signs a local project's workspace server in on this host without naming a host", async () => {
+    const projectLocation = { kind: "windows" as const, path: "C:\\repo" };
+    const localServer: McpServer = {
+      ...server,
+      transport: { type: "http", url: "https://mcp.example.test", headers: {} },
+    };
+    bridge.probeMcpServer.mockResolvedValue({
+      status: "auth-required",
+      toolCount: 0,
+      latencyMs: 8,
+      environment: { runtime: "host", projectScoped: true },
+      error: { code: "auth-required", message: "Authentication required", authScheme: "oauth" },
+    });
+
+    render(
+      managerElement({
+        workspaceServers: [localServer],
+        defaultScope: "workspace",
+        projectLocation,
+      }),
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Authenticate" }));
+    await waitFor(() =>
+      expect(bridge.beginMcpServerOauth).toHaveBeenCalledWith({ server: localServer }),
+    );
+    expect(bridge.getMcpOauthStatus).toHaveBeenCalledWith({});
+    expect(bridge.getMcpOauthStatus).not.toHaveBeenCalledWith({ projectLocation });
+  });
+
   it("shows a localized unavailable error without a fake zero tool count", async () => {
     bridge.probeMcpServer.mockResolvedValue({
       status: "unavailable",

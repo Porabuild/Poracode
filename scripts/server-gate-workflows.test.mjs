@@ -205,6 +205,15 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   assert.match(assemble.run, /--target/u);
   assert.match(assemble.run, /assemble-server-tarball/u);
   assert.match(assemble.run, /prepare-server-native/u);
+  assert.match(
+    assemble.run,
+    /if \[ "\$\{RUNNER_OS\}" = "Windows" \]; then\s+bun run prepare:service-launcher/u,
+  );
+  assert.match(assemble.run, /node --test scripts\/prepare-service-launcher\.test\.mjs/u);
+  assert.ok(
+    assemble.run.indexOf("prepare:service-launcher") <
+      assemble.run.indexOf("assemble-server-tarball.mjs"),
+  );
 
   // One node script installs without a toolchain on every OS; the POSIX-only
   // bash symlink recipe is gone.
@@ -242,6 +251,9 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
     "1",
     "the upgrade integration test must run with PORACODE_REQUIRE_SERVER_IT=1",
   );
+  // Concurrent upgrade tests starved the Windows runner: npm installs took
+  // 8-9 min each and icacls and daemon-stop timeouts fired. Keep them serial.
+  assert.match(upgrade.run, /^bun run vitest run .*serverUpgrade\.integration\.test\.ts$/u);
 
   // The tarball-content gate follows the overlay manifests for BOTH modules
   // (the host sqlite binding intentionally has a different path from cross
@@ -354,8 +366,8 @@ void test("the arm64 node-pty cross-build stages the installed node-addon-api si
   );
   assert.match(
     run,
-    /npm rebuild --offline/u,
-    "npm rebuild must fail loudly on a missing dependency, not fetch one",
+    /npm_config_build_from_source=true npm rebuild --offline/u,
+    "npm rebuild must emit build/Release/pty.node even when a prebuild is available",
   );
 
   // The container proves binding.gyp's own require resolves before building.
@@ -398,6 +410,21 @@ void test("the arm64 node-pty cross-build stages the installed node-addon-api si
       addonApiVersion,
       "the staged copy must be the exact installed node-addon-api version",
     );
+    const prebuildScript = join(stagedPty, "scripts", "prebuild.js");
+    await mkdir(join(stagedPty, "prebuilds", `${process.platform}-${process.arch}`), {
+      recursive: true,
+    });
+    execFileSync(process.execPath, [prebuildScript], {
+      env: { ...process.env, npm_config_build_from_source: "false" },
+    });
+    assert.throws(
+      () =>
+        execFileSync(process.execPath, [prebuildScript], {
+          env: { ...process.env, npm_config_build_from_source: "true" },
+        }),
+      { status: 1 },
+    );
+    await assert.rejects(realpath(join(stagedPty, "prebuilds")), { code: "ENOENT" });
   } finally {
     await rm(stage, { recursive: true, force: true });
   }

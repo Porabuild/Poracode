@@ -2,6 +2,8 @@ package com.poracode.app.model
 
 import com.poracode.app.protocol.GeneratedRemoteV3Contract
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import com.poracode.app.push.RemoteUserNotificationEvent
 import kotlinx.serialization.json.JsonObject
@@ -39,6 +41,7 @@ data class RemoteEnvironmentDescriptor(
 
     @Serializable
     data class Capabilities(
+        val threadForks: VersionedCapability? = null,
         /**
          * Origin-bound browser entry (`versions` contains
          * [BROWSER_FORWARD_ENTRY_VERSION]). Declares protocol support only — a
@@ -152,6 +155,7 @@ data class ThreadConfig(
     val contextSize: String? = null,
     val fast: Boolean? = null,
     val thinking: Boolean? = null,
+    val workflows: Boolean? = null,
     val mode: String? = null,
     val approvalPolicy: String? = null,
     val approvalsReviewer: String? = null,
@@ -160,7 +164,11 @@ data class ThreadConfig(
     val crossagentMcp: Boolean? = null,
     val computerUse: Boolean? = null,
     val chromeMcp: Boolean? = null,
+    val mcpServerOverrides: Map<String, Boolean>? = null,
+    val pluginOverrides: Map<String, Boolean>? = null,
     val executionEnvironment: RemoteExecutionEnvironment? = null,
+    @Serializable(with = OpaqueJsonElementSerializer::class)
+    val crew: JsonElement? = null,
 ) {
     fun toJsonObject(): JsonObject = buildJsonObject {
         put("model", model)
@@ -168,6 +176,7 @@ data class ThreadConfig(
         contextSize?.let { put("contextSize", it) }
         fast?.let { put("fast", it) }
         thinking?.let { put("thinking", it) }
+        workflows?.let { put("workflows", it) }
         mode?.let { put("mode", it) }
         approvalPolicy?.let { put("approvalPolicy", it) }
         approvalsReviewer?.let { put("approvalsReviewer", it) }
@@ -176,6 +185,18 @@ data class ThreadConfig(
         crossagentMcp?.let { put("crossagentMcp", it) }
         computerUse?.let { put("computerUse", it) }
         chromeMcp?.let { put("chromeMcp", it) }
+        mcpServerOverrides?.let { overrides ->
+            put(
+                "mcpServerOverrides",
+                buildJsonObject { overrides.forEach { (key, enabled) -> put(key, enabled) } },
+            )
+        }
+        pluginOverrides?.let { overrides ->
+            put(
+                "pluginOverrides",
+                buildJsonObject { overrides.forEach { (key, enabled) -> put(key, enabled) } },
+            )
+        }
         executionEnvironment?.let { environment ->
             put(
                 "executionEnvironment",
@@ -185,6 +206,7 @@ data class ThreadConfig(
                 },
             )
         }
+        crew?.let { put("crew", it) }
     }
 }
 
@@ -222,48 +244,6 @@ data class RemoteSlashCommand(
 )
 
 @Serializable
-data class RemoteThread(
-    val id: String,
-    val remoteServerId: String? = null,
-    val remoteId: String? = null,
-    val projectId: String,
-    val title: String,
-    val agentKind: String,
-    val agentInstanceId: String? = null,
-    val config: ThreadConfig = ThreadConfig(),
-    val status: String,
-    val attention: String,
-    val canResumeWithConfig: Boolean? = null,
-    val worktreePath: String? = null,
-    val worktreeBranch: String? = null,
-    val archived: Boolean? = null,
-    val done: Boolean? = null,
-    val starred: Boolean? = null,
-    val presentationMode: String? = null,
-    val createdAt: String,
-    val updatedAt: String,
-    val activeTurnStartedAt: String? = null,
-    val lastTurnStartedAt: String? = null,
-    val lastTurnEndedAt: String? = null,
-    val errorMessage: String? = null,
-    val slashCommands: List<RemoteSlashCommand>? = null,
-    /** Live negotiated session controls (`RemoteSessionConfigOption`); null/absent keeps static fallback. */
-    val sessionConfigOptions: List<RemoteSessionConfigOption>? = null,
-    val parentThreadId: String? = null,
-    /** Live structured-session identity; absent on older hosts. */
-    val sessionRef: RemoteSessionRef? = null,
-    /** Readonly host projection; absence is unknown, never launch or mutation authority. */
-    @Serializable(with = WorkspaceDirectoryProjectionSerializer::class)
-    val additionalDirectories: List<ProjectLocation>? = null,
-    @Serializable(with = WorkspaceGrantRevisionProjectionSerializer::class)
-    val workspaceGrantRevision: Long? = null,
-) {
-    val isArchived: Boolean get() = archived == true
-    val isDone: Boolean get() = done == true
-    val isStarred: Boolean get() = starred == true
-}
-
-@Serializable
 data class RemoteRuntimeSummary(
     val itemCount: Int,
     val latestItemId: String? = null,
@@ -295,6 +275,7 @@ data class RemoteShellSnapshot(
     /** Bounded shell page 1 project paint continuation cursor; null at the end. */
     val projectsNextCursor: String? = null,
     val updatedAt: String,
+    val snapshotEpoch: String? = null,
 )
 
 // MARK: - Thread history
@@ -326,6 +307,19 @@ data class RemoteThreadSnapshot(
     /** Bounded history tail: `ct1.` cursor of the oldest returned turn, or null. */
     val completedTurnsNextCursor: String? = null,
     val contextUsage: JsonElement? = null,
+    /**
+     * Authoritative live background work; absent on hosts that predate the
+     * field. Decoded through the strict protocol decoder in the history mapper
+     * so no app-owned wire DTO duplicates `backgroundTaskSchema`.
+     */
+    val backgroundTasks: JsonArray? = null,
+    /**
+     * Wire presence marker, set by the history adapters; never serialized. The
+     * shared schema is optional-nonnullable, so absent means an old host (keep
+     * retained knowledge) while an explicit valid array — including [] — is
+     * authoritative.
+     */
+    @Transient val backgroundTasksPresent: Boolean = false,
     val terminalScrollback: String? = null,
     /** Authoritative follow-up queue for GUI threads; absent on old hosts. */
     val followUpQueue: JsonElement? = null,
@@ -349,7 +343,8 @@ data class RemoteRuntimeItemsPage(
 // MARK: - WebSocket envelopes
 
 sealed class RemoteWebSocketServerMessage {
-    data class Ready(val seq: Int) : RemoteWebSocketServerMessage()
+    /** [epoch] is present only on an `eventEpoch=v1` connection to a host that reports one. */
+    data class Ready(val seq: Int, val epoch: String? = null) : RemoteWebSocketServerMessage()
     data class Event(val seq: Int, val event: JsonElement) : RemoteWebSocketServerMessage()
     data class ResyncRequired(val seq: Int, val reason: String) : RemoteWebSocketServerMessage()
     data class Pong(
@@ -374,7 +369,7 @@ sealed class RemoteWebSocketServerMessage {
                 "ready" -> {
                     val seq = with(WebsocketEnvelope) { obj.strictSeq("seq") }
                         ?: throw RemoteClientException.invalidResponse("ready missing seq")
-                    Ready(seq)
+                    Ready(seq, with(WebsocketEnvelope) { obj.strictId("epoch") }?.takeIf { it.isNotEmpty() })
                 }
                 "event" -> {
                     val seq = with(WebsocketEnvelope) { obj.strictSeq("seq") }

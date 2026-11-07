@@ -144,16 +144,25 @@ export async function proxyForwardedHttpRequest(
  * port-forward path dials the target root (`/`): only the forwarded app's
  * origin socket is proxied, and reserved Poracode `Set-Cookie` names are
  * filtered from the parsed handshake while every other header rides verbatim.
+ * `onUpgraded` follows {@link proxyLoopbackWebSocketUpgrade}.
  */
 export async function proxyForwardedWebSocketUpgrade(
   req: IncomingMessage,
   clientSocket: Duplex,
   head: Buffer,
   lifetime: ForwardLifetime,
+  onUpgraded?: () => void,
 ): Promise<void> {
-  await proxyLoopbackWebSocketUpgrade(req, clientSocket, head, lifetime, {
-    headers: (request) =>
-      buildUpstreamRequestHeaders(request, lifetime.targetPort, { forUpgrade: true }),
-    setCookie: filterReservedProxySetCookies,
-  });
+  await proxyLoopbackWebSocketUpgrade(
+    req,
+    clientSocket,
+    head,
+    lifetime,
+    {
+      headers: (request) =>
+        buildUpstreamRequestHeaders(request, lifetime.targetPort, { forUpgrade: true }),
+      setCookie: filterReservedProxySetCookies,
+    },
+    onUpgraded,
+  );
 }

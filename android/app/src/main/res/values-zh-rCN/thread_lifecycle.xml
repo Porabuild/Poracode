@@ -24,4 +24,6 @@
     <string name="archived_threads_title">已归档会话</string>
     <string name="archived_threads_description">恢复或永久删除已归档的会话。</string>
     <string name="archived_threads_empty">没有已归档的会话</string>
+    <string name="thread_status_starting_agent">正在启动智能体…</string>
+    <string name="thread_status_resuming">正在恢复会话…</string>
 </resources>

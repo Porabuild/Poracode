@@ -26,6 +26,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import { HomeView } from "@/renderer/views/HomeView";
 import { ExperimentCandidateCard } from "./parts/ExperimentCandidateCard";
+import { ExperimentWinnerCrewActions } from "./parts/ExperimentWinnerCrewActions";
 import { ExperimentPromptSection } from "./parts/ExperimentPromptSection";
 import { ExperimentJudgeDialog } from "./parts/ExperimentJudgeDialog";
 import { ExperimentJudgeRunDialog } from "./parts/ExperimentJudgeRunDialog";
@@ -45,6 +46,10 @@ export function ExperimentView(props: { experimentId: string }) {
       ? state.projects.find((candidate) => candidate.id === experiment.projectId)
       : undefined,
   );
+  const winnerThread = useAppStore((state) => {
+    const winnerId = experiment?.winnerThreadId;
+    return winnerId ? state.threads.find((thread) => thread.id === winnerId) : undefined;
+  });
   const disabledAgents = useSharedSettings((state) => state.disabledAgents);
   const projectAgents = useAgentStatusesStore(
     useShallow((state) =>
@@ -344,6 +349,9 @@ export function ExperimentView(props: { experimentId: string }) {
               );
             })}
           </div>
+          {decided && winnerThread ? (
+            <ExperimentWinnerCrewActions project={project} winnerThread={winnerThread} />
+          ) : null}
         </div>
       </div>
 

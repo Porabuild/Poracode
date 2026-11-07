@@ -6,7 +6,7 @@ import {
   type SpawnMuseServeHostOptions,
 } from "./client";
 import { stopMuseServeHost } from "./hostLifecycle";
-import { assertMspSchemaVersion } from "./protocol";
+import { assertMspSchemaVersion, isMspRpcError } from "./protocol";
 
 type Observer = Awaited<ReturnType<typeof spawnMuseServeHost>> & {
   client: MuseMspClient;
@@ -15,21 +15,24 @@ type Observer = Awaited<ReturnType<typeof spawnMuseServeHost>> & {
 };
 
 /**
- * Muse 1.4.6's writer host cannot resolve its own newly spawned nested sessions.
- * A foreign host can read and follow them without loading a session or acquiring
- * a writer lease. Start one lazily per parent, and never issue model-turn methods.
+ * Prefer the writer's native child reads. Older hosts cannot resolve their
+ * nested sessions; only a typed read refusal uses a foreign read-only host,
+ * without loading the child or acquiring a writer lease. Subscription-only
+ * refusals let the transcript manager poll the already-readable writer.
  */
 export class MuseSubagentObserver {
   private opening: Promise<Observer> | undefined;
   private observer: Observer | undefined;
   private disposed = false;
   private stopping: Promise<void> | undefined;
+  private readonly foreignSessions = new Set<string>();
 
   constructor(
     private readonly location: ProjectLocation,
     private readonly options: SpawnMuseServeHostOptions,
     private readonly onNotification: MuseMspNotificationHandler,
     private readonly onDisconnected: () => void = () => {},
+    private readonly owner?: Pick<MuseMspClient, "request">,
   ) {}
 
   async request(
@@ -39,6 +42,17 @@ export class MuseSubagentObserver {
     if (method !== "session/read" && method !== "view/subscribe")
       throw new Error(`Muse transcript observer cannot issue ${method}.`);
     if (this.disposed) throw new Error("Muse transcript observer is closed.");
+    const sessionId = typeof params?.["sessionId"] === "string" ? params["sessionId"] : undefined;
+    if (this.owner && sessionId && !this.foreignSessions.has(sessionId)) {
+      try {
+        return await this.owner.request(method, params);
+      } catch (error) {
+        if (this.disposed) throw new Error("Muse transcript observer is closed.", { cause: error });
+        if (method !== "session/read" || !isMspRpcError(error) || error.kind !== "sessionNotFound")
+          throw error;
+        this.foreignSessions.add(sessionId);
+      }
+    }
     for (let attempt = 0; attempt < 2; attempt += 1) {
       if (!this.opening) {
         const opening = this.open().catch((error: unknown) => {

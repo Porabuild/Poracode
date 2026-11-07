@@ -43,7 +43,7 @@ vi.mock("electron", () => {
   return { Notification: FakeNotification };
 });
 
-import { showOsNotification } from "./osNotifications";
+import { showOsNotification, showUserNotificationFallback } from "./osNotifications";
 
 function createFakeWindow() {
   return {
@@ -124,6 +124,30 @@ describe("showOsNotification", () => {
     expect(() => notification.emit("click")).not.toThrow();
   });
 
+  it("reopens the thread through openThread when there is no live window on click", () => {
+    const openThread = vi.fn<(threadId: string) => void>();
+    showOsNotification({ title: "P", body: "B", threadId: "t7" }, () => null, openThread);
+
+    notificationState.instances[0]!.emit("click");
+
+    expect(openThread).toHaveBeenCalledExactlyOnceWith("t7");
+  });
+
+  it("prefers the live window over openThread on click", () => {
+    const win = createFakeWindow();
+    const openThread = vi.fn<(threadId: string) => void>();
+    showOsNotification({ title: "P", body: "B", threadId: "t8" }, () => win as never, openThread);
+
+    notificationState.instances[0]!.emit("click");
+
+    expect(win.focus).toHaveBeenCalledOnce();
+    expect(win.webContents.send).toHaveBeenCalledWith(IPC_EVENT_CHANNELS.threadOpenRequested, {
+      threadId: "t8",
+      source: "notification",
+    });
+    expect(openThread).not.toHaveBeenCalled();
+  });
+
   it("skips entirely when native notifications are unsupported", () => {
     notificationState.isSupported.mockReturnValue(false);
     const win = createFakeWindow();
@@ -140,5 +164,26 @@ describe("showOsNotification", () => {
     const shown = showOsNotification({ title: "P", body: "B", threadId: "t6" }, () => win as never);
 
     expect(shown).toBe(false);
+  });
+});
+
+describe("showUserNotificationFallback", () => {
+  it("forwards openThread to the OS notification", () => {
+    const openThread = vi.fn<(threadId: string) => void>();
+    const shown = showUserNotificationFallback(
+      {
+        threadId: "t9",
+        category: "done",
+        projectName: "Project",
+        threadTitle: "Thread",
+        status: "finished",
+      },
+      () => null,
+      openThread,
+    );
+
+    expect(shown).toBe(true);
+    notificationState.instances[0]!.emit("click");
+    expect(openThread).toHaveBeenCalledExactlyOnceWith("t9");
   });
 });

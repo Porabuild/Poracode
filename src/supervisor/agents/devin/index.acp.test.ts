@@ -84,6 +84,7 @@ const { DEVIN_NATIVE_PERSONAS_ACTION_ID } = await import("./personas/sessionActi
 const { DEVIN_CLOUD_DEFAULT_MODEL_ID, createDevinAcpModelResolver, parseDevinModelCatalog } =
   await import("./models");
 const { AcpSessionConfigSync, AcpConfigSelectionError } = await import("../acp/sessionConfigSync");
+const { DEVIN_ACP_PROMPT_STEERING } = await import("./acp/promptSteering");
 const { resolveDevinExecutionContext } = await import("./profileContext");
 const { devinSessionScopeIdentity } = await import("./sessionScope");
 const accountIdentity = await import("./accountIdentity");
@@ -330,6 +331,8 @@ describe("Devin structured-session wiring", () => {
       strictConfigSelection: true,
       promptUsageCounterKind: "per-call",
       promptUsageReportsContext: false,
+      promptUsageSampleId: expect.any(Function),
+      unreferencedTerminalCorrelation: "attribute-on-create",
       // Live local receipt: config writes are confirmed mid-prompt.
       allowConfigWritesDuringPrompt: true,
       // Local binds the native `speed` select onto the shared ThreadConfig
@@ -347,6 +350,9 @@ describe("Devin structured-session wiring", () => {
       modelCarriesEffort: expect.any(Function),
     });
     expect(wiredOverrides.behavior.fastConfigBinding).toEqual(DEVIN_ACP_FAST_CONFIG_BINDING);
+    // The negotiated steering declaration is forwarded verbatim for the
+    // default local composition; `initialize` decides support.
+    expect(wiredOverrides.promptSteering).toBe(DEVIN_ACP_PROMPT_STEERING);
     // The negotiated five-choice baseline resolves through sessionModes.
     expect(wiredOverrides.resolveMode({ model: "", approvalPolicy: "ask" }, ["ask"])).toBe("ask");
     // The throwing resolver is wired (strict pair); the legacy undefined
@@ -417,6 +423,19 @@ describe("Devin structured-session wiring", () => {
       strictConfigSelection: true,
     });
     expect((overrides as Record<string, any>).behavior.fastConfigBinding).toBeUndefined();
+    // Cloud carries the same negotiated steering declaration but no local
+    // usage-sample hook (cloud accounting is not qualified).
+    expect((overrides as Record<string, any>).promptSteering).toBe(DEVIN_ACP_PROMPT_STEERING);
+    expect((overrides as Record<string, any>).behavior.promptUsageSampleId).toBeUndefined();
+  });
+
+  it("forwards the exact steering declaration on the local profile path", async () => {
+    await profileAdapter({ instanceId: "work" }).createStructuredSession?.(guiInput({ model: "" }));
+    const [, , overrides] = mocks.createAcpStructuredSession.mock.calls[0]!;
+    expect((overrides as Record<string, any>).promptSteering).toBe(DEVIN_ACP_PROMPT_STEERING);
+    expect((overrides as Record<string, any>).behavior.promptUsageSampleId).toEqual(
+      expect.any(Function),
+    );
   });
 
   it("warms the local catalog under the fully volatile-scoped key material", async () => {
@@ -522,6 +541,42 @@ describe("Devin structured-session wiring", () => {
       ).rejects.toThrowError(/Unsupported model configuration/);
       expect(mocks.createAcpStructuredSession).not.toHaveBeenCalled();
     }
+  });
+
+  it("preserves explicit effort for live validation on an effort-less catalog family", async () => {
+    // The argv carries the id alone; explicit effort remains in the config
+    // for the strict post-open carrier check, whether supported or rejected.
+    mocks.warmDevinModels.mockImplementation(async () => [
+      {
+        id: "adaptive",
+        label: "Adaptive",
+        variants: [
+          {
+            id: "adaptive",
+            label: "Adaptive",
+            effort: "",
+            thinking: false,
+            fast: false,
+            context: "default" as const,
+          },
+        ],
+      },
+    ]);
+    const session = await createDevinAdapter().createStructuredSession?.(
+      guiInput({ model: "adaptive", effort: "medium" }),
+    );
+    expect(session).toBeDefined();
+    const [command, wiredInput] = mocks.createAcpStructuredSession.mock.calls[0]!;
+    expect(JSON.stringify(command)).toContain("adaptive");
+    expect((wiredInput as CreateStructuredSessionInput).config.effort).toBe("medium");
+    // Controls the family cannot carry still fail the open visibly.
+    mocks.createAcpStructuredSession.mockClear();
+    await expect(
+      createDevinAdapter().createStructuredSession?.(
+        guiInput({ model: "adaptive", effort: "medium", contextSize: "1m" }),
+      ),
+    ).rejects.toThrowError(/Unsupported model configuration/);
+    expect(mocks.createAcpStructuredSession).not.toHaveBeenCalled();
   });
 
   it("keeps the raw id when the catalog is unavailable and mapping was needed", async () => {
@@ -1228,6 +1283,67 @@ describe("Devin composite effort through the shared config sync", () => {
       { sessionId: "s1", configId: "thought_level", value: "low" },
     ]);
     expect(confirmed).toMatchObject({ model: pair, effort: "low" });
+  });
+
+  it("switches to a different Fusion pair on a later turn", async () => {
+    // A next-turn model change is a real setter, not just a repeat submit:
+    // the remembered native pair differs from the requested one.
+    const pairB = "fusion-gpt-6-astra-high-sidekick-swe-2-flash-max";
+    const pairBLabel = "Fusion (GPT-6 Astra High Thinking + SWE-2 Flash Max)";
+    const twoPairCatalog = parseDevinModelCatalog(
+      JSON.stringify({
+        families: [
+          {
+            family_label: "Fusion",
+            slug: "fusion",
+            variants: [
+              { model_uid: pair, label: pairLabel },
+              { model_uid: pairB, label: pairBLabel },
+            ],
+          },
+        ],
+      }),
+    );
+    let current: unknown[] = fixtureOptions("swe-2-high", "high");
+    current = current.map((entry) => {
+      const option = entry as { id: string; options: Array<{ value: string; name: string }> };
+      return option.id === "model"
+        ? {
+            ...option,
+            options: [...option.options, { value: pairB, name: pairBLabel }],
+          }
+        : option;
+    });
+    const setSessionConfigOption = vi.fn<
+      (input: { configId: string; value: string }) => Promise<{ configOptions: unknown[] }>
+    >(async ({ configId, value }) => {
+      current = echoOptions(current, configId, value);
+      return { configOptions: current };
+    });
+    const sync = new AcpSessionConfigSync(
+      { setSessionConfigOption } as never,
+      undefined,
+      createDevinAcpModelResolver({ families: twoPairCatalog }),
+      { strictConfigSelection: true },
+    );
+    sync.rememberOptions([], current);
+
+    const first = await sync.applyTurnConfig("s1", threadConfig({ model: pair }), undefined);
+    expect(first).toMatchObject({ model: pair });
+    sync.rememberOptions([], current);
+
+    setSessionConfigOption.mockClear();
+    const second = await sync.applyTurnConfig(
+      "s1",
+      threadConfig({ model: pairB, effort: "high" }),
+      first,
+    );
+    expect(second).toMatchObject({ model: pairB, effort: "high" });
+    // The model setter's own echo already carries the target pair's high
+    // thought level, so no redundant level write follows.
+    expect(setSessionConfigOption.mock.calls.map((call) => call[0])).toEqual([
+      { sessionId: "s1", configId: "model", value: pairB },
+    ]);
   });
 
   it("rejects a pair effort the advertised thought-level ladder does not carry", async () => {

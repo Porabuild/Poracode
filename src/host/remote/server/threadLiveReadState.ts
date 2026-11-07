@@ -8,6 +8,7 @@ import {
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import type { RemoteBroadcastEvent, RemoteServerContext } from "./context";
 import { dbGetThread } from "@/host/db";
+import { withPendingInterruptedTurn } from "./pendingInterruptedTurns";
 import { deriveThreadTurnTiming } from "./threadStatePersistence";
 
 type RuntimeLevel = Pick<
@@ -47,7 +48,9 @@ export class ThreadLiveReadState {
     thread: Thread,
   ): Pick<RemoteThreadSnapshot, "thread" | "runtimeStateCurrent"> {
     const runtimeThread = this.runtimeThreadFor(thread);
-    return runtimeThread ? { thread: runtimeThread, runtimeStateCurrent: true } : { thread };
+    return runtimeThread
+      ? { thread: withPendingInterruptedTurn(runtimeThread), runtimeStateCurrent: true }
+      : { thread: withPendingInterruptedTurn(thread) };
   }
 
   retainThreads(ids: ReadonlySet<string>): void {

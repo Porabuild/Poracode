@@ -6,8 +6,25 @@ import {
   isPullDirtyWorktreeError,
   setMessageResolver,
 } from "./messages";
+import { RemoteClientError } from "./remote/clientErrors";
 
 describe("friendlyErrorWithDetail", () => {
+  it("localizes controlled execution refusal after string-only IPC delivery", () => {
+    setMessageResolver((key) =>
+      key === "thread.execution.owned" ? "Otro cliente está ejecutando este hilo." : undefined,
+    );
+    try {
+      expect(
+        friendlyError(
+          new Error(
+            "Error invoking remote method 'sendThreadInput': Error: Another client is running this thread. Stop that run before replacing the thread or sending more input.",
+          ),
+        ),
+      ).toBe("Otro cliente está ejecutando este hilo.");
+    } finally {
+      setMessageResolver(undefined);
+    }
+  });
   it("localizes unsupported model options after source-language IPC serialization", () => {
     setMessageResolver((key) =>
       key === "modelSelection.unsupportedOptions" ? "Elige otras opciones de modelo." : undefined,
@@ -135,6 +152,29 @@ describe("friendlyErrorWithDetail", () => {
       summary: "Enter a valid absolute project path.",
       details: "A project path may not contain traversal segments.",
     });
+  });
+
+  it.each([
+    ["overloaded", "Too many active remote requests for this window."],
+    ["principal_busy", "This paired client has too much work in flight; retry shortly."],
+    [
+      "settings_overloaded",
+      "Settings update was refused by the settings authority (queue full); retry later.",
+    ],
+  ])("maps %s admission refusals to the localized busy message", (code, message) => {
+    const error = new RemoteClientError(message, 429, code);
+    expect(friendlyErrorWithDetail(error)).toEqual({
+      summary: "Too many remote requests are in progress. Try again in a moment.",
+      details: message,
+    });
+    setMessageResolver((key) =>
+      key === "remote.server.busy" ? "Hay demasiadas solicitudes remotas en curso." : undefined,
+    );
+    try {
+      expect(friendlyError(error)).toBe("Hay demasiadas solicitudes remotas en curso.");
+    } finally {
+      setMessageResolver(undefined);
+    }
   });
 
   it("maps worktree concurrency conflicts to a shared message", () => {

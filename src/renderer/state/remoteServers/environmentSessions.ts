@@ -5,6 +5,7 @@ import {
   environmentImageRefKey,
   environmentLocalImageKey,
   type EnvironmentImagePriority,
+  type EnvironmentImageVariant,
 } from "@/shared/remote/clientEnvironmentImages";
 import {
   RemoteEnvironmentClient,
@@ -18,6 +19,7 @@ import { mainProcessFetch } from "./mainProcessFetch";
 import {
   acquireRefreshSubjectOwnership,
   ensureConnectionIncarnation,
+  forgetRefreshTokenForSubject,
   managedEnvironmentRefreshSubject,
   ownsConnectionIncarnation,
   ownsRefreshSubject,
@@ -27,6 +29,9 @@ import {
   revokeConnectionIncarnation,
   type RefreshSubject,
 } from "./refreshTokens";
+import { commitSharedRefresh, runSharedRefresh } from "./sharedCredentials";
+import type { SharedServerRecords } from "./storeClient";
+import { noteDesktopTokenCommitted } from "./tokenVault";
 import { getManagedParentAuthority, type ManagedParentAuthority } from "./managedLoopbackOwner";
 import {
   environmentParentCacheKey,
@@ -77,6 +82,7 @@ import {
 export interface EnvironmentSessionDependencies {
   readonly getState: () => RemoteServersState;
   readonly clientFactory: () => RemoteDesktopClientFactory;
+  readonly persistAccessToken: (connectionKey: string, accessToken: string) => void;
   readonly certPinForConnection: (connectionKey: string) => string | undefined;
   readonly refreshTokenForSubject: (subject: RefreshSubject) => string | undefined;
   readonly rememberRefreshToken: (subject: RefreshSubject, token: string) => void;
@@ -86,6 +92,10 @@ export interface EnvironmentSessionDependencies {
     owner?: symbol,
   ) => Promise<boolean>;
   readonly deleteRefreshTokenFromVault: (subject: RefreshSubject) => Promise<void>;
+  /** Drops an in-memory grant; defaults to the refresh-token map. */
+  readonly forgetRefreshToken?: (subject: RefreshSubject) => void;
+  /** The shared persisted records; absent = no cross-realm endpoint check. */
+  readonly shared?: SharedServerRecords;
   /** Test seam; defaults to the production Electron/browser fetch + pin probe. */
   readonly createEnvironmentClient?: (
     endpoint: string,
@@ -146,8 +156,8 @@ export function environmentProxyEndpoint(parentEndpoint: string, environmentId: 
 
 export function environmentImageKeyForTarget(target: RemoteEnvironmentImageTarget): string {
   return target.kind === "ref"
-    ? environmentImageRefKey(target.ref)
-    : environmentLocalImageKey(target.path);
+    ? environmentImageRefKey(target.ref, target.variant)
+    : environmentLocalImageKey(target.path, target.variant);
 }
 
 function findServer(connectionKey: string): RemoteServerRecord | undefined {
@@ -246,32 +256,42 @@ function parentSessionFor(server: RemoteServerRecord): PersistedParentSession {
     accessToken: server.accessToken,
     ensureLive: null,
   };
-  client.setTokenLifecycle({
-    refreshToken: () =>
-      api.refreshTokenForSubject({ kind: "connection", connectionId: connectionKey }),
-    onTokensRefreshed: (tokens) => {
-      // Origin fence: a delayed rotation from a replaced session or a retired
-      // connection incarnation never updates the live token or the grant.
-      if (parentSessions.get(refKey) !== session) return;
-      if (!ownsConnectionIncarnation(connectionKey, incarnation)) return;
-      session.accessToken = tokens.accessToken;
-      if (tokens.refreshToken !== undefined) {
-        api.rememberRefreshToken(
-          { kind: "connection", connectionId: connectionKey },
-          tokens.refreshToken,
-        );
-        void api.writeRefreshTokenToVault(
-          { kind: "connection", connectionId: connectionKey },
-          tokens.refreshToken,
-          incarnation,
-        );
-      } else {
-        void api.deleteRefreshTokenFromVault({
-          kind: "connection",
-          connectionId: connectionKey,
-        });
-      }
+  const isCurrent = () =>
+    parentSessions.get(refKey) === session &&
+    ownsConnectionIncarnation(connectionKey, incarnation) &&
+    findServer(connectionKey)?.endpoint === server.endpoint;
+  const subject: RefreshSubject = { kind: "connection", connectionId: connectionKey };
+  // Origin fence: a delayed rotation from a replaced session or a retired
+  // connection incarnation never updates the live token or the grant. The
+  // connection's per-request clients share this grant, subject and lock.
+  const custody = {
+    subject,
+    bearerConnectionKey: connectionKey,
+    isCurrent,
+    canAdopt: () =>
+      !api.shared || api.shared.durableServer(connectionKey)?.endpoint === server.endpoint,
+    current: () => ({
+      accessToken: findServer(connectionKey)?.accessToken,
+      refreshToken: api.refreshTokenForSubject(subject),
+    }),
+    apply: (
+      pair: { accessToken: string | undefined; refreshToken: string | undefined },
+      durable: boolean,
+    ) => {
+      if (pair.refreshToken !== undefined) api.rememberRefreshToken(subject, pair.refreshToken);
+      else (api.forgetRefreshToken ?? forgetRefreshTokenForSubject)(subject);
+      if (pair.accessToken === undefined) return;
+      session.accessToken = pair.accessToken;
+      if (durable) noteDesktopTokenCommitted(connectionKey, pair.accessToken);
+      api.shared?.acknowledgeBearer(connectionKey, pair.accessToken);
+      api.persistAccessToken(connectionKey, pair.accessToken);
     },
+  };
+  client.setTokenLifecycle({
+    accessToken: () => (isCurrent() ? findServer(connectionKey)?.accessToken : undefined),
+    refreshToken: () => (isCurrent() ? api.refreshTokenForSubject(subject) : undefined),
+    onTokensRefreshed: (tokens) => commitSharedRefresh(custody, tokens),
+    runExclusive: (run) => runSharedRefresh(custody, run),
   });
   const pin = api.certPinForConnection(connectionKey);
   if (pin) client.setCertFingerprintPin(pin);
@@ -361,7 +381,8 @@ function parentAuthorityFor(
     return {
       accessToken: () => {
         const current = parentSessions.get(refKey);
-        if (current?.kind === "connection") return current.accessToken;
+        if (current?.kind === "connection")
+          return directParentFor(ref)?.accessToken ?? current.accessToken;
         // No live session (never built, or retired by an explicit re-pair that
         // is committing the new record): the persisted record's bearer is the
         // current pairing's token until the next lookup rebuilds the client.
@@ -494,6 +515,9 @@ interface EnvironmentClientInput {
   readonly childDesktopId?: string;
   readonly endpoint: string;
   readonly accessToken?: string;
+  /** The environment record's connection key, whose vault slot holds the
+   * child bearer; absent while pairing, before any record exists. */
+  readonly connectionKey?: string;
   /** Existing grant owner (a session rebuild keeps its own fence). */
   readonly grantOwner?: symbol;
 }
@@ -545,20 +569,67 @@ export function createEnvironmentClientForPairing(input: EnvironmentClientInput)
     ? api.createEnvironmentClient(input.endpoint, input.accessToken, options)
     : createDefaultEnvironmentClient(input.endpoint, input.accessToken, options);
   const childGrantKey = refreshSubjectVaultKey(grantSubject);
-  client.setTokenLifecycle({
-    refreshToken: () => api.refreshTokenForSubject(grantSubject),
-    onTokensRefreshed: (tokens) => {
-      // Origin fence: only the client that still owns this grant may write,
-      // and a disposal between response and write leaves the successor's
-      // grant untouched (including an explicit re-pair at the same endpoint).
-      if (!ownsRefreshSubject(grantSubject, grantOwner)) return;
-      if (tokens.refreshToken !== undefined) {
-        api.rememberRefreshToken(grantSubject, tokens.refreshToken);
-        void api.writeRefreshTokenToVault(grantSubject, tokens.refreshToken, grantOwner);
-      } else {
-        void api.deleteRefreshTokenFromVault(grantSubject);
+  // Origin fence: only the client that still owns this grant may write, and a
+  // disposal between response and write leaves the successor's grant untouched
+  // (including an explicit re-pair at the same endpoint).
+  const isCurrent = () => ownsRefreshSubject(grantSubject, grantOwner);
+  const parentDesktopId = ref.kind === "connection" ? directParentFor(ref)?.desktopId : undefined;
+  const childDesktopId =
+    input.childDesktopId ??
+    (input.connectionKey !== undefined ? findServer(input.connectionKey)?.desktopId : undefined);
+  // The child bearer lives with this client: committing a rotation to the
+  // record would rebuild the session and drop its mounted images.
+  let childAccessToken = input.accessToken;
+  const custody = {
+    subject: grantSubject,
+    bearerConnectionKey: input.connectionKey,
+    isCurrent,
+    canAdopt: () => {
+      if (!api.shared) return true;
+      let durableParentEndpoint = parentEndpoint;
+      if (ref.kind === "connection") {
+        const parent = api.shared.durableServer(ref.connectionId);
+        if (!parent || isEnvironmentServer(parent) || parent.desktopId !== parentDesktopId)
+          return false;
+        durableParentEndpoint = parent.endpoint;
+      } else if (managedParentFor(ref)?.endpoint !== parentEndpoint) return false;
+      if (environmentProxyEndpoint(durableParentEndpoint, input.environmentId) !== input.endpoint)
+        return false;
+      if (input.connectionKey === undefined || childDesktopId === undefined) return false;
+      const child = api.shared.durableServer(input.connectionKey);
+      if (!child || child.transport?.kind !== "environment") return false;
+      const childParent = environmentParentRef(child.transport);
+      return (
+        childParent !== undefined &&
+        environmentParentCacheKey(childParent) === environmentParentCacheKey(ref) &&
+        child.transport.environmentId === input.environmentId &&
+        child.desktopId === childDesktopId &&
+        (child.transport.childDesktopId ?? child.desktopId) === childDesktopId
+      );
+    },
+    current: () => ({
+      accessToken: childAccessToken,
+      refreshToken: api.refreshTokenForSubject(grantSubject),
+    }),
+    apply: (
+      pair: { accessToken: string | undefined; refreshToken: string | undefined },
+      durable: boolean,
+    ) => {
+      if (pair.refreshToken !== undefined)
+        api.rememberRefreshToken(grantSubject, pair.refreshToken);
+      else (api.forgetRefreshToken ?? forgetRefreshTokenForSubject)(grantSubject);
+      if (pair.accessToken === undefined) return;
+      childAccessToken = pair.accessToken;
+      if (durable && input.connectionKey !== undefined) {
+        noteDesktopTokenCommitted(input.connectionKey, pair.accessToken);
       }
     },
+  };
+  client.setTokenLifecycle({
+    accessToken: () => (isCurrent() ? childAccessToken : undefined),
+    refreshToken: () => api.refreshTokenForSubject(grantSubject),
+    onTokensRefreshed: (tokens) => commitSharedRefresh(custody, tokens),
+    runExclusive: (run) => runSharedRefresh(custody, run),
   });
   return { client, parentAuthority, childGrantSubject: grantSubject, childGrantKey, grantOwner };
 }
@@ -592,9 +663,13 @@ const environmentImageBindings = new Map<string, Map<string, Set<EnvironmentImag
 function requestBinding(binding: EnvironmentImageBinding): void {
   if (!binding.target || !binding.client) return;
   if (binding.target.kind === "ref") {
-    binding.client.imageRefResolution(binding.target.ref, binding.priority);
+    binding.client.imageRefResolution(binding.target.ref, binding.priority, binding.target.variant);
   } else {
-    binding.client.localImageResolution(binding.target.path, binding.priority);
+    binding.client.localImageResolution(
+      binding.target.path,
+      binding.priority,
+      binding.target.variant,
+    );
   }
 }
 
@@ -701,6 +776,7 @@ export function environmentSessionForServer(
     ...(transport.childDesktopId !== undefined ? { childDesktopId: transport.childDesktopId } : {}),
     endpoint,
     ...(server.accessToken !== undefined ? { accessToken: server.accessToken } : {}),
+    connectionKey,
   });
   if (!created) return undefined;
   const session: EnvironmentClientSession = {
@@ -772,24 +848,40 @@ export function __resetEnvironmentSessionDependenciesForTest(): void {
  * drive `useSyncExternalStore` with `subscribe*` + `resolve*` and call
  * `request*` from an effect, so `getSnapshot` stays pure.
  * Mounted image consumers default to foreground priority. Gallery observers
- * and prefetch requests use background priority so cache limits cannot turn
- * enumeration of off-screen history into repeated downloads and evictions.
+ * use background priority so cache limits cannot turn enumeration of
+ * off-screen history into repeated downloads and evictions; the bounded
+ * running-thread warmup uses prefetch priority.
  */
 export interface RemoteImageReadiness {
-  readonly resolveRef: (ref: RemoteImageRefValue) => string;
+  readonly resolveRef: (ref: RemoteImageRefValue, variant?: EnvironmentImageVariant) => string;
   readonly subscribeRef: (
     ref: RemoteImageRefValue,
     listener: () => void,
     priority?: EnvironmentImagePriority,
+    variant?: EnvironmentImageVariant,
+    requestOnRebind?: boolean,
   ) => () => void;
-  readonly requestRef: (ref: RemoteImageRefValue, priority?: EnvironmentImagePriority) => void;
-  readonly resolvePath: (path: string) => string;
+  /** `rank` is the requester's transcript position; higher starts first. */
+  readonly requestRef: (
+    ref: RemoteImageRefValue,
+    priority?: EnvironmentImagePriority,
+    variant?: EnvironmentImageVariant,
+    rank?: number,
+  ) => void;
+  readonly resolvePath: (path: string, variant?: EnvironmentImageVariant) => string;
   readonly subscribePath: (
     path: string,
     listener: () => void,
     priority?: EnvironmentImagePriority,
+    variant?: EnvironmentImageVariant,
+    requestOnRebind?: boolean,
   ) => () => void;
-  readonly requestPath: (path: string, priority?: EnvironmentImagePriority) => void;
+  readonly requestPath: (
+    path: string,
+    priority?: EnvironmentImagePriority,
+    variant?: EnvironmentImageVariant,
+    rank?: number,
+  ) => void;
 }
 
 /**
@@ -802,28 +894,40 @@ export function environmentImageReadinessFor(
   const server = findServer(connectionKey);
   if (!server || server.transport?.kind !== "environment") return undefined;
   return {
-    resolveRef: (ref) => environmentImageUrl(connectionKey, environmentImageRefKey(ref)),
-    subscribeRef: (ref, listener, priority) =>
+    resolveRef: (ref, variant) =>
+      environmentImageUrl(connectionKey, environmentImageRefKey(ref, variant)),
+    subscribeRef: (ref, listener, priority, variant, requestOnRebind = true) =>
       subscribeEnvironmentImage(
         connectionKey,
-        environmentImageRefKey(ref),
+        environmentImageRefKey(ref, variant),
         listener,
-        { kind: "ref", ref },
+        requestOnRebind ? { kind: "ref", ref, ...(variant ? { variant } : {}) } : undefined,
         priority,
       ),
-    requestRef: (ref, priority) =>
-      requestEnvironmentImage(connectionKey, { kind: "ref", ref }, priority),
-    resolvePath: (path) => environmentImageUrl(connectionKey, environmentLocalImageKey(path)),
-    subscribePath: (path, listener, priority) =>
+    requestRef: (ref, priority, variant, rank) =>
+      requestEnvironmentImage(
+        connectionKey,
+        { kind: "ref", ref, ...(variant ? { variant } : {}) },
+        priority,
+        rank,
+      ),
+    resolvePath: (path, variant) =>
+      environmentImageUrl(connectionKey, environmentLocalImageKey(path, variant)),
+    subscribePath: (path, listener, priority, variant, requestOnRebind = true) =>
       subscribeEnvironmentImage(
         connectionKey,
-        environmentLocalImageKey(path),
+        environmentLocalImageKey(path, variant),
         listener,
-        { kind: "localPath", path },
+        requestOnRebind ? { kind: "localPath", path, ...(variant ? { variant } : {}) } : undefined,
         priority,
       ),
-    requestPath: (path, priority) =>
-      requestEnvironmentImage(connectionKey, { kind: "localPath", path }, priority),
+    requestPath: (path, priority, variant, rank) =>
+      requestEnvironmentImage(
+        connectionKey,
+        { kind: "localPath", path, ...(variant ? { variant } : {}) },
+        priority,
+        rank,
+      ),
   };
 }
 
@@ -844,16 +948,17 @@ export function requestEnvironmentImage(
   connectionKey: string,
   target: RemoteEnvironmentImageTarget,
   priority?: EnvironmentImagePriority,
+  rank?: number,
 ): void {
   const server = findServer(connectionKey);
   if (!server) return;
   const session = environmentSessionForServer(server);
   if (!session) return;
   if (target.kind === "ref") {
-    session.client.imageRefResolution(target.ref, priority);
+    session.client.imageRefResolution(target.ref, priority, target.variant, rank);
     return;
   }
-  session.client.localImageResolution(target.path, priority);
+  session.client.localImageResolution(target.path, priority, target.variant, rank);
 }
 
 /**

@@ -3,20 +3,9 @@ import type { McpServer, Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import type { RemoteProjectSettings } from "@/shared/remote/protocol";
 import { i18n } from "@/renderer/i18n/i18n";
-import {
-  readManagedLoopbackActivation,
-  subscribeManagedLoopbackActivation,
-  type ManagedLoopbackActivationSnapshot,
-} from "@/renderer/hostTransport/loopbackHttpWsTransport";
+import { subscribeManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { useAppStore } from "@/renderer/state/appStore";
-import {
-  isManagedRootDesktopRuntime,
-  managedRootOfflineError,
-} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { isManagedRootRow } from "@/renderer/state/managedRootCatalog/rootCatalogRows";
-import { currentRemoteServerGeneration } from "@/renderer/state/remoteServers/eventSocketRegistry";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { entityHost, type EntityHost } from "@/renderer/state/entityHost";
 
 /**
  * Authoritative project MCP-settings access.
@@ -37,20 +26,10 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
  * refreshes may replace row objects without retiring their settings entry.
  */
 
+/** The owning host captured at request time; its session fences reconnects. */
 type SettingsOwner =
   | { readonly kind: "local" }
-  | {
-      readonly kind: "remote";
-      readonly desktopId: string;
-      readonly remoteId: string;
-      /** `currentRemoteServerGeneration` at request time; fences reconnects. */
-      readonly generation: number;
-    }
-  | {
-      readonly kind: "root";
-      readonly remoteId: string;
-      readonly activation: ManagedLoopbackActivationSnapshot | null;
-    };
+  | { readonly kind: "host"; readonly host: EntityHost };
 
 interface SettingsEntry {
   readonly owner: SettingsOwner;
@@ -69,7 +48,7 @@ function ensureOwnerObservers(): void {
   observingOwners = true;
   subscribeManagedLoopbackActivation(() => {
     for (const [id, entry] of entries) {
-      if (entry.owner.kind === "root") entries.delete(id);
+      if (entry.owner.kind === "host" && entry.owner.host.kind === "managed") entries.delete(id);
     }
   });
   useAppStore.subscribe((state, previous) => {
@@ -86,31 +65,13 @@ function resolveSettingsOwner(project: Project): SettingsOwner {
   // The Home row has no MCP settings surface of its own; keeping it out of the
   // fetch paths also keeps its synthetic pre-host row away from the endpoint.
   if (isHomeProject(project)) return { kind: "local" };
-  const owner = remoteOwner(project);
-  if (owner) {
-    return {
-      kind: "remote",
-      desktopId: owner.desktopId,
-      remoteId: owner.remoteId,
-      generation: currentRemoteServerGeneration(owner.desktopId),
-    };
-  }
-  if (isManagedRootRow(project) && isManagedRootDesktopRuntime()) {
-    return { kind: "root", remoteId: project.id, activation: readManagedLoopbackActivation() };
-  }
-  return { kind: "local" };
+  const host = entityHost(project);
+  return host ? { kind: "host", host } : { kind: "local" };
 }
 
 function sameOwner(left: SettingsOwner, right: SettingsOwner): boolean {
-  if (left.kind === "remote" && right.kind === "remote") {
-    return (
-      left.desktopId === right.desktopId &&
-      left.remoteId === right.remoteId &&
-      left.generation === right.generation
-    );
-  }
-  if (left.kind === "root" && right.kind === "root") {
-    return left.remoteId === right.remoteId && left.activation === right.activation;
+  if (left.kind === "host" && right.kind === "host") {
+    return left.host.sessionKey === right.host.sessionKey && left.host.hostId === right.host.hostId;
   }
   return left.kind === "local" && right.kind === "local";
 }
@@ -132,22 +93,18 @@ function entryFor(project: Project, owner: SettingsOwner): SettingsEntry {
 
 function currentEntryRow(projectId: string, entry: SettingsEntry): Project | undefined {
   if (entries.get(projectId) !== entry) return undefined;
-  if (entry.owner.kind === "root" && !entry.owner.activation) return undefined;
+  if (entry.owner.kind === "host" && !entry.owner.host.isCurrent()) return undefined;
   const row = useAppStore.getState().projects.find((project) => project.id === projectId);
   return row && sameOwner(entry.owner, resolveSettingsOwner(row)) ? row : undefined;
 }
 
 function fetchOwnerSettings(owner: SettingsOwner): Promise<RemoteProjectSettings> {
-  if (owner.kind === "remote") {
-    return useRemoteServersStore
-      .getState()
-      .withClient(owner.desktopId, (client) => client.projectSettings(owner.remoteId));
-  }
   // Always a rejected promise, never a synchronous throw: fire-and-forget
   // callers hang `.catch` off the returned promise, which a throw here would
   // escape entirely.
-  if (owner.kind !== "root" || !owner.activation) return Promise.reject(managedRootOfflineError());
-  return owner.activation.client.projectSettings(owner.remoteId);
+  if (owner.kind !== "host") return Promise.reject(refusalError());
+  const { host } = owner;
+  return host.withClient((client) => client.projectSettings(host.hostId));
 }
 
 function applySettings(
@@ -174,7 +131,7 @@ function applySettings(
 export function isProjectMcpServersLoaded(project: Project): boolean {
   const owner = resolveSettingsOwner(project);
   if (owner.kind === "local") return true;
-  if (owner.kind === "root" && !owner.activation) return false;
+  if (!owner.host.isCurrent()) return false;
   const entry = entries.get(project.id);
   return (
     entry?.loaded === true &&

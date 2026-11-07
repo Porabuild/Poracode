@@ -5,7 +5,9 @@ import com.poracode.app.chat.RichRuntimeEvent
 import com.poracode.app.chat.RichThreadKey
 import com.poracode.app.chat.RichThreadState
 import com.poracode.app.model.ClientConnectionId
+import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.protocol.BackgroundTask
 import com.poracode.app.transport.richchat.AttachmentUploadBody
 import com.poracode.app.transport.richchat.BinaryRequestPlan
 import com.poracode.app.transport.richchat.RequestResolution
@@ -118,6 +120,19 @@ data class RichChatHistorySnapshot(
     val updatedAt: String,
     /** B1 declared-read notice; null when the wire omitted it, never a clear. */
     val runtimeNotice: com.poracode.app.model.RemoteRuntimeHistoryNotice? = null,
+    /**
+     * True when the wire snapshot carried an explicit `backgroundTasks` array.
+     * Absent means an old host (or a host that omitted the field): the install
+     * preserves the retained same-owner level. An explicit valid array —
+     * including [] — is authoritative and drains when empty.
+     */
+    val backgroundTasksPresent: Boolean = false,
+    /**
+     * Authoritative live background work from the snapshot. Null when
+     * [backgroundTasksPresent] is false; an empty list is a present drain, not
+     * an omission.
+     */
+    val backgroundTasks: List<BackgroundTask>? = null,
 )
 
 data class RichChatHistoryPage(
@@ -163,6 +178,9 @@ data class RichTerminalWatchRequest(
 }
 
 interface RichChatSessionGateway {
+    suspend fun controlMcpApp(lease: RichChatHostLease, threadId: String, payload: JsonObject): JsonObject {
+        throw com.poracode.app.transport.richchat.RichChatTransportUnavailableException()
+    }
     suspend fun history(
         lease: RichChatHostLease,
         threadId: String,
@@ -334,6 +352,20 @@ interface RichChatSessionGateway {
         itemId: String,
         path: List<RuntimeImagePathSegment>,
     ): RemoteBinaryResponse = throw RichChatGatewayException(501, "binary_transport", false)
+
+    /**
+     * Chat file-card download: mint → authenticated streamed GET → release on
+     * the same lease. The unique private result file is caller-owned; hosts
+     * without the route fail closed through the default 501.
+     */
+    suspend fun downloadRichFile(
+        lease: RichChatHostLease,
+        request: com.poracode.app.chat.RichChatFileAccess,
+        projectLocation: ProjectLocation,
+        suggestedName: String,
+        destinationDirectory: java.io.File,
+    ): com.poracode.app.transport.richchat.RichChatDownloadedFile =
+        throw RichChatGatewayException(501, "file_transport", false)
 
     suspend fun startTerminal(lease: RichChatHostLease, input: TerminalStartInput)
     suspend fun watchTerminal(lease: RichChatHostLease, request: RichTerminalWatchRequest)

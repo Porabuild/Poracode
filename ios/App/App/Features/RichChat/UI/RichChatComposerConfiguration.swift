@@ -409,7 +409,12 @@ struct RichChatComposerControlCatalog {
     } ?? []
   }
 
-  func slashSuggestions(for draft: String) -> [RichChatSlashCommandOption] {
+  func slashSuggestions(for draft: String, selection: NSRange? = nil) -> [RichChatSlashCommandOption] {
+    if let reference = RichChatSkillReference.atCaret(in: draft, selection: selection) {
+      return slashCommands.filter {
+        $0.skill != nil && (reference.query.isEmpty || $0.displayID.localizedCaseInsensitiveContains(reference.query))
+      }
+    }
     guard draft.hasPrefix("/"), !draft.contains(where: { $0.isWhitespace }) else { return [] }
     let query = String(draft.dropFirst()).lowercased()
     return slashCommands.filter {
@@ -446,6 +451,25 @@ struct RichChatComposerControlCatalog {
       == true
   }
 
+  /// Workflow mode is a static per-model capability (`workflowModels`); unlike
+  /// Fast/Thinking it has no live negotiated variant.
+  func supportsWorkflows(_ modelID: String) -> Bool {
+    HomeComposerCatalog.supportsWorkflows(capabilities: capabilities, modelID: modelID)
+  }
+
+  /// The provider's own name for the mode, or the localized generic fallback.
+  var workflowsLabel: String {
+    HomeComposerCatalog.workflowLabel(capabilities: capabilities) ?? RichChatStrings.workflows
+  }
+
+  /// A model change must not carry workflow mode onto a model that does not
+  /// offer it. Absent stays absent: the default is off, never defaulted on.
+  func clearUnsupportedWorkflows(in configuration: inout ThreadConfig) {
+    if configuration.workflows == true, !supportsWorkflows(configuration.model) {
+      configuration.workflows = false
+    }
+  }
+
   func applyModel(_ modelID: String, to configuration: inout ThreadConfig) {
     // A family target resolves through the relation: the row click adopts (or
     // retains) an exact member atomically, and the encoded carriers stay
@@ -458,6 +482,7 @@ struct RichChatComposerControlCatalog {
         accepted: familyAcceptedIDs)
       {
         configuration.apply(patch)
+        clearUnsupportedWorkflows(in: &configuration)
       }
       return
     }
@@ -479,6 +504,7 @@ struct RichChatComposerControlCatalog {
     configuration.model = modelID
     if !supportsFast(modelID) { configuration.fast = false }
     configuration.thinking = supportsThinking(modelID)
+    clearUnsupportedWorkflows(in: &configuration)
   }
 
   private func defaultEffort(for modelID: String, available: Set<String>) -> String? {
@@ -747,8 +773,9 @@ struct RichChatComposerControlsSheet: View {
     let contexts = catalog.contextOptions(for: draft.model)
     let supportsFast = catalog.supportsFast(draft.model)
     let supportsThinking = catalog.supportsThinking(draft.model)
+    let supportsWorkflows = catalog.supportsWorkflows(draft.model)
     if !selectors.isEmpty || efforts.count > 1 || contexts.count > 1 || supportsFast
-      || supportsThinking
+      || supportsThinking || supportsWorkflows
     {
       Section(SettingsUIStrings.configurationSection) {
         // Conditional family selectors: they change only the model coordinate
@@ -773,6 +800,9 @@ struct RichChatComposerControlsSheet: View {
         }
         if supportsThinking {
           Toggle(RichChatStrings.thinking, isOn: optionalBooleanBinding(\.thinking))
+        }
+        if supportsWorkflows {
+          Toggle(catalog.workflowsLabel, isOn: optionalBooleanBinding(\.workflows))
         }
       }
     }

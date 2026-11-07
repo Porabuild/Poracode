@@ -633,7 +633,10 @@ function applyRuntimeEventToRuntimeState(
     }
 
     case "error":
-      return appendErrorItem(state, threadId, { message: event.message });
+      return appendErrorItem(state, threadId, {
+        message: event.message,
+        ...(event.reason ? { reason: event.reason } : {}),
+      });
 
     default:
       return {};

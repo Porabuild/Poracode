@@ -48,6 +48,18 @@ export declare function assertTargetCoverage(
   targets: readonly string[],
 ): { nodePtyDirs: string[]; sqliteDirs: string[] };
 
+export declare function stageServiceLaunchers(
+  resourceRoot: string,
+  stageResources: string,
+  targets: readonly string[],
+): string[];
+
+export declare function stagePtyJobOwners(
+  resourceRoot: string,
+  stageResources: string,
+  targets: readonly string[],
+): string[];
+
 export declare function webClientIdentity(rendererDir: string): {
   present: true;
   files: number;

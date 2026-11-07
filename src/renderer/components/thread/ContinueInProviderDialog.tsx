@@ -13,10 +13,12 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { resolveLaunchPluginOverrides } from "@/shared/contracts";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { readBridge } from "@/renderer/bridge";
+import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import type { ComposerControl } from "./ThreadComposer";
 import { ThreadComposer } from "./ThreadComposer";
 import { isPlanModeControl } from "../providers/composerControlBuilders";
@@ -58,9 +60,11 @@ import {
   type ComposerMcpMenuItem,
 } from "../composer/ComposerAddMenu";
 import { openMcpServersSettings } from "@/renderer/actions/panelActions";
-import { updateProjectMcpServers } from "@/renderer/actions/projectActions";
 import { getComputerUseScope } from "../composer/computerUseScope";
+import { composerCustomMcpItems } from "../composer/composerCustomMcpServers";
+import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
+import { canLeadCrew, threadCrewBinding } from "@/shared/crew";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import {
   bindLeadingSkillUnlessLocalAction,
@@ -76,6 +80,7 @@ import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import {
   agentStatusForPresentation,
+  capabilitiesForPresentation,
   filterHiddenModels,
   hasSelectableReasoning,
 } from "@/shared/agentSelection";
@@ -94,6 +99,7 @@ import {
 } from "@/shared/modelFamilySelection";
 import { applyThreadConfigMutation, type SelectionMutationEvent } from "@/shared/selectionBinding";
 import { useAppStore } from "@/renderer/state/appStore";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   buildTranscriptContext,
@@ -237,6 +243,7 @@ export function ContinueInProviderDialog(props: {
   });
 
   const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
+  useAgentSlashCommandCatalog(thread.remoteServerId, selectedAgent?.kind, props.isOpen);
   const sourceRuntimeStatus = sourceAgent
     ? agentStatusForPresentation(sourceAgent, sourcePresentationMode, thread.sessionRef)
     : undefined;
@@ -262,6 +269,17 @@ export function ContinueInProviderDialog(props: {
         )
       : { model: "" },
   );
+  const sourceCrew = threadCrewBinding(thread.config);
+  const targetCanLeadCrew = Boolean(
+    selectedAgent &&
+    canLeadCrew(
+      capabilitiesForPresentation(selectedAgent.capabilities, targetPresentationMode),
+      targetPresentationMode,
+    ),
+  );
+  const targetConfigForHandoff = sourceCrew
+    ? { ...targetConfig, crew: targetCanLeadCrew ? sourceCrew : null }
+    : targetConfig;
 
   // Every deliberate target edit lands through the shared selection mutation
   // for the target owner: the event alone decides the binding, so a restored
@@ -449,15 +467,24 @@ export function ContinueInProviderDialog(props: {
   const [commandPanelPosition, setCommandPanelPosition] = useState<CommandPanelPosition | null>(
     null,
   );
+  const projectPluginOverrides = useAppStore(
+    (s) => s.projects.find((project) => project.id === thread.projectId)?.pluginOverrides,
+  );
+  const pluginOverrides = resolveLaunchPluginOverrides(
+    projectPluginOverrides,
+    thread.config.pluginOverrides,
+  );
   const { commands: skillCommands } = useSkillSlashCommandState(
     props.projectLocation,
     selectedKind,
     targetPresentationMode,
+    pluginOverrides,
   );
   const pluginMentions = usePluginMentionItems(
     props.projectLocation,
     selectedKind,
     targetPresentationMode,
+    pluginOverrides,
   );
   const threadMentions = useThreadMentionItems(
     {
@@ -469,11 +496,12 @@ export function ContinueInProviderDialog(props: {
   );
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
-  const setUserCustomMcpServers = useSharedSettings((s) => s.setMcpServers);
   const providerMcpSettings = useSharedSettings((s) => s.agentSettings[selectedKind]);
-  const projectCustomMcpServers = useAppStore(
-    (s) => s.projects.find((project) => project.id === thread.projectId)?.mcpServers,
+  const threadProject = useAppStore((s) =>
+    s.projects.find((project) => project.id === thread.projectId),
   );
+  useResidentProjectMcpServers(threadProject);
+  const projectCustomMcpServers = threadProject?.mcpServers;
 
   const selectedTargetCapabilities = selectedAgent
     ? visibleCapabilities(selectedAgent, targetPresentationMode, allHiddenModels)
@@ -600,10 +628,12 @@ export function ContinueInProviderDialog(props: {
   // servers that are off can be turned on from the mention list (it patches the
   // target config); custom servers come from settings and are informational.
   const providerOwnsMcp = targetCapabilities ? providerOwnsMcpConfig(targetCapabilities) : false;
-  // Mirrored desktop threads launch from their host's settings. This renderer
-  // does not own that MCP snapshot, so showing or mutating its local controls
-  // would promise servers the host may not launch.
-  const mcpControlsAvailable = targetCapabilities !== undefined && !thread.remoteServerId;
+  // The MCP settings and server lists read here are this machine's. A thread
+  // on another host launches from that host's own settings, which this
+  // renderer does not own, so showing or mutating the local controls would
+  // promise servers the host may not launch.
+  const settingsOwnedHere = hostRunsOnThisMachine(thread);
+  const mcpControlsAvailable = targetCapabilities !== undefined && settingsOwnedHere;
   const mergedCustomMcpServers = mergeMcpServers(
     userCustomMcpServers,
     projectCustomMcpServers ?? [],
@@ -727,32 +757,17 @@ export function ContinueInProviderDialog(props: {
   // Custom servers bind at launch from settings, not per-thread config, so
   // these rows flip the same persistent switch the MCP Servers page does — the
   // draft composer's menu behaves identically.
-  const projectCustomMcpIds = new Set((projectCustomMcpServers ?? []).map((server) => server.id));
-  const mcpMenuCustomServers: ComposerCustomMcpItem[] = (
-    mcpControlsAvailable
+  const mcpMenuCustomServers: ComposerCustomMcpItem[] = composerCustomMcpItems({
+    servers: mcpControlsAvailable
       ? providerOwnsMcp
         ? mergedCustomMcpServers.filter((server) => server.enabled)
         : mergedCustomMcpServers
-      : []
-  ).map((server) => {
-    const isProject = projectCustomMcpIds.has(server.id);
-    const scopedServers = isProject ? (projectCustomMcpServers ?? []) : userCustomMcpServers;
-    return {
-      id: `${isProject ? "project" : "user"}:${server.id}`,
-      name: server.name,
-      enabled: server.enabled,
-      ...(providerOwnsMcp
-        ? {}
-        : {
-            onToggle: (next: boolean) => {
-              const nextServers = scopedServers.map((item) =>
-                item.id === server.id ? { ...item, enabled: next } : item,
-              );
-              if (isProject) updateProjectMcpServers(thread.projectId, nextServers);
-              else setUserCustomMcpServers(nextServers);
-            },
-          }),
-    };
+      : [],
+    userServers: userCustomMcpServers,
+    projectServers: projectCustomMcpServers ?? [],
+    projectId: thread.projectId,
+    projectLocation: props.projectLocation,
+    editable: !providerOwnsMcp,
   });
 
   function handleMcpMentionSelect(id: string) {
@@ -797,8 +812,12 @@ export function ContinueInProviderDialog(props: {
     return resolveProviderHandoffStrategy({
       sourcePresentationMode,
       targetPresentationMode,
-      isMirroredThread: thread.remoteServerId !== undefined,
-      readThreadToolEnabled: readThreadToolsEnabled,
+      // Local settings can veto the last session's launch snapshot. A paired
+      // host reports its own resolved tool availability; this machine's
+      // settings say nothing about whether that host can read its history.
+      readThreadToolEnabled: settingsOwnedHere
+        ? readThreadToolsEnabled
+        : threadMentionToolsAvailable,
       threadResolvedReadThreadTool: threadMentionToolsAvailable,
       targetReadThreadToolGuaranteed:
         targetCapabilities !== undefined &&
@@ -840,7 +859,7 @@ export function ContinueInProviderDialog(props: {
     if (handoffStrategy() === "thread-transcript") {
       onContinue(
         selectedKind,
-        targetConfig,
+        targetConfigForHandoff,
         targetPresentationMode,
         submission.prompt,
         submission.segments,
@@ -865,7 +884,7 @@ export function ContinueInProviderDialog(props: {
     if (history) {
       onContinue(
         selectedKind,
-        targetConfig,
+        targetConfigForHandoff,
         targetPresentationMode,
         submission.prompt,
         submission.segments,
@@ -875,13 +894,12 @@ export function ContinueInProviderDialog(props: {
       return;
     }
 
-    if (!thread.sessionRef || thread.remoteServerId !== undefined) {
-      // Nothing stored and no session to extract from — or a mirrored thread,
-      // whose `extractContext` is a host-side procedure this renderer
-      // deliberately does not route. The new provider starts without context.
+    if (!thread.sessionRef) {
+      // Nothing stored and no session to extract from. The new provider starts
+      // without context.
       onContinue(
         selectedKind,
-        targetConfig,
+        targetConfigForHandoff,
         targetPresentationMode,
         submission.prompt,
         submission.segments,
@@ -903,7 +921,7 @@ export function ContinueInProviderDialog(props: {
       });
       onContinue(
         selectedKind,
-        targetConfig,
+        targetConfigForHandoff,
         targetPresentationMode,
         submission.prompt,
         submission.segments,
@@ -934,7 +952,7 @@ export function ContinueInProviderDialog(props: {
     if (!submission) return;
     onContinue(
       selectedKind,
-      targetConfig,
+      targetConfigForHandoff,
       targetPresentationMode,
       submission.prompt,
       submission.segments,
@@ -945,6 +963,8 @@ export function ContinueInProviderDialog(props: {
 
   const canSubmit = Boolean(selectedKind && targetConfig.model) && !attachments.isUploading;
   const targetProviderFallback = t`the target provider`;
+  const sourceCrewName = sourceCrew?.name ?? t`Crew`;
+  const targetProviderLabel = selectedAgent?.label ?? targetProviderFallback;
   const switchOpensNewThread = !continuesInPlace(sourcePresentationMode, targetPresentationMode);
 
   return (
@@ -978,6 +998,13 @@ export function ContinueInProviderDialog(props: {
                         </Trans>
                       </p>
                     )}
+                    {sourceCrew ? (
+                      <p className="text-center text-xs text-muted">
+                        {targetCanLeadCrew
+                          ? t`${sourceCrewName} comes along.`
+                          : t`${sourceCrewName} stays behind: ${targetProviderLabel} can't lead a crew.`}
+                      </p>
+                    ) : null}
                   </div>
                   <div ref={composerContainerRef} className="relative flex flex-col gap-1.5">
                     {commandPanelPosition && mentionPortalRoot

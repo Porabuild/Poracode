@@ -70,7 +70,7 @@ describe("device tool plugin access and caller proof", () => {
       buildContext: (identity) =>
         ({
           identity,
-          getThread: () => ({ id: identity.threadId }),
+          getThread: () => ({ id: identity.threadId, config: {} }),
           deviceWorkspace: devices,
           settings: { read: () => settings },
         }) as unknown as AppControlsToolContext,
@@ -203,7 +203,7 @@ describe("device tool plugin access and caller proof", () => {
           "thread-A",
         ),
       },
-      getThread: () => ({ id: "thread-A" }),
+      getThread: () => ({ id: "thread-A", config: {} }),
       deviceWorkspace: devices,
       settings: { read: () => settings },
     } as unknown as AppControlsToolContext;

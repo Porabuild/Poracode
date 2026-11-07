@@ -5,7 +5,6 @@ import {
   Boxes,
   PanelLeft,
   PanelLeftClose,
-  RefreshCw,
   Search,
   Settings2,
 } from "lucide-react";
@@ -22,7 +21,7 @@ import {
   sidebarIconRailFooterClass,
 } from "@/renderer/components/layout/sidebarChrome";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
-import { PixelLoader, SidebarButton } from "@/renderer/components/common";
+import { SidebarButton } from "@/renderer/components/common";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
 import { isDevApp, isRemoteSession, isWindows } from "@/renderer/bridge";
 import { useSettingsNavigation } from "./settingsNavigation";
@@ -108,18 +107,8 @@ export function SettingsSidebar(props: {
   onClose: () => void;
   installedAgents: AgentStatus[];
   attentionAgentKinds: ReadonlySet<AgentStatus["kind"]>;
-  isRefreshingAgents: boolean;
-  onRefreshAgents: () => void;
 }) {
-  const {
-    activeSection,
-    onSectionChange,
-    onClose,
-    installedAgents,
-    attentionAgentKinds,
-    isRefreshingAgents,
-    onRefreshAgents,
-  } = props;
+  const { activeSection, onSectionChange, onClose, installedAgents, attentionAgentKinds } = props;
   const { t } = useLingui();
   const { isCollapsed, collapse, expand } = useSidebar();
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
@@ -264,21 +253,6 @@ export function SettingsSidebar(props: {
                         isActive={isAgentsActive}
                         onPress={openAgents}
                       />
-                      {isAgentsActive && (
-                        <SettingsNavButton
-                          iconOnly
-                          icon={
-                            isRefreshingAgents ? (
-                              <PixelLoader size="sm" />
-                            ) : (
-                              <RefreshCw className="size-4" />
-                            )
-                          }
-                          label={t`Refresh detected agents`}
-                          isDisabled={isRefreshingAgents}
-                          onPress={onRefreshAgents}
-                        />
-                      )}
                       {isAgentsActive && (
                         <SettingsNavButton
                           iconOnly
@@ -455,24 +429,6 @@ export function SettingsSidebar(props: {
                           label={t`Agents`}
                           isActive={activeSection === "agents"}
                           onPress={openAgents}
-                          suffix={
-                            <button
-                              type="button"
-                              aria-label={t`Refresh detected agents`}
-                              className="flex size-5 shrink-0 cursor-default items-center justify-center text-muted/70 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:text-muted/40"
-                              disabled={isRefreshingAgents}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onRefreshAgents();
-                              }}
-                            >
-                              {isRefreshingAgents ? (
-                                <PixelLoader size="xs" />
-                              ) : (
-                                <RefreshCw className="size-3.5" />
-                              )}
-                            </button>
-                          }
                         />
                         {isAgentsActive && (
                           <div className="space-y-0.5 pl-4">

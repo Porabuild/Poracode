@@ -63,7 +63,7 @@ function recordingListener(): { listener: TerminalFeedListener; rec: Recording }
   return { listener, rec };
 }
 
-function createV2Harness() {
+function createV2Harness(options: TerminalFeedOptions = {}) {
   const sent: RemoteWebSocketClientMessage[] = [];
   const sender: TerminalSocketSender = (message) => {
     sent.push(message);
@@ -72,6 +72,7 @@ function createV2Harness() {
   const scheduler = createScheduler();
   let watchIdCounter = 0;
   const feed: TerminalFeed = createTerminalFeed({
+    ...options,
     generateWatchId: () => `w${(watchIdCounter += 1)}`,
     schedule: scheduler.schedule,
   });
@@ -153,7 +154,7 @@ describe("terminalFeed — cursor-sync v2", () => {
 
   it("presents the retained cache cursor as resume and serves the up-to-date marker", () => {
     const { feed, sent, scheduler } = createV2Harness();
-    const { listener } = recordingListener();
+    const { listener, rec } = recordingListener();
     feed.watch("t1", listener);
     // Install a full baseline first (single chunk covering 0..10).
     feed.handleServerMessage(
@@ -187,7 +188,142 @@ describe("terminalFeed — cursor-sync v2", () => {
       }),
     );
     scheduler.flush(10);
+    expect(rec.snapshots).toHaveLength(2);
+    expect(rec.snapshots[1]).toMatchObject({
+      generation: "g1",
+      fromCursor: 0,
+      toCursor: 10,
+      data: "0123456789",
+    });
+    const late = recordingListener();
+    feed.watch("t1", late.listener);
+    expect(late.rec.snapshots).toEqual([rec.snapshots[1]]);
+    expect(rec.output).toEqual([]);
+    expect(rec.errors).toEqual([]);
   });
+
+  it("composes a served suffix once, flushes only uncovered live data and bounds the cache", () => {
+    const { feed, sent } = createV2Harness({ limits: { cacheUnits: 12 } });
+    const { listener, rec } = recordingListener();
+    feed.watch("t1", listener);
+    feed.handleServerMessage(chunk({ toCursor: 10, data: "0123456789" }));
+    feed.setSender(null);
+    feed.setSender(
+      (message) => {
+        sent.push(message);
+        return true;
+      },
+      { cursorSyncVersion: 2 },
+    );
+
+    const suffix = chunk({
+      watchId: "w2",
+      chunkCount: 2,
+      fromCursor: 10,
+      toCursor: 12,
+      data: "ab",
+      resumeServed: true,
+    });
+    feed.handleServerMessage(suffix);
+    feed.handleServerMessage(suffix);
+    const live: RemoteWebSocketServerMessage = {
+      type: "terminal-output",
+      id: "t1",
+      data: "bcde",
+      cursorSync: { version: 1, watchId: "w2", generation: "g1", fromCursor: 11, toCursor: 15 },
+    };
+    feed.handleServerMessage(live);
+    const completion = chunk({
+      watchId: "w2",
+      chunkIndex: 1,
+      chunkCount: 2,
+      fromCursor: 12,
+      toCursor: 14,
+      data: "cd",
+      resumeServed: true,
+    });
+    feed.handleServerMessage(completion);
+    feed.handleServerMessage(completion);
+    feed.handleServerMessage(live);
+    feed.handleServerMessage({ ...live, cursorSync: { ...live.cursorSync!, watchId: "w1" } });
+
+    expect(rec.snapshots).toHaveLength(2);
+    expect(rec.snapshots[1]).toMatchObject({ fromCursor: 2, toCursor: 14, data: "23456789abcd" });
+    expect(rec.output).toEqual(["e"]);
+    expect(sent.filter((message) => message.type === "terminal-watch")).toHaveLength(2);
+    expect(sent.filter((message) => message.type === "terminal-watch-baseline-ack")).toEqual([
+      expect.objectContaining({ cursorSync: expect.objectContaining({ throughCursor: 10 }) }),
+      expect.objectContaining({ cursorSync: expect.objectContaining({ throughCursor: 12 }) }),
+      expect.objectContaining({ cursorSync: expect.objectContaining({ throughCursor: 14 }) }),
+    ]);
+    const late = recordingListener();
+    feed.watch("t1", late.listener);
+    expect(late.rec.snapshots[0]).toMatchObject({
+      fromCursor: 3,
+      toCursor: 15,
+      data: "3456789abcde",
+    });
+    expect(rec.errors).toEqual([]);
+  });
+
+  it.each(["g1", "g2", null])("replaces retained history with a full %s baseline", (generation) => {
+    const { feed } = createV2Harness();
+    const { listener, rec } = recordingListener();
+    feed.watch("t1", listener);
+    feed.handleServerMessage(chunk({ toCursor: 3, data: "old" }));
+    feed.setSender(null);
+    feed.setSender(() => true, { cursorSyncVersion: 2 });
+    feed.handleServerMessage(
+      chunk({ watchId: "w2", generation, fromCursor: 20, toCursor: 23, data: "new" }),
+    );
+    expect(rec.snapshots[1]).toMatchObject({
+      generation,
+      fromCursor: 20,
+      toCursor: 23,
+      data: "new",
+    });
+  });
+
+  it.each([
+    { generation: "g1", fromCursor: 4 },
+    { generation: "g1", fromCursor: 2 },
+    { generation: "g2", fromCursor: 3 },
+    { generation: null, fromCursor: 3 },
+  ])(
+    "resyncs a served suffix that cannot join the retained cache: %j",
+    ({ generation, fromCursor }) => {
+      const { feed, sent } = createV2Harness();
+      const { listener, rec } = recordingListener();
+      feed.watch("t1", listener);
+      feed.handleServerMessage(chunk({ toCursor: 3, data: "old" }));
+      feed.setSender(null);
+      feed.setSender(
+        (message) => {
+          sent.push(message);
+          return true;
+        },
+        { cursorSyncVersion: 2 },
+      );
+      feed.handleServerMessage(
+        chunk({
+          watchId: "w2",
+          generation,
+          fromCursor,
+          toCursor: fromCursor + 1,
+          data: "x",
+          resumeServed: true,
+        }),
+      );
+      expect(rec.snapshots).toHaveLength(1);
+      expect(rec.output).toEqual([]);
+      expect(sent.at(-1)).toMatchObject({
+        type: "terminal-watch",
+        cursorSync: { watchId: "w3", resume: { generation: "g1", cursor: 3 } },
+      });
+      feed.handleServerMessage(chunk({ watchId: "w3", toCursor: 4, data: "safe" }));
+      expect(rec.snapshots[1]).toMatchObject({ data: "safe", toCursor: 4 });
+    },
+  );
 
   it("ignores duplicate chunks and resyncs on gaps without installing partial data", () => {
     const { feed } = createV2Harness();

@@ -4,6 +4,11 @@ import {
 } from "@/shared/workspaceDirectorySelection";
 import type { ProjectLocation, Project, Thread } from "@/shared/contracts";
 import {
+  nonEmptyPluginOverrides,
+  pluginOverridesSchema,
+  threadTurnInterruptionSchema,
+} from "@/shared/contracts";
+import {
   readPersistedProjectDraftConfig,
   readPersistedThreadConfig,
 } from "./persistedSelectionData";
@@ -28,6 +33,9 @@ export interface ProjectRow {
   worktree_location: string | null;
   mcp_servers: string | null;
   gh_account: string | null;
+  worktree_base_branch: string | null;
+  pinned_branches: string | null;
+  plugin_overrides: string | null;
   workspace_id: string | null;
   disabled: number;
   sort_order: number;
@@ -56,6 +64,7 @@ export interface ThreadRow {
   group_id: string | null;
   group_name: string | null;
   parent_thread_id: string | null;
+  forked_from: string | null;
   archived: number;
   archived_at: string | null;
   done: number;
@@ -68,6 +77,7 @@ export interface ThreadRow {
   active_turn_started_at: string | null;
   last_turn_started_at: string | null;
   last_turn_ended_at: string | null;
+  interrupted_turn: string | null;
 }
 
 // ── Converters ──────────────────────────────────────────────────────
@@ -94,12 +104,26 @@ export function projectMutableRow(project: Project) {
     worktreeLocation: project.worktreeLocation ? JSON.stringify(project.worktreeLocation) : null,
     mcpServers: project.mcpServers ? JSON.stringify(project.mcpServers) : null,
     ghAccount: project.ghAccount ? JSON.stringify(project.ghAccount) : null,
+    worktreeBaseBranch: project.worktreeBaseBranch ?? null,
+    pinnedBranches: project.pinnedBranches?.length ? JSON.stringify(project.pinnedBranches) : null,
+    pluginOverrides: nonEmptyPluginOverrides(project.pluginOverrides)
+      ? JSON.stringify(project.pluginOverrides)
+      : null,
     workspaceId: project.workspaceId ?? null,
     disabled: (project.disabled ? 1 : 0) as SqliteBool,
   };
 }
 
-function rowToLocation(row: ProjectRow): ProjectLocation {
+export function rowToLocation(
+  row: Pick<
+    ProjectRow,
+    | "location_kind"
+    | "location_path"
+    | "location_distro"
+    | "location_linux_path"
+    | "location_unc_path"
+  >,
+): ProjectLocation {
   if (row.location_kind === "wsl") {
     return {
       kind: "wsl",
@@ -128,6 +152,9 @@ export function rowToProject(row: ProjectRow): Project {
     ...(row.worktree_location ? { worktreeLocation: JSON.parse(row.worktree_location) } : {}),
     ...(row.mcp_servers ? { mcpServers: JSON.parse(row.mcp_servers) } : {}),
     ...(row.gh_account ? { ghAccount: JSON.parse(row.gh_account) } : {}),
+    ...(row.worktree_base_branch ? { worktreeBaseBranch: row.worktree_base_branch } : {}),
+    ...(row.pinned_branches ? { pinnedBranches: JSON.parse(row.pinned_branches) } : {}),
+    ...readPluginOverrides(row.plugin_overrides),
     ...(row.workspace_id ? { workspaceId: row.workspace_id } : {}),
     ...(row.disabled ? { disabled: true } : {}),
     createdAt: row.created_at,
@@ -158,6 +185,7 @@ export function rowToThread(row: ThreadRow): Thread {
     ...(row.group_id ? { groupId: row.group_id } : {}),
     ...(row.group_name ? { groupName: row.group_name } : {}),
     ...(row.parent_thread_id ? { parentThreadId: row.parent_thread_id } : {}),
+    ...(row.forked_from ? { forkedFrom: JSON.parse(row.forked_from) } : {}),
     archived: row.archived === 1,
     ...(row.archived_at ? { archivedAt: row.archived_at } : {}),
     done: row.done === 1,
@@ -171,7 +199,14 @@ export function rowToThread(row: ThreadRow): Thread {
     ...(row.active_turn_started_at ? { activeTurnStartedAt: row.active_turn_started_at } : {}),
     ...(row.last_turn_started_at ? { lastTurnStartedAt: row.last_turn_started_at } : {}),
     ...(row.last_turn_ended_at ? { lastTurnEndedAt: row.last_turn_ended_at } : {}),
+    ...readInterruptedTurn(row.interrupted_turn),
   };
+}
+
+/** A value from a newer release reads as "nothing to resume", never as a guess. */
+function readInterruptedTurn(value: string | null): Pick<Thread, "interruptedTurn"> {
+  const parsed = threadTurnInterruptionSchema.safeParse(value);
+  return parsed.success ? { interruptedTurn: parsed.data } : {};
 }
 
 export function safeParse(json: string): unknown {
@@ -179,5 +214,17 @@ export function safeParse(json: string): unknown {
     return JSON.parse(json);
   } catch {
     return undefined;
+  }
+}
+
+/** A malformed stored value is inert (every plugin inherits) rather than fatal to the row. */
+function readPluginOverrides(value: string | null): Pick<Project, "pluginOverrides"> {
+  if (!value) return {};
+  try {
+    const parsed = pluginOverridesSchema.safeParse(JSON.parse(value));
+    const pluginOverrides = parsed.success ? nonEmptyPluginOverrides(parsed.data) : undefined;
+    return pluginOverrides ? { pluginOverrides } : {};
+  } catch {
+    return {};
   }
 }

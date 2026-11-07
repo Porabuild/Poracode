@@ -1,0 +1,32 @@
+{
+  "name": "@opencode/plugin",
+  "version": "2.1.4",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": "./src/promise/index.ts",
+    "./host": "./src/host.ts",
+    "./runtime": "./src/runtime.ts",
+    "./runtime-modules": "./src/runtime-modules.ts",
+    "./source": "./src/source.ts",
+    "./tui": "./src/tui/index.ts",
+    "./tui/context": "./src/tui/context.ts"
+  },
+  "imports": {
+    "#plugin-source": {
+      "bun": "./src/source.bun.ts",
+      "default": "./src/source.bun.ts"
+    }
+  },
+  "dependencies": {
+    "@opencode/client": "workspace:*",
+    "@opencode/schema": "workspace:*",
+    "@opencode/theme": "workspace:*",
+    "@opencode/util": "workspace:*",
+    "@opentui/core": "catalog:",
+    "@opentui/solid": "catalog:",
+    "effect": "catalog:",
+    "solid-js": "catalog:"
+  }
+}

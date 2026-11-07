@@ -14,6 +14,11 @@ export async function buildSmokeRuntime({ repoRoot, appRoot, rendererViteHMR }) 
   const { build } = await import(pathToFileURL(require.resolve("tsdown")).href);
   const mainBundleDir = join(appRoot, "dist", "main");
   process.chdir(appRoot); // This helper runs in its own managed build process.
+  if (process.platform === "win32")
+    await runResourceScripts(appRoot, [
+      ["prepare-pty-job-owner.mjs"],
+      ["prepare-service-launcher.mjs"],
+    ]);
   const bundles = await build({
     cwd: appRoot,
     config: join(appRoot, "tsdown.config.ts"),
@@ -78,22 +83,27 @@ async function prepareResources(repoRoot, appRoot) {
   }
   await mkdir(join(appRoot, "resources"), { recursive: true });
   const nativeBuildDir = join(appRoot, ".native-build");
-  try {
-    for (const [script, ...args] of [
+  await runResourceScripts(
+    appRoot,
+    [
       ["prepare-wsl-helpers.mjs"],
       ["prepare-agent-plugins.mjs"],
       ["prepare-computer-use-helper.mjs", "--host-only", "--dev", "--force"],
-    ]) {
-      const result = await execute(process.execPath, [join(appRoot, "scripts", script), ...args], {
-        cwd: appRoot,
-        env: { ...process.env, CARGO_TARGET_DIR: nativeBuildDir },
-        maxBuffer: 8 * 1024 * 1024,
-      });
-      if (result.stdout) process.stdout.write(result.stdout);
-      if (result.stderr) process.stderr.write(result.stderr);
-    }
-  } finally {
-    await rm(nativeBuildDir, { recursive: true, force: true });
+    ],
+    { ...process.env, CARGO_TARGET_DIR: nativeBuildDir },
+  );
+  await rm(nativeBuildDir, { recursive: true, force: true });
+}
+
+async function runResourceScripts(appRoot, scripts, env = process.env) {
+  for (const [script, ...args] of scripts) {
+    const result = await execute(process.execPath, [join(appRoot, "scripts", script), ...args], {
+      cwd: appRoot,
+      env,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
   }
 }
 

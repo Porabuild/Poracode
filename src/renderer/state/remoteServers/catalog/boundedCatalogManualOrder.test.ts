@@ -3,6 +3,7 @@ import type { Project, Thread } from "@/shared/contracts";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import {
   __resetBoundedCatalogForTest,
+  boundedCatalogRemovalMark,
   configureBoundedCatalogController,
   installBoundedCatalogShellPage,
   noteBoundedCatalogMembershipEvent,
@@ -220,16 +221,20 @@ describe("bounded catalog manual-order convergence", () => {
     harness.setThreads(["t-3", "t-2", "t-1", "t-0"].map(threadRow), 2);
     harness.setProjects(["p-2", "p-1", "p-0"].map(projectRow), 2);
     configureBoundedCatalogController(TEST_CONSUMER, harness.deps);
-    installBoundedCatalogShellPage(KEY, {
-      snapshotSeq: 1,
-      projects: [projectRow("p-2"), projectRow("p-1")],
-      threads: [threadRow("t-3"), threadRow("t-2")],
-      runtimeSummariesByThread: {},
-      reads: "bounded-v1",
-      threadsNextCursor: "tp1.2",
-      projectsNextCursor: "pp1.2",
-      updatedAt: "now",
-    });
+    installBoundedCatalogShellPage(
+      KEY,
+      {
+        snapshotSeq: 1,
+        projects: [projectRow("p-2"), projectRow("p-1")],
+        threads: [threadRow("t-3"), threadRow("t-2")],
+        runtimeSummariesByThread: {},
+        reads: "bounded-v1",
+        threadsNextCursor: "tp1.2",
+        projectsNextCursor: "pp1.2",
+        updatedAt: "now",
+      },
+      boundedCatalogRemovalMark(),
+    );
 
     await vi.waitFor(() => expect(harness.applied.length).toBe(2), { timeout: 5_000 });
     const threads = harness.applied.find((entry) => entry.kind === "threads");
@@ -245,16 +250,20 @@ describe("bounded catalog manual-order convergence", () => {
     const harness = makeHarness({ declareOrder: true });
     harness.setThreads(["t-a", "t-b", "t-c"].map(threadRow), 100);
     configureBoundedCatalogController(TEST_CONSUMER, harness.deps);
-    installBoundedCatalogShellPage(KEY, {
-      snapshotSeq: 1,
-      projects: [],
-      threads: [threadRow("t-a"), threadRow("t-b"), threadRow("t-c")],
-      runtimeSummariesByThread: {},
-      reads: "bounded-v1",
-      threadsNextCursor: null,
-      projectsNextCursor: null,
-      updatedAt: "now",
-    });
+    installBoundedCatalogShellPage(
+      KEY,
+      {
+        snapshotSeq: 1,
+        projects: [],
+        threads: [threadRow("t-a"), threadRow("t-b"), threadRow("t-c")],
+        runtimeSummariesByThread: {},
+        reads: "bounded-v1",
+        threadsNextCursor: null,
+        projectsNextCursor: null,
+        updatedAt: "now",
+      },
+      boundedCatalogRemovalMark(),
+    );
     await vi.waitFor(() => expect(harness.applied.length).toBe(1), { timeout: 5_000 });
     expect(harness.applied[0]?.ids).toEqual(["t-a", "t-b", "t-c"]);
 
@@ -273,16 +282,20 @@ describe("bounded catalog manual-order convergence", () => {
     harness.setThreads(["t-a", "t-b"].map(threadRow), 100);
     harness.setProjects([projectRow("p-a")], 100);
     configureBoundedCatalogController(TEST_CONSUMER, harness.deps);
-    installBoundedCatalogShellPage(KEY, {
-      snapshotSeq: 1,
-      projects: [projectRow("p-a")],
-      threads: [threadRow("t-a"), threadRow("t-b")],
-      runtimeSummariesByThread: {},
-      reads: "bounded-v1",
-      threadsNextCursor: null,
-      projectsNextCursor: null,
-      updatedAt: "now",
-    });
+    installBoundedCatalogShellPage(
+      KEY,
+      {
+        snapshotSeq: 1,
+        projects: [projectRow("p-a")],
+        threads: [threadRow("t-a"), threadRow("t-b")],
+        runtimeSummariesByThread: {},
+        reads: "bounded-v1",
+        threadsNextCursor: null,
+        projectsNextCursor: null,
+        updatedAt: "now",
+      },
+      boundedCatalogRemovalMark(),
+    );
     await vi.waitFor(() => expect(harness.threadPages).toBeGreaterThan(0), { timeout: 5_000 });
     noteBoundedCatalogMembershipEvent(KEY, "remote-threads-changed");
     noteBoundedCatalogMembershipEvent(KEY, "remote-projects-changed");
@@ -300,16 +313,20 @@ describe("bounded catalog manual-order convergence", () => {
     harness.setThreads(["t-0", "t-1", "t-2", "t-3"].map(threadRow), 2);
     harness.setProjects(["p-0", "p-1", "p-2", "p-3"].map(projectRow), 2);
     configureBoundedCatalogController(TEST_CONSUMER, harness.deps);
-    installBoundedCatalogShellPage(KEY, {
-      snapshotSeq: 1,
-      projects: [projectRow("p-0"), projectRow("p-1")],
-      threads: [threadRow("t-0"), threadRow("t-1")],
-      runtimeSummariesByThread: {},
-      reads: "bounded-v1",
-      threadsNextCursor: "tp1.2",
-      projectsNextCursor: "pp1.2",
-      updatedAt: "now",
-    });
+    installBoundedCatalogShellPage(
+      KEY,
+      {
+        snapshotSeq: 1,
+        projects: [projectRow("p-0"), projectRow("p-1")],
+        threads: [threadRow("t-0"), threadRow("t-1")],
+        runtimeSummariesByThread: {},
+        reads: "bounded-v1",
+        threadsNextCursor: "tp1.2",
+        projectsNextCursor: "pp1.2",
+        updatedAt: "now",
+      },
+      boundedCatalogRemovalMark(),
+    );
 
     await vi.waitFor(
       () =>
@@ -339,16 +356,20 @@ describe("bounded catalog manual-order convergence", () => {
     const harness = makeHarness({ declareOrder: true });
     harness.setThreads(["t-a", "t-b", "t-c", "t-d"].map(threadRow), 2);
     configureBoundedCatalogController(TEST_CONSUMER, harness.deps);
-    installBoundedCatalogShellPage(KEY, {
-      snapshotSeq: 1,
-      projects: [],
-      threads: [threadRow("t-a"), threadRow("t-b")],
-      runtimeSummariesByThread: {},
-      reads: "bounded-v1",
-      threadsNextCursor: "tp1.2",
-      projectsNextCursor: null,
-      updatedAt: "now",
-    });
+    installBoundedCatalogShellPage(
+      KEY,
+      {
+        snapshotSeq: 1,
+        projects: [],
+        threads: [threadRow("t-a"), threadRow("t-b")],
+        runtimeSummariesByThread: {},
+        reads: "bounded-v1",
+        threadsNextCursor: "tp1.2",
+        projectsNextCursor: null,
+        updatedAt: "now",
+      },
+      boundedCatalogRemovalMark(),
+    );
     await vi.waitFor(() => expect(harness.applied.length).toBe(1), { timeout: 5_000 });
 
     // A refresh walk whose FINAL continuation page is parked while a second
@@ -362,28 +383,33 @@ describe("bounded catalog manual-order convergence", () => {
     harness.holdContinuations = false;
     harness.releaseHeld();
 
-    await vi.waitFor(() => expect(harness.applied.length).toBe(3), { timeout: 5_000 });
-    expect(harness.applied[2]?.kind).toBe("threads");
-    expect(harness.applied[2]?.ids).toEqual(["t-d", "t-c", "t-b", "t-a"]);
+    await vi.waitFor(() => expect(harness.applied.length).toBe(2), { timeout: 5_000 });
+    expect(harness.applied[1]?.kind).toBe("threads");
+    expect(harness.applied[1]?.ids).toEqual(["t-d", "t-c", "t-b", "t-a"]);
+    // The superseded response must never apply an intermediate obsolete order.
     // Coalesced, not looping: no further pass after the pending refresh ran.
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(harness.applied).toHaveLength(3);
+    expect(harness.applied).toHaveLength(2);
   });
 
   it("re-walks a pass whose captured generation was superseded instead of dropping its order", async () => {
     const harness = makeHarness({ declareOrder: true, perKind: true });
     harness.setThreads(["t-a", "t-b", "t-c", "t-d"].map(threadRow), 2);
     configureBoundedCatalogController(TEST_CONSUMER, harness.deps);
-    installBoundedCatalogShellPage(KEY, {
-      snapshotSeq: 1,
-      projects: [],
-      threads: [threadRow("t-a"), threadRow("t-b")],
-      runtimeSummariesByThread: {},
-      reads: "bounded-v1",
-      threadsNextCursor: "tp1.2",
-      projectsNextCursor: null,
-      updatedAt: "now",
-    });
+    installBoundedCatalogShellPage(
+      KEY,
+      {
+        snapshotSeq: 1,
+        projects: [],
+        threads: [threadRow("t-a"), threadRow("t-b")],
+        runtimeSummariesByThread: {},
+        reads: "bounded-v1",
+        threadsNextCursor: "tp1.2",
+        projectsNextCursor: null,
+        updatedAt: "now",
+      },
+      boundedCatalogRemovalMark(),
+    );
     await vi.waitFor(() => expect(harness.applied.length).toBe(1), { timeout: 5_000 });
 
     // A newer authoritative paint bumps the generation while the walk's final

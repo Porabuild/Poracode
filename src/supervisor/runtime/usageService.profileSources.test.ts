@@ -159,7 +159,10 @@ describe("usage account-source custody", () => {
     });
     const path = cachePath();
     const settingsPath = `${path}.settings.json`;
-    writeFileSync(settingsPath, JSON.stringify({ usage: { showEstimatedCost: true } }));
+    writeFileSync(
+      settingsPath,
+      JSON.stringify({ usage: { showEstimatedCost: true, autoRefresh: false } }),
+    );
     const emit = vi.fn<(event: import("@/shared/ipc").SupervisorEvent) => void>();
     const service = new UsageService({
       cachePath: path,

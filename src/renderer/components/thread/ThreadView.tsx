@@ -19,7 +19,7 @@ import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
-import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
+import type { TerminalPaneHandle } from "./TerminalPane";
 import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
 import type { SaveClipboardImage } from "../composer/useAttachments";
 import { ContinueInProviderDialog, type ContinueIntent } from "./ContinueInProviderDialog";
@@ -28,6 +28,7 @@ import { useContinueInProviderStore } from "@/renderer/state/continueInProviderS
 import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
+import { ThreadActionIconButton } from "./ThreadActionIconButton";
 import { ThreadToolRail } from "./ThreadToolRail";
 import { PaneDragHandle } from "./PaneDragAndDrop";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
@@ -101,7 +102,6 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.onSubmitInput === next.onSubmitInput &&
     prev.onOpenProjectRelativePath === next.onOpenProjectRelativePath &&
     prev.checkpointActions === next.checkpointActions &&
-    prev.remoteTerminalTransport === next.remoteTerminalTransport &&
     prev.pickFiles === next.pickFiles &&
     prev.saveClipboardImage === next.saveClipboardImage
   );
@@ -162,7 +162,6 @@ export type ThreadViewProps = {
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   checkpointActions?: CheckpointRevertActions | undefined;
-  remoteTerminalTransport?: RemoteTerminalTransport | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
   saveClipboardImage?: SaveClipboardImage | undefined;
 };
@@ -199,7 +198,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     onSubmitInput,
     onOpenProjectRelativePath,
     checkpointActions,
-    remoteTerminalTransport,
     pickFiles,
     saveClipboardImage,
   } = props;
@@ -396,7 +394,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
             className={`poracode-thread-pane-header px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
           >
             <div
-              className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
+              className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex min-h-8 w-full max-w-[920px] items-center gap-2 py-1`}
             >
               <ThreadHeaderStatusButton
                 threadId={thread.id}
@@ -454,17 +452,15 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0 ? (
                     <Tooltip delay={0}>
                       <Tooltip.Trigger>
-                        <button
-                          type="button"
+                        <ThreadActionIconButton
                           aria-label={t`Continue in another provider`}
-                          className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          className="text-muted/60 hover:text-foreground"
+                          onPress={() => {
                             setContinueDialogOpen(true);
                           }}
                         >
                           <ArrowRightLeft className="size-3.5" />
-                        </button>
+                        </ThreadActionIconButton>
                       </Tooltip.Trigger>
                       <Tooltip.Content>
                         <Trans>Continue in another provider</Trans>
@@ -474,8 +470,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   {import.meta.env.DEV && !usesTerminalPresentation ? (
                     <Tooltip delay={0}>
                       <Tooltip.Trigger>
-                        <button
-                          type="button"
+                        <ThreadActionIconButton
                           data-poracode-thread-debug=""
                           aria-label={
                             runtimeDebugOpen
@@ -483,14 +478,17 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                               : t`Show runtime debug panel`
                           }
                           aria-pressed={runtimeDebugOpen}
-                          className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${runtimeDebugOpen ? "text-foreground" : "text-muted/60 hover:text-foreground"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          className={
+                            runtimeDebugOpen
+                              ? "text-foreground"
+                              : "text-muted/60 hover:text-foreground"
+                          }
+                          onPress={() => {
                             setRuntimeDebugOpen((o) => !o);
                           }}
                         >
                           <Bug className="size-3.5" />
-                        </button>
+                        </ThreadActionIconButton>
                       </Tooltip.Trigger>
                       <Tooltip.Content>
                         {runtimeDebugOpen ? (
@@ -502,17 +500,19 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     </Tooltip>
                   ) : null}
                   {onMarkDone ? (
-                    <button
-                      type="button"
+                    <ThreadActionIconButton
                       aria-label={thread.done ? t`Unmark done` : t`Mark done`}
-                      className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${thread.done ? "text-[oklch(0.78_0.1_180)]" : "text-muted/60 hover:text-foreground"}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      className={
+                        thread.done
+                          ? "text-[oklch(0.78_0.1_180)]"
+                          : "text-muted/60 hover:text-foreground"
+                      }
+                      onPress={() => {
                         onMarkDone();
                       }}
                     >
                       <CircleCheck className="size-3.5" />
-                    </button>
+                    </ThreadActionIconButton>
                   ) : null}
                   {awaitingWorktree ? null : (
                     <ThreadToolRail
@@ -523,18 +523,16 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     />
                   )}
                   {showCloseButton ? (
-                    <button
-                      type="button"
+                    <ThreadActionIconButton
                       data-poracode-thread-close=""
                       aria-label={t`Close pane`}
-                      className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      className="text-muted/60 hover:text-foreground"
+                      onPress={() => {
                         onClose?.();
                       }}
                     >
                       <X className="size-3.5" />
-                    </button>
+                    </ThreadActionIconButton>
                   ) : null}
                 </div>
               </div>
@@ -555,7 +553,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 onTerminalResize={setTerminalSize}
                 hidden={hidden}
                 {...(onSubmitInput ? { onSubmitInput } : {})}
-                {...(remoteTerminalTransport ? { remoteTerminalTransport } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
                 {...(saveClipboardImage ? { saveClipboardImage } : {})}
               />
@@ -572,7 +569,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 {...(onSubmitInput ? { onSubmitInput } : {})}
                 {...(onOpenProjectRelativePath ? { onOpenProjectRelativePath } : {})}
                 {...(checkpointActions ? { checkpointActions } : {})}
-                {...(thread.remoteServerId ? { checkpointProjectLocation: projectLocation } : {})}
                 {...(pickFiles ? { pickFiles } : {})}
                 {...(saveClipboardImage ? { saveClipboardImage } : {})}
               />

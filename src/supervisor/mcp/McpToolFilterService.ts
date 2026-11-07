@@ -3,12 +3,43 @@ import { join } from "node:path";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { resolveNodeForDistro } from "../wsl/runtime";
 import { deployFilesToWslTempBase, resolveWslHelpersDir } from "../wsl/wslDeploy";
-import { MCP_FILTER_CONFIG_ENV, MCP_FILTER_CONFIG_V1_ENV } from "./mcpToolFilterConfig";
+import {
+  MCP_FILTER_CONFIG_ENV,
+  MCP_FILTER_CONFIG_V1_ENV,
+  MCP_FILTER_CONFIG_V2_ENV,
+  MCP_STDIO_CONFIG_ENV,
+} from "./mcpToolFilterConfig";
 
-function filterConfig(server: ResolvedMcpServer, isolateConnectionFailures: boolean): string {
+interface FilterOptions {
+  remoteViaStdio?: boolean;
+  proxyStdioCwd?: boolean;
+  isolateConnectionFailures?: boolean;
+  omitInvalidSchemaPatterns?: boolean;
+}
+
+function requiresFiltering(server: ResolvedMcpServer, options: FilterOptions): boolean {
+  return (
+    options.isolateConnectionFailures === true ||
+    (server.disabledTools?.length ?? 0) > 0 ||
+    (options.remoteViaStdio === true && server.transport.type !== "stdio")
+  );
+}
+
+function filterConfig(server: ResolvedMcpServer, options: FilterOptions): string {
   return Buffer.from(
     JSON.stringify({
-      ...(isolateConnectionFailures ? { version: 1, isolateConnectionFailures: true } : {}),
+      ...(options.omitInvalidSchemaPatterns
+        ? {
+            version: 2,
+            omitInvalidSchemaPatterns: true,
+            // New native wrappers preserve the rest of the protocol and stdio
+            // environment; existing filtering lanes retain their old policy.
+            ...(!requiresFiltering(server, options) ? { schemaOnly: true } : {}),
+          }
+        : options.isolateConnectionFailures
+          ? { version: 1 }
+          : {}),
+      ...(options.isolateConnectionFailures ? { isolateConnectionFailures: true } : {}),
       server,
       disabledTools: server.disabledTools ?? [],
     }),
@@ -19,13 +50,10 @@ function filterConfig(server: ResolvedMcpServer, isolateConnectionFailures: bool
 export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
   servers: readonly T[],
   location: ProjectLocation,
-  options: {
-    remoteViaStdio?: boolean;
-    proxyStdioCwd?: boolean;
-    isolateConnectionFailures?: boolean;
-  } = {},
+  options: FilterOptions = {},
 ): Promise<T[]> {
   const needsProxy = (server: T) =>
+    options.omitInvalidSchemaPatterns === true ||
     options.isolateConnectionFailures === true ||
     (server.disabledTools?.length ?? 0) > 0 ||
     (options.remoteViaStdio === true && server.transport.type !== "stdio") ||
@@ -34,9 +62,7 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
 
   const helpersDir = resolveWslHelpersDir();
   const workerName = (server: ResolvedMcpServer) =>
-    options.isolateConnectionFailures === true ||
-    (server.disabledTools?.length ?? 0) > 0 ||
-    server.transport.type !== "stdio"
+    options.omitInvalidSchemaPatterns === true || requiresFiltering(server, options)
       ? "mcp-filter.mjs"
       : "mcp-stdio.mjs";
   const names = [...new Set(servers.filter(needsProxy).map(workerName))];
@@ -65,11 +91,14 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
     const filtersTools = workerName(server) === "mcp-filter.mjs";
     const env: Record<string, string> = filtersTools
       ? {
-          [options.isolateConnectionFailures ? MCP_FILTER_CONFIG_V1_ENV : MCP_FILTER_CONFIG_ENV]:
-            filterConfig(server, options.isolateConnectionFailures === true),
+          [options.omitInvalidSchemaPatterns
+            ? MCP_FILTER_CONFIG_V2_ENV
+            : options.isolateConnectionFailures
+              ? MCP_FILTER_CONFIG_V1_ENV
+              : MCP_FILTER_CONFIG_ENV]: filterConfig(server, options),
         }
       : {
-          PORACODE_MCP_STDIO_CONFIG: Buffer.from(JSON.stringify({ version: 1, server })).toString(
+          [MCP_STDIO_CONFIG_ENV]: Buffer.from(JSON.stringify({ version: 1, server })).toString(
             "base64url",
           ),
         };
@@ -83,7 +112,17 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
             ? `${workerDirectory}/${workerName(server)}`
             : join(workerDirectory, workerName(server)),
         ],
-        env: { ...baseEnv, ...env },
+        // Let the native connection owner expand values and apply its reserved
+        // environment policy before a schema-only wrapper starts the server.
+        env: {
+          ...(options.omitInvalidSchemaPatterns &&
+          !requiresFiltering(server, options) &&
+          server.transport.type === "stdio"
+            ? server.transport.env
+            : {}),
+          ...baseEnv,
+          ...env,
+        },
         ...(location.kind === "wsl" ? { cwd: location.linuxPath } : { cwd: location.path }),
       },
     };

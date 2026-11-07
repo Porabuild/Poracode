@@ -13,6 +13,12 @@ import {
 } from "../remoteServers/eventSocketRegistry";
 import type { RuntimeChatItem } from "../slices/runtimeEventSlice";
 import {
+  cachedThreadPromptIndex,
+  forgetThreadPromptIndex,
+  loadThreadPromptIndex,
+  threadPromptIndexNeedsRefresh,
+} from "../threadPromptIndexCache";
+import {
   canonicalText,
   connection,
   deltaFrame,
@@ -41,11 +47,55 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  forgetThreadPromptIndex(viewThread);
   clearPendingRuntimeEvents();
   forgetThreadRuntimeWindow(viewThread);
   __resetEventSocketRegistryForTest();
   useAppStore.setState(original, true);
 });
+
+it.each([null, 50])(
+  "retains the prompt index for a bounded refresh but discards it for a full reset (cursor: %s)",
+  async (cursor) => {
+    const owner = {};
+    const saved = {
+      prompts: [{ itemId: "prompt-old", position: 0, text: "Old prompt" }],
+      truncated: false,
+    };
+    useAppStore.setState({ threads: [{ ...thread, id: viewThread, remoteServerId: connection }] });
+    useAppStore
+      .getState()
+      .hydrateThreadRuntimeItems(viewThread, [
+        { id: "prompt-old", type: "user_message", state: "completed", streams: {} },
+      ]);
+    await loadThreadPromptIndex(
+      viewThread,
+      owner,
+      () => Promise.resolve(saved),
+      () => true,
+    );
+    const page = historyResult("ordinary", "completed").page;
+    const result = applyThreadSnapshot(
+      projectRemoteThreadSnapshot(connection, {
+        ...page,
+        thread: { ...thread, status: "idle" },
+        runtimeNextCursor: cursor,
+        runtimeItems: [
+          {
+            id: "prompt-new",
+            type: "user_message",
+            state: "completed",
+            streams: {},
+          },
+        ],
+      }),
+      { fromServer: true },
+    );
+    expect(result.installedAuthoritativeHistory).toBe(true);
+    expect(cachedThreadPromptIndex(viewThread, owner)).toEqual(cursor === null ? undefined : saved);
+    expect(threadPromptIndexNeedsRefresh(viewThread, owner)).toBe(cursor !== null);
+  },
+);
 
 describe.each(["ordinary", "unicode"] as const)("%s capped full-store catch-up", (kind) => {
   it.each(["updated", "completed"] as const)("installs an aligned committed %s item", (state) => {

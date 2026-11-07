@@ -79,9 +79,14 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   codex: {
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet"] },
   },
+  commandcode: {
+    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
+  },
   // Copilot uses GitHub's OAuth device flow through the in-app browser.
   copilot: { supportsBrowserLogin: true },
-  cursor: { sharedWindowReset: true, rings: { outer: ["cursor-auto"], inner: ["cursor-api"] } },
+  cursor: {
+    rings: { outer: ["weekly", "cursor-auto"], inner: ["cursor-api"] },
+  },
   // Droid signs in via the in-app app.factory.ai browser session. The standard
   // pool's 5h window is the fast outer ring; weekly/monthly the slower inner one.
   // On a legacy (per-cycle) account only `monthly` (Standard) is ring-eligible —
@@ -91,8 +96,12 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
     supportsBrowserLogin: true,
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
   },
+  fx: { rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "daily"] } },
   grok: { supportsBrowserLogin: true },
-  opencode: { supportsBrowserLogin: true },
+  opencode: {
+    supportsBrowserLogin: true,
+    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
+  },
   // z.ai authenticates with a pasted API key, not a browser session.
   // The ring tracks token rate-limits only: the 5h window plus the weekly window
   // when the plan returns one. The monthly MCP-tools quota is a different kind of
@@ -203,7 +212,7 @@ export function usageProviderIdForAgent(
 ): string {
   const driver = baseAgentKind(agentKind);
   const id = instanceId ?? (driver !== agentKind ? agentKind.slice(driver.length + 1) : undefined);
-  if (!id) return agentKind;
+  if (!id) return getProviderManifest(driver)?.usageProviderId ?? agentKind;
   const candidate = agentProfileKind(driver, id);
   const instance = instances?.[id];
   const support = USAGE_PROFILE_SUPPORT.find((entry) => entry.driver === driver);

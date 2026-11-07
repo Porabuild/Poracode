@@ -6,7 +6,11 @@ import { constants as osConstants, setPriority } from "node:os";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import { stopSupervisorChild } from "./stopSupervisorChild";
 import { WorkspaceLaunchBridge, type WorkspaceLaunchSelection } from "./WorkspaceLaunchBridge";
-import { THREAD_WORKSPACE_RUNTIME_REQUEST } from "@/shared/threadWorkspaceRuntimeProtocol";
+import {
+  THREAD_WORKSPACE_RUNTIME_REQUEST,
+  CONTROLLED_WORKSPACE_RUNTIME_REQUEST,
+} from "@/shared/threadWorkspaceRuntimeProtocol";
+import { controlThreadExecutionPayloadSchema } from "@/shared/contracts/threadExecution";
 import { WorkspaceLaunchUnavailableError } from "@/shared/threadWorkspaceRefusal";
 import type { StartThreadPayload } from "@/shared/contracts";
 import {
@@ -233,6 +237,7 @@ const THREAD_EXCLUSIVE_PROCEDURES = new Set<SupervisorProcedureName>([
 ]);
 
 const THREAD_CONTROL_PROCEDURES = new Set<SupervisorProcedureName>([
+  "controlledThreadRequest",
   "interruptThread",
   "resolveThreadServerRequest",
   "closeThread",
@@ -253,7 +258,9 @@ function threadIdForProcedure(type: SupervisorProcedureName, payload: unknown): 
   return typeof threadId === "string" && threadId.length > 0 ? threadId : undefined;
 }
 
-interface SupervisorCallOptions {
+export interface SupervisorCallOptions {
+  /** Host-local execution selection guard; never serialized into a launch. */
+  readonly assertLaunchCurrent?: () => void;
   /** Internal use while a compound operation already owns the thread lock. */
   readonly skipThreadMutation?: boolean;
   /**
@@ -901,10 +908,19 @@ export class SupervisorClient {
     options: SupervisorCallOptions = {},
   ): Promise<IpcProcedureResult<Name>> {
     if (this.disposed) throw new Error("Supervisor client is disposed.");
-    const isLaunch = type === "startThread" || type === "ensureThreadRunning";
+    const controlled =
+      type === "controlThreadExecution"
+        ? controlThreadExecutionPayloadSchema.parse(payload)
+        : undefined;
+    const controlledStart = controlled?.action === "start" ? controlled : undefined;
+    const isLaunch =
+      type === "startThread" || type === "ensureThreadRunning" || controlledStart !== undefined;
+    if (isLaunch) options.assertLaunchCurrent?.();
+    const launchPayload =
+      controlledStart?.launch ?? (isLaunch ? (payload as StartThreadPayload) : undefined);
     // Capture before any transition/start await. A control during that wait
     // still owns cancellation of this accepted launch.
-    const launchThreadId = isLaunch ? (payload as StartThreadPayload).threadId : undefined;
+    const launchThreadId = launchPayload?.threadId;
     const launchEpoch = launchThreadId ? (this.threadMutationEpochs.get(launchThreadId) ?? 0) : 0;
     const transition = this.restartPromise ?? this.stopPromise;
     if (transition) {
@@ -926,12 +942,16 @@ export class SupervisorClient {
       return Promise.reject(new Error("Supervisor is not running."));
     }
 
-    const requestPayload =
-      isLaunch && this.options.prepareStartThread
-        ? this.options.prepareStartThread(payload as StartThreadPayload)
-        : payload;
+    if (isLaunch) options.assertLaunchCurrent?.();
+    const preparedLaunch =
+      launchPayload && this.options.prepareStartThread
+        ? this.options.prepareStartThread(launchPayload)
+        : launchPayload;
+    const requestPayload = controlledStart
+      ? { ...controlledStart, launch: preparedLaunch! }
+      : (preparedLaunch ?? payload);
     if (isLaunch && this.options.prepareWorkspaceLaunch) {
-      const launch = requestPayload as StartThreadPayload;
+      const launch = preparedLaunch!;
       const selection = this.options.prepareWorkspaceLaunch(launch);
       if (selection) {
         if (!launchThreadId || launch.threadId !== launchThreadId) {
@@ -953,7 +973,12 @@ export class SupervisorClient {
         }
         const scopedPayload = await this.workspaceLaunchBridge.prepare({
           child,
-          procedure: type,
+          ...(controlledStart
+            ? {
+                procedure: "controlThreadExecution" as const,
+                operationId: controlledStart.operationId,
+              }
+            : { procedure: type as "startThread" | "ensureThreadRunning" }),
           launch,
           selection,
           readSelection: () => this.options.prepareWorkspaceLaunch!(launch),
@@ -961,13 +986,16 @@ export class SupervisorClient {
           requestSupport: (body) =>
             this.sendRequest(
               child,
-              THREAD_WORKSPACE_RUNTIME_REQUEST,
+              controlledStart
+                ? CONTROLLED_WORKSPACE_RUNTIME_REQUEST
+                : THREAD_WORKSPACE_RUNTIME_REQUEST,
               body,
               options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
             ),
         });
         // Recheck in the sending continuation too: a control or SQL mutation
         // can run between the bridge's resolution and this await resuming.
+        options.assertLaunchCurrent?.();
         const finalSelection = this.options.prepareWorkspaceLaunch(launch);
         if (!isCurrent() || JSON.stringify(finalSelection) !== JSON.stringify(selection)) {
           throw new WorkspaceLaunchUnavailableError(
@@ -976,7 +1004,7 @@ export class SupervisorClient {
         }
         return this.sendRequest<IpcProcedureResult<Name>>(
           child,
-          THREAD_WORKSPACE_RUNTIME_REQUEST,
+          controlledStart ? CONTROLLED_WORKSPACE_RUNTIME_REQUEST : THREAD_WORKSPACE_RUNTIME_REQUEST,
           scopedPayload,
           options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
         );

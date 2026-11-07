@@ -1,4 +1,5 @@
 import type {
+  CanUseTool,
   ElicitationRequest,
   ElicitationResult,
   PermissionMode,
@@ -9,17 +10,14 @@ import type { ThreadConfig } from "@/shared/contracts";
 import { chosenOptionIds } from "../questionAnswers";
 import { CLAUDE_DEFAULT_APPROVAL_POLICY } from "./detection";
 import { ACCEPT_SUGGESTION_OPTION_PREFIX, type ClaudeQuestion } from "./sdkCanonicalMapping";
-
-const CLAUDE_EXIT_PLAN_MODE_TOOL_NAMES: ReadonlySet<string> = new Set([
-  "ExitPlanMode",
-  "exit_plan_mode",
-]);
+import { isExitPlanModeToolName } from "./canonicalMapping/toolClassification";
 
 export type PendingPermission = {
   kind: "permission";
   toolName: string;
   toolInput: Record<string, unknown>;
   suggestions?: PermissionUpdate[];
+  resolving?: Promise<void>;
   resolve: (result: PermissionResult) => void;
 };
 
@@ -55,12 +53,33 @@ export function basePermissionModeForConfig(config: ThreadConfig): PermissionMod
   return (config.approvalPolicy ?? CLAUDE_DEFAULT_APPROVAL_POLICY) as PermissionMode;
 }
 
+/** Replace ordinary Plan approvals while preserving native explicit asks. */
+export function canBypassPlanPermission(
+  toolName: string,
+  options: Parameters<CanUseTool>[2],
+): boolean {
+  // SDK 0.3.296 forwards the CLI's structured reason but omits it from this
+  // callback's public type. Older CLIs without it keep their approval flow.
+  return (
+    toolName !== "AskUserQuestion" &&
+    !isExitPlanModeToolName(toolName) &&
+    !options.matchedAskRule &&
+    !options.defaultToNo &&
+    !options.suppressAlwaysAllowRule &&
+    !("requiresUserInteraction" in options && options.requiresUserInteraction === true) &&
+    !("serverPrompt" in options && options.serverPrompt) &&
+    !("decisionReasonCode" in options && options.decisionReasonCode) &&
+    "decisionReasonType" in options &&
+    (options.decisionReasonType === "mode" || options.decisionReasonType === "other")
+  );
+}
+
 export function buildDenyMessage(
   decisionKind: PermissionDecision["kind"],
   pending: PendingRequest,
 ): string {
   if (decisionKind === "cancel") return "User cancelled tool execution.";
-  if (pending.kind === "permission" && CLAUDE_EXIT_PLAN_MODE_TOOL_NAMES.has(pending.toolName)) {
+  if (pending.kind === "permission" && isExitPlanModeToolName(pending.toolName)) {
     return "User wants to keep planning. Stop here and wait for the user's next message; do not call ExitPlanMode again until the user explicitly approves the plan.";
   }
   return "User declined tool execution.";
@@ -73,6 +92,11 @@ function responseOptionId(response: unknown): string | undefined {
     if (typeof obj.decision === "string") return obj.decision;
   }
   return undefined;
+}
+
+export function exitPlanApprovalMode(response: unknown): "default" | "auto" | undefined {
+  const option = responseOptionId(response);
+  return option === "default" || option === "auto" ? option : undefined;
 }
 
 export function permissionDecision(response: unknown): PermissionDecision {

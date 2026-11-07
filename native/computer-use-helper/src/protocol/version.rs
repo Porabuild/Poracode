@@ -15,6 +15,13 @@
 // gained the notes `coordinate_resolved_by_tree`, `scrolled_ancestor`, and
 // `in_app_focus_changed`. Older clients keep working: everything they send
 // still parses, and the new fields are ones they already tolerate.
-pub const PROTOCOL_VERSION: u32 = 3;
+//
+// Version 4 adds Locked Computer Use on macOS: `hello.lockedUse`
+// (`supported`/`signed`/`paused`/`active`) and the `locked_use_begin`,
+// `locked_use_end`, and `locked_use_status` actions. Purely additive: older
+// clients never send the new actions and ignore the new hello field.
+// Optional dimDisplay defaults to false for older begin requests; v4 remains
+// compatible and the helper/plugin behavior versions already advance here.
+pub const PROTOCOL_VERSION: u32 = 4;
 pub const MIN_CLIENT_PROTOCOL_VERSION: u32 = 1;
 pub const HELPER_VERSION: &str = env!("CARGO_PKG_VERSION");

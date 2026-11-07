@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 
 const FIXTURE = resolve("src/host/remote/server/remoteCommandIdempotency.crashFixture.ts");
@@ -106,7 +106,6 @@ describe.skipIf(!sqliteAvailable)("remote command receipts across real process k
   function launch(): Fixture {
     const child = fork(FIXTURE, [dbPath, effectPath], {
       execArgv: [
-        "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--import",
         pathToFileURL(resolve("scripts/remote-v3-ts-register.mjs")).href,

@@ -1,5 +1,6 @@
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { agentVisionStreamFrameSchema } from "@/shared/agentVision";
 import { rememberHistoryContentOmissions } from "../historyDelivery";
 
 /**
@@ -29,6 +30,7 @@ export type DesktopLoopbackFrame =
       readonly omittedRuntimeThreadIds?: readonly string[];
     }
   | { readonly kind: "terminal"; readonly frame: Record<string, unknown> }
+  | { readonly kind: "agent-vision"; readonly frame: Record<string, unknown> }
   | { readonly kind: "pong"; readonly id: string | undefined }
   | { readonly kind: "ready" }
   | { readonly kind: "resync-required" }
@@ -58,6 +60,10 @@ export function validateDesktopLoopbackFrame(value: unknown): DesktopLoopbackFra
   if (!value || typeof value !== "object" || Array.isArray(value)) return { kind: "invalid" };
   const frame = value as Record<string, unknown>;
   const type = frame.type;
+  if (type === "agent-vision-frame") {
+    const parsed = agentVisionStreamFrameSchema.safeParse(frame);
+    return parsed.success ? { kind: "agent-vision", frame: parsed.data } : { kind: "invalid" };
+  }
   if (type === "event" || type === "desktop-event") {
     const event = frame.event;
     if (!event || typeof event !== "object" || Array.isArray(event)) return { kind: "invalid" };
@@ -137,6 +143,7 @@ export function routeDesktopLoopbackFrame(
       ports.dispatch(frame.event, frame.seq, frame.space);
       return;
     case "terminal":
+    case "agent-vision":
       ports.onServerFrame?.(frame.frame);
       return;
     case "pong":

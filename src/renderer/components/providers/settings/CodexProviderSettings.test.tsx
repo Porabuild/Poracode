@@ -52,6 +52,14 @@ vi.mock("@/renderer/components/common", () => ({
   ),
 }));
 
+// The advanced section has its own test file; this one covers context windows
+// and that the panel mounts the section for the right agent.
+vi.mock("./CodexAdvancedSettings", () => ({
+  CodexAdvancedSettings: (props: { agentKind: string }) => (
+    <div data-testid="codex-advanced-settings" data-agent-kind={props.agentKind} />
+  ),
+}));
+
 const bridgeMock = vi.hoisted(() => ({
   refreshAgentStatuses: vi.fn<(...args: unknown[]) => Promise<void>>(),
 }));
@@ -102,6 +110,15 @@ describe("CodexProviderSettings", () => {
     const entry = NATIVE_AGENT_REGISTRY_ENTRIES.find((candidate) => candidate.id === "codex");
     expect(entry?.settingsPanel).toBe(CodexAgentSettingsPanel);
     expect(entry?.profiles).toBe(codexProfileSupport);
+  });
+
+  it("mounts the advanced section for the same agent kind", () => {
+    render(<CodexProviderSettings agentKind="codex:work" wslDistros={[]} />);
+
+    expect(screen.getByTestId("codex-advanced-settings")).toHaveAttribute(
+      "data-agent-kind",
+      "codex:work",
+    );
   });
 
   it("shows the default 272k, 400k, and 1M sizes", () => {

@@ -58,5 +58,14 @@ export function useImageViewportPriority(enabled: boolean) {
   );
   const priority: EnvironmentImagePriority =
     enabled && paneVisible && (!canObserve || visible) ? "foreground" : "background";
-  return { viewportRef, priority };
+  // Read when a fetch is requested, so a row's index stays current.
+  const readRank = () => transcriptRowRank(elementRef.current);
+  return { viewportRef, priority, readRank };
+}
+
+/** Transcript row index of an image (newer rows are higher), if it is in one. */
+function transcriptRowRank(element: HTMLElement | null): number | undefined {
+  const index = element?.closest("[data-chat-virtual-row]")?.getAttribute("data-index");
+  const rank = index ? Number(index) : Number.NaN;
+  return Number.isFinite(rank) ? rank : undefined;
 }

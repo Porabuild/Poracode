@@ -43,6 +43,7 @@ internal class RemoteHttpExecutor(
         authorized: Boolean = true,
         extraHeaders: Map<String, String> = emptyMap(),
         expectedStatus: Int? = null,
+        timeoutMs: Long? = null,
     ): String {
         var url = endpointUrl(path).toHttpUrl()
         if (query.isNotEmpty()) {
@@ -80,7 +81,12 @@ internal class RemoteHttpExecutor(
         environment.applyAuthority(requestBuilder)
         cachedRead?.entry?.let { requestBuilder.header("If-None-Match", it.etag) }
         val request = requestBuilder.build()
-        val liveClient = clientForRequest()
+        val liveClient = clientForRequest().let { base ->
+            if (timeoutMs == null) base else base.newBuilder()
+                .callTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .build()
+        }
         val deadlineNanos = liveClient.callTimeoutMillis.takeIf { it > 0 }?.let {
             System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(it.toLong())
         }
@@ -157,6 +163,73 @@ internal class RemoteHttpExecutor(
             }
         } catch (error: RemoteClientException) {
             throw environment.normalizeFailure(error)
+        }
+    }
+
+    /**
+     * Streams a file download into [destination] on IO. Requires status 200,
+     * `attachment` Content-Disposition and `application/octet-stream`;
+     * redirects, error payloads and older inline hosts fail closed and the
+     * partial file (and its new parent directory) is removed.
+     */
+    internal suspend fun streamFile(
+        path: String,
+        query: List<Pair<String, String>> = emptyList(),
+        destination: java.io.File,
+    ) {
+        var url = endpointUrl(path).toHttpUrl()
+        if (query.isNotEmpty()) {
+            val builder = url.newBuilder()
+            query.forEach { (key, value) -> builder.addQueryParameter(key, value) }
+            url = builder.build()
+        }
+        CleartextPolicy.enforce(url.toString())
+        val requestBuilder = Request.Builder().url(url).get()
+        accessToken()?.takeIf(String::isNotBlank)?.let {
+            requestBuilder.header("Authorization", "Bearer $it")
+            declareWriterProtocol(requestBuilder)
+        }
+        environment.applyAuthority(requestBuilder)
+        destination.parentFile?.mkdirs()
+        // Large attachments must not die at the JSON client's total call
+        // timeout while bytes still arrive; the pinned/authed client keeps
+        // connect+read inactivity timeouts and only drops the wall-clock cap.
+        val streamClient = clientForRequest().newBuilder()
+            .callTimeout(0, TimeUnit.MILLISECONDS)
+            .build()
+        try {
+            executeRemoteRequest(streamClient, networkGate, requestBuilder.build()) { response ->
+                if (response.code != 200) {
+                    // Preserve typed status/environment evidence (401/403/...)
+                    // through the shared bounded decoder.
+                    responseDecoder.text(response, 200)
+                }
+                val disposition = response.header("Content-Disposition")?.lowercase()
+                val type = response.header("Content-Type")
+                    ?.substringBefore(';')?.trim()?.lowercase()
+                if (
+                    !(disposition == "attachment" || disposition?.startsWith("attachment;") == true) ||
+                    type != "application/octet-stream"
+                ) {
+                    response.close()
+                    throw RemoteClientException.invalidResponse(
+                        "The host did not return an attachment download.",
+                    )
+                }
+                response.body.byteStream().use { input ->
+                    destination.outputStream().use { output -> input.copyTo(output) }
+                }
+            }
+        } catch (error: RemoteClientException) {
+            // Every failure path removes the partial destination AND the
+            // unique directory this download created.
+            destination.delete()
+            destination.parentFile?.delete()
+            throw environment.normalizeFailure(error)
+        } catch (error: Exception) {
+            destination.delete()
+            destination.parentFile?.delete()
+            throw error
         }
     }
 

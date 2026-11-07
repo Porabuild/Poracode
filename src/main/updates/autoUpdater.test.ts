@@ -38,6 +38,29 @@ const INITIAL_CHECK_DELAY_MS = 30_000;
 const PERIODIC_CHECK_INTERVAL_MS = 60 * 60 * 1_000;
 
 describe("createAutoUpdaterController", () => {
+  it("retains safe cause fields for an unexpected emitted failure without its payload", () => {
+    const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
+    const controller = createAutoUpdaterController(vi.fn(), "stable", false, reportError);
+    controller.initialize();
+    autoUpdaterMock.emit(
+      "error",
+      Object.assign(new TypeError("private prompt /private/path token=credential"), {
+        statusCode: 403,
+      }),
+    );
+    expect(reportError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: "Updater check failed: unexpected.",
+        diagnosticCause: {
+          "poracode.cause_reason": "http",
+          "poracode.cause_type": "type-error",
+          "poracode.http_status": "403",
+        },
+      }),
+      expect.any(Object),
+    );
+    expect(JSON.stringify(reportError.mock.calls)).not.toContain("private");
+  });
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();

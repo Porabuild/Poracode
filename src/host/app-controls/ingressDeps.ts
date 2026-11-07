@@ -133,6 +133,9 @@ export function buildSharedAppControlsIngressDeps(
           discardPersistedProjectExperiments(project, (payload) =>
             call("removeExperimentWorktrees", payload),
           ),
+        relocateProjectRuntime: async (projectId, newLocation) => {
+          await call("relocateProject", { projectId, newLocation });
+        },
         hasRunningProjectThread: (projectId) =>
           dbGetThreads().some(
             (thread) => thread.projectId === projectId && thread.status === "working",
@@ -170,6 +173,8 @@ export function buildSharedAppControlsIngressDeps(
         {
           startThread: (payload) => call("startThread", payload),
           getAgentStatuses: (wslDistros) => call("getAgentStatuses", { wslDistros }),
+          getPlugins: (projectLocation) =>
+            call("listPlugins", { projectLocation }).then((inventory) => inventory.plugins),
           addWorktree: ({ location, branch, settings }) =>
             call("gitAddWorktree", {
               projectLocation: location,

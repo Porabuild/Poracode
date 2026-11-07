@@ -5,41 +5,12 @@ import { MAX_CONCURRENT_CHILDREN_PER_PARENT, type SubagentRunManager } from "./S
 import { listCrossagentEligibleProviders } from "./routingSnapshot";
 import {
   buildSpawnableAgents,
-  classifyModelTier,
   CROSSAGENT_MCP_INSTRUCTIONS_BASE,
   dispatchTool,
   TOOLS,
 } from "./toolRegistry";
 import type { SubagentToolContext } from "./toolRegistry";
 import type { SpawnableAgent } from "./types";
-
-describe("classifyModelTier", () => {
-  it.each([
-    ["claude-haiku-4", "Haiku 4", "fast-cheap"],
-    ["gpt-5-mini", "GPT-5 Mini", "fast-cheap"],
-    ["gemini-flash", "Gemini Flash", "fast-cheap"],
-    ["gpt-5-nano", "GPT-5 Nano", "fast-cheap"],
-    ["codex-lite", "Codex Lite", "fast-cheap"],
-    ["some-small-model", "Small Model", "fast-cheap"],
-    ["codex-spark-5.3", "Spark 5.3", "fast-cheap"],
-    ["model-fast", "Fast Mode", "fast-cheap"],
-    ["claude-opus-4", "Opus 4.8", "max-capability"],
-    ["fable-5", "Fable 5", "max-capability"],
-    ["gemini-pro", "Gemini Pro", "max-capability"],
-    ["gpt-5-max", "GPT-5 Max", "max-capability"],
-    ["model-ultra", "Ultra", "max-capability"],
-    ["big-model", "Big Model", "max-capability"],
-    ["claude-sonnet-4.5", "Sonnet 4.5", "balanced"],
-    ["gpt-5.5", "GPT-5.5", "balanced"],
-  ])("classifies %s / %s as %s", (id, label, expected) => {
-    expect(classifyModelTier(id, label)).toBe(expected);
-  });
-
-  it("matches keywords case-insensitively", () => {
-    expect(classifyModelTier("HAIKU-4", "MODEL")).toBe("fast-cheap");
-    expect(classifyModelTier("model", "OPUS 4.8")).toBe("max-capability");
-  });
-});
 
 function makeStatus(overrides: Partial<AgentStatus> = {}): AgentStatus {
   return {
@@ -430,6 +401,108 @@ describe("provider discovery", () => {
     expect(JSON.parse(resultText(detail))).toEqual(provider);
   });
 
+  it("adds the current crew description to list_agents without changing no-crew output", async () => {
+    const { ctx } = makeToolContext();
+    ctx.listSpawnableAgents = async () => [provider];
+    ctx.getCrew = () => ({
+      version: 1,
+      name: "Ship crew",
+      policy: "crew-only",
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5", effort: "high" },
+        },
+      ],
+    });
+    ctx.runManager = {
+      listRuns: () => [{ role: "builder", status: "running" }],
+    } as unknown as SubagentRunManager;
+    const listed = JSON.parse(resultText(await dispatchTool("list_agents", {}, ctx)));
+    expect(listed).toEqual({
+      crew: {
+        name: "Ship crew",
+        policy: "crew-only",
+        instructions:
+          "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: use roles for automatic delegation. When the user explicitly requests other agents or models, omit role and pass user_requested=true with the requested selection; no crew change or additional confirmation is needed.",
+        roles: [
+          {
+            role: "builder",
+            label: "Builder",
+            provider: "codex",
+            model: "gpt-5.5",
+            reasoning: "high",
+            fast: false,
+            parallel: 1,
+            running: 1,
+            available: true,
+          },
+        ],
+      },
+    });
+  });
+
+  it("includes the unchanged ranked agents array only when policy is crew-first", async () => {
+    const { ctx } = makeToolContext();
+    ctx.listSpawnableAgents = async () => [provider];
+    const ordinary = JSON.parse(resultText(await dispatchTool("list_agents", {}, ctx)));
+    ctx.getCrew = () => ({
+      version: 1,
+      policy: "crew-first",
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    });
+    ctx.runManager = { listRuns: () => [] } as unknown as SubagentRunManager;
+    const withCrew = JSON.parse(resultText(await dispatchTool("list_agents", {}, ctx)));
+    expect(withCrew.agents).toEqual(ordinary);
+    expect(withCrew.crew.policy).toBe("crew-first");
+    expect(withCrew.crew.instructions).toBe(
+      "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew first: if no role fits or a role is unavailable, you may spawn one of agents without a role.",
+    );
+  });
+
+  it("returns each specified crew role error through spawn_agent", async () => {
+    const { ctx } = makeToolContext();
+    ctx.listSpawnableAgents = async () => [provider];
+    const baseCrew = {
+      version: 1 as const,
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5", effort: "high" },
+        },
+      ],
+    };
+    const failure = async (args: Record<string, unknown>, crew?: typeof baseCrew) => {
+      delete ctx.getCrew;
+      if (crew) ctx.getCrew = () => crew;
+      return resultText(await dispatchTool("spawn_agent", args, ctx));
+    };
+    expect(await failure({ role: "builder", prompt: "work" })).toBe(
+      "This thread has no crew; omit role.",
+    );
+    expect(await failure({ role: "missing", prompt: "work" }, baseCrew)).toBe(
+      "Unknown crew role: missing. Roles: builder.",
+    );
+    expect(await failure({ role: "builder", provider: "claude", prompt: "work" }, baseCrew)).toBe(
+      "role=builder sets provider, model, reasoning, Fast and context length; omit them.",
+    );
+    expect(await failure({ role: "builder", fallbacks: [], prompt: "work" }, baseCrew)).toBe(
+      "role=builder uses the role's own fallbacks; omit fallbacks.",
+    );
+    expect(await failure({ prompt: "work" }, baseCrew)).toBe(
+      "This thread's crew is Crew only: spawn with role=<id> (builder) for automatic delegation. If the user explicitly requested other agents or models, omit role and pass user_requested=true with their requested selection.",
+    );
+  });
+
   it("returns one requested model without mutating the cached provider catalog", async () => {
     const { ctx } = makeToolContext();
     const full: SpawnableAgent = {
@@ -584,10 +657,25 @@ describe("subagent tool registration", () => {
     expect(byName.get("wait_for_agent")!.inputSchema).not.toHaveProperty("oneOf");
     expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
       type: "object",
-      properties: expect.objectContaining({
+      properties: {
         prompt: expect.anything(),
-        tasks: expect.anything(),
-      }),
+        user_requested: { type: "boolean" },
+        tasks: { items: { properties: { user_requested: { type: "boolean" } } } },
+        role: {
+          type: "string",
+          description:
+            "Crew role id from list_agents (for example `sidekick`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
+        },
+      },
+    });
+    expect(byName.get("run_workflow")!.inputSchema).toMatchObject({
+      properties: {
+        role: expect.anything(),
+        user_requested: { type: "boolean" },
+        tasks: {
+          items: { properties: { role: expect.anything(), user_requested: { type: "boolean" } } },
+        },
+      },
     });
     expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
     expect(byName.get("set_routing_preference")!.inputSchema).toMatchObject({
@@ -605,6 +693,10 @@ describe("subagent tool registration", () => {
     });
     expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
     expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });
+    const steerSchema = byName.get("steer_agent")!.inputSchema;
+    expect(steerSchema.required).toEqual(["run_id", "prompt"]);
+    expect(steerSchema.required).not.toContain("name");
+    expect(steerSchema.properties).toMatchObject({ name: { type: "string" } });
     expect(byName.get("list_agents")!.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
@@ -740,7 +832,7 @@ describe("subagent tool registration", () => {
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
     expect(byName.get("spawn_agent")!.description).toContain("never spawn before it");
     expect(byName.get("spawn_agent")!.description).toContain(
-      "root provider/model/reasoning/fast/permissions are batch defaults",
+      "root provider/model/reasoning/fast/permissions/role/user_requested are batch defaults",
     );
   });
 
@@ -1119,7 +1211,14 @@ describe("subagent tool registration", () => {
       ctx,
     );
     expect(JSON.parse(result.content[0]!.text)).toEqual({ run_id: "r", status: "accepted" });
-    expect(steer).toHaveBeenCalledWith("r", "focus on tests", ctx.parentThreadId, true);
+    expect(steer).toHaveBeenCalledWith(
+      "r",
+      "focus on tests",
+      ctx.parentThreadId,
+      true,
+      undefined,
+      undefined,
+    );
     expect(TOOLS.find((tool) => tool.name === "steer_agent")?.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,

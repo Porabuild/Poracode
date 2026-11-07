@@ -7,26 +7,6 @@ import {
   stripBracketParams,
 } from "@/shared/modelLabels";
 
-function formatCodexShortcutLabel(modelId: string, label: string): string {
-  if (!/^gpt-/i.test(modelId) || /\bGPT\b/i.test(label)) return label;
-
-  const suffix = modelId.replace(/^gpt-/i, "");
-  const titleSuffix = suffix
-    .split("-")
-    .map((part) => capitalizeSegment(part))
-    .join(" ");
-  const compactLabel = label.trim();
-  if (
-    compactLabel === suffix ||
-    compactLabel === titleSuffix ||
-    compactLabel === suffix.replace(/-/g, " ") ||
-    /^\d/.test(compactLabel)
-  ) {
-    return `GPT-${titleSuffix}`;
-  }
-  return label;
-}
-
 export function formatShortcutFallbackLabel(agentKind: string, modelId: string): string {
   const baseId = stripBracketParams(modelId);
   const baseLabel =
@@ -54,7 +34,7 @@ export function formatShortcutModelLabel(
     return formatShortcutFallbackLabel(agentKind, modelId);
   }
 
-  let next = agentKind === "codex" ? formatCodexShortcutLabel(modelId, label) : label;
+  let next = label;
 
   if (baseAgentKind(agentKind) === "cursor" && modelId.includes("[")) {
     const hints = formatBracketParamHints(modelId, { includeEffort: false, includeFast: false });

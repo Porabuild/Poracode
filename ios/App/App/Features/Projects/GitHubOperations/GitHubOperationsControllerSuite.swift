@@ -9,6 +9,7 @@ final class GitHubOperationsControllerSuite {
   let pullRequestMutations: GitHubPullRequestMutationController
   let workflows: GitHubWorkflowController
   let workflowMutations: GitHubWorkflowMutationController
+  let forgeReview: ForgeReviewController
 
   init(gateway: any GitHubOperationsGateway) {
     availability = GitHubAvailabilityController(gateway: gateway)
@@ -16,6 +17,7 @@ final class GitHubOperationsControllerSuite {
     pullRequestMutations = GitHubPullRequestMutationController(gateway: gateway)
     workflows = GitHubWorkflowController(gateway: gateway)
     workflowMutations = GitHubWorkflowMutationController(gateway: gateway)
+    forgeReview = ForgeReviewController(gateway: gateway as? any ForgeReviewGateway)
   }
 
   func activate(_ context: GitHubControllerContext) {
@@ -24,6 +26,7 @@ final class GitHubOperationsControllerSuite {
     pullRequestMutations.activate(context)
     workflows.activate(context)
     workflowMutations.activate(context)
+    forgeReview.activate(context)
   }
 
   func deactivate() {
@@ -32,6 +35,7 @@ final class GitHubOperationsControllerSuite {
     pullRequestMutations.deactivate()
     workflows.deactivate()
     workflowMutations.deactivate()
+    forgeReview.deactivate()
   }
 
   func enterBackground() {
@@ -40,6 +44,7 @@ final class GitHubOperationsControllerSuite {
     pullRequestMutations.enterBackground()
     workflows.enterBackground()
     workflowMutations.enterBackground()
+    forgeReview.deactivate()
   }
 
   func leaveBackground(_ context: GitHubControllerContext) {
@@ -48,6 +53,7 @@ final class GitHubOperationsControllerSuite {
     pullRequestMutations.leaveBackground(context)
     workflows.leaveBackground(context)
     workflowMutations.leaveBackground(context)
+    forgeReview.activate(context)
   }
 }
 

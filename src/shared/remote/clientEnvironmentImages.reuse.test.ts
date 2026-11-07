@@ -385,12 +385,13 @@ describe("image admission cancellation and failures", () => {
     await vi.waitFor(() => expect(h.fetches).toHaveLength(3));
     expect(h.created).toEqual(["blob:1"]);
     expect(ticks).toEqual(["b"]);
-    expect(h.fetches[2]?.requestPath).toContain("path=%2Fc");
-    h.fetches[2]?.resolve(new Uint8Array([9]));
-    await vi.waitFor(() => expect(h.fetches).toHaveLength(4));
-    h.fetches[3]?.resolve(new Uint8Array([1, 2, 3]));
-    await vi.waitFor(() => expect(h.snapshot("/b").url).toBe("blob:3"));
+    // The re-requested key is the newest demand, so it starts before /c.
+    expect(h.fetches[2]?.requestPath).toContain("path=%2Fb");
+    h.fetches[2]?.resolve(new Uint8Array([1, 2, 3]));
+    await vi.waitFor(() => expect(h.snapshot("/b").url).toBe("blob:2"));
     expect(ticks).toEqual(["b", "b"]);
+    await vi.waitFor(() => expect(h.fetches).toHaveLength(4));
+    expect(h.fetches[3]?.requestPath).toContain("path=%2Fc");
     expect(h.revoked).toEqual(["blob:1"]);
   });
 

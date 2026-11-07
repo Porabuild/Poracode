@@ -233,6 +233,86 @@ describe("devinNegotiatedGuiSelectionCapabilities", () => {
     });
   });
 
+  it("declares no effort ladder for unprobed effort-less regular families", () => {
+    // Live devin 3000.11.234: `thought_level` is a per-model select. A session
+    // opened on `adaptive` (or claude-opus-4-6, kimi-k2-7, swe-1-6) advertises
+    // none, yet the probe only records ladders for the models it opened, so
+    // these accepted ids used to inherit the global ladder and the shared
+    // default seeded "medium" — which the strict post-open sync rejected.
+    const effortlessCatalog = [
+      ...catalog,
+      {
+        id: "adaptive",
+        label: "Adaptive",
+        variants: [
+          { id: "adaptive", effort: "", thinking: false, fast: false, context: "default" },
+        ],
+      },
+      {
+        id: "claude-opus-4-6",
+        label: "Claude Opus 4.6",
+        variants: [
+          { id: "claude-opus-4-6", effort: "", thinking: false, fast: false, context: "default" },
+          {
+            id: "claude-opus-4-6-thinking",
+            effort: "",
+            thinking: true,
+            fast: false,
+            context: "default",
+          },
+        ],
+      },
+      {
+        id: "kimi-k2-7",
+        label: "Kimi K2.7",
+        variants: [
+          { id: "kimi-k2-7", effort: "", thinking: false, fast: false, context: "default" },
+        ],
+      },
+    ];
+    const menu: AcpProbeResult = {
+      ...negotiated,
+      models: [
+        ...negotiated.models!,
+        { id: "adaptive", label: "Adaptive" },
+        { id: "claude-opus-4-6", label: "Claude Opus 4.6" },
+        { id: "claude-opus-4-6-thinking", label: "Claude Opus 4.6 Thinking" },
+        { id: "kimi-k2-7", label: "Kimi K2.7" },
+      ],
+      // The probe DID open kimi-k2-7 and saw a live ladder: observed wins.
+      modelEfforts: { ...negotiated.modelEfforts, "kimi-k2-7": ["low", "high"] },
+    };
+    const gui = capabilitiesForPresentation(
+      {
+        ...devinDefaultCapabilities,
+        ...devinNegotiatedGuiSelectionCapabilities(
+          devinDefaultCapabilities,
+          menu,
+          effortlessCatalog,
+        )!,
+      },
+      "gui",
+    );
+    for (const id of ["adaptive", "claude-opus-4-6", "claude-opus-4-6-thinking"]) {
+      expect(gui.modelEfforts[id]).toEqual([]);
+      expect(modelSelectionFor(gui, id).reasoning).toEqual({ values: [] });
+      expect(hasSelectableReasoning(gui, id)).toBe(false);
+      expect(resolveReasoningSelection(gui, id) || undefined).toBeUndefined();
+      expect(resolveReasoningSelection(gui, id, "medium") || undefined).toBeUndefined();
+    }
+    expect(gui.modelEfforts["kimi-k2-7"]).toEqual(["low", "high"]);
+    // Laddered families and composite pairs keep the negotiated behavior:
+    // `swe-1-7` is an effort-less VARIANT of a laddered family, and the pair
+    // still inherits the global ladder for its own native select.
+    expect(gui.modelEfforts["swe-1-7-lightning-medium"]).toBeUndefined();
+    expect(gui.modelEfforts["swe-2-high"]).toEqual(["medium", "high", "max"]);
+    expect(
+      modelSelectionFor(gui, "fusion-claude-fable-5-1-medium-sidekick-swe-2-medium").reasoning
+        .values,
+    ).toEqual(["medium", "high", "max"]);
+    expect(gui.efforts).toEqual(["medium", "high", "max"]);
+  });
+
   it("keeps the override free of group fields for flat menus", () => {
     const gui = capabilitiesForPresentation(
       {

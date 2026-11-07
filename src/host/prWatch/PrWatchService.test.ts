@@ -5,6 +5,8 @@ import {
   areSelectionBindingsEqual,
   type PrData,
   type PrDetails,
+  type GhGetPrDetailsResult,
+  type ForgeRepository,
   type PrWatch,
   type Project,
   type ScheduledTaskConfig,
@@ -27,6 +29,7 @@ import { dbGetProject, dbUpdateProject, dbUpsertProject } from "@/host/db/projec
 import { closeDatabase, getSqlite, initDatabase } from "@/host/db/connection";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import { hasUnsupportedSelectionBinding } from "@/shared/persistedSelectionBinding";
+import { reviewScopeFromSource, sameReviewScope } from "@/shared/forgeRemote";
 import { buildPrWatchExecutionDeps } from "./watchExecution";
 import {
   PrWatchService,
@@ -42,7 +45,32 @@ const project: Project = {
   createdAt: "2026-07-25T00:00:00.000Z",
 };
 
+const source: ForgeRepository = {
+  forge: "github",
+  host: "https://github.com",
+  repository: "example/poracode",
+  remote: "origin",
+  account: { forge: "github", host: "https://github.com", login: "alice" },
+  capabilities: {
+    mergeMethods: ["merge", "squash", "rebase"],
+    reviewDecisions: ["approve", "request-changes", "comment"],
+    draft: true,
+    reopen: true,
+    updateBranch: true,
+    rebaseBranch: true,
+    edit: true,
+    checks: true,
+    reviewThreads: true,
+    expectedHeadMerge: true,
+    autoMerge: true,
+    autoFix: true,
+    adminMerge: true,
+  },
+};
+const reviewScope = reviewScopeFromSource(source)!;
 const pr: PrData = {
+  source,
+  headSha: "a".repeat(40),
   number: 42,
   state: "open",
   title: "Watch pull requests",
@@ -57,6 +85,7 @@ const pr: PrData = {
 };
 
 const details: PrDetails = {
+  source,
   number: 42,
   title: pr.title,
   body: "",
@@ -79,6 +108,7 @@ function watch(overrides: Partial<PrWatch> = {}): PrWatch {
     projectId: project.id,
     prNumber: pr.number,
     headBranch: details.headBranch,
+    reviewScope,
     watchEnabled: true,
     autoMerge: false,
     agentKind: "codex",
@@ -142,6 +172,7 @@ function memoryStore(initial: PrWatch): PrWatchStore & {
       projectId: entry.projectId,
       prNumber: entry.prNumber,
       headBranch: entry.headBranch,
+      ...(entry.reviewScope ? { reviewScope: entry.reviewScope } : {}),
       ...(entry.worktreePath === undefined ? {} : { worktreePath: entry.worktreePath }),
       watchEnabled: entry.watchEnabled,
       autoMerge: entry.autoMerge,
@@ -153,6 +184,7 @@ function memoryStore(initial: PrWatch): PrWatchStore & {
   function sameSnapshot(a: PrWatchExecutionSnapshot, b: PrWatchExecutionSnapshot): boolean {
     return (
       a.headBranch === b.headBranch &&
+      sameReviewScope(a.reviewScope, b.reviewScope) &&
       a.worktreePath === b.worktreePath &&
       a.watchEnabled === b.watchEnabled &&
       a.autoMerge === b.autoMerge &&
@@ -255,15 +287,25 @@ function setup(
     title: "PR #42 watch",
     projectId: project.id,
   }));
-  const mergePr = vi.fn<PrWatchServiceOptions["mergePr"]>(async () => undefined);
+  const mergePr = vi.fn<PrWatchServiceOptions["mergePr"]>(async () => ({ ...pr, state: "merged" }));
   const onPrObserved = vi.fn<NonNullable<PrWatchServiceOptions["onPrObserved"]>>();
   const retire = vi.fn<PrWatchServiceOptions["retireObsoleteLaunchThread"]>(async () => true);
   const reportError = vi.fn<NonNullable<PrWatchServiceOptions["reportError"]>>();
+  const observedPrs = new Map<number, PrData>();
+  const readSummary: PrWatchServiceOptions["getPrForBranch"] =
+    overrides.getPrForBranch ?? (async () => pr);
+  const readDetails: PrWatchServiceOptions["getPrDetails"] =
+    overrides.getPrDetails ??
+    (async (_project, prNumber) => ({
+      details: {
+        ...details,
+        number: prNumber,
+        headBranch: store.get(project.id, prNumber)?.headBranch ?? details.headBranch,
+      },
+    }));
   const service = new PrWatchService({
     store,
     getProject: () => project,
-    getPrForBranch: async () => pr,
-    getPrDetails: async () => details,
     getPrReviewThreads: async () => [],
     getMergeMethod: () => "squash",
     mergePr,
@@ -276,11 +318,269 @@ function setup(
     retireObsoleteLaunchThread: retire,
     reportError,
     ...overrides,
+    getPrForBranch: async (...args) => {
+      const result = await readSummary(...args);
+      if (result) observedPrs.set(result.number, result);
+      return result;
+    },
+    getPrDetails: async (...args) => {
+      const result = await readDetails(...args);
+      return { ...result, pr: result.pr ?? observedPrs.get(args[1]) ?? pr };
+    },
   });
   return { service, store, createThread, mergePr, onPrObserved, retire, reportError };
 }
 
 describe("PrWatchService", () => {
+  it("only re-arms a legacy watch after resolving its explicit public scope", async () => {
+    const initial = watch();
+    delete initial.reviewScope;
+    const read = vi.fn<PrWatchServiceOptions["getPrForBranch"]>(async () => pr);
+    const { service, store } = setup(initial, { getPrForBranch: read });
+    await service.tick();
+    expect(read).not.toHaveBeenCalled();
+    const saved = await service.upsertScoped({ ...initial, reviewScope });
+    expect(read).toHaveBeenCalledWith(project, initial.headBranch, reviewScope);
+    expect(saved).toMatchObject({ reviewScope, lastError: null, lastCheckKey: null });
+    expect(store.get(project.id, 42)?.reviewScope).toEqual(reviewScope);
+    await service.dispose();
+  });
+
+  it("rejects a re-arm whose resolved repository no longer matches the requested scope", async () => {
+    const initial = watch();
+    delete initial.reviewScope;
+    const { service, store } = setup(initial, {
+      getPrForBranch: async () => ({ ...pr, source: { ...source, repository: "other/app" } }),
+    });
+    await expect(service.upsertScoped({ ...initial, reviewScope })).rejects.toThrow(/changed/);
+    expect(store.get(project.id, 42)?.reviewScope).toBeUndefined();
+    await service.dispose();
+  });
+
+  it("refuses to re-arm or launch Auto Fix when the origin push destination is unproven", async () => {
+    const unsafeSource = { ...source, capabilities: { ...source.capabilities, autoFix: false } };
+    const { service, store, createThread } = setup(watch(), {
+      getPrForBranch: async () => ({ ...behindPr, source: unsafeSource }),
+      getPrDetails: async () => ({
+        details: { ...details, source: unsafeSource },
+        pr: { ...behindPr, source: unsafeSource },
+      }),
+    });
+    await expect(service.upsertScoped({ ...watch(), reviewScope })).rejects.toThrow(
+      /branch in this repository/,
+    );
+    await service.tick();
+    expect(createThread).not.toHaveBeenCalled();
+    expect(store.get(project.id, 42)?.lastError).toContain("branch in this repository");
+    await service.dispose();
+  });
+
+  it.each(["legacy", "future"] as const)(
+    "refuses a %s source scope without reading the active forge",
+    async (kind) => {
+      const initial = watch();
+      delete initial.reviewScope;
+      if (kind === "future") initial.reviewScopeUnsupported = true;
+      const getPrForBranch = vi.fn<PrWatchServiceOptions["getPrForBranch"]>();
+      const { service, store, mergePr, createThread } = setup(initial, { getPrForBranch });
+      await service.tick();
+      expect(getPrForBranch).not.toHaveBeenCalled();
+      expect(mergePr).not.toHaveBeenCalled();
+      expect(createThread).not.toHaveBeenCalled();
+      expect(store.get(project.id, 42)?.lastError).toContain(
+        kind === "legacy" ? "no source scope" : "unsupported source-scope version",
+      );
+      expect(() => service.upsert({ ...initial, watchEnabled: true })).toThrow(/source.scope/);
+      await service.dispose();
+    },
+  );
+
+  it.each(["account", "repository"] as const)(
+    "does not merge after the persisted %s changes during a summary read",
+    async (changed) => {
+      const entered = Promise.withResolvers<void>();
+      const held = Promise.withResolvers<PrData>();
+      const { service, store, mergePr } = setup(watch({ watchEnabled: false, autoMerge: true }), {
+        getPrForBranch: () => {
+          entered.resolve();
+          return held.promise;
+        },
+      });
+      const recheck = vi.spyOn(service, "requestCheck").mockImplementation(() => {});
+      const pending = service.tick();
+      await entered.promise;
+      const nextScope =
+        changed === "account"
+          ? { ...reviewScope, account: { ...reviewScope.account, login: "bob" } }
+          : { ...reviewScope, repository: "example/other" };
+      store.upsert(
+        watch({
+          watchEnabled: false,
+          autoMerge: true,
+          reviewScope: nextScope,
+          lastCheckKey: "new-owner-state",
+        }),
+      );
+      held.resolve(pr);
+      await pending;
+      expect(mergePr).not.toHaveBeenCalled();
+      expect(recheck).toHaveBeenCalledWith(project.id, 42);
+      expect(store.get(project.id, 42)).toMatchObject({
+        reviewScope: nextScope,
+        lastCheckKey: "new-owner-state",
+        lastError: null,
+      });
+      await service.dispose();
+    },
+  );
+
+  it.each(["repository", "account", "number"] as const)(
+    "refuses a detailed review for the wrong %s",
+    async (wrong) => {
+      const wrongSource =
+        wrong === "repository"
+          ? { ...source, repository: "example/other" }
+          : wrong === "account"
+            ? { ...source, account: { ...source.account!, login: "bob" } }
+            : source;
+      const { service, store, mergePr, createThread } = setup(watch({ autoMerge: true }), {
+        getPrForBranch: async () => behindPr,
+        getPrDetails: async () => ({
+          details: { ...details, source: wrongSource },
+          pr: { ...behindPr, source: wrongSource, number: wrong === "number" ? 43 : 42 },
+        }),
+      });
+      await service.tick();
+      expect(mergePr).not.toHaveBeenCalled();
+      expect(createThread).not.toHaveBeenCalled();
+      expect(store.get(project.id, 42)?.lastError).toContain("changed");
+      await service.dispose();
+    },
+  );
+
+  it("retains a queued merge across readiness changes and service restarts", async () => {
+    let current = pr;
+    const { service, store, mergePr } = setup(watch({ watchEnabled: false, autoMerge: true }), {
+      getPrForBranch: async () => current,
+    });
+    mergePr.mockResolvedValue(pr);
+    await service.tick();
+    expect(store.get(project.id, 42)?.lastCheckKey).toBe(`forge-merge-v1:${pr.headSha}`);
+    current = { ...pr, mergeStateStatus: "BLOCKED" };
+    await service.tick();
+    current = pr;
+    await service.tick();
+    expect(mergePr).toHaveBeenCalledOnce();
+    await service.dispose();
+    const restarted = setup(store.get(project.id, 42)!, { getPrForBranch: async () => pr });
+    await restarted.service.tick();
+    expect(restarted.mergePr).not.toHaveBeenCalled();
+    await restarted.service.dispose();
+  });
+
+  it("uses the host's supported merge method and the reviewed head", async () => {
+    const supported = {
+      ...source,
+      capabilities: { ...source.capabilities, mergeMethods: ["merge" as const] },
+    };
+    const live = { ...pr, source: supported };
+    const { service, mergePr } = setup(watch({ watchEnabled: false, autoMerge: true }), {
+      getPrForBranch: async () => live,
+      getPrDetails: async () => ({ details: { ...details, source: supported }, pr: live }),
+    });
+    await service.tick();
+    expect(mergePr).toHaveBeenCalledWith(
+      project,
+      42,
+      "merge",
+      expect.objectContaining({ headSha: pr.headSha, source: supported }),
+    );
+    await service.dispose();
+  });
+
+  it("does not apply an old merge outcome to a re-scoped watch", async () => {
+    const entered = Promise.withResolvers<void>();
+    const held = Promise.withResolvers<PrData>();
+    const { service, store } = setup(watch({ watchEnabled: false, autoMerge: true }), {
+      mergePr: async () => {
+        entered.resolve();
+        return held.promise;
+      },
+    });
+    vi.spyOn(service, "requestCheck").mockImplementation(() => {});
+    const pending = service.tick();
+    await entered.promise;
+    const nextScope = { ...reviewScope, repository: "example/other" };
+    store.upsert(
+      watch({
+        watchEnabled: false,
+        autoMerge: true,
+        reviewScope: nextScope,
+        lastCheckKey: "new-owner-state",
+      }),
+    );
+    held.resolve({ ...pr, state: "merged" });
+    await pending;
+    expect(store.get(project.id, 42)).toMatchObject({
+      reviewScope: nextScope,
+      lastCheckKey: "new-owner-state",
+      lastError: null,
+    });
+    await service.dispose();
+  });
+
+  it("retains an accepted merge receipt when helper selection changes in flight", async () => {
+    const entered = Promise.withResolvers<void>();
+    const held = Promise.withResolvers<PrData>();
+    const mergePr = vi.fn<PrWatchServiceOptions["mergePr"]>(async () => {
+      entered.resolve();
+      return held.promise;
+    });
+    const { service, store } = setup(watch({ watchEnabled: false, autoMerge: true }), { mergePr });
+    const pending = service.tick();
+    await entered.promise;
+    service.syncAgent({
+      projectId: project.id,
+      agentKind: "qwen",
+      config: { model: "other-model" },
+    });
+    held.resolve(pr);
+    await pending;
+    expect(store.get(project.id, 42)).toMatchObject({
+      agentKind: "qwen",
+      lastCheckKey: `forge-merge-v1:${pr.headSha}`,
+    });
+    await service.tick();
+    expect(mergePr).toHaveBeenCalledOnce();
+    await service.dispose();
+  });
+
+  it("does not spawn a fix after its account changes during an awaited checkout", async () => {
+    const entered = Promise.withResolvers<void>();
+    const held = Promise.withResolvers<{ kind: "worktree"; path: string }>();
+    const { service, store, createThread } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      ensureWorkContext: async () => {
+        entered.resolve();
+        return held.promise;
+      },
+    });
+    vi.spyOn(service, "requestCheck").mockImplementation(() => {});
+    const pending = service.tick();
+    await entered.promise;
+    const nextScope = { ...reviewScope, account: { ...reviewScope.account, login: "bob" } };
+    store.upsert(watch({ reviewScope: nextScope, lastCheckKey: "new-owner-state" }));
+    held.resolve({ kind: "worktree", path: "/repo/.worktrees/old-account" });
+    await pending;
+    expect(createThread).not.toHaveBeenCalled();
+    expect(store.get(project.id, 42)).toMatchObject({
+      reviewScope: nextScope,
+      lastCheckKey: "new-owner-state",
+      lastError: null,
+    });
+    await service.dispose();
+  });
+
   it("does not resume database access or automatic merge after disposal while a PR read is pending", async () => {
     const read = Promise.withResolvers<PrData>();
     const entered = Promise.withResolvers<void>();
@@ -334,7 +634,7 @@ describe("PrWatchService", () => {
   });
 
   it("joins an already admitted merge without publishing a late observation or database delete", async () => {
-    const merge = Promise.withResolvers<void>();
+    const merge = Promise.withResolvers<PrData | undefined>();
     const entered = Promise.withResolvers<void>();
     const onPrMerged = vi.fn<NonNullable<PrWatchServiceOptions["onPrMerged"]>>();
     const { service, store, onPrObserved } = setup(
@@ -359,7 +659,7 @@ describe("PrWatchService", () => {
     try {
       expect(disposed).toBe(false);
     } finally {
-      merge.resolve();
+      merge.resolve(undefined);
       await Promise.all([pending, disposal]);
     }
     expect(remove).not.toHaveBeenCalled();
@@ -368,7 +668,7 @@ describe("PrWatchService", () => {
   });
 
   it("does not persist a late failed read after disposal", async () => {
-    const read = Promise.withResolvers<PrDetails>();
+    const read = Promise.withResolvers<GhGetPrDetailsResult>();
     const entered = Promise.withResolvers<void>();
     const { service, store } = setup(watch(), {
       getPrDetails: () => {
@@ -525,7 +825,7 @@ describe("PrWatchService", () => {
       },
     ];
     const { service, createThread } = setup(watch(), {
-      getPrDetails: async () => ({ ...details, comments }),
+      getPrDetails: async () => ({ details: { ...details, comments } }),
     });
 
     await service.tick();
@@ -555,7 +855,9 @@ describe("PrWatchService", () => {
       ],
     };
     const active = new Set<string>();
-    const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => failedDetails);
+    const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => ({
+      details: failedDetails,
+    }));
     const { service, store, createThread } = setup(watch(), {
       getPrDetails,
       isThreadActive: (threadId) => active.has(threadId),
@@ -656,7 +958,7 @@ describe("PrWatchService", () => {
         mergeable: "CONFLICTING",
         mergeStateStatus: "DIRTY",
       }),
-      getPrDetails: async () => currentDetails,
+      getPrDetails: async () => ({ details: currentDetails }),
     });
 
     await service.tick();
@@ -683,7 +985,7 @@ describe("PrWatchService", () => {
   it.each(["BLOCKED", "HAS_HOOKS"] as const)(
     "uses lightweight polling for an external %s merge blocker",
     async (mergeStateStatus) => {
-      const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => details);
+      const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => ({ details }));
       const getPrReviewThreads = vi.fn<PrWatchServiceOptions["getPrReviewThreads"]>(async () => []);
       const { service, createThread } = setup(watch(), {
         getPrForBranch: async () => ({ ...pr, mergeStateStatus }),
@@ -719,8 +1021,8 @@ describe("PrWatchService", () => {
     };
     const getPrDetails = vi
       .fn<PrWatchServiceOptions["getPrDetails"]>()
-      .mockResolvedValueOnce(failedDetails)
-      .mockResolvedValue(pendingDetails);
+      .mockResolvedValueOnce({ details: failedDetails })
+      .mockResolvedValue({ details: pendingDetails });
     const { service, store } = setup(watch(), { getPrDetails });
 
     await service.tick();
@@ -755,7 +1057,7 @@ describe("PrWatchService", () => {
         checksStatus: "FAILURE",
         mergeStateStatus: "BLOCKED",
       }),
-      getPrDetails: async () => currentDetails,
+      getPrDetails: async () => ({ details: currentDetails }),
       getPrReviewThreads: async () => [
         {
           id: "thread-1",
@@ -806,7 +1108,7 @@ describe("PrWatchService", () => {
 
     await service.tick();
 
-    expect(mergePr).toHaveBeenCalledWith(project, pr.number, "merge");
+    expect(mergePr).toHaveBeenCalledWith(project, pr.number, "merge", pr);
     expect(onPrMerged).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: project.id, prNumber: pr.number }),
     );
@@ -821,7 +1123,7 @@ describe("PrWatchService", () => {
     };
     const { service, store, mergePr } = setup(
       withoutAgent(watch({ watchEnabled: false, autoMerge: true })),
-      { getPrDetails: async () => pendingDetails },
+      { getPrDetails: async () => ({ details: pendingDetails }) },
     );
 
     await service.tick();
@@ -831,7 +1133,7 @@ describe("PrWatchService", () => {
   });
 
   it("uses lightweight polling while auto-merge is waiting for required approval", async () => {
-    const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => details);
+    const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => ({ details }));
     const getPrReviewThreads = vi.fn<PrWatchServiceOptions["getPrReviewThreads"]>(async () => []);
     const { service, mergePr } = setup(
       withoutAgent(watch({ watchEnabled: false, autoMerge: true })),
@@ -860,7 +1162,7 @@ describe("PrWatchService", () => {
       withoutAgent(watch({ watchEnabled: false, autoMerge: true })),
       {
         getPrForBranch: async () => currentPr,
-        getPrDetails: async () => currentDetails,
+        getPrDetails: async () => ({ details: currentDetails }),
       },
     );
 
@@ -904,7 +1206,7 @@ describe("PrWatchService", () => {
   });
 
   it("removes a watch after the PR closes", async () => {
-    const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => details);
+    const getPrDetails = vi.fn<PrWatchServiceOptions["getPrDetails"]>(async () => ({ details }));
     const getPrReviewThreads = vi.fn<PrWatchServiceOptions["getPrReviewThreads"]>(async () => []);
     const closedPr: PrData = { ...pr, state: "closed" };
     const { service, store, onPrObserved } = setup(watch(), {
@@ -1798,9 +2100,12 @@ describe("PrWatchService", () => {
 
     it("starts with a protected stale-thread row and lets healthy siblings work", async () => {
       const { service, store, createThread } = setup(watch({ activeThreadId: "dead-thread" }), {
-        getPrForBranch: async () => behindPr,
+        getPrForBranch: async (_project, branch) => ({
+          ...behindPr,
+          number: branch === "feature/sibling" ? 2 : 42,
+        }),
       });
-      store.upsert(watch({ prNumber: 2 }));
+      store.upsert(watch({ prNumber: 2, headBranch: "feature/sibling" }));
       store.protect(protectedRaw);
 
       expect(() => service.start()).not.toThrow();
@@ -1830,7 +2135,7 @@ describe("PrWatchService", () => {
       expect(store.rawConfigOf()).toEqual(protectedRaw);
     });
 
-    it("records a poll failure on a protected row without an unhandled save failure", async () => {
+    it("records raw admission refusal before polling a protected row", async () => {
       const { service, store } = setup(watch(), {
         getPrDetails: async () => {
           throw new Error("synthetic details failure");
@@ -1840,7 +2145,7 @@ describe("PrWatchService", () => {
 
       await expect(service.tick()).resolves.toBeUndefined();
 
-      expect(store.get(project.id, pr.number)?.lastError).toBe("synthetic details failure");
+      expect(store.get(project.id, pr.number)?.lastError).toContain("unsupported selection data");
       expect(store.rawConfigOf()).toEqual(protectedRaw);
     });
 
@@ -2050,8 +2355,18 @@ describe.skipIf(!sqliteAvailable)("PrWatchService (real sqlite)", () => {
     return new PrWatchService({
       store: realStore(),
       getProject: dbGetProject,
-      getPrForBranch: async () => behindPr,
-      getPrDetails: async () => details,
+      getPrForBranch: async (_project, branch) => {
+        const entry = dbGetPrWatches().find((candidate) => candidate.headBranch === branch);
+        return { ...behindPr, number: entry?.prNumber ?? pr.number };
+      },
+      getPrDetails: async (_project, prNumber) => ({
+        details: {
+          ...details,
+          number: prNumber,
+          headBranch: dbGetPrWatch(REAL_PROJECT_ID, prNumber)?.headBranch ?? details.headBranch,
+        },
+        pr: { ...behindPr, number: prNumber },
+      }),
       getPrReviewThreads: async () => [],
       getMergeMethod: () => "squash",
       mergePr: async () => undefined,
@@ -2084,7 +2399,9 @@ describe.skipIf(!sqliteAvailable)("PrWatchService (real sqlite)", () => {
   it("records held-launch custody through the real store while protected raw bytes stay exact and a sibling progresses", async () => {
     const entered = Promise.withResolvers<void>();
     const held = Promise.withResolvers<void>();
-    dbUpsertPrWatch(watch({ projectId: REAL_PROJECT_ID, prNumber: 43 }));
+    dbUpsertPrWatch(
+      watch({ projectId: REAL_PROJECT_ID, prNumber: 43, headBranch: "feature/sibling" }),
+    );
     const createThread = vi.fn<PrWatchServiceOptions["createThread"]>(async (request) => {
       if (request.prNumber === pr.number) {
         entered.resolve();

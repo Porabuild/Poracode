@@ -47,7 +47,6 @@ async function contender(profile: string, kind: "desktop" | "headless") {
     {
       execArgv: [
         "--expose-gc",
-        "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--import",
         new URL("../../../scripts/remote-v3-ts-register.mjs", import.meta.url).href,

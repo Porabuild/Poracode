@@ -123,9 +123,9 @@ afterEach(async () => {
 });
 
 describe("RemoteHttpBridgeService", () => {
-  it("pins the pre-F8 limits and the versioned contract", () => {
+  it("pins the transport limits and the versioned contract", () => {
     expect(REMOTE_HTTP_MAX_RESPONSE_BODY_BYTES).toBe(64 * 1024 * 1024);
-    expect(REMOTE_HTTP_REQUEST_TIMEOUT_MS).toBe(60_000);
+    expect(REMOTE_HTTP_REQUEST_TIMEOUT_MS).toBe(10 * 60_000);
     expect(REMOTE_HTTP_MAX_REQUEST_BODY_BYTES).toBe(64 * 1024 * 1024);
     expect(REMOTE_HTTP_UPLOAD_RETENTION_BUDGET_BYTES).toBe(96 * 1024 * 1024);
     expect(REMOTE_HTTP_UPLOAD_CREDIT_BYTES).toBe(1024 * 1024);
@@ -686,6 +686,36 @@ describe("RemoteHttpBridgeService", () => {
     });
     await vi.waitFor(() => expect(closed).toBe(true));
     expect(service.stats().timedOutRequests).toBe(1);
+  });
+
+  it("allows a 137-second response through version-3 frames and retains a finite ceiling", async () => {
+    vi.useFakeTimers();
+    try {
+      let respond!: (response: Response) => void;
+      const service = createService({
+        fetchImpl: vi.fn<typeof fetch>(
+          () =>
+            new Promise((resolve) => {
+              respond = resolve;
+            }),
+        ),
+      });
+      const port = new ScriptedWorkerPort();
+      service.open(descriptor(), port);
+      await vi.advanceTimersByTimeAsync(137_000);
+      expect(port.frames("error")).toHaveLength(0);
+      respond(new Response(null, { status: 204 }));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(port.frames("end")).toHaveLength(1);
+
+      const stalled = new ScriptedWorkerPort();
+      service.open(descriptor(), stalled);
+      await vi.advanceTimersByTimeAsync(600_000);
+      expect(stalled.frames("error")[0]).toMatchObject({ code: "timeout" });
+      expect(service.stats().activeRequests).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("treats HEAD/204/205/304 as null-body responses", async () => {

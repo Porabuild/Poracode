@@ -86,6 +86,12 @@ class RemoteWebSocketClient(
 
     override fun appliedSeq(): Int? = state.cursor.appliedSeq
 
+    override fun appliedEpoch(): String? = state.cursor.epoch
+
+    override fun appliedCursor(): Pair<Int?, String?> = synchronized(state.cursorLock) {
+        state.cursor.appliedSeq to state.cursor.epoch
+    }
+
     override val upgradeDeclaredNotices: Boolean?
         get() = state.upgradeDeclaredNotices.get()
 
@@ -170,11 +176,13 @@ class RemoteWebSocketClient(
         handleSessionExpired(reason)
     }
 
-    override fun start(lastSeenSeq: Int?) {
+    override fun start(lastSeenSeq: Int?) = start(lastSeenSeq, null)
+
+    override fun start(lastSeenSeq: Int?, lastSeenEpoch: String?) {
         synchronized(state.cursorLock) {
             state.cursor.reset()
             if (lastSeenSeq != null) {
-                state.cursor.noteAuthoritativeSnapshot(lastSeenSeq)
+                state.cursor.restore(lastSeenSeq, lastSeenEpoch)
                 state.snapshotSucceeded.set(true)
             } else {
                 state.snapshotSucceeded.set(false)
@@ -188,11 +196,13 @@ class RemoteWebSocketClient(
         connectionLoop.launchConnect()
     }
 
-    override fun armSuspended(lastSeenSeq: Int?) {
+    override fun armSuspended(lastSeenSeq: Int?) = armSuspended(lastSeenSeq, null)
+
+    override fun armSuspended(lastSeenSeq: Int?, lastSeenEpoch: String?) {
         synchronized(state.cursorLock) {
             state.cursor.reset()
             if (lastSeenSeq != null) {
-                state.cursor.noteAuthoritativeSnapshot(lastSeenSeq)
+                state.cursor.restore(lastSeenSeq, lastSeenEpoch)
                 state.snapshotSucceeded.set(true)
             } else {
                 state.snapshotSucceeded.set(false)

@@ -19,9 +19,10 @@ const EMPTY_ARTIFACTS: readonly ThreadArtifact[] = [];
  * Right-panel "Images" section: a 2-row horizontal mosaic of every renderable
  * image in the thread's loaded history, newest first. Thumbnails lazy-load
  * (`loading="lazy"` + `decoding="async"`) so opening the panel never fetches
- * off-screen bytes up front, then downsample to the tile's device-pixel box.
- * Clicking any tile opens the fullscreen lightbox at that image with prev/next
- * across the whole thread.
+ * off-screen bytes up front, then downsample to a 2x device-pixel cover
+ * rect so each tile is filled by a center-cropped, proportionally scaled
+ * image (the full original remains in the lightbox). Clicking any tile opens
+ * the fullscreen lightbox at that image with prev/next across the whole thread.
  */
 export function ThreadImagesDock({
   gallery,
@@ -34,7 +35,7 @@ export function ThreadImagesDock({
   artifacts?: readonly ThreadArtifact[];
 }) {
   const { t } = useLingui();
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   if (gallery.length === 0 && artifacts.length === 0) return null;
   const label = artifacts.length > 0 ? t`Files & artifacts` : t`Images`;
 
@@ -72,6 +73,7 @@ export function ThreadImagesDock({
         <ThreadDockHeader
           icon={artifacts.length > 0 ? FileText : Images}
           title={label}
+          collapse={{ collapsed, onToggle: () => setCollapsed(!collapsed) }}
           countLabel={
             <span className="[font-variant-numeric:tabular-nums]">
               {gallery.length + artifacts.length}
@@ -127,19 +129,24 @@ export function ThreadImagesDock({
                 aria-label={t`Thread images`}
               >
                 {gallery.map((img, index) => (
-                  <div key={img.src} role="listitem" className="shrink-0">
+                  <div key={img.resource?.key ?? img.src} role="listitem" className="shrink-0">
                     <button
                       type="button"
                       aria-label={t`Open image ${index + 1} of ${gallery.length}`}
                       title={img.alt || t`Open image preview`}
-                      className="group relative block h-16 w-24 overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[var(--composer-surface)] focus-visible:outline-2 focus-visible:outline-accent"
+                      className="group relative block h-24 w-40 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[var(--composer-surface)] focus-visible:outline-2 focus-visible:outline-accent"
                       onClick={() => openThreadGallery(gallery, undefined, index, threadId)}
                     >
-                      <DownsampledThumb
-                        src={img.src}
-                        alt={img.alt || ""}
-                        className="size-full rounded-[inherit] object-cover [image-rendering:high-quality]"
-                      />
+                      {img.src ? (
+                        <DownsampledThumb
+                          src={img.src}
+                          alt={img.alt || ""}
+                          cssPx={160}
+                          fit="cover"
+                          resolutionScale={2}
+                          className="size-full rounded-[inherit] object-cover [image-rendering:high-quality]"
+                        />
+                      ) : null}
                       <span
                         aria-hidden="true"
                         className="pointer-events-none absolute inset-0 rounded-[inherit] bg-foreground/0 transition-colors duration-150 group-hover:bg-foreground/10"

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BrowserMcpIngress } from "./BrowserMcpIngress";
+import { AgentVisionService } from "@/host/AgentVisionService";
 import type { BrowserPanelManager } from "./BrowserPanelManager";
 
 let ingress: BrowserMcpIngress | null = null;
@@ -46,6 +47,8 @@ describe("BrowserMcpIngress", () => {
 
   it("routes MCP reload, get_url, and fill through the browser panel tab", async () => {
     ingress = new BrowserMcpIngress();
+    const vision = new AgentVisionService();
+    ingress.setAgentVision(vision);
     const send = vi.fn<(method: string, params?: Record<string, unknown>) => Promise<unknown>>(
       async (method) => {
         if (method === "Runtime.evaluate") {
@@ -55,10 +58,17 @@ describe("BrowserMcpIngress", () => {
       },
     );
     const revealPanel = vi.fn<() => void>();
+    const reloadGate = Promise.withResolvers<void>();
     const tab = {
       tabId: "tab-1",
+      isDestroyed: () => false,
+      isAttached: () => true,
       snapshot: () => ({ url: "https://example.test/page", title: "Example Page" }),
       webContents: {
+        capturePage: vi.fn<() => Promise<unknown>>().mockResolvedValue({
+          getSize: () => ({ width: 600, height: 400 }),
+          toJPEG: () => Buffer.from("painted browser frame"),
+        }),
         focus: vi.fn<() => void>(),
         executeJavaScript: vi
           .fn<(script: string, userGesture?: boolean) => Promise<unknown>>()
@@ -92,13 +102,13 @@ describe("BrowserMcpIngress", () => {
           ensureTabReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
           createTab: vi.fn<() => Promise<unknown>>().mockResolvedValue({ tabId: "tab-1" }),
           setAutomationSession: vi.fn<() => boolean>().mockReturnValue(true),
-          reload: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+          reload: vi.fn<() => Promise<void>>(() => reloadGate.promise),
         }) as unknown as BrowserPanelManager,
     );
     const info = await ingress.start();
 
     const callTool = async (name: string, args: Record<string, unknown>) => {
-      const response = await fetch(`${info.url}/mcp`, {
+      const response = await fetch(`${info.url}/mcp?thread=vision-thread`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${info.token}`,
@@ -119,7 +129,16 @@ describe("BrowserMcpIngress", () => {
     const api = await callTool("api", {});
     expect(api.result.isError).toBeUndefined();
 
-    const reload = await callTool("reload", {});
+    const reloading = callTool("reload", {});
+    await vi.waitFor(async () => {
+      expect(await vision.read("vision-thread", false)).toMatchObject({ status: "running" });
+    });
+    expect(await vision.read("vision-thread")).toMatchObject({
+      status: "running",
+      image: `data:image/jpeg;base64,${Buffer.from("painted browser frame").toString("base64")}`,
+    });
+    reloadGate.resolve();
+    const reload = await reloading;
     expect(reload.result.isError).toBeUndefined();
     await expect(callTool("get_url", {})).resolves.toMatchObject({
       result: { content: [{ type: "text", text: '{\n  "url": "https://example.test/page"\n}' }] },
@@ -145,5 +164,11 @@ describe("BrowserMcpIngress", () => {
       ),
     ).toBe(true);
     expect(tab.webContents.focus).not.toHaveBeenCalled();
+    expect((await callTool("screenshot", { format: "jpeg" })).result.isError).toBeUndefined();
+    expect(await vision.read("vision-thread", false)).toMatchObject({ status: "idle" });
+    expect(await vision.read("vision-thread")).toMatchObject({
+      image: `data:image/jpeg;base64,${Buffer.from("painted browser frame").toString("base64")}`,
+    });
+    expect(tab.webContents.capturePage).toHaveBeenCalledTimes(3);
   });
 });

@@ -27,9 +27,10 @@ import { useAppStore } from "@/renderer/state/appStore";
 import {
   notePendingThreadInputMessage,
   retainPendingThreadInput,
+  threadInterruptedTurnStatements,
 } from "@/renderer/state/pendingThreadInput";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import {
   isRemoteCommandOutcomeUncertainError,
   notifyThreadCommandOutcomeUncertain,
@@ -120,6 +121,7 @@ async function performThreadInputSubmitPending(
   const presentation = thread.presentationMode ?? "terminal";
   let optimisticUserMessageItemId: string | undefined;
   let markedWorking = false;
+  const interruptedTurnStatementsAtSend = threadInterruptedTurnStatements(thread.id);
   const store = useAppStore.getState();
   if (presentation === "gui" && hasSendablePromptContent(prompt, segments)) {
     optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
@@ -160,10 +162,18 @@ async function performThreadInputSubmitPending(
   const rollbackOptimisticWorking = (resumeFailed = false): void => {
     if (!markedWorking) return;
     markDelivery("failed");
+    // A Stop, or a turn that did start, makes the host state the marker while
+    // this send is pending; that decides whether the turn can be resumed.
+    const hostStatedMarker =
+      threadInterruptedTurnStatements(thread.id) !== interruptedTurnStatementsAtSend;
     store.updateThreadRuntime(thread.id, {
       status: resumeFailed ? "error" : thread.status,
       attention: resumeFailed ? "error" : thread.attention,
       canResumeWithConfig: thread.canResumeWithConfig,
+      // The message never became a turn, so it can still be resumed.
+      ...(!hostStatedMarker
+        ? { interruptedTurn: resumeFailed ? "error" : (thread.interruptedTurn ?? null) }
+        : {}),
       forceCloseActiveTurn: true,
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     });
@@ -254,7 +264,7 @@ async function performThreadInputSubmitPending(
 
 /**
  * Desktop entry point: resolves the thread and its project location from the
- * store, then submits over the local IPC bridge with checkpoint capture.
+ * store, then submits over the host-routed bridge with checkpoint capture.
  *
  * Extracted byte-for-byte from the former ThreadPane.onSubmitInput inline
  * handler — this is the app's most critical action.
@@ -271,7 +281,6 @@ export async function submitThreadInput(
   const resolved = resolveThreadProjectLocation(threadId);
   if (!resolved) return;
   const { thread, projectLocation } = resolved;
-  const owner = remoteOwner(thread);
   await performThreadInputSubmit({
     thread,
     prompt,
@@ -285,7 +294,7 @@ export async function submitThreadInput(
       // Abort if the thread or project disappeared (or changed ownership)
       // between send and resume — relaunching a deleted row would recreate it.
       const latest = resolveThreadProjectLocation(threadId);
-      if (!latest || Boolean(remoteOwner(latest.thread)) !== Boolean(owner)) return;
+      if (!latest || hostRunsOnThisMachine(latest.thread) !== hostRunsOnThisMachine(thread)) return;
       await performInitialThreadLaunch({
         thread: latest.thread,
         projectLocation: latest.projectLocation,
@@ -297,18 +306,16 @@ export async function submitThreadInput(
         initialSize: DEFAULT_TERMINAL_SIZE,
       });
     },
-    ...(!owner
-      ? {
-          captureCheckpoint: async (checkpointItemId: string) => {
-            if (isHomeProjectId(thread.projectId)) return;
-            await captureFileCheckpoint({
-              threadId: thread.id,
-              checkpointItemId,
-              projectLocation,
-            });
-          },
-        }
-      : {}),
+    // `createFileCheckpoint` is routed to the thread's owning host like every
+    // other thread operation, so the snapshot is taken wherever the files live.
+    captureCheckpoint: async (checkpointItemId: string) => {
+      if (isHomeProjectId(thread.projectId)) return;
+      await captureFileCheckpoint({
+        threadId: thread.id,
+        checkpointItemId,
+        projectLocation,
+      });
+    },
   });
 }
 

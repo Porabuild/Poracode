@@ -22,9 +22,15 @@ import {
 let desktopBrowserBridgeServerId: string | null = null;
 let desktopBrowserBridgeClientKey: string | null = null;
 let desktopBrowserMirrorSocket: RemoteSocketLike | null = null;
+// v1 is a public owner preference; credentials are never copied into this slot.
+const BROWSER_OWNER_KEY = "poracode.browser.review-owner.v1";
 
 export function getDesktopBrowserMirrorSocket(): RemoteSocketLike | null {
   return desktopBrowserMirrorSocket;
+}
+
+export function browserBridgeOwnerKey(server: RemoteServerRecord): string {
+  return JSON.stringify([remoteConnectionKey(server), server.desktopId, server.endpoint]);
 }
 
 export function selectBrowserBridgeServer(
@@ -55,9 +61,30 @@ export function selectBrowserBridgeDesktop(desktopId: string): void {
   syncDesktopBrowserBridgeClient(useRemoteServersStore.getState());
 }
 
-function selectBrowserBridgeClientServer(
+export function selectBrowserBridgeClientServer(
   state: RemoteServersState,
 ): RemoteServerRecord | undefined {
+  let preferred: unknown;
+  try {
+    preferred = JSON.parse(window.localStorage.getItem(BROWSER_OWNER_KEY) ?? "null");
+  } catch {
+    /* Unavailable storage leaves the in-memory selection authoritative. */
+  }
+  const stored =
+    Array.isArray(preferred) && preferred.length === 4 && preferred[0] === 1
+      ? preferred
+      : undefined;
+  const selected = state.servers.find(
+    (server) =>
+      isRemoteConnectionAuthorized(server.endpoint, server.accessToken) &&
+      ((desktopBrowserBridgeServerId !== null &&
+        remoteConnectionKey(server) === desktopBrowserBridgeServerId) ||
+        (desktopBrowserBridgeServerId === null &&
+          stored?.[1] === remoteConnectionKey(server) &&
+          stored[2] === server.desktopId &&
+          stored[3] === server.endpoint)),
+  );
+  if (selected) return selected;
   return (
     selectBrowserBridgeServer(state) ??
     state.servers.find(
@@ -131,6 +158,18 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
   const clientKey = `${connectionKey}\0${server.endpoint}\0${server.accessToken}\0${server.platform ?? ""}`;
   if (desktopBrowserBridgeClientKey === clientKey) return;
   desktopBrowserBridgeServerId = connectionKey;
+  try {
+    const previous = window.localStorage.getItem(BROWSER_OWNER_KEY);
+    const parsed: unknown = previous === null ? null : JSON.parse(previous);
+    if (parsed === null || (Array.isArray(parsed) && parsed[0] === 1)) {
+      window.localStorage.setItem(
+        BROWSER_OWNER_KEY,
+        JSON.stringify([1, connectionKey, server.desktopId, server.endpoint]),
+      );
+    }
+  } catch {
+    /* The selected connection still works without an offline preference. */
+  }
   desktopBrowserBridgeClientKey = clientKey;
   const environmentSession =
     server.transport?.kind === "environment" ? environmentSessionForServer(server) : undefined;
@@ -141,7 +180,7 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
   }
   const client =
     environmentSession?.client ?? state.clientFactory(server.endpoint, server.accessToken);
-  setRemoteBridgeClient(client, server.platform ?? null);
+  setRemoteBridgeClient(client, server.platform ?? null, browserBridgeOwnerKey(server));
   resetDesktopSettings();
   void client
     .settings()
@@ -154,6 +193,7 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
 }
 
 export function __resetBrowserBridgeForTest(): void {
+  window.localStorage.removeItem(BROWSER_OWNER_KEY);
   desktopBrowserBridgeServerId = null;
   desktopBrowserBridgeClientKey = null;
   desktopBrowserMirrorSocket = null;

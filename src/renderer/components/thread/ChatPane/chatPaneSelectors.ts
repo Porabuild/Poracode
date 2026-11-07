@@ -1,26 +1,21 @@
 import { mergeCompletedTurns } from "@/renderer/state/slices/runtimeEventReducer";
-import {
-  getRuntimeItemPayload,
-  type CompletedTurnRecord,
-  type RuntimeChatItem,
+import type {
+  CompletedTurnRecord,
+  RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import type { AppStoreState } from "@/renderer/state/slices/shared";
 import {
   clearRuntimeStructuralChangeHint,
   readRuntimeStructuralChangeHint,
 } from "@/renderer/state/runtimeStructuralChanges";
-import { assistantDisplayText, hasVisibleAssistantText } from "@/shared/assistantMessageText";
-import { isMessageReplyFormFallback } from "../messageReplyForms";
-import type { MessageItemPayload, ToolCallPayload } from "@/shared/contracts";
-import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
-import {
-  isAskUserQuestionToolName,
-  isCrossagentSpawnAgentTool,
-  isDelegatedAgentTool,
-} from "@/shared/toolCallClassification";
+import { readRuntimeItemChanges } from "@/renderer/state/runtimeItemChanges";
+import { readMcpAppResource } from "@/shared/mcpAppResources";
+import { completedToolVideoSources } from "@/shared/chatVideo";
+import type { ToolCallPayload } from "@/shared/contracts";
+import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
+import { isVisibleRuntimeItem } from "@/shared/runtimeItemVisibility";
 import { imageViewRendersInline } from "./parts/items/imageViewSource";
 import {
-  getToolLikePayload,
   isToolGroupItem as isGroupableItemType,
   isToolLikeItem,
 } from "./parts/items/toolCallCategorization";
@@ -371,7 +366,15 @@ function isToolGroupItem(item: RuntimeChatItem): boolean {
   // to the generic accordion (still running, errored, or non-image) keep the
   // default grouping — `imageViewRendersInline` mirrors ImageView's render
   // decision so the two never disagree.
-  if (isToolLikeItem(item) && imageViewRendersInline(item.payload)) {
+  const payload = item.payload as ToolCallPayload | undefined;
+  if (completedToolVideoSources(item).length > 0) return false;
+  if (
+    isToolLikeItem(item) &&
+    (imageViewRendersInline(payload) ||
+      (item.state === "completed" &&
+        payload?.status === "success" &&
+        readMcpAppResource(payload.result)))
+  ) {
     return false;
   }
   // The groupable type set (tools, reasoning, commands, edits, searches) lives
@@ -427,53 +430,7 @@ export function growingStreamLength(item: RuntimeChatItem): number {
  * `false` here can never host an inline indicator, so callers that pick an
  * anchor row (see `appendCompletedTurnIfClosed`) must consult this too.
  */
-export function isVisibleRuntimeItem(item: RuntimeChatItem): boolean {
-  // Plans and goals are rendered exclusively in composer docks — never inline
-  // in chat. Empty completed reasoning items are already dropped at the data
-  // layer.
-  if (item.type === "plan" || item.type === "goal") return false;
-  // Open agent requests (approvals/questions) are persisted only so remote
-  // clients can recover the pending prompt from a snapshot; they render as the
-  // blocking request form, never as a chat row.
-  if ((item.type as string) === RUNTIME_REQUEST_ITEM_TYPE) return false;
-  // Error items have no renderer in the chat row switch (ChatItemRow returns
-  // null for `error`); excluding them here keeps the virtualized list from
-  // allocating an empty slot that shows up as a gap.
-  if (item.type === "error") return false;
-  // Old ACP sessions may contain completed assistant items created from a blank
-  // provider stream-boundary chunk — empty, or whitespace-only (Factory Droid
-  // emits "\n\n" after tool calls). They have no renderable content, so
-  // allocating a virtualized row for them only produces a blank gap. Keep an
-  // empty in-flight item visible for its loader. Display-text arbitration is
-  // the shared helper's: the stream wins unless a completed payload is marked
-  // `displayAuthoritative` (a display hook may suppress output with empty
-  // text, hiding the row). Inline image payloads keep the row regardless.
-  if (item.type === "assistant_message" && item.state === "completed") {
-    const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
-    const hasImage = payload?.content.some((block) => block.kind === "image") ?? false;
-    const hasReplyForm = (payload?.replyForm?.questions.length ?? 0) > 0;
-    if (!hasImage && hasReplyForm && isMessageReplyFormFallback(item, assistantDisplayText(item)))
-      return false;
-    if (!hasImage && !hasReplyForm && !hasVisibleAssistantText(item)) return false;
-  }
-  if (isToolLikeItem(item)) {
-    const payload = getToolLikePayload(item);
-    // AskUserQuestion is rendered as the blocking request form while open and
-    // as a question_answer row after submission. ACP providers may reveal the
-    // tool name only on a later update, so filter it here as a final defense
-    // against both live races and already-persisted redundant rows.
-    if (isAskUserQuestionToolName(payload?.name) || isAskUserQuestionToolName(payload?.title)) {
-      return false;
-    }
-    // Successful Crossagents runs render as the richer delegated-agent row.
-    // Keep failed transport calls visible because they may have no delegated row.
-    if (payload?.status !== "error" && isCrossagentSpawnAgentTool(payload)) return false;
-    // Tool renderers defer rows without a name. Keep those incomplete calls out
-    // of the virtualized timeline and group counts until a later update names them.
-    if (!payload?.name?.trim()) return false;
-  }
-  return true;
-}
+export { isVisibleRuntimeItem };
 
 /** O(1) for the common case (last row is streaming target). */
 export function selectRuntimeItemById(
@@ -622,6 +579,8 @@ export function getChildTimelineEntriesStoreSelector(
  */
 interface ResolvedCompletedTurns {
   byAnchor: ReadonlyMap<string, CompletedTurnRecord>;
+  /** Turn start time keyed by the user message that opened the turn. */
+  startedAtByUserMessage: ReadonlyMap<string, number>;
   mostRecentDisplayable: CompletedTurnRecord | null;
 }
 
@@ -638,10 +597,11 @@ const resolvedCompletedTurnsCache = new WeakMap<
 const EMPTY_TURN_ANCHOR_MAP: ReadonlyMap<string, CompletedTurnRecord> = new Map();
 const EMPTY_RESOLVED_TURNS: ResolvedCompletedTurns = Object.freeze({
   byAnchor: EMPTY_TURN_ANCHOR_MAP,
+  startedAtByUserMessage: new Map(),
   mostRecentDisplayable: null,
 });
 
-/** A turn shorter than a second has nothing worth showing. */
+/** Sub-second turns have a fork control but no elapsed-time label. */
 function isDisplayableCompletedTurn(record: CompletedTurnRecord): boolean {
   return record.endedAt - record.startedAt >= 1000;
 }
@@ -703,8 +663,7 @@ function buildResolvedCompletedTurns(
   // and still reaches the tail footer when it is the most recent turn.
   const claimedAnchors = new Set<string>();
   const records = recordsToResolve.map((record) => {
-    // A sub-second turn renders nothing, so it neither needs nor claims a row.
-    if (!record.anchorItemId || !isDisplayableCompletedTurn(record)) return record;
+    if (!record.anchorItemId) return record;
     // Anchors older than the hydrated window are left untouched — their row is
     // simply not loaded yet, not filtered out.
     if (!anchorResolution.has(record.anchorItemId)) {
@@ -720,9 +679,29 @@ function buildResolvedCompletedTurns(
 
   const byAnchor = new Map<string, CompletedTurnRecord>();
   for (const record of records) {
-    if (record.anchorItemId && isDisplayableCompletedTurn(record)) {
+    if (record.anchorItemId) {
       byAnchor.set(record.anchorItemId, record);
     }
+  }
+
+  // Items carry no timestamp of their own; a prompt's send time is the start of
+  // the turn it opened. When several prompts precede one turn end (a steer sent
+  // mid-turn, or an earlier turn that left no row), the opener is ambiguous, so
+  // none of them gets a time rather than a wrong one.
+  const startedAtByUserMessage = new Map<string, number>();
+  let pendingUserMessageIds: string[] = [];
+  for (const itemId of itemIds) {
+    const item = items?.[itemId];
+    if (item?.type === "user_message" && !item.parentItemId) {
+      pendingUserMessageIds.push(itemId);
+      continue;
+    }
+    const record = byAnchor.get(itemId);
+    if (!record || pendingUserMessageIds.length === 0) continue;
+    if (pendingUserMessageIds.length === 1) {
+      startedAtByUserMessage.set(pendingUserMessageIds[0]!, record.startedAt);
+    }
+    pendingUserMessageIds = [];
   }
 
   let mostRecentDisplayable: CompletedTurnRecord | null = null;
@@ -734,7 +713,16 @@ function buildResolvedCompletedTurns(
     }
   }
 
-  return { byAnchor, mostRecentDisplayable };
+  return { byAnchor, startedAtByUserMessage, mostRecentDisplayable };
+}
+
+/** When the turn opened by this user message started, once that turn has completed. */
+export function selectUserMessageSentAt(
+  state: AppStoreState,
+  threadId: string,
+  itemId: string,
+): number | undefined {
+  return selectResolvedCompletedTurns(state, threadId).startedAtByUserMessage.get(itemId);
 }
 
 /**
@@ -780,7 +768,152 @@ export function selectCompletedTurnForEntry(
   return undefined;
 }
 
+export type AssistantFinalAnswerStatus = "confirmed" | "candidate" | "none";
+
+export interface AssistantTurnRowState {
+  completedTurnStartedAt: number | undefined;
+  completedTurnEndedAt: number | undefined;
+  latestCompletedAnswerId: string | undefined;
+  finalAnswerStatus: AssistantFinalAnswerStatus;
+}
+
+interface AssistantTurnProjection {
+  completedTurnsByAnchor: ReadonlyMap<string, CompletedTurnRecord>;
+  latestCompletedAnswerId: string | undefined;
+  finalAnswerStatusByItemId: ReadonlyMap<string, AssistantFinalAnswerStatus>;
+}
+
+/**
+ * Per-thread assistant turn metadata shared by every assistant row, so a store
+ * notification costs each row a map lookup instead of a transcript scan. The
+ * projection rebuilds once per meaningful thread change.
+ *
+ * The source item index is replaced for every runtime commit, including
+ * content deltas that cannot affect this projection. The weak key lets a
+ * canonical delta prove the own-thread keys still cover the change without
+ * retaining a retired outer index.
+ */
+const assistantTurnProjectionCache = new Map<
+  string,
+  {
+    itemIds: readonly string[];
+    structuralVersion: number;
+    completedTurns: ReadonlyArray<CompletedTurnRecord> | undefined;
+    itemsIndex: WeakRef<AppStoreState["runtimeItemsByIdByThread"]>;
+    projection: AssistantTurnProjection;
+  }
+>();
+
+function selectAssistantTurnProjection(
+  state: AppStoreState,
+  threadId: string,
+): AssistantTurnProjection {
+  const itemIds = state.runtimeItemIdsByThread[threadId] ?? EMPTY_THREAD_ITEM_IDS;
+  const structuralVersion = state.runtimeStructuralVersionByThread?.[threadId] ?? 0;
+  const completedTurns = state.runtimeCompletedTurnsByThread?.[threadId];
+  const itemsIndex = state.runtimeItemsByIdByThread;
+  const cached = assistantTurnProjectionCache.get(threadId);
+  if (
+    cached &&
+    cached.itemIds === itemIds &&
+    cached.structuralVersion === structuralVersion &&
+    cached.completedTurns === completedTurns
+  ) {
+    const previousItemsIndex = cached.itemsIndex.deref();
+    // A canonical delta records the predecessor index it changed. The own
+    // item ids/version already cover every change that can affect this
+    // projection, so an unknown hint (recovery/direct replacement) or a
+    // missed predecessor is the only case that must rebuild.
+    if (
+      previousItemsIndex === itemsIndex ||
+      (previousItemsIndex !== undefined &&
+        readRuntimeItemChanges(previousItemsIndex, itemsIndex) !== null)
+    ) {
+      if (previousItemsIndex !== itemsIndex) cached.itemsIndex = new WeakRef(itemsIndex);
+      return cached.projection;
+    }
+  }
+
+  const projection = buildAssistantTurnProjection(state, threadId, itemIds);
+  if (assistantTurnProjectionCache.size > 500) assistantTurnProjectionCache.clear();
+  assistantTurnProjectionCache.set(threadId, {
+    itemIds,
+    structuralVersion,
+    completedTurns,
+    itemsIndex: new WeakRef(itemsIndex),
+    projection,
+  });
+  return projection;
+}
+
+function buildAssistantTurnProjection(
+  state: AppStoreState,
+  threadId: string,
+  itemIds: readonly string[],
+): AssistantTurnProjection {
+  const items = state.runtimeItemsByIdByThread[threadId];
+  const finalAnswerStatusByItemId = new Map<string, AssistantFinalAnswerStatus>();
+  // One reverse walk: carry the nearest following top-level item type. Missing
+  // and nested items are ignored exactly like the old per-row forward scan.
+  let nextTopLevelType: RuntimeChatItem["type"] | undefined;
+  for (let index = itemIds.length - 1; index >= 0; index -= 1) {
+    const item = items?.[itemIds[index]!];
+    if (!item || item.parentItemId) continue;
+    if (item.type === "assistant_message") {
+      finalAnswerStatusByItemId.set(
+        item.id,
+        nextTopLevelType === undefined
+          ? "candidate"
+          : nextTopLevelType === "user_message"
+            ? "confirmed"
+            : "none",
+      );
+    }
+    nextTopLevelType = item.type;
+  }
+
+  const completedTurnsByAnchor = selectCompletedTurnsByAnchorItem(state, threadId);
+  let latestCompletedAnswerId: string | undefined;
+  for (const anchorId of completedTurnsByAnchor.keys()) {
+    const anchor = items?.[anchorId];
+    if (anchor?.type === "assistant_message" && anchor.state === "completed") {
+      latestCompletedAnswerId = anchorId;
+    }
+  }
+  return { completedTurnsByAnchor, latestCompletedAnswerId, finalAnswerStatusByItemId };
+}
+
+/**
+ * Frozen copy-action/timestamp inputs for one assistant row. Returns a plain
+ * object by design; callers use shallow equality so unchanged values do not
+ * commit. `candidate` is the live-tail marker, resolved against
+ * `isTurnActive` here so streaming state stays out of the projection.
+ */
+export function selectAssistantTurnRowState(
+  state: AppStoreState,
+  threadId: string,
+  item: RuntimeChatItem,
+  isTurnActive: boolean,
+): AssistantTurnRowState {
+  const projection = selectAssistantTurnProjection(state, threadId);
+  const rawStatus = item.parentItemId
+    ? "none"
+    : (projection.finalAnswerStatusByItemId.get(item.id) ?? "none");
+  const finalAnswerStatus: AssistantFinalAnswerStatus =
+    rawStatus === "candidate" ? (isTurnActive ? "candidate" : "confirmed") : rawStatus;
+  const completedTurn = item.parentItemId
+    ? undefined
+    : projection.completedTurnsByAnchor.get(item.id);
+  return {
+    completedTurnStartedAt: completedTurn?.startedAt,
+    completedTurnEndedAt: completedTurn?.endedAt,
+    latestCompletedAnswerId: projection.latestCompletedAnswerId,
+    finalAnswerStatus,
+  };
+}
+
 export function clearRuntimeItemStoreSelectorCacheForThread(threadId: string): void {
+  assistantTurnProjectionCache.delete(threadId);
   clearRuntimeStructuralChangeHint(threadId);
   const prefix = `${threadId}\0`;
   for (const key of runtimeItemStoreSelectorCache.keys()) {

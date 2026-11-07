@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { FolderPlus, MessageSquareText, Server } from "lucide-react";
 import { Button } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
-import { isHomeProject } from "@/shared/homeScope";
+import { HOME_PROJECT_ID, isHomeProject } from "@/shared/homeScope";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import { hasClientCapability, isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -109,7 +109,12 @@ export function WelcomeOverlay() {
     }
     dismissWelcome();
 
-    const existingHomeProject = useAppStore.getState().projects.find(isHomeProject);
+    const projects = useAppStore.getState().projects;
+    // The desktop owns a local canonical Home; prefer it over a paired
+    // machine's mirrored Home. A client with only remote Home keeps that row.
+    const existingHomeProject = localBackend
+      ? (projects.find((project) => project.id === HOME_PROJECT_ID) ?? projects.find(isHomeProject))
+      : projects.find(isHomeProject);
     if (existingHomeProject) {
       openDraft(existingHomeProject.id);
       return;

@@ -67,6 +67,10 @@ export {
  *   from the existing `PrincipalAdmissionController` (bulk class), acquired
  *   only after parent authentication and released only when the leg's
  *   transport actually settles — never on the logical revoke call;
+ * - all legs of one parent share one aggregate budget of that parent's
+ *   allowances, and each environment gets only a share of it, so a stalled
+ *   child can shed neither its siblings nor the parent's own routes and
+ *   event socket (`environmentProxyLegs.ts`);
  * - bodies are piped (`pipeline`), so backpressure propagates and the proxy
  *   retains no full body; the ONLY buffered body is a small descriptor
  *   transform, hard-capped by {@link ENVIRONMENT_DESCRIPTOR_MAX_BYTES} and
@@ -215,6 +219,7 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
       security.enforceHostHeader(req);
       let session: { readonly sessionId: string };
       let playbackSignal: AbortSignal | undefined;
+      let releaseMediaHold: (() => void) | undefined;
       try {
         const query = new URLSearchParams(input.rawQuery);
         if (query.has("parentMediaTicket")) {
@@ -249,6 +254,11 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
           }
           session = this.authority.authenticateSession(grant.sessionId, ENVIRONMENT_USE_SCOPES);
           playbackSignal = grant.signal;
+          // Parent-side attachment grants get the same surviving-stream
+          // treatment as the child's: the validated child lease declared the
+          // disposition at mint time.
+          if (grant.value.attachment)
+            releaseMediaHold = this.mediaGrants.hold(query.get("parentMediaTicket")!);
         } else session = this.authenticateParentRequest(req);
       } catch (error) {
         // Mark ONLY the authentication step's own 401/403 (missing or invalid
@@ -262,7 +272,11 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
         }
         throw error;
       }
-      await this.proxyHttpLeg(req, res, session.sessionId, input, playbackSignal);
+      try {
+        await this.proxyHttpLeg(req, res, session.sessionId, input, playbackSignal);
+      } finally {
+        releaseMediaHold?.();
+      }
     } catch (error) {
       if (res.destroyed) return;
       if (!res.headersSent) {
@@ -381,6 +395,7 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
     readonly environmentId: string;
     readonly rawChildPath: string;
     readonly rawQuery: string;
+    readonly onUpgraded?: () => void;
   }): Promise<void> {
     const { req, socket, head, security } = input;
     try {
@@ -424,6 +439,9 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
             // while the handshake's required headers ride verbatim.
             keepUpgradeResponseHeader: keepChildUpgradeResponseHeader,
           },
+          // The leg's leases stay held until both legs close; only the
+          // caller's transport admission may end at the relayed 101.
+          input.onUpgraded,
         );
       } finally {
         this.legs.end(leg, leases);

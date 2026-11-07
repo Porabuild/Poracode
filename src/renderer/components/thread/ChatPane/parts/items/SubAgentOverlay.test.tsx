@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
+import type { Thread, ProjectLocation, ToolCallPayload } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { DeferredItemMarkdownInner } from "@/renderer/deferredFeatures";
@@ -225,33 +225,37 @@ describe("SubAgentContent", () => {
     expect(await screen.findByText("Worked for 1m 15s")).toBeInTheDocument();
   });
 
-  it("splits a Crossagent name and model selection into a two-line route header", () => {
-    const threadId = "thread-1";
-    const parentItem: RuntimeChatItem = {
-      id: "parent-1",
-      type: "tool_call",
-      state: "started",
-      payload: {
-        name: "dev-spa-rework — Codex · 5.6 Sol · High · Fast",
-        status: "running",
-        isCrossagent: true,
-      } satisfies ToolCallPayload,
-      streams: {},
-    };
-    useAppStore.setState({
-      runtimeItemIdsByThread: { [threadId]: [parentItem.id] },
-      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem } },
-      runtimeStructuralVersionByThread: { [threadId]: 1 },
-    });
+  it.each([undefined, "dev-spa-rework"])(
+    "splits a Crossagent name and model selection into a two-line route header (title: %s)",
+    (title) => {
+      const threadId = "thread-1";
+      const parentItem: RuntimeChatItem = {
+        id: "parent-1",
+        type: "tool_call",
+        state: "started",
+        payload: {
+          name: "dev-spa-rework — Codex · 5.6 Sol · High · Fast",
+          ...(title ? { title } : {}),
+          status: "running",
+          isCrossagent: true,
+        } satisfies ToolCallPayload,
+        streams: {},
+      };
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [threadId]: [parentItem.id] },
+        runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem } },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      });
 
-    render(<SubAgentHeaderText threadId={threadId} parentItemId={parentItem.id} />);
+      render(<SubAgentHeaderText threadId={threadId} parentItemId={parentItem.id} />);
 
-    expect(screen.getByText("Crossagent: dev-spa-rework")).toHaveClass("text-sm");
-    expect(screen.getByText("Codex · 5.6 Sol · High · Fast")).toHaveClass(
-      "text-[0.6875rem]",
-      "text-foreground-muted",
-    );
-  });
+      expect(screen.getByText("Crossagent: dev-spa-rework")).toHaveClass("text-sm");
+      expect(screen.getByText("Codex · 5.6 Sol · High · Fast")).toHaveClass(
+        "text-[0.6875rem]",
+        "text-foreground-muted",
+      );
+    },
+  );
 
   it("can omit its internal header when the routed shell owns the title", async () => {
     const threadId = "thread-1";
@@ -355,40 +359,44 @@ describe("SubAgentContent", () => {
     expect(screen.queryByText(/^Crossagent:/)).not.toBeInTheDocument();
   });
 
-  it("splits a Crossagents row into name and muted route meta in the right panel", () => {
-    const threadId = "thread-1";
-    const crossagent: RuntimeChatItem = {
-      id: "crossagent-1",
-      type: "tool_call",
-      state: "started",
-      payload: {
-        name: "Review CEO deck — Codex · GPT-5.5 · High",
-        status: "running",
-        isCrossagent: true,
-        progress: { stepCount: 50 },
-      } satisfies ToolCallPayload,
-      streams: {},
-    };
-    useAppStore.setState({
-      runtimeItemIdsByThread: { [threadId]: [crossagent.id] },
-      runtimeItemsByIdByThread: { [threadId]: { [crossagent.id]: crossagent } },
-      runtimeStructuralVersionByThread: { [threadId]: 1 },
-    });
+  it.each([undefined, "Review CEO deck"])(
+    "splits a Crossagents row into name and muted route meta in the right panel (title: %s)",
+    (title) => {
+      const threadId = "thread-1";
+      const crossagent: RuntimeChatItem = {
+        id: "crossagent-1",
+        type: "tool_call",
+        state: "started",
+        payload: {
+          name: "Review CEO deck — Codex · GPT-5.5 · High",
+          ...(title ? { title } : {}),
+          status: "running",
+          isCrossagent: true,
+          progress: { stepCount: 50 },
+        } satisfies ToolCallPayload,
+        streams: {},
+      };
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [threadId]: [crossagent.id] },
+        runtimeItemsByIdByThread: { [threadId]: { [crossagent.id]: crossagent } },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      });
 
-    render(
-      <AppProvider>
-        <ActiveSubAgentTile threadId={threadId} placement="right" />
-      </AppProvider>,
-    );
+      render(
+        <AppProvider>
+          <ActiveSubAgentTile threadId={threadId} placement="right" />
+        </AppProvider>,
+      );
 
-    const primary = screen.getByText("Review CEO deck");
-    const meta = screen.getByText("Codex · GPT-5.5 · High · 50 steps");
-    expect(meta).toHaveClass("text-[0.6875rem]", "text-muted");
-    // The name and the meta stack in one column, not one truncated line.
-    expect(primary.parentElement).toBe(meta.parentElement);
-    expect(primary.parentElement).toHaveClass("flex-col");
-    expect(screen.queryByText(/^Review CEO deck —/)).not.toBeInTheDocument();
-  });
+      const primary = screen.getByText("Review CEO deck");
+      const meta = screen.getByText("Codex · GPT-5.5 · High · 50 steps");
+      expect(meta).toHaveClass("text-[0.6875rem]", "text-muted");
+      // The name and the meta stack in one column, not one truncated line.
+      expect(primary.parentElement).toBe(meta.parentElement);
+      expect(primary.parentElement).toHaveClass("flex-col");
+      expect(screen.queryByText(/^Review CEO deck —/)).not.toBeInTheDocument();
+    },
+  );
 
   it("shows subagent type and model as the second line in the right panel", () => {
     const threadId = "thread-1";
@@ -452,6 +460,98 @@ describe("SubAgentContent", () => {
 
     expect(screen.getByText("Review CEO deck — Codex · GPT-5.5 · High")).toBeInTheDocument();
     expect(screen.queryByText("Codex · GPT-5.5 · High · 50 steps")).not.toBeInTheDocument();
+  });
+
+  it("prefixes a role run in the composer placement", () => {
+    const threadId = "thread-crew";
+    const crewBinding = {
+      version: 1 as const,
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    };
+    const run: RuntimeChatItem = {
+      id: "crossagent-builder",
+      type: "tool_call",
+      state: "started",
+      payload: {
+        name: "Codex · GPT-5.5",
+        title: "Review CEO deck",
+        status: "running",
+        isCrossagent: true,
+        subAgentType: "Builder",
+      } satisfies ToolCallPayload,
+      streams: {},
+    };
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [run.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [run.id]: run } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+    render(
+      <AppProvider>
+        <ActiveSubAgentTile threadId={threadId} placement="composer" crewBinding={crewBinding} />
+      </AppProvider>,
+    );
+    expect(screen.getByText("Builder: Review CEO deck")).toBeInTheDocument();
+  });
+
+  it("shows only the task title for a matched crew run in the right panel", () => {
+    const threadId = "thread-crew";
+    const crewBinding = {
+      version: 1 as const,
+      policy: "crew-only" as const,
+      roles: [
+        {
+          id: "builder",
+          label: "Builder",
+          selection: { agentKind: "codex", model: "gpt-5.5" },
+        },
+      ],
+    };
+    const run: RuntimeChatItem = {
+      id: "crossagent-builder",
+      type: "tool_call",
+      state: "started",
+      payload: {
+        name: "Codex · GPT-5.5 · High",
+        progress: { stepCount: 39 },
+        title: "Review CEO deck",
+        status: "running",
+        isCrossagent: true,
+        subAgentType: "Builder",
+      } satisfies ToolCallPayload,
+      streams: {},
+    };
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [run.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [run.id]: run } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+    render(
+      <AppProvider>
+        <ActiveSubAgentTile
+          threadId={threadId}
+          placement="right"
+          crewBinding={crewBinding}
+          thread={
+            {
+              id: threadId,
+              agentKind: "codex",
+              config: { model: "gpt-5.5", crew: crewBinding },
+            } as Thread
+          }
+        />
+      </AppProvider>,
+    );
+    expect(screen.getByText("Review CEO deck")).toBeInTheDocument();
+    expect(screen.queryByText(/39 steps/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Codex · GPT-5.5 · High")).not.toBeInTheDocument();
   });
 
   it("renders child messages through the main timeline parser", async () => {
@@ -556,7 +656,81 @@ describe("SubAgentContent", () => {
     );
   });
 
-  it("waits for history replay and Markdown before mounting the transcript", async () => {
+  it.each(["running", "completed"] as const)(
+    "shows cached %s Crossagent content while resubscribing after a remount",
+    async (status) => {
+      await DeferredItemMarkdownInner.preload();
+      const threadId = "thread-1";
+      const parentItem: RuntimeChatItem = {
+        ...makeSubAgentItem("parent-1"),
+        state: status === "running" ? "started" : "completed",
+        payload: {
+          name: "Cached task",
+          status: status === "running" ? "running" : "success",
+          isCrossagent: true,
+        } satisfies ToolCallPayload,
+      };
+      const child = makeChildItem("assistant-1", parentItem.id, "assistant_message", undefined, {
+        assistant_text: "Cached response",
+      });
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [threadId]: [parentItem.id, child.id] },
+        runtimeItemsByIdByThread: {
+          [threadId]: { [parentItem.id]: parentItem, [child.id]: child },
+        },
+        runtimeStructuralVersionByThread: { [threadId]: 1 },
+      });
+      const content = (
+        <SubAgentContent
+          threadId={threadId}
+          parentItemId={parentItem.id}
+          initialScrollRevealDelayMs={0}
+        />
+      );
+      const firstView = render(content);
+      expect(await screen.findByText("Cached response")).toBeInTheDocument();
+      firstView.unmount();
+      expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledWith({
+        threadId,
+        parentItemId: parentItem.id,
+      });
+
+      const history = Promise.withResolvers<{ history: [] }>();
+      mockBridge.subagentSubscribe.mockReturnValue(history.promise);
+      render(content);
+
+      expect(await screen.findByText("Cached response")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(document.querySelector("[data-poracode-chat-scroller]")).toHaveClass("opacity-100"),
+      );
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(2);
+      act(() => {
+        useAppStore.getState().applyRuntimeEvents(threadId, [
+          {
+            type: "item.started",
+            threadId,
+            itemId: "assistant-2",
+            itemType: "assistant_message",
+            parentItemId: parentItem.id,
+          },
+          {
+            type: "content.delta",
+            threadId,
+            itemId: "assistant-2",
+            stream: "assistant_text",
+            delta: "Updated response",
+          },
+        ]);
+      });
+      expect(await screen.findByText("Updated response")).toBeInTheDocument();
+      await act(async () => history.resolve({ history: [] }));
+      expect(screen.getByText("Cached response")).toBeInTheDocument();
+      expect(screen.getByText("Updated response")).toBeInTheDocument();
+    },
+  );
+
+  it("waits for history replay and Markdown before mounting an uncached transcript", async () => {
     const threadId = "thread-1";
     const parentItem = makeSubAgentItem("parent-1");
     const child = makeChildItem("assistant-1", parentItem.id, "assistant_message", undefined, {
@@ -575,8 +749,8 @@ describe("SubAgentContent", () => {
     });
     vi.stubGlobal("cancelIdleCallback", vi.fn());
     useAppStore.setState({
-      runtimeItemIdsByThread: { [threadId]: [parentItem.id, child.id] },
-      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem, [child.id]: child } },
+      runtimeItemIdsByThread: { [threadId]: [parentItem.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem } },
       runtimeStructuralVersionByThread: { [threadId]: 1 },
     });
     const { unmount } = render(
@@ -586,7 +760,16 @@ describe("SubAgentContent", () => {
       await act(async () => idle?.({ didTimeout: false, timeRemaining: () => 50 }));
       expect(screen.queryByText("Prepared message")).not.toBeInTheDocument();
       expect(screen.getByRole("status")).toHaveTextContent("Loading");
-      await act(async () => history.resolve({ history: [] }));
+      await act(async () => {
+        useAppStore.setState({
+          runtimeItemIdsByThread: { [threadId]: [parentItem.id, child.id] },
+          runtimeItemsByIdByThread: {
+            [threadId]: { [parentItem.id]: parentItem, [child.id]: child },
+          },
+          runtimeStructuralVersionByThread: { [threadId]: 2 },
+        });
+        history.resolve({ history: [] });
+      });
       expect(screen.queryByText("Prepared message")).not.toBeInTheDocument();
       await waitFor(() => expect(idle).toBeTypeOf("function"));
       await act(async () => idle?.({ didTimeout: false, timeRemaining: () => 50 }));

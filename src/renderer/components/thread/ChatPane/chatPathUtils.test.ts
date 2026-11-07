@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 import { normalizeChatProjectPath, toProjectRelativeDisplayPath } from "./chatPathUtils";
 
 describe("normalizeChatProjectPath", () => {
+  it("normalizes slash-prefixed Windows paths inside and outside the project", () => {
+    const location = { kind: "windows", path: "E:/work/repo" } as const;
+    expect(normalizeChatProjectPath("/E:/work/repo/src/app.ts", location)).toBe("src/app.ts");
+    expect(normalizeChatProjectPath("/D:/other/report.md", location)).toBe("D:/other/report.md");
+  });
+
   it.each([String.raw`\\server\share\report.pdf`, "//server/share/report.pdf"])(
     "preserves an out-of-project network root: %s",
     (path) => {
@@ -94,6 +100,14 @@ describe("normalizeChatProjectPath", () => {
 });
 
 describe("toProjectRelativeDisplayPath", () => {
+  it("removes the URL-style slash from Windows display paths", () => {
+    const location = { kind: "windows", path: "E:/work/repo" } as const;
+    expect(toProjectRelativeDisplayPath("/E:/work/repo/src/app.ts", location)).toBe("src/app.ts");
+    expect(toProjectRelativeDisplayPath(String.raw`/D:\other\report.md`, location)).toBe(
+      String.raw`D:\other\report.md`,
+    );
+  });
+
   it("relativizes a Windows worktree-absolute path to a project-relative path", () => {
     expect(
       toProjectRelativeDisplayPath(

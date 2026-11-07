@@ -13,6 +13,7 @@ import {
   installRendererReloadGuard,
   noteRendererWindowClose,
 } from "./windowHardening";
+import { openDevToolsAfterStartup } from "./deferredDevTools";
 import { rectOverlapsWorkArea } from "./windowGeometry";
 
 interface WindowBounds {
@@ -210,7 +211,13 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
 
   window.once("ready-to-show", () => {
     if (saved?.isMaximized) {
-      window.maximize();
+      // Electron's maximize() also shows the window; defer it until the first
+      // real show so a hidden start stays hidden.
+      if (options.showOnReady !== false || window.isVisible()) {
+        window.maximize();
+      } else {
+        window.once("show", () => window.maximize());
+      }
     }
     if (options.showOnReady !== false) window.show();
   });
@@ -226,7 +233,9 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
 
   loadRenderer();
   if (options.isDev && options.openDevTools !== false) {
-    window.webContents.openDevTools({ mode: "detach" });
+    // Only the main app reports startup ready (the quick-composer ready ping).
+    if ((options.windowKind ?? "main") === "main") openDevToolsAfterStartup(window.webContents);
+    else window.webContents.openDevTools({ mode: "detach" });
   }
 
   installRendererReloadGuard(window, {

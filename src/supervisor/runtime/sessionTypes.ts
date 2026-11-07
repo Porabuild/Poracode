@@ -12,6 +12,7 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
   ThreadStatus,
+  ThreadTurnInterruption,
   McpLaunchSnapshot,
 } from "@/shared/contracts";
 import type { TranscriptBuffer } from "@/shared/transcriptBuffer";
@@ -92,6 +93,16 @@ export interface SessionRuntime {
   readonly workspaceScope?: ApprovedThreadWorkspaceScope;
   readonly executionWorkspaceScope?: ApprovedThreadWorkspaceScope;
   config: ThreadConfig;
+  /** Fingerprint last delivered with an admitted structured prompt. */
+  crewBriefDelivered?: string | undefined;
+  /**
+   * The crew lead edited files itself since its last submitted prompt; the
+   * next prompt carries a one-time reminder to delegate. In memory only; a
+   * restart's replacement session keeps it.
+   */
+  crewLeadEditedFiles?: boolean | undefined;
+  crossagentsMcpAttached?: boolean | undefined;
+  crossagentsMcpAvailable?: boolean | undefined;
   /** Effective provider launch config with globally disabled MCP cleared. */
   launchConfig?: ThreadConfig;
   /** MCP launch snapshot reused by restart and recovery paths. */
@@ -110,10 +121,17 @@ export interface SessionRuntime {
    */
   sessionConfigOptions?: SessionConfigOptions | null;
   status: ThreadStatus;
+  /** Latest runtime error reason while `status` is `error`; cleared on any other status. */
+  errorMessage?: string;
   attention: ThreadAttention;
   canResumeWithConfig: boolean;
   terminalSize: TerminalSize;
   launchPrompt: string;
+  /** Retained until the first provider turn accepts the inherited conversation. */
+  pendingInitialInstructions?: string | undefined;
+  mcpAppContext?: (() => string | undefined) | undefined;
+  initialInstructionsApplied?: true;
+  onInitialInstructionsApplied?: () => void;
   outputLength: number;
   structuredSession?: StructuredSessionHandle | undefined;
   /**
@@ -146,6 +164,21 @@ export interface SessionRuntime {
    */
   pendingSteer?: PendingSteerSlot | undefined;
   structuredTurnInterruptRequested?: boolean | undefined;
+  /**
+   * The last turn ended unfinished without the user pressing Stop. `null` once
+   * a turn starts; absent until this session has said either, so a fresh
+   * session never retires a marker the host kept across a restart.
+   */
+  interruptedTurn?: ThreadTurnInterruption | null | undefined;
+  /** The marker value this session last told the host. */
+  reportedInterruptedTurn?: ThreadTurnInterruption | null | undefined;
+  /**
+   * The user pressed Stop on this turn. Unlike
+   * `structuredTurnInterruptRequested` it outlives the settling status, so a
+   * failure the provider reports while winding down still reads as a Stop.
+   * The next turn clears it.
+   */
+  turnStopRequested?: boolean | undefined;
   /**
    * Force-stop watchdog for a structured (GUI) turn. Armed when the user
    * requests a stop and reset on any inbound sign of life (status update or

@@ -177,6 +177,8 @@ export function BrowserMenu(props: {
           aria-label={t`Browser menu`}
           onAction={onMenuAction}
           disabledKeys={[
+            // A remote client mirrors the host's browser; these act on a local
+            // browser view, profile, or its device-only settings.
             ...(!nativeBrowser
               ? [
                   "find",
@@ -186,6 +188,10 @@ export function BrowserMenu(props: {
                   "importData",
                   "passwordsMenu",
                   "downloads",
+                  "screenshot",
+                  "hardReload",
+                  "clearBrowsingDataMenu",
+                  "settings",
                 ]
               : []),
             ...(pageDisabled
@@ -224,7 +230,12 @@ export function BrowserMenu(props: {
               <Dropdown.Menu
                 aria-label={t`Bookmarks`}
                 onAction={onMenuAction}
-                disabledKeys={pageDisabled ? ["toggleBookmark"] : []}
+                // Submenus take their own disabled keys; the bookmark bar is
+                // this window's local presentation.
+                disabledKeys={[
+                  ...(pageDisabled ? ["toggleBookmark"] : []),
+                  ...(!nativeBrowser ? ["bookmarkBar"] : []),
+                ]}
               >
                 <Dropdown.Item
                   id="toggleBookmark"
@@ -296,7 +307,10 @@ export function BrowserMenu(props: {
               <Dropdown.Menu
                 aria-label={t`History`}
                 onAction={onMenuAction}
-                disabledKeys={recentHistory.length === 0 ? ["noHistory"] : []}
+                disabledKeys={[
+                  ...(recentHistory.length === 0 ? ["noHistory"] : []),
+                  ...(!nativeBrowser ? ["clearHistory"] : []),
+                ]}
               >
                 {recentHistory.length === 0 ? (
                   <Dropdown.Item id="noHistory" textValue={t`No history yet`}>

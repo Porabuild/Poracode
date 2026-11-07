@@ -7,6 +7,53 @@ import {
   type WindowsShellPreference,
 } from "./shellPreference";
 import { SupervisorRuntime } from "./supervisorRuntime";
+import type {
+  GitProjectSnapshotPayload,
+  GitProjectSnapshotResult,
+  ProjectLocation,
+} from "@/shared/contracts";
+
+describe("SupervisorRuntime source-host review availability", () => {
+  it.each([true, false])(
+    "uses the forge probe for WSL snapshots (requested: %s)",
+    async (includeGhCheck) => {
+      const projectLocation: ProjectLocation = {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+      };
+      const snapshot: GitProjectSnapshotResult = {
+        status: null,
+        branches: null,
+        worktrees: null,
+        ghAvailable: null,
+      };
+      const batchedWslProjectSnapshot = vi
+        .fn<
+          (location: ProjectLocation, includeGhCheck: boolean) => Promise<GitProjectSnapshotResult>
+        >()
+        .mockResolvedValue(snapshot);
+      const checkAvailable = vi
+        .fn<(location: ProjectLocation) => Promise<{ available: boolean }>>()
+        .mockResolvedValue({ available: true });
+      const runtime = Object.create(SupervisorRuntime.prototype) as {
+        gitService: { batchedWslProjectSnapshot: typeof batchedWslProjectSnapshot };
+        forgeReviewService: { checkAvailable: typeof checkAvailable };
+        gitProjectSnapshot(payload: GitProjectSnapshotPayload): Promise<GitProjectSnapshotResult>;
+      };
+      runtime.gitService = { batchedWslProjectSnapshot };
+      runtime.forgeReviewService = { checkAvailable };
+
+      expect(await runtime.gitProjectSnapshot({ projectLocation, includeGhCheck })).toEqual({
+        ...snapshot,
+        ghAvailable: includeGhCheck ? true : null,
+      });
+      expect(batchedWslProjectSnapshot).toHaveBeenCalledExactlyOnceWith(projectLocation, false);
+      expect(checkAvailable.mock.calls).toEqual(includeGhCheck ? [[projectLocation]] : []);
+    },
+  );
+});
 
 describe("SupervisorRuntime Windows launch shells", () => {
   const originalPlatform = process.platform;
@@ -64,7 +111,7 @@ describe("SupervisorRuntime Windows launch shells", () => {
     expect(getCachedAvailableWindowsShells).not.toHaveBeenCalled();
   });
 
-  it("refreshes the complete Settings catalog and resets the launch selection", () => {
+  it("refreshes the complete Settings catalog and resets the launch selection", async () => {
     Object.defineProperty(process, "platform", { value: "win32", configurable: true });
     vi.stubEnv("Path", "C:\\older");
     const shells = [
@@ -72,7 +119,9 @@ describe("SupervisorRuntime Windows launch shells", () => {
       { path: "C:\\older\\pwsh.exe", kind: "pwsh" as const, version: "7.4.6" },
       { path: "C:\\Windows\\System32\\cmd.exe", kind: "cmd" as const },
     ];
-    const detectCatalog = vi.spyOn(shellPreference, "detectWindowsShells").mockReturnValue(shells);
+    const detectCatalog = vi
+      .spyOn(shellPreference, "detectWindowsShells")
+      .mockResolvedValue(shells);
     const previousResolver = createWindowsPowerShellLaunchResolver(
       () => undefined,
       (path) => path === "C:\\older\\pwsh.exe",
@@ -81,16 +130,16 @@ describe("SupervisorRuntime Windows launch shells", () => {
     const runtime = Object.create(SupervisorRuntime.prototype) as {
       availableWindowsShellsCache: { shells: typeof shells; ts: number };
       resolveLaunchWindowsPowerShell: ReturnType<typeof createWindowsPowerShellLaunchResolver>;
-      getAvailableWindowsShells(): typeof shells;
+      getAvailableWindowsShells(): Promise<typeof shells>;
     };
     runtime.availableWindowsShellsCache = { shells: [], ts: 0 };
     runtime.resolveLaunchWindowsPowerShell = previousResolver;
 
-    expect(runtime.getAvailableWindowsShells()).toEqual(shells);
+    expect(await runtime.getAvailableWindowsShells()).toEqual(shells);
     expect(detectCatalog).toHaveBeenCalledOnce();
     const refreshedResolver = runtime.resolveLaunchWindowsPowerShell;
     expect(refreshedResolver).not.toBe(previousResolver);
-    expect(runtime.getAvailableWindowsShells()).toEqual(shells);
+    expect(await runtime.getAvailableWindowsShells()).toEqual(shells);
     expect(runtime.resolveLaunchWindowsPowerShell).toBe(refreshedResolver);
     expect(detectCatalog).toHaveBeenCalledOnce();
   });

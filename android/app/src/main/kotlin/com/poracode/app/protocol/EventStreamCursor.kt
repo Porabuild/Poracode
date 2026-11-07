@@ -13,6 +13,9 @@ package com.poracode.app.protocol
  * - `resync-required` **replaces** the cursor exactly (may lower after server restart).
  * - Authoritative snapshots/history advance with `max` (or set if unset).
  * - Advance only after synchronous successful reducer delivery.
+ * - `eventEpoch=v1`: [epoch] names the server instance [appliedSeq] belongs to.
+ *   A new epoch binds only when `resync-required` replaces the cursor, so a lost
+ *   resync frame keeps the old binding and the reconnect is refused again.
  */
 class EventStreamCursor(
     appliedSeq: Int? = null,
@@ -38,11 +41,39 @@ class EventStreamCursor(
     var resyncPending: Boolean = false
         private set
 
-    /** `ready` only confirms the handshake; it must not move the applied cursor. */
-    fun noteReady(seq: Int) {
+    /** Server event-stream epoch [appliedSeq] is bound to; null while unbound. */
+    @Volatile
+    var epoch: String? = null
+        private set
+
+    /** Epoch the current connection's `ready` reported (null from hosts without one). */
+    private var connectionEpoch: String? = null
+
+    /** A new connection is starting: forget the previous connection's epoch. */
+    fun beginConnection() {
+        connectionEpoch = null
+    }
+
+    /**
+     * `ready` only confirms the handshake; it must not move the applied cursor.
+     * It names the epoch of every later frame on this connection, which binds
+     * only when the server's `resync-required` replaces the cursor (an unbound
+     * cursor stays unbound until then). Returns true when a host stopped
+     * reporting an epoch under a bound cursor (an older build that cannot
+     * verify it), which the caller answers with one resync; the binding is then
+     * cleared.
+     */
+    fun noteReady(seq: Int, epoch: String? = null): Boolean {
         @Suppress("UNUSED_PARAMETER")
         val ignored = seq
-        // Intentionally no-op on appliedSeq.
+        connectionEpoch = epoch
+        return epoch == null && this.epoch != null
+    }
+
+    /** Restores a pooled cursor together with the epoch it was bound to. */
+    fun restore(seq: Int, epoch: String?) {
+        appliedSeq = seq
+        this.epoch = epoch
     }
 
     fun disposition(forEventSeq: Int): EventDisposition {
@@ -71,9 +102,13 @@ class EventStreamCursor(
         appliedSeq = if (current == null) seq else maxOf(current, seq)
     }
 
-    /** Server `resync-required`: replace exactly (may lower after process restart). */
+    /**
+     * Server `resync-required`: replace exactly (may lower after process restart)
+     * and bind the epoch this connection's `ready` reported.
+     */
     fun replaceFromResyncRequired(seq: Int) {
         appliedSeq = seq
+        epoch = connectionEpoch
         resyncPending = true
     }
 
@@ -106,6 +141,8 @@ class EventStreamCursor(
 
     fun reset() {
         appliedSeq = null
+        epoch = null
+        connectionEpoch = null
         resyncPending = false
     }
 }

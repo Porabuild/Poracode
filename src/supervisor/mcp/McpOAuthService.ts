@@ -2,7 +2,11 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { join } from "node:path";
-import { auth } from "@modelcontextprotocol/client";
+import {
+  auth,
+  IssuerMismatchError,
+  validateAuthorizationResponseIssuer,
+} from "@modelcontextprotocol/client";
 import type {
   OAuthClientProvider,
   OAuthClientMetadata,
@@ -30,6 +34,7 @@ const TOKEN_EXPIRY_SLACK_MS = 60 * 1000;
 const STORE_FILE_NAME = "mcp-oauth.json";
 const CALLBACK_PATH = "/callback";
 // Version 1 preserves the legacy URL slots and adds independent opaque account keys.
+// Callback issuer validation is flow-local; existing sealed credentials remain valid.
 export const MCP_OAUTH_STORE_VERSION = 1;
 
 const CALLBACK_SUCCESS_HTML = `<!doctype html><html><head><meta charset="utf-8"><title>Poracode</title></head>
@@ -66,11 +71,17 @@ interface ActiveFlow {
   timeout?: NodeJS.Timeout;
   settled: boolean;
   controller: AbortController;
+  ownerSignal?: AbortSignal;
+  pending: Set<Promise<unknown>>;
+  closing?: Promise<void>;
+  unlinkCancellation?: () => void;
   result: Promise<McpOauthWaitResult>;
   settle: (result: McpOauthWaitResult) => void;
 }
 
 function sanitizeMessage(value: unknown, fallback: string): string {
+  if (value instanceof IssuerMismatchError && value.kind === "authorization_response")
+    return "The sign-in response did not match the expected authorization server.";
   const raw =
     typeof value === "string" ? value : value instanceof Error ? value.message : undefined;
   if (!raw) return fallback;
@@ -116,6 +127,9 @@ export class McpOAuthService {
   private readonly flowsByServer = new Map<string, ActiveFlow>();
   private readonly credentialEpochs = new Map<string, number>();
   private readonly refresh: McpOAuthRefresh;
+  private readonly ownedFlows = new Set<ActiveFlow>();
+  private disposed = false;
+  private disposing: Promise<void> | undefined;
   private storeCache: StoreFile | undefined;
   private unsupportedStore = false;
 
@@ -134,28 +148,56 @@ export class McpOAuthService {
   async beginForCredential(
     server: McpServer,
     credentialKey?: string,
+    signal?: AbortSignal,
   ): Promise<McpOauthBeginResult> {
+    if (this.disposed || signal?.aborted)
+      return {
+        status: "error",
+        message: "Sign-in was canceled or the supervisor is shutting down.",
+      };
     if (!isOauthCapableTransport(server)) {
       return { status: "error", message: "Only HTTP MCP servers support sign-in." };
     }
+    this.readStore();
+    if (this.unsupportedStore)
+      return { status: "error", message: "Unsupported MCP OAuth store version." };
     const serverUrl = server.transport.url;
     const key = credentialKey ?? serverUrl;
     this.cancelFlowForServer(key);
     this.refresh.invalidate(key);
 
-    const flow = this.createFlow(serverUrl, key);
+    const flow = this.createFlow(serverUrl, key, signal);
+    this.ownedFlows.add(flow);
     this.flows.set(flow.id, flow);
     this.flowsByServer.set(key, flow);
+    if (signal) {
+      const cancel = () =>
+        this.settleFlow(flow, { status: "error", message: "Sign-in was canceled." });
+      signal.addEventListener("abort", cancel, { once: true });
+      flow.unlinkCancellation = () => signal.removeEventListener("abort", cancel);
+    }
+    const result = await this.trackFlow(flow, this.startFlow(flow));
+    if (result.status !== "redirect" || signal?.aborted) await this.joinFlow(flow);
+    return signal?.aborted ? { status: "error", message: "Sign-in was canceled." } : result;
+  }
+
+  private async startFlow(flow: ActiveFlow): Promise<McpOauthBeginResult> {
     try {
+      flow.controller.signal.throwIfAborted();
       flow.listener = await this.openLoopbackListener(flow);
       flow.controller.signal.throwIfAborted();
       if (flow.settled) {
         this.disposeFlow(flow);
         return { status: "error", message: "Sign-in was canceled." };
       }
-      const provider = this.createProvider(serverUrl, flow, flow.controller.signal, key);
+      const provider = this.createProvider(
+        flow.serverUrl,
+        flow,
+        flow.controller.signal,
+        flow.credentialKey,
+      );
       const result = await auth(provider, {
-        serverUrl,
+        serverUrl: flow.serverUrl,
         fetchFn: fetchWithSignal(flow.controller.signal),
       });
       flow.controller.signal.throwIfAborted();
@@ -189,6 +231,7 @@ export class McpOAuthService {
     const flow = this.flows.get(payload.flowId);
     if (!flow) return { status: "error", message: "The sign-in flow is no longer active." };
     const result = await flow.result;
+    await this.joinFlow(flow);
     this.disposeFlow(flow);
     return result;
   }
@@ -287,12 +330,43 @@ export class McpOAuthService {
     };
   }
 
-  dispose(): void {
-    this.refresh.dispose();
-    for (const flow of [...this.flows.values()]) {
+  dispose(): Promise<void> {
+    if (this.disposing) return this.disposing;
+    this.disposed = true;
+    const flows = [...this.ownedFlows];
+    for (const flow of flows) {
       this.settleFlow(flow, { status: "error", message: "The sign-in flow was canceled." });
       this.disposeFlow(flow);
     }
+    this.disposing = (async () => {
+      await Promise.all([this.refresh.dispose(), ...flows.map((flow) => this.joinFlow(flow))]);
+    })();
+    return this.disposing;
+  }
+
+  /** Internal operation custody; signals and credential keys never cross IPC. */
+  async retireAuthentication(signal: AbortSignal): Promise<void> {
+    const flows = [...this.ownedFlows].filter((flow) => flow.ownerSignal === signal);
+    for (const flow of flows) {
+      this.settleFlow(flow, { status: "error", message: "Sign-in was canceled." });
+      this.disposeFlow(flow);
+    }
+    await Promise.all(flows.map((flow) => this.joinFlow(flow)));
+  }
+
+  private trackFlow<T>(flow: ActiveFlow, pending: Promise<T>): Promise<T> {
+    flow.pending.add(pending);
+    const retire = () => {
+      flow.pending.delete(pending);
+    };
+    void pending.then(retire, retire);
+    return pending;
+  }
+
+  private async joinFlow(flow: ActiveFlow): Promise<void> {
+    while (flow.pending.size) await Promise.allSettled([...flow.pending]);
+    await flow.closing;
+    this.ownedFlows.delete(flow);
   }
 
   private async accessToken(
@@ -324,7 +398,11 @@ export class McpOAuthService {
     return savedAt + tokens.expires_in * 1000 - TOKEN_EXPIRY_SLACK_MS <= Date.now();
   }
 
-  private createFlow(serverUrl: string, credentialKey: string): ActiveFlow {
+  private createFlow(
+    serverUrl: string,
+    credentialKey: string,
+    ownerSignal?: AbortSignal,
+  ): ActiveFlow {
     let settle!: (result: McpOauthWaitResult) => void;
     const result = new Promise<McpOauthWaitResult>((resolve) => {
       settle = resolve;
@@ -336,6 +414,8 @@ export class McpOAuthService {
       state: randomBytes(24).toString("base64url"),
       settled: false,
       controller: new AbortController(),
+      ...(ownerSignal ? { ownerSignal } : {}),
+      pending: new Set(),
       result,
       settle,
     };
@@ -353,6 +433,7 @@ export class McpOAuthService {
    * loopback client: `addClientAuthentication` (default `none` handling),
    * `validateResourceURL` (default RFC 9728 check), `prepareTokenRequest`
    * (default authorization-code grant), `clientMetadataUrl` (DCR is used),
+   * `dpop` (plain Bearer tokens), `scopeForRefresh` (retain granted scopes),
    * `saveResourceUrl`/`resourceUrl`
    * (Cross-App Access only), and the deprecated
    * `saveAuthorizationServerUrl`/`authorizationServerUrl` pair (written by the
@@ -502,6 +583,26 @@ export class McpOAuthService {
       return;
     }
 
+    const iss = url.searchParams.get("iss") ?? undefined;
+    const metadata = flow.discoveryState?.authorizationServerMetadata;
+    try {
+      // Error callbacks need the same issuer validation as successful callbacks
+      // before any server-supplied error description can reach the user.
+      validateAuthorizationResponseIssuer({
+        iss,
+        expectedIssuer: metadata?.issuer,
+        issParameterSupported: metadata?.authorization_response_iss_parameter_supported === true,
+      });
+    } catch (error) {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(CALLBACK_FAILURE_HTML);
+      this.settleFlow(flow, {
+        status: "error",
+        message: sanitizeMessage(error, "Sign-in was denied."),
+      });
+      return;
+    }
+
     const oauthError = url.searchParams.get("error");
     const code = url.searchParams.get("code");
     if (oauthError !== null || !code) {
@@ -520,10 +621,14 @@ export class McpOAuthService {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
     res.end(CALLBACK_SUCCESS_HTML);
     flow.exchanging = true;
-    void this.exchangeAuthorizationCode(flow, code);
+    void this.trackFlow(flow, this.exchangeAuthorizationCode(flow, code, iss));
   }
 
-  private async exchangeAuthorizationCode(flow: ActiveFlow, code: string): Promise<void> {
+  private async exchangeAuthorizationCode(
+    flow: ActiveFlow,
+    code: string,
+    iss?: string,
+  ): Promise<void> {
     try {
       const provider = this.createProvider(
         flow.serverUrl,
@@ -534,6 +639,9 @@ export class McpOAuthService {
       const result = await auth(provider, {
         serverUrl: flow.serverUrl,
         authorizationCode: code,
+        // Forward the decoded callback issuer for SDK validation (RFC 9207).
+        // Keep absence distinct from an empty value; never infer it from discovery.
+        ...(iss !== undefined ? { iss } : {}),
         fetchFn: fetchWithSignal(flow.controller.signal),
       });
       this.settleFlow(
@@ -563,14 +671,33 @@ export class McpOAuthService {
       flow.settle(result);
     }
     this.disposeFlow(flow, true);
+    // Retire completed/canceled work even if a legacy caller never waits. Failed
+    // joins keep their actual custody and are retried/refused by owner shutdown.
+    void this.joinFlow(flow).catch(() => undefined);
   }
 
   private disposeFlow(flow: ActiveFlow, retainResult = false): void {
     flow.controller.abort();
+    flow.unlinkCancellation?.();
     if (flow.timeout) clearTimeout(flow.timeout);
-    flow.listener?.close();
+    const listener = flow.listener;
+    if (listener) {
+      flow.closing = this.trackFlow(
+        flow,
+        new Promise<void>((resolve, reject) => {
+          listener.close((error) => {
+            if (error && !("code" in error && error.code === "ERR_SERVER_NOT_RUNNING"))
+              reject(error);
+            else resolve();
+          });
+        }),
+      );
+      // This listener only accepts the OAuth callback; no request may retain
+      // supervisor custody after cancellation, including partial HTTP headers.
+      listener.closeAllConnections();
+    }
     flow.listener = undefined;
-    if (retainResult) {
+    if (retainResult && !this.disposed) {
       flow.timeout = setTimeout(() => this.flows.delete(flow.id), FLOW_TIMEOUT_MS);
       flow.timeout.unref?.();
     } else this.flows.delete(flow.id);

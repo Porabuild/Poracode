@@ -13,6 +13,7 @@ import {
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { LATEST_SCHEMA_VERSION } from "./migrations";
 import {
+  removeReviewScopeFixtureSchema,
   removeCostSchemaForDowngrade,
   removeConversationSearchFixtureSchema,
 } from "./runtimeItems.testFixtures";
@@ -26,8 +27,10 @@ import {
   dbGetThreadsPage,
   dbMarkLiveThreadsInactive,
   dbSetState,
+  dbUpdateProject,
   dbUpsertProject,
   dbUpsertThread,
+  dbUpdateThreadMetadata,
 } from "./projectsThreads";
 import { onProjectThreadDataChanged } from "./projectThreadChanges";
 import {
@@ -120,6 +123,53 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+  });
+
+  it("updates fresh metadata without rewriting configuration, runtime state, order or history", () => {
+    const original = testThread({ starred: true, status: "working" });
+    dbUpsertThread(original, 17.5);
+    const sqlite = getSqlite();
+    const config = '{ "model": "sonnet", "futureField": { "keep": true } }';
+    sqlite.prepare("UPDATE threads SET config = ? WHERE id = ?").run(config, original.id);
+    dbAppendThreadTerminalOutput(original.id, "Retained history", "Retained history".length);
+    const before = sqlite.prepare("SELECT * FROM threads WHERE id = ?").get(original.id) as Record<
+      string,
+      unknown
+    >;
+    const updated = dbUpdateThreadMetadata(original.id, (current) => {
+      expect(current.status).toBe("working");
+      return { ...current, title: "New title", archived: true, archivedAt: "2026-10-21T00:00:00Z" };
+    });
+    expect(updated?.title).toBe("New title");
+    const after = sqlite.prepare("SELECT * FROM threads WHERE id = ?").get(original.id) as Record<
+      string,
+      unknown
+    >;
+    const allowed = new Set(["title", "archived", "archived_at"]);
+    const retained = (row: Record<string, unknown>) =>
+      Object.fromEntries(Object.entries(row).filter(([key]) => !allowed.has(key)));
+    expect(retained(after)).toEqual(retained(before));
+    expect(after.config).toBe(config);
+    expect(dbGetThreadTerminalScrollback(original.id)).toBe("Retained history");
+  });
+
+  it("does not recreate missing metadata or commit a rejected computation", () => {
+    dbUpsertThread(testThread(), 2);
+    expect(() =>
+      dbUpdateThreadMetadata("thread-1", () => {
+        throw new Error("identity changed");
+      }),
+    ).toThrow("identity changed");
+    expect(dbGetThread("thread-1")?.title).toBe("Test thread");
+    let called = false;
+    expect(
+      dbUpdateThreadMetadata("missing", (thread) => {
+        called = true;
+        return thread;
+      }),
+    ).toBeNull();
+    expect(called).toBe(false);
+    expect(dbGetThread("missing")).toBeNull();
   });
 
   it("finds normalized locations without loading unrelated projects", () => {
@@ -289,6 +339,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     const legacy = nativeBindingEnv
       ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
       : new Database(databasePath);
+    removeReviewScopeFixtureSchema(legacy);
     removeConversationSearchFixtureSchema(legacy);
     removeCostSchemaForDowngrade(legacy);
     legacy.exec(`
@@ -334,6 +385,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       }),
       0,
     );
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     dbSetState("schema_version", "34");
@@ -363,6 +415,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     dbUpsertThread(testThread(), 0);
     // Simulate a pre-v37 database: the column absent, the version rewound.
     getSqlite().exec("ALTER TABLE threads DROP COLUMN workspace_id");
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     dbSetState("schema_version", "36");
@@ -451,6 +504,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
         "antigravity",
         JSON.stringify({ model: "gemini-3.5-flash-low" }),
       );
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     dbSetState("schema_version", "37");
@@ -527,6 +581,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
         }),
         "project-1",
       );
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     dbSetState("schema_version", "38");
@@ -561,6 +616,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
         }),
         "project-1",
       );
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     dbSetState("schema_version", "39");
@@ -637,6 +693,128 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       host: "github.com",
       login: "octocat",
     });
+  });
+
+  it("round-trips and clears the pinned worktree base branch", () => {
+    const project = {
+      id: "project-1",
+      name: "Test project",
+      location: { kind: "posix" as const, path: "/tmp/project" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    dbUpsertProject({ ...project, worktreeBaseBranch: "origin/main" }, 0);
+    expect(dbGetProject("project-1")?.worktreeBaseBranch).toBe("origin/main");
+
+    dbUpdateProject({ ...project, worktreeBaseBranch: "develop" });
+    expect(dbGetProject("project-1")?.worktreeBaseBranch).toBe("develop");
+
+    dbUpdateProject(project);
+    expect(dbGetProject("project-1")).not.toHaveProperty("worktreeBaseBranch");
+  });
+
+  it("round-trips and clears pinned branches in order", () => {
+    const project = {
+      id: "project-1",
+      name: "Test project",
+      location: { kind: "posix" as const, path: "/tmp/project" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    dbUpsertProject({ ...project, pinnedBranches: ["release", "develop"] }, 0);
+    expect(dbGetProject("project-1")?.pinnedBranches).toEqual(["release", "develop"]);
+
+    dbUpdateProject({ ...project, pinnedBranches: [] });
+    expect(dbGetProject("project-1")).not.toHaveProperty("pinnedBranches");
+  });
+
+  it("upgrades a schema-68 database by adding the branch pin columns", () => {
+    dbUpsertProject(
+      {
+        id: "legacy-project",
+        name: "Legacy project",
+        location: { kind: "posix", path: "/tmp/legacy-project" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      0,
+    );
+    closeDatabase();
+    const databasePath = join(dir, "state.sqlite");
+    const legacy = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    legacy.exec(`
+      ALTER TABLE projects DROP COLUMN worktree_base_branch;
+      ALTER TABLE projects DROP COLUMN pinned_branches;
+      UPDATE app_state SET value = '68' WHERE key = 'schema_version';
+    `);
+    legacy.close();
+
+    initDatabase(databasePath);
+
+    const projectColumns = getSqlite().prepare("PRAGMA table_info(projects)").all() as Array<{
+      name: string;
+    }>;
+    expect(projectColumns.map((column) => column.name)).toEqual(
+      expect.arrayContaining(["worktree_base_branch", "pinned_branches"]),
+    );
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
+    const legacyProject = dbGetProject("legacy-project");
+    expect(legacyProject?.name).toBe("Legacy project");
+    expect(legacyProject).not.toHaveProperty("worktreeBaseBranch");
+    expect(legacyProject).not.toHaveProperty("pinnedBranches");
+  });
+
+  it("upgrades a schema-70 database by adding the plugin overrides column", () => {
+    dbUpsertProject(
+      {
+        id: "legacy-project",
+        name: "Legacy project",
+        location: { kind: "posix", path: "/tmp/legacy-project" },
+        pinnedBranches: ["main"],
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      0,
+    );
+    closeDatabase();
+    const databasePath = join(dir, "state.sqlite");
+    const legacy = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    legacy.exec(`
+      ALTER TABLE projects DROP COLUMN plugin_overrides;
+      UPDATE app_state SET value = '70' WHERE key = 'schema_version';
+    `);
+    legacy.close();
+
+    initDatabase(databasePath);
+
+    const projectColumns = getSqlite().prepare("PRAGMA table_info(projects)").all() as Array<{
+      name: string;
+    }>;
+    expect(projectColumns.map((column) => column.name)).toContain("plugin_overrides");
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
+    const legacyProject = dbGetProject("legacy-project");
+    expect(legacyProject?.pinnedBranches).toEqual(["main"]);
+    expect(legacyProject).not.toHaveProperty("pluginOverrides");
+  });
+
+  it("round-trips project plugin overrides and drops an empty or malformed value", () => {
+    const project = {
+      id: "plugins-project",
+      name: "Plugins",
+      location: { kind: "posix" as const, path: "/tmp/plugins-project" },
+      pluginOverrides: { sentry: true, devices: false },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    dbUpsertProject(project, 0);
+    expect(dbGetProject(project.id)?.pluginOverrides).toEqual({ sentry: true, devices: false });
+
+    dbUpdateProject({ ...project, pluginOverrides: {} });
+    expect(dbGetProject(project.id)).not.toHaveProperty("pluginOverrides");
+
+    getSqlite()
+      .prepare("UPDATE projects SET plugin_overrides = ? WHERE id = ?")
+      .run('{"sentry":"yes"}', project.id);
+    expect(dbGetProject(project.id)).not.toHaveProperty("pluginOverrides");
   });
 
   it("round-trips the project workspace through the projects table", () => {
@@ -939,6 +1117,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
       config: JSON.stringify({ model: "sonnet", effort: "low" }),
       sortOrder: 1,
     });
+    removeReviewScopeFixtureSchema(getSqlite());
     removeConversationSearchFixtureSchema(getSqlite());
     removeCostSchemaForDowngrade(getSqlite());
     dbSetState("schema_version", "29");

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { resolveSharedUpdateCommand } from "@/shared/agents/updateResolver";
 import { createKnownSessionRef, primeWslLaunchEnvironment } from "../base";
+import { kimiDetectionSpec } from "./detection";
 import { createKimiAdapter, resolveKimiEmptyResponseError } from "./index";
 import { buildKimiLogoutCommand } from "./kimiLogout";
 
@@ -51,14 +52,7 @@ describe("createKimiAdapter shape", () => {
         envKind: "windows",
       }),
     ).toEqual({
-      binary: "powershell.exe",
-      args: [
-        "-NoLogo",
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        "irm https://code.kimi.com/kimi-code/install.ps1 | iex",
-      ],
+      ...kimiDetectionSpec.update?.installer?.windows,
       strategy: "installer",
     });
   });

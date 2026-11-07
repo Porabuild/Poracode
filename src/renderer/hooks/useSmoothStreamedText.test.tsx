@@ -93,6 +93,82 @@ describe("useSmoothStreamedText", () => {
     expect(result.current).toBe(target);
   });
 
+  it.each([60, 120, 144, 165, 240])(
+    "caps reveal at 60 updates per second on a %i Hz display without cadence drift",
+    (refreshRate) => {
+      const target = `A${"x".repeat(10_000)}`;
+      const { result, rerender } = renderHook(
+        ({ text }) => useSmoothStreamedText(text, true, 1_000 / 60),
+        { initialProps: { text: "A" } },
+      );
+      rerender({ text: target });
+
+      let previous = result.current;
+      let emissions = 0;
+      for (let frame = 0; frame < refreshRate * 2; frame += 1) {
+        flushFrame(Math.round((1_000 + (frame * 1_000) / refreshRate) * 100) / 100);
+        expect(result.current.length).toBeGreaterThanOrEqual(previous.length);
+        expect(target.startsWith(result.current)).toBe(true);
+        if (result.current !== previous) emissions += 1;
+        previous = result.current;
+      }
+
+      expect(emissions).toBe(120);
+      expect(result.current.length).toBeLessThan(target.length);
+    },
+  );
+
+  it("respects the cadence after a zero timestamp", () => {
+    const { result, rerender } = renderHook(
+      ({ text }) => useSmoothStreamedText(text, true, 1_000 / 60),
+      { initialProps: { text: "A" } },
+    );
+    rerender({ text: `A${"x".repeat(5_000)}` });
+    flushFrame(0);
+    const first = result.current;
+    flushFrame(4.17);
+    expect(result.current).toBe(first);
+    flushFrame(16.67);
+    expect(result.current.length).toBeGreaterThan(first.length);
+  });
+
+  it("skips missed emission slots instead of bursting after a delayed frame", () => {
+    const { result, rerender } = renderHook(
+      ({ text }) => useSmoothStreamedText(text, true, 1_000 / 60),
+      { initialProps: { text: "A" } },
+    );
+    rerender({ text: `A${"x".repeat(5_000)}` });
+    flushFrame(1_000);
+    flushFrame(1_100);
+    const delayed = result.current;
+    flushFrame(1_104);
+    expect(result.current).toBe(delayed);
+    flushFrame(1_116.67);
+    expect(result.current.length).toBeGreaterThan(delayed.length);
+  });
+
+  it("applies cadence changes without waiting for the previous deadline", () => {
+    const target = `A${"x".repeat(5_000)}`;
+    const { result, rerender } = renderHook(
+      ({ text, interval }) => useSmoothStreamedText(text, true, interval),
+      { initialProps: { text: "A", interval: 1_000 } },
+    );
+    rerender({ text: target, interval: 1_000 });
+    flushFrame(1_000);
+    const first = result.current;
+    flushFrame(1_016);
+    expect(result.current).toBe(first);
+
+    rerender({ text: target, interval: 1_000 / 60 });
+    flushFrame(1_032);
+    expect(result.current.length).toBeGreaterThan(first.length);
+    const faster = result.current;
+    flushFrame(1_040);
+    expect(result.current).toBe(faster);
+    flushFrame(1_048.67);
+    expect(result.current.length).toBeGreaterThan(faster.length);
+  });
+
   it("limits DOM updates for a long stream and flushes on completion", () => {
     const target = `A${"x".repeat(5_000)}`;
     const { result, rerender } = renderHook(
@@ -144,23 +220,26 @@ describe("useSmoothStreamedText", () => {
     expect(revealedCounts[revealedCounts.length - 1]!).toBeGreaterThan(revealedCounts[0]!);
   });
 
-  it("shows the full text immediately when streaming completes", () => {
-    const initial = "Start ";
-    const target = `${initial}${"remaining ".repeat(30)}`;
-    const { result, rerender } = renderHook(
-      ({ text, streaming }) => useSmoothStreamedText(text, streaming),
-      { initialProps: { text: initial, streaming: true } },
-    );
+  it.each([0, 1_000 / 60])(
+    "shows the full text immediately on completion at cadence %s",
+    (interval) => {
+      const initial = "Start ";
+      const target = `${initial}${"remaining ".repeat(30)}`;
+      const { result, rerender } = renderHook(
+        ({ text, streaming }) => useSmoothStreamedText(text, streaming, interval),
+        { initialProps: { text: initial, streaming: true } },
+      );
 
-    rerender({ text: target, streaming: true });
-    flushFrame(1_000);
-    flushFrame(1_016);
-    expect(result.current.length).toBeLessThan(target.length);
+      rerender({ text: target, streaming: true });
+      flushFrame(1_000);
+      flushFrame(1_016);
+      expect(result.current.length).toBeLessThan(target.length);
 
-    rerender({ text: target, streaming: false });
-    expect(result.current).toBe(target);
-    expect(frames.size).toBe(0);
-  });
+      rerender({ text: target, streaming: false });
+      expect(result.current).toBe(target);
+      expect(frames.size).toBe(0);
+    },
+  );
 
   it("finishes a large burst without leaving a one-character tail", () => {
     const initial = "Start ";
@@ -179,9 +258,9 @@ describe("useSmoothStreamedText", () => {
     expect(frames.size).toBe(0);
   });
 
-  it("snaps to non-append replacements instead of animating stale text", () => {
+  it.each([0, 1_000 / 60])("snaps to non-append replacements at cadence %s", (interval) => {
     const { result, rerender } = renderHook(
-      ({ text, streaming }) => useSmoothStreamedText(text, streaming),
+      ({ text, streaming }) => useSmoothStreamedText(text, streaming, interval),
       { initialProps: { text: "Original", streaming: true } },
     );
 
@@ -193,10 +272,10 @@ describe("useSmoothStreamedText", () => {
     expect(frames.size).toBe(0);
   });
 
-  it("does not animate when reduced motion is enabled", () => {
+  it.each([0, 1_000 / 60])("does not animate with reduced motion at cadence %s", (interval) => {
     vi.mocked(window.matchMedia).mockImplementation((query) => mediaQueryList(query, true));
     const { result, rerender } = renderHook(
-      ({ text, streaming }) => useSmoothStreamedText(text, streaming),
+      ({ text, streaming }) => useSmoothStreamedText(text, streaming, interval),
       { initialProps: { text: "Before", streaming: true } },
     );
 

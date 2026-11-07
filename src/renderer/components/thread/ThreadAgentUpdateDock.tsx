@@ -18,6 +18,7 @@ import { useCombinedProviderRuntimeUpdates } from "@/renderer/components/provide
 import {
   currentWslDistros,
   envLabelForStatus,
+  findStatusForTarget,
   scopeEnvForStatus,
   statusUpdateScope,
 } from "@/renderer/utils/acpRegistryAuth";
@@ -199,11 +200,18 @@ export function ThreadAgentUpdateDock(props: {
   const updateLabel = runtimeUpdate?.label ?? agentStatus.label;
 
   async function handleUpdate() {
-    if (pending) return;
+    if (!resolvedLatest || pending) return;
     setPending(true);
     onUpdatingChange?.(true);
     try {
-      const runtimeCommand = runtimeUpdate?.command;
+      const versionedCommand = runtimeUpdate?.commandForVersion?.(resolvedLatest);
+      const runtimeCommand = runtimeUpdate?.commandForVersion
+        ? versionedCommand
+        : runtimeUpdate?.command;
+      if (runtimeUpdate?.commandForVersion && !runtimeCommand) {
+        toast.danger(t`Unable to update ${updateLabel}.`);
+        return;
+      }
       if (runtimeCommand) {
         const exitCode = await new Promise<number>((resolve) => {
           const opened = runAgentInstallCommand({
@@ -232,11 +240,30 @@ export function ThreadAgentUpdateDock(props: {
           return;
         }
       }
-      toast.success(t`${agentStatus.label} updated to v${resolvedLatest}.`);
-      await readBridge().refreshAgentStatuses(currentWslDistros(), {
+      const response = await readBridge().refreshAgentStatuses(currentWslDistros(), {
         agentKinds: [agentStatus.kind],
         envs: [scopeEnvForStatus(agentStatus)],
       });
+      if (runtimeUpdate?.commandForVersion) {
+        const refreshed = findStatusForTarget(
+          response,
+          agentStatus.kind,
+          scopeEnvForStatus(agentStatus),
+        );
+        const detected = refreshed
+          ? getComposerRuntimeUpdate(agentStatus.kind)?.({
+              agentStatus: refreshed,
+              project,
+            })?.installedVersion
+          : undefined;
+        // Exit 0 is not enough: a range install reports success while the
+        // detected package is still the old release.
+        if (!detected || isNewerVersion(resolvedLatest, detected)) {
+          toast.danger(t`Unable to update ${updateLabel}.`);
+          return;
+        }
+      }
+      toast.success(t`${updateLabel} updated to v${resolvedLatest}.`);
     } catch (error) {
       toast.danger(
         error instanceof Error ? error.message : t`Unable to update ${agentStatus.label}.`,

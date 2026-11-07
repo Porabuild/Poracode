@@ -36,18 +36,22 @@ export function deriveSubProvider(
 }
 
 /**
- * Sub-provider label for a model, dropped when it merely restates the provider
- * it belongs to (Kimi's `kimi-code/…` ids derive a "Kimi Code" sub-provider).
- * Use this wherever the provider name is already shown beside the model, so the
- * label only appears when it adds information.
+ * Sub-provider label for a model, dropped when it merely restates any label
+ * already visible beside the model (the provider, or the model/family name the
+ * picker shows). Comparison trims and normalizes case. Use this wherever a
+ * provider or model name is already shown so the label only adds information.
  */
 export function distinctSubProviderLabel(
   modelId: string,
   capability: AgentCapability,
-  providerLabel: string,
+  ...visibleLabels: string[]
 ): string | undefined {
   const label = deriveSubProvider(modelId, capability)?.label;
-  return label && label.toLowerCase() !== providerLabel.toLowerCase() ? label : undefined;
+  if (!label) return undefined;
+  const normalized = label.trim().toLocaleLowerCase();
+  return visibleLabels.some((visible) => visible.trim().toLocaleLowerCase() === normalized)
+    ? undefined
+    : label;
 }
 
 /**

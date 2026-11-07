@@ -1,0 +1,21 @@
+diff --git a/packages/tui/src/attention.ts b/packages/tui/src/attention.ts
+index 544668d..6909e50 100644
+--- a/packages/tui/src/attention.ts
++++ b/packages/tui/src/attention.ts
+@@ -8,6 +8,7 @@ import type {
+   AttentionSoundName,
+ } from "@opencode/plugin/tui/context"
+ import { Config } from "./config"
++import { BRAND } from "./brand"
+ import { Schema } from "effect"
+ import stripAnsi from "strip-ansi"
+ import * as TuiAudio from "./audio"
+@@ -32,7 +33,7 @@ type AttentionHost = Attention & {
+   dispose(): void
+ }
+ 
+-const DEFAULT_TITLE = "OpenCode"
++const DEFAULT_TITLE = BRAND.name
+ const TITLE_LIMIT = 80
+ const MESSAGE_LIMIT = 240
+ const BUILTIN_SOUNDS: Record<AttentionSoundName, string> = {

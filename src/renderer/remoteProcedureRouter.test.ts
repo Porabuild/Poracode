@@ -148,9 +148,14 @@ describe("remote procedure routing registry", () => {
   const latestThreadGoalItem = vi.fn<(threadId: string) => Promise<unknown>>(async () => null);
   const threadCompletedTurns = vi.fn<(threadId: string) => Promise<unknown>>(async () => []);
   const threadContextUsage = vi.fn<(threadId: string) => Promise<unknown>>(async () => null);
+  const threadPromptIndex = vi.fn<(threadId: string) => Promise<unknown>>(async () => ({
+    prompts: [],
+    truncated: false,
+  }));
   const client = {
     callRemoteProcedure,
     latestThreadGoalItem,
+    threadPromptIndex,
     threadCompletedTurns,
     threadContextUsage,
     projectNotes,
@@ -215,6 +220,12 @@ describe("remote procedure routing registry", () => {
     expect(threadCompletedTurns).toHaveBeenCalledWith("remote-thread");
     await remoteResult(decide("dbGetThreadContextUsage", { threadId: "projected-thread" }));
     expect(threadContextUsage).toHaveBeenCalledWith("remote-thread");
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
+  });
+
+  it("reads a remote thread's prompt index from its owning host, never the local database", async () => {
+    await remoteResult(decide("dbGetThreadPromptIndex", { threadId: "projected-thread" }));
+    expect(threadPromptIndex).toHaveBeenCalledWith("remote-thread");
     expect(callRemoteProcedure).not.toHaveBeenCalled();
   });
 
@@ -556,6 +567,48 @@ describe("remote procedure routing registry", () => {
     },
   );
 
+  it.each([
+    ["getLatestAgentVersion", { agentKind: "claude" }],
+    ["listAcpRegistry", {}],
+    ["updateAgentBinary", { agentKind: "claude", envKind: "posix" }],
+    ["updateAcpRegistryAgent", { agentId: "registry-agent" }],
+  ] as const)(
+    "routes host agent management %s through the attached desktop passthrough",
+    async (procedure, payload) => {
+      await remoteResult(decide(procedure, payload));
+      expect(callRemoteProcedure).toHaveBeenCalledWith(procedure, payload);
+      expect(REMOTE_PROCEDURE_ROUTES[procedure]).toEqual({
+        owner: "desktop",
+        handler: "passthrough",
+      });
+    },
+  );
+
+  it("classifies agent version probes as reads and agent listing/updates as long mutations", () => {
+    expect(REMOTE_PROCEDURE_SPECS.getLatestAgentVersion).toEqual({
+      scope: "session:read",
+      owner: "desktop",
+    });
+    expect(REMOTE_PROCEDURE_SPECS.listAcpRegistry).toEqual({
+      scope: "session:operate",
+      owner: "desktop",
+      timeout: "long",
+      mutation: true,
+    });
+    expect(REMOTE_PROCEDURE_SPECS.updateAgentBinary).toEqual({
+      scope: "session:operate",
+      owner: "desktop",
+      timeout: "long",
+      mutation: true,
+    });
+    expect(REMOTE_PROCEDURE_SPECS.updateAcpRegistryAgent).toEqual({
+      scope: "session:operate",
+      owner: "desktop",
+      timeout: "long",
+      mutation: true,
+    });
+  });
+
   it("keeps desktop-scoped procedures local when no desktop owner is attached", () => {
     registerRemoteProcedureHost({ ...host, resolveDesktopOwner: () => undefined });
     expect(decide("getSchedules", {}).kind).toBe("local");
@@ -600,6 +653,37 @@ describe("remote procedure routing registry", () => {
       sshConnect: expect.stringMatching(/^local-shell: /),
       dbGetProjects: expect.stringMatching(/^local-shell: /),
     });
+  });
+
+  it.each(["start", "cancel"])(
+    "keeps controlled authentication %s on the local supervisor",
+    (action) => {
+      expect(NON_ROUTER_PROJECT_PROCEDURES.controlAcpAuthentication).toMatch(/^local-shell: /u);
+      expect(isRemoteProcedure("controlAcpAuthentication")).toBe(false);
+      expect(isRemoteIpcAdapterProcedure("controlAcpAuthentication")).toBe(false);
+      expect(
+        decide("controlAcpAuthentication", {
+          version: 1,
+          action,
+          operationId: "00000000-0000-4000-8000-000000000001",
+        }),
+      ).toEqual({ kind: "local" });
+      expect(callRemoteProcedure).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "controlMcpAuthentication",
+    "probeSelectedAgent",
+    "controlThreadExecution",
+    "reserveThreadExecution",
+    "controlledThreadRequest",
+  ] as const)("keeps %s on the local supervisor", (procedure) => {
+    expect(NON_ROUTER_PROJECT_PROCEDURES[procedure]).toMatch(/^local-shell: /u);
+    expect(isRemoteProcedure(procedure)).toBe(false);
+    expect(isRemoteIpcAdapterProcedure(procedure)).toBe(false);
+    expect(decide(procedure, {})).toEqual({ kind: "local" });
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
   });
 
   it("rejects payloads that mix owners from different remote servers", async () => {
@@ -839,6 +923,19 @@ describe("remote procedure routing registry", () => {
       projectId: "remote-project",
       agentKind: "codex",
       config: { model: "gpt-5.6" },
+    });
+  });
+
+  it("sends the host's project id with a location-owned project watch", async () => {
+    await remoteResult(
+      decide("gitWatchProject", {
+        projectId: "projected-project",
+        projectLocation: remoteLocation,
+      }),
+    );
+    expect(callRemoteProcedure).toHaveBeenCalledWith("gitWatchProject", {
+      projectId: "remote-project",
+      projectLocation: { kind: "posix", path: "/remote/project" },
     });
   });
 

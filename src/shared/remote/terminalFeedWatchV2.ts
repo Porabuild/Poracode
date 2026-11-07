@@ -82,7 +82,7 @@ export class TerminalWatchSessionV2 extends TerminalWatchSession {
    * accounting), so listeners observe exactly the same contract as v1.
    */
   handleChunk(watchId: string, chunk: RemoteTerminalWatchBaselineChunk): void {
-    if (this.stopped || watchId !== this.currentWatchId) return;
+    if (this.stopped || !this.awaitingBaseline || watchId !== this.currentWatchId) return;
     // Chunks only ever arrive after the attempt began; reset the deadline on
     // every one of them — "10 s without progress", not "whole transfer in 10 s".
     this.resetBaselineDeadline(watchId);
@@ -131,12 +131,26 @@ export class TerminalWatchSessionV2 extends TerminalWatchSession {
     const done = this.assembly;
     this.assembly = null;
     if (!done) return;
+    const retained = done.resumeServed ? this.currentSnapshot() : null;
+    if (
+      done.resumeServed &&
+      (!retained ||
+        retained.generation === null ||
+        retained.generation !== done.generation ||
+        retained.toCursor !== done.fromCursor)
+    ) {
+      this.resync();
+      return;
+    }
+    // v2 resumes carry only the suffix; listeners still consume a full snapshot.
+    const data = (retained?.data ?? "") + done.parts.join("");
+    const cut = Math.max(0, data.length - this.limits.cacheUnits);
     const ready: RemoteTerminalWatchResultReady = {
       status: "ready",
       generation: done.generation,
-      fromCursor: done.fromCursor,
+      fromCursor: (retained?.fromCursor ?? done.fromCursor) + cut,
       toCursor: done.toCursor,
-      data: done.parts.join(""),
+      data: data.slice(cut),
       processState: chunk.processState,
       terminalSize: chunk.terminalSize,
     };

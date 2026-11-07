@@ -1,5 +1,6 @@
 import { RemoteClientExperimentsApi } from "./clientApiExperiments";
 import { HISTORY_DETAILS_PROJECTION, historyItemDetailSchema } from "./historyPresentation";
+import { persistedPromptIndexSchema } from "../ipc/schemas";
 import { parseResponse } from "./clientParse";
 import { REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES } from "./clientBoundedReads";
 import { historyResumeResponseSchema, historyResumeQuerySchema } from "./historyResume";
@@ -77,6 +78,17 @@ export abstract class RemoteClientHistoryApi extends RemoteClientExperimentsApi 
     )
       throw new Error("History resume response is out of sequence.");
     return result;
+  }
+  /**
+   * The thread's newest prompts without its transcript. A host that predates
+   * the route answers 404, which callers treat as "no index available".
+   */
+  async threadPromptIndex(threadId: string, options: { readonly signal?: AbortSignal } = {}) {
+    const body = await this.requestJson(
+      `/api/threads/${encodeURIComponent(threadId)}/history/prompts`,
+      options.signal ? { signal: options.signal } : {},
+    );
+    return parseResponse(persistedPromptIndexSchema, body, "history prompt index");
   }
   async threadHistoryItem(
     threadId: string,

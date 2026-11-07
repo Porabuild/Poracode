@@ -18,7 +18,8 @@ const DEFAULT_MAX_PENDING_BYTES_PER_THREAD = 2 * 1024 * 1024;
  * arithmetic truthful.
  */
 const DEFAULT_MAX_ENVELOPE_BYTES_PER_THREAD = 1024 * 1024;
-const DEFAULT_MAX_ENVELOPE_BYTES_TOTAL = 4 * 1024 * 1024;
+// Keep aggregate packing below the remote live-event cap without changing event shapes.
+const DEFAULT_MAX_ENVELOPE_BYTES_TOTAL = DEFAULT_MAX_ENVELOPE_BYTES_PER_THREAD;
 /** A canonical event above this is refused explicitly (session stop), never split. */
 const DEFAULT_MAX_SINGLE_EVENT_BYTES = 8 * 1024 * 1024;
 

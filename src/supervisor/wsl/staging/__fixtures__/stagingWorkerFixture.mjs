@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { closeSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 
 const mode = process.env.FIXTURE_MODE ?? "echo";
@@ -8,13 +8,17 @@ if (process.env.FIXTURE_PID_FILE) {
   writeFileSync(process.env.FIXTURE_PID_FILE, String(process.pid));
 }
 
+if (mode === "close-input") closeSync(0);
+
 process.stdout.write(`${JSON.stringify({ type: "ready", protocolVersion })}\n`);
 
 if (mode === "exit") {
   process.exit(0);
 }
 
-if (mode === "stall") {
+if (mode === "close-input") {
+  setTimeout(() => process.exit(3), 200);
+} else if (mode === "stall") {
   setInterval(() => {}, 1_000);
 } else {
   const reader = createInterface({ input: process.stdin });

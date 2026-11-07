@@ -98,7 +98,7 @@ describe("managed loopback image custody", () => {
   });
 
   it("preserves readiness, listeners and bytes through same-client credential rotation", async () => {
-    const ticketAuthorizations: Array<string | null> = [];
+    const imageAuthorizations: Array<string | null> = [];
     const fetch = vi.fn<RemoteFetch>((url, init) => {
       const path = new URL(String(url)).pathname;
       if (path === "/oauth/token") {
@@ -112,12 +112,9 @@ describe("managed loopback image custody", () => {
           }),
         );
       }
-      if (path === "/api/files/image-ticket") {
-        ticketAuthorizations.push(new Headers(init?.headers).get("authorization"));
-        return Promise.resolve(
-          Response.json({ ticket: "lc_img_fixture", expiresAt: "2030-01-01" }),
-        );
-      }
+      // The image GET itself carries the current access token; no ticket
+      // mint precedes it.
+      imageAuthorizations.push(new Headers(init?.headers).get("authorization"));
       return Promise.resolve(
         new Response(imageBytes.bytes.slice().buffer, { headers: { "content-type": "image/png" } }),
       );
@@ -144,7 +141,7 @@ describe("managed loopback image custody", () => {
       ),
     );
     expect(createObjectUrl).toHaveBeenCalledOnce();
-    expect(ticketAuthorizations).toEqual(["Bearer initial-access", "Bearer rotated-access"]);
+    expect(imageAuthorizations).toEqual(["Bearer initial-access", "Bearer rotated-access"]);
     expect(listener).toHaveBeenCalledOnce();
     expect(revokeObjectUrl).not.toHaveBeenCalled();
     unsubscribe();

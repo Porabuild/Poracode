@@ -244,6 +244,16 @@ describe("WSL launch-environment preparation", () => {
     await expect(resolveWslHomeDirectory("Ubuntu")).resolves.toBe("/home/demo");
   });
 
+  it("hands the direct probe script to sh verbatim, not through the default shell", async () => {
+    installFakeWslProbe();
+
+    await prepareWslDistroEnvironment("Ubuntu");
+
+    const args = spawnMock.mock.calls[0]?.[1] as string[] | undefined;
+    expect(args?.slice(0, 5)).toEqual(["-d", "Ubuntu", "--exec", "sh", "-lc"]);
+    expect(args?.[5]).toContain(`printf '%s\\n' "$shell" "$HOME"`);
+  });
+
   it("prefers the bridge for the probe when it is live", async () => {
     const processExec = vi.fn<
       (...args: unknown[]) => Promise<{

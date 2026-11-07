@@ -12,16 +12,10 @@ import {
 
 const mocks = vi.hoisted(() => ({
   open: vi.fn<typeof import("@/renderer/actions/threadActions").openThread>(),
-  standalone: vi.fn<(threadId: string) => void>(),
-  apply:
-    vi.fn<
-      typeof import("@/renderer/state/managedRootCatalog/rootCatalogRows").applyRootCatalogThreadRows
-    >(),
   warning: vi.fn<(message: string) => void>(),
   claim: vi.fn<() => () => boolean>(() => () => true),
-  suppress: vi.fn<(threadId: string) => void>(),
-  bounded: vi.fn<() => Promise<unknown>>(),
-  remote: vi.fn<() => Promise<boolean>>(),
+  existence:
+    vi.fn<(host: unknown, viewThreadId: string) => Promise<"present" | "absent" | "unknown">>(),
   generation: 1,
   activationSeq: 1,
   activationListeners: new Set<() => void>(),
@@ -30,13 +24,16 @@ vi.mock("@heroui/react", () => ({ toast: { warning: mocks.warning } }));
 vi.mock("@/renderer/actions/threadActions", () => ({
   openThread: mocks.open,
   claimThreadNavigation: mocks.claim,
-  suppressAutomaticThreadReopen: mocks.suppress,
 }));
-vi.mock("@/renderer/actions/workspaceActions", () => ({
-  switchWorkspaceForProject: vi.fn<(projectId: string) => void>(),
+// Every hit resolves to its owning host; the read-back is the host's own.
+vi.mock("@/renderer/state/entityHost", () => ({
+  entityHost: (row: { id: string; remoteServerId?: string }) => ({
+    kind: row.remoteServerId ? "paired" : "managed",
+    row,
+  }),
 }));
-vi.mock("@/renderer/state/managedRootCatalog/rootCatalogRows", () => ({
-  applyRootCatalogThreadRows: mocks.apply,
+vi.mock("@/renderer/state/hostThreadLaunch", () => ({
+  readHostThreadExistence: mocks.existence,
 }));
 vi.mock("@/renderer/state/remoteServers/eventSocketRegistry", () => ({
   currentRemoteServerGeneration: () => mocks.generation,
@@ -46,7 +43,6 @@ vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", () => {
     get seq() {
       return mocks.activationSeq;
     },
-    client: { boundedThreadHistory: mocks.bounded },
   };
   return {
     readManagedLoopbackActivation: () => activation,
@@ -59,7 +55,7 @@ vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", () => {
 vi.mock("@/renderer/state/remoteServersStore", async () => {
   const { create } = await import("zustand");
   return {
-    useRemoteServersStore: create(() => ({ openRemoteThread: mocks.remote, runtime: {} })),
+    useRemoteServersStore: create(() => ({ runtime: {} })),
   };
 });
 vi.mock("@/renderer/state/appStore", async () => {
@@ -69,7 +65,6 @@ vi.mock("@/renderer/state/appStore", async () => {
       threads: [],
       view: { kind: "home" },
       pendingActiveThreadId: null,
-      openThreadStandalone: mocks.standalone,
     })),
   };
 });
@@ -139,15 +134,26 @@ describe("saved message navigation", () => {
     });
   });
 
-  it("does not steal a pending user navigation while resolving an unopened managed chat", async () => {
-    const pending = deferred<unknown>();
-    mocks.bounded.mockReturnValueOnce(pending.promise);
+  it("does not steal a pending user navigation while resolving an unopened chat", async () => {
+    const pending = deferred<"present">();
+    mocks.existence.mockReturnValueOnce(pending.promise);
     const opening = openConversationSearchHit(hit("old"));
     useAppStore.setState({ pendingActiveThreadId: "user-selected" });
-    pending.resolve({ negotiation: "bounded", page: { thread: thread("old") } });
+    pending.resolve("present");
     await opening;
+    expect(mocks.existence).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "managed" }),
+      "old",
+    );
     expect(mocks.open).not.toHaveBeenCalled();
-    expect(mocks.apply).not.toHaveBeenCalled();
+    expect(useConversationSearchTarget.getState().target).toBeNull();
+  });
+
+  it("warns when the hit's host no longer has the chat", async () => {
+    mocks.existence.mockResolvedValueOnce("absent");
+    await openConversationSearchHit(hit("gone"));
+    expect(mocks.open).not.toHaveBeenCalled();
+    expect(mocks.warning).toHaveBeenCalledOnce();
     expect(useConversationSearchTarget.getState().target).toBeNull();
   });
 
@@ -161,29 +167,33 @@ describe("saved message navigation", () => {
     expect(useConversationSearchTarget.getState().target).toBeNull();
   });
 
-  it("lets the latest remote hit win even when older history finishes later", async () => {
-    const first = deferred<boolean>();
-    const second = deferred<boolean>();
-    mocks.remote.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
-    useAppStore.setState({
-      threads: [thread(remoteThreadId("host", "first")), thread(remoteThreadId("host", "second"))],
-    });
+  it("lets the latest paired hit win even when the older read-back finishes later", async () => {
+    const first = deferred<"present">();
+    const second = deferred<"present">();
+    mocks.existence.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
     const remoteHit = (id: string): ConversationSearchHit => ({
       ...hit(id),
       source: { kind: "remote", connectionKey: "host", generation: 1 },
     });
     const old = openConversationSearchHit(remoteHit("first"));
     const latest = openConversationSearchHit(remoteHit("second"));
-    second.resolve(true);
+    second.resolve("present");
     await latest;
-    first.resolve(true);
+    first.resolve("present");
     await old;
-    expect(mocks.remote).toHaveBeenCalledWith("host", "first", { focus: false });
-    expect(mocks.standalone).toHaveBeenCalledExactlyOnceWith(remoteThreadId("host", "second"));
-    expect(mocks.suppress).toHaveBeenCalledExactlyOnceWith(remoteThreadId("host", "second"));
-    expect(mocks.suppress.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.standalone.mock.invocationCallOrder[0]!,
+    expect(mocks.existence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "paired",
+        row: { id: remoteThreadId("host", "first"), remoteServerId: "host", remoteId: "first" },
+      }),
+      remoteThreadId("host", "first"),
     );
+    expect(mocks.open).toHaveBeenCalledExactlyOnceWith(remoteThreadId("host", "second"), {
+      focusComposer: false,
+      switchWorkspace: true,
+      reopenRuntime: false,
+      standalone: true,
+    });
   });
 
   it("refuses a result from a replaced remote identity", async () => {
@@ -192,7 +202,7 @@ describe("saved message navigation", () => {
       ...hit("old"),
       source: { kind: "remote", connectionKey: "host", generation: 1 },
     });
-    expect(mocks.remote).not.toHaveBeenCalled();
+    expect(mocks.existence).not.toHaveBeenCalled();
     expect(mocks.warning).toHaveBeenCalledOnce();
     expect(useConversationSearchTarget.getState().target).toBeNull();
   });
@@ -209,7 +219,6 @@ describe("saved message navigation", () => {
 
   it("fences a handed-off remote jump across re-pairing even when its thread remains", async () => {
     useAppStore.setState({ threads: [thread(remoteThreadId("host", "saved"))] });
-    mocks.remote.mockResolvedValueOnce(true);
     await openConversationSearchHit({
       ...hit("saved"),
       source: { kind: "remote", connectionKey: "host", generation: 1 },

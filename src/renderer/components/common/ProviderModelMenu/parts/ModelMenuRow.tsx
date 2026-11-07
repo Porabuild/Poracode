@@ -1,7 +1,7 @@
 import type { PointerEventHandler, ReactNode, Ref } from "react";
 import { Tooltip, Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { GripVertical, Star, X, Zap } from "lucide-react";
+import { GripVertical, Zap } from "lucide-react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/renderer/components/providers/modelDescription";
 import { joinModelRowHints } from "@/shared/modelLabels";
 import type { ProviderModelRow } from "./types";
+import { ModelShortcutActions } from "./ModelShortcutActions";
 import { splitModelLabel } from "./splitModelLabel";
 
 interface ModelMenuRowProps {
@@ -195,43 +196,11 @@ export function ModelMenuRow(props: ModelMenuRowProps) {
           {item.subProviderLabel}
         </span>
       ) : null}
-      {item.hideFavoriteToggle ? null : (
-        <button
-          type="button"
-          aria-label={item.isFavorite ? t`Remove from favorites` : t`Add to favorites`}
-          className={`ml-1 flex size-5 shrink-0 items-center justify-center rounded transition ${
-            item.isFavorite
-              ? "text-foreground"
-              : "text-muted/40 opacity-0 group-hover:opacity-100 hover:text-foreground"
-          }`}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") event.stopPropagation();
-          }}
-          onPointerDown={(event) => event.stopPropagation()}
-          onPointerUp={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            toggleFavorite();
-          }}
-        >
-          <Star className="size-3.5" fill={item.isFavorite ? "currentColor" : "none"} />
-        </button>
-      )}
-      {removeRecent ? (
-        <Button
-          isIconOnly
-          variant="ghost"
-          aria-label={t`Remove from recent`}
-          className="size-4 min-h-0 min-w-0 shrink-0 rounded p-0 text-muted/60 opacity-100 transition-opacity hover:text-foreground [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
-          onPress={removeRecent}
-          onClick={(event) => event.stopPropagation()}
-          onKeyDown={(event) => {
-            if (event.key === "Tab" || event.key === "Escape") event.continuePropagation();
-          }}
-        >
-          <X className="size-3" />
-        </Button>
-      ) : null}
+      <ModelShortcutActions
+        isFavorite={item.isFavorite}
+        {...(!item.hideFavoriteToggle ? { toggleFavorite } : {})}
+        {...(removeRecent ? { removeRecent } : {})}
+      />
       {dragHandle}
     </div>
   );

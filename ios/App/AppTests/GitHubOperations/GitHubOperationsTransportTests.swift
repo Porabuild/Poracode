@@ -12,6 +12,16 @@ import XCTest
 #endif
 
 final class GitHubOperationsTransportTests: XCTestCase {
+  func testReadUnwrapsTheProductionProcedureResultEnvelope() async throws {
+    let probe = GitHubHTTPProbe(plans: [.http(200, Data(#"{"result":{"available":true}}"#.utf8))])
+    let result = try await makeTransport(probe).remoteGitHubOperation(
+      .ghCheckAvailable(.init(projectLocation: GitHubOperationsSamples.wsl, detail: .summary))
+    )
+    XCTAssertEqual(result.document?["available"]?.boolValue, true)
+    let count = await probe.requestCount
+    XCTAssertEqual(count, 1)
+  }
+
   func testExactAuthenticatedPostAndWSLBody() async throws {
     let probe = GitHubHTTPProbe(plans: [.http(200, Data("{}".utf8))])
     let transport = makeTransport(probe)

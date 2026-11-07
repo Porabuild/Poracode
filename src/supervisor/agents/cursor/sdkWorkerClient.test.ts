@@ -142,6 +142,7 @@ describe("spawnCursorSdkWorker", () => {
       }),
     ).resolves.toEqual({ agentId: "agent-fixture", model: { id: "fixture" } });
     await expect(client.start({ message: "hello" })).resolves.toEqual({ runId: "run-fixture" });
+    await expect(client.summarize()).resolves.toEqual({ runId: "run-fixture" });
     await waitFor(() => received.includes("result"));
     expect(received).toContain("delta");
     expect(received).toContain("message");
@@ -548,7 +549,7 @@ input.on("line", (line) => {
     };
   } else if (request.method === "initialize") {
     result = { agentId: "agent-fixture", model: { id: "fixture" } };
-  } else if (request.method === "start") {
+  } else if (request.method === "start" || request.method === "summarize") {
     result = { runId: "run-fixture" };
   }
   process.stdout.write(JSON.stringify({ type: "response", id: request.id, ok: true, result }) + "\\n");

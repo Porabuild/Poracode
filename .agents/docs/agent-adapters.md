@@ -39,7 +39,15 @@ rule is about control flow and data shape.
    front of `inlineInstructions`, except on a prompt whose leading `/token`
    exactly matches a non-skill command the session advertised in
    `slashCommands` — the provider dispatches that command itself, so the runtime
-   withholds the context rather than corrupting the command's arguments.
+   withholds the context rather than corrupting the command's arguments. A
+   handle that implements `steerContext(text)` delivers hidden client guidance
+   (the crew lead's delegation reminder) into the turn in flight: it never
+   interrupts or starts a turn, never shows the text as a user message, live
+   or on reload, resume, import or replay, and rejects when no turn is running
+   or the provider refuses, leaving the guidance for the next prompt. The
+   launch input `mayReceiveContextSteers` marks the sessions the runtime may
+   steer, so a provider whose delivery costs something on every turn installs
+   it only there.
 2. **Behavior profile.** Lifecycle differences the transport must honor go in a
    named options object — for ACP, `AcpSessionBehavior`
    (`suppressOutputAfterInterrupt`, `suppressStderrLogging`). Each field is
@@ -52,7 +60,10 @@ rule is about control flow and data shape.
    normalization), `acpExtensionNotificationHandler` (vendor JSON-RPC
    notifications), `permissionRequestTransform` (normalizes vendor
    permission/question requests before shared classification; reply option IDs
-   remain transport IDs), `normalizeProbeResult` (discovered capabilities),
+   remain transport IDs), `promptErrorReason` (names the shared cause of a
+   rejected `session/prompt`, such as `"auth_required"` for a provider sign-in
+   failure, from the structured JSON-RPC error; the ACP-standard
+   `auth_required` error needs no hook), `normalizeProbeResult` (discovered capabilities),
    `modelLabel` (fallback labels when the agent supplies no display name), and
    `skillSupport.invocationForSkill` (skill frontmatter rules). Probes whose
    per-model config snapshots are authoritative declare
@@ -84,6 +95,18 @@ Existing extension points built on the same pattern:
 - `allowUnlistedSelectValue` admits qualified compound select values: only a
   detached current select and a string rejected by ordinary membership reach
   it. Writer locks, owner checks, and echo confirmation still apply.
+- `promptSteering` (`acp/promptSteering.ts`) declares non-interrupting steering
+  for an agent that accepts a marked `session/prompt` during a turn: how the
+  agent advertises it in `initialize`, and the `_meta` that marks the request.
+  The shared session exposes `steerTurn` only when the agent advertises it;
+  `repliesInNewAssistantItem` covers agents whose reply always starts a new
+  assistant item, leaving the in-flight message above the steer row.
+- `AcpSessionBehavior.promptUsageSampleId` supplies the provider-owned
+  identity of one consumption sample: the callback parses the native prompt
+  reply (`_meta`) and returns a namespaced suffix the shared session embeds in
+  its `acp-prompt-v1` sample id, so replies that repeat one native sample
+  dedup instead of double-counting. Missing or malformed identities fall back
+  to the shared per-turn/per-steer suffix.
 - `registerModelDescriptionFormatter` (renderer) lets a provider parse its own
   catalog text into a numeric hint plus a localized explanation; the shared
   picker never parses vendor pricing formats.
@@ -200,9 +223,11 @@ Every agent implements `AgentAdapter` (`src/supervisor/agents/base.ts`).
   bounds, the mtime/size summary cache, and request supersession; it reads only
   inside declared roots, writes nothing to provider homes, and replays text
   through `thread-runtime-events`. Imported threads are created `inactive` with
-  a `sessionRef`, so opening one resumes through the normal reopen path. The
-  import procedures are desktop-local (not remote-routable) and the scan cache is
-  in-memory.
+  a `sessionRef`, so opening one resumes through the normal reopen path. Remote
+  clients list a host's sessions through the `listImportableSessions`
+  passthrough and import with the host's `import-session` thread command
+  (capability `sessionImport` v1); `importSessionTranscript` stays desktop-local.
+  The scan cache is in-memory.
 
 ### Provider folder layout
 
@@ -270,6 +295,8 @@ A provider spans a supervisor adapter and a renderer plugin. Renderer metadata
 is discovered automatically; the supervisor registry is explicit, with a parity
 test that fails when a `detection.ts` has no registered factory. Items marked
 **often missed** are the ones that silently break a feature.
+
+Before selecting a reference implementation, apply the [cross-provider integration lessons](provider-integration-lessons.md). The evidence index covers the existing provider families and profiles; qualify relevant patterns against the target version instead of copying historical assumptions.
 
 ### 1. Supervisor adapter — `src/supervisor/agents/<kind>/`
 
@@ -345,6 +372,7 @@ test that fails when a `detection.ts` has no registered factory. Items marked
 
 ### 5. Tests and verification
 
+- Provider additions and version/capability updates must complete [native steering qualification](../skills/provider-chat-smoke/SKILL.md#native-steering-qualification), including newer-version support checks before retaining cancel-and-resend.
 - `tests/integration/providers-lifecycle.integration.test.ts` — add a
   `PREFERRED_MODEL` entry, or use its detected-model fallback when no model is
   universally available (the test skips when the CLI is not installed).
@@ -367,7 +395,9 @@ test that fails when a `detection.ts` has no registered factory. Items marked
   staged asset shape. Hook Node resolution:
   [Provider Runtime](provider-runtime.md#hook-runtime-resolution).
 - OSC status (title spinner / iTerm2 progress) → `handleOscTitle` /
-  `handleOscNotification` (see Grok). Only when the CLI actually emits OSC.
+  `handleOscNotification` (see Grok); OSC 7501 Program Status →
+  `handleOscProgramStatus: programStatusOscHint`. Only when the CLI actually
+  emits OSC.
 - Skills → `skillSupport` with `roots` and a default `invocation`. When some
   skills cannot take that form, supply `skillSupport.invocationForSkill`; the
   skill scan passes it each SKILL.md's scalar frontmatter and records the
@@ -375,8 +405,7 @@ test that fails when a `detection.ts` has no registered factory. Items marked
   form). The supervisor reapplies the rule to every incoming skill segment, so
   an older paired client still sends a valid form.
 
-Reference template for a TUI-only, non-ACP CLI: `commandcode/` (multi-model, npm
-install/update, synthesized terminal Login method).
+For terminal argv, native session discovery, hooks, and session-local MCP examples, see `commandcode/`. Qualified newer versions also implement ACP; use detected presentation capabilities rather than assuming this is a terminal-only provider.
 
 ## Giving a Provider Multiple Profiles
 

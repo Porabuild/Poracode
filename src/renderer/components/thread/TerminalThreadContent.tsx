@@ -3,6 +3,7 @@ import { PixelLoader } from "../common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThread } from "@/renderer/state/useThread";
 import { TerminalPane } from "./TerminalPane";
+import { threadRuntimeStatusLabel } from "./ThreadHeaderStatus";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import type { ThreadContentCommonProps } from "./ThreadContent";
 
@@ -35,27 +36,23 @@ export function TerminalThreadContent({
   return (
     <>
       <div className="relative min-h-0 flex-1 overflow-visible">
-        {thread.remoteServerId && !props.remoteTerminalTransport ? null : (
-          <TerminalPane
-            ref={terminalPaneRef}
-            key={thread.id}
-            onTerminalResize={props.onTerminalResize}
-            status={thread.status}
-            threadId={thread.id}
-            {...(props.hidden ? { hidden: true } : {})}
-            {...(props.remoteTerminalTransport
-              ? { remoteTransport: props.remoteTerminalTransport }
-              : {})}
-          />
-        )}
-        {thread.status === "launching" ||
-        (thread.remoteServerId && !props.remoteTerminalTransport) ? (
+        <TerminalPane
+          ref={terminalPaneRef}
+          key={thread.id}
+          onTerminalResize={props.onTerminalResize}
+          status={thread.status}
+          threadId={thread.id}
+          {...(props.hidden ? { hidden: true } : {})}
+        />
+        {thread.status === "launching" ? (
           <div
             className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-foreground-muted"
             aria-live="polite"
           >
             <PixelLoader size="md" />
-            {awaitingWorktree ? <span>{t`Creating worktree…`}</span> : null}
+            <span>
+              {awaitingWorktree ? t`Creating worktree…` : threadRuntimeStatusLabel(thread, t)}
+            </span>
           </div>
         ) : null}
       </div>

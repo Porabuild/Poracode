@@ -103,7 +103,7 @@ function RemoteAccessHeaderDescription(props: {
     props.status === "ready" ? t`Online` : props.status === "starting" ? t`Starting` : t`Off`;
   const body =
     props.status === "ready"
-      ? t`Devices can pair while this desktop is reachable.`
+      ? t`Devices can pair while this desktop is reachable on your local network. Connections use HTTP unless TLS is configured; use only on trusted networks.`
       : props.status === "starting"
         ? t`The desktop server is still coming online.`
         : props.status === "disabled"
@@ -581,11 +581,9 @@ function RemoteAccessAdvanced(props: {
 }) {
   const { t } = useLingui();
   const tailscaleEnabled = useSharedSettings((state) => state.remoteAccessTailscaleHttps);
-  const lanEnabled = useSharedSettings((state) => state.remoteAccessLanEnabled);
   const advertisedUrl = useSharedSettings((state) => state.remoteAccessAdvertisedUrl);
   const [status, setStatus] = useState<RemoteAccessTailscaleStatus | null>(null);
   const [isTogglingTailscale, setIsTogglingTailscale] = useState(false);
-  const [isTogglingLan, setIsTogglingLan] = useState(false);
   const [isStartingTailscale, setIsStartingTailscale] = useState(false);
   const [urlDraft, setUrlDraft] = useState(advertisedUrl);
   const [isSavingUrl, setIsSavingUrl] = useState(false);
@@ -664,17 +662,6 @@ function RemoteAccessAdvanced(props: {
     }
   };
 
-  const toggleLan = async (enabled: boolean) => {
-    setIsTogglingLan(true);
-    try {
-      props.onPairingChanged(await readBridge().setRemoteAccessLanEnabled({ enabled }));
-    } catch (error) {
-      toast.danger(friendlyError(error, t`Unable to update network access.`));
-    } finally {
-      setIsTogglingLan(false);
-    }
-  };
-
   const saveUrl = async () => {
     const trimmed = urlDraft.trim();
     if (trimmed === advertisedUrl) return;
@@ -697,22 +684,6 @@ function RemoteAccessAdvanced(props: {
 
   return (
     <div className="space-y-4 border-t border-border/60 pt-6">
-      <SettingRow
-        title={t`Network access`}
-        description={
-          <Trans>
-            Allow paired devices to connect through LAN and Tailscale IP addresses. Connections use
-            HTTP unless TLS is configured. Enable only on trusted networks.
-          </Trans>
-        }
-      >
-        <ToggleSwitch
-          isSelected={lanEnabled}
-          isDisabled={isTogglingLan}
-          aria-label={t`Network access`}
-          onChange={(enabled) => void toggleLan(enabled)}
-        />
-      </SettingRow>
       <SettingRow
         title={t`Tailscale HTTPS`}
         description={t`Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below.`}

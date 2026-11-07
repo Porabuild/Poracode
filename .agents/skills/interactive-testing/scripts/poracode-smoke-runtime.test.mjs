@@ -4,12 +4,12 @@ import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/p
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:net";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { startSmokeRenderer, waitForSmokeRenderer } from "./smoke-runtime-processes.mjs";
 import { stopOwnedProcess } from "./smoke-owned-process.mjs";
-import { smokeRuntimeDependencyRoots } from "./smoke-runtime-build.mjs";
+import { buildSmokeRuntime, smokeRuntimeDependencyRoots } from "./smoke-runtime-build.mjs";
 import {
   prepareSmokeRuntime,
   removeSmokeRuntime,
@@ -96,7 +96,17 @@ void test("a lazy supervisor restart keeps session A's compiled revision after c
       return { dependencies: [] };
     };
     await writeRevision("A");
+    for (const directory of ["pty-job-owner", "server-service-launcher"]) {
+      await mkdir(join(repoRoot, "native", directory), { recursive: true });
+      await writeFile(join(repoRoot, "native", directory, "main.rs"), directory);
+    }
     const a = await prepareSmokeRuntime({ repoRoot, root: rootA, build });
+    for (const directory of ["pty-job-owner", "server-service-launcher"]) {
+      assert.equal(
+        await readFile(join(a.appRoot, "native", directory, "main.rs"), "utf8"),
+        directory,
+      );
+    }
     await verifyReusableSmokeRuntime(a, { root: rootA, repoRoot });
     await assert.rejects(
       verifyReusableSmokeRuntime(a, { root: rootA, repoRoot, rendererViteHMR: true }),
@@ -111,6 +121,11 @@ void test("a lazy supervisor restart keeps session A's compiled revision after c
       /Checkout source changed/,
     );
     const b = await prepareSmokeRuntime({ repoRoot, root: rootB, build });
+    await writeFile(join(repoRoot, "native", "pty-job-owner", "main.rs"), "changed");
+    await assert.rejects(
+      verifyReusableSmokeRuntime(b, { root: rootB, repoRoot }),
+      /Checkout source changed/,
+    );
     assert.equal(await startBackend(b), "B");
     assert.equal(
       await startBackend(a),
@@ -128,6 +143,175 @@ void test("a lazy supervisor restart keeps session A's compiled revision after c
     await writeFile(join(a.mainBundleDir, "backendHost.cjs"), "changed");
     await assert.rejects(verifySmokeRuntime(a, rootA), /artifacts changed/);
     assert.match(await readFile(entry, "utf8"), /B/);
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+void test("a failed build preserves its source, partial artifacts and original error", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "poracode-runtime-failure-"));
+  const repoRoot = join(temporary, "checkout");
+  const root = join(temporary, "session");
+  const originalCwd = process.cwd();
+  try {
+    await mkdir(repoRoot);
+    await writeFile(join(repoRoot, "package.json"), '{"name":"fixture"}');
+    await execute("git", ["init", "-q"], { cwd: repoRoot });
+    await execute("git", ["add", "package.json"], { cwd: repoRoot });
+    await execute(
+      "git",
+      [
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-qm",
+        "fixture",
+      ],
+      { cwd: repoRoot },
+    );
+    const failure = new Error("Required runtime build input is missing");
+    await assert.rejects(
+      prepareSmokeRuntime({
+        repoRoot,
+        root,
+        build: async ({ appRoot }) => {
+          process.chdir(appRoot);
+          await writeFile(join(appRoot, "partial-build"), "diagnostic");
+          throw failure;
+        },
+      }),
+      (error) => error === failure,
+    );
+    assert.equal(await readFile(join(root, "runtime", "partial-build"), "utf8"), "diagnostic");
+    assert.equal(
+      await readFile(join(root, "runtime", "package.json"), "utf8"),
+      '{"name":"fixture"}',
+    );
+  } finally {
+    process.chdir(originalCwd);
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+void test("CLI resources precede declarations and generated-worker resources follow bundling", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "poracode-resource-order-"));
+  const repoRoot = join(temporary, "checkout");
+  const appRoot = join(temporary, "runtime");
+  const originalCwd = process.cwd();
+  try {
+    const bundler = join(repoRoot, "node_modules", "tsdown");
+    await mkdir(bundler, { recursive: true });
+    await mkdir(join(appRoot, "scripts"), { recursive: true });
+    for (const root of [repoRoot, appRoot])
+      await writeFile(join(root, "package.json"), '{"name":"fixture","type":"module"}');
+    await writeFile(
+      join(bundler, "package.json"),
+      '{"name":"tsdown","type":"module","exports":"./index.mjs"}',
+    );
+    await writeFile(
+      join(bundler, "index.mjs"),
+      `
+      import assert from "node:assert/strict";
+      import fs from "node:fs/promises";
+      import path from "node:path";
+      export async function build({cwd,outDir}) {
+        if(process.platform==="win32") {
+          const steps=JSON.parse(await fs.readFile(path.join(cwd,"resources","prepared.json"),"utf8"));
+          assert.ok(steps.includes("prepare-pty-job-owner.mjs"));
+          assert.ok(steps.includes("prepare-service-launcher.mjs"));
+          assert.ok(!steps.includes("prepare-wsl-helpers.mjs"));
+        }
+        await fs.mkdir(outDir,{recursive:true});
+        await fs.writeFile(path.join(outDir,"mcpProbeWorker.mjs"),"built");
+        return [{chunks:[],async [Symbol.asyncDispose](){}}];
+      }
+    `,
+    );
+    for (const name of [
+      "prepare-wsl-helpers.mjs",
+      "prepare-agent-plugins.mjs",
+      "prepare-computer-use-helper.mjs",
+      "prepare-pty-job-owner.mjs",
+      "prepare-service-launcher.mjs",
+    ])
+      await writeFile(
+        join(appRoot, "scripts", name),
+        `
+        import fs from "node:fs";
+        import path from "node:path";
+        if(${JSON.stringify(name)}==="prepare-wsl-helpers.mjs")
+          fs.readFileSync(path.join(process.cwd(),"dist","main","mcpProbeWorker.mjs"));
+        const file=path.join(process.cwd(),"resources","prepared.json");
+        fs.mkdirSync(path.dirname(file),{recursive:true});
+        const steps=fs.existsSync(file)?JSON.parse(fs.readFileSync(file)):[];
+        steps.push(${JSON.stringify(name)});
+        fs.writeFileSync(file,JSON.stringify(steps));
+      `,
+      );
+    const result = await buildSmokeRuntime({ repoRoot, appRoot, rendererViteHMR: true });
+    assert.deepEqual(result.dependencies, ["electron"]);
+  } finally {
+    process.chdir(originalCwd);
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+void test("managed launch retains a failed build without starting Electron", async () => {
+  const temporary = await mkdtemp(join(tmpdir(), "poracode-managed-build-failure-"));
+  const root = join(temporary, "session");
+  try {
+    await mkdir(join(root, "project", ".git"), { recursive: true });
+    await mkdir(join(root, "data"), { recursive: true });
+    await writeFile(join(root, "data", "state.sqlite"), "unused fixture");
+    const preload = join(temporary, "preload.mjs");
+    await writeFile(
+      preload,
+      `
+      import ${JSON.stringify(new URL("./smoke-desktop-state.fixture.mjs", import.meta.url).href)};
+      import cp from "node:child_process";
+      import fs from "node:fs";
+      import path from "node:path";
+      import {syncBuiltinESMExports} from "node:module";
+      const spawn=cp.spawn;
+      cp.spawn=function(command,args,options) {
+        if(args?.[0]?.endsWith("prepare-smoke-runtime.mjs")) {
+          const directory=path.join(args[2],"runtime");
+          fs.mkdirSync(directory);
+          fs.writeFileSync(path.join(directory,".smoke-owner"),args[3]);
+          fs.writeFileSync(path.join(directory,"partial-build"),"retained");
+          return spawn(command,["-e","process.exit(1)"],options);
+        }
+        return spawn(command,args,options);
+      };
+      syncBuiltinESMExports();
+    `,
+    );
+    await assert.rejects(
+      execute(
+        process.execPath,
+        [
+          "--import",
+          pathToFileURL(preload).href,
+          fileURLToPath(new URL("./run-poracode-smoke.mjs", import.meta.url)),
+          "--launch-only",
+          "--new",
+          "--mode",
+          "mock",
+          "--reuse-fixture",
+          "--root",
+          root,
+        ],
+        { env: { ...process.env, NODE_OPTIONS: "" }, timeout: 10_000 },
+      ),
+      (error) => error.code === 1 && /Isolated runtime preparation failed/.test(error.stderr),
+    );
+    assert.equal(await readFile(join(root, "runtime", "partial-build"), "utf8"), "retained");
+    const session = JSON.parse(await readFile(join(root, "session.json"), "utf8"));
+    assert.equal(session.state, "failed");
+    assert.equal(session.appPid, null);
+    assert.equal(session.rendererPid, null);
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

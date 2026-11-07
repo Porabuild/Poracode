@@ -2,7 +2,7 @@ import { appendFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
-const DOCUMENTATION_PATH = /^(?:docs\/|.*\.md$)/u;
+const DOCUMENTATION_PATH = /^(?:docs\/|[^/]+\.md$|\.github\/.+\.md$|\.agents\/.+\.md$)/u;
 const ANDROID_PATH = /^android\//u;
 const IOS_PATH = /^ios\//u;
 const NATIVE_IRRELEVANT_PATH = /^(?:branding\/|chrome-extension\/|src\/renderer\/|website\/)/u;
@@ -64,9 +64,16 @@ function main() {
     return;
   }
 
+  // The checkout is shallow: fetch just the two commits' trees. Renames are
+  // listed as a delete plus an add, so the diff never needs file contents.
+  spawnSync(
+    "git",
+    ["fetch", "--no-tags", "--depth=1", "--filter=blob:none", "origin", base, head],
+    { encoding: "utf8", stdio: ["ignore", "ignore", "inherit"] },
+  );
   const diff = spawnSync(
     "git",
-    ["diff", "--name-only", "--diff-filter=ACDMRTUXB", "-z", base, head, "--"],
+    ["diff", "--name-only", "--no-renames", "--diff-filter=ACDMRTUXB", "-z", base, head, "--"],
     { encoding: "utf8" },
   );
   if (diff.status !== 0) {

@@ -11,6 +11,7 @@ import {
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThread } from "@/renderer/state/useThread";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
+import { ThreadActionIconButton } from "./ThreadActionIconButton";
 
 export function threadRuntimeStatusLabel(
   thread: Thread,
@@ -21,9 +22,10 @@ export function threadRuntimeStatusLabel(
     isWaitingForBackground?: boolean;
   },
 ): string {
-  if (opts?.isConnecting) return t(msg`Connecting…`);
+  if (opts?.isConnecting) return t(msg`Resuming session…`);
   const { status, attention } = thread;
-  if (status === "launching") return t(msg`Launching…`);
+  if (status === "launching")
+    return thread.sessionRef ? t(msg`Resuming session…`) : t(msg`Starting agent…`);
   if (status === "inactive") return t(msg`Inactive`);
   if (status === "error") return t(msg`Error`);
   if (status === "needs_approval" || attention === "needs_approval") return t(msg`Needs approval`);
@@ -156,13 +158,8 @@ export function ThreadHeaderStatusButton(props: {
   return (
     <Tooltip delay={0}>
       <Tooltip.Trigger>
-        <button
-          type="button"
-          className="poracode-overlay-header__controls inline-flex shrink-0 rounded-sm p-0.5 outline-offset-2 hover:bg-[var(--row-hover)]"
+        <ThreadActionIconButton
           aria-label={t`${agentLabel}: ${statusLabel}. Hover for status details.`}
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
         >
           <ProviderIcon
             kind={thread.agentKind}
@@ -171,7 +168,7 @@ export function ThreadHeaderStatusButton(props: {
             tone={getStatusTone(thread, { hasBackgroundActivity, isWaitingForBackground })}
             className="size-3.5 shrink-0"
           />
-        </button>
+        </ThreadActionIconButton>
       </Tooltip.Trigger>
       <Tooltip.Content
         placement="bottom start"

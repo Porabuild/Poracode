@@ -83,6 +83,9 @@ interface BrowserPanelManagerOptions {
   isExtracted?: () => boolean;
   focusExtractedWindow?: () => void;
   browserSession?: Session;
+  /** Creates a host window when automation starts without one; headless tabs
+   * mount only in a host renderer. */
+  ensureHostWindow?: () => void;
 }
 
 export class BrowserPanelManager {
@@ -181,18 +184,28 @@ export class BrowserPanelManager {
     }
     if (!parsed || parsed.tabs.length === 0) return;
     this.tabGroups.restore(parsed.groups);
-    for (let i = 0; i < parsed.tabs.length; i++) {
-      const entry = parsed.tabs[i];
-      if (!entry || typeof entry.url !== "string" || entry.url.length === 0) continue;
-      const isActive = parsed.activeIndex === i;
+    // Create every dormant tab before returning: a first bind can run inside
+    // an agent's createTab (ensureHostWindow), whose new tab must stay active.
+    const persistedTabs = parsed.tabs;
+    const persistedActiveIndex = parsed.activeIndex;
+    const restored = persistedTabs.map((entry, i) => {
+      if (!entry || typeof entry.url !== "string" || entry.url.length === 0) {
+        return Promise.resolve(null);
+      }
+      const isActive = persistedActiveIndex === i;
       // Restored tabs are dormant: don't wake the browser or block on attach —
       // they mount lazily when the user opens the panel or the agent uses them.
-      const info = await this.createTab(
+      return this.createTab(
         { url: entry.url, activate: isActive },
         { markActivity: false, awaitAttach: false },
       ).catch(() => null);
+    });
+    const infos = await Promise.all(restored);
+    for (let i = 0; i < infos.length; i++) {
+      const info = infos[i];
+      const entry = persistedTabs[i];
       // Persisted order is already contiguous, so just re-map (no reorder).
-      if (info && entry.groupId) this.tabGroups.assignRestoredTab(info.tabId, entry.groupId);
+      if (info && entry?.groupId) this.tabGroups.assignRestoredTab(info.tabId, entry.groupId);
     }
     this.tabGroups.pruneEmptyGroups();
     this.emitState();
@@ -321,6 +334,7 @@ export class BrowserPanelManager {
    * needlessly wake the browser.
    */
   markAutomationActivity(): void {
+    if (!this.hasHostWindow()) this.options.ensureHostWindow?.();
     if (!this.automationActive) {
       this.automationActive = true;
       this.emit({ type: "automation-active", active: true });
@@ -456,6 +470,16 @@ export class BrowserPanelManager {
       bookmarkBarVisible: this.bookmarks.isBarVisible(),
       groups: this.tabGroups.snapshot(),
     };
+  }
+
+  /**
+   * A host renderer's initial sync. Automation travels only as transition
+   * events, so a renderer that mounts mid-session (a deferred, recreated or
+   * reloaded window) would otherwise never mount the tabs being driven.
+   */
+  snapshotForHost(): BrowserState {
+    if (this.automationActive) this.emit({ type: "automation-active", active: true });
+    return this.snapshot();
   }
 
   // -- Tab groups -----------------------------------------------------------

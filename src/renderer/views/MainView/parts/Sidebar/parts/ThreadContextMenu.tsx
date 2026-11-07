@@ -20,9 +20,12 @@ import {
 import type { ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project, Thread } from "@/shared/contracts";
+import { canForkThread } from "@/shared/threadFork";
+import { useThreadForkStore } from "@/renderer/state/threadForkStore";
 import { canChangeThreadGroup, dissolveGroupMembership } from "@/shared/threadGroups";
 import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
+import { entityHost } from "@/renderer/state/entityHost";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { applyWorkspaceMenuChoice } from "@/renderer/components/workspace/workspaceMenuKeys";
 import { useWorkspaceMenuItems } from "@/renderer/components/workspace/workspaceMenuItems";
@@ -62,7 +65,7 @@ import {
 import { runProjectAction, stopProjectAction } from "@/renderer/actions/terminalActions";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import {
-  dispatchManagedRootThreadGroupIntents,
+  dispatchThreadGroupIntents,
   dispatchManagedRootThreadWorkspace,
 } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 
@@ -123,12 +126,12 @@ export function ThreadContextMenu(props: {
   const showProjectActions = props.showProjectActions === true && !isHomeProject(project);
   const workspaceMenuItem = useWorkspaceMenuItems(thread.workspaceId);
   // Home threads are workspace-scoped individually (real-project threads follow
-  // their project), so only they get a per-thread move; remote mirrors don't —
-  // the host owns their metadata.
+  // their project), so only they get a per-thread move. A paired host keeps its
+  // own workspaces, so this client's workspace ids mean nothing on its rows.
   const showMoveToWorkspace =
     isHomeProject(project) &&
     workspaceMenuItem !== undefined &&
-    !thread.remoteServerId &&
+    (entityHost(thread)?.sharesClientWorkspaces ?? true) &&
     !isExperimentCandidate;
   const runningActionIds = useRunningProjectActionIds(project.id, thread.worktreePath);
   const runActionItems: ContextMenuItem[] = [];
@@ -281,6 +284,16 @@ export function ThreadContextMenu(props: {
         ...(showMoveToWorkspace && workspaceMenuItem ? [workspaceMenuItem] : []),
         ...(!isExperimentCandidate
           ? [
+              ...(thread.presentationMode === "gui"
+                ? [
+                    {
+                      id: "fork-thread",
+                      label: t`Fork thread`,
+                      icon: <GitFork className="size-3.5" />,
+                      isDisabled: !canForkThread(thread),
+                    },
+                  ]
+                : []),
               {
                 id: "continue-in",
                 label: t`Continue in...`,
@@ -368,6 +381,8 @@ export function ThreadContextMenu(props: {
         if (key === "open-experiment" && experiment)
           useAppStore.getState().openExperiment(experiment.id, experiment.projectId);
         if (key === "continue-in" && !isExperimentCandidate) continueInProvider(thread.id);
+        if (key === "fork-thread" && !isExperimentCandidate)
+          useThreadForkStore.getState().request(thread.id);
         if (key === "group-open-threads") {
           const state = useAppStore.getState();
           if (state.view.kind !== "thread") return;
@@ -400,7 +415,7 @@ export function ThreadContextMenu(props: {
           }));
           // The durable effect of grouping a root row is the host command; the
           // local paint above is display-only until the next page confirms it.
-          dispatchManagedRootThreadGroupIntents(
+          dispatchThreadGroupIntents(
             openThreads.map((other) => ({ threadId: other.id, groupId, groupName })),
           );
         }
@@ -410,7 +425,7 @@ export function ThreadContextMenu(props: {
             thread.id,
           ).clearedIds;
           applyRemoteSetGroupCommand(thread.id, undefined, undefined);
-          dispatchManagedRootThreadGroupIntents(clearedThreadIds.map((threadId) => ({ threadId })));
+          dispatchThreadGroupIntents(clearedThreadIds.map((threadId) => ({ threadId })));
         }
         if (key === "archive" && !isExperimentCandidate) archiveThread(thread.id);
         if (key === "rename") onRename?.();

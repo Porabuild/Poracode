@@ -28,6 +28,14 @@ import {
   type RefreshSubject,
 } from "./refreshTokens";
 
+function persistAccessTokenFor(state: RemoteServersState) {
+  return (connectionKey: string, accessToken: string) => {
+    state.servers = state.servers.map((server) =>
+      remoteConnectionKey(server) === connectionKey ? { ...server, accessToken } : server,
+    );
+  };
+}
+
 function refreshKey(subject: RefreshSubject): string {
   return refreshSubjectVaultKey(subject);
 }
@@ -92,7 +100,7 @@ function fakeParentClient(endpoint: string): FakeParentClient {
     setCertFingerprintPin: vi.fn<() => void>(),
     async refreshTokens() {
       state.refreshCalls += 1;
-      if (nextSnapshot) lifecycle?.onTokensRefreshed(nextSnapshot);
+      if (nextSnapshot) await lifecycle?.onTokensRefreshed(nextSnapshot);
       return nextSnapshot;
     },
     environmentWebSocketTicket: vi.fn<() => Promise<{ ticket: string; expiresAt: string }>>(
@@ -223,6 +231,7 @@ function setup(records: readonly RemoteServerRecord[]) {
   } as unknown as RemoteServersState;
   configureEnvironmentSessions({
     getState: () => state,
+    persistAccessToken: persistAccessTokenFor(state),
     clientFactory: () => (endpoint) => {
       const fake = fakeParentClient(endpoint);
       parentClients.set(endpoint, fake);
@@ -347,6 +356,7 @@ describe("environmentSessions", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => fakeParentClient(endpoint).client,
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,
@@ -383,6 +393,7 @@ describe("environmentSessions", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => fakeParentClient(endpoint).client,
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,
@@ -440,6 +451,7 @@ describe("environmentSessions", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => fakeParentClient(endpoint).client,
       certPinForConnection: () => undefined,
       refreshTokenForSubject: () => undefined,
@@ -502,8 +514,18 @@ describe("environmentSessions", () => {
     readiness.requestRef(IMAGE_REF, "background");
     readiness.requestPath("/tmp/gallery.png", "background");
     const first = h.environmentClients[0]!.client;
-    expect(first.imageRefResolution).toHaveBeenCalledWith(IMAGE_REF, "background");
-    expect(first.localImageResolution).toHaveBeenCalledWith("/tmp/gallery.png", "background");
+    expect(first.imageRefResolution).toHaveBeenCalledWith(
+      IMAGE_REF,
+      "background",
+      undefined,
+      undefined,
+    );
+    expect(first.localImageResolution).toHaveBeenCalledWith(
+      "/tmp/gallery.png",
+      "background",
+      undefined,
+      undefined,
+    );
     expect(first.subscribeImageKey).toHaveBeenCalledWith(
       environmentImageRefKey(IMAGE_REF),
       listener,
@@ -513,8 +535,38 @@ describe("environmentSessions", () => {
     h.state.servers = [parentRecord(), environmentRecord({ accessToken: "repaired-child" })];
     readiness.resolveRef(IMAGE_REF);
     const replacement = h.environmentClients[1]!.client;
-    expect(replacement.imageRefResolution).toHaveBeenCalledWith(IMAGE_REF, "background");
-    expect(replacement.localImageResolution).toHaveBeenCalledWith("/tmp/gallery.png", "background");
+    expect(replacement.imageRefResolution).toHaveBeenCalledWith(IMAGE_REF, "background", undefined);
+    expect(replacement.localImageResolution).toHaveBeenCalledWith(
+      "/tmp/gallery.png",
+      "background",
+      undefined,
+    );
+    expect(replacement.subscribeImageKey).toHaveBeenCalledWith(
+      environmentImageRefKey(IMAGE_REF),
+      listener,
+      "background",
+    );
+    leaveRef();
+    leavePath();
+  });
+
+  it("rebinds passive image observers without requesting their history", () => {
+    const h = setup([parentRecord(), environmentRecord()]);
+    const readiness = environmentImageReadinessFor(CHILD_KEY)!;
+    const listener = vi.fn<() => void>();
+    const leaveRef = readiness.subscribeRef(IMAGE_REF, listener, "background", undefined, false);
+    const leavePath = readiness.subscribePath(
+      "/tmp/gallery.png",
+      listener,
+      "background",
+      undefined,
+      false,
+    );
+    h.state.servers = [parentRecord(), environmentRecord({ accessToken: "repaired-child" })];
+    readiness.resolveRef(IMAGE_REF);
+    const replacement = h.environmentClients[1]!.client;
+    expect(replacement.imageRefResolution).not.toHaveBeenCalled();
+    expect(replacement.localImageResolution).not.toHaveBeenCalled();
     expect(replacement.subscribeImageKey).toHaveBeenCalledWith(
       environmentImageRefKey(IMAGE_REF),
       listener,
@@ -526,19 +578,22 @@ describe("environmentSessions", () => {
 });
 
 describe("persisted parent session lifecycle", () => {
-  it("disposes on removal and keeps the retired client's delayed rotation inert", () => {
+  it("disposes on removal and keeps the retired client's delayed rotation inert", async () => {
     const { parentClients, refreshTokens, written } = setup([parentRecord(), environmentRecord()]);
     expect(parentClientForConnection(PARENT_KEY)).toBeDefined();
     const retired = [...parentClients.values()][0]!;
     expect(retired.lifecycle).not.toBeNull();
 
-    retired.lifecycle!.onTokensRefreshed({ accessToken: "live", refreshToken: "grant-1" });
+    await retired.lifecycle!.onTokensRefreshed({ accessToken: "live", refreshToken: "grant-1" });
     expect(refreshTokens.get(`refresh.${PARENT_KEY}`)).toBe("grant-1");
 
     // Production removal disposes the parent session with the deleted grant.
     disposeEnvironmentParentSession(PARENT_KEY);
     refreshTokens.delete(`refresh.${PARENT_KEY}`);
-    retired.lifecycle!.onTokensRefreshed({ accessToken: "stale", refreshToken: "resurrected" });
+    await retired.lifecycle!.onTokensRefreshed({
+      accessToken: "stale",
+      refreshToken: "resurrected",
+    });
     expect(refreshTokens.get(`refresh.${PARENT_KEY}`)).toBeUndefined();
     expect(written).not.toContain(`refresh.${PARENT_KEY}=resurrected`);
 
@@ -563,6 +618,7 @@ describe("persisted parent session lifecycle", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => () => {
         const entry: CapturedParentClient = {
           pins: [],
@@ -633,6 +689,7 @@ describe("child session parent pin identity", () => {
     } as unknown as RemoteServersState;
     configureEnvironmentSessions({
       getState: () => state,
+      persistAccessToken: persistAccessTokenFor(state),
       clientFactory: () => (endpoint) => {
         const fake = fakeParentClient(endpoint);
         parentClients.set(endpoint, fake);
@@ -738,23 +795,32 @@ describe("child session parent pin identity", () => {
     expect(h.created[1]!.listeners.get(key)?.size ?? 0).toBe(0);
   });
 
-  it("keeps the retired child's delayed rotation inert and its grant slot owned after a pin rebuild", () => {
+  it("keeps the retired child's delayed rotation inert and its grant slot owned after a pin rebuild", async () => {
     const h = pinHarness("old-pin");
     const first = environmentSessionForServer(environmentRecord())!;
     const grantKey = first.childGrantKey;
-    h.created[0]!.lifecycle!.onTokensRefreshed({ accessToken: "a", refreshToken: "old-grant" });
+    await h.created[0]!.lifecycle!.onTokensRefreshed({
+      accessToken: "a",
+      refreshToken: "old-grant",
+    });
     expect(h.refreshTokens.get(grantKey)).toBe("old-grant");
 
     disposeEnvironmentParentSession(PARENT_KEY);
     h.setPin("new-pin");
     const second = environmentSessionForServer(environmentRecord())!;
     expect(second.childGrantKey).toBe(grantKey);
-    h.created[1]!.lifecycle!.onTokensRefreshed({ accessToken: "b", refreshToken: "new-grant" });
+    await h.created[1]!.lifecycle!.onTokensRefreshed({
+      accessToken: "b",
+      refreshToken: "new-grant",
+    });
     expect(h.refreshTokens.get(grantKey)).toBe("new-grant");
 
     // The retired client's late rotation can neither re-own the slot nor
     // overwrite the replacement's grant.
-    h.created[0]!.lifecycle!.onTokensRefreshed({ accessToken: "c", refreshToken: "late-grant" });
+    await h.created[0]!.lifecycle!.onTokensRefreshed({
+      accessToken: "c",
+      refreshToken: "late-grant",
+    });
     expect(h.refreshTokens.get(grantKey)).toBe("new-grant");
     expect(h.written).not.toContain(`${grantKey}=late-grant`);
   });

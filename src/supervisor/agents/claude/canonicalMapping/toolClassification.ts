@@ -139,7 +139,9 @@ export function classifyRequestType(toolName: string): CanonicalRequestType {
   const itemType = classifyToolItemType(toolName);
   if (itemType === "command_execution") return "command_execution_approval";
   if (itemType === "file_change") return "file_change_approval";
-  return "tool_user_input";
+  // This mapper only handles permissions. AskUserQuestion and MCP elicitation
+  // emit their own tool_user_input requests through separate mapping paths.
+  return "tool_call_approval";
 }
 
 function isReadOnlyToolName(toolName: string): boolean {

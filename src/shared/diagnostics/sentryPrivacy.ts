@@ -1,6 +1,8 @@
 import { DIAGNOSTIC_BREADCRUMB_CATEGORY, isStableDiagnosticToken } from "./sentryPolicy";
+import { ERROR_CAUSE_TAG_KEYS, isErrorCauseTag } from "./errorCause";
 
 export const PORACODE_DIAGNOSTIC_TAG_KEYS = [
+  ...ERROR_CAUSE_TAG_KEYS,
   "poracode.app_version",
   "poracode.arch",
   "poracode.channel",
@@ -156,6 +158,8 @@ function sanitizeTags(
   const output: Record<string, string> = {};
   for (const [key, value] of Object.entries(tags)) {
     if (!ALLOWED_TAG_KEYS.has(key)) continue;
+    if ((ERROR_CAUSE_TAG_KEYS as readonly string[]).includes(key) && !isErrorCauseTag(key, value))
+      continue;
     if (typeof value === "string" && value.trim().length > 0) {
       if (STABLE_TOKEN_TAG_KEYS.has(key) && !isStableDiagnosticToken(value)) continue;
       output[key] = sanitizeString(value);

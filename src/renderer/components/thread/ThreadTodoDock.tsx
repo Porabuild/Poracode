@@ -75,6 +75,9 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
       <ThreadDockHeader
         icon={ListChecks}
         title={t`Plan`}
+        {...(placement === "right"
+          ? { collapse: { collapsed, onToggle: () => onCollapsedChange(!collapsed) } }
+          : {})}
         countLabel={countLabel}
         actions={
           <>

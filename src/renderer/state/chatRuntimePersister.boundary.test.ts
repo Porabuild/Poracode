@@ -13,6 +13,7 @@ import {
   loadOlderThreadRuntimeItems,
   retainThreadRuntimeItems,
   releaseThreadRuntimeItems,
+  setHostThreadHistoryReader,
 } from "./chatRuntimePersister";
 import {
   applyThreadSnapshot,
@@ -506,19 +507,30 @@ it("fences a truncate to an absent checkpoint before any stale read can install"
     }),
   );
   const pending = loadOlderThreadRuntimeItems(threadId);
-  send([
-    {
-      type: "runtime.truncated",
-      threadId,
-      itemId: "unloaded-checkpoint",
-      removedCompletedTurnAnchors: [],
-    },
-  ]);
-  resolve({ items: [row("stale")], nextCursor: 1 });
-  expect(await pending).toBe(false);
+  // This client never loaded the checkpoint, so the thread re-baselines from
+  // its host, which serves the truncated tail.
+  setHostThreadHistoryReader(async () => {
+    applyThreadSnapshot(snapshot([row("rebased")], 70, 2));
+    return { kind: "installed" };
+  });
+  try {
+    send([
+      {
+        type: "runtime.truncated",
+        threadId,
+        itemId: "unloaded-checkpoint",
+        removedCompletedTurnAnchors: [],
+      },
+    ]);
+    resolve({ items: [row("stale")], nextCursor: 1 });
+    expect(await pending).toBe(false);
+    await vi.runAllTimersAsync();
+  } finally {
+    setHostThreadHistoryReader(null);
+  }
   expect(ids()).not.toContain("stale");
-  expect(runtimeHistoryBoundary(threadId).cursor).toBe(80);
-  expect(runtimeHistoryBoundary(threadId).needsRebase).toBe(true);
+  expect(ids()).toEqual(["rebased"]);
+  expect(runtimeHistoryBoundary(threadId).cursor).toBe(70);
 });
 
 it("cancels a scheduled continuation on reset without reading or installing into the new generation", async () => {
@@ -532,9 +544,18 @@ it("cancels a scheduled continuation on reset without reading or installing into
   const pending = loadOlderThreadRuntimeItems(threadId);
   for (let i = 0; i < 40; i += 1) await Promise.resolve();
   expect(reads).toBe(16);
-  dispatchRemoteSupervisorEvent({ type: "thread-reset", threadId });
-  applyThreadSnapshot(snapshot([row("new-generation")], 50, 2));
-  await vi.runAllTimersAsync();
+  // The reset's recovery re-reads the thread from its host, which serves the
+  // new generation.
+  setHostThreadHistoryReader(async () => {
+    applyThreadSnapshot(snapshot([row("new-generation")], 50, 2));
+    return { kind: "installed" };
+  });
+  try {
+    dispatchRemoteSupervisorEvent({ type: "thread-reset", threadId });
+    await vi.runAllTimersAsync();
+  } finally {
+    setHostThreadHistoryReader(null);
+  }
   expect(await pending).toBe(false);
   expect(reads).toBe(16);
   expect(ids()).toEqual(["new-generation"]);

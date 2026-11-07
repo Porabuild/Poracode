@@ -117,14 +117,13 @@ export function McpServersManager(props: {
   const [builtInSettingsId, setBuiltInSettingsId] = useState<BuiltInMcpServerId>();
   const [toolList, setToolList] = useState<McpToolList>();
   const userOauth = useMcpServerOauth();
-  const remoteWorkspaceLocation = props.sources.workspace?.projectLocation?.remoteServerId
-    ? props.sources.workspace.projectLocation
-    : undefined;
-  const remoteWorkspaceOauth = useMcpServerOauth(
-    remoteWorkspaceLocation,
-    remoteWorkspaceLocation !== undefined,
+  // Each scope signs in on its own host: user servers on this one, workspace
+  // servers on their project's host (the hook resolves which host a location names).
+  const workspaceLocation = props.sources.workspace?.projectLocation;
+  const workspaceOauth = useMcpServerOauth(
+    workspaceLocation,
+    props.sources.workspace !== undefined,
   );
-  const workspaceOauth = remoteWorkspaceLocation ? remoteWorkspaceOauth : userOauth;
   const userProbes = useMcpServerProbes(props.sources.user.servers);
   const workspaceProbes = useMcpServerProbes(
     props.sources.workspace?.servers ?? EMPTY_MCP_SERVERS,

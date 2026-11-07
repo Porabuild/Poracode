@@ -1,0 +1,40 @@
+diff --git a/packages/tui/src/component/dialog-model.tsx b/packages/tui/src/component/dialog-model.tsx
+index 7ae17d5..8595e75 100644
+--- a/packages/tui/src/component/dialog-model.tsx
++++ b/packages/tui/src/component/dialog-model.tsx
+@@ -2,7 +2,6 @@ import { createMemo, createSignal } from "solid-js"
+ import { useLocal } from "../context/local"
+ import { DialogSelect } from "../ui/dialog-select"
+ import { useDialog } from "../ui/dialog"
+-import { DialogIntegration } from "./dialog-integration"
+ import { DialogVariant } from "./dialog-variant"
+ import * as fuzzysort from "fuzzysort"
+ import { useConnected } from "./use-connected"
+@@ -146,23 +145,13 @@ export function DialogModel(props: { providerID?: string }) {
+       titlePlaceholder="Search models"
+       options={options()}
+       actions={[
++        // poracode: preserve the command ID while hiding provider authentication.
+         {
+           command: "model.dialog.provider",
+-          title: newDesigns()
+-            ? connected()
+-              ? "connect integration"
+-              : "view all integrations"
+-            : connected()
+-              ? "Connect an integration"
+-              : "View all integrations",
++          title: "Connect an integration",
+           selection: "none",
+-          onTrigger() {
+-            dialog.replace(() => (
+-              <DialogIntegration
+-                onConnected={(providerID) => dialog.replace(() => <DialogModel providerID={providerID} />)}
+-              />
+-            ))
+-          },
++          hidden: true,
++          onTrigger: () => {},
+         },
+         {
+           command: "model.dialog.favorite",

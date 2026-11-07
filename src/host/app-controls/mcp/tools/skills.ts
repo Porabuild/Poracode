@@ -1,6 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
+import { callerPluginOverrides } from "./pluginOverrides";
 import type { ProjectLocation, ScanSkillsPayload, SkillEntry } from "@/shared/contracts";
 import { requireProject, type AppControlsToolContext, type ToolDomain } from "./types";
 
@@ -68,7 +69,11 @@ export const skillTools: ToolDomain = {
     list_skills: async (args, ctx) => {
       const { projectId, query } = listArgsSchema.parse(args);
       const scope = projectId ? projectScope(ctx, projectId) : {};
-      const result = await ctx.supervisor.scanSkills(scope);
+      const pluginOverrides = callerPluginOverrides(ctx, projectId);
+      const result = await ctx.supervisor.scanSkills({
+        ...scope,
+        ...(pluginOverrides ? { pluginOverrides } : {}),
+      });
       const normalizedQuery = query?.toLowerCase();
       const skills = result.skills
         .filter((skill) => !normalizedQuery || skillMatchesQuery(skill, normalizedQuery))
@@ -86,7 +91,11 @@ export const skillTools: ToolDomain = {
     read_skill: async (args, ctx) => {
       const { skillId, projectId } = readArgsSchema.parse(args);
       const scope = projectId ? projectScope(ctx, projectId) : {};
-      const result = await ctx.supervisor.scanSkills(scope);
+      const pluginOverrides = callerPluginOverrides(ctx, projectId);
+      const result = await ctx.supervisor.scanSkills({
+        ...scope,
+        ...(pluginOverrides ? { pluginOverrides } : {}),
+      });
       const skill = result.skills.find((entry) => entry.id === skillId);
       if (!skill) throw new Error(`Unknown skill id: ${skillId}`);
       if (!skill.enabled) throw new Error(`Skill is disabled: ${skillId}`);

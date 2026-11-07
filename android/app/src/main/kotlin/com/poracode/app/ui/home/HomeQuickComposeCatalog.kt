@@ -2,17 +2,12 @@ package com.poracode.app.ui.home
 
 import com.poracode.app.chat.RichPromptSegment
 import com.poracode.app.model.AgentStatusEntry
-import com.poracode.app.model.ProjectLocation
-import com.poracode.app.model.PosixProjectLocation
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.RemoteSlashCommand
 import com.poracode.app.model.ThreadConfig
-import com.poracode.app.model.WindowsProjectLocation
-import com.poracode.app.model.WslProjectLocation
 import com.poracode.app.model.asObjectOrNull
 import com.poracode.app.model.stringOrNull
 import com.poracode.app.model.threads.ThreadPresentationMode
-import com.poracode.app.session.replay.HostReplayCacheUi
 import com.poracode.app.ui.components.EffortOrder
 import com.poracode.app.ui.components.FamilyPickerRow
 import com.poracode.app.ui.components.ModelFamilyMemberRef
@@ -156,6 +151,13 @@ internal class HomeQuickComposeCatalog(
 
     fun supportsThinking(modelId: String): Boolean = modelId in stringArray("thinkingModels")
 
+    /** Models that offer the provider's per-thread workflow-mode toggle. */
+    fun supportsWorkflows(modelId: String): Boolean = modelId in stringArray("workflowModels")
+
+    /** The provider's own name for the toggle; null falls back to the localized generic label. */
+    val workflowLabel: String?
+        get() = capabilities["workflowLabel"]?.stringOrNull()?.takeIf(String::isNotBlank)
+
     /**
      * One explicit model pick from the collapsed picker list. The row's own
      * origin carries the intent: a projected family row retains/adopts through
@@ -164,13 +166,14 @@ internal class HomeQuickComposeCatalog(
      * keep the established generic model-change defaulting.
      */
     fun applyModel(configuration: ThreadConfig, modelId: String): ThreadConfig {
-        if (families.isFamilyRow(modelId)) {
-            return families.applyFamilyRowEdit(configuration, modelId) ?: configuration
+        val next = when {
+            families.isFamilyRow(modelId) ->
+                families.applyFamilyRowEdit(configuration, modelId) ?: configuration
+            families.containsModel(modelId) ->
+                families.applyModelEdit(configuration, modelId) ?: configuration
+            else -> applyRawModel(configuration, modelId)
         }
-        if (families.containsModel(modelId)) {
-            return families.applyModelEdit(configuration, modelId) ?: configuration
-        }
-        return applyRawModel(configuration, modelId)
+        return next.copy(workflows = launchWorkflows(next, next.model))
     }
 
     fun applySelector(configuration: ThreadConfig, selectorId: String, optionId: String): ThreadConfig =
@@ -279,10 +282,16 @@ internal class HomeQuickComposeCatalog(
             } else {
                 base.thinking?.let { if (supportsThinking(base.model)) it else false }
             },
+            workflows = launchWorkflows(base, base.model),
             mode = normalizeOptional(base.mode, modes),
             approvalPolicy = normalizeOptional(base.approvalPolicy, approvalPolicies),
         )
     }
+
+    // Workflow mode is a per-draft choice that is never persisted: the launch
+    // config carries `true` only when it is on and the model offers it, else absent.
+    private fun launchWorkflows(configuration: ThreadConfig, modelId: String): Boolean? =
+        if (configuration.workflows == true && supportsWorkflows(modelId)) true else null
 
     private fun defaultEffort(modelId: String): String? {
         val perModel = capabilities["modelDefaultEfforts"] as? JsonObject
@@ -316,6 +325,8 @@ internal class HomeQuickComposeCatalog(
             "defaultContextSize",
             "fastModels",
             "thinkingModels",
+            "workflowModels",
+            "workflowLabel",
             "subProviders",
             "modelSubProvider",
             // Surface-scoped family relations: an override re-declares its own
@@ -418,78 +429,3 @@ internal class HomeQuickComposeCatalog(
         }
     }
 }
-
-internal fun homeQuickComposeAgents(
-    location: ProjectLocation,
-    replay: HostReplayCacheUi,
-    presentationMode: ThreadPresentationMode,
-): List<AgentStatusEntry> = homeQuickComposeStatuses(location, replay)
-    .filter { it.installed && supportsPresentation(it, presentationMode) }
-    .distinctBy(AgentStatusEntry::kind)
-    .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label.ifBlank { it.kind } })
-
-internal fun homeQuickComposeStatuses(
-    location: ProjectLocation,
-    replay: HostReplayCacheUi,
-): List<AgentStatusEntry> = when (location) {
-    is WindowsProjectLocation -> if (replay.agentWindowsLoaded) {
-        replay.agentWindowsStatuses
-    } else {
-        replay.agentMergedStatuses.values.filter { it.envKind == AgentStatusEntry.ENV_WINDOWS }
-    }
-    is WslProjectLocation -> if (replay.agentWslLoaded) {
-        replay.agentWslStatuses.filter { it.envDistro == location.distro }
-    } else {
-        replay.agentMergedStatuses.values.filter {
-            it.envKind == AgentStatusEntry.ENV_WSL && it.envDistro == location.distro
-        }
-    }
-    is PosixProjectLocation -> replay.agentMergedStatuses.values.filter {
-        it.envKind == AgentStatusEntry.ENV_POSIX || it.envKind.isEmpty()
-    }
-}
-
-internal fun supportsPresentation(
-    status: AgentStatusEntry,
-    mode: ThreadPresentationMode,
-): Boolean {
-    val capabilities = status.capabilities
-    val modes = (capabilities["presentationModes"] as? JsonArray)
-        ?.mapNotNull(JsonElement::stringOrNull)
-        ?.filter(String::isNotBlank)
-    if (!modes.isNullOrEmpty()) return mode.wireValue in modes
-    capabilities["presentationMode"]?.stringOrNull()?.let { return it == mode.wireValue }
-    val scoped = capabilities["presentationCapabilities"] as? JsonObject
-    if (scoped?.containsKey(mode.wireValue) == true) return true
-    val variants = status.raw["runtimeVariants"] as? JsonObject
-    if (variants != null) {
-        val hasMode = variants.values.any { variant ->
-            (variant as? JsonObject)?.get("presentationMode")?.stringOrNull() == mode.wireValue
-        }
-        if (hasMode) return true
-    }
-    return true
-}
-
-internal fun homeQuickComposePresentationModes(
-    location: ProjectLocation,
-    replay: HostReplayCacheUi,
-): List<ThreadPresentationMode> = ThreadPresentationMode.entries.filter { mode ->
-    homeQuickComposeStatuses(location, replay).any { it.installed && supportsPresentation(it, mode) }
-}
-
-internal fun homeQuickComposeWorktrees(
-    projectId: String,
-    items: List<com.poracode.app.session.HostPresentation.UnifiedThreadItem>,
-): List<HomeQuickComposeWorktree> = items.asSequence()
-    .filter { it.project.id == projectId }
-    .mapNotNull { item ->
-        val path = item.thread.worktreePath?.takeIf(String::isNotBlank) ?: return@mapNotNull null
-        HomeQuickComposeWorktree(
-            path = path,
-            branch = item.thread.worktreeBranch?.takeIf(String::isNotBlank),
-        )
-    }
-    .distinctBy { it.path }
-    .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.branch ?: it.path.orEmpty() })
-    .toList()

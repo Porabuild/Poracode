@@ -18,6 +18,7 @@ import { customThemeSchema, MAX_CUSTOM_THEMES, type CustomTheme } from "@/shared
 import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
+  normalizeKeepAwakeConditions,
   normalizeSharedSettings,
   normalizeThreadDocksOrder,
   WINDOWS_SHELL_ARGUMENTS_MAX,
@@ -25,12 +26,19 @@ import {
   type FollowUpBehavior,
   type ThreadDocksPlacement,
   type ThreadDockKind,
-  type PreventSleep,
+  type KeepAwakeCondition,
   type ProviderModelPreference,
   type SidebarShortcutId,
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
+import {
+  isThreadConfigCrewEqual,
+  MAX_SAVED_CREWS,
+  normalizeCrewRoles,
+  savedCrewSchema,
+  type SavedCrew,
+} from "@/shared/crew";
 import type { AiContentLanguage, LocaleSetting } from "@/shared/locale";
 import type {
   GitReviewMode,
@@ -64,6 +72,7 @@ import {
 import { incrementAgentSelectionUsage } from "@/shared/crossagentRanking";
 import { reorderModelPickerRefs, type ModelPickerRef } from "@/shared/modelPickerOrder";
 import { isSensitiveAgentSetting } from "@/shared/agentSecrets";
+import { removeAgentInstanceSettings } from "@/shared/agentInstanceSettings";
 import {
   effectiveProviderOrder,
   type MachineScopeMode,
@@ -138,7 +147,8 @@ interface SharedSettingsState extends SharedSettings {
   setAgentTerminalFontSize: (value: number) => void;
   setGuiChatFontSize: (value: number) => void;
   setTerminalPanelFontSize: (value: number) => void;
-  setPreventSleep: (value: PreventSleep) => void;
+  setPreventSleepWhen: (value: KeepAwakeCondition[]) => void;
+  setPreventScreenLockWhen: (value: KeepAwakeCondition[]) => void;
   setLaunchAtStartup: (value: boolean) => void;
   setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
@@ -149,8 +159,14 @@ interface SharedSettingsState extends SharedSettings {
   setSidebarShortcutVisible: (id: SidebarShortcutId, visible: boolean) => void;
   setSidebarShortcutOrder: (order: SidebarShortcutId[]) => void;
   setSidebarTranslucency: (value: boolean) => void;
+  setNewsLineEnabled: (value: boolean) => void;
+  setNewsLineActivity: (value: boolean) => void;
+  /** Hide a community promotion on every surface (idempotent). */
+  dismissPromotion: (id: string) => void;
   setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
+  setComputerUseLockedUse: (value: boolean) => void;
+  setComputerUseLockedUseDimDisplay: (value: boolean) => void;
   setWorktreeStorageMode: (value: WorktreeStorageMode) => void;
   setWorktreeBasePath: (value: string) => void;
   setWslWorktreeBasePath: (value: string) => void;
@@ -171,6 +187,10 @@ interface SharedSettingsState extends SharedSettings {
    */
   setMcpServerEnabled: (id: string, enabled: boolean) => void;
   setMcpServers: (servers: McpServer[]) => void;
+  upsertCrew: (crew: SavedCrew) => void;
+  deleteCrew: (id: string) => void;
+  setCrewFavorite: (id: string, favorite: boolean) => void;
+  setCrewLastUsedAt: (id: string, lastUsedAt: number | null) => void;
   setBuiltInMcpServerDisabled: (id: BuiltInMcpServerId, disabled: boolean) => void;
   setBuiltInMcpToolEnabled: (id: BuiltInMcpServerId, tool: string, enabled: boolean) => void;
   installPlugin: (plugin: LoadedPlugin) => void;
@@ -261,6 +281,7 @@ interface SharedSettingsState extends SharedSettings {
     presentationMode: ThreadPresentationMode,
     effort?: string,
     fast?: boolean,
+    crewId?: string,
   ) => void;
 }
 
@@ -428,6 +449,7 @@ function providerDraftConfigEqual(
 ): boolean {
   return (
     a !== undefined &&
+    isThreadConfigCrewEqual(a.crew, b.crew) &&
     areSelectionBindingsEqual(a.selectionBinding, b.selectionBinding) &&
     a.model === b.model &&
     a.effort === b.effort &&
@@ -746,8 +768,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ terminalPanelFontSize });
     persistSettings(selectSharedSettings(get()));
   },
-  setPreventSleep: (preventSleep) => {
-    set({ preventSleep });
+  setPreventSleepWhen: (value) => {
+    set({ preventSleepWhen: normalizeKeepAwakeConditions(value) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPreventScreenLockWhen: (value) => {
+    set({ preventScreenLockWhen: normalizeKeepAwakeConditions(value) });
     persistSettings(selectSharedSettings(get()));
   },
   setLaunchAtStartup: (launchAtStartup) => {
@@ -817,6 +843,22 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ sidebarTranslucency });
     persistSettings(selectSharedSettings(get()));
   },
+  setNewsLineEnabled: (newsLineEnabled) => {
+    if (get().newsLineEnabled === newsLineEnabled) return;
+    set({ newsLineEnabled });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setNewsLineActivity: (newsLineActivity) => {
+    if (get().newsLineActivity === newsLineActivity) return;
+    set({ newsLineActivity });
+    persistSettings(selectSharedSettings(get()));
+  },
+  dismissPromotion: (id) => {
+    const current = get().dismissedPromotions;
+    if (current.includes(id)) return;
+    set({ dismissedPromotions: [...current, id] });
+    persistSettings(selectSharedSettings(get()));
+  },
   setSidebarGlassTint: (appearance, value) => {
     const current = get().sidebarGlassTint;
     if (current[appearance] === value) return;
@@ -825,6 +867,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setAutoShowTerminalPanel: (autoShowTerminalPanel) => {
     set({ autoShowTerminalPanel });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setComputerUseLockedUseDimDisplay: (computerUseLockedUseDimDisplay) => {
+    if (get().computerUseLockedUseDimDisplay === computerUseLockedUseDimDisplay) return;
+    set({ computerUseLockedUseDimDisplay });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setComputerUseLockedUse: (computerUseLockedUse) => {
+    if (get().computerUseLockedUse === computerUseLockedUse) return;
+    set({ computerUseLockedUse });
     persistSettings(selectSharedSettings(get()));
   },
   setWorktreeStorageMode: (worktreeStorageMode) => {
@@ -896,6 +948,53 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setMcpServers: (mcpServers) => {
     set({ mcpServers });
+    persistSettings(selectSharedSettings(get()));
+  },
+  upsertCrew: (crew) => {
+    const parsed = savedCrewSchema.safeParse(crew);
+    if (!parsed.success) return;
+    const normalized = { ...parsed.data, roles: normalizeCrewRoles(parsed.data.roles) };
+    if (normalized.roles.length === 0) return;
+    const crews = get().crews;
+    const index = crews.findIndex((entry) => entry.id === normalized.id);
+    if (index < 0 && crews.length >= MAX_SAVED_CREWS) return;
+    const nextCrew: SavedCrew = {
+      ...crews[index],
+      ...normalized,
+      updatedAt: Date.now(),
+    };
+    set({
+      crews:
+        index < 0
+          ? [...crews, nextCrew]
+          : crews.map((entry, entryIndex) => (entryIndex === index ? nextCrew : entry)),
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCrewFavorite: (id, favorite) => {
+    const crews = get().crews;
+    if (!crews.some((crew) => crew.id === id && (crew.favorite ?? false) !== favorite)) return;
+    set({ crews: crews.map((crew) => (crew.id === id ? { ...crew, favorite } : crew)) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setCrewLastUsedAt: (id, lastUsedAt) => {
+    const crews = get().crews;
+    if (!crews.some((crew) => crew.id === id && crew.lastUsedAt !== (lastUsedAt ?? undefined)))
+      return;
+    set({
+      crews: crews.map((crew) => {
+        if (crew.id !== id) return crew;
+        const { lastUsedAt: _lastUsedAt, ...rest } = crew;
+        return lastUsedAt === null ? rest : { ...rest, lastUsedAt };
+      }),
+    });
+    persistSettings(selectSharedSettings(get()));
+  },
+  deleteCrew: (id) => {
+    const crews = get().crews;
+    const next = crews.filter((crew) => crew.id !== id);
+    if (next.length === crews.length) return;
+    set({ crews: next });
     persistSettings(selectSharedSettings(get()));
   },
   setBuiltInMcpServerDisabled: (id, disabled) => {
@@ -1062,29 +1161,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     persistSettings(selectSharedSettings(get()));
   },
   removeAgentInstance: (instanceId) => {
-    const current = get().agentInstances;
-    const instance = current[instanceId];
+    const current = get();
+    const instance = current.agentInstances[instanceId];
     if (!instance) return;
-    const { [instanceId]: _removed, ...agentInstances } = current;
-    const prefix = `${instance.driver}:${instanceId}`;
-    const removeProfileKey = (values: Record<string, unknown>) =>
-      Object.fromEntries(Object.entries(values).filter(([key]) => key !== prefix));
-    set({
-      agentInstances,
-      providerConfigs: removeProfileKey(get().providerConfigs) as SharedSettings["providerConfigs"],
-      providerModelPreferences: removeProfileKey(
-        get().providerModelPreferences,
-      ) as SharedSettings["providerModelPreferences"],
-      hiddenModels: removeProfileKey(get().hiddenModels) as SharedSettings["hiddenModels"],
-      agentSettings: removeProfileKey(get().agentSettings) as SharedSettings["agentSettings"],
-      lastPresentationModeByAgent: removeProfileKey(
-        get().lastPresentationModeByAgent,
-      ) as SharedSettings["lastPresentationModeByAgent"],
-      disabledAgents: get().disabledAgents.filter((kind) => kind !== prefix),
-      favoriteModels: get().favoriteModels.filter((entry) => entry.agentKind !== prefix),
-      recentModels: get().recentModels.filter((entry) => entry.agentKind !== prefix),
-      providerOrder: get().providerOrder.filter((kind) => kind !== prefix),
-    });
+    set(removeAgentInstanceSettings(current, instance));
     persistSettings(selectSharedSettings(get()));
   },
   setNotificationStatuses: (partial) => {
@@ -1189,18 +1269,24 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ recentModels: next });
     persistSettings(selectSharedSettings(get()));
   },
-  pushRecentModel: (agentKind, modelId, presentationMode, effort, fast) => {
+  pushRecentModel: (agentKind, modelId, presentationMode, effort, fast, crewId) => {
+    const crew = get().crews.find((entry) => entry.id === crewId);
+    const lastUsedAt = Date.now();
     const current = get().recentModels;
     const samePresentation = current.filter((m) => m.presentationMode === presentationMode);
     const otherPresentations = current.filter((m) => m.presentationMode !== presentationMode);
     const filtered = samePresentation.filter(
       (m) => !(m.agentKind === agentKind && m.modelId === modelId),
     );
-    const nextForPresentation = [{ agentKind, modelId, presentationMode }, ...filtered].slice(
-      0,
-      RECENT_MODELS_LIMIT,
-    );
-    const next = [...nextForPresentation, ...otherPresentations].slice(0, RECENT_MODELS_LIMIT * 2);
+    const nextForPresentation = [
+      { agentKind, modelId, presentationMode, lastUsedAt },
+      ...filtered,
+    ].slice(0, RECENT_MODELS_LIMIT);
+    // A crew launch contributes one shortcut, while its lead still contributes
+    // to Crossagents usage ranking. Missing/deleted saved crews fall back to the model.
+    const next = crew
+      ? current
+      : [...nextForPresentation, ...otherPresentations].slice(0, RECENT_MODELS_LIMIT * 2);
     const agentSelectionUsage = incrementAgentSelectionUsage(get().agentSelectionUsage, [
       {
         agentKind,
@@ -1215,10 +1301,18 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
         (m, i) =>
           m.agentKind === next[i]!.agentKind &&
           m.modelId === next[i]!.modelId &&
-          m.presentationMode === next[i]!.presentationMode,
+          m.presentationMode === next[i]!.presentationMode &&
+          m.lastUsedAt === next[i]!.lastUsedAt,
       );
     set({
       ...(recentsUnchanged ? {} : { recentModels: next }),
+      ...(crew
+        ? {
+            crews: get().crews.map((entry) =>
+              entry.id === crew.id ? { ...entry, lastUsedAt } : entry,
+            ),
+          }
+        : {}),
       agentSelectionUsage,
     });
     persistSettings(selectSharedSettings(get()));
@@ -1313,7 +1407,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     agentTerminalFontSize: state.agentTerminalFontSize,
     guiChatFontSize: state.guiChatFontSize,
     terminalPanelFontSize: state.terminalPanelFontSize,
-    preventSleep: state.preventSleep,
+    preventSleepWhen: state.preventSleepWhen,
+    preventScreenLockWhen: state.preventScreenLockWhen,
     launchAtStartup: state.launchAtStartup,
     startMinimized: state.startMinimized,
     closeToTray: state.closeToTray,
@@ -1328,8 +1423,13 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     sidebarHiddenShortcuts: state.sidebarHiddenShortcuts,
     sidebarShortcutOrder: state.sidebarShortcutOrder,
     sidebarTranslucency: state.sidebarTranslucency,
+    newsLineEnabled: state.newsLineEnabled,
+    newsLineActivity: state.newsLineActivity,
+    dismissedPromotions: state.dismissedPromotions,
     sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,
+    computerUseLockedUse: state.computerUseLockedUse,
+    computerUseLockedUseDimDisplay: state.computerUseLockedUseDimDisplay,
     worktreeStorageMode: state.worktreeStorageMode,
     worktreeBasePath: state.worktreeBasePath,
     wslWorktreeBasePath: state.wslWorktreeBasePath,
@@ -1360,6 +1460,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     remotePushEnabled: state.remotePushEnabled,
     remotePushRedactContent: state.remotePushRedactContent,
     workspaces: state.workspaces,
+    crews: state.crews,
     favoriteModels: state.favoriteModels,
     recentModels: state.recentModels,
     agentSelectionUsage: state.agentSelectionUsage,

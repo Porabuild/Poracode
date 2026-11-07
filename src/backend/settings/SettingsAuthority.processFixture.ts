@@ -91,6 +91,9 @@ authority = await SettingsAuthority.open({
   reportError: (error) => {
     reported.push(String(error));
   },
+  // Exercise the POSIX directory-fsync seam; the fs.open interception above
+  // returns the injected directory handle only on Windows.
+  platform: "linux",
 });
 const snapshot = authority.snapshot();
 const subject = { kind: "field", field: "themeMode" } as const;

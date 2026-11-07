@@ -1,25 +1,24 @@
 import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import type { Project, Thread } from "@/shared/contracts";
+import { isHomeProject } from "@/shared/homeScope";
+import { isUnconfirmedSshOrigin } from "@/shared/repoIdentity";
 import { useAppStore } from "../appStore";
 import { visibleCatalogProjects, confirmAbsentProjectRemovals } from "../projectRemovalIntents";
 import { finalizeProjectRemoval } from "../projectRemovalPresentation";
 import { useRemoteServersStore } from "../remoteServersStore";
-import {
-  preservePendingThreadConfig,
-  retainPendingThreadConfigs,
-  type PendingThreadConfig,
-} from "../pendingThreadConfig";
-import { carryVolatileSessionConfigOptions } from "../volatileSessionConfigOptions";
-import { carryPendingThreadInput } from "../pendingThreadInput";
+import { retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { projectPendingCatalogEdit, forgetPendingCatalogEdit } from "../pendingCatalogEdits";
+import { closePanesForHostArchivedRows, mergeHostThreadRow } from "../hostThreadRowMerge";
+import { orderHostRows } from "../hostCatalogRowOrder";
+import { reuseRow } from "./rowReuse";
 import { projectRemoteProject, projectRemoteThread, remoteThreadId } from "../remoteProjection";
 import { refreshGitProject } from "../gitRefresh";
 import { useGitStore } from "../gitStore";
 import { filterSyncedRemoteProjects } from "./projectSync";
-import { isChatSidebarSurface } from "@/renderer/clientSurface";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { pinRemoteProjectWorkspaces, projectBrowserThreadWorkspace } from "./workspaceFilings";
+import { clientWorkspaceForHostWorkspace } from "./hostWorkspacePlacement";
 
 let remoteProjectRowsSyncDepth = 0;
 
@@ -33,31 +32,11 @@ let remoteProjectRowsSyncDepth = 0;
  * unchanged, so a source-reference hit reuses the previous projection for free;
  * a changed source pays one content compare and still keeps the old object
  * when the projection is equal.
- *
- * `resident` extends the same stability contract to the volatile inventory
- * carry (`carryVolatileSessionConfigOptions`): a carried row is cached per
- * (source row, carried inventory) pair, so a mirror refresh re-serves the same
- * carried object while neither changed, and only a live inventory update (a
- * new object from the event stream) or a page change installs a new row.
  */
-const projectedThreadCache = new Map<
-  string,
-  {
-    source: Thread;
-    projected: Thread;
-    carried?: {
-      inventory: Thread["sessionConfigOptions"];
-      pending: PendingThreadConfig | undefined;
-      row: Thread;
-    };
-  }
->();
+const projectedThreadCache = new Map<string, { source: Thread; projected: Thread }>();
 
-function projectThreadIdentityPreserving(
-  desktopId: string,
-  thread: Thread,
-  resident?: Thread,
-): Thread {
+/** Projects one host thread into this client's namespace, keeping object identity while unchanged. */
+function projectThreadIdentityPreserving(desktopId: string, thread: Thread): Thread {
   const key = remoteThreadId(desktopId, thread.id);
   let cached = projectedThreadCache.get(key);
   if (!cached || cached.source !== thread) {
@@ -69,25 +48,17 @@ function projectThreadIdentityPreserving(
       projectedThreadCache.set(key, cached);
     }
   }
-  if (!resident) return cached.projected;
-  const pending = useAppStore.getState().pendingThreadConfigByThreadId[resident.id];
-  const carried = preservePendingThreadConfig(
-    carryVolatileSessionConfigOptions(resident, cached.projected),
-    pending,
-  );
-  if (carried === cached.projected) {
-    delete cached.carried;
-    return cached.projected;
-  }
-  if (
-    cached.carried &&
-    cached.carried.inventory === resident.sessionConfigOptions &&
-    cached.carried.pending === pending
-  ) {
-    return cached.carried.row;
-  }
-  cached.carried = { inventory: resident.sessionConfigOptions, pending, row: carried };
-  return carried;
+  return cached.projected;
+}
+
+/**
+ * Merges a projected host row over its resident mirror with the shared merge
+ * every host uses. A merge that carries nothing new keeps the resident row's
+ * identity, so a mirror refresh does not re-render an unchanged row.
+ */
+function mergeMirrorRow(incoming: Thread, resident: Thread | undefined): Thread {
+  const pending = useAppStore.getState().pendingThreadConfigByThreadId[incoming.id];
+  return mergeHostThreadRow(resident, incoming, pending);
 }
 
 function dropProjectedThreadCache(desktopId: string): void {
@@ -193,6 +164,12 @@ function upsertRemoteMirrorRows<
 }
 
 /**
+ * Host thread ids each connection's mirror has put in the store. A catalog row
+ * whose id is here but whose store row is gone was removed on purpose.
+ */
+const shownThreadIds = new Map<string, Set<string>>();
+
+/**
  * Mirror a server's snapshot into the app store, restricted to the projects the
  * user syncs. Threads of an unsynced project are dropped too — without their
  * project row they would be orphans in the sidebar.
@@ -216,6 +193,15 @@ export function syncRemoteAppRows(
      * deletes exclusively through the confirmation-gated inventory walk.
      */
     readonly partial?: boolean;
+    /**
+     * Host ids the host served in the read being mirrored. A thread this
+     * mirror already showed, and whose store row is now gone, is added back
+     * only when the host served it: something removed it on purpose (a
+     * confirmed delete), and the connection's catalog copy alone would show a
+     * deleted thread until the next membership pass. A row never shown yet
+     * (its project arrived after it) is still added.
+     */
+    readonly servedThreadIds?: ReadonlySet<string>;
   } = {},
 ): void {
   const partial = options.partial === true;
@@ -228,16 +214,13 @@ export function syncRemoteAppRows(
   }
   const remoteState = useRemoteServersStore.getState();
   const excluded = remoteState.excludedProjectIds[desktopId];
-  const syncOptions = { includeHomeScope: isChatSidebarSurface() };
-  const projects = allProjects
-    ? filterSyncedRemoteProjects(allProjects, excluded, syncOptions)
-    : undefined;
+  const projects = allProjects ? filterSyncedRemoteProjects(allProjects, excluded) : undefined;
   // A threads-only update has no project list to scope against, so fall back to
   // the cached snapshot — always written before rows are synced.
   const cachedProjects = remoteState.runtime[desktopId]?.projects ?? [];
   const syncedProjectIds = allThreads
     ? new Set(
-        (projects ?? filterSyncedRemoteProjects(cachedProjects, excluded, syncOptions)).map(
+        (projects ?? filterSyncedRemoteProjects(cachedProjects, excluded)).map(
           (project) => project.id,
         ),
       )
@@ -252,6 +235,7 @@ export function syncRemoteAppRows(
       )
     : null;
   const counterpartWorkspace = localWorkspaceByName(useAppStore.getState().projects);
+  const browserClient = isBrowserClientRuntime();
   const clientWorkspaceFilings: {
     desktopId: string;
     remoteId: string;
@@ -264,31 +248,49 @@ export function syncRemoteAppRows(
           const current = currentProjects?.get(project.id);
           const { workspaceId: remoteWorkspaceId, ...projectWithoutWorkspace } = projected;
           const name = remoteState.projectNameOverrides[desktopId]?.[project.id] ?? projected.name;
-          const workspaceOverride = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
+          const pinnedWorkspaceId = remoteState.projectWorkspaceIds[desktopId]?.[project.id];
           const inheritedWorkspaceId = counterpartWorkspace.get(name);
-          const workspaceId = mirroredProjectWorkspaceId({
-            workspaceOverride,
-            inheritedWorkspaceId,
-            currentWorkspaceId: current?.workspaceId,
-            remoteWorkspaceId,
-          });
+          // A browser client follows the host's own workspace (matched by name)
+          // over its default filings, but never over a move the user made.
+          const userFiled =
+            pinnedWorkspaceId !== undefined &&
+            remoteState.explicitProjectWorkspaceIds[desktopId]?.[project.id] === true;
+          const hostWorkspaceId =
+            browserClient && !userFiled && inheritedWorkspaceId === undefined
+              ? clientWorkspaceForHostWorkspace(desktopId, remoteWorkspaceId)
+              : undefined;
+          const workspaceOverride = hostWorkspaceId ?? pinnedWorkspaceId;
+          // Home belongs to every workspace, so it stays unfiled like local Home.
+          const workspaceId = isHomeProject(projected)
+            ? undefined
+            : mirroredProjectWorkspaceId({
+                workspaceOverride,
+                inheritedWorkspaceId,
+                currentWorkspaceId: current?.workspaceId,
+                remoteWorkspaceId,
+              });
           // Inheritance stays unpinned so a same-named local project can still
           // move the mirror. A browser default (or a filing already on the row)
           // is pinned, or the next local edit treats it as unfiled.
           if (
-            isBrowserClientRuntime() &&
-            workspaceOverride === undefined &&
+            browserClient &&
+            (pinnedWorkspaceId === undefined || hostWorkspaceId !== undefined) &&
             inheritedWorkspaceId === undefined &&
             workspaceId
           ) {
             clientWorkspaceFilings.push({ desktopId, remoteId: project.id, workspaceId });
           }
-          return projectPendingCatalogEdit("project", {
-            ...projectWithoutWorkspace,
-            name,
-            ...(workspaceId ? { workspaceId } : {}),
-            ...(current?.mcpServers ? { mcpServers: current.mcpServers } : {}),
-          });
+          // A page that restates the project unchanged keeps the resident
+          // mirror row, so partial pages do not re-render its subscribers.
+          return reuseRow(
+            current,
+            projectPendingCatalogEdit("project", {
+              ...projectWithoutWorkspace,
+              name,
+              ...(workspaceId ? { workspaceId } : {}),
+              ...(current?.mcpServers ? { mcpServers: current.mcpServers } : {}),
+            }),
+          );
         }),
       )
     : undefined;
@@ -301,27 +303,48 @@ export function syncRemoteAppRows(
           .map((thread) => [thread.id, thread])
       : [],
   );
-  const projectedThreads = threads?.map((thread) => {
-    const appRowId = remoteThreadId(desktopId, thread.id);
-    if (options.preserveThreadIds?.has(thread.id)) {
-      const liveRow = residentMirrorRows.get(appRowId);
-      if (liveRow) return liveRow;
-    }
-    // A projected row is host-durable state: when it omits the volatile
-    // inventory the resident mirror's live value is re-attached instead of
-    // erased — same owner/session only, per `carryVolatileSessionConfigOptions`.
-    return carryPendingThreadInput(
-      residentMirrorRows.get(appRowId),
-      projectBrowserThreadWorkspace(
-        projectPendingCatalogEdit(
-          "thread",
-          projectThreadIdentityPreserving(desktopId, thread, residentMirrorRows.get(appRowId)),
+  const shown = shownThreadIds.get(desktopId) ?? new Set<string>();
+  const projectedThreads = threads?.flatMap((thread) => {
+    const resident = residentMirrorRows.get(remoteThreadId(desktopId, thread.id));
+    if (
+      !resident &&
+      shown.has(thread.id) &&
+      options.servedThreadIds &&
+      !options.servedThreadIds.has(thread.id)
+    )
+      return [];
+    if (resident && options.preserveThreadIds?.has(thread.id)) return [resident];
+    return [
+      mergeMirrorRow(
+        projectBrowserThreadWorkspace(
+          projectPendingCatalogEdit("thread", projectThreadIdentityPreserving(desktopId, thread)),
+          resident,
         ),
-        residentMirrorRows.get(appRowId),
+        resident,
       ),
-    );
+    ];
   });
   const projectedThreadIds = new Set(projectedThreads?.map((thread) => thread.id) ?? []);
+  if (allThreads) {
+    // A complete list also retires ids its host no longer has.
+    if (!partial) {
+      const listed = new Set(allThreads.map((thread) => thread.id));
+      for (const id of shown) if (!listed.has(id)) shown.delete(id);
+    }
+    for (const thread of projectedThreads ?? []) if (thread.remoteId) shown.add(thread.remoteId);
+    shownThreadIds.set(desktopId, shown);
+  }
+  // Host housekeeping archives rows without a forwarded user command: the
+  // documented policy closes the archived thread's visible pane, on every host.
+  closePanesForHostArchivedRows(
+    new Set(
+      (projectedThreads ?? [])
+        .filter(
+          (thread) => thread.archived && residentMirrorRows.get(thread.id)?.archived === false,
+        )
+        .map((thread) => thread.id),
+    ),
+  );
   if (projectedProjects && !partial) {
     const projectedProjectIds = new Set(projectedProjects.map((project) => project.id));
     for (const project of useAppStore.getState().projects) {
@@ -393,8 +416,20 @@ export function syncRemoteAppRows(
   if (useRemoteServersStore.getState().runtime[desktopId]?.status !== "online") return;
   const gitStatuses = useGitStore.getState().statuses;
   for (const project of projectedProjects) {
-    if (gitStatuses[project.id]) continue;
-    void refreshGitProject(project, "manual", "full").catch(() => undefined);
+    // Home is the host's home folder, not a repository; local Home skips Git too.
+    if (isHomeProject(project)) continue;
+    const status = gitStatuses[project.id];
+    if (!status) {
+      void refreshGitProject(project, "manual", "full").catch(() => undefined);
+      continue;
+    }
+    // A cached status without an origin (or a non-SSH failure) is already the
+    // host's answer; do not retry it from every catalog page.
+    if (!status.remoteInfo || !isUnconfirmedSshOrigin(status.remoteInfo.url)) continue;
+    // Compact browser clients have no useGitRefresh loop, and a desktop import
+    // can see a cached raw alias before its periodic refresh. A status-only
+    // refresh repairs repository identity without rebuilding the full panel.
+    void refreshGitProject(project, "poll", "status").catch(() => undefined);
   }
 }
 
@@ -411,61 +446,16 @@ export function applyRemoteCatalogOrder(
   kind: "threads" | "projects",
   orderedIds: readonly string[],
 ): void {
-  if (orderedIds.length === 0) return;
-  const orderIndex = new Map<string, number>();
-  for (const [index, id] of orderedIds.entries()) {
-    if (!orderIndex.has(id)) orderIndex.set(id, index);
-  }
-  if (kind === "threads") {
-    useAppStore.setState((state) => {
-      const rows = state.threads.filter((row) => row.remoteServerId === desktopId);
-      const nextRows = orderScopedRows(rows, orderIndex);
-      if (nextRows === rows) return state;
-      return { threads: replaceScopedRows(state.threads, desktopId, nextRows) };
-    });
-    return;
-  }
+  const inScope = (row: { readonly remoteServerId?: string | undefined }) =>
+    row.remoteServerId === desktopId;
   useAppStore.setState((state) => {
-    const rows = state.projects.filter((row) => row.remoteServerId === desktopId);
-    const nextRows = orderScopedRows(rows, orderIndex);
-    if (nextRows === rows) return state;
-    return { projects: replaceScopedRows(state.projects, desktopId, nextRows) };
+    if (kind === "threads") {
+      const threads = orderHostRows(state.threads, inScope, orderedIds);
+      return threads === state.threads ? state : { threads: [...threads] };
+    }
+    const projects = orderHostRows(state.projects, inScope, orderedIds);
+    return projects === state.projects ? state : { projects: [...projects] };
   });
-}
-
-function orderScopedRows<T extends { readonly id: string; readonly remoteId?: string | undefined }>(
-  rows: T[],
-  orderIndex: ReadonlyMap<string, number>,
-): T[] {
-  if (rows.length < 2) return rows;
-  const ranked = rows.map((row, index) => ({
-    row,
-    index,
-    rank: orderIndex.get(row.remoteId ?? row.id),
-  }));
-  ranked.sort((left, right) => {
-    const leftNamed = left.rank !== undefined;
-    const rightNamed = right.rank !== undefined;
-    if (leftNamed && rightNamed) return left.rank! - right.rank!;
-    if (leftNamed !== rightNamed) return leftNamed ? -1 : 1;
-    return left.index - right.index;
-  });
-  return ranked.every((entry, index) => entry.row === rows[index])
-    ? rows
-    : ranked.map((entry) => entry.row);
-}
-
-function replaceScopedRows<
-  T extends { readonly id: string; readonly remoteServerId?: string | undefined },
->(all: T[], desktopId: string, orderedRows: T[]): T[] {
-  const next = all.slice();
-  let cursor = 0;
-  for (let index = 0; index < next.length; index += 1) {
-    if (next[index]!.remoteServerId !== desktopId) continue;
-    next[index] = orderedRows[cursor]!;
-    cursor += 1;
-  }
-  return next;
 }
 
 export function removeRemoteAppRows(desktopId: string): void {
@@ -478,6 +468,7 @@ export function removeRemoteAppRows(desktopId: string): void {
   }));
   dropProjectedThreadCache(desktopId);
   syncRemoteAppRows(desktopId, [], []);
+  shownThreadIds.delete(desktopId);
 }
 
 /**
@@ -552,6 +543,6 @@ export function installRemoteProjectWorkspaceSync(): () => void {
     }
     if (changes.length === 0) return;
 
-    pinRemoteProjectWorkspaces(changes);
+    pinRemoteProjectWorkspaces(changes, { explicit: true });
   });
 }

@@ -94,6 +94,11 @@ export {
 } from "@/shared/toolCallClassification";
 export { isWorkflowTool };
 
+/** A Crossagents run started for a crew role; the supervisor labels it with the role. */
+export function isCrewRun(payload: ToolCallPayload | undefined): boolean {
+  return payload?.isCrossagent === true && Boolean(payload.subAgentType?.trim());
+}
+
 export interface ToolDisplayOptions {
   /**
    * Omit the "Agent:"/"Crossagent:" kind prefix from delegated-agent titles —
@@ -138,6 +143,7 @@ export function deriveToolDisplay(
       title: formatAgentTitle(args, payload.title?.trim() || payload.name.trim(), {
         preferFallback: payload.title !== undefined,
         isCrossagent: payload.isCrossagent === true,
+        isCrew: isCrewRun(payload),
         isResume: payload.isSubAgentResume === true,
         ...(options?.bareAgentTitle ? { bare: true } : {}),
         ...(payload.subAgentType ? { subAgentType: payload.subAgentType } : {}),
@@ -359,6 +365,7 @@ function formatAgentTitle(
   options?: {
     preferFallback?: boolean;
     isCrossagent?: boolean;
+    isCrew?: boolean;
     isResume?: boolean;
     bare?: boolean;
     subAgentType?: string;
@@ -369,6 +376,32 @@ function formatAgentTitle(
     ? (fallbackDescription ?? argsDescription)
     : (argsDescription ?? fallbackDescription);
   const subagent = readSubAgentType(args) ?? options?.subAgentType;
+  // A crew run is named for its crew, not the Crossagents tool behind it; a
+  // follow-up continues an earlier run's helper session. Dock rows sit under
+  // their crew member, so bare titles keep the task.
+  if (options?.isCrew && subagent && !options.bare) {
+    if (options.isResume) {
+      return description
+        ? i18n._(msg`Crew Follow-up (${subagent}): ${description}`)
+        : i18n._(msg`Crew Follow-up: ${subagent}`);
+    }
+    return description
+      ? i18n._(msg`Crew (${subagent}): ${description}`)
+      : i18n._(msg`Crew: ${subagent}`);
+  }
+  // A Crossagents follow-up continues an earlier run's helper session. Dock
+  // rows mark it with an icon, so their bare title stays the task.
+  if (options?.isResume && options.isCrossagent) {
+    if (options.bare) return description ?? subagent ?? i18n._(msg`Crossagent`);
+    if (description) {
+      return subagent
+        ? i18n._(msg`Crossagent Follow-up (${subagent}): ${description}`)
+        : i18n._(msg`Crossagent Follow-up: ${description}`);
+    }
+    return subagent
+      ? i18n._(msg`Crossagent Follow-up: ${subagent}`)
+      : i18n._(msg`Crossagent Follow-up`);
+  }
   // A resume continues an agent that already has a row above it. Labelling it
   // "Agent" too would read as a second, unrelated agent.
   if (options?.isResume) {

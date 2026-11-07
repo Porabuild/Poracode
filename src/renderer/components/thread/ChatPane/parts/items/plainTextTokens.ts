@@ -1,6 +1,6 @@
 import { parsePathRefUrl } from "./markdownPathRefs";
 import {
-  parseProjectPathRef,
+  parseChatPathRef,
   PROJECT_PATH_TOKEN_SOURCE,
   type ProjectPathRef,
 } from "./parseProjectPathRef";
@@ -36,7 +36,7 @@ export function tokenizePlainText(
       node = parsePathRefUrl(href) ?? { kind: "url", href };
       end = match.index + href.length;
     } else {
-      node = parseProjectPathRef(match[0], { rootNames });
+      node = parseChatPathRef(match[0], rootNames);
     }
     if (!node) continue;
     if (match.index > cursor) out.push({ kind: "text", value: text.slice(cursor, match.index) });

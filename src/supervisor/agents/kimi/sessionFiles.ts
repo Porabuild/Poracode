@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { join, posix } from "node:path";
 import type { ProjectLocation, SessionRef } from "@/shared/contracts";
 import {
@@ -89,23 +89,25 @@ const preSpawnSnapshots = new Map<string, Set<string>>();
  * Record the session ids that already exist before spawning the Kimi PTY so
  * discovery can tell the brand-new one apart. Scoped to the launching cwd so a
  * concurrent launch (same or different project) never overwrites this snapshot.
- * Sync on native platforms only; WSL discovery runs entirely post-spawn through
+ * Native platforms only; WSL discovery runs entirely post-spawn through
  * the in-distro bridge, so the snapshot is left empty for WSL launches.
  */
-export function snapshotKimiPreSpawnSessions(location: ProjectLocation): void {
+export async function snapshotKimiPreSpawnSessions(location: ProjectLocation): Promise<void> {
   const cwdKey = cwdOf(location);
   const ids = new Set<string>();
-  preSpawnSnapshots.set(cwdKey, ids);
-  if (location.kind === "wsl") return;
+  if (location.kind === "wsl") {
+    preSpawnSnapshots.set(cwdKey, ids);
+    return;
+  }
 
   const root = getKimiSessionsRoot(location);
-  if (!root || !existsSync(root)) return;
+  if (!root) return;
 
   try {
-    for (const workDir of readdirSync(root, { withFileTypes: true })) {
+    for (const workDir of await readdir(root, { withFileTypes: true })) {
       if (!workDir.isDirectory()) continue;
       try {
-        for (const session of readdirSync(join(root, workDir.name), { withFileTypes: true })) {
+        for (const session of await readdir(join(root, workDir.name), { withFileTypes: true })) {
           if (session.isDirectory()) ids.add(session.name);
         }
       } catch {
@@ -115,6 +117,7 @@ export function snapshotKimiPreSpawnSessions(location: ProjectLocation): void {
   } catch {
     // Best effort; discovery will still pick the newest dir if the snapshot fails.
   }
+  preSpawnSnapshots.set(cwdKey, ids);
 }
 
 // Kimi records per-session metadata in <sessionDir>/state.json. When it carries

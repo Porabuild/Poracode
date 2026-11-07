@@ -12,6 +12,52 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "feedback",
+    title: "Sidebar feedback modal and public website form",
+    patterns: [
+      /FeedbackDialog/,
+      /FeedbackAttachments/,
+      /feedbackDraftStore/,
+      /feedbackClient/,
+      /SidebarFooterNav/,
+    ],
+    automated: ["baseline"],
+    manual: ["changed-surface"],
+  },
+  {
+    id: "agent-vision",
+    title: "Thread Info preview of browser and computer activity",
+    patterns: [/agentVision/i],
+    automated: ["baseline"],
+    manual: ["changed-surface"],
+  },
+  {
+    id: "thread-forks",
+    title: "Completed-turn conversation forks and source navigation",
+    patterns: [/threadFork/i, /ThreadFork/],
+    automated: ["baseline"],
+    manual: ["thread-forks", "provider-live", "remote-client"],
+  },
+  {
+    id: "inline-visuals",
+    title: "App-native visual data and source-only HTML/MCP fallback",
+    patterns: [/inlineVisual/i, /nativeVisual/i, /VisualSource/, /mcpAppResource/i, /mcpAppResult/],
+    automated: ["baseline"],
+    manual: ["changed-surface"],
+  },
+  {
+    id: "mcp-apps",
+    title: "Interactive MCP Apps in chat",
+    patterns: [
+      /mcpApps/i,
+      /McpApp(Session|Card|Presentation|View)/,
+      /mcpAppSandbox/i,
+      /mcpAppBridge/,
+    ],
+    automated: ["baseline"],
+    manual: ["changed-surface", "ipc-roundtrip", "provider-live", "remote-client"],
+  },
+  {
     id: "device-workspace",
     title: "Host-managed iOS Simulator and Android Emulator workspace",
     patterns: [/\/devices\//, /deviceWorkspace/i, /appControlsMcp\/deviceProof/],
@@ -154,6 +200,9 @@ export const functionalAreas = [
     patterns: [
       /git/i,
       /PrReview/i,
+      /forge/i,
+      /prWatch/i,
+      /PullRequestsView/,
       /mergeConflict/i,
       /MobileWorkspacePage/,
       /components\/media\//,
@@ -163,7 +212,7 @@ export const functionalAreas = [
       /fileResponseStream/,
     ],
     automated: ["baseline"],
-    manual: ["git-mutations"],
+    manual: ["git-mutations", "changed-surface"],
   },
   {
     id: "github-actions",
@@ -240,7 +289,13 @@ export const functionalAreas = [
   {
     id: "remote-client",
     title: "Remote access, adaptive client, chat sidebar, pairing, and push",
-    patterns: [/^src\/renderer\/(?:browser|native|pwa|sidebar)\//, /remote/i, /pairing/i, /push/i],
+    patterns: [
+      /^src\/renderer\/(?:browser|native|pwa|sidebar)\//,
+      /^src\/renderer\/staleBuildRecovery\./,
+      /remote/i,
+      /pairing/i,
+      /push/i,
+    ],
     automated: ["settings"],
     manual: ["remote-client"],
   },
@@ -325,8 +380,11 @@ export const functionalAreas = [
 ];
 
 export const manualGates = {
+  "thread-forks":
+    "Fork an earlier completed reply through the icon and tooltip; verify the exact inherited prefix, source link, independent attachments, unchanged source and draft, provider context on first send and after Stop/retry/restart, and persistence after source deletion. Check desktop and compact layouts with no special split-pane option.",
   "device-workspace":
     "Discover/start/attach an isolated emulator or simulator on a supported host, verify preview, tap/swipe/text, screenshot and accessibility, separate view/control and agent consent, remote denial/reconnect, then detach and confirm the device remains running. Record unavailable host platforms explicitly.",
+
   "delegated-agent-recovery":
     "Restart an isolated host with historical native and Crossagent rows; verify terminal state, retained output, current/stale snapshot fencing and live-run preservation.",
   "remote-usage":

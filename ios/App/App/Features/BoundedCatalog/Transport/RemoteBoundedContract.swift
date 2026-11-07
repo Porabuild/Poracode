@@ -331,6 +331,7 @@ extension GeneratedRemoteV3Contract {
 enum RemoteBoundedPageDecoder {
   private struct ShellPageWire: Decodable {
     var snapshotSeq: Int
+    var snapshotEpoch: String?
     var projects: [RemoteProject]
     var threads: [RemoteThread]
     var runtimeSummariesByThread: [String: RemoteRuntimeSummary]
@@ -388,7 +389,8 @@ enum RemoteBoundedPageDecoder {
       projectsNextCursor: wire.projectsNextCursor,
       gitSummariesByThread: wire.gitSummariesByThread,
       gitState: wire.gitState,
-      updatedAt: wire.updatedAt
+      updatedAt: wire.updatedAt,
+      snapshotEpoch: wire.snapshotEpoch
     )
   }
 

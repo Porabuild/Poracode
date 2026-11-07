@@ -1,3 +1,4 @@
+import { msg } from "@/shared/messages";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { DeviceWorkspaceService } from "@/host/devices/DeviceWorkspaceService";
 import { DeviceHubRuntime } from "@/host/devices/DeviceHubRuntime";
@@ -28,7 +29,8 @@ import {
 } from "@/host/app-controls";
 import type { AppControlsMcpIngressDeps } from "@/host/app-controls/AppControlsMcpIngress";
 import { ensureHomeProjectWithPublish } from "@/host/app-controls/ingressDeps";
-import { createGitStateExecutor, GitStateService } from "@/host/gitState";
+import { createGitStateExecutor, GitStateService, ProjectWatchLeases } from "@/host/gitState";
+import { ForgeActivityService } from "@/host/forgeActivity";
 import {
   buildPrWatchExecutionDeps,
   createDevicePrWatchService,
@@ -45,6 +47,7 @@ import type { PrData, PrDetails, PrWatch, RemoteThreadCommand } from "@/shared/c
 import { isThreadTurnActive } from "@/shared/contracts";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import type { SharedSettings } from "@/shared/settings";
 import type { SettingsMutationResult, SettingsOwnerEdit } from "@/shared/settingsTransactions";
 import { observeRoutingSettingsEvent } from "./BackendRoutingSettings";
@@ -99,6 +102,8 @@ export interface BackendDurableServicesOptions {
   onPrMerged?(watch: PrWatch): void;
   onPrObserved?(watch: PrWatch, pr: PrData, details?: PrDetails): void;
   onGitPatch(patch: GitStatePatch): void;
+  /** Out-of-band trigger for clients to re-read forge state after an agent changed it. */
+  onForgeActivity?(event: RemoteForgeActivityEvent): void;
   reportError?(error: unknown): void;
 }
 
@@ -113,6 +118,11 @@ export class BackendDurableServices {
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
+  readonly forgeActivityService: ForgeActivityService;
+  /** Per-owner leases on the supervisor's shared project watcher. Lives with
+   * the durable host so remote-server replacement and supervisor resets keep
+   * every client's watch interest. */
+  readonly projectWatchLeases: ProjectWatchLeases;
   readonly appControls: AppControlsMcpIngress;
   readonly deviceWorkspace: DeviceWorkspaceService;
   /** Settled or in-flight shared ingress start; cleared on failure so it can retry. */
@@ -219,28 +229,97 @@ export class BackendDurableServices {
       hostId: options.hostId,
       executor: createGitStateExecutor((name, payload) => supervisor.call(name, payload)),
       getProject: dbGetProject,
+      getProjects: dbGetProjects,
       onPatch: options.onGitPatch,
+    });
+    this.forgeActivityService = new ForgeActivityService({
+      getThread: dbGetThread,
+      gitState: this.gitStateService,
+      publish: (event) => options.onForgeActivity?.(event),
+      ...(options.reportError ? { reportError: options.reportError } : {}),
+    });
+    this.projectWatchLeases = new ProjectWatchLeases({
+      call: (name, payload, callOptions) => supervisor.call(name, payload, callOptions),
+      getProject: dbGetProject,
     });
     this.prWatchService = createDevicePrWatchService({
       getProject: dbGetProject,
-      getPrForBranch: (project, branch) =>
-        supervisor.call("ghGetPrForBranch", { projectLocation: project.location, branch }),
-      getPrDetails: (project, prNumber) =>
-        supervisor
-          .call("ghGetPrDetails", { projectLocation: project.location, prNumber })
-          .then((result) => result.details),
-      getPrReviewThreads: (project, prNumber) =>
-        supervisor
-          .call("ghGetPrReviewComments", { projectLocation: project.location, prNumber })
-          .then((result) => result.threads),
+      getPrForBranch: (project, branch, scope) =>
+        scope
+          ? supervisor.call("forgeGetPrForBranch", {
+              projectLocation: project.location,
+              branch,
+              forgeAccount: scope.account,
+              forgeRepository: scope.repository,
+            })
+          : supervisor.call("ghGetPrForBranch", { projectLocation: project.location, branch }),
+      getPrDetails: (project, prNumber, account, repository) =>
+        account
+          ? supervisor.call("forgeGetPrDetails", {
+              projectLocation: project.location,
+              prNumber,
+              forgeAccount: account,
+              ...(repository ? { forgeRepository: repository } : {}),
+            })
+          : supervisor.call("ghGetPrDetails", { projectLocation: project.location, prNumber }),
+      getPrReviewThreads: (project, prNumber, account, repository) =>
+        (account
+          ? supervisor.call("forgeGetPrReviewComments", {
+              projectLocation: project.location,
+              prNumber,
+              forgeAccount: account,
+              ...(repository ? { forgeRepository: repository } : {}),
+            })
+          : supervisor.call("ghGetPrReviewComments", {
+              projectLocation: project.location,
+              prNumber,
+            })
+        ).then((result) => result.threads),
       getMergeMethod: () => options.getSharedSettings().prMergeMethod,
-      mergePr: (project, prNumber, method) =>
-        supervisor.call("ghMergePr", {
-          projectLocation: project.location,
-          prNumber,
-          method,
-          admin: false,
-        }),
+      mergePr: async (project, prNumber, method, reviewedPr) => {
+        const payload = { projectLocation: project.location, prNumber, method, admin: false };
+        const source = reviewedPr.source;
+        const account = source
+          ? {
+              forgeRepository: source.repository,
+              ...(source.account ? { forgeAccount: source.account } : {}),
+            }
+          : {};
+        if (source) {
+          if (
+            !reviewedPr.headSha ||
+            !source.capabilities.expectedHeadMerge ||
+            !source.capabilities.autoMerge
+          )
+            throw new Error(msg("forge.autoMergeUnavailable"));
+          await supervisor.call("forgeMergePrAtHead", {
+            ...payload,
+            ...account,
+            expectedHeadSha: reviewedPr.headSha,
+          });
+        } else if (reviewedPr.headSha)
+          await supervisor.call("ghMergePrAtHead", {
+            ...payload,
+            expectedHeadSha: reviewedPr.headSha,
+          });
+        else await supervisor.call("ghMergePr", payload);
+        try {
+          const result = source
+            ? await supervisor.call("forgeGetPrDetails", {
+                projectLocation: project.location,
+                prNumber,
+                ...account,
+              })
+            : await supervisor.call("ghGetPrDetails", {
+                projectLocation: project.location,
+                prNumber,
+              });
+          return result.pr;
+        } catch (error) {
+          options.reportError?.(error);
+          return undefined;
+        }
+      },
       ...(options.onPrMerged ? { onPrMerged: options.onPrMerged } : {}),
       onPrObserved: (watch, pr, details) => {
         options.onPrObserved?.(watch, pr, details);
@@ -388,6 +467,23 @@ export class BackendDurableServices {
 
   handleSupervisorReset(): void {
     this.scheduleCoordinator.handleSupervisorReset();
+    this.projectWatchLeases.handleSupervisorReset();
+  }
+
+  /**
+   * `SupervisorClientOptions.onStarted`: clients never re-send the watches they
+   * registered, so the replacement supervisor gets them from the leases. The
+   * callback runs inside the launch; an explicit restart is still settling
+   * then, and the re-apply refuses to dispatch (or fork) during a transition.
+   */
+  handleSupervisorStarted(): void {
+    if (this.disposed) return;
+    setImmediate(() => {
+      if (this.disposed) return;
+      this.projectWatchLeases.reapplyAfterSupervisorStart().catch((error: unknown) => {
+        this.options.reportError?.(error);
+      });
+    });
   }
 
   observeSupervisorEvent(event: SupervisorEvent): boolean {
@@ -397,6 +493,7 @@ export class BackendDurableServices {
     this.appControls.observeSupervisorEvent(event);
     this.scheduleCoordinator.observeSupervisorEvent(event);
     this.prWatchService.observeSupervisorEvent(event);
+    this.forgeActivityService.observeSupervisorEvent(event);
     this.gitStateService.observeSupervisorEvent(event);
     return false;
   }
@@ -445,7 +542,9 @@ export class BackendDurableServices {
         () => this.scheduleService.dispose(),
         () => this.scheduleCoordinator.dispose(),
         () => this.prWatchService.dispose(),
+        () => Promise.resolve(this.forgeActivityService.dispose()),
         () => this.gitStateService.dispose(),
+        () => this.projectWatchLeases.dispose(),
         () => this.appControls.dispose(),
         () => this.deviceWorkspace.dispose(),
       ],

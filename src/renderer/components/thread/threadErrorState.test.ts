@@ -6,20 +6,48 @@ import type { AppStoreState } from "@/renderer/state/slices/shared";
 import {
   getThreadErrorDockStateForItem,
   isAuthErrorMessage,
+  isRuntimeAuthError,
   selectThreadErrorDockStates,
+  resolveThreadAuthState,
+  withThreadStatusErrorDock,
 } from "./threadErrorState";
 
-function errorItem(id: string, message: string): RuntimeChatItem {
+function errorItem(id: string, message: string, reason?: string): RuntimeChatItem {
   return {
     id,
     type: "error",
     state: "completed",
-    payload: { message },
+    payload: { message, ...(reason ? { reason } : {}) },
     streams: {},
   };
 }
 
+const EXPIRED_REFRESH_TOKEN_MESSAGE =
+  "Your access token could not be refreshed because your refresh token has expired. Please log out and sign in again.";
+
 describe("threadErrorState", () => {
+  it("adds a status error after no items or warning-only items", () => {
+    const statusError = { sourceItemId: "thread-status-error:ended", message: "Agent stopped." };
+    const warnings = [
+      { sourceItemId: "warning", message: "Advisory.", severity: "warning" as const },
+    ];
+
+    expect(withThreadStatusErrorDock([], statusError)).toEqual([statusError]);
+    expect(withThreadStatusErrorDock(warnings, statusError)).toEqual([...warnings, statusError]);
+  });
+
+  it("preserves item states when an error item exists or there is no status error", () => {
+    const errorItems = [{ sourceItemId: "error", message: "Item error." }];
+    const warnings = [
+      { sourceItemId: "warning", message: "Advisory.", severity: "warning" as const },
+    ];
+
+    expect(
+      withThreadStatusErrorDock(errorItems, { sourceItemId: "fallback", message: "Fallback." }),
+    ).toBe(errorItems);
+    expect(withThreadStatusErrorDock(warnings, null)).toBe(warnings);
+  });
+
   it("suppresses abort-only composer errors", () => {
     expect(getThreadErrorDockStateForItem(errorItem("err-1", "Aborted"))).toBeNull();
     expect(getThreadErrorDockStateForItem(errorItem("err-2", "AbortError: aborted"))).toBeNull();
@@ -77,6 +105,83 @@ describe("threadErrorState", () => {
       { sourceItemId: "err-a", message: "Usage limit reached." },
       { sourceItemId: "err-b", message: "Internal error" },
     ]);
+  });
+});
+
+describe("resolveThreadAuthState", () => {
+  it.each(["authenticated", "missing", "unknown", undefined] as const)(
+    "offers sign-in after a runtime auth failure despite detection reporting %s",
+    (authState) => {
+      expect(
+        resolveThreadAuthState({
+          authState,
+          errorDockStates: [{ sourceItemId: "auth-error", message: "Failed to authenticate" }],
+        }),
+      ).toEqual({ authRequired: authState !== "authenticated", hasRuntimeAuthError: true });
+    },
+  );
+
+  it("allows input after the recovered auth error is dismissed", () => {
+    expect(
+      resolveThreadAuthState({
+        authState: "authenticated",
+        errorDockStates: [{ sourceItemId: "network-error", message: "Request failed" }],
+      }),
+    ).toEqual({ authRequired: false, hasRuntimeAuthError: false });
+  });
+});
+
+describe("structured auth error reason", () => {
+  it("carries the provider-reported reason onto the dock state", () => {
+    expect(
+      getThreadErrorDockStateForItem(
+        errorItem("err-auth", EXPIRED_REFRESH_TOKEN_MESSAGE, "auth_required"),
+      ),
+    ).toEqual({
+      sourceItemId: "err-auth",
+      message: EXPIRED_REFRESH_TOKEN_MESSAGE,
+      reason: "auth_required",
+    });
+  });
+
+  it("offers sign-in for a structured auth failure whose text the heuristic does not know", () => {
+    const dock = getThreadErrorDockStateForItem(
+      errorItem("err-auth", EXPIRED_REFRESH_TOKEN_MESSAGE, "auth_required"),
+    )!;
+
+    expect(isAuthErrorMessage(EXPIRED_REFRESH_TOKEN_MESSAGE)).toBe(false);
+    expect(isRuntimeAuthError(dock)).toBe(true);
+    expect(resolveThreadAuthState({ authState: "authenticated", errorDockStates: [dock] })).toEqual(
+      { authRequired: false, hasRuntimeAuthError: true },
+    );
+    expect(resolveThreadAuthState({ authState: "unknown", errorDockStates: [dock] })).toEqual({
+      authRequired: true,
+      hasRuntimeAuthError: true,
+    });
+  });
+
+  it("keeps an error item written before the reason existed as a plain error", () => {
+    // Pre-upgrade hosts and persisted items carry only the message.
+    const dock = getThreadErrorDockStateForItem(
+      errorItem("err-old", EXPIRED_REFRESH_TOKEN_MESSAGE),
+    )!;
+
+    expect(dock).toEqual({ sourceItemId: "err-old", message: EXPIRED_REFRESH_TOKEN_MESSAGE });
+    expect(isRuntimeAuthError(dock)).toBe(false);
+  });
+
+  it("ignores reasons it does not know and warnings", () => {
+    expect(
+      isRuntimeAuthError({ sourceItemId: "future", message: "Request failed", reason: "quota" }),
+    ).toBe(false);
+    expect(
+      isRuntimeAuthError({
+        sourceItemId: "notice",
+        message: "Request failed",
+        severity: "warning",
+        reason: "auth_required",
+      }),
+    ).toBe(false);
   });
 });
 

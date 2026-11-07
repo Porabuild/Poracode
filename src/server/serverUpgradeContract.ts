@@ -109,7 +109,9 @@ export interface UpgradeCandidateStatus {
 
 export interface UpgradeCandidateHandle {
   readonly child: ChildProcess | null;
-  readonly target: ServerServiceTarget;
+  readonly target:
+    | ServerServiceTarget
+    | { readonly kind: "registered"; readonly registrationId: string; readonly prefix: string };
 }
 
 export interface UpgradeIo {

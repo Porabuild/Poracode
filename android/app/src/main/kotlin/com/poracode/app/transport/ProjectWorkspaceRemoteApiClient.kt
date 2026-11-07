@@ -238,6 +238,19 @@ class ProjectWorkspaceRemoteApiClient private constructor(
         return RemoteV3GithubContract.result(procedure, envelope)
     }
 
+    override suspend fun forgeReviewCall(
+        procedure: com.poracode.app.protocol.forge.ForgeReviewOperation,
+        payload: JsonObject,
+    ): JsonElement {
+        val body = try {
+            com.poracode.app.protocol.forge.RemoteV3ForgeReviewContract.request(procedure, payload)
+        } catch (error: RemoteClientException) {
+            throw GitRequestValidationException(error)
+        }
+        val envelope = http.requestText(path = "/api/git/call", method = "POST", jsonBody = body, expectedStatus = 200)
+        return com.poracode.app.protocol.forge.RemoteV3ForgeReviewContract.result(procedure, envelope)
+    }
+
     private suspend fun entryCall(operation: AdvancedOperation, payload: JsonObject) {
         val route = AdvancedOpsContract.route()
         val envelope = http.requestText(

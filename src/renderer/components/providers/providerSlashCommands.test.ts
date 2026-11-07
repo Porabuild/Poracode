@@ -17,10 +17,10 @@ describe("provider slash-command registry", () => {
     expect(registration).toBeDefined();
     expect(
       registration?.buildCommands({ hasEffort: false, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "plan", "agent", "goal"]);
+    ).toEqual(["model", "crew", "plan", "agent", "goal"]);
     expect(
       registration?.buildCommands({ hasEffort: true, supportsFast: true }).map(({ id }) => id),
-    ).toEqual(["model", "plan", "agent", "goal", "effort", "fast"]);
+    ).toEqual(["model", "crew", "plan", "agent", "goal", "effort", "fast"]);
   });
 
   it("builds Cursor commands from the active control capabilities", () => {
@@ -29,10 +29,10 @@ describe("provider slash-command registry", () => {
     expect(registration).toBeDefined();
     expect(
       registration?.buildCommands({ hasEffort: false, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "plan", "agent"]);
+    ).toEqual(["model", "crew", "plan", "agent"]);
     expect(
       registration?.buildCommands({ hasEffort: true, supportsFast: true }).map(({ id }) => id),
-    ).toEqual(["model", "plan", "agent", "effort", "fast"]);
+    ).toEqual(["model", "crew", "plan", "agent", "effort", "fast"]);
   });
 
   it("builds Muse commands without unsupported plan modes", () => {
@@ -43,10 +43,10 @@ describe("provider slash-command registry", () => {
     // exposes; both submit to the provider.
     expect(
       registration?.buildCommands({ hasEffort: false, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "compact", "goal"]);
+    ).toEqual(["model", "crew", "compact", "goal"]);
     expect(
       registration?.buildCommands({ hasEffort: true, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "compact", "goal", "effort"]);
+    ).toEqual(["model", "crew", "compact", "goal", "effort"]);
   });
 
   it("offers Cursor local commands only under the SDK runtime", () => {
@@ -55,7 +55,7 @@ describe("provider slash-command registry", () => {
       presentationMode: "gui",
       runtimeLabel: "SDK",
     });
-    expect(sdk.map(({ id }) => id)).toEqual(["model", "plan", "agent"]);
+    expect(sdk.map(({ id }) => id)).toEqual(["model", "crew", "plan", "agent"]);
 
     // ACP sessions keep the commands cursor-agent reports itself.
     const acp = resolveAvailableSlashCommands(
@@ -91,6 +91,74 @@ describe("provider slash-command registry", () => {
   ])("resolves local action %s", (typed, expected) => {
     expect(getGuiSlashCommands("codex")?.resolveLocalAction(typed)).toEqual(expected);
     expect(getGuiSlashCommands("cursor")?.resolveLocalAction(typed)).toEqual(expected);
+  });
+
+  it("appends session commands after the local set when the registration opts in", () => {
+    const commands = resolveAvailableSlashCommands(
+      [{ id: "summarize", label: "summarize" }],
+      undefined,
+      {
+        agentKind: "cursor",
+        presentationMode: "gui",
+        runtimeLabel: "SDK",
+        skillCommands: [{ id: "one", label: "one", section: "skills" }],
+      },
+    );
+
+    expect(commands.map(({ id }) => id)).toEqual([
+      "model",
+      "crew",
+      "plan",
+      "agent",
+      "summarize",
+      "one",
+    ]);
+  });
+
+  it("drops session commands colliding with local commands or skills", () => {
+    const commands = resolveAvailableSlashCommands(
+      [
+        { id: "model", label: "model" },
+        { id: "one", label: "one" },
+        { id: "summarize", label: "summarize" },
+      ],
+      undefined,
+      {
+        agentKind: "cursor",
+        presentationMode: "gui",
+        runtimeLabel: "SDK",
+        skillCommands: [{ id: "one", label: "one", section: "skills" }],
+      },
+    );
+
+    expect(commands.map(({ id }) => id)).toEqual([
+      "model",
+      "crew",
+      "plan",
+      "agent",
+      "summarize",
+      "one",
+    ]);
+  });
+
+  it("ignores session commands when the registration does not opt in", () => {
+    const commands = resolveAvailableSlashCommands(
+      [{ id: "summarize", label: "summarize" }],
+      undefined,
+      { agentKind: "codex", presentationMode: "gui" },
+    );
+
+    expect(commands.map(({ id }) => id)).not.toContain("summarize");
+  });
+
+  it("never appends the install-time capability catalog as session commands", () => {
+    const commands = resolveAvailableSlashCommands(
+      undefined,
+      [{ id: "capability-only", label: "capability-only" }],
+      { agentKind: "cursor", presentationMode: "gui", runtimeLabel: "SDK" },
+    );
+
+    expect(commands.map(({ id }) => id)).toEqual(["model", "crew", "plan", "agent"]);
   });
 
   it.each([

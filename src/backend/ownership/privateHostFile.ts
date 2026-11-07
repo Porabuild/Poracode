@@ -6,24 +6,24 @@ import type { HostRootPaths } from "./hostRootPaths";
 export function readPrivateHostFile(paths: HostRootPaths, name: string, maxBytes: number): Buffer {
   const path = join(paths.dataRoot, name);
   const leasePath = paths.leasePath;
-  const metadata = lstatSync(path);
-  const leaseMetadata = lstatSync(leasePath);
+  const metadata = lstatSync(path, { bigint: true });
+  const leaseMetadata = lstatSync(leasePath, { bigint: true });
   if (
     !metadata.isFile() ||
-    metadata.nlink !== 1 ||
+    metadata.nlink !== 1n ||
     (metadata.dev === leaseMetadata.dev && metadata.ino === leaseMetadata.ino)
   )
     throw new Error("Invalid private host file.");
   const descriptor = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
   try {
-    const opened = fstatSync(descriptor);
+    const opened = fstatSync(descriptor, { bigint: true });
     if (
       !opened.isFile() ||
-      opened.nlink !== 1 ||
+      opened.nlink !== 1n ||
       opened.dev !== metadata.dev ||
       opened.ino !== metadata.ino ||
-      opened.size > maxBytes ||
-      (process.getuid && (opened.uid !== process.getuid() || (opened.mode & 0o077) !== 0))
+      opened.size > BigInt(maxBytes) ||
+      (process.getuid && (opened.uid !== BigInt(process.getuid()) || (opened.mode & 0o077n) !== 0n))
     )
       throw new Error("Invalid private host file.");
     const bytes = Buffer.alloc(maxBytes + 1);

@@ -1,0 +1,33 @@
+diff --git a/packages/tui/src/config/index.tsx b/packages/tui/src/config/index.tsx
+index 953d597..e4f1ce9 100644
+--- a/packages/tui/src/config/index.tsx
++++ b/packages/tui/src/config/index.tsx
+@@ -8,6 +8,7 @@ import { createStore, reconcile } from "solid-js/store"
+ import { watch } from "fs"
+ import path from "path"
+ import { TuiKeybind } from "./keybind"
++import { BRAND } from "../brand"
+ 
+ export interface Interface {
+   readonly path?: string
+@@ -249,7 +250,7 @@ export const Info = Schema.Struct({
+   }),
+   animations: Schema.optional(Schema.Boolean).annotate({ description: "Enable interface animations" }),
+   highlights: Schema.optional(Schema.Boolean).annotate({
+-    description: "Show the release highlights once after OpenCode updates",
++    description: "Reserved for compatible host builds",
+   }),
+   mouse: Schema.optional(Schema.Boolean).annotate({ description: "Enable terminal mouse capture" }),
+   cursor: Schema.optional(Cursor),
+@@ -303,6 +304,11 @@ export function resolve(
+ 
+   return {
+     ...input,
++    // poracode: new and unset configs use the host's built-in palette.
++    theme: {
++      ...(input.theme?.mode ? { mode: input.theme.mode } : {}),
++      name: input.theme?.name ?? BRAND.defaultTheme,
++    },
+     attention: {
+       notifications: input.attention?.notifications ?? false,
+       sound: input.attention?.sound ?? false,

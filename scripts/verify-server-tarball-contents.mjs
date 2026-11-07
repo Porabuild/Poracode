@@ -34,6 +34,12 @@ export function requiredServerTarballMembers(overlayRoot, targets) {
     "native-overlay/better-sqlite3/overlay.json",
   ]);
   for (const target of targets) {
+    if (target.startsWith("win32-")) {
+      required.add("resources/service-launcher/manifest.json");
+      required.add(`resources/service-launcher/${target}/service-launcher-v1.exe`);
+      required.add("resources/pty-job-owner/manifest.json");
+      required.add(`resources/pty-job-owner/${target}/pty-job-owner-v1.exe`);
+    }
     const pty = nodePty.find((candidate) => candidate.dir === target);
     if (!pty) throw new Error(`node-pty overlay does not advertise ${target}`);
     for (const name of Object.keys(pty.stagedSha256)) {

@@ -17,7 +17,10 @@ import {
 } from "@/renderer/state/remoteServersStore";
 import { remoteProjectId, remoteThreadId } from "@/renderer/state/remoteProjection";
 import type { RemoteSocketLike } from "@/renderer/state/remoteServers/types";
-import { dispatchRemoteProjectReorder, dispatchRemoteThreadReorder } from "./remoteCatalogIntents";
+import {
+  dispatchHostProjectReorder,
+  dispatchHostThreadReorder,
+} from "@/renderer/state/hostCatalogReorder";
 
 /**
  * Paired bounded-catalog manual-order convergence over the REAL fixture stack
@@ -344,8 +347,15 @@ describe("paired bounded catalog manual order over the real fixture", () => {
     const threadTarget = threadOrderBefore[0]!;
     const viewThreadId = remoteThreadId(key, threadSource);
     const viewTargetThreadId = remoteThreadId(key, threadTarget);
-    useAppStore.getState().reorderThreads(viewThreadId, viewTargetThreadId, "before");
-    expect(dispatchRemoteThreadReorder(viewThreadId, viewTargetThreadId, "before")).toBe(true);
+    expect(
+      dispatchHostThreadReorder({
+        threadId: viewThreadId,
+        targetThreadId: viewTargetThreadId,
+        placement: "before",
+        paint: () =>
+          useAppStore.getState().reorderThreads(viewThreadId, viewTargetThreadId, "before"),
+      }),
+    ).toBe(true);
     await vi.waitFor(
       () =>
         expect(hostManualThreadOrder()).toEqual([threadSource, ...threadOrderBefore.slice(0, -1)]),
@@ -363,8 +373,15 @@ describe("paired bounded catalog manual order over the real fixture", () => {
     const projectTarget = projectOrderBefore[0]!;
     const viewProjectId = remoteProjectId(key, projectSource);
     const viewTargetProjectId = remoteProjectId(key, projectTarget);
-    useAppStore.getState().reorderProjects(viewProjectId, viewTargetProjectId, "before");
-    expect(dispatchRemoteProjectReorder(viewProjectId, viewTargetProjectId, "before")).toBe(true);
+    expect(
+      dispatchHostProjectReorder({
+        projectId: viewProjectId,
+        targetProjectId: viewTargetProjectId,
+        placement: "before",
+        paint: () =>
+          useAppStore.getState().reorderProjects(viewProjectId, viewTargetProjectId, "before"),
+      }),
+    ).toBe(true);
     await vi.waitFor(
       () =>
         expect(hostManualProjectOrder()).toEqual([
@@ -394,8 +411,14 @@ describe("paired bounded catalog manual order over the real fixture", () => {
     const authoritativeAfterDelete = hostManualThreadOrder();
     const doomedViewId = remoteThreadId(key, doomedAnchor);
     const moveSource = remoteThreadId(key, authoritativeAfterDelete[0]!);
-    useAppStore.getState().reorderThreads(moveSource, doomedViewId, "after");
-    expect(dispatchRemoteThreadReorder(moveSource, doomedViewId, "after")).toBe(true);
+    expect(
+      dispatchHostThreadReorder({
+        threadId: moveSource,
+        targetThreadId: doomedViewId,
+        placement: "after",
+        paint: () => useAppStore.getState().reorderThreads(moveSource, doomedViewId, "after"),
+      }),
+    ).toBe(true);
     await vi.waitFor(() => expect(toastDanger).toHaveBeenCalled(), { timeout: 20_000 });
     // The bounded refresh restores the host order (the deleted row is not part
     // of the authoritative order and trails until membership removes it).

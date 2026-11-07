@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ChromeMcpIngress } from "./ChromeMcpIngress";
+import { AgentVisionService } from "@/host/AgentVisionService";
 import type { ExternalChromeConnection } from "./ExternalChromeConnection";
 
 let ingress: ChromeMcpIngress | null = null;
@@ -25,6 +26,47 @@ afterEach(async () => {
 });
 
 describe("ChromeMcpIngress", () => {
+  it("does not observe another thread's tab when an action overlaps an attachment switch", async () => {
+    const vision = new AgentVisionService();
+    const title = Promise.withResolvers<unknown>();
+    let attachedTabId = 1;
+    const captured: number[] = [];
+    const send = vi.fn<(method: string) => Promise<unknown>>(async (method) => {
+      if (method === "Runtime.evaluate") return title.promise;
+      if (method === "Page.captureScreenshot") {
+        captured.push(attachedTabId);
+        return { data: "aGVsbG8=" };
+      }
+      return {};
+    });
+    const connection = {
+      status: () => ({
+        connected: true,
+        attachedTabId,
+        attachedUrl: `https://tab${attachedTabId}.test`,
+      }),
+      cdpSession: () => ({ send }),
+    } as unknown as ExternalChromeConnection;
+    ingress = new ChromeMcpIngress();
+    ingress.setAgentVision(vision);
+    ingress.setConnectionAccessor(() => connection);
+    const info = await ingress.start();
+    const call = postMcp(
+      info,
+      { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_title", arguments: {} } },
+      "?thread=thread-a",
+    );
+    await vi.waitFor(() => expect(send).toHaveBeenCalled());
+    expect(await vision.read("thread-a")).toMatchObject({
+      status: "running",
+      image: "data:image/jpeg;base64,aGVsbG8=",
+    });
+    attachedTabId = 2;
+    title.resolve({ result: { value: "Tab one" } });
+    expect((await call).status).toBe(200);
+    expect(await vision.read("thread-a")).toMatchObject({ target: "https://tab1.test" });
+    expect(captured).toEqual([1]);
+  });
   it.each(["chrome_click", "click"])(
     "enforces disabled %s across aliases and batches",
     async (disabled) => {

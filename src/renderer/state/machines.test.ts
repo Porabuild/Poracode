@@ -72,6 +72,24 @@ describe("deriveMachines", () => {
     });
     expect(machines[1]!.status).toBe("offline");
   });
+
+  it("names a remote client's local entries after its bound host instead of this computer", () => {
+    const machines = deriveMachines({
+      enumeratedDistros: ["Ubuntu"],
+      projectDistros: [],
+      remoteServers: [
+        { desktopId: "pc", label: "PC" },
+        { desktopId: "mac", label: "Mac" },
+      ],
+      remoteRuntime: { pc: { status: "online" }, mac: { status: "online" } },
+      localHost: { connectionKey: "pc", label: "PC" },
+    });
+    expect(machines.map((machine) => [machine.id, machine.label, machine.desktopId])).toEqual([
+      ["local", "PC", "pc"],
+      ["local/wsl:Ubuntu", "PC · WSL Ubuntu", "pc"],
+      ["remote:mac", "Mac", "mac"],
+    ]);
+  });
 });
 
 describe("machineIdForStatus", () => {

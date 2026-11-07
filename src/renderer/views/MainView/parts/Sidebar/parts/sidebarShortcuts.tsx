@@ -3,7 +3,7 @@ import { startTransition, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { useCurrentProjectId } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { selectPullRequestsOverlayVisible, usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { SidebarShortcutId } from "@/shared/settings";
 import { useSettingsShortcutDestinations } from "@/renderer/views/SettingsOverlay/parts/settingsNavigation";
@@ -29,10 +29,10 @@ export function useSidebarShortcuts(includeHidden = false): SidebarShortcutEntry
   const sidebarHiddenShortcuts = useSharedSettings((s) => s.sidebarHiddenShortcuts);
   const sidebarShortcutOrder = useSharedSettings((s) => s.sidebarShortcutOrder);
   const appView = useAppStore((s) => s.view);
-  const openPullRequests = useAppStore((s) => s.openPullRequests);
   const openGitHubActions = useAppStore((s) => s.openGitHubActions);
   const openSchedules = useAppStore((s) => s.openSchedules);
   const githubActionsOpen = usePanelStore((s) => s.githubActionsContext !== null);
+  const pullRequestsOpen = usePanelStore(selectPullRequestsOverlayVisible);
   const settingsOpen = usePanelStore((s) => s.settingsOpen || s.mobileUtilityPage === "settings");
   const settingsSection = usePanelStore((s) => s.settingsSection ?? s.activeSettingsSection);
   const settingsDestinations = useSettingsShortcutDestinations();
@@ -47,7 +47,8 @@ export function useSidebarShortcuts(includeHidden = false): SidebarShortcutEntry
         id: "pullRequests",
         icon: <GitPullRequest className="size-4" />,
         label: t`Pull requests`,
-        onPress: () => startTransition(() => openPullRequests()),
+        // Compact layouts open the list as a utility page instead (MobileHomeActions).
+        onPress: () => usePanelStore.getState().openPullRequestsOverlay(),
       },
     ],
     [
@@ -95,6 +96,10 @@ export function useSidebarShortcuts(includeHidden = false): SidebarShortcutEntry
       isActive: shortcut.id.startsWith("settings:")
         ? settingsOpen && shortcut.id === `settings:${settingsSection}`
         : !settingsOpen &&
-          (shortcut.id === "githubActions" ? githubActionsOpen : appView.kind === shortcut.id),
+          (shortcut.id === "githubActions"
+            ? githubActionsOpen
+            : shortcut.id === "pullRequests"
+              ? pullRequestsOpen
+              : appView.kind === shortcut.id),
     }));
 }

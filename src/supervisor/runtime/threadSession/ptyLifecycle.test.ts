@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { IPty } from "node-pty";
-import type { SessionRuntime } from "../sessionTypes";
+import type { SessionRuntime, ShellSessionRuntime } from "../sessionTypes";
+import { registerManagedPty } from "../../pty/managedPty";
 import { PtyLifecycle } from "./ptyLifecycle";
 
 function runtimeWithResize(resize: IPty["resize"]): SessionRuntime {
@@ -47,6 +48,53 @@ describe("PtyLifecycle.resize", () => {
 });
 
 describe("PtyLifecycle shutdown", () => {
+  it("keeps managed custody after a resize exit race and a stale exited flag", async () => {
+    const lifecycle = new PtyLifecycle();
+    const session = runtimeWithResize(() => {
+      throw new Error("Cannot resize a pty that has already exited");
+    });
+    const joined = Promise.withResolvers<void>();
+    const owner = {
+      closed: joined.promise,
+      exitConfirmed: false,
+      close: vi.fn<() => Promise<void>>(async () => {}),
+    };
+    registerManagedPty(session.pty!, owner);
+    lifecycle.track(session);
+    lifecycle.resize(session, 120, 40);
+    expect(session.ptyExited).toBe(false);
+    session.ptyExited = true;
+    let settled = false;
+    const waiting = lifecycle.waitForExit(session).then((result) => {
+      settled = true;
+      return result;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    owner.exitConfirmed = true;
+    joined.resolve();
+    await expect(waiting).resolves.toBe(true);
+  });
+
+  it("closes the managed owner for thread and shell sessions without a PID kill", async () => {
+    const lifecycle = new PtyLifecycle();
+    const session = runtimeWithResize(() => {});
+    const nativeKill = vi.fn<IPty["kill"]>();
+    session.pty!.kill = nativeKill;
+    const close = vi.fn<() => Promise<void>>(async () => {});
+    registerManagedPty(session.pty!, {
+      closed: Promise.resolve(),
+      exitConfirmed: true,
+      close,
+    });
+    session.ptyExited = true;
+    lifecycle.kill(session);
+    lifecycle.killShell(session as unknown as ShellSessionRuntime);
+    await Promise.resolve();
+    expect(close).toHaveBeenCalledTimes(2);
+    expect(nativeKill).not.toHaveBeenCalled();
+  });
+
   it("joins every tracked PTY until its exit callback resolves", async () => {
     const lifecycle = new PtyLifecycle();
     const first = runtimeWithResize(() => {});

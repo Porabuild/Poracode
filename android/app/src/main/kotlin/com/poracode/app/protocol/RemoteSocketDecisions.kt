@@ -1,6 +1,17 @@
 package com.poracode.app.protocol
 
 /**
+ * Event-stream epoch upgrade declaration (`eventEpoch=v1`), mirrored from
+ * `src/shared/remote/protocol/eventEpoch.ts`. Older hosts ignore both
+ * parameters and send `ready` without an epoch.
+ */
+object RemoteEventEpochCodes {
+    const val WS_PARAM = "eventEpoch"
+    const val DECLARATION = "v1"
+    const val LAST_SEEN_PARAM = "lastSeenEpoch"
+}
+
+/**
  * Pure state decisions extracted from [com.poracode.app.transport.RemoteWebSocketClient]
  * for deterministic unit tests without spinning real sockets.
  */
@@ -61,6 +72,26 @@ object RemoteSocketDecisions {
     }
 
     /**
+     * Whether an expired pong deadline gets one more window instead of a forced
+     * reconnect (mirrors `RemoteSocketHealthMonitor` in `socketPolicy.ts`). A
+     * deadline that fired late means the process stalled, so the pong may be
+     * queued right behind it; frames during the window prove the peer is alive.
+     * Bounded so a socket that truly went silent is still declared dead.
+     */
+    fun shouldExtendHealthDeadline(
+        nowMs: Long,
+        deadlineAtMs: Long,
+        windowStartedAtMs: Long,
+        lastInboundAtMs: Long,
+        extensions: Int,
+    ): Boolean {
+        if (extensions >= RemoteSocketPolicy.HEALTH_DEADLINE_MAX_EXTENSIONS) return false
+        val stalled = nowMs - deadlineAtMs > RemoteSocketPolicy.HEALTH_DEADLINE_STALL_SLACK_MS
+        val active = lastInboundAtMs >= windowStartedAtMs
+        return stalled || active
+    }
+
+    /**
      * When to start the health loop: only after ready (not onOpen).
      */
     fun shouldStartHealth(readyReceived: Boolean, generationMatches: Boolean): Boolean =
@@ -91,6 +122,22 @@ object RemoteSocketDecisions {
         // rather than treating omission as "no snapshot yet / skip replay".
         if (!snapshotSucceeded) return 0
         return null
+    }
+
+    /**
+     * Adds the `eventEpoch=v1` declaration and the cursor's bound epoch (when it
+     * has one) to a built upgrade URL. An unbound positive cursor sends no
+     * `lastSeenEpoch`, which the server answers with one authoritative resync.
+     */
+    fun withEventEpochDeclaration(url: String, lastSeenEpoch: String?): String {
+        val separator = if (url.contains('?')) "&" else "?"
+        val declaration =
+            "${RemoteEventEpochCodes.WS_PARAM}=${RemoteEventEpochCodes.DECLARATION}"
+        val epoch = lastSeenEpoch?.let {
+            "&${RemoteEventEpochCodes.LAST_SEEN_PARAM}=" +
+                java.net.URLEncoder.encode(it, "UTF-8")
+        }.orEmpty()
+        return "$url$separator$declaration$epoch"
     }
 
     /**

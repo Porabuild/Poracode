@@ -1,4 +1,6 @@
 import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
+import { McpAuthenticationService } from "./mcp/McpAuthenticationService";
+import { HexVoiceService } from "./speech/HexVoiceService";
 import { retireMacKeychainCommands } from "./runtime/macKeychainProcess";
 import { NativeMcpSetupCoordinator } from "./runtime/nativeMcpSetupCoordinator";
 import { existsSync, mkdirSync } from "node:fs";
@@ -28,6 +30,7 @@ import type {
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
+import { threadCrewBinding } from "@/shared/crew";
 import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import type { ConfirmSupervisorSettingsEditsPayload } from "@/shared/ipc/procedures/settings";
@@ -46,7 +49,9 @@ import { FileIndexService } from "./fileIndex";
 import { GitService, resolveBuiltInWorktreeRoot, type CapturedExperimentSnapshot } from "./git";
 import { normalizeWorktreePathForComparison, resolveWorktreePlacement } from "@/shared/worktree";
 import { GitCheckpointService } from "./git/checkpointService";
+import { readDirtySetSnapshot } from "./git/dirtySetSnapshot";
 import { GitHubService } from "./github";
+import { ForgeReviewService } from "./forges/service";
 import { ProjectWatcher } from "./projectWatcher";
 import { LanguageServerManager } from "./lsp";
 import { ProjectTreeService } from "./projectTree";
@@ -60,7 +65,7 @@ import {
   type WindowsShellPreference,
 } from "./shellPreference";
 import { getWindowsSystemCommand } from "./agents/base/shellBasics";
-import { resolveExecutablePath } from "./agents/base/processRuntime";
+import { resolveExecutablePath, resolveExecutablePathAsync } from "./agents/base/processRuntime";
 import { AgentStatusService, detectWslAgentStatuses } from "./runtime/agentStatusService";
 import { createLocalUsageCollectors } from "./runtime/localUsageCollectors";
 import { UsageService } from "./runtime/usageService";
@@ -78,6 +83,7 @@ import type { HostResourceAdmissionStatus } from "@/shared/hostResourceAdmission
 import { gitProcessAdmissionUsage } from "./git/gitProcessAdmission";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
+import { createSupervisorPtyFactory } from "./pty/ptyFactory";
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
 import { CrossagentMcpIngress } from "./crossagentMcp/CrossagentMcpIngress";
 import { SubagentRunManager } from "./crossagentMcp/SubagentRunManager";
@@ -102,6 +108,7 @@ import { resolveWslHostAccess } from "./wsl/hostAccess";
 import { disposeWslStagingService } from "./wsl/staging";
 import { McpOAuthService } from "./mcp/McpOAuthService";
 import { McpOAuthRelay } from "./mcp/McpOAuthRelay";
+import { McpAppsService } from "./mcp/McpAppsService";
 import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
@@ -169,11 +176,22 @@ export class SupervisorRuntime {
   readonly gitCheckpointService = new GitCheckpointService();
   private _projectWatcher: ProjectWatcher | undefined;
   readonly githubService = new GitHubService();
+  readonly forgeReviewService = new ForgeReviewService(this.githubService, {
+    onPollingProblem: (projectLocation, problem) =>
+      this.emit({ type: "github-polling-status", projectLocation, problem }),
+  });
   readonly fileIndexService = new FileIndexService();
+
+  cancelCrossagentRun(runId: string, parentThreadId?: string): Promise<void> {
+    return this.subagentRunManager.cancel(runId, parentThreadId);
+  }
   readonly projectTreeService = new ProjectTreeService();
   private readonly adapters = new Map<AgentKind, AgentAdapter>();
   private availableWindowsShellsCache:
-    | { shells: ReturnType<typeof detectWindowsShells>; ts: number }
+    | { shells: Awaited<ReturnType<typeof detectWindowsShells>>; ts: number }
+    | undefined;
+  private availableWindowsShellsInFlight:
+    | Promise<Awaited<ReturnType<typeof detectWindowsShells>>>
     | undefined;
   private resolveLaunchWindowsPowerShell =
     createWindowsPowerShellLaunchResolver(resolveExecutablePath);
@@ -187,13 +205,16 @@ export class SupervisorRuntime {
   readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
   readonly externalMcpDiscoveryService = new ExternalMcpDiscoveryService();
   readonly mcpOAuthService: McpOAuthService;
+  readonly mcpAuthenticationService: McpAuthenticationService;
   private readonly mcpOAuthRelay: McpOAuthRelay;
+  readonly mcpAppsService: McpAppsService;
   readonly mcpProbeService: McpProbeService;
   readonly skillsService: SkillsService;
   readonly sessionImportService: SessionImportService;
   readonly pluginRegistry: PluginRegistry;
   readonly pluginCatalogService: PluginCatalogService;
   readonly pluginAccountService: PluginAccountService;
+  readonly hexVoiceService: HexVoiceService;
   private readonly pluginDataDir: string;
   private readonly crossagentMcpIngress: CrossagentMcpIngress;
   private readonly subagentRunManager: SubagentRunManager;
@@ -241,6 +262,9 @@ export class SupervisorRuntime {
     this.mcpOAuthRelay = new McpOAuthRelay(this.mcpOAuthService, {
       resolveHostAccess: (distro) => resolveWslHostAccess(distro),
     });
+    this.mcpAppsService = new McpAppsService({
+      resolveHostAccess: (distro) => resolveWslHostAccess(distro),
+    });
     this.mcpProbeService = new McpProbeService({
       applyAuthorization: (server) => this.pluginAccountService.applyAuthorizationToServer(server),
     });
@@ -284,6 +308,9 @@ export class SupervisorRuntime {
     this.agentRegistryService.refreshAgentRegistryAdapters();
     mkdirSync(paths.cacheDir, { recursive: true });
     mkdirSync(this.logsDir, { recursive: true });
+    this.hexVoiceService = new HexVoiceService({
+      managedDirectory: join(paths.cacheDir, "hex-engine"),
+    });
 
     // Prefetch the native Node resolver so the login-shell probe runs in
     // parallel with the rest of the supervisor boot. By the time providers'
@@ -308,6 +335,10 @@ export class SupervisorRuntime {
       baseDir,
       registry: this.pluginRegistry,
       oauth: this.mcpOAuthService,
+    });
+    this.mcpAuthenticationService = new McpAuthenticationService({
+      oauth: this.mcpOAuthService,
+      plugins: this.pluginAccountService,
     });
     this.pluginCatalogService = new PluginCatalogService({
       baseDir,
@@ -419,6 +450,7 @@ export class SupervisorRuntime {
       this.gitCheckpointService.setWslClient(client);
       this.projectTreeService.setWslClient(client);
       this.githubService.setWslClient(client);
+      this.forgeReviewService.setWslClient(client);
       this._projectWatcher?.setWslClient(client);
       setSessionFsBridgeClient(client);
       setWslProcessBridgeClient(client);
@@ -468,6 +500,8 @@ export class SupervisorRuntime {
     this.crossagentMcpIngress = new CrossagentMcpIngress({
       runManager: this.subagentRunManager,
       getSpawnableAgents: (tags) => this.getCrossagentSpawnableAgents(tags),
+      getThreadCrew: (threadId) =>
+        threadCrewBinding(this.threadSessionManager.getThreadConfig(threadId)),
       resolveProviderSessionThreadId: (sessionId) =>
         this.threadSessionManager.getThreadIdByProviderSessionId(sessionId),
       // User-configured routing guidance, read live from shared settings (the
@@ -515,6 +549,7 @@ export class SupervisorRuntime {
 
     this.threadSessionManager = new ThreadSessionManager({
       emit,
+      createPty: createSupervisorPtyFactory(),
       isDev: this.isDev,
       logsDir: this.logsDir,
       settingsPath: this.settingsPath,
@@ -538,9 +573,11 @@ export class SupervisorRuntime {
         unregister: (threadId) => this.crossagentMcpIngress.unregisterThread(threadId),
         cancelForeground: (threadId) => this.subagentRunManager.cancelForegroundForThread(threadId),
         cancelAll: (threadId) => this.subagentRunManager.cancelAllForThread(threadId),
-        resolveChildRequest: (requestId, response) =>
-          this.subagentRunManager.resolveChildServerRequest(requestId, response),
+        resolveChildRequest: (requestId, response, parentThreadId) =>
+          this.subagentRunManager.resolveChildServerRequest(requestId, response, parentThreadId),
+        memberRunActivity: (threadId) => this.subagentRunManager.memberRunActivity(threadId),
       },
+      readDirtySetSnapshot: (location) => readDirtySetSnapshot(location, this.wslBridgeClient),
       wslHostAccess: {
         resolveHostAccess: (distro) => resolveWslHostAccess(distro),
       },
@@ -562,6 +599,7 @@ export class SupervisorRuntime {
         });
       },
       prepareMcpToolFilters,
+      mcpApps: this.mcpAppsService,
       resolvePluginLaunchContributions: async (projectLocation, agentKind, selection) => {
         const envContext =
           projectLocation.kind === "wsl"
@@ -591,6 +629,7 @@ export class SupervisorRuntime {
             hostPlatform: process.platform,
             projectLocation,
             includeExternalServers: selection?.includeExternalServers ?? true,
+            ...(selection?.pluginOverrides ? { pluginOverrides: selection.pluginOverrides } : {}),
           },
         );
         return {
@@ -692,6 +731,10 @@ export class SupervisorRuntime {
         }),
       ),
     );
+  }
+
+  whenReady(): Promise<void> {
+    return this.agentStatusService.ready;
   }
 
   getAvailableWindowsShells() {
@@ -807,16 +850,25 @@ export class SupervisorRuntime {
     return this.threadSessionManager.getThreadFollowUpQueue(threadId);
   }
 
-  private getCachedAvailableWindowsShells() {
+  private async getCachedAvailableWindowsShells() {
     const now = Date.now();
     if (this.availableWindowsShellsCache && now - this.availableWindowsShellsCache.ts < 60_000) {
       return this.availableWindowsShellsCache.shells;
     }
-    const shells = detectWindowsShells(resolveExecutablePath);
-    this.availableWindowsShellsCache = { shells, ts: now };
-    this.resolveLaunchWindowsPowerShell =
-      createWindowsPowerShellLaunchResolver(resolveExecutablePath);
-    return shells;
+    if (this.availableWindowsShellsInFlight) return this.availableWindowsShellsInFlight;
+    const pending = (async () => {
+      const shells = await detectWindowsShells(resolveExecutablePathAsync);
+      this.availableWindowsShellsCache = { shells, ts: Date.now() };
+      this.resolveLaunchWindowsPowerShell =
+        createWindowsPowerShellLaunchResolver(resolveExecutablePath);
+      return shells;
+    })();
+    this.availableWindowsShellsInFlight = pending;
+    try {
+      return await pending;
+    } finally {
+      this.availableWindowsShellsInFlight = undefined;
+    }
   }
 
   private resolveWindowsPowerShell(): WindowsShellPreference {
@@ -1111,14 +1163,20 @@ export class SupervisorRuntime {
   async gitProjectSnapshot(payload: GitProjectSnapshotPayload): Promise<GitProjectSnapshotResult> {
     const { projectLocation, includeGhCheck } = payload;
     if (projectLocation.kind === "wsl") {
-      return this.gitService.batchedWslProjectSnapshot(projectLocation, includeGhCheck);
+      const [snapshot, ghAvailable] = await Promise.all([
+        this.gitService.batchedWslProjectSnapshot(projectLocation, false),
+        includeGhCheck
+          ? this.forgeReviewService.checkAvailable(projectLocation).then((r) => r.available)
+          : Promise.resolve<boolean | null>(null),
+      ]);
+      return { ...snapshot, ghAvailable };
     }
     const [statusResult, branchesResult, worktreesResult, ghResult] = await Promise.allSettled([
       this.gitService.getStatus(projectLocation),
       this.gitService.listBranches(projectLocation, true),
       this.gitService.listWorktrees(projectLocation),
       includeGhCheck
-        ? this.githubService.checkGhAvailable(projectLocation).then((r) => r.available)
+        ? this.forgeReviewService.checkAvailable(projectLocation).then((r) => r.available)
         : Promise.resolve<boolean | null>(null),
     ]);
     return {
@@ -1205,7 +1263,12 @@ export class SupervisorRuntime {
     await joinRuntimeShutdown([
       () => this.disposeNativeRuntime(),
       () => retireMacKeychainCommands(),
+      () => this.agentRegistryService.disposeAcpAuthentications(),
       () => this.mcpOAuthRelay.dispose(),
+      () => this.mcpAppsService.dispose(),
+      () => this.mcpOAuthService.dispose(),
+      () => this.mcpAuthenticationService.dispose(),
+      () => this.hexVoiceService.dispose(),
       async () => {
         this.disposeWindowsPowerShellPreference();
         this.disposeWslCredentialProjectScope();
@@ -1213,7 +1276,6 @@ export class SupervisorRuntime {
         this.settingsWriter.dispose();
         this.usageService.stop();
         this.mcpProbeService.dispose();
-        this.mcpOAuthService.dispose();
         this.lspManager.dispose();
         await this._projectWatcher?.dispose();
         const ptysExited = await this.threadSessionManager.dispose();

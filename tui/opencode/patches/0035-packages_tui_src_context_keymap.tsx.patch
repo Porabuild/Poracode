@@ -1,0 +1,13 @@
+diff --git a/packages/tui/src/context/keymap.tsx b/packages/tui/src/context/keymap.tsx
+index 521b3ae..604523f 100644
+--- a/packages/tui/src/context/keymap.tsx
++++ b/packages/tui/src/context/keymap.tsx
+@@ -170,7 +170,7 @@ export type { KeymapCommand, KeymapLayer } from "@opencode/plugin/tui/context"
+ export interface Keymap {
+   /** Dispatches a reachable command by ID. */
+   dispatch(id: string, input?: string): void
+-  /** Controls mutually exclusive OpenCode input modes. */
++  /** Controls mutually exclusive Poracode input modes. */
+   readonly mode: {
+     /** Returns the active mode. */
+     current(): string

@@ -121,6 +121,36 @@ describe("RemoteMcpSettingsGateway", () => {
     expect(state.settings().mcpServers).toEqual([]);
   });
 
+  it("preserves duplicate-name refusal and canonical defaults through the shared definition writer", () => {
+    const state = harness();
+    expect(() =>
+      state.gateway.command({
+        kind: "upsert",
+        scope: { kind: "global" },
+        server: { ...secretServer, id: "another-id", name: "PRIVATE_API" },
+      }),
+    ).toThrow("The MCP server change is invalid.");
+    expect(state.writes).toEqual([]);
+    expect(state.settings().mcpServers).toEqual([secretServer]);
+    state.gateway.command({
+      kind: "upsert",
+      scope: { kind: "global" },
+      server: {
+        ...secretServer,
+        id: "another-id",
+        name: "another_server",
+        transport: { type: "stdio", command: "fixture", args: [], env: {} },
+      },
+    });
+    expect(state.settings().mcpServers[1]).toMatchObject({
+      id: "another-id",
+      name: "another_server",
+      enabled: true,
+      timeoutMs: 30_000,
+    });
+    expect(state.settings().mcpServers[0]).toEqual(secretServer);
+  });
+
   it("moves the unredacted server destination-first and emits project state", () => {
     const state = harness();
 

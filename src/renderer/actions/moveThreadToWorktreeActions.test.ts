@@ -117,7 +117,6 @@ describe("moveThreadToWorktree", () => {
       "thread-1",
       "C:\\worktrees\\test",
       "poracode/test-branch",
-      {},
     );
     expect(mocks.reopenStoredThread).toHaveBeenCalledWith("thread-1");
     expect(mocks.primeWorktreeGitState).toHaveBeenCalled();
@@ -134,11 +133,10 @@ describe("moveThreadToWorktree", () => {
       "thread-1",
       "C:\\worktrees\\test",
       "poracode/test-branch",
-      {},
     );
   });
 
-  it("uses the same setThreadWorktree path for remote threads (host routes)", async () => {
+  it("uses the same worktree path and setup for a paired host's threads", async () => {
     mocks.appState.projects = [remoteProject];
     mocks.appState.threads = [
       thread("idle", {
@@ -156,15 +154,14 @@ describe("moveThreadToWorktree", () => {
       "remote:d1:thread:remote-thread",
       "/repo/.poracode/worktrees/feature",
       "poracode/test-branch",
-      { isNewWorktree: true },
     );
     expect(mocks.reopenStoredThread).toHaveBeenCalledWith("remote:d1:thread:remote-thread");
-    // The client primes its cache; host set-worktree owns setup.
+    // The client primes its cache and runs the project's setup on that host,
+    // exactly as for the desktop's own projects.
     expect(mocks.primeWorktreeGitState).toHaveBeenCalledWith(
       remoteProject,
       "/repo/.poracode/worktrees/feature",
     );
-    expect(mocks.runWorktreeSetupScript).not.toHaveBeenCalled();
   });
 
   it("checks out a clean worktree while the live runtime is stopping", async () => {
@@ -219,7 +216,6 @@ describe("moveThreadToWorktree", () => {
       "thread-1",
       "C:\\worktrees\\test",
       "poracode/test-branch",
-      {},
     );
     expect(mocks.runWorktreeSetupScript).toHaveBeenCalledExactlyOnceWith(
       scriptedProject,

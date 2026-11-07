@@ -1,4 +1,5 @@
 import { isDirectLoopbackPeer, resolvedTrustedProxies } from "./security";
+import { watchAgentVision } from "./agentVisionWatch";
 import { handleDevicePreviewUpgrade } from "./devicePreviewWebSocket";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage } from "node:http";
@@ -20,6 +21,12 @@ import {
   REMOTE_DESKTOP_INTERNAL_SEQ_PARAM,
   REMOTE_DESKTOP_INTERNAL_WS_PARAM,
 } from "@/shared/remote/contract/queryCodecs";
+import {
+  REMOTE_EVENT_EPOCH_DECLARATION,
+  REMOTE_EVENT_EPOCH_WS_PARAM,
+  REMOTE_LAST_SEEN_EPOCH_WS_PARAM,
+  remoteEventEpochSchema,
+} from "@/shared/remote/protocol/eventEpoch";
 
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
 import { notifyPairingChanged } from "../remoteAccessServerPairing";
@@ -33,6 +40,11 @@ import {
 } from "./desktopInternalStream";
 import { MAX_JSON_BODY_BYTES } from "./requestBody";
 import { replayEvents } from "./eventReplay";
+import {
+  eventStreamEpochOf,
+  verifyResumeCursor,
+  type EventStreamEpochResume,
+} from "./eventStreamEpoch";
 import { PrincipalOverloadError, type PrincipalSocketLease } from "./principalAdmission";
 import { buildTerminalWatchResultMessage, unavailableWatchResult } from "./terminalCursorSync";
 import { MAX_TERMINAL_WATCHES_PER_CLIENT, handleReliableTerminalWatch } from "./wsTerminalWatch";
@@ -187,6 +199,22 @@ function parseBoundedCatalogChangesDeclaration(searchParams: URLSearchParams): b
   );
 }
 
+/**
+ * Event-stream epoch declaration (`eventEpoch=v1`): only the exact value
+ * counts. A declared connection receives `ready.epoch` and is verified by its
+ * `lastSeenEpoch`; an absent or oversized epoch simply fails verification for a
+ * positive cursor (one authoritative resync), never the upgrade.
+ */
+function parseEventEpochResume(searchParams: URLSearchParams): EventStreamEpochResume | null {
+  if (searchParams.get(REMOTE_EVENT_EPOCH_WS_PARAM) !== REMOTE_EVENT_EPOCH_DECLARATION) {
+    return null;
+  }
+  const lastSeenEpoch = searchParams.get(REMOTE_LAST_SEEN_EPOCH_WS_PARAM);
+  return {
+    lastSeenEpoch: remoteEventEpochSchema.safeParse(lastSeenEpoch).success ? lastSeenEpoch : null,
+  };
+}
+
 function parseLastDesktopSeq(searchParams: URLSearchParams): number | null {
   try {
     const raw = searchParams.get(REMOTE_DESKTOP_INTERNAL_SEQ_PARAM);
@@ -268,6 +296,7 @@ export async function handleUpgrade(
     const initialItemInterests = parseThreadItemInterests(url.searchParams);
     const noticesCapable = parseNoticesCapability(url.searchParams);
     const boundedCatalogChanges = parseBoundedCatalogChangesDeclaration(url.searchParams);
+    const epochResume = parseEventEpochResume(url.searchParams);
     const desktopInternal = desktopInternalRequested(ctx, req, url.searchParams);
     const lastDesktopSeq = desktopInternal ? parseLastDesktopSeq(url.searchParams) : null;
     // B3: per-principal socket admission AFTER authentication (the session id
@@ -291,6 +320,7 @@ export async function handleUpgrade(
           desktopInternal,
           lastDesktopSeq,
           socketLease,
+          epochResume,
         );
       });
     } finally {
@@ -327,6 +357,7 @@ function handleConnection(
   desktopInternal = false,
   lastDesktopSeq: number | null = null,
   socketLease: PrincipalSocketLease | null = null,
+  epochResume: EventStreamEpochResume | null = null,
 ): void {
   if (ctx.stopping) {
     socketLease?.release();
@@ -361,9 +392,14 @@ function handleConnection(
   // Browser mirroring is per-connection opt-in (frames are heavy); the
   // gateway's screencast stops once the last watcher unsubscribes.
   let browserWatch: (() => void) | null = null;
+  const visionWatches = new Map<string, () => void>();
   let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The session's live access deadline: a refresh renews it, and the socket
+   * must follow the renewed deadline instead of the expiry captured when its
+   * ticket was consumed. */
+  const liveExpiresAtMs = () => ctx.auth.accessSessionExpiresAtMs(session.sessionId) ?? 0;
   const scheduleSessionExpiry = () => {
-    const delayMs = session.expiresAtMs - Date.now();
+    const delayMs = liveExpiresAtMs() - Date.now();
     if (delayMs <= 0) {
       if (ws.readyState === WebSocket.OPEN) {
         ws.close(1008, "Remote access session expired");
@@ -383,6 +419,8 @@ function handleConnection(
     }
     browserWatch?.();
     browserWatch = null;
+    for (const stop of visionWatches.values()) stop();
+    visionWatches.clear();
     ctx.gitStateInterests.delete(ws);
     ctx.itemInterests.delete(ws);
     ctx.noticeCapableClients.delete(ws);
@@ -431,7 +469,7 @@ function handleConnection(
       ctx.stopping ||
       ws.readyState !== WebSocket.OPEN ||
       ctx.clients.get(ws) !== session ||
-      session.expiresAtMs <= Date.now()
+      liveExpiresAtMs() <= Date.now()
     )
       return;
     try {
@@ -446,6 +484,21 @@ function handleConnection(
           ...(message.sentAt === undefined ? {} : { sentAt: message.sentAt }),
           receivedAt: Date.now(),
         });
+      }
+      if (message.type === "agent-vision-watch") {
+        if (!session.scopes.includes("session:read")) return;
+        visionWatches.get(message.watchId)?.();
+        if (visionWatches.has(message.watchId) || visionWatches.size < 32)
+          visionWatches.set(
+            message.watchId,
+            watchAgentVision(ctx, ws, session, message.threadId, message.watchId),
+          );
+        return;
+      }
+      if (message.type === "agent-vision-unwatch") {
+        visionWatches.get(message.watchId)?.();
+        visionWatches.delete(message.watchId);
+        return;
       }
       if (message.type === "browser-watch") {
         const gateway = ctx.options.browser;
@@ -586,11 +639,17 @@ function handleConnection(
   });
   scheduleSessionExpiry();
 
-  ctx.send(ws, { type: "ready", seq: ctx.seq });
-  if (lastSeenSeq === null || lastSeenSeq === ctx.seq) {
-    ctx.replayingClients.delete(ws);
-    // No client cursor, or the client is already current — nothing to replay.
-  } else if (lastSeenSeq > ctx.seq) {
+  // Only a declaring connection sees `epoch`; every other reader keeps the
+  // exact `{ type, seq }` frame.
+  ctx.send(
+    ws,
+    epochResume
+      ? { type: "ready", seq: ctx.seq, epoch: eventStreamEpochOf(ctx) }
+      : { type: "ready", seq: ctx.seq },
+  );
+  // Verified first on every connection: it also records undeclared sessions.
+  const verified = verifyResumeCursor(ctx, session.sessionId, lastSeenSeq, epochResume);
+  if (lastSeenSeq !== null && lastSeenSeq > ctx.seq) {
     ctx.replayingClients.delete(ws);
     // Seq regressed below the client's cursor: `ctx.seq` is in-memory and
     // resets to 0 on restart while bearer sessions persist, so a client
@@ -601,6 +660,19 @@ function handleConnection(
       seq: ctx.seq,
       reason: "Server event stream reset; request a fresh snapshot.",
     });
+  } else if (!verified) {
+    ctx.replayingClients.delete(ws);
+    // The cursor may belong to an earlier server instance, whose sequence
+    // space also restarted at 0: a value at or below this head would
+    // otherwise replay as contiguous and skip this instance's first events.
+    ctx.send(ws, {
+      type: "resync-required",
+      seq: ctx.seq,
+      reason: "Resume cursor is not verified for this server instance; request a fresh snapshot.",
+    });
+  } else if (lastSeenSeq === null || lastSeenSeq === ctx.seq) {
+    ctx.replayingClients.delete(ws);
+    // No client cursor, or the client is already current — nothing to replay.
   } else {
     replayEvents(ctx, ws, lastSeenSeq);
   }

@@ -3,11 +3,13 @@ import {
   historyRuntimeItemSchema,
   type HistoryRuntimeItem,
 } from "@/shared/remote/historyPresentation";
+import { HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES } from "@/shared/remote/historyReadContract";
 
 /** A separate v1 derived cache: never imports expanded/offline history records. */
 const DATABASE = "poracode-recent-history-v1";
 const STORE = "tails";
-export const RECENT_HISTORY_MAX_BYTES = 1024 * 1024;
+/** Follows the host's tail budget; an older build reads a larger record as a miss. */
+export const RECENT_HISTORY_MAX_BYTES = HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES;
 const MAX_TOTAL_BYTES = 8 * RECENT_HISTORY_MAX_BYTES;
 const MAX_ENTRIES = 20;
 const recordSchema = z.object({
@@ -59,6 +61,46 @@ function database(): Promise<IDBDatabase> {
 
 export function recentHistoryCacheKey(authority: string, threadId: string): string {
   return JSON.stringify([authority, threadId]);
+}
+
+/** Every connection's tails live under its own prefix, disjoint from `managed:` ones. */
+function pairedAuthorityPrefix(connectionKey: string): string {
+  return `paired:${encodeURIComponent(connectionKey)}:`;
+}
+
+/**
+ * The cache authority of one paired authorization: its local connection key,
+ * the per-pairing `recentHistoryCacheId` (minted fresh for every pairing, so a
+ * tail whose cleanup failed is unreachable from a newer grant) and the host
+ * identity verified at connect. Never a credential. Same v1 record shape.
+ */
+export function pairedRecentHistoryAuthority(
+  connectionKey: string,
+  cacheId: string,
+  hostDesktopId: string,
+): string {
+  return `${pairedAuthorityPrefix(connectionKey)}${encodeURIComponent(cacheId)}:${encodeURIComponent(hostDesktopId)}`;
+}
+
+/**
+ * Drops every cached tail one paired connection authored (removal, or a fresh
+ * pairing). Keys are `[authority, threadId]` JSON, so one key range covers the
+ * connection and no other authority.
+ */
+export async function purgeRecentHistoryForConnection(connectionKey: string): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  try {
+    const db = await database();
+    const lower = JSON.stringify([pairedAuthorityPrefix(connectionKey)]).slice(0, -2);
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE, "readwrite");
+      transaction.objectStore(STORE).delete(IDBKeyRange.bound(lower, `${lower}\uffff`));
+      transaction.oncomplete = () => resolve();
+      transaction.onabort = transaction.onerror = () => reject(transaction.error);
+    });
+  } catch {
+    /* Optional derived cache; the host stays authoritative. */
+  }
 }
 
 /** Cache I/O runs alongside HTTP; it never gates a host read or installs a cursor. */

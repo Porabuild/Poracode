@@ -60,6 +60,9 @@ export interface SettingsAuthorityOptions {
   admissionLimits?: Partial<SettingsAdmissionLimits>;
   onCommitted?(result: SettingsMutationResult, settings: SharedSettings): void;
   reportError?(error: unknown): void;
+  /** Defaults to process.platform; injected by tests to cover the non-win32
+   * directory-durability path on Windows. */
+  platform?: NodeJS.Platform;
 }
 
 /** One committed in-memory view and one async write queue for a leased settings document. */
@@ -217,6 +220,7 @@ export class SettingsAuthority {
       next.raw[SETTINGS_DOCUMENT_VERSION_KEY] = SETTINGS_DOCUMENT_VERSION;
       await persistSettingsDocument(this.settingsPath, `${JSON.stringify(next.raw, null, 2)}\n`, {
         assertActive: () => this.assertWritable(),
+        ...(this.options.platform ? { platform: this.options.platform } : {}),
         committed: () => {
           this.document = next;
           this.sequence++;

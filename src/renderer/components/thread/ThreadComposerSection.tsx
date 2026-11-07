@@ -1,4 +1,3 @@
-import { capabilitiesForSessionConfig } from "@/shared/sessionConfigCapabilities";
 import {
   useEffect,
   useEffectEvent,
@@ -13,11 +12,16 @@ import { toast } from "@heroui/react";
 import { ChevronDown, Monitor, Settings2, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
+import { isThreadTurnActive, resolveLaunchPluginOverrides } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import { sendTerminalInput } from "../terminal/terminalInputQueue";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
-import { canonicalProviderModelId } from "@/renderer/components/providers/modelConfig";
+import {
+  canonicalProviderModelId,
+  composerCapabilitiesForSession,
+} from "@/renderer/components/providers/modelConfig";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
@@ -30,7 +34,7 @@ import { sideChatAvailable, showSideChat } from "./SideChat/sideChatActions";
 import { useImplicitMcpServers } from "../composer/implicitMcpServers";
 import { useTurnClientContextCapture } from "../composer/turnClientContext";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
-import { LiveVoiceButton, LiveVoicePanel } from "../composer/LiveVoiceControls";
+import { LiveVoiceButton, LiveVoiceSessionControls } from "../composer/LiveVoiceControls";
 import { liveVoice, useLiveVoice } from "@/renderer/speech/liveVoice";
 import {
   composerMcpServers,
@@ -50,6 +54,7 @@ import {
   type MentionInputHandle,
 } from "../composer/MentionInput";
 import { useThreadMentionItems } from "../composer/useThreadMentionItems";
+import { useCrewMentionItems } from "../crew/useCrewMentionItems";
 import {
   attachmentsFromPaths,
   storableAttachment,
@@ -59,13 +64,13 @@ import {
 } from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
-import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
-import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
+import { useAttachmentImageAuthority } from "@/renderer/components/thread/threadImageAuthority";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
+import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
+import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import {
   useComposerInputInbox,
@@ -87,12 +92,32 @@ import { isPlanModeControl } from "../providers/composerControlBuilders";
 import { ProviderSessionControls } from "../providers/providerSessionControls";
 import { useThreadInterrupt } from "./useThreadInterrupt";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
+import { applyCrewComposerControls } from "@/renderer/components/crew/applyCrewComposerControls";
+import { CREW_ROLE_TEMPLATE_DESCRIPTORS } from "@/renderer/components/crew/crewRoleTemplates";
+import {
+  crewPickerEntry,
+  crewSummary,
+  leadSelectionOf,
+  savedCrewFor,
+} from "@/renderer/components/crew/crewComposerModel";
+import { useCrewHelperOptions } from "@/renderer/components/crew/crewHelperOptions";
+import { useCrewSessionRelaunch } from "@/renderer/components/crew/useCrewSessionRelaunch";
+import {
+  canLeadCrew,
+  crewBindingFromSavedCrew,
+  threadCrewBinding,
+  type CrewMemberSelection,
+  type SavedCrew,
+  type ThreadCrewBinding,
+} from "@/shared/crew";
+import { useContinueInProviderStore } from "@/renderer/state/continueInProviderStore";
 import { ThreadContextIndicator } from "./ThreadContextIndicator";
 import { getApprovalDenyOption } from "./ThreadRuntimeRequestPanel/helpers";
 import { hasReportedContextUsage, resolveThreadContextUsageSummary } from "./threadContextUsage";
-import { buildControls } from "./buildModelPickerControls";
+import { buildControls, type ActiveComposerCrewHandlers } from "./buildModelPickerControls";
 import { machineKeyForLocation } from "@/shared/machines";
 import { submitComposerPrompt } from "./threadComposerSubmit";
+import { selectThreadResumePlan } from "./threadResumeState";
 import {
   filterSlashCommands,
   handleSlashCommandPanelKeyDown,
@@ -107,6 +132,10 @@ import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
+import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
+import { ThreadHostOfflineDock } from "./ThreadHostOfflineDock";
+import { useEntityHostOffline } from "@/renderer/hooks/useEntityHostReady";
+import { ThreadHistoryLoadFailureDock } from "./ThreadHistoryLoadFailureDock";
 import {
   usePluginMentionItems,
   useSkillSlashCommandState,
@@ -142,6 +171,8 @@ type ThreadComposerSectionProps = {
   saveClipboardImage?: SaveClipboardImage | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
+  /** Compact only: space the floating dock covers above the pane bottom. */
+  onComposerInsetChange?: ((inset: number) => void) | undefined;
   /**
    * Override whether unmodified Enter submits instead of inserting a newline.
    * Defaults to submit on desktop (Electron and desktop PWA) and newline on
@@ -187,7 +218,7 @@ function AdaptiveThreadComposerDock(props: {
   summary?: ReactNode;
   inputHasContent?: boolean;
   expansionLocked?: boolean;
-  onDockHeightChange?: (height: number) => void;
+  onDockHeightChange?: (height: number, dock: HTMLElement) => void;
   onExpandedChange: (expanded: boolean) => void;
 }) {
   if (!props.compact) return props.children;
@@ -235,6 +266,7 @@ function ComposerAfterControls({ renderExtras, renderVoiceInput }: ComposerAfter
 }
 
 function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread: Thread }) {
+  useAgentSlashCommandCatalog(props.thread.remoteServerId, props.thread.agentKind);
   const implicitMcpServers = useImplicitMcpServers();
   const captureClientContext = useTurnClientContextCapture();
   const {
@@ -257,27 +289,31 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
   const compactLayout = useCompactLayout();
-  const isRemoteSurface = isRemoteSession();
-  const browserImageReadiness = useRemoteBridgeImageReadiness();
-  // The remote/mobile surface has no right panel to host the docks.
-  const docksPlacement = isRemoteSurface ? "composer" : requestedDocksPlacement;
+  // Two independent facts. A browser client is a different kind of client: no
+  // native file paths, no desktop-internal event frames, its own input
+  // conventions. A thread on another host lives on a machine whose terminal,
+  // filesystem and settings this one does not share. Each use below names the
+  // one it depends on; `hostIsLocalToClient` is for what needs both absent.
+  const isBrowserClient = isRemoteSession();
+  const threadOnThisMachine = hostRunsOnThisMachine(thread);
+  const hostIsLocalToClient = threadOnThisMachine && !isBrowserClient;
+  const docksPlacement = compactLayout ? requestedDocksPlacement : "right";
   const docksInComposer = docksPlacement === "composer";
-  const usesRemoteTransport = isRemoteSurface || thread.remoteServerId !== undefined;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
-  // Remote sessions have no local capture path: keep the button visible (when
-  // enabled) but disabled with the reason, instead of hiding it silently.
   const showVoiceInputButton = voiceInputEnabled;
-  const voiceInputUnavailableHint = voiceInputEnabled
-    ? isRemoteSurface
-      ? t`Voice input is unavailable on remote sessions.`
-      : undefined
-    : undefined;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const liveVoiceActive = useLiveVoice((state) => state.phase !== "idle");
-  const threadVoiceActive = useLiveVoice(
-    (state) => state.threadId === thread.id && state.phase !== "idle",
+  const threadVoiceStatus = useLiveVoice((state) =>
+    state.threadId !== thread.id || state.phase === "idle"
+      ? null
+      : state.phase === "connecting"
+        ? "connecting"
+        : state.muted
+          ? "muted"
+          : "listening",
   );
+  const threadVoiceActive = threadVoiceStatus !== null;
   useEffect(() => () => liveVoice.stopThread(thread.id), [thread.id]);
   useEffect(() => {
     if (thread.status === "inactive") liveVoice.stopThread(thread.id);
@@ -289,29 +325,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // Remote-thread attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = thread.remoteServerId;
-  const remoteImageServer = useRemoteServersStore((state) =>
-    remoteDesktopId
-      ? state.servers.find(
-          (server) => (server.connectionId ?? server.desktopId) === remoteDesktopId,
-        )
-      : undefined,
-  );
-  const attachmentImageUrlForPath = remoteDesktopId
-    ? (path: string) =>
-        isRemoteSurface
-          ? remoteBridgeLocalImageUrl(path)
-          : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
-    : undefined;
-  // Host-owned environment attachments resolve through the keyed readiness
-  // subscription; direct/ssh keep their synchronous endpoint URL.
-  const remoteImageReadiness =
-    remoteDesktopId && remoteImageServer
-      ? isRemoteSurface
-        ? (environmentImageReadinessFor(remoteDesktopId) ?? browserImageReadiness)
-        : useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
-      : isRemoteSurface
-        ? browserImageReadiness
-        : undefined;
+  const { imageUrlForPath: attachmentImageUrlForPath, readiness: remoteImageReadiness } =
+    useAttachmentImageAuthority(remoteDesktopId);
   // Unsent composer content survives leaving this thread. The primary GUI pane
   // keeps this section mounted across thread switches; restore before paint
   // without exposing another thread's editor state.
@@ -374,10 +389,22 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const commandListId = useId();
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
-  const [controlOpenRequest, setControlOpenRequest] = useState<{
-    target: "model" | "effort";
-    nonce: number;
-  } | null>(null);
+  const externalControlOpenRequest = useThreadComposerControlStore(
+    (state) => state.requestsByThreadId[thread.id],
+  );
+  const requestOpenControl = useThreadComposerControlStore((state) => state.requestOpenControl);
+  const consumeControlOpenRequest = useThreadComposerControlStore(
+    (state) => state.consumeOpenControlRequest,
+  );
+  const controlOpenRequest = externalControlOpenRequest ?? null;
+  useEffect(() => {
+    if (!externalControlOpenRequest) return;
+    const request = externalControlOpenRequest;
+    const frame = requestAnimationFrame(() => {
+      consumeControlOpenRequest(thread.id, request.nonce);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [consumeControlOpenRequest, externalControlOpenRequest, thread.id]);
   const [contextDockOpen, setContextDockOpen] = useState(false);
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
@@ -388,7 +415,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     presentationAgentStatus && presentationMode === "gui"
       ? {
           ...presentationAgentStatus,
-          capabilities: capabilitiesForSessionConfig(
+          capabilities: composerCapabilitiesForSession(
+            thread.agentKind,
             presentationAgentStatus.capabilities,
             thread.sessionConfigOptions,
           ),
@@ -424,8 +452,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const launchCustomMcpNames = useAppStore(
     (s) => s.mcpLaunchCustomServerNamesByThreadId[thread.id],
   );
+  // The launch snapshot behind these names was resolved from this machine's
+  // settings, so it describes a provider-owned MCP set only when the thread's
+  // host is this machine.
   const customMcpServers = (
-    providerOwnsMcp && usesRemoteTransport ? [] : (launchCustomMcpNames ?? [])
+    providerOwnsMcp && !threadOnThisMachine ? [] : (launchCustomMcpNames ?? [])
   ).map((name) => ({
     id: name,
     name,
@@ -471,12 +502,25 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
   ];
+  const projectPluginOverrides = useAppStore(
+    (s) => s.projects.find((candidate) => candidate.id === thread.projectId)?.pluginOverrides,
+  );
+  const pluginOverrides = resolveLaunchPluginOverrides(
+    projectPluginOverrides,
+    thread.config.pluginOverrides,
+  );
   const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
     projectLocation,
     thread.agentKind,
     presentationMode,
+    pluginOverrides,
   );
-  const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
+  const pluginMentions = usePluginMentionItems(
+    projectLocation,
+    thread.agentKind,
+    presentationMode,
+    pluginOverrides,
+  );
   // One row per tool: a plugin that wraps a built-in server replaces that
   // server's own mention instead of sitting next to an identical row, and only
   // while this thread actually carries that server.
@@ -497,6 +541,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     thread.id,
     threadMentionToolsAvailable,
   );
+  const crewMentions = useCrewMentionItems(thread.config);
   const composerModelId = canonicalProviderModelId(
     thread.agentKind,
     thread.config?.model ?? "",
@@ -528,7 +573,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     authState: effectiveAgentStatus?.authState,
     errorDockStates,
   });
-  const canShowRuntimeChrome = !usesTerminalPresentation || usesRemoteTransport;
+  // A terminal thread this client reaches directly draws its runtime chrome in
+  // its TUI; one on another host or seen from a browser has the composer show it.
+  const canShowRuntimeChrome = !usesTerminalPresentation || !hostIsLocalToClient;
   const isServerControlled =
     effectiveAgentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
   const isTerminalInput = effectiveAgentStatus?.capabilities.liveInputMode === "terminal";
@@ -572,9 +619,21 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !hideInfoDocks && canShowRuntimeChrome && docksInComposer && goalDockState !== null;
   const showDockBubbles = !hideInfoDocks && canShowRuntimeChrome && !docksInComposer;
   const docksSummary = useThreadDocksSummary(thread.id, goalDockState, todoDockState);
+  const pendingSteer = useAppStore((s) => s.pendingSteerByThreadId[thread.id]);
+  const runtimeRequests = useAppStore((s) => s.runtimeRequestsByThread[thread.id]);
+  const followUpQueue = useThreadFollowUpQueue(thread.id, !usesTerminalPresentation);
+  const crewHelperNote = useCrewSessionRelaunch({
+    thread,
+    capabilities: effectiveAgentStatus?.capabilities,
+    runtimeLaunchConfig,
+    pendingSteer,
+    queuedFollowUp: followUpQueue,
+    openRuntimeRequest: (runtimeRequests?.length ?? 0) > 0,
+    activeSubAgent: docksSummary.agentCount > 0,
+  });
   const showErrorInComposer =
     !hideInfoDocks &&
-    (!usesTerminalPresentation || usesRemoteTransport) &&
+    (!usesTerminalPresentation || !hostIsLocalToClient) &&
     errorDockStates.length > 0 &&
     !hasRuntimeAuthError;
   const hasActiveSubAgent =
@@ -589,10 +648,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     compactLayout || collapseTerminalComposerSetting,
   );
   const composerSectionRef = useRef<HTMLDivElement | null>(null);
-  const canCollapseComposer = compactLayout || (showTerminalComposer && !isRemoteSurface);
+  const canCollapseComposer = compactLayout || (showTerminalComposer && !isBrowserClient);
   const isComposerCollapsed = canCollapseComposer && composerCollapsed;
   const shouldAutoFocusComposer =
-    paneCount === 1 && !isComposerCollapsed && (props.autoFocusComposer ?? !isRemoteSurface);
+    paneCount === 1 && !isComposerCollapsed && (props.autoFocusComposer ?? !isBrowserClient);
   const setComposerUi = useComposerUiStore((s) => s.setComposerUi);
   const branchName = useGitStore(
     (s) =>
@@ -613,7 +672,22 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const modelPreferences = useSharedSettings((s) => s.providerModelPreferences[thread.agentKind]);
   const setProviderModelPreference = useSharedSettings((s) => s.setProviderModelPreference);
-  const controls = buildControls(
+  const savedCrews = useSharedSettings((state) => state.crews);
+  const upsertCrew = useSharedSettings((state) => state.upsertCrew);
+  const helperOptions = useCrewHelperOptions();
+  const binding = threadCrewBinding(thread.config);
+  const lead = leadSelectionOf(thread.agentKind, thread.config);
+  const canLeadCurrentCrew = Boolean(
+    effectiveAgentStatus && canLeadCrew(effectiveAgentStatus.capabilities, "gui"),
+  );
+  const roleTemplates = CREW_ROLE_TEMPLATE_DESCRIPTORS.map(({ brief, label, ...template }) => ({
+    ...template,
+    label: t(label),
+    ...(brief ? { brief: t(brief) } : {}),
+  }));
+  const defaultHelper = helperOptions.defaultSelectionFor(lead);
+  let crewHandlers: ActiveComposerCrewHandlers | undefined;
+  const rawControls = buildControls(
     thread,
     effectiveAgentStatus,
     hiddenModelIds,
@@ -621,12 +695,137 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     modelPreferences,
     (model, preference) => setProviderModelPreference(thread.agentKind, model, preference),
     machineKeyForLocation(projectLocation),
+    (handlers) => {
+      crewHandlers = handlers;
+    },
   );
+  function selectActiveCrew(choice: { crewId: string } | { newCrew: true }) {
+    if (!binding || "newCrew" in choice) return;
+    if (!canLeadCurrentCrew) {
+      const label =
+        effectiveAgentStatus?.capabilities.models.find(
+          (candidate) => candidate.id === thread.config.model,
+        )?.label ?? thread.config.model;
+      toast.danger(t`${label} can't lead a crew. Pick another model first.`);
+      return;
+    }
+    const saved = savedCrews.find((candidate) => candidate.id === choice.crewId);
+    if (!saved || saved.lead.agentKind !== lead.agentKind) return;
+    const savedBinding = crewBindingFromSavedCrew(saved);
+    crewHandlers?.changeLead(
+      {
+        agentKind: saved.lead.agentKind,
+        model: saved.lead.model,
+        selectionIntent: "exact",
+      },
+      {
+        crew: savedBinding,
+        effort: saved.lead.effort ?? "",
+        fast: saved.lead.fast ?? false,
+        ...(saved.lead.contextSize ? { contextSize: saved.lead.contextSize } : {}),
+      },
+    );
+  }
+  const crewSection =
+    presentationMode === "gui" && binding
+      ? {
+          onlyCrews: true,
+          entries: savedCrews
+            .filter((crew) => crew.lead.agentKind === lead.agentKind)
+            .map((crew) =>
+              crewPickerEntry(crew, helperOptions.modelLabelOf, {
+                lead: t`Lead`,
+                readOnly: t`Read-only`,
+              }),
+            ),
+          ...(binding?.crewId ? { currentCrewId: binding.crewId } : {}),
+          ...(binding ? { current: { name: binding.name ?? t`Crew` } } : {}),
+          canCreate: false,
+          onSelect: selectActiveCrew,
+        }
+      : undefined;
+  const activeSavedCrew = savedCrewFor(binding, savedCrews);
+  const activeCrewModel =
+    binding && presentationMode === "gui" && effectiveAgentStatus
+      ? {
+          binding,
+          lead,
+          ...(activeSavedCrew ? { savedCrew: activeSavedCrew } : {}),
+          helperOptions,
+          roleTemplates,
+          leadProviders: [
+            {
+              kind: thread.agentKind,
+              label: effectiveAgentStatus.label,
+              ...(effectiveAgentStatus.icon ? { icon: effectiveAgentStatus.icon } : {}),
+              capabilities: effectiveAgentStatus.capabilities,
+              presentationMode: "gui" as const,
+            },
+          ],
+          ...(defaultHelper ? { defaultHelper } : {}),
+          summary: crewSummary(
+            helperOptions.modelLabelOf(lead),
+            binding.roles,
+            helperOptions.modelLabelOf,
+          ),
+          isDraft: false,
+          isDisabled:
+            rawControls.find((control) => control.kind === "provider-model")?.isDisabled ?? false,
+          ...(crewHelperNote ? { helperNote: crewHelperNote } : {}),
+          onBindingChange: (next: ThreadCrewBinding) =>
+            changeThreadConfig(thread.id, { ...thread.config, crew: next }),
+          onLeadChange: (next: CrewMemberSelection) => {
+            if (next.agentKind !== lead.agentKind) {
+              useContinueInProviderStore.getState().request(thread.id);
+              return;
+            }
+            if (next.model !== lead.model) {
+              crewHandlers?.changeLead(
+                { agentKind: next.agentKind, model: next.model, selectionIntent: "exact" },
+                {
+                  crew: binding,
+                  effort: next.effort ?? "",
+                  fast: next.fast ?? false,
+                  ...(next.contextSize ? { contextSize: next.contextSize } : {}),
+                },
+              );
+              return;
+            }
+            crewHandlers?.patch(
+              {
+                effort: next.effort ?? "",
+                fast: next.fast ?? false,
+                ...(next.contextSize ? { contextSize: next.contextSize } : {}),
+              },
+              binding,
+            );
+          },
+          onSaveToCrew: (saved: SavedCrew, next: ThreadCrewBinding) => {
+            upsertCrew(saved);
+            changeThreadConfig(thread.id, { ...thread.config, crew: next });
+          },
+          onSaveAsNewCrew: (saved: SavedCrew, next: ThreadCrewBinding) => {
+            upsertCrew(saved);
+            changeThreadConfig(thread.id, { ...thread.config, crew: next });
+          },
+          onHandOff: () => useContinueInProviderStore.getState().request(thread.id),
+        }
+      : undefined;
+  const controls =
+    crewSection && presentationMode === "gui"
+      ? applyCrewComposerControls(rawControls, {
+          crewSection,
+          ...(activeCrewModel ? { roster: activeCrewModel } : {}),
+        })
+      : rawControls;
   const controlsWithOpenSignal = controls.map((control): ComposerControl => {
     if (controlOpenRequest?.target === "model" && control.kind === "provider-model") {
       return { ...control, openSignal: controlOpenRequest.nonce };
     }
     if (controlOpenRequest?.target === "effort" && control.kind === "effort-context") {
+      return { ...control, openSignal: controlOpenRequest.nonce };
+    }
+    if (controlOpenRequest?.target === "crew" && control.kind === "crew") {
       return { ...control, openSignal: controlOpenRequest.nonce };
     }
     return control;
@@ -638,13 +837,24 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !authRequired &&
     !attachments.isUploading;
   const canInterruptStructuredTurn = canShowRuntimeChrome && thread.status === "working";
-  const pendingSteer = useAppStore((s) => s.pendingSteerByThreadId[thread.id]);
+  // A turn cut off by an error or a restart is picked back up from an empty
+  // composer, so nobody has to type "continue".
+  const resumePlan = useAppStore((s) =>
+    thread.interruptedTurn && !usesTerminalPresentation
+      ? selectThreadResumePlan(s, thread.id)
+      : null,
+  );
+  const canResume =
+    resumePlan !== null &&
+    canSubmit &&
+    !isThreadTurnActive(thread.status) &&
+    !hasContent &&
+    attachments.attachments.length === 0 &&
+    !threadVoiceActive;
   const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
-  const followUpQueue = useThreadFollowUpQueue(thread.id, !usesTerminalPresentation);
   const visiblePendingSteer = useDelayedPendingSteer(pendingSteer);
   const usesPendingSteerPath =
     !isConnecting && !usesTerminalPresentation && thread.status === "working";
-  const runtimeRequests = useAppStore((s) => s.runtimeRequestsByThread[thread.id]);
   const activeRuntimeRequest = canShowRuntimeChrome ? runtimeRequests?.[0] : undefined;
   const approvalDenyOption = activeRuntimeRequest
     ? getApprovalDenyOption(activeRuntimeRequest)
@@ -664,7 +874,28 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       message={resumeUnavailableMessage}
     />
   ) : null;
-  const composerResumeNotice = compactLayout ? null : resumeUnavailableNotice;
+  const historyNotice = useVisibleThreadHistoryNotice(thread.id);
+  const historyLoadFailed = useAppStore(
+    (state) => !usesTerminalPresentation && state.runtimeHydrationStatus[thread.id] === "failed",
+  );
+  const historyNoticeDock =
+    historyNotice && !usesTerminalPresentation ? (
+      <ThreadHistoryNoticeDock threadId={thread.id} entry={historyNotice} />
+    ) : null;
+  // Every chat warning lives in the composer's notice stack, including a lost
+  // connection to the thread's host, whichever host that is.
+  const hostOffline = useEntityHostOffline(thread);
+  const showHostOfflineWarning = hostOffline && !usesTerminalPresentation;
+  const composerNotices =
+    historyNoticeDock || historyLoadFailed || showHostOfflineWarning || resumeUnavailableNotice ? (
+      <>
+        {historyNoticeDock}
+        {historyLoadFailed ? <ThreadHistoryLoadFailureDock threadId={thread.id} /> : null}
+        {showHostOfflineWarning ? <ThreadHostOfflineDock /> : null}
+        {resumeUnavailableNotice}
+      </>
+    ) : null;
+  const composerDockNotice = compactLayout ? null : composerNotices;
   // Gate the inline docks only. `activeRuntimeRequest` still drives the
   // composer's deny-with-feedback submit path, and `authRequired` still disables
   // submit/voice, when a host renders these docks itself.
@@ -679,7 +910,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const composerRuntimeRequest = hideActionDocks ? undefined : activeRuntimeRequest;
   const composerPendingSteer = hideActionDocks ? undefined : visiblePendingSteer;
   const composerFollowUpQueue = hideActionDocks ? undefined : followUpQueue;
-  const showAuthInComposer = authRequired && !hideActionDocks;
+  const showAuthInComposer = (authRequired || hasRuntimeAuthError) && !hideActionDocks;
   const reportedContextUsage = useAppStore((s) =>
     canShowRuntimeChrome ? s.runtimeContextByThread[thread.id] : undefined,
   );
@@ -718,8 +949,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     },
   });
 
-  function writeTerminalInput(data: string) {
-    return readBridge().writeTerminal({ threadId: thread.id, data });
+  function sendTerminalShortcut(data: string): void {
+    if (!sendTerminalInput(thread.id, data)) {
+      toast.danger(
+        t`Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again.`,
+      );
+    }
   }
 
   function restoreComposerFocus() {
@@ -727,11 +962,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     useAppStore.getState().requestComposerFocus(thread.id);
   }
 
-  function submitPrompt(segments: PromptSegment[], behavior: FollowUpBehavior = followUpBehavior) {
+  function submitPrompt(
+    segments: PromptSegment[],
+    behavior: FollowUpBehavior = followUpBehavior,
+    resumesInterruptedTurn = false,
+  ) {
     if (attachments.hasPendingUploads()) return;
     const composerSession = composerSessionRef.current;
     submitComposerPrompt(segments, {
       thread,
+      resumesInterruptedTurn,
       agentStatus: effectiveAgentStatus,
       presentationMode,
       usesTerminalPresentation,
@@ -753,8 +993,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       setPrompt,
       setHasContent,
       setIsSubmitting,
-      requestOpenControl: (target) =>
-        setControlOpenRequest((prev) => ({ target, nonce: (prev?.nonce ?? 0) + 1 })),
+      requestOpenControl: (target) => requestOpenControl(thread.id, target),
       onSubmitInput: props.onSubmitInput,
       captureClientContext,
       onSubmitSuccess: () => {
@@ -767,6 +1006,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         }
       },
     });
+  }
+
+  function resumeInterruptedTurn() {
+    if (!resumePlan) return;
+    const content =
+      resumePlan.kind === "resend" ? resumePlan.prompt : t`Continue from where you left off.`;
+    submitPrompt([{ kind: "text", content }], followUpBehavior, true);
   }
 
   const handlePromptRecallKey = usePromptRecall({
@@ -842,7 +1088,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       setIsSubmitting(false);
       setSlashQuery(null);
       setSlashActiveIndex(0);
-      setControlOpenRequest(null);
       setContextDockOpen(false);
       setComposerCollapsed(compactLayout || collapseTerminalComposerSetting);
     }
@@ -977,7 +1222,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           className="poracode-thread-composer-section relative"
           data-compact-collapsed={(compactLayout && isComposerCollapsed) || undefined}
         >
-          <LiveVoicePanel threadId={thread.id} />
           {!compactLayout ? (
             /* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
                measures the real buttons without adding a line box above the composer. */
@@ -1008,13 +1252,25 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             keyboardKey={thread.id}
             scrimLabel={t`Collapse composer`}
             collapsedTapLabel={resumeUnavailableMessage ?? t`Send a message...`}
-            inputHasContent={hasContent}
+            // The collapsed pill pins its send slot only for typed prompts; the
+            // resume button needs the same pinned slot on an empty one.
+            inputHasContent={hasContent || canResume}
             expansionLocked={activeRuntimeRequest !== undefined}
-            onDockHeightChange={(height) => {
+            onDockHeightChange={(height, dock) => {
               const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");
-              if (pane instanceof HTMLElement) {
-                pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
-              }
+              if (!(pane instanceof HTMLElement)) return;
+              pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
+              // Measure rendered geometry: the safe-area offset sits on an
+              // ancestor and the keyboard lift is a transform.
+              const viewport = pane.querySelector("[data-poracode-chat-scroller]") ?? pane;
+              props.onComposerInsetChange?.(
+                Math.max(
+                  0,
+                  Math.ceil(
+                    viewport.getBoundingClientRect().bottom - dock.getBoundingClientRect().top,
+                  ),
+                ),
+              );
             }}
             aboveBubble={
               compactLayout ? (
@@ -1022,8 +1278,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   <ComposerActionDocks
                     thread={thread}
                     agentStatus={agentStatus}
-                    notice={resumeUnavailableNotice}
+                    notice={composerNotices}
                     onRestoreComposerFocus={restoreComposerFocus}
+                    onSubmitInput={props.onSubmitInput}
                     {...(props.onOpenProjectRelativePath
                       ? {
                           onOpenPlanFile: (path: string) => props.onOpenProjectRelativePath?.(path),
@@ -1098,9 +1355,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       isCliThread ? "cli" : "chat",
                       showContextIndicator ? "ctx" : "no-ctx",
                       authRequired ? "auth-required" : "auth-ready",
+                      threadVoiceActive ? "voice" : "no-voice",
                     ].join("|")}
                     fixedContent={
-                      composerResumeNotice !== null ||
+                      composerDockNotice !== null ||
                       hasActiveSubAgent ||
                       hasBackgroundTasks ||
                       showContextInComposer ||
@@ -1114,7 +1372,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       composerFollowUpQueue ||
                       showCommandPanel ? (
                         <ThreadComposerDocks
-                          notice={composerResumeNotice}
+                          notice={composerDockNotice}
                           hasActiveSubAgent={hasActiveSubAgent}
                           hasBackgroundTasks={hasBackgroundTasks}
                           showContextInComposer={showContextInComposer}
@@ -1152,6 +1410,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             ? { onTodoDockRetire: props.onTodoDockRetire }
                             : {})}
                           onCancelPendingSteer={() => clearThreadPendingSteer(thread.id)}
+                          onSubmitInput={props.onSubmitInput}
                           {...(props.onOpenProjectRelativePath
                             ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
                             : {})}
@@ -1201,10 +1460,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               ? ""
                               : thread.status === "inactive" && canRecoverGuiInput && !isConnecting
                                 ? t`Disconnected — send a message to reconnect`
-                                : isServerControlled
-                                  ? (props.composerPlaceholder ??
-                                    t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
-                                  : t`Send a message...`
+                                : threadVoiceStatus === "connecting"
+                                  ? t`Connecting voice…`
+                                  : threadVoiceStatus === "muted"
+                                    ? t`Microphone muted — type a message`
+                                    : threadVoiceStatus === "listening"
+                                      ? t`Listening — speak or type a message`
+                                      : isServerControlled
+                                        ? (props.composerPlaceholder ??
+                                          t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
+                                        : t`Send a message...`
                         }
                         projectLocation={projectLocation}
                         submitOnEnter={props.submitOnEnter ?? !compactLayout}
@@ -1218,6 +1483,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         mcpMentions={composerMcpMentions}
                         pluginMentions={composerPluginMentions}
                         threadMentions={threadMentions}
+                        crewMentions={crewMentions}
                         onTextChange={(hasText) => {
                           setHasContent(hasText);
                           latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
@@ -1249,10 +1515,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               keybindings: useKeybindingStore.getState().keybindings,
                               platform: readBridge().platform,
                               onOpenModelPicker: () => {
-                                setControlOpenRequest((prev) => ({
-                                  target: "model",
-                                  nonce: (prev?.nonce ?? 0) + 1,
-                                }));
+                                requestOpenControl(thread.id, "model");
                               },
                               onStartDictation: () => voiceInputRef.current?.toggle() ?? false,
                             })
@@ -1279,9 +1542,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           if (showTerminalComposer) {
                             if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
                               e.preventDefault();
-                              void writeTerminalInput("\x1b[Z").catch((error: unknown) => {
-                                toast.danger(friendlyError(error));
-                              });
+                              sendTerminalShortcut("\x1b[Z");
                               return true;
                             }
                             if (
@@ -1291,9 +1552,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               e.key.toLowerCase() === "t"
                             ) {
                               e.preventDefault();
-                              void writeTerminalInput("\x14").catch((error: unknown) => {
-                                toast.danger(friendlyError(error));
-                              });
+                              sendTerminalShortcut("\x14");
                               return true;
                             }
                           }
@@ -1327,7 +1586,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     {...(!threadVoiceActive &&
                     !hasContent &&
                     attachments.attachments.length === 0 &&
-                    !usesRemoteTransport &&
+                    // The host reports voice-session end and error frames only to
+                    // the co-located desktop, so a session on another host (or in a
+                    // browser) could never be torn down by them.
+                    hostIsLocalToClient &&
                     !usesTerminalPresentation &&
                     showServerComposer &&
                     effectiveAgentStatus?.capabilities.liveVoice
@@ -1345,6 +1607,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           ),
                         }
                       : {})}
+                    resume={
+                      canResume
+                        ? {
+                            label:
+                              resumePlan.kind === "resend"
+                                ? t`Resend last message`
+                                : t`Resume response`,
+                            onPress: resumeInterruptedTurn,
+                          }
+                        : undefined
+                    }
                     onStop={canInterruptStructuredTurn ? handleInterrupt : undefined}
                     {...(() => {
                       const contextIndicator = showContextIndicator ? (
@@ -1385,7 +1658,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                                   projectLocation?.kind !== "wsl",
                                 onToggle: () => {},
                               }}
-                              showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
+                              showFileOption={hostIsLocalToClient || props.pickFiles !== undefined}
                               onPickFiles={() => {
                                 const originThreadId = thread.id;
                                 void (
@@ -1408,22 +1681,25 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           {compactLayout ? contextIndicator : addMenu}
                         </>
                       );
-                      const renderVoiceInput = () => (
-                        <ComposerVoiceInput
-                          key={thread.id}
-                          show={showVoiceInputButton && !liveVoiceActive}
-                          isDisabled={
-                            authRequired ||
-                            isSubmitting ||
-                            !(showServerComposer || showTerminalComposer)
-                          }
-                          {...(voiceInputUnavailableHint !== undefined
-                            ? { unavailableHint: voiceInputUnavailableHint }
-                            : {})}
-                          mentionRef={mentionRef}
-                          voiceInputRef={voiceInputRef}
-                        />
-                      );
+                      const renderVoiceInput = () =>
+                        threadVoiceActive ? (
+                          <LiveVoiceSessionControls
+                            threadId={thread.id}
+                            hasDraft={hasContent || attachments.attachments.length > 0}
+                          />
+                        ) : (
+                          <ComposerVoiceInput
+                            key={thread.id}
+                            show={showVoiceInputButton && !liveVoiceActive}
+                            isDisabled={
+                              authRequired ||
+                              isSubmitting ||
+                              !(showServerComposer || showTerminalComposer)
+                            }
+                            mentionRef={mentionRef}
+                            voiceInputRef={voiceInputRef}
+                          />
+                        );
                       return isCliThread || compactLayout
                         ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
                         : {
@@ -1436,7 +1712,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           };
                     })()}
                     onPromptChange={setPrompt}
-                    {...(!usesRemoteTransport ? { onAttachFiles: attachments.addFiles } : {})}
+                    // Dropped files are paths on this machine; only a host that runs
+                    // here can read them.
+                    {...(hostIsLocalToClient ? { onAttachFiles: attachments.addFiles } : {})}
                     onSubmit={() => {
                       const segments = mentionRef.current?.serializeSegments();
                       submitPrompt(

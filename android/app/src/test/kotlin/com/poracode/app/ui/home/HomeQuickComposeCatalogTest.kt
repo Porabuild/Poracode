@@ -357,6 +357,73 @@ class HomeQuickComposeCatalogTest {
         assertEquals(listOf("member-a", "member-b"), catalog.models.map { it.id })
     }
 
+    @Test
+    fun workflowModeIsPerDraftAndOnlyLaunchesWhenOnAndSupported() {
+        val status = status(
+            """
+            {
+              "kind":"provider","label":"Provider","installed":true,
+              "authState":"authenticated","envKind":"posix",
+              "capabilities":{
+                "models":[{"id":"flow-a","label":"A"},{"id":"plain-b","label":"B"}],
+                "workflowModels":["flow-a"],
+                "workflowLabel":"Provider Flow",
+                "presentationCapabilities":{"gui":{
+                  "models":[{"id":"flow-a","label":"A"},{"id":"plain-b","label":"B"}],
+                  "workflowModels":["flow-a"],
+                  "workflowLabel":"Gui Flow"
+                }}
+              }
+            }
+            """,
+        )
+        val gui = HomeQuickComposeCatalog(status, ThreadPresentationMode.Gui, ThreadConfig(model = "flow-a"))
+        assertTrue(gui.supportsWorkflows("flow-a"))
+        assertFalse(gui.supportsWorkflows("plain-b"))
+        assertEquals("Gui Flow", gui.workflowLabel)
+
+        // Off by default: nothing is sent unless the user turned it on.
+        assertNull(gui.normalize(ThreadConfig(model = "flow-a")).workflows)
+        assertNull(gui.normalize(ThreadConfig(model = "flow-a", workflows = false)).workflows)
+        assertEquals(true, gui.normalize(ThreadConfig(model = "flow-a", workflows = true)).workflows)
+        // Switching to an unsupported model drops it, and so does a stale launch config.
+        assertNull(gui.applyModel(ThreadConfig(model = "flow-a", workflows = true), "plain-b").workflows)
+        assertNull(gui.normalize(ThreadConfig(model = "plain-b", workflows = true)).workflows)
+        assertEquals(true, gui.applyModel(ThreadConfig(model = "flow-a", workflows = true), "flow-a").workflows)
+        assertEquals(
+            "true",
+            gui.normalize(ThreadConfig(model = "flow-a", workflows = true)).toJsonObject()["workflows"]
+                ?.jsonPrimitive?.content,
+        )
+        assertFalse(
+            gui.normalize(ThreadConfig(model = "plain-b", workflows = true)).toJsonObject()
+                .containsKey("workflows"),
+        )
+    }
+
+    @Test
+    fun workflowCapabilitiesAreScopedToThePresentation() {
+        val status = status(
+            """
+            {
+              "kind":"provider","label":"Provider","installed":true,
+              "authState":"authenticated","envKind":"posix",
+              "capabilities":{
+                "models":[{"id":"flow-a","label":"A"}],
+                "workflowModels":["flow-a"],
+                "workflowLabel":"Root Flow",
+                "presentationCapabilities":{"gui":{
+                  "models":[{"id":"flow-a","label":"A"}]
+                }}
+              }
+            }
+            """,
+        )
+        val gui = HomeQuickComposeCatalog(status, ThreadPresentationMode.Gui, ThreadConfig(model = "flow-a"))
+        assertFalse(gui.supportsWorkflows("flow-a"))
+        assertNull(gui.workflowLabel)
+    }
+
     private fun fast(config: ThreadConfig): Boolean = config.fast == true
 
     private val duoOnlyFamily =
