@@ -168,7 +168,7 @@ export function CrewRosterPanel(props: {
             <ThreadDockIconButton
               label={
                 model.binding.policy === "crew-only"
-                  ? t`Crew only: work goes only to this crew`
+                  ? t`Crew only: automatic delegation uses this crew; you can request other agents`
                   : t`Crew first: may also use other agents`
               }
               ariaPressed={model.binding.policy === "crew-only"}

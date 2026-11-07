@@ -160,6 +160,11 @@ const SUBAGENT_TASK_PROPERTIES = {
     description:
       "Crew role id from list_agents (for example `sidekick`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
   },
+  user_requested: {
+    type: "boolean",
+    description:
+      "Set true only when the user explicitly requests agents or models outside the crew. Allows that request without a role even in Crew only mode. Choosing a crew or granting general delegation permission does not qualify. Omit for automatic delegation; never use this to bypass crew routing on your own.",
+  },
   fresh_session: {
     type: "boolean",
     description:
@@ -233,6 +238,7 @@ const RAW_TOOLS: ToolSpec[] = [
         },
         ...SUBAGENT_SELECTION_PROPERTIES,
         role: SUBAGENT_TASK_PROPERTIES.role,
+        user_requested: SUBAGENT_TASK_PROPERTIES.user_requested,
         tasks: {
           type: "array",
           minItems: 1,
@@ -295,7 +301,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "spawn_agent",
     description:
-      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention or by giving the thread a crew); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
+      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention or by giving the thread a crew); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions/role/user_requested are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
     inputSchema: {
       type: "object",
       properties: {

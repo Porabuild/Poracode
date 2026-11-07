@@ -327,8 +327,7 @@ describe("ProjectSwitchMenu", () => {
 
     render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
     fireEvent.click(screen.getByRole("button", { name: /^Machine:/ }));
-    const menu = await screen.findByRole("menu");
-    fireEvent.click(within(menu).getByRole("menuitemradio", { name: /MacBook 16/ }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "r" });
@@ -455,6 +454,27 @@ describe("ProjectSwitchMenu", () => {
       } as never);
     }
 
+    it("keeps the dropdown with three environments and switches to the chosen machine", async () => {
+      pair({ mac: "online", mini: "online" });
+      useAppStore.setState({ projects: [workProject, mac, mini] });
+      render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+
+      const trigger = screen.getByRole("button", { name: "Machine: Local" });
+      expect(trigger.querySelector(".lucide-chevron-down")).toBeInTheDocument();
+      fireEvent.click(trigger);
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "a" });
+      const menu = await screen.findByRole("menu");
+      expect(
+        within(menu)
+          .getAllByRole("menuitemradio")
+          .map((item) => item.textContent),
+      ).toEqual(["Local", "MacBook", "Mac mini"]);
+      fireEvent.click(within(menu).getByRole("menuitemradio", { name: "Mac mini" }));
+      await waitFor(() => {
+        expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: mini.id });
+      });
+    });
+
     it("lists an offline machine as unavailable and never switches to it", async () => {
       pair({ mac: "online", mini: "offline" });
       useAppStore.setState({ projects: [workProject, mac, mini] });
@@ -475,12 +495,8 @@ describe("ProjectSwitchMenu", () => {
       render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
 
       fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
-      const menu = await screen.findByRole("menu");
-      expect(
-        within(menu)
-          .getAllByRole("menuitemradio")
-          .map((item) => item.querySelector('[data-slot="label"]')?.textContent),
-      ).toEqual(["Local", "MacBook"]);
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: mac.id });
     });
 
     it("keeps copies from other workspaces out of project-row connection details", async () => {
@@ -569,15 +585,12 @@ describe("ProjectSwitchMenu", () => {
 
       const machineTrigger = screen.getByRole("button", { name: /^Machine:/ });
       expect(machineTrigger).toHaveTextContent("Local");
+      expect(machineTrigger).toHaveClass("dropdown__trigger");
+      expect(machineTrigger).not.toHaveAttribute("aria-haspopup");
       fireEvent.click(machineTrigger);
-      const machineMenu = await screen.findByRole("menu");
-      expect(
-        within(machineMenu)
-          .getAllByRole("menuitemradio")
-          .map((item) => item.querySelector('[data-slot="label"]')?.textContent),
-      ).toEqual(["Local", "MacBook"]);
-      fireEvent.keyDown(machineMenu, { key: "Escape" });
-      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      expect(machineTrigger.querySelector(".lucide-chevron-down")).not.toBeInTheDocument();
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: macHero.id });
 
       const menu = await openMenu();
       const rows = within(menu).getAllByRole("menuitemradio");
@@ -598,9 +611,7 @@ describe("ProjectSwitchMenu", () => {
       render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
 
       fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
-      fireEvent.click(
-        within(await screen.findByRole("menu")).getByRole("menuitemradio", { name: /MacBook/ }),
-      );
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       await waitFor(() => {
         expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: mac.id });
       });
@@ -644,9 +655,7 @@ describe("ProjectSwitchMenu", () => {
       expect(screen.getByRole("button", { name: "Machine: Local" })).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
-      fireEvent.click(
-        within(await screen.findByRole("menu")).getByRole("menuitemradio", { name: /MacBook/ }),
-      );
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       await waitFor(() => {
         expect(useAppStore.getState().view).toEqual({
           kind: "draft",
@@ -715,9 +724,7 @@ describe("ProjectSwitchMenu", () => {
       );
 
       fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
-      fireEvent.click(
-        within(await screen.findByRole("menu")).getByRole("menuitemradio", { name: /MacBook/ }),
-      );
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       await waitFor(() => expect(onSelectProject).toHaveBeenCalledWith(macHome.id));
       // The embedding surface receives the target, but the shared helper leaves
       // the main view alone.
@@ -739,9 +746,7 @@ describe("ProjectSwitchMenu", () => {
         />,
       );
       fireEvent.click(screen.getByRole("button", { name: "Machine: MacBook" }));
-      fireEvent.click(
-        within(await screen.findByRole("menu")).getByRole("menuitemradio", { name: "Local" }),
-      );
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       await waitFor(() => expect(onSelectProject).toHaveBeenNthCalledWith(2, HOME_PROJECT_ID));
       unsubscribe();
       expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: HOME_PROJECT_ID });
@@ -768,9 +773,7 @@ describe("ProjectSwitchMenu", () => {
       render(<ProjectSwitchMenu currentProjectId={macHome.id} variant="compact" />);
 
       fireEvent.click(screen.getByRole("button", { name: "Machine: MacBook" }));
-      fireEvent.click(
-        within(await screen.findByRole("menu")).getByRole("menuitemradio", { name: "Local" }),
-      );
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       await waitFor(() => {
         expect(useAppStore.getState().view).toEqual({
           kind: "draft",
@@ -791,12 +794,10 @@ describe("ProjectSwitchMenu", () => {
       });
       render(<ProjectSwitchMenu currentProjectId={HOME_PROJECT_ID} variant="compact" />);
 
-      fireEvent.click(screen.getByRole("button", { name: "Machine: Local" }));
-      const offline = within(await screen.findByRole("menu")).getByRole("menuitemradio", {
-        name: /MacBook/,
-      });
-      expect(offline).toHaveAttribute("aria-disabled", "true");
-      fireEvent.click(offline);
+      const toggle = screen.getByRole("button", { name: "Machine: Local" });
+      expect(toggle).toBeDisabled();
+      fireEvent.click(toggle);
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
       expect(useAppStore.getState().view).toEqual({
         kind: "draft",
         projectId: HOME_PROJECT_ID,

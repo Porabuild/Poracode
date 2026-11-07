@@ -4,6 +4,9 @@ import { classifyModelTier } from "@/shared/modelTier";
 export const CREW_REMOVED_BRIEF_TEXT =
   "[crew] The user removed this thread's crew. Delegate to other agents only if the user asks.";
 
+export const CREW_ONLY_POLICY_TEXT =
+  "Crew only: use roles for automatic delegation. When the user explicitly requests other agents or models, omit role and pass user_requested=true with the requested selection; no crew change or additional confirmation is needed.";
+
 /** Ids of the roles that may edit project files (no `noEdits`), in role order. */
 export function crewEditingRoleIds(binding: ThreadCrewBinding): string[] {
   return binding.roles.filter((role) => !role.noEdits).map((role) => role.id);
@@ -178,7 +181,7 @@ export function crewChangedBriefText(binding: ThreadCrewBinding): string {
 export function crewToolDescriptionNote(binding: ThreadCrewBinding): string {
   const ids = binding.roles.map((role) => role.id).join(", ");
   return binding.policy === "crew-only"
-    ? `This thread has a crew (Crew only): pass role=<id> (${ids}); spawns without a role are refused.`
+    ? `This thread has a crew: pass role=<id> (${ids}). ${CREW_ONLY_POLICY_TEXT}`
     : `This thread has a crew (Crew first): pass role=<id> (${ids}) when a role fits; you may also spawn without a role.`;
 }
 
@@ -188,7 +191,7 @@ function policyName(binding: ThreadCrewBinding): string {
 
 function policySentence(binding: ThreadCrewBinding): string {
   return binding.policy === "crew-only"
-    ? " Crew only: spawns without a role are refused."
+    ? ` ${CREW_ONLY_POLICY_TEXT}`
     : " Crew first: if no role fits or a role is unavailable, you may delegate to other agents without a role.";
 }
 

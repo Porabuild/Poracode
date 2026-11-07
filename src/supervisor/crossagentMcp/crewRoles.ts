@@ -1,5 +1,6 @@
 import type { ThreadCrewBinding, CrewMemberSelection, CrewRole } from "@/shared/crew";
 import { crewRoleMatches } from "@/shared/crew";
+import { CREW_ONLY_POLICY_TEXT } from "./crewBrief";
 import type { CrewRoleOptionSnapshot, SpawnAgentRequest, SpawnableAgent } from "./types";
 
 export interface ResolvedCrewRoleSpawn {
@@ -30,7 +31,7 @@ export function crewListDescription(
   }));
   const instructions =
     crew.policy === "crew-only"
-      ? "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: spawns without a role are refused."
+      ? `Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. ${CREW_ONLY_POLICY_TEXT}`
       : "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew first: if no role fits or a role is unavailable, you may spawn one of agents without a role.";
   return {
     crew: {
@@ -48,9 +49,9 @@ export function resolveCrewRoleSpawn(
   agents: readonly SpawnableAgent[],
 ): ResolvedCrewRoleSpawn | undefined {
   if (args.role === undefined) {
-    if (crew?.policy === "crew-only") {
+    if (crew?.policy === "crew-only" && args.user_requested !== true) {
       throw new Error(
-        `This thread's crew is Crew only: spawn with role=<id> (${crew.roles.map((role) => role.id).join(", ")}).`,
+        `This thread's crew is Crew only: spawn with role=<id> (${crew.roles.map((role) => role.id).join(", ")}) for automatic delegation. If the user explicitly requested other agents or models, omit role and pass user_requested=true with their requested selection.`,
       );
     }
     return undefined;
