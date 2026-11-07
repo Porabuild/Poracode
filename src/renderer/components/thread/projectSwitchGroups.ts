@@ -17,7 +17,7 @@ import { useWorkspaceProjectFilter } from "@/renderer/state/workspaceSelectors";
  * mirrors between local projects. Stable, so projects keep their store order
  * within each bucket.
  */
-function compareSelectorOrder(a: Project, b: Project): number {
+export function compareProjectSelectorOrder(a: Project, b: Project): number {
   const rank = (project: Project) => {
     if (isHomeProject(project)) return 0;
     return project.remoteServerId ? 2 : 1;
@@ -45,7 +45,7 @@ export function useProjectSwitchProjects(): readonly Project[] {
         .filter((project) => (isHomeProject(project) ? homeScopeEnabled : !project.disabled))
         .filter(isInWorkspace)
         .filter(isReachable)
-        .sort(compareSelectorOrder),
+        .sort(compareProjectSelectorOrder),
     ),
   );
 }
@@ -56,6 +56,17 @@ export function useProjectSwitchProjects(): readonly Project[] {
  * workspace shows and this client can reach, in the same order as
  * {@link useProjectSwitchProjects}.
  */
-export function useProjectSwitchEntries(): readonly ProjectGroupRow[] {
-  return groupProjectRows(useProjectSwitchProjects(), useProjectGroupIndex());
+export interface ProjectSwitchEntry extends ProjectGroupRow {
+  /** Workspace-scoped copies, including offline machines, for informational details. */
+  readonly environments: readonly Project[];
+}
+
+export function useProjectSwitchEntries(): readonly ProjectSwitchEntry[] {
+  const isInWorkspace = useWorkspaceProjectFilter();
+  return groupProjectRows(useProjectSwitchProjects(), useProjectGroupIndex()).map((entry) => ({
+    ...entry,
+    environments: (entry.group?.members ?? entry.members).filter(
+      (member) => isHomeProject(member) || isInWorkspace(member),
+    ),
+  }));
 }

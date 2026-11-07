@@ -76,7 +76,7 @@ describe("ProjectSwitchMenu", () => {
     expect(
       within(menu)
         .getAllByRole("menuitemradio")
-        .map((item) => item.textContent),
+        .map((item) => item.querySelector('[data-slot="label"]')?.textContent),
     ).toEqual([HOME_PROJECT_NAME, "Alpha", "Gamma"]);
     expect(within(menu).queryByText("Other workspaces")).not.toBeInTheDocument();
   });
@@ -290,8 +290,24 @@ describe("ProjectSwitchMenu", () => {
     expect(
       within(menu)
         .getAllByRole("menuitemradio")
-        .map((item) => item.textContent),
+        .map((item) => item.querySelector('[data-slot="label"]')?.textContent),
     ).toEqual(["Alpha", "Gamma"]);
+    const alpha = within(menu).getByRole("menuitemradio", { name: /^Alpha/ });
+    expect(alpha.querySelector(".lucide-folder-open")).toBeInTheDocument();
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    fireEvent.pointerEnter(within(alpha).getByRole("img", { name: "Local, MacBook 16" }), {
+      pointerType: "mouse",
+    });
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("MacBook 16");
+    expect(within(tooltip).getByTitle("Online")).toHaveClass(
+      "bg-success",
+      "right-0",
+      "bottom-0",
+      "ring-1",
+      "ring-background",
+    );
+    expect(tooltip).not.toHaveTextContent(/Online|Offline/);
   });
 
   it("moves the draft to another environment of the same project", async () => {
@@ -369,12 +385,12 @@ describe("ProjectSwitchMenu", () => {
     render(<ProjectSwitchMenu currentProjectId="l1" variant="compact" />);
     const menu = await openMenu();
     const items = within(menu).getAllByRole("menuitemradio");
-    expect(items.map((item) => item.textContent)).toEqual([
+    expect(items.map((item) => item.querySelector('[data-slot="label"]')?.textContent)).toEqual([
       HOME_PROJECT_NAME,
       "LocalBeta",
       "LocalDelta",
-      "RemoteAlphaMacBook 16",
-      "RemoteGammaMacBook 16",
+      "RemoteAlpha",
+      "RemoteGamma",
     ]);
   });
 
@@ -386,7 +402,7 @@ describe("ProjectSwitchMenu", () => {
     expect(
       within(menu)
         .getAllByRole("menuitemradio")
-        .map((item) => item.textContent),
+        .map((item) => item.querySelector('[data-slot="label"]')?.textContent),
     ).toEqual(["Alpha", "Gamma"]);
   });
 
@@ -483,6 +499,35 @@ describe("ProjectSwitchMenu", () => {
       expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: mac.id });
     });
 
+    it("keeps copies from other workspaces out of project-row connection details", async () => {
+      pair({ mac: "online" });
+      useAppStore.setState({ projects: [workProject, mirrorOf("mac", "w2"), unfiledProject] });
+      render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+      const row = within(await openMenu()).getByRole("menuitemradio", { name: "Alpha" });
+      expect(row.querySelector("[data-project-connection]")).toBeNull();
+      expect(row.querySelector(".lucide-folder-open")).toBeInTheDocument();
+      expect(row).not.toHaveAccessibleDescription(/MacBook/);
+    });
+
+    it("shows connection details on keyboard row focus and dismisses them with Escape", async () => {
+      pair({ mac: "online" });
+      useAppStore.setState({ projects: [workProject, mac, unfiledProject] });
+      render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+      const trigger = screen.getByRole("button", { name: "Switch project" });
+      fireEvent.keyDown(trigger, { key: "Enter", code: "Enter" });
+      fireEvent.keyUp(trigger, { key: "Enter", code: "Enter" });
+      const menu = await screen.findByRole("menu");
+      const alpha = within(menu).getByRole("menuitemradio", { name: /^Alpha/ });
+      await waitFor(() => expect(alpha).toHaveFocus());
+      expect(alpha).toHaveAccessibleDescription(/Local.*MacBook/);
+      const tooltip = await screen.findByRole("tooltip");
+      expect(tooltip).toHaveTextContent("MacBook");
+      expect(tooltip).toHaveTextContent("/alpha");
+      fireEvent.keyDown(alpha, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull());
+      expect(menu).toBeInTheDocument();
+    });
+
     it("opens the machine used most recently, or the next reachable one", async () => {
       pair({ mac: "online", mini: "online" });
       useAppStore.setState({ projects: [workProject, mac, unfiledProject] });
@@ -549,8 +594,11 @@ describe("ProjectSwitchMenu", () => {
 
       const menu = await openMenu();
       const rows = within(menu).getAllByRole("menuitemradio");
-      expect(rows.map((item) => item.textContent)).toEqual(["HeroGPUI", "Gamma"]);
-      expect(rows[0]).not.toHaveTextContent("MacBook");
+      expect(rows.map((item) => item.querySelector('[data-slot="label"]')?.textContent)).toEqual([
+        "HeroGPUI",
+        "Gamma",
+      ]);
+      expect(rows[0]?.querySelector('[data-slot="label"]')).not.toHaveTextContent("MacBook");
     });
 
     it("carries the typed draft to the other machine and remembers it", async () => {
@@ -628,7 +676,9 @@ describe("ProjectSwitchMenu", () => {
       expect(
         within(menu)
           .getAllByRole("menuitemradio")
-          .filter((item) => item.textContent === HOME_PROJECT_NAME),
+          .filter(
+            (item) => item.querySelector('[data-slot="label"]')?.textContent === HOME_PROJECT_NAME,
+          ),
       ).toHaveLength(1);
     });
 
@@ -768,7 +818,9 @@ describe("ProjectSwitchMenu", () => {
       expect(
         within(menu)
           .queryAllByRole("menuitemradio")
-          .filter((item) => item.textContent === HOME_PROJECT_NAME),
+          .filter(
+            (item) => item.querySelector('[data-slot="label"]')?.textContent === HOME_PROJECT_NAME,
+          ),
       ).toHaveLength(0);
     });
   });

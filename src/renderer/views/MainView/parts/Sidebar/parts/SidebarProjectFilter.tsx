@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Selection } from "@heroui/react";
-import { Description, Dropdown, Label, Separator } from "@heroui/react";
+import { Dropdown, Label, Separator } from "@heroui/react";
 import { Check, ChevronsUpDown, ListFilter, MoreHorizontal } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { plural } from "@lingui/core/macro";
@@ -11,12 +11,17 @@ import {
   ProjectSelectorIcon,
   useProjectRemoteServerLookup,
 } from "@/renderer/components/common/ProjectRemoteServer";
+import {
+  ProjectEnvironmentIndicator,
+  useProjectEnvironmentMachineLookup,
+} from "@/renderer/components/common/ProjectEnvironment";
 import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { useResponsiveMenu } from "@/renderer/components/common/ResponsiveMenuSurface";
 import { ResponsiveContextMenuSurface } from "@/renderer/components/common/ResponsiveContextMenuSurface";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { sidebarRowClass } from "@/renderer/components/common/SidebarButton";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
+import { compareProjectSelectorOrder } from "@/renderer/components/thread/projectSwitchGroups";
 import { handleKeyActivate } from "@/renderer/utils/a11y";
 import { useProjectGroupIndex } from "@/renderer/state/projectGroups/useProjectGroups";
 import {
@@ -65,11 +70,12 @@ const TRIGGER_ATTR = "data-poracode-project-filter-trigger";
  */
 function useFilterDismissal(args: {
   isOpen: boolean;
+  menuRef: React.RefObject<HTMLDivElement | null>;
   /** Closes the stacked project menu only; null when none is open. */
   closeStacked: (() => void) | null;
   closeAll: () => void;
 }) {
-  const { isOpen, closeStacked, closeAll } = args;
+  const { isOpen, menuRef, closeStacked, closeAll } = args;
   useEffect(() => {
     if (!isOpen) return;
     const onDown = (event: Event) => {
@@ -87,6 +93,13 @@ function useFilterDismissal(args: {
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      // The tooltip's document handler dismisses details before the menu itself.
+      if (
+        !closeStacked &&
+        menuRef.current?.querySelector("[data-project-connection][aria-describedby]")
+      ) {
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
       if (closeStacked) closeStacked();
@@ -102,7 +115,7 @@ function useFilterDismissal(args: {
       window.removeEventListener("mousedown", onDown, true);
       window.removeEventListener("keydown", onKeyDown, true);
     };
-  }, [isOpen, closeStacked, closeAll]);
+  }, [isOpen, menuRef, closeStacked, closeAll]);
 }
 
 /**
@@ -225,8 +238,8 @@ export function buildFilterRows(
 ): { available: FilterRow[]; unavailable: FilterRow[] } {
   const available: FilterRow[] = [];
   const unavailable: FilterRow[] = [];
-  const rows = groupProjectRows(projects, index).toSorted(
-    (a, b) => (isHomeProject(a.members[0]!) ? 0 : 1) - (isHomeProject(b.members[0]!) ? 0 : 1),
+  const rows = groupProjectRows(projects, index).toSorted((a, b) =>
+    compareProjectSelectorOrder(a.members[0]!, b.members[0]!),
   );
   for (const { id, members: environments } of rows) {
     const members = environments.filter(isFilterable);
@@ -264,8 +277,10 @@ export function SidebarProjectFilter(props: {
 }) {
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
+  const machineFor = useProjectEnvironmentMachineLookup();
   const remoteServerFor = useProjectRemoteServerLookup();
   const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   // Which project the overflow menu is open for, and where.
   const [overflowTarget, setOverflowTarget] = useState<{
     project: Project;
@@ -277,6 +292,7 @@ export function SidebarProjectFilter(props: {
     setOverflowTarget(null);
   };
   useFilterDismissal({
+    menuRef,
     // The compact surface is a modal sheet and already owns outside-press and
     // Escape dismissal. Its project rows are plain buttons rather than menu
     // items, so the desktop-only window listener would mistake every tap in
@@ -579,6 +595,7 @@ export function SidebarProjectFilter(props: {
         shouldCloseOnInteractOutside={closeOnlyOutsideMenus}
       >
         <Dropdown.Menu
+          ref={menuRef}
           aria-label={t`Projects`}
           className="poracode-menu min-w-56"
           selectionMode="multiple"
@@ -595,16 +612,11 @@ export function SidebarProjectFilter(props: {
           {filterableRows.map((row) => {
             const { project } = row;
             const remote = remoteServerFor(project);
-            const serverName = soleServerName(row);
             return (
               <Dropdown.Item key={row.id} id={row.id} textValue={project.name}>
-                <ProjectSelectorIcon
-                  project={project}
-                  remote={remote}
-                  showEnvironment={row.environments.length === 1}
-                />
+                <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />
                 <Label className="min-w-0 truncate">{project.name}</Label>
-                {serverName ? <Description>{serverName}</Description> : null}
+                <ProjectEnvironmentIndicator members={row.environments} machineFor={machineFor} />
                 <span className="ms-auto shrink-0 text-xs text-muted">{rowCount(row)}</span>
                 <Dropdown.ItemIndicator />
                 {isHomeProject(project) ? null : (
@@ -627,16 +639,18 @@ export function SidebarProjectFilter(props: {
               {unavailableRows.map((row) => {
                 const { project } = row;
                 const remote = remoteServerFor(project);
-                const serverName = soleServerName(row);
                 return (
                   <Dropdown.Item key={row.id} id={row.id} textValue={project.name}>
                     <ProjectSelectorIcon
                       project={project}
                       remote={remote}
-                      showEnvironment={row.environments.length === 1}
+                      showEnvironment={false}
                     />
                     <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
-                    {serverName ? <Description>{serverName}</Description> : null}
+                    <ProjectEnvironmentIndicator
+                      members={row.environments}
+                      machineFor={machineFor}
+                    />
                     {isHomeProject(project) ? null : (
                       <ProjectRowMenuButton
                         project={project}

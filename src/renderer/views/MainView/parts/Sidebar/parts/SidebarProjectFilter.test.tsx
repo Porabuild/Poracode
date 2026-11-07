@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project } from "@/shared/contracts";
@@ -71,7 +71,7 @@ describe("SidebarProjectFilter", () => {
     useAppStore.setState({ projects: [] });
   });
 
-  it("names the hosting machine on mirrored rows and on a lone selection", async () => {
+  it("moves the hosting machine into a connection tooltip while preserving the selected label", async () => {
     const mirrored = {
       ...project("r", "Alpha"),
       remoteServerId: "desktop-1",
@@ -90,11 +90,25 @@ describe("SidebarProjectFilter", () => {
 
     const menu = await openMenu();
     const rows = [...menu.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]')];
-    const mirroredRows = rows.filter((row) => row.textContent?.includes("MacBook 16"));
-    expect(mirroredRows).toHaveLength(1);
-    expect(within(mirroredRows[0]!).getByTitle("Online")).toBeInTheDocument();
-
-    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    expect(
+      rows.every(
+        (row) => !row.querySelector('[data-slot="label"]')?.textContent?.includes("MacBook 16"),
+      ),
+    ).toBe(true);
+    const connection = within(menu).getByRole("img", { name: "MacBook 16" });
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    fireEvent.pointerEnter(connection, { pointerType: "mouse" });
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("MacBook 16");
+    expect(within(tooltip).getByTitle("Online")).toHaveClass(
+      "bg-success",
+      "right-0",
+      "bottom-0",
+      "ring-1",
+      "ring-background",
+    );
+    expect(tooltip).not.toHaveTextContent("Online");
+    fireEvent.pointerLeave(connection, { pointerType: "mouse" });
   });
 
   it("lists a project on several environments as one row that toggles every environment", async () => {
@@ -125,9 +139,80 @@ describe("SidebarProjectFilter", () => {
     expect(rows[1]!.querySelector(".lucide-folder-open")).not.toBeNull();
     expect(within(rows[2]!).getByText("Beta")).toBeInTheDocument();
 
+    const connection = within(rows[1]!).getByRole("img", { name: "Local, MacBook 16" });
+    expect(connection.querySelector(".lucide-server")).toBeInTheDocument();
+    expect(within(connection).getByTitle("Online")).toHaveClass("bg-success", "ring-background");
+    expect(rows[2]!.querySelector("[data-project-connection]")).toBeNull();
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    fireEvent.pointerEnter(connection, { pointerType: "mouse" });
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Local");
+    expect(tooltip).toHaveTextContent("MacBook 16");
+    expect(tooltip).toHaveTextContent("/Users/me/alpha");
+    // Only the paired machine has a connection status; Local stays unmarked.
+    expect(within(tooltip).getAllByTitle("Online")).toHaveLength(1);
+    await act(async () => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+      } as never);
+    });
+    expect(within(tooltip).getByTitle("Offline")).toBeInTheDocument();
+    expect(within(connection).getByTitle("Offline")).not.toHaveClass("bg-success");
+    expect(within(tooltip).queryByTitle("Online")).toBeNull();
+    expect(tooltip).not.toHaveTextContent(/Online|Offline/);
+    fireEvent.pointerLeave(connection, { pointerType: "mouse" });
+
     // Unchecking Alpha in the all state filters out both environments.
     fireEvent.click(rows[1]!);
     expect(onChange).toHaveBeenLastCalledWith(["b"]);
+  });
+
+  it("dismisses keyboard connection details before closing the project filter", async () => {
+    const mirrored = {
+      ...project("r", "Alpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "remote-a",
+    } as Project;
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "MacBook" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    const list = [projects[0]!, mirrored, projects[1]!];
+    useAppStore.setState({ projects: list });
+    renderFilter(null, vi.fn(), list);
+    const menu = await openMenu();
+    fireEvent.keyDown(menu, { key: "Home" });
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    const alpha = within(menu).getByRole("menuitemcheckbox", { name: /^Alpha/ });
+    await waitFor(() => expect(alpha).toHaveFocus());
+    expect(alpha).toHaveAccessibleDescription(/Local.*MacBook/);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("MacBook");
+    fireEvent.keyDown(alpha, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull());
+    expect(menu).toBeInTheDocument();
+    fireEvent.keyDown(alpha, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+  });
+
+  it("uses the same Home, local, remote ordering as the new-thread pickers", async () => {
+    const mirrored = {
+      ...project("r", "Remote"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+    } as Project;
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "MacBook" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    const list = [mirrored, projects[0]!, homeProject, projects[1]!];
+    useAppStore.setState({ projects: list });
+    renderFilter(null, vi.fn(), list);
+    const menu = await openMenu();
+    expect(
+      within(menu)
+        .getAllByRole("menuitemcheckbox")
+        .map((row) => row.querySelector('[data-slot="label"]')?.textContent),
+    ).toEqual(["All projects", "Home", "Alpha", "Beta", "Remote"]);
   });
 
   it("keeps Home first without disturbing the other projects' order", async () => {
@@ -189,7 +274,7 @@ describe("SidebarProjectFilter", () => {
     expect(rows.filter((row) => row.textContent?.includes("Home"))).toHaveLength(1);
   });
 
-  it("hides environment badges on an unavailable combined row", async () => {
+  it("keeps unavailable combined rows compact with connection details on hover", async () => {
     const mirrored = {
       ...project("r", "Alpha"),
       remoteServerId: "desktop-1",
@@ -220,6 +305,15 @@ describe("SidebarProjectFilter", () => {
     expect(within(alpha!).queryByText("MacBook 16")).toBeNull();
     expect(alpha!.querySelector(".lucide-monitor")).toBeNull();
     expect(alpha!.querySelector(".lucide-folder-open")).not.toBeNull();
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    fireEvent.pointerEnter(within(alpha!).getByRole("img", { name: "Local, MacBook 16" }), {
+      pointerType: "mouse",
+    });
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("MacBook 16");
+    expect(within(tooltip).getByTitle("Offline")).toBeInTheDocument();
+    expect(within(tooltip).queryByTitle("Online")).toBeNull();
+    expect(tooltip).not.toHaveTextContent(/Online|Offline/);
   });
 
   it("shows a project selected when a saved filter holds one of its machines", async () => {

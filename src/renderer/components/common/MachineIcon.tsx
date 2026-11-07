@@ -1,6 +1,6 @@
-import { Monitor, Server } from "lucide-react";
+import { Monitor } from "lucide-react";
 import type { MachineDescriptor } from "@/renderer/state/machines";
-import { RemoteServerStatusDot } from "./RemoteServerStatusDot";
+import { RemoteServerIcon } from "./RemoteServerIcon";
 import { TuxIcon } from "./TuxIcon";
 
 /** Machine glyph shared by every machine picker: local, WSL distro, or paired host with status. */
@@ -13,14 +13,11 @@ export function MachineIcon(props: { machine: MachineDescriptor; className?: str
   }
   if (machine.kind === "local-wsl") return <TuxIcon className={`${size} shrink-0 text-muted`} />;
   return (
-    <span className="relative inline-flex shrink-0 items-center">
-      <Server className={`${size} text-muted`} />
-      <RemoteServerStatusDot
-        status={machine.status}
-        className="absolute -bottom-0.5 -right-0.5"
-        sizeClassName="size-1.5"
-      />
-    </span>
+    <RemoteServerIcon
+      status={machine.status}
+      className={`${size} text-muted`}
+      dotClassName="size-1.5"
+    />
   );
 }
 

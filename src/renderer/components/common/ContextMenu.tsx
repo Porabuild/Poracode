@@ -48,6 +48,8 @@ export interface ContextMenuItem {
   label: string;
   icon?: ReactNode;
   description?: string;
+  /** Supplemental row information, such as an icon with a hover tooltip. */
+  trailingContent?: ReactNode;
   /**
    * Makes the row draggable. The menu hides itself while the drag is in flight
    * instead of closing: unmounting the dragged row would cancel the operation.
@@ -211,6 +213,7 @@ function DropdownItemRow({
           {item.label}
         </Label>
       )}
+      {item.trailingContent}
       {item.shortcut ? (
         <span
           aria-hidden
