@@ -98,6 +98,38 @@ async function readWorkflow(name) {
   return parse(await readFile(workflowUrl(name), "utf8"));
 }
 
+void test("release preparation does not install an unused Bun toolchain", async () => {
+  for (const releaseName of ["release.yml", "release-nightly.yml"]) {
+    const workflow = await readWorkflow(releaseName);
+    assert.equal(
+      workflow.jobs.prepare.steps.some((step) => step.uses === "./.github/actions/setup-bun"),
+      false,
+      `${releaseName} resolves versions with Node and must not restore Bun`,
+    );
+  }
+});
+
+void test("Windows setup excludes the actual npm cache and canonical temp before cache restores", async () => {
+  const action = parse(
+    await readFile(new URL("../.github/actions/setup-bun/action.yml", import.meta.url), "utf8"),
+  );
+  const steps = action.runs.steps;
+  const defenderIndex = steps.findIndex(
+    (step) => step.name === "Exclude build folders from Defender scanning (Windows)",
+  );
+  const setupNodeIndex = steps.findIndex((step) => step.uses?.startsWith("actions/setup-node@"));
+  const cacheIndexes = steps.flatMap((step, index) =>
+    step.uses?.startsWith("actions/cache@") ? [index] : [],
+  );
+  assert.ok(defenderIndex > setupNodeIndex, "npm must be available before locating its cache");
+  for (const cacheIndex of cacheIndexes)
+    assert.ok(defenderIndex < cacheIndex, "exclusions must precede every cache restore");
+  const defender = steps[defenderIndex];
+  assert.match(defender.run, /\$npmCache = \(& npm config get cache\)\.Trim\(\)/u);
+  assert.match(defender.run, /Join-Path \$env:LOCALAPPDATA 'Temp'/u);
+  assert.match(defender.run, /\$npmCache,/u);
+});
+
 void test("qualification and release share one server-artifact workflow (plan D3)", async () => {
   const nativeCi = await readWorkflow("native-ci.yml");
   const qualification = nativeCi.jobs.server_install_qualification;

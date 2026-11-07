@@ -9,7 +9,6 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
@@ -17,6 +16,7 @@ import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { canonicalHostPath, resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { installServerPrefix } from "../../scripts/install-server-prefix.mjs";
+import { releaseScratchRoot } from "../../scripts/server-host-tools.mjs";
 import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
 import {
   removeConversationSearchFixtureSchema,
@@ -132,7 +132,7 @@ async function reapDaemonChild(child: ReturnType<typeof spawn>, profile: string)
 
 /** Work root under the temp dir in its long form (Windows temp is an 8.3 RUNNER~1 path). */
 function makeWorkRoot(label: string): string {
-  const created = mkdtempSync(join(tmpdir(), label));
+  const created = mkdtempSync(join(releaseScratchRoot(), label));
   dirs.push(created);
   return realpathSync.native(created);
 }
@@ -389,11 +389,11 @@ function buildBrokenTarball(
   sourceTarball: string,
   migrationPolicy: CandidateMigrationPolicy,
 ): string {
-  const stage = mkdtempSync(join(tmpdir(), "poracode-broken-stage-"));
+  const stage = mkdtempSync(join(releaseScratchRoot(), "poracode-broken-stage-"));
   dirs.push(stage);
   runTar(["-xzf", sourceTarball, "-C", stage], { stdio: "pipe" });
   writeFileSync(join(stage, "lib", "server.cjs"), brokenServerStub(migrationPolicy));
-  const archiveDir = mkdtempSync(join(tmpdir(), "poracode-broken-artifact-"));
+  const archiveDir = mkdtempSync(join(releaseScratchRoot(), "poracode-broken-artifact-"));
   dirs.push(archiveDir);
   const brokenTarball = join(archiveDir, "poracode-server-broken.tar.gz");
   runTar(["-czf", brokenTarball, "-C", stage, "."], { stdio: "pipe" });
@@ -407,7 +407,7 @@ function buildBrokenTarball(
  * repack of the current build, not a released N-1 artifact.
  */
 function buildDistinctTarball(sourceTarball: string, version: string): string {
-  const stage = mkdtempSync(join(tmpdir(), "poracode-distinct-stage-"));
+  const stage = mkdtempSync(join(releaseScratchRoot(), "poracode-distinct-stage-"));
   dirs.push(stage);
   runTar(["-xzf", sourceTarball, "-C", stage], { stdio: "pipe" });
   const packagePath = join(stage, "package.json");
@@ -415,7 +415,7 @@ function buildDistinctTarball(sourceTarball: string, version: string): string {
   writeFileSync(packagePath, `${JSON.stringify({ ...parsed, version }, null, 2)}\n`);
   const entry = join(stage, "lib", "server.cjs");
   writeFileSync(entry, `${readFileSync(entry, "utf8")}\n// distinct D4 artifact ${version}\n`);
-  const archiveDir = mkdtempSync(join(tmpdir(), "poracode-distinct-artifact-"));
+  const archiveDir = mkdtempSync(join(releaseScratchRoot(), "poracode-distinct-artifact-"));
   dirs.push(archiveDir);
   const distinct = join(archiveDir, `poracode-server-${version}.tar.gz`);
   runTar(["-czf", distinct, "-C", stage, "."], { stdio: "pipe" });
