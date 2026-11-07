@@ -11119,6 +11119,8 @@ msgid "Machine"
 msgstr "Computer"
 
 #: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileProjectBar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsProjectPicker.tsx
 msgid "Machine: {currentLabel}"
 msgstr "Rechner: {currentLabel}"
 
@@ -15223,8 +15225,8 @@ msgstr "Profile"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileProjectBar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsProjectPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -18104,6 +18106,8 @@ msgstr "Wähle Zeilen im Plan aus, um sie zu kommentieren."
 
 #: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileProjectBar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsProjectPicker.tsx
 msgid "Select machine"
 msgstr "Computer auswählen"
 

@@ -11119,6 +11119,8 @@ msgid "Machine"
 msgstr "设备"
 
 #: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileProjectBar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsProjectPicker.tsx
 msgid "Machine: {currentLabel}"
 msgstr "机器：{currentLabel}"
 
@@ -15222,8 +15224,8 @@ msgstr "配置文件"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
-#: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileProjectBar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsProjectPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Project"
@@ -18103,6 +18105,8 @@ msgstr "在计划中选择行即可评论。"
 
 #: src/renderer/components/machineScope/MachineSelect.tsx
 #: src/renderer/components/thread/ProjectEnvironmentMenu.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsMobileProjectBar.tsx
+#: src/renderer/views/GitHubActionsView/GitHubActionsProjectPicker.tsx
 msgid "Select machine"
 msgstr "选择设备"
 

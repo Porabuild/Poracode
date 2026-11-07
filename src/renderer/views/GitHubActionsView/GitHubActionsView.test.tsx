@@ -21,6 +21,7 @@ import type {
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 
@@ -55,6 +56,9 @@ vi.mock("@/renderer/bridge", () => ({
 import { buildWorkflowDispatchInputs } from "./GitHubActionsDispatchPopover";
 import { GitHubActionsView } from "./GitHubActionsView";
 import { resetGitHubActionsCaches } from "./useGitHubActionsViewModel";
+
+// Some cases replace this action to capture where the view navigates.
+const realOpenGitHubActions = useAppStore.getState().openGitHubActions;
 
 const project: Project = {
   id: "project-1",
@@ -165,7 +169,8 @@ describe("GitHubActionsView", () => {
     bridge.ghListAccounts.mockReset().mockResolvedValue({ accounts: [] });
     bridge.openExternal.mockReset().mockResolvedValue(undefined);
     useRemoteServersStore.setState({ servers: [], runtime: {} });
-    useAppStore.setState({ projects: [project] });
+    useAppStore.setState({ projects: [project], openGitHubActions: realOpenGitHubActions });
+    useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: {} });
     useSidebarUiStore.setState({ pinnedGitHubWorkflows: {} });
     useGitStore.setState({
       branches: {
@@ -216,7 +221,7 @@ describe("GitHubActionsView", () => {
     expect(trigger).toHaveTextContent(project.name);
     expect(trigger).toHaveClass("text-sm");
     expect(trigger).not.toHaveClass("font-mono");
-    expect(trigger.querySelector(".lucide-monitor")).not.toBeNull();
+    expect(trigger.querySelector(".lucide-folder-open")).not.toBeNull();
     expect(bridge.ghListWorkflows).toHaveBeenCalledWith({
       projectLocation: project.location,
     });
@@ -283,7 +288,7 @@ describe("GitHubActionsView", () => {
     expect(within(main).queryByText(run.title)).not.toBeInTheDocument();
   });
 
-  it("shows project icons and the hosting machine in the trigger and menu", async () => {
+  describe("projects on several environments", () => {
     const mirrored: Project = {
       ...project,
       id: "remote:desktop-1:project:project-1",
@@ -291,45 +296,266 @@ describe("GitHubActionsView", () => {
       remoteId: project.id,
       location: { ...project.location, remoteServerId: "desktop-1" },
     };
-    useRemoteServersStore.setState({
-      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
-      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
-    } as never);
-    useAppStore.setState({ projects: [project, mirrored] });
-
-    render(<GitHubActionsView projectId={mirrored.id} onClose={() => {}} />);
-
-    const trigger = await screen.findByRole("button", { name: "Project" });
-    expect(trigger).toHaveTextContent("PoracodeMacBook 16");
-    expect(trigger.querySelector(".lucide-server")).not.toBeNull();
-    expect(trigger.parentElement).not.toHaveClass("px-2");
-
-    fireEvent.click(trigger);
-    const remoteRow = await screen.findByRole("menuitemradio", { name: /MacBook 16/ });
-    expect(remoteRow).toHaveTextContent("MacBook 16");
-    expect(remoteRow.querySelector(".lucide-server")).not.toBeNull();
-    expect(document.querySelector('[class~="min-w-[--trigger-width]"]')).toBeInTheDocument();
-  });
-
-  it("leaves projects on unreachable servers out of the project menu", async () => {
-    const mirrored: Project = {
+    const ubuntu: Project = {
       ...project,
-      id: "remote:desktop-1:project:project-1",
-      remoteServerId: "desktop-1",
-      remoteId: project.id,
-      location: { ...project.location, remoteServerId: "desktop-1" },
+      id: "project-ubuntu",
+      location: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/dev/poracode",
+        uncPath: "\\\\wsl$\\Ubuntu\\home\\dev\\poracode",
+      },
     };
-    useRemoteServersStore.setState({
-      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
-      runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
-    } as never);
-    useAppStore.setState({ projects: [project, mirrored] });
+    const other: Project = { ...project, id: "project-2", name: "Other" };
 
-    render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+    function pairMachine(status: "online" | "offline" = "online") {
+      useRemoteServersStore.setState({
+        servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+        runtime: { "desktop-1": { status, projects: [], threads: [] } },
+      } as never);
+    }
 
-    fireEvent.click(await screen.findByRole("button", { name: "Project" }));
-    expect(await screen.findByRole("menuitemradio", { name: "Poracode" })).toBeInTheDocument();
-    expect(screen.queryByRole("menuitemradio", { name: /MacBook 16/ })).not.toBeInTheDocument();
+    function captureProjectSelection() {
+      const onSelect = vi.fn<(projectId?: string, runId?: number) => void>();
+      useAppStore.setState({ openGitHubActions: onSelect });
+      return onSelect;
+    }
+
+    it("lists one row per logical project with the machine control beside it", async () => {
+      pairMachine();
+      useAppStore.setState({ projects: [project, mirrored, other] });
+
+      render(<GitHubActionsView projectId={mirrored.id} onClose={() => {}} />);
+
+      const projectTrigger = await screen.findByRole("button", { name: "Project" });
+      const machineTrigger = screen.getByRole("button", { name: "Machine: MacBook 16" });
+      expect(projectTrigger).toHaveTextContent("Poracode");
+      expect(projectTrigger).not.toHaveTextContent("MacBook");
+      expect(machineTrigger).toHaveTextContent("MacBook 16");
+      // Side by side in one row, built from the same control recipe.
+      expect(machineTrigger.parentElement).toBe(projectTrigger.parentElement);
+      for (const name of ["h-8", "rounded-3xl", "text-sm", "text-muted"]) {
+        expect(projectTrigger).toHaveClass(name);
+        expect(machineTrigger).toHaveClass(name);
+      }
+      expect(machineTrigger.querySelector(".lucide-chevrons-up-down")).not.toBeNull();
+
+      fireEvent.click(projectTrigger);
+      expect(await screen.findAllByRole("menuitemradio")).toHaveLength(2);
+      expect(screen.getByRole("menuitemradio", { name: /Poracode/ })).toBeInTheDocument();
+      expect(screen.getByRole("menuitemradio", { name: /Other/ })).toBeInTheDocument();
+    });
+
+    it("switches between two machines with one press", async () => {
+      pairMachine();
+      useAppStore.setState({ projects: [project, mirrored] });
+      const onSelect = captureProjectSelection();
+
+      render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Machine: Local" }));
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(onSelect).toHaveBeenCalledWith(mirrored.id);
+      // Remembered, so picking this project later reopens it on the MacBook.
+      expect(useProjectGroupStore.getState().lastUsedAt[mirrored.id]).toBeTypeOf("number");
+    });
+
+    it("offers a menu of the machines from three on", async () => {
+      pairMachine();
+      useAppStore.setState({ projects: [project, ubuntu, mirrored] });
+      const onSelect = captureProjectSelection();
+
+      render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Machine: Local" }));
+      const rows = await screen.findAllByRole("menuitemradio");
+      expect(rows).toHaveLength(3);
+      expect(rows[0]).toHaveTextContent("Local");
+      expect(rows[1]).toHaveTextContent("Ubuntu");
+      expect(rows[2]).toHaveTextContent("MacBook 16");
+      fireEvent.click(screen.getByRole("menuitemradio", { name: /Ubuntu/ }));
+      expect(onSelect).toHaveBeenCalledWith(ubuntu.id);
+    });
+
+    it("offers only the machines the project can be opened on", async () => {
+      pairMachine("offline");
+      useAppStore.setState({ projects: [project, ubuntu, mirrored] });
+      const onSelect = captureProjectSelection();
+
+      render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+      // The offline MacBook leaves two machines, so the control toggles to Ubuntu.
+      fireEvent.click(await screen.findByRole("button", { name: "Machine: Local" }));
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+      expect(onSelect).toHaveBeenCalledWith(ubuntu.id);
+      expect(screen.queryByText("MacBook 16")).not.toBeInTheDocument();
+    });
+
+    it("keeps the machine slot the same size across projects and machines", async () => {
+      pairMachine();
+      useAppStore.setState({ projects: [project, mirrored, other] });
+
+      const { rerender } = render(<GitHubActionsView projectId={other.id} onClose={() => {}} />);
+
+      // A project on this computer only still fills the slot, with its machine named.
+      const projectTrigger = await screen.findByRole("button", { name: "Project" });
+      const label = projectTrigger.parentElement?.querySelector("[data-project-environment]");
+      expect(label).toHaveTextContent("Local");
+      expect(label).toHaveClass("w-36", "shrink-0");
+
+      rerender(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+      expect(await screen.findByRole("button", { name: "Machine: Local" })).toHaveClass(
+        "w-36",
+        "shrink-0",
+      );
+
+      rerender(<GitHubActionsView projectId={mirrored.id} onClose={() => {}} />);
+      expect(await screen.findByRole("button", { name: "Machine: MacBook 16" })).toHaveClass(
+        "w-36",
+        "shrink-0",
+      );
+    });
+
+    it("keeps the current machine when its own project is picked again", async () => {
+      pairMachine();
+      useAppStore.setState({ projects: [project, mirrored, other] });
+      const onSelect = captureProjectSelection();
+
+      render(<GitHubActionsView projectId={mirrored.id} onClose={() => {}} />);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Project" }));
+      fireEvent.click(await screen.findByRole("menuitemradio", { name: /Poracode/ }));
+      expect(onSelect).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "Project" }));
+      fireEvent.click(await screen.findByRole("menuitemradio", { name: /Other/ }));
+      expect(onSelect).toHaveBeenCalledWith(other.id);
+      expect(useProjectGroupStore.getState().lastUsedAt[other.id]).toBeTypeOf("number");
+    });
+
+    it("opens a logical project on its first machine before one is remembered", async () => {
+      pairMachine();
+      useAppStore.setState({ projects: [project, mirrored, other] });
+      const onSelect = captureProjectSelection();
+
+      render(<GitHubActionsView projectId={other.id} onClose={() => {}} />);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Project" }));
+      fireEvent.click(await screen.findByRole("menuitemradio", { name: /Poracode/ }));
+      expect(onSelect).toHaveBeenCalledWith(project.id);
+    });
+
+    it("reopens a logical project on the machine last used", async () => {
+      pairMachine();
+      useAppStore.setState({ projects: [project, mirrored, other] });
+      useProjectGroupStore.setState({ lastUsedAt: { [mirrored.id]: Date.now() } });
+      const onSelect = captureProjectSelection();
+
+      render(<GitHubActionsView projectId={other.id} onClose={() => {}} />);
+
+      fireEvent.click(await screen.findByRole("button", { name: "Project" }));
+      fireEvent.click(await screen.findByRole("menuitemradio", { name: /Poracode/ }));
+      expect(onSelect).toHaveBeenCalledWith(mirrored.id);
+    });
+
+    it("names the only machine of a project that lives on one paired machine", async () => {
+      pairMachine();
+      useAppStore.setState({ projects: [mirrored] });
+
+      render(<GitHubActionsView projectId={mirrored.id} onClose={() => {}} />);
+
+      const trigger = await screen.findByRole("button", { name: "Project" });
+      expect(trigger).toHaveTextContent("Poracode");
+      expect(trigger.querySelector(".lucide-folder-open")).not.toBeNull();
+      expect(screen.queryByRole("button", { name: /^Machine:/ })).not.toBeInTheDocument();
+      const label = trigger.parentElement?.querySelector("[data-project-environment]");
+      expect(label).toHaveTextContent("MacBook 16");
+    });
+
+    it("shows no machine slot while every project lives only on this computer", async () => {
+      pairMachine("offline");
+      const offlineOnly: Project = {
+        ...mirrored,
+        id: "remote:desktop-1:project:offline-only",
+        name: "Offline only",
+        remoteId: "offline-only",
+      };
+      useAppStore.setState({ projects: [project, mirrored, offlineOnly, other] });
+
+      render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+      const trigger = await screen.findByRole("button", { name: "Project" });
+      expect(screen.queryByRole("button", { name: /^Machine:/ })).not.toBeInTheDocument();
+      expect(trigger.parentElement?.querySelector("[data-project-environment]")).toBeNull();
+      expect(trigger.parentElement?.children).toHaveLength(1);
+
+      // A project that lives only on the offline machine is not offered at all.
+      fireEvent.click(trigger);
+      expect(await screen.findAllByRole("menuitemradio")).toHaveLength(2);
+      expect(screen.queryByRole("menuitemradio", { name: /Offline only/ })).not.toBeInTheDocument();
+    });
+
+    it("reads the workflows of the machine that is open", async () => {
+      pairMachine();
+      useAppStore.setState({ projects: [project, mirrored] });
+      const { rerender } = render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+      await waitFor(() =>
+        expect(bridge.ghListWorkflows).toHaveBeenCalledWith({ projectLocation: project.location }),
+      );
+
+      rerender(<GitHubActionsView projectId={mirrored.id} onClose={() => {}} />);
+      await waitFor(() =>
+        expect(bridge.ghListWorkflows).toHaveBeenCalledWith({
+          projectLocation: mirrored.location,
+        }),
+      );
+    });
+
+    it("puts the project and machine pills side by side in the compact layout", async () => {
+      layout.compact = true;
+      pairMachine();
+      useAppStore.setState({ projects: [project, ubuntu, mirrored, other] });
+      const onSelect = captureProjectSelection();
+
+      render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+      const main = screen.getByRole("main");
+      const projectPill = await within(main).findByRole("button", { name: "Project" });
+      const machinePill = within(main).getByRole("button", { name: "Machine: Local" });
+      expect(projectPill).toHaveTextContent("Poracode");
+      expect(machinePill.parentElement).toBe(projectPill.parentElement);
+      expect(projectPill).toHaveClass("m-floating-selector");
+      expect(machinePill).toHaveClass("m-floating-selector", "w-40", "shrink-0");
+
+      fireEvent.click(projectPill);
+      const projectSheet = await screen.findByRole("dialog", { name: "Project" });
+      expect(within(projectSheet).getAllByRole("button", { name: /Poracode|Other/ })).toHaveLength(
+        2,
+      );
+      fireEvent.click(within(projectSheet).getByRole("button", { name: /Poracode/ }));
+
+      fireEvent.click(machinePill);
+      const machineSheet = await screen.findByRole("dialog", { name: "Select machine" });
+      for (const name of [/Local/, /Ubuntu/, /MacBook 16/]) {
+        expect(within(machineSheet).getByRole("button", { name })).toBeInTheDocument();
+      }
+      fireEvent.click(within(machineSheet).getByRole("button", { name: /MacBook 16/ }));
+      expect(onSelect).toHaveBeenCalledWith(mirrored.id);
+    });
+
+    it("toggles between two machines from the compact pill", async () => {
+      layout.compact = true;
+      pairMachine();
+      useAppStore.setState({ projects: [project, mirrored] });
+      const onSelect = captureProjectSelection();
+
+      render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
+
+      const main = screen.getByRole("main");
+      fireEvent.click(await within(main).findByRole("button", { name: "Machine: Local" }));
+      expect(screen.queryByRole("dialog", { name: "Select machine" })).not.toBeInTheDocument();
+      expect(onSelect).toHaveBeenCalledWith(mirrored.id);
+    });
   });
 
   it("selects the first pinned workflow by default", async () => {
