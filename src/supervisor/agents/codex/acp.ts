@@ -64,6 +64,7 @@ import {
 import type { CodexClientRequestMap } from "./protocol";
 import { acquireCodexAppServer } from "./serverPool";
 import { buildCodexThreadOverrides } from "./threadOverrides";
+import { readCodexNativeMcpNames } from "./nativeMcp";
 import {
   mapCodexSkillsToSlashCommands,
   mapCodexSlashCommands,
@@ -227,6 +228,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private readonly threadId: string;
   private readonly projectLocation: ProjectLocation;
   private readonly mcpServers: readonly ResolvedMcpServer[];
+  private readonly nativeMcpNames: readonly string[];
   private readonly releaseAppServer: () => void;
   private listener: StructuredSessionListener | undefined;
   private isDisposed = false;
@@ -304,6 +306,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     mcpServers: readonly ResolvedMcpServer[],
     releaseAppServer: () => void,
     wslDistro?: string,
+    nativeMcpNames: readonly string[] = [],
   ) {
     this.rpc = rpc;
     this.liveVoice = new CodexLiveVoice(
@@ -315,6 +318,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.threadId = threadId;
     this.projectLocation = projectLocation;
     this.mcpServers = mcpServers;
+    this.nativeMcpNames = nativeMcpNames;
     this.releaseAppServer = releaseAppServer;
     this.wslDistro = wslDistro;
     this.launchOptions = {
@@ -348,6 +352,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           buildCodexThreadOverrides(next, {
             projectLocation: this.projectLocation,
             mcpServers: this.mcpServers,
+            nativeMcpNames: this.nativeMcpNames,
           }),
       },
       threadId,
@@ -586,7 +591,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     input: CreateStructuredSessionInput,
     wslExecPath?: string,
   ): Promise<CodexStructuredSession> {
-    const acquired = await acquireCodexAppServer(input, wslExecPath);
+    const nativeMcpNames = await readCodexNativeMcpNames(
+      input.projectLocation,
+      input.mcpServers ?? [],
+      input.env,
+      wslExecPath,
+    );
+    const acquired = await acquireCodexAppServer(input, wslExecPath, nativeMcpNames);
     const wslDistro =
       input.projectLocation.kind === "wsl" ? input.projectLocation.distro : undefined;
     const rpc = new CodexAppServerRpc(acquired.connection, input.threadId);
@@ -597,6 +608,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       input.mcpServers ?? [],
       acquired.dispose,
       wslDistro,
+      nativeMcpNames,
     );
     session.attachRpcHandlers();
 
@@ -657,6 +669,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const threadOverrides = buildCodexThreadOverrides(config, {
       projectLocation: this.projectLocation,
       mcpServers: this.mcpServers,
+      nativeMcpNames: this.nativeMcpNames,
     });
 
     let threadId: string;
@@ -1295,6 +1308,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     const threadOverrides = buildCodexThreadOverrides(rollbackConfig, {
       projectLocation: this.projectLocation,
       mcpServers: this.mcpServers,
+      nativeMcpNames: this.nativeMcpNames,
     });
     this.forkNotificationBuffer = [];
     try {

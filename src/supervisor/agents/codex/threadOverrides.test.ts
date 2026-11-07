@@ -65,4 +65,30 @@ describe("buildCodexThreadOverrides", () => {
       model_auto_compact_token_limit: 950_000,
     });
   });
+
+  it("disables a colliding native server for starts, resumes and forks", () => {
+    const overrides = buildCodexThreadOverrides(
+      { model: "gpt-6.1-terra", effort: "max" },
+      {
+        nativeMcpNames: ["custom-admin"],
+        mcpServers: [
+          {
+            id: "custom-admin",
+            name: "custom-admin",
+            timeoutMs: 30_000,
+            transport: { type: "stdio", command: "node", args: ["proxy.mjs"], env: {} },
+          },
+        ],
+      },
+    );
+    expect(overrides.config).toMatchObject({
+      model_reasoning_effort: "max",
+      "mcp_servers.custom-admin": { enabled: false },
+    });
+    expect(
+      Object.entries(overrides.config ?? {}).find(([key]) =>
+        key.startsWith("mcp_servers.poracode_"),
+      )?.[1],
+    ).toMatchObject({ command: "node" });
+  });
 });

@@ -22,6 +22,7 @@ import { resolveCodexWindowsLaunchBinary } from "./windowsExecutable";
 import { codexAgentSettingOverrideArgs } from "@/shared/agents/codexAgentSettings";
 import { codexContextWindowOverrides } from "@/shared/agents/codexContextWindows";
 import { buildCodexMcp } from "./mcpConfig";
+import { readCodexNativeMcpNames } from "./nativeMcp";
 import { isCodexAgentsConfigSupported } from "./agentsConfigSupport";
 import { buildCodexMcpSkillConflictArgs } from "./mcpSkillConflicts";
 
@@ -121,12 +122,14 @@ export async function buildCodexArgvFor(
   prompt: string,
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
+  env?: Record<string, string>,
 ): Promise<AgentArgvSpec> {
   const binary = resolveCodexWindowsLaunchBinary(location) ?? "codex";
   const mcpServers = launchOptions?.mcpServers ?? [];
-  const mcp = buildCodexMcp(mcpServers);
+  const nativeNames = await readCodexNativeMcpNames(location, mcpServers, env);
+  const mcp = buildCodexMcp(mcpServers, nativeNames);
   const mcpArgs = [...(await buildCodexMcpSkillConflictArgs(location, mcpServers)), ...mcp.args];
-  const mcpEnv = mcp.env;
+  const mcpEnv = { ...mcp.env, ...env };
   const hasMcpEnv = Object.keys(mcpEnv).length > 0;
   const enableGoals = isCodexGoalsSupported(location);
   const baseArgsOptions: BuildCodexArgsOptions = {
@@ -180,6 +183,7 @@ export async function buildCodexAppServerCommand(
     wslNodePath?: string;
     mcpServers?: readonly ResolvedMcpServer[];
     includeMcpConfig?: boolean;
+    nativeMcpNames?: readonly string[];
     /** Stored Codex agent settings; sub-agent defaults apply to the whole shared app-server. */
     agentSettings?: Record<string, boolean | string>;
     /**
@@ -192,7 +196,10 @@ export async function buildCodexAppServerCommand(
   const wslExecPath = options?.wslExecPath;
   const wslNodePath = options?.wslNodePath;
   const mcpServers = options?.mcpServers ?? [];
-  const mcp = buildCodexMcp(mcpServers);
+  const nativeNames =
+    options?.nativeMcpNames ??
+    (await readCodexNativeMcpNames(location, mcpServers, options?.env, wslExecPath));
+  const mcp = buildCodexMcp(mcpServers, nativeNames);
   const includeMcpConfig = options?.includeMcpConfig ?? true;
   const mcpSkillConflictArgs = await buildCodexMcpSkillConflictArgs(location, mcpServers);
   const mcpEnv = { ...mcp.env, ...(options?.env ?? {}) };
