@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Description, Tooltip } from "@heroui/react";
-import { useFocusVisible } from "react-aria/useFocusVisible";
+import { useFocusVisible } from "react-aria";
 import type { Project } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { agentEnvForLocation, parseMachineKey } from "@/shared/machines";
