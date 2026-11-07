@@ -51,11 +51,12 @@ function getThreadWorktreeName(thread: Thread): string | undefined {
   );
 }
 
-const EMPTY_PROJECTS: readonly Project[] = [];
 const EMPTY_THREAD_MENTIONS: ThreadMentionItem[] = [];
 
 /**
- * Threads available to the composer, already filtered and recency-ranked.
+ * Threads available to the composer across projects and workspaces, ranked by
+ * current scope, worktree, and recency. Workspace visibility affects priority,
+ * not availability.
  * Empty unless the built-in app-controls MCP server and its `read_thread` tool
  * are enabled — a mention resolves to an instruction telling the agent to call
  * `read_thread`, so offering chips without the tool would silently break them.
@@ -68,25 +69,29 @@ export function useThreadMentionItems(
   const isProjectVisible = useWorkspaceProjectFilter();
   const isThreadVisible = useWorkspaceThreadFilter();
   const mentionToolsAvailable = useSharedSettings(readThreadToolEnabled);
-  const projects = useAppStore((state) =>
-    scope.kind === "workspace" ? state.projects : EMPTY_PROJECTS,
-  );
+  const projects = useAppStore((state) => state.projects);
   const threads = useAppStore((state) => state.threads);
   if (!(liveToolsAvailable ?? mentionToolsAvailable)) return EMPTY_THREAD_MENTIONS;
   const projectsById = new Map<string, Project>(projects.map((project) => [project.id, project]));
   const normalizedCurrentWorktree = normalizePath(scope.currentWorktreePath);
+  const getScopeRank = (thread: Thread): number => {
+    if (!isThreadVisible(thread)) return 2;
+    if (scope.kind === "project" && thread.projectId === scope.projectId) return 0;
+    const project = projectsById.get(thread.projectId);
+    return project && !isProjectVisible(project) ? 2 : 1;
+  };
 
   return threads
     .filter((thread) => {
       if (thread.archived || thread.id === excludeThreadId) return false;
-      // Home threads carry their own workspace tag; the visibility rule applies
-      // in both scopes so partitioned Home threads never leak into a mention list.
-      if (!isThreadVisible(thread)) return false;
-      if (scope.kind === "project") return thread.projectId === scope.projectId;
-      const project = projectsById.get(thread.projectId);
-      return project !== undefined && isProjectVisible(project);
+      return (
+        projectsById.has(thread.projectId) ||
+        (scope.kind === "project" && thread.projectId === scope.projectId)
+      );
     })
     .toSorted((a, b) => {
+      const scopeRank = getScopeRank(a) - getScopeRank(b);
+      if (scopeRank !== 0) return scopeRank;
       const rankA = getWorktreeRank(a, normalizedCurrentWorktree);
       const rankB = getWorktreeRank(b, normalizedCurrentWorktree);
       if (rankA !== rankB) return rankA - rankB;
@@ -99,7 +104,7 @@ export function useThreadMentionItems(
         title: thread.title,
         updatedAt: thread.updatedAt,
         ...(worktreeName ? { worktreeName } : {}),
-        ...(scope.kind === "workspace"
+        ...(scope.kind === "workspace" || thread.projectId !== scope.projectId
           ? { projectName: projectsById.get(thread.projectId)?.name ?? "" }
           : {}),
       };
