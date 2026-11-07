@@ -136,8 +136,7 @@ jobs:
           platforms: arm64
 
       - name: Cross-build the linux-arm64 node-pty binding
-        # node-pty 1.1.0 publishes no Linux prebuilds (docs/STANDALONE_SERVER.md
-        # §8): build the arm64 binding in an emulated arm64 container and drop it
+        # Build the arm64 binding from source in an emulated container and drop it
         # where prepare-server-native.mjs picks cross targets up. Uses the
         # runner's Docker and the explicit binfmt setup above.
         #
@@ -158,7 +157,7 @@ jobs:
           cp -RL "$ADDON_API_DIR" dist/server-native-cross/node-pty/node_modules/node-addon-api
           docker run --rm --platform linux/arm64 \
             -v "$PWD":/work -w /armbuild node:26-bookworm \
-            sh -c "cp -R /work/dist/server-native-cross/node-pty /armbuild/np && cd /armbuild/np && node -p 'require(\"node-addon-api\").include_dir' >/dev/null && rm -rf build && npm rebuild --offline && cp build/Release/pty.node /work/dist/server-native-cross/linux-arm64/pty.node"
+            sh -c "cp -R /work/dist/server-native-cross/node-pty /armbuild/np && cd /armbuild/np && node -p 'require(\"node-addon-api\").include_dir' >/dev/null && rm -rf build && npm_config_build_from_source=true npm rebuild --offline && cp build/Release/pty.node /work/dist/server-native-cross/linux-arm64/pty.node"
         shell: bash
 
       - name: Build and assemble the server artifact

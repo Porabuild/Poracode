@@ -366,8 +366,8 @@ void test("the arm64 node-pty cross-build stages the installed node-addon-api si
   );
   assert.match(
     run,
-    /npm rebuild --offline/u,
-    "npm rebuild must fail loudly on a missing dependency, not fetch one",
+    /npm_config_build_from_source=true npm rebuild --offline/u,
+    "npm rebuild must emit build/Release/pty.node even when a prebuild is available",
   );
 
   // The container proves binding.gyp's own require resolves before building.
@@ -410,6 +410,21 @@ void test("the arm64 node-pty cross-build stages the installed node-addon-api si
       addonApiVersion,
       "the staged copy must be the exact installed node-addon-api version",
     );
+    const prebuildScript = join(stagedPty, "scripts", "prebuild.js");
+    await mkdir(join(stagedPty, "prebuilds", `${process.platform}-${process.arch}`), {
+      recursive: true,
+    });
+    execFileSync(process.execPath, [prebuildScript], {
+      env: { ...process.env, npm_config_build_from_source: "false" },
+    });
+    assert.throws(
+      () =>
+        execFileSync(process.execPath, [prebuildScript], {
+          env: { ...process.env, npm_config_build_from_source: "true" },
+        }),
+      { status: 1 },
+    );
+    await assert.rejects(realpath(join(stagedPty, "prebuilds")), { code: "ENOENT" });
   } finally {
     await rm(stage, { recursive: true, force: true });
   }
