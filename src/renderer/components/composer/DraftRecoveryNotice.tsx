@@ -26,7 +26,7 @@ export function DraftRecoveryNotice(props: {
 }) {
   const [record, setRecord] = useState<ClientDraftSubmission | undefined>();
   const [busyKey, setBusyKey] = useState<string>();
-  const [copiedId, setCopiedId] = useState<string>();
+  const [copiedKey, setCopiedKey] = useState<string>();
   const scope = JSON.stringify([props.kind, props.ownerId]);
   const scopeRef = useRef(scope);
   useLayoutEffect(() => {
@@ -73,7 +73,7 @@ export function DraftRecoveryNotice(props: {
     return null;
   const uncertain =
     record.state === "uncertain" || record.state === "dispatching" || record.state === "staged";
-  const operationKey = scope + record.id;
+  const operationKey = JSON.stringify([scope, record.id, record.revision, record.fingerprint]);
   const busy = busyKey === operationKey;
   const finish = async (restore: boolean) => {
     setBusyKey(operationKey);
@@ -94,7 +94,7 @@ export function DraftRecoveryNotice(props: {
         });
       }
       if (uncertain && restore) {
-        setCopiedId(record.id);
+        setCopiedKey(operationKey);
         return;
       }
       if (!(await discardClientSubmission(record.id, !restore, record))) return;
@@ -103,7 +103,14 @@ export function DraftRecoveryNotice(props: {
         await reclaimClientDraftAssets(record.assets, () =>
           storage.canReclaimAssets() ? storage.referencedAssets() : new Set(record.assets),
         );
-      if (scopeRef.current === scope) setRecord(undefined);
+      if (scopeRef.current === scope)
+        setRecord((current) =>
+          current?.id === record.id &&
+          current.revision === record.revision &&
+          current.fingerprint === record.fingerprint
+            ? undefined
+            : current,
+        );
     } catch (error) {
       toast.danger(clientDraftPersistenceError(error).message);
     } finally {
@@ -130,7 +137,7 @@ export function DraftRecoveryNotice(props: {
         <Button
           size="sm"
           variant="ghost"
-          isDisabled={busy || copiedId === record.id}
+          isDisabled={busy || copiedKey === operationKey}
           onPress={() => void finish(true)}
         >
           <Trans>Restore a copy</Trans>

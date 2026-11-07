@@ -70,7 +70,7 @@ describe("client-owned composer attachments", () => {
     expect(isClientDraftAsset(path)).toBe(true);
     expect(result.current.getAttachments()).toEqual([]);
     const ready = vi.fn<() => void>();
-    const waiting = result.current.waitForUploads().then(ready);
+    const waiting = paste.then(ready);
     await Promise.resolve();
     expect(ready).not.toHaveBeenCalled();
     await act(async () => {
@@ -102,7 +102,7 @@ describe("client-owned composer attachments", () => {
   });
 
   it.each(["remove", "clear", "restore"] as const)(
-    "stops waiting for retired import work after %s",
+    "removes pending attachments and ignores their late import after %s",
     async (action) => {
       const pending = pendingFile();
       const { result } = renderHook(() => useAttachments());
@@ -111,17 +111,14 @@ describe("client-owned composer attachments", () => {
         paste = result.current.addClipboardImage(pending.file);
       });
       await waitFor(() => expect(pending.read).toHaveBeenCalledOnce());
-      const ready = vi.fn<() => void>();
-      const waiting = result.current.waitForUploads().then(ready);
+      expect(result.current.hasPendingUploads()).toBe(true);
       act(() => {
         if (action === "remove") result.current.removeAttachment(result.current.attachments[0]!.id);
         else if (action === "clear") result.current.clearAll();
         else result.current.restore([]);
       });
-      await act(async () => {
-        await waiting;
-      });
-      expect(ready).toHaveBeenCalledOnce();
+      expect(result.current.hasPendingUploads()).toBe(false);
+      expect(result.current.attachments).toEqual([]);
       await act(async () => {
         pending.finish();
         await paste;
@@ -131,21 +128,22 @@ describe("client-owned composer attachments", () => {
     },
   );
 
-  it("settles pending import waiters when the composer unmounts", async () => {
+  it("releases the preview and ignores late imports when the composer unmounts", async () => {
     const pending = pendingFile();
-    const { result, unmount } = renderHook(() => useAttachments());
+    const onDraftChange = vi.fn<() => void>();
+    const { result, unmount } = renderHook(() => useAttachments({ onDraftChange }));
     let paste!: Promise<void>;
     act(() => {
       paste = result.current.addClipboardImage(pending.file);
     });
     await waitFor(() => expect(pending.read).toHaveBeenCalledOnce());
-    const waiting = result.current.waitForUploads();
     unmount();
-    await waiting;
+    onDraftChange.mockClear();
     await act(async () => {
       pending.finish();
       await paste;
     });
+    expect(onDraftChange).not.toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalledOnce();
   });
 

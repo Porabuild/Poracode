@@ -1,5 +1,7 @@
 import "@/renderer/testUtils/clientDraftDatabase";
 import { describe, expect, it, vi } from "vitest";
+import { IDBObjectStore as FakeIDBObjectStore } from "fake-indexeddb";
+import { transact } from "./clientDraftDb";
 import {
   CLIENT_DRAFT_DATABASE,
   stageClientDraftAsset,
@@ -169,6 +171,57 @@ describe("client-owned draft bytes and submissions", () => {
     await reclaimClientDraftAssets([asset.path], new Set());
     expect(await readClientDraftAsset(asset.path)).toMatchObject({ path: asset.path });
     expect(await listClientSubmissions()).toEqual([]);
+  });
+
+  it("preserves future-format assets during reclamation", async () => {
+    const path = "poracode-draft-asset:future/file.bin";
+    const future = { path, formatVersion: 99, payload: "future attachment bytes" };
+    await transact<void>(["assets"], "readwrite", (tx) => {
+      tx.objectStore("assets").put(future);
+    });
+
+    expect(await reclaimClientDraftAssets([path], new Set())).toEqual([]);
+    expect(
+      await transact<unknown>(["assets"], "readonly", (tx, done) => {
+        const request = tx.objectStore("assets").get(path);
+        request.onsuccess = () => done(request.result);
+      }),
+    ).toEqual(future);
+  });
+
+  it("keeps a pending import when a late asset lease aborts reclamation", async () => {
+    let finish!: (blob: Blob) => void;
+    const asset = stageClientDraftAsset(
+      () =>
+        new Promise<Blob>((resolve) => {
+          finish = resolve;
+        }),
+      "pending.bin",
+    );
+    let release: (() => void) | undefined;
+    const originalDelete = FakeIDBObjectStore.prototype.delete;
+    const deletion = vi.spyOn(FakeIDBObjectStore.prototype, "delete").mockImplementation(function (
+      this: IDBObjectStore,
+      key,
+    ) {
+      const request = originalDelete.call(this, key);
+      if (this.name === "assets" && key === asset.path)
+        request.addEventListener("success", () => {
+          release = retainClientDraftAsset(asset.path);
+        });
+      return request;
+    });
+    try {
+      await expect(reclaimClientDraftAssets([asset.path], new Set())).rejects.toThrow(
+        "Client draft transaction failed.",
+      );
+      finish(new Blob(["pending bytes"]));
+      await asset.saved;
+      expect(await (await readClientDraftAsset(asset.path)).blob.text()).toBe("pending bytes");
+    } finally {
+      deletion.mockRestore();
+      release?.();
+    }
   });
 });
 

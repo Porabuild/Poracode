@@ -1457,7 +1457,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             );
                           }
                         }}
-                        onPreviewPdf={(att) => openPdfPreview(att.path)}
+                        onPreviewPdf={(att) => openPdfPreview(att)}
                         {...(attachmentImageUrlForPath
                           ? { imageUrlForPath: attachmentImageUrlForPath }
                           : {})}

@@ -159,11 +159,13 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
   }
   function writePending(
     backup?: (record: import("./composerDrafts/clientDraftDatabase").ClientDraftSubmission) => void,
+    onlyName?: string,
   ) {
-    stopTimer();
+    if (onlyName === undefined) stopTimer();
     const indexedJournals = journalIndex(readClientDraftJournals(storage));
     let failure: unknown;
     for (const [name, record] of pending) {
+      if (onlyName !== undefined && name !== onlyName) continue;
       try {
         const raw = storage.getItem(name);
         if (raw !== (observed.get(name) ?? null))
@@ -226,6 +228,15 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
       await running;
     } finally {
       running = undefined;
+    }
+  }
+  async function flushScope(kind: DraftKind, ownerId: string) {
+    await running?.catch(() => undefined);
+    const name = key(kind, ownerId);
+    const write = (backup?: (record: ClientDraftSubmission) => void) => writePending(backup, name);
+    while (pending.has(name)) {
+      if (typeof indexedDB === "undefined") write();
+      else await serializeClientDraftMetadataWrite(write);
     }
   }
   function flush() {
@@ -496,7 +507,7 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
         // typing can neither be read before nor erased after an await here.
         if (conflicting) apply(record.content);
       });
-      await flushRequired();
+      await flushScope(kind, ownerId);
     },
     dispose() {
       stopTimer();
@@ -509,12 +520,12 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
     ): Promise<DraftCheckpoint> {
       save(kind, ownerId, content);
       const record = readRecord(kind, ownerId);
-      await flushRequired();
+      await flushScope(kind, ownerId);
       if (!record) throw new Error("Composer draft could not be saved.");
       return { ...record, kind, ownerId };
     },
     async acknowledge(checkpoint: DraftCheckpoint, onRetire?: () => void): Promise<boolean> {
-      await flushRequired();
+      await flushScope(checkpoint.kind, checkpoint.ownerId);
       let acknowledged = false;
       const retire = () => {
         const name = key(checkpoint.kind, checkpoint.ownerId);

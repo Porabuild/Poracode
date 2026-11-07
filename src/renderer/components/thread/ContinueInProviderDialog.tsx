@@ -1065,7 +1065,7 @@ export function ContinueInProviderDialog(props: {
                             const idx = imageAttachments.findIndex((a) => a.id === att.id);
                             if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
                           }}
-                          onPreviewPdf={(att) => openPdfPreview(att.path)}
+                          onPreviewPdf={(att) => openPdfPreview(att)}
                         />
                       }
                       inputContent={

@@ -67,6 +67,47 @@ describe("draft checkpoint recovery and conditional retirement", () => {
     ]);
   });
 
+  it("checkpoints an unrelated draft while preserving a conflicting edit", async () => {
+    await instance().checkpoint("project", "p", content("base"));
+    const first = instance();
+    const second = instance();
+    first.load("project");
+    second.load("project");
+    first.save("project", "p", content("winner"));
+    second.save("project", "p", content("conflicting edit"));
+    await first.flushRequired();
+
+    const checkpoint = await second.checkpoint("project", "q", content("independent draft"));
+    expect(checkpoint.content).toEqual(content("independent draft"));
+    expect(instance().load("project")).toMatchObject({
+      p: content("winner"),
+      q: content("independent draft"),
+    });
+    await expect(second.flushRequired()).rejects.toThrow("another window");
+    expect(await listClientSubmissions()).toContainEqual(
+      expect.objectContaining({
+        content: expect.objectContaining({ recoveryContent: content("conflicting edit") }),
+      }),
+    );
+  });
+
+  it("retires an accepted draft while preserving an unrelated conflicting edit", async () => {
+    await instance().checkpoint("project", "p", content("base"));
+    const first = instance();
+    const second = instance();
+    first.load("project");
+    second.load("project");
+    const checkpoint = await second.checkpoint("project", "q", content("accepted"));
+    first.save("project", "p", content("winner"));
+    second.save("project", "p", content("conflicting edit"));
+    await first.flushRequired();
+
+    expect(await second.acknowledge(checkpoint)).toBe(true);
+    expect(instance().load("project").q).toBeUndefined();
+    await expect(second.flushRequired()).rejects.toThrow("another window");
+    expect(second.load("project").p).toEqual(content("conflicting edit"));
+  });
+
   it("lets explicit recovery merge a stale writer with the durable winner", async () => {
     await instance().checkpoint("project", "p", content("base"));
     const first = instance();

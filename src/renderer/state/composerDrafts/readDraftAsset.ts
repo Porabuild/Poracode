@@ -2,7 +2,7 @@ import { readBridge } from "@/renderer/bridge";
 import { toLocalFileUrl } from "@/shared/promptContent";
 import { readClientDraftAsset, stageClientDraftAsset } from "./clientDraftDatabase";
 
-interface AssetReference {
+export interface DraftAssetReference {
   path: string;
   name: string;
   mimeType?: string | undefined;
@@ -10,7 +10,7 @@ interface AssetReference {
 }
 
 /** Resume a native import interrupted before its bytes committed locally. */
-export async function readDraftAsset(reference: AssetReference) {
+export async function readDraftAsset(reference: DraftAssetReference) {
   try {
     return await readClientDraftAsset(reference.path);
   } catch (error) {

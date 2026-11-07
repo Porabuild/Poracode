@@ -290,7 +290,7 @@ export const UserMessage = memo(function UserMessage({
                 const idx = imageAttachments.findIndex((a) => a.id === att.id);
                 if (idx >= 0) openAttachmentLightbox(imageAttachments, idx, imageUrlForPath);
               }}
-              onPreviewPdf={(att) => openPdfPreview(att.path)}
+              onPreviewPdf={(att) => openPdfPreview(att)}
             />
           </div>
         ) : null}

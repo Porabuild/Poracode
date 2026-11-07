@@ -108,16 +108,6 @@ export function useAttachments(
   // away before its state update commits.
   const ownedPreviewUrlsRef = useRef(new Set<string>());
   const pasteGenerationRef = useRef(0);
-  const pendingUploadsRef = useRef(new Map<string, { ready: Promise<void>; retire(): void }>());
-
-  function retireUpload(id: string) {
-    pendingUploadsRef.current.get(id)?.retire();
-    pendingUploadsRef.current.delete(id);
-  }
-
-  function retireAllUploads() {
-    for (const id of pendingUploadsRef.current.keys()) retireUpload(id);
-  }
 
   function updateAttachments(
     nextOrUpdater: Attachment[] | ((previous: Attachment[]) => Attachment[]),
@@ -158,14 +148,11 @@ export function useAttachments(
     // The set object itself is never reassigned (only mutated), so capturing
     // the reference still observes every URL owned at unmount time.
     const ownedPreviewUrls = ownedPreviewUrlsRef.current;
-    const pendingUploads = pendingUploadsRef.current;
     const assetLeases = assetLeasesRef.current;
     return () => {
       for (const release of assetLeases.values()) release();
       assetLeases.clear();
       pasteGenerationRef.current += 1;
-      for (const upload of pendingUploads.values()) upload.retire();
-      pendingUploads.clear();
       // jsdom (tests) has no object-URL support. Inlined (rather than calling
       // releaseAllPreviewUrls) so the cleanup reads refs only and takes no
       // dependencies.
@@ -175,20 +162,6 @@ export function useAttachments(
       }
     };
   }, []);
-
-  function trackImport(id: string, upload: Promise<void>) {
-    let retire!: () => void;
-    const retired = new Promise<void>((resolve) => {
-      retire = resolve;
-    });
-    const ready = Promise.race([upload, retired]);
-    pendingUploadsRef.current.set(id, { ready, retire });
-    void ready.then(
-      () => pendingUploadsRef.current.delete(id),
-      () => pendingUploadsRef.current.delete(id),
-    );
-    return upload;
-  }
 
   function addFiles(paths: string[]) {
     const generation = pasteGenerationRef.current;
@@ -207,9 +180,8 @@ export function useAttachments(
         const data = await readBridge().readClientDraftFile({ url: toLocalFileUrl(originalPath) });
         return new Blob([Uint8Array.from(data)], { type: mimeType });
       }, attachment.name);
-      void trackImport(
-        attachment.id,
-        imported.saved.then(() => {
+      void imported.saved
+        .then(() => {
           if (pasteGenerationRef.current !== generation) return;
           updateAttachments((previous) =>
             previous.map((item) => {
@@ -219,20 +191,20 @@ export function useAttachments(
             }),
           );
           hydrateClientPreviews(attachmentsRef.current);
-        }),
-      ).catch((error: unknown) => {
-        if (pasteGenerationRef.current === generation)
-          updateAttachments((previous) =>
-            previous.map((item) => {
-              if (item.id !== attachment.id) return item;
-              const { uploading: _uploading, ...ready } = item;
-              // Keep the reserved client reference and original native path;
-              // readDraftAsset can retry the bounded import on explicit Send.
-              return ready;
-            }),
-          );
-        console.error("[poracode] failed to import selected draft file", error);
-      });
+        })
+        .catch((error: unknown) => {
+          if (pasteGenerationRef.current === generation)
+            updateAttachments((previous) =>
+              previous.map((item) => {
+                if (item.id !== attachment.id) return item;
+                const { uploading: _uploading, ...ready } = item;
+                // Keep the reserved client reference and original native path;
+                // readDraftAsset can retry the bounded import on explicit Send.
+                return ready;
+              }),
+            );
+          console.error("[poracode] failed to import selected draft file", error);
+        });
       return {
         ...attachment,
         path: imported.path,
@@ -248,14 +220,7 @@ export function useAttachments(
   }
 
   function addClipboardImage(file: File) {
-    const id = crypto.randomUUID();
-    return trackImport(id, uploadClipboardImage(file, id));
-  }
-
-  async function waitForUploads() {
-    while (pendingUploadsRef.current.size > 0) {
-      await Promise.all([...pendingUploadsRef.current.values()].map((upload) => upload.ready));
-    }
+    return uploadClipboardImage(file, crypto.randomUUID());
   }
 
   async function uploadClipboardImage(file: File, id: string) {
@@ -333,14 +298,12 @@ export function useAttachments(
   }
 
   function removeAttachment(id: string) {
-    retireUpload(id);
     const removed = attachmentsRef.current.find((a) => a.id === id);
     if (removed?.previewUrl) releasePreviewUrl(removed.previewUrl);
     updateAttachments((prev) => prev.filter((a) => a.id !== id));
   }
 
   function clearAll() {
-    retireAllUploads();
     pasteGenerationRef.current += 1;
     releaseAllPreviewUrls();
     if (attachmentsRef.current.length > 0) updateAttachments([]);
@@ -357,7 +320,6 @@ export function useAttachments(
   }
 
   function restore(saved: Attachment[]) {
-    retireAllUploads();
     pasteGenerationRef.current += 1;
     releaseAllPreviewUrls();
     // A `previewUrl` arriving here points at an object URL owned by a previous
@@ -401,7 +363,6 @@ export function useAttachments(
    */
   function swap(remove: readonly Attachment[], add: readonly Attachment[]) {
     const removeIds = new Set(remove.map((attachment) => attachment.id));
-    for (const id of removeIds) retireUpload(id);
     for (const attachment of attachmentsRef.current) {
       if (removeIds.has(attachment.id) && attachment.previewUrl) {
         releasePreviewUrl(attachment.previewUrl);
@@ -420,7 +381,6 @@ export function useAttachments(
     getDraftAttachments: () => storableAttachments(attachmentsRef.current),
     isUploading: attachments.some((attachment) => attachment.uploading),
     hasPendingUploads: () => attachmentsRef.current.some((attachment) => attachment.uploading),
-    waitForUploads,
     addFiles,
     addClipboardImage,
     addPicked,

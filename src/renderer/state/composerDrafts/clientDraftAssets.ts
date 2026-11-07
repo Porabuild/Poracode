@@ -133,6 +133,7 @@ export async function reclaimClientDraftAssets(
   const candidates = paths.filter(isClientDraftAsset);
   if (candidates.length === 0 || !ownsOnlyActiveWindow()) return [];
   const removed: string[] = [];
+  const retireAfterCommit: Array<() => void> = [];
   await transact<void>(["assets", "submissions"], "readwrite", (tx) => {
     const operation = { transaction: tx, paths: new Set(candidates) };
     activeReclamations.add(operation);
@@ -155,13 +156,22 @@ export async function reclaimClientDraftAssets(
       );
       for (const path of candidates)
         if (!retained.has(path) && !activeAssets.has(path) && !references.has(path)) {
-          tx.objectStore("assets").delete(path);
-          staged.get(path)?.retire();
-          staged.delete(path);
-          removed.push(path);
+          const assets = tx.objectStore("assets");
+          const asset = assets.get(path);
+          asset.onsuccess = () => {
+            if (asset.result && asset.result.formatVersion !== FORMAT_VERSION) return;
+            assets.delete(path);
+            const pending = staged.get(path);
+            retireAfterCommit.push(() => {
+              pending?.retire();
+              if (staged.get(path) === pending) staged.delete(path);
+            });
+            removed.push(path);
+          };
         }
     };
   });
+  for (const retire of retireAfterCommit) retire();
   return removed;
 }
 

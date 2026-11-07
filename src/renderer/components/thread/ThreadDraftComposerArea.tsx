@@ -1487,7 +1487,7 @@ export function ThreadDraftComposerArea(props: {
               if (idx >= 0)
                 openAttachmentLightbox(imageAttachments, idx, attachmentImageUrlForPath);
             }}
-            onPreviewPdf={(att) => openPdfPreview(att.path)}
+            onPreviewPdf={(att) => openPdfPreview(att)}
             {...(attachmentImageUrlForPath ? { imageUrlForPath: attachmentImageUrlForPath } : {})}
             remoteImageReadiness={remoteImageReadiness}
             leading={

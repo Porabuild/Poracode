@@ -154,7 +154,9 @@ export class BrowserPanelManager {
       this.persistTimer = null;
       try {
         const groups = this.tabGroups.serialize();
-        const persistentTabs = this.tabs.filter((tab) => !this.clientPdfFiles.has(tab.tabId));
+        const persistentTabs = this.tabs.filter(
+          (tab) => !this.isClientPdfPreview(tab.tabId, this.toInfo(tab).url),
+        );
         const state: PersistedTabsState = {
           tabs: persistentTabs.map((t) => {
             const s = this.toInfo(t);
@@ -250,17 +252,18 @@ export class BrowserPanelManager {
     this.clearPickerShortcut();
     this.loginCoordinator.cancelLoginConfirmations();
     this.downloads?.dispose();
+    const closedPdfTabs = new Set(this.clientPdfFiles.keys());
     for (const t of this.tabs) {
-      const releasePdf = this.clientPdfFiles.get(t.tabId);
-      this.clientPdfFiles.delete(t.tabId);
+      closedPdfTabs.delete(t.tabId);
       void (async () => {
         try {
           await t.destroy();
         } finally {
-          await releasePdf?.();
+          await this.releaseClientPdf(t.tabId);
         }
       })().catch((error: unknown) => console.warn("[browser] client PDF cleanup failed", error));
     }
+    for (const tabId of closedPdfTabs) void this.releaseClientPdf(tabId);
     this.tabs = [];
     this.internalPages.clear();
     this.navigationOwners.clear();
@@ -598,7 +601,7 @@ export class BrowserPanelManager {
       onUpdate: (snapshot) => {
         const info = this.toInfo(tab, snapshot);
         this.emit({ type: "tab-updated", tab: info });
-        if (!info.loading && !info.internalPage && !this.clientPdfFiles.has(tabId)) {
+        if (!info.loading && !info.internalPage && !this.isClientPdfPreview(tabId, info.url)) {
           this.history.record(info.url, info.title, Date.now());
         }
         this.schedulePersist();
@@ -616,7 +619,11 @@ export class BrowserPanelManager {
         this.emit({ type: "find-result", result: { tabId: id, ...result } });
       },
     });
-    if (opts.releaseResource) this.clientPdfFiles.set(tabId, opts.releaseResource);
+    if (opts.releaseResource)
+      this.clientPdfFiles.set(tabId, {
+        url: payload.url ?? "about:blank",
+        release: opts.releaseResource,
+      });
     this.tabs.push(tab);
     // Agent-created tabs auto-join a group (parity with the external extension)
     // so they're visually distinct from the user's tabs. Tabs carrying a thread
@@ -671,7 +678,24 @@ export class BrowserPanelManager {
     this.schedulePersist();
   }
 
-  private readonly clientPdfFiles = new Map<string, () => Promise<void>>();
+  private readonly clientPdfFiles = new Map<string, { url: string; release(): Promise<void> }>();
+
+  private isClientPdfPreview(tabId: string, url: string): boolean {
+    const resource = this.clientPdfFiles.get(tabId);
+    return !!resource && url.split(/[?#]/, 1)[0] === resource.url.split(/[?#]/, 1)[0];
+  }
+
+  private async releaseClientPdf(tabId: string): Promise<void> {
+    const resource = this.clientPdfFiles.get(tabId);
+    if (!resource) return;
+    try {
+      await resource.release();
+      if (this.clientPdfFiles.get(tabId) === resource) this.clientPdfFiles.delete(tabId);
+    } catch (error) {
+      // Keep ownership after a temporary filesystem refusal so disposal can retry.
+      console.warn("[browser] client PDF cleanup failed", error);
+    }
+  }
 
   async previewClientPdf(data: Uint8Array): Promise<BrowserTabInfo> {
     const preview = await createClientPdfPreview(data, (url, releaseResource) =>
@@ -690,13 +714,6 @@ export class BrowserPanelManager {
     if (!tab) return;
     this.internalPages.delete(tabId);
     this.navigationOwners.delete(tabId);
-    const releasePdf = this.clientPdfFiles.get(tabId);
-    this.clientPdfFiles.delete(tabId);
-    try {
-      await tab.destroy();
-    } finally {
-      if (releasePdf) await releasePdf();
-    }
     this.tabGroups.removeTab(tabId);
     if (this.activeTabId === tabId) {
       const next = this.tabs[idx] ?? this.tabs[idx - 1] ?? this.tabs[0];
@@ -704,6 +721,11 @@ export class BrowserPanelManager {
     }
     this.emitState();
     this.schedulePersist();
+    try {
+      await tab.destroy();
+    } finally {
+      await this.releaseClientPdf(tabId);
+    }
   }
 
   async navigate(tabId: string, url: string): Promise<void> {
