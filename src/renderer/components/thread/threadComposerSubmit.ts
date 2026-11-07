@@ -434,20 +434,10 @@ export function submitComposerPrompt(
     })
     .then(async () => {
       deliveryAccepted = true;
-      if (submission) {
-        if (ctx.usesPendingSteerPath) {
-          // Queue/steer acknowledge volatile runtime staging. Retain the
-          // client backup; it is not proof of a durable user-message commit.
-          await updateClientSubmission(submission.id, "staged");
-          const { composerDraftStorage } = await import("@/renderer/state/composerDraftStorage");
-          await composerDraftStorage()?.acknowledge(submission.checkpoint, () =>
-            useAppStore.getState().clearThreadDraftContent(thread.id),
-          );
-        } else
-          await acceptDraftSubmission(submission, () =>
-            useAppStore.getState().clearThreadDraftContent(thread.id),
-          );
-      }
+      if (submission)
+        await acceptDraftSubmission(submission, () =>
+          useAppStore.getState().clearThreadDraftContent(thread.id),
+        );
       if (!ctx.isCurrentSession()) return;
       if (!clearedBeforeSendSettled && sameEditor()) clearSubmittedComposer();
       if (

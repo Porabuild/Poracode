@@ -1,4 +1,8 @@
-import { listAcceptedClientSubmissions, scanClientDraftAssetBacklog } from "./clientDraftDatabase";
+import {
+  acceptStagedClientSubmissions,
+  listAcceptedClientSubmissions,
+  scanClientDraftAssetBacklog,
+} from "./clientDraftDatabase";
 import { acceptClientSubmissionById } from "@/renderer/actions/clientDraftSubmission";
 import { useAppStore } from "@/renderer/state/appStore";
 import { composerDraftStorage } from "../composerDraftStorage";
@@ -15,6 +19,7 @@ export async function initializeClientDraftRecovery(): Promise<void> {
         draftContents: storage.load("project"),
         threadDraftContents: storage.load("thread"),
       });
+    await acceptStagedClientSubmissions();
     const records = await listAcceptedClientSubmissions();
     for (const record of records) {
       if (record.state !== "accepted") continue;
