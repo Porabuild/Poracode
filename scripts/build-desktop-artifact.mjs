@@ -23,14 +23,13 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scanRuntimeExternals } from "./runtime-externals.mjs";
 import { prepareDesktopCli } from "./prepare-desktop-cli.mjs";
 import { preparePackagedDeviceHub } from "./prepare-device-hub.mjs";
 import { pinInstalledVersions, readRuntimeClosure } from "./runtime-closure.mjs";
-import { npmInvocation } from "./server-host-tools.mjs";
+import { npmInvocation, releaseScratchRoot } from "./server-host-tools.mjs";
 import { verifyRuntimeResources } from "../src/shared/runtimeResourceInventory.ts";
 import { readPtyJobOwnerArtifact } from "../src/shared/ptyJobOwnerArtifact.ts";
 import { SUPPORTED_LOCALES } from "../src/shared/locale.ts";
@@ -365,7 +364,7 @@ async function main() {
     verifyDesktopPtyTargets(join(repoRoot, "resources"), arch ? [arch] : DEFAULT_TARGET_ARCHES.win);
 
   // 2. Create the stage in tmp (outside the workspace).
-  const stageRoot = mkdtempSync(join(tmpdir(), "poracode-stage-"));
+  const stageRoot = mkdtempSync(join(releaseScratchRoot(), "poracode-stage-"));
   console.log(`[stage] root: ${stageRoot}`);
 
   try {

@@ -3,6 +3,14 @@ description: Install the exact npm Bun build used by the workspace
 runs:
   using: composite
   steps:
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version: "26"
+    - name: Read pinned Bun version
+      id: bun-version
+      shell: bash
+      run: |
+        node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, 'version=' + require('./package.json').devDependencies.bun + '\n')"
     # Defender's real-time scan of every written file made Windows jobs several
     # times slower than Linux (npm installs and the cache restore below). On these
     # single-use hosted runners, exclude the workspace, temp folders and package
@@ -11,12 +19,17 @@ runs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
+        $npmCache = (& npm config get cache).Trim()
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($npmCache)) {
+          throw "Could not locate the npm download cache"
+        }
         $paths = @(
           $env:GITHUB_WORKSPACE,
           $env:RUNNER_TEMP,
           $env:RUNNER_TOOL_CACHE,
           $env:TEMP,
-          (Join-Path $env:LOCALAPPDATA 'npm-cache'),
+          (Join-Path $env:LOCALAPPDATA 'Temp'),
+          $npmCache,
           (Join-Path $env:LOCALAPPDATA 'electron'),
           (Join-Path $env:LOCALAPPDATA 'electron-builder'),
           (Join-Path $env:USERPROFILE '.bun'),
@@ -28,14 +41,6 @@ runs:
         } catch {
           Write-Host "::warning::Could not add Defender exclusions: $($_.Exception.Message)"
         }
-    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-      with:
-        node-version: "26"
-    - name: Read pinned Bun version
-      id: bun-version
-      shell: bash
-      run: |
-        node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, 'version=' + require('./package.json').devDependencies.bun + '\n')"
     - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ runner.temp }}/poracode-bun

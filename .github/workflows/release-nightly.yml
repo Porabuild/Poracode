@@ -42,9 +42,6 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun
-
       - name: Resolve nightly version
         id: resolve
         env:
