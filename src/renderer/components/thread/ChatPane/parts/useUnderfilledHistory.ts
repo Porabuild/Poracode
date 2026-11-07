@@ -3,6 +3,8 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { runtimeHistoryBoundary } from "@/renderer/state/runtimeHistoryBoundary";
 import { createUnderfilledHistoryTrigger, type HistoryStartReached } from "./underfilledHistory";
 
+export const HISTORY_START_REACHED_THRESHOLD = 0.75;
+
 /** Hidden child pages must advance the reader even before a visible parent arrives. */
 export function useUnderfilledHistory({
   threadId,
@@ -31,18 +33,46 @@ export function useUnderfilledHistory({
       : (canonicalBoundaryId ?? oldestVisibleEntryId);
   const [trigger] = useState(createUnderfilledHistoryTrigger);
   const scheduleMeasurementRef = useRef(() => {});
+  const pendingStartReachedRef = useRef<string | null>(null);
   const resetUnderfilledHistory = trigger.reset;
   useLayoutEffect(() => resetUnderfilledHistory, [resetUnderfilledHistory]);
+  useLayoutEffect(
+    () => () => {
+      if (pendingStartReachedRef.current === threadId) pendingStartReachedRef.current = null;
+    },
+    [threadId],
+  );
   // Hidden-only prepends change no virtual rows or content size. Measure their
   // canonical boundary at commit rather than waiting for a scroll/resize event.
   useLayoutEffect(() => {
-    const measure = () =>
+    const measure = () => {
+      const scroller = scrollElementRef.current;
       trigger.measure({
         threadId,
         oldestEntryId,
-        scroller: scrollElementRef.current,
+        scroller,
         onStartReached,
       });
+      if (pendingStartReachedRef.current !== threadId) return;
+      if (hydrationStatus === "failed") {
+        pendingStartReachedRef.current = null;
+        return;
+      }
+      if (
+        hydrationStatus === "pending" ||
+        oldestEntryId === undefined ||
+        !onStartReached ||
+        !scroller ||
+        scroller.clientHeight <= 0
+      )
+        return;
+      pendingStartReachedRef.current = null;
+      if (
+        scroller.scrollHeight > scroller.clientHeight &&
+        scroller.scrollTop <= scroller.clientHeight * HISTORY_START_REACHED_THRESHOLD
+      )
+        void onStartReached();
+    };
     measure();
     const scroller = scrollElementRef.current;
     if (!scroller || !onStartReached) return;
@@ -66,7 +96,7 @@ export function useUnderfilledHistory({
       if (frame !== null) cancelAnimationFrame(frame);
       scheduleMeasurementRef.current = () => {};
     };
-  }, [threadId, oldestEntryId, scrollElementRef, onStartReached, trigger]);
+  }, [threadId, oldestEntryId, hydrationStatus, scrollElementRef, onStartReached, trigger]);
 
   function notifyContentHeight() {
     onContentHeightChange?.();
@@ -92,7 +122,17 @@ export function useUnderfilledHistory({
       return;
     const scroller = scrollElementRef.current;
     if (
-      oldestEntryId !== undefined &&
+      hydrationStatus === "pending" &&
+      scroller &&
+      scroller.clientHeight > 0 &&
+      scroller.scrollHeight > scroller.clientHeight &&
+      scroller.scrollTop <= 1
+    ) {
+      pendingStartReachedRef.current = threadId;
+      return;
+    }
+    if (
+      (oldestEntryId !== undefined || hydrationStatus === "failed") &&
       scroller &&
       scroller.clientHeight > 0 &&
       scroller.scrollHeight > scroller.clientHeight &&
@@ -111,5 +151,14 @@ export function useUnderfilledHistory({
       onStartReached,
     });
   }
-  return { notifyContentHeight, retryUnderfilledHistory, resetUnderfilledHistory };
+  function handleStartReached() {
+    if (hydrationStatus === "pending") pendingStartReachedRef.current = threadId;
+    else void onStartReached?.();
+  }
+  return {
+    handleStartReached,
+    notifyContentHeight,
+    retryUnderfilledHistory,
+    resetUnderfilledHistory,
+  };
 }
