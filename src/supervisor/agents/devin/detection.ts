@@ -235,7 +235,19 @@ export const devinDetectionSpec: DetectionSpec = {
       posix: { binary: "sh", args: ["-c", "curl -fsSL https://cli.devin.ai/install.sh | bash"] },
       windows: {
         binary: "powershell.exe",
-        args: ["-NoProfile", "-Command", "irm https://static.devin.ai/cli/setup.ps1 | iex"],
+        args: [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          // PowerShell 7's inherited module path can hide Windows PowerShell's
+          // Get-FileHash. Load this child shell's Utility module for the installer.
+          [
+            "$env:PSModulePath = (Join-Path $PSHOME 'Modules') + [IO.Path]::PathSeparator + $env:PSModulePath",
+            "Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1') -Force -ErrorAction Stop",
+            "irm https://static.devin.ai/cli/setup.ps1 | iex",
+          ].join("; "),
+        ],
       },
     },
   },
