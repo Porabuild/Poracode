@@ -379,6 +379,7 @@ describe("parseClaudeRefreshResponse", () => {
 describe("refreshClaudeOAuthToken", () => {
   it("posts the refresh grant to the OAuth endpoint and returns the rotated token", async () => {
     let captured: {
+      url?: string | undefined;
       headers?: Record<string, string> | undefined;
       body?: string | undefined;
       method?: string | undefined;
@@ -390,7 +391,7 @@ describe("refreshClaudeOAuthToken", () => {
         },
       },
       onRequest: (req) => {
-        captured = { headers: req.headers, body: req.body, method: req.method };
+        captured = { url: req.url, headers: req.headers, body: req.body, method: req.method };
       },
     });
     const got = await refreshClaudeOAuthToken(host.http, "old-ref", FAKE_NOW_MS);
@@ -399,7 +400,9 @@ describe("refreshClaudeOAuthToken", () => {
       refreshToken: "rot",
       expiresAt: FAKE_NOW_MS + 28800 * 1000,
     });
+    expect(captured.url).toBe("https://platform.claude.com/v1/oauth/token");
     expect(captured.method).toBe("POST");
+    expect(captured.headers?.["User-Agent"]).toMatch(/^claude-cli\/\S+ \(external, cli\)$/);
     expect(captured.headers?.["Content-Type"]).toBe("application/json");
     expect(JSON.parse(captured.body ?? "{}")).toEqual({
       grant_type: "refresh_token",
