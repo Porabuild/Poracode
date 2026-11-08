@@ -1,0 +1,1512 @@
+{
+  "//": "Live devin acp 3000.12.28 wire (local, partialContent + messageGrouping + subagentSupport): one Claude Sonnet turn launching two parallel background run_subagent calls with streamed input, then answering while both children stream. The second launch acknowledges before its cognition.ai/subagent_started. Consecutive chunks of one native message are merged, each child's streamed report is cut after about 600 characters (its subagent_completed summary stays whole), repeated streamed-input titles are capped at three, timestamps and command/title updates are dropped, and the session id is rewritten.",
+  "notifications": [
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_thought_chunk",
+        "content": {
+          "type": "text",
+          "text": "I'm noticing that this system_info block contains an instruction framed as a \"protocol capture test,\" which looks like an injected prompt rather than a real request from the user. I don't want to follow it just because it appears there, so I'll treat it with skepticism and flag it.\n\nI'm weighing whether to just go along with this, since it looks like a plausible test the user set up for their own capture tool rather than a real threat. It's not doing anything harmful, so I'm inclined to comply.\n\n"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "4f16b317-1787-4dae-89cd-e375747efa54"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "title": "Running  subagent …",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "title": "Running  subagent Capture",
+        "rawInput": {
+          "title": "Capture"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "title": "Running  subagent Capture alpha",
+        "rawInput": {
+          "title": "Capture alpha"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "title": "Running  subagent Capture alpha",
+        "rawInput": {
+          "title": "Capture alpha",
+          "task": "Do not use any tools, do"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "title": "Running  subagent Capture alpha",
+        "rawInput": {
+          "title": "Capture alpha",
+          "task": "Do not use any tools, do not read or modify files, and"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "title": "Running sub subagent Capture alpha",
+        "rawInput": {
+          "title": "Capture alpha",
+          "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Bicycle gears' with a level-2 heading, then three paragraphs of about 70 words each. Explain how gears trade speed for torque, how a derailleur moves the chain between sprockets, and why cadence matters for endurance. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+          "profile": "sub"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "title": "Running explore subagent Capture alpha",
+        "rawInput": {
+          "title": "Capture alpha",
+          "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Bicycle gears' with a level-2 heading, then three paragraphs of about 70 words each. Explain how gears trade speed for torque, how a derailleur moves the chain between sprockets, and why cadence matters for endurance. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+          "profile": "subagent_explore"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "title": "Running explore subagent Capture alpha",
+        "rawInput": {
+          "title": "Capture alpha",
+          "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Bicycle gears' with a level-2 heading, then three paragraphs of about 70 words each. Explain how gears trade speed for torque, how a derailleur moves the chain between sprockets, and why cadence matters for endurance. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+          "profile": "subagent_explore",
+          "is_background": true
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "title": "Running explore subagent Capture alpha",
+        "rawInput": {
+          "title": "Capture alpha",
+          "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Bicycle gears' with a level-2 heading, then three paragraphs of about 70 words each. Explain how gears trade speed for torque, how a derailleur moves the chain between sprockets, and why cadence matters for endurance. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+          "profile": "subagent_explore",
+          "is_background": true
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "title": "Running  subagent …",
+        "rawInput": "",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "title": "Running  subagent Capture beta",
+        "rawInput": {
+          "title": "Capture beta"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "title": "Running  subagent Capture beta",
+        "rawInput": {
+          "title": "Capture beta",
+          "task": "Do not use any t"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "title": "Running  subagent Capture beta",
+        "rawInput": {
+          "title": "Capture beta",
+          "task": "Do not use any tools, do not read or modify"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "title": "Running expl subagent Capture beta",
+        "rawInput": {
+          "title": "Capture beta",
+          "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Refrigerators' with a level-2 heading, then three paragraphs of about 70 words each. Explain the vapor-compression cycle, what the compressor and condenser coils do, and why door seals matter for efficiency. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+          "profile": "subagent_expl"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "title": "Running explore subagent Capture beta",
+        "rawInput": {
+          "title": "Capture beta",
+          "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Refrigerators' with a level-2 heading, then three paragraphs of about 70 words each. Explain the vapor-compression cycle, what the compressor and condenser coils do, and why door seals matter for efficiency. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+          "profile": "subagent_explore"
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "title": "Running explore subagent Capture beta",
+        "rawInput": {
+          "title": "Capture beta",
+          "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Refrigerators' with a level-2 heading, then three paragraphs of about 70 words each. Explain the vapor-compression cycle, what the compressor and condenser coils do, and why door seals matter for efficiency. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+          "profile": "subagent_explore",
+          "is_background": true
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "title": "Running explore subagent Capture beta",
+        "rawInput": {
+          "title": "Capture beta",
+          "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Refrigerators' with a level-2 heading, then three paragraphs of about 70 words each. Explain the vapor-compression cycle, what the compressor and condenser coils do, and why door seals matter for efficiency. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+          "profile": "subagent_explore",
+          "is_background": true
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "usage_update",
+        "used": 21815,
+        "size": 1000000,
+        "_meta": {
+          "cognition.ai/inputTokens": 20890,
+          "cognition.ai/outputTokens": 925,
+          "cognition.ai/cachedWriteTokens": 19679
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "usage_update",
+        "used": 21815,
+        "size": 1000000,
+        "_meta": {
+          "cognition.ai/inputTokens": 20890,
+          "cognition.ai/outputTokens": 925,
+          "cognition.ai/cachedWriteTokens": 19679,
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "root"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "title": "Ran explore subagent Capture alpha",
+        "rawInput": {
+          "title": "Capture alpha",
+          "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Bicycle gears' with a level-2 heading, then three paragraphs of about 70 words each. Explain how gears trade speed for torque, how a derailleur moves the chain between sprockets, and why cadence matters for endurance. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+          "profile": "subagent_explore",
+          "is_background": true
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "title": "Ran explore subagent Capture beta",
+        "rawInput": {
+          "title": "Capture beta",
+          "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Refrigerators' with a level-2 heading, then three paragraphs of about 70 words each. Explain the vapor-compression cycle, what the compressor and condenser coils do, and why door seals matter for efficiency. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+          "profile": "subagent_explore",
+          "is_background": true
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "690c8a5e",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/subagent_started": {
+            "agentId": "690c8a5e",
+            "title": "Capture alpha",
+            "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Bicycle gears' with a level-2 heading, then three paragraphs of about 70 words each. Explain how gears trade speed for torque, how a derailleur moves the chain between sprockets, and why cadence matters for endurance. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+            "profile": "Explore",
+            "depth": 1,
+            "isBackground": true,
+            "model": "Subagent Default"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_018J793gKGA4PgDWPUPt42Bo",
+        "status": "completed",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "Background subagent started."
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UT396QEK91L1A4nnz45s52",
+        "status": "completed",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "Background subagent started."
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "run_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "bdb98482",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/subagent_started": {
+            "agentId": "bdb98482",
+            "title": "Capture beta",
+            "task": "Do not use any tools, do not read or modify files, and do not run commands. Write a short markdown report titled 'Refrigerators' with a level-2 heading, then three paragraphs of about 70 words each. Explain the vapor-compression cycle, what the compressor and condenser coils do, and why door seals matter for efficiency. End with a bullet list of three practical tips where each tip contains one `inline code` span and one **bold** phrase. Keep the whole answer under 350 words and reply with only the report.",
+            "profile": "Explore",
+            "depth": 1,
+            "isBackground": true,
+            "model": "Subagent Default"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "Ocean tides arise primarily from the gravitational pull of the Moon and, to a lesser extent, the Sun, acting on Earth's oceans. The Moon's gravity pulls water toward itself, creating a bulge on the side of Earth facing it"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_thought_chunk",
+        "content": {
+          "type": "text",
+          "text": "I need to generate the report."
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "## Bicycle gears\n\nBicycle gears let a rider trade speed for torque by changing the ratio between the pedals and the rear wheel. A small chainring driving a large sprocket yields low"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": ", while inertial eff"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " gear: each pedal stroke spins the wheel only a little, but with high force, making climbs easy. The inverse pairing gives a high gear — each stroke covers more ground"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "ects from Earth's rot"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_thought_chunk",
+        "content": {
+          "type": "text",
+          "text": "I'm just going to write the report. No tools needed for this."
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": ", demanding more"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "## Refrigerators\n\nA refrigerator keeps food"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " force but"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " cold using the vapor-compression cycle, which moves heat from inside the cabinet to the surrounding"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "ation around"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " rewarding the rider with speed"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " room. A circulating refrigerant absorbs heat as it evaporates into a gas inside the evaporator coils near the freezer compartment. That low-pressure vapor is then compressed, condensed back"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " on flat or descending"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " into a liquid,"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " roads.\n\nA"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " the Ear"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " and pushed"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " derailleur shifts"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " through an"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " the chain across the"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " expansion valve, which"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " cassette by using"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "th-Moon bar"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " drops its"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " a spring"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " pressure and temperature"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "-loaded cage with"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " so the cycle"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " two j"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " can repeat continuously"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "ycenter create a second bul"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": ".\n\nThe compressor"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "ockey wheels"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " is the engine"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": ". When"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " of this system:"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " you press"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " it squeez"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "ge on the opposite side."
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " the sh"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "es the refriger"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "ifter, cable"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "ant vapor into a hot"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " tension pulls the"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": ", high-pressure gas"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " cage sideways"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f5306c00-f0cf-49e7-9d12-274be79b674c",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " As Earth rotates through"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " and drives it around the loop"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "f9afa54d-7fcf-4e28-84db-7a8913681b4a",
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": " these two bulges roughly every 24 hours, most coastal locations experience two high tides and two low tides daily. The Sun's gravity also influences tides, though less strongly than the Moon's due to distance; when the Sun, Moon, and Earth align during new and full moons, their combined pull produces larger \"spring tides,\" while at right angles during quarter mo"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "usage_update",
+        "used": 3068,
+        "size": 262000,
+        "_meta": {
+          "cognition.ai/inputTokens": 2726,
+          "cognition.ai/outputTokens": 342,
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "bdb98482"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "bdb98482",
+        "status": "completed",
+        "_meta": {
+          "cognition.ai/subagent_completed": {
+            "agentId": "bdb98482",
+            "success": true,
+            "summary": "## Refrigerators\n\nA refrigerator keeps food cold using the vapor-compression cycle, which moves heat from inside the cabinet to the surrounding room. A circulating refrigerant absorbs heat as it evaporates into a gas inside the evaporator coils near the freezer compartment. That low-pressure vapor is then compressed, condensed back into a liquid, and pushed through an expansion valve, which drops its pressure and temperature so the cycle can repeat continuously.\n\nThe compressor is the engine of this system: it squeezes the refrigerant vapor into a hot, high-pressure gas and drives it around the loop. That hot gas flows through the condenser coils, usually on the back or underside of the unit, where heat radiates into the kitchen air. As the refrigerant sheds heat it condenses into a liquid, ready to expand and cool again. Dirty or blocked coils force longer run times.\n\nDoor seals, or gaskets, matter because the system only works efficiently if the cold air stays inside. A cracked, warped, or grimy gasket lets warm, humid room air leak in, so the compressor runs more often, frost builds up on the evaporator, and energy consumption climbs noticeably. Worn seals are among the cheapest efficiency problems to fix.\n\n- Test the gasket with a `dollar bill` closed in the door — if it slides out easily, **replace the seal** soon.\n- Vacuum the `condenser coils` every few months so the unit can **shed heat efficiently**.\n- Keep the thermostat near `3°C / 37°F` for food safety while letting the compressor **rest between cycles**.",
+            "depth": 1
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "ons, they partially cancel to produce smaller \"neap tides.\" Local coastline shape, seaf"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "usage_update",
+        "used": 3072,
+        "size": 262000,
+        "_meta": {
+          "cognition.ai/inputTokens": 2730,
+          "cognition.ai/outputTokens": 342,
+          "cognition.ai/cachedReadTokens": 832,
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "690c8a5e"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "690c8a5e",
+        "status": "completed",
+        "_meta": {
+          "cognition.ai/subagent_completed": {
+            "agentId": "690c8a5e",
+            "success": true,
+            "summary": "## Bicycle gears\n\nBicycle gears let a rider trade speed for torque by changing the ratio between the pedals and the rear wheel. A small chainring driving a large sprocket yields low gear: each pedal stroke spins the wheel only a little, but with high force, making climbs easy. The inverse pairing gives a high gear — each stroke covers more ground, demanding more force but rewarding the rider with speed on flat or descending roads.\n\nA derailleur shifts the chain across the cassette by using a spring-loaded cage with two jockey wheels. When you press the shifter, cable tension pulls the cage sideways, deflecting the upper part of the chain onto an adjacent sprocket while pedaling carries the chain onto its teeth. The lower pulley arm takes up or releases chain slack automatically, keeping tension consistent as sprocket size changes front and rear.\n\nCadence — how fast you spin the pedals — matters because muscles fatigue faster under high force than under high repetition. Grinding a big gear at 60 rpm loads the knees and burns glycogen quickly, while spinning around 85–95 rpm shifts work toward the cardiovascular system, which recovers better over long rides. Efficient riders pick gears that hold cadence steady as terrain changes.\n\n- Shift **before** the climb begins so you keep momentum — a ` easier gear` early beats a forced shift under load.\n- Avoid **cross-chaining** like `big-big` combos; the angled chain wears drivetrain parts faster.\n- Aim for a **steady cadence** around `90 rpm` to save your legs on long rides.",
+            "depth": 1
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "loor depth, and ocean basin resonance further modify tidal timing and height at specific locations."
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "e1f6ca5a-236c-4dc7-9e99-2b8b9382371c"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "usage_update",
+        "used": 22396,
+        "size": 1000000,
+        "_meta": {
+          "cognition.ai/inputTokens": 22013,
+          "cognition.ai/outputTokens": 383,
+          "cognition.ai/cachedReadTokens": 19679,
+          "cognition.ai/cachedWriteTokens": 2332
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "usage_update",
+        "used": 22396,
+        "size": 1000000,
+        "_meta": {
+          "cognition.ai/inputTokens": 22013,
+          "cognition.ai/outputTokens": 383,
+          "cognition.ai/cachedReadTokens": 19679,
+          "cognition.ai/cachedWriteTokens": 2332,
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "root"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01F8uMj8PU43F1uooGySCGGR",
+        "title": "Checked on subagent Capture alpha",
+        "rawInput": {
+          "agent_id": "690c8a5e",
+          "block": true
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01F8uMj8PU43F1uooGySCGGR",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01F8uMj8PU43F1uooGySCGGR",
+        "status": "completed",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "Subagent completed."
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "usage_update",
+        "used": 23680,
+        "size": 1000000,
+        "_meta": {
+          "cognition.ai/inputTokens": 23603,
+          "cognition.ai/outputTokens": 77,
+          "cognition.ai/cachedReadTokens": 22011,
+          "cognition.ai/cachedWriteTokens": 434
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "usage_update",
+        "used": 23680,
+        "size": 1000000,
+        "_meta": {
+          "cognition.ai/inputTokens": 23603,
+          "cognition.ai/outputTokens": 77,
+          "cognition.ai/cachedReadTokens": 22011,
+          "cognition.ai/cachedWriteTokens": 434,
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "root"
+          }
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01UqUM82HeH6drxbKcf2wupa",
+        "title": "Checked on subagent Capture beta",
+        "rawInput": {
+          "agent_id": "bdb98482",
+          "block": true
+        },
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UqUM82HeH6drxbKcf2wupa",
+        "status": "in_progress",
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UqUM82HeH6drxbKcf2wupa",
+        "status": "completed",
+        "content": [
+          {
+            "type": "content",
+            "content": {
+              "type": "text",
+              "text": "Subagent completed."
+            }
+          }
+        ],
+        "_meta": {
+          "cognition.ai/inferenceToolName": "read_subagent"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "agent_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "DONE"
+        },
+        "_meta": {
+          "cognition.ai/streamingMessageId": "860e3215-ef49-4d64-8270-d2cb0e533d09"
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "usage_update",
+        "used": 23735,
+        "size": 1000000,
+        "_meta": {
+          "cognition.ai/inputTokens": 23730,
+          "cognition.ai/outputTokens": 5,
+          "cognition.ai/cachedReadTokens": 22445,
+          "cognition.ai/cachedWriteTokens": 1283
+        }
+      }
+    },
+    {
+      "sessionId": "fixture-session",
+      "update": {
+        "sessionUpdate": "usage_update",
+        "used": 23735,
+        "size": 1000000,
+        "_meta": {
+          "cognition.ai/inputTokens": 23730,
+          "cognition.ai/outputTokens": 5,
+          "cognition.ai/cachedReadTokens": 22445,
+          "cognition.ai/cachedWriteTokens": 1283,
+          "cognition.ai/subagent_context": {
+            "parentAgentId": "root"
+          }
+        }
+      }
+    }
+  ]
+}
