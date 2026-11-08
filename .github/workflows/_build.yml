@@ -62,12 +62,14 @@ jobs:
             artifact: dist-windows
             platform: win
             rust-version: 1.98.1
+            helper-targets: win32-dual
             rust-targets: x86_64-pc-windows-msvc,aarch64-pc-windows-msvc
             electron-cache: "~/AppData/Local/electron/Cache"
           - os: ubuntu-latest
             artifact: dist-linux
             platform: linux
             rust-version: 1.98.1
+            helper-targets: linux-x64
             rust-targets: x86_64-unknown-linux-musl
             electron-cache: "~/.cache/electron"
           - os: macos-15
@@ -77,6 +79,7 @@ jobs:
             app_pattern: Lightcode
             expected_zips: 2
             rust-version: 1.98.1
+            helper-targets: darwin-universal
             rust-targets: x86_64-apple-darwin,aarch64-apple-darwin
             electron-cache: "~/Library/Caches/electron"
           - os: macos-15
@@ -86,6 +89,7 @@ jobs:
             app_pattern: Poracode
             expected_zips: 0
             rust-version: 1.98.1
+            helper-targets: darwin-universal
             rust-targets: x86_64-apple-darwin,aarch64-apple-darwin
             electron-cache: "~/Library/Caches/electron"
 
@@ -170,7 +174,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: resources/computer-use-helper
-          key: computer-use-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ replace(matrix.rust-targets, ',', '-') }}-${{ hashFiles('native/computer-use-helper/src/**', 'native/computer-use-helper/Cargo.toml', 'native/computer-use-helper/Cargo.lock', 'native/computer-use-helper/.cargo/config.toml', 'native/computer-use-helper/rust-toolchain.toml', 'scripts/prepare-computer-use-helper.mjs', 'src/shared/contracts/computerUse.ts') }}
+          key: computer-use-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.helper-targets }}-${{ hashFiles('native/computer-use-helper/src/**', 'native/computer-use-helper/Cargo.toml', 'native/computer-use-helper/Cargo.lock', 'native/computer-use-helper/.cargo/config.toml', 'native/computer-use-helper/rust-toolchain.toml', 'scripts/prepare-computer-use-helper.mjs', 'src/shared/contracts/computerUse.ts') }}
 
       - name: Mark restored helper current
         if: steps.helper-artifact.outputs.cache-hit == 'true'

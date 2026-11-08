@@ -169,7 +169,7 @@ void test("desktop packaging caches exact verified computer-use helper artifacts
   assert.equal(cache.id, "helper-artifact");
   assert.equal(cache.with.path, "resources/computer-use-helper");
   assert.match(cache.with.key, /matrix\.rust-version/u);
-  assert.match(cache.with.key, /replace\(matrix\.rust-targets, ',', '-'\)/u);
+  assert.match(cache.with.key, /matrix\.helper-targets/u);
   for (const input of [
     "native/computer-use-helper/src/**",
     "native/computer-use-helper/Cargo.toml",
@@ -187,8 +187,10 @@ void test("desktop packaging caches exact verified computer-use helper artifacts
   assert.match(touch.run, /touch resources\/computer-use-helper\/\*\/poracode-computer-use\*/u);
   const setupRust = steps.find((step) => step.name === "Setup Rust");
   assert.equal(setupRust.with.toolchain, "${{ matrix.rust-version }}");
-  for (const entry of workflow.jobs.build.strategy.matrix.include)
+  for (const entry of workflow.jobs.build.strategy.matrix.include) {
     assert.equal(entry["rust-version"], "1.98.1");
+    assert.ok(entry["helper-targets"]);
+  }
 });
 
 void test("qualification and release share one server-artifact workflow (plan D3)", async () => {
