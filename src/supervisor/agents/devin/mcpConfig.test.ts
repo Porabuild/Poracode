@@ -68,33 +68,62 @@ it("rejects malformed existing catalogs rather than discarding user configuratio
   );
 });
 
-it("keeps remote servers on the tool-filter stdio relay even though native injection is proven", () => {
-  // Corrected live evidence (devin 3000.11.3, tmp/devin/probe/results/):
-  // native session/new injection DOES work — stdio entries and spec-exact
-  // `{type:"http"|"sse", name, url, headers:[{name,value}]}` entries all
-  // completed real tools/list + tools/call round trips inside prompt turns.
-  // The overlay still serializes remote servers to the stdio relay for a
-  // different reason: Poracode's per-server `disabledTools` filtering is
-  // enforced by its stdio tool-filter proxy, and a natively injected remote
-  // server would bypass it. Direct native injection must not be adopted per
-  // server until that filter guarantee is re-established.
-  const remote = (transport: {
-    type: "http" | "sse";
-    url: string;
-    headers: Record<string, string>;
-  }) => [{ id: "poracode", timeoutMs: 15000, name: "poracode", transport }];
+it("serializes hosted http servers in the proven disk shape and keeps stdio unchanged", () => {
+  // devin 3000.12.28 (2026-11-08, tmp/devin-http-probe/): the disk remote
+  // shape {url, transport:"http", headers?: map} completed real
+  // tools/list + tools/call round trips inside a prompt turn.
+  const httpServers = [
+    {
+      id: "poracode",
+      timeoutMs: 15000,
+      name: "poracode",
+      transport: {
+        type: "http" as const,
+        url: "http://127.0.0.1:8080/mcp",
+        headers: { Authorization: "Bearer fixture-token" },
+      },
+    },
+    {
+      id: "poracode-plain",
+      timeoutMs: 15000,
+      name: "poracode-plain",
+      transport: { type: "http" as const, url: "http://127.0.0.1:8081/mcp", headers: {} },
+    },
+  ];
+  expect(JSON.parse(mergeDevinMcpConfig('{"mcpServers":{}}', httpServers))).toMatchObject({
+    mcpServers: {
+      poracode: {
+        url: "http://127.0.0.1:8080/mcp",
+        transport: "http",
+        headers: { Authorization: "Bearer fixture-token" },
+      },
+      "poracode-plain": { url: "http://127.0.0.1:8081/mcp", transport: "http" },
+    },
+  });
+  const plain = JSON.parse(mergeDevinMcpConfig('{"mcpServers":{}}', httpServers)).mcpServers[
+    "poracode-plain"
+  ];
+  expect(plain).not.toHaveProperty("headers");
+  expect(JSON.parse(mergeDevinMcpConfig('{"mcpServers":{}}', servers))).toMatchObject({
+    mcpServers: { poracode: { command: "node", env: { TOKEN: "fixture-token" } } },
+  });
+});
+
+it("rejects sse transports: the disk SSE shape is documented but unproven", () => {
   expect(() =>
-    mergeDevinMcpConfig(
-      '{"mcpServers":{}}',
-      remote({ type: "http", url: "https://fixture.test/mcp", headers: {} }),
-    ),
-  ).toThrow("Devin session MCP requires a stdio relay");
-  expect(() =>
-    mergeDevinMcpConfig(
-      '{"mcpServers":{}}',
-      remote({ type: "sse", url: "https://fixture.test/sse", headers: {} }),
-    ),
-  ).toThrow("Devin session MCP requires a stdio relay");
+    mergeDevinMcpConfig('{"mcpServers":{}}', [
+      {
+        id: "poracode",
+        timeoutMs: 15000,
+        name: "poracode",
+        transport: {
+          type: "sse" as const,
+          url: "https://fixture.test/sse",
+          headers: {},
+        },
+      },
+    ]),
+  ).toThrow("Devin session MCP does not support the sse transport");
 });
 
 it("accepts the CLI's JSONC catalog format", () => {

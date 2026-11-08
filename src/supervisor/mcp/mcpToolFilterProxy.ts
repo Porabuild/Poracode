@@ -26,12 +26,7 @@ import { McpAppSession } from "./McpAppSession";
 import { materializeMcpAppResult } from "./mcpAppResult";
 import type { BridgeToolResult } from "./toolBridge";
 import { omitInvalidSchemaPatterns } from "./portableSchemaPatterns";
-import {
-  MCP_FILTER_CONFIG_ENV,
-  MCP_FILTER_CONFIG_V1_ENV,
-  MCP_FILTER_CONFIG_V2_ENV,
-  MCP_STDIO_CONFIG_ENV,
-} from "./mcpToolFilterConfig";
+import { MCP_HELPER_CONFIG_ENVS } from "./mcpToolFilterConfig";
 
 export interface FilterProxyOptions {
   serverName: string;
@@ -65,13 +60,7 @@ export function mcpStdioEnvironment(
   }
   // Preserve native stdio inheritance without exposing the outer helper's
   // configuration or overriding a nested helper's explicit envelope.
-  for (const key of [
-    MCP_FILTER_CONFIG_ENV,
-    MCP_FILTER_CONFIG_V1_ENV,
-    MCP_FILTER_CONFIG_V2_ENV,
-    MCP_STDIO_CONFIG_ENV,
-  ])
-    delete inherited[key];
+  for (const key of MCP_HELPER_CONFIG_ENVS) delete inherited[key];
   return { ...inherited, ...explicit };
 }
 
@@ -80,12 +69,7 @@ export function mcpOwnedStdioEnvironment(explicit: Record<string, string>): Reco
   const env = mcpStdioEnvironment({}, true);
   // Nested helpers still need their own explicit envelope; the outer worker's
   // envelope was scrubbed above. Ordinary keys must retain the owner's values.
-  for (const key of [
-    MCP_FILTER_CONFIG_ENV,
-    MCP_FILTER_CONFIG_V1_ENV,
-    MCP_FILTER_CONFIG_V2_ENV,
-    MCP_STDIO_CONFIG_ENV,
-  ]) {
+  for (const key of MCP_HELPER_CONFIG_ENVS) {
     if (explicit[key] !== undefined) env[key] = explicit[key];
   }
   // Electron's worker bootstrap flag belongs to the wrapper, not its server.

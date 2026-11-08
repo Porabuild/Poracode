@@ -395,6 +395,14 @@ export type McpServer = z.infer<typeof mcpServerSchema>;
  */
 export type ResolvedMcpServer = Omit<McpServer, "description" | "enabled"> & {
   approvalMode?: "approve";
+  /**
+   * Poracode-served endpoint behind this server. Its host applies the
+   * server's tool policy (disabled tools, model visibility, timeouts), so a
+   * stdio relay to it only converts transport: an agent that negotiates HTTP
+   * MCP may connect here instead of spawning a relay process. Consumers that
+   * ignore it keep using `transport`.
+   */
+  directTransport?: McpHttpTransport;
 };
 
 export const mcpServerListSchema = z.array(mcpServerSchema).default([]);

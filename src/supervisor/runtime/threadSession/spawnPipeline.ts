@@ -310,12 +310,17 @@ export function composeResolvedMcpServers(
     approvalMode?: "approve",
   ): ResolvedMcpServer | undefined => {
     const disabledTools = config?.disabledTools ?? snapshot.disabledBuiltInMcpTools?.[id];
-    return config
+    const transport = config
+      ? { type: "http" as const, url: config.url, headers: config.headers }
+      : undefined;
+    return transport
       ? {
           id,
           name: BUILT_IN_MCP_SERVER_NAMES[id],
           timeoutMs,
-          transport: { type: "http", url: config.url, headers: config.headers },
+          transport,
+          // Built-in ingresses enforce the launch's tool restrictions themselves.
+          directTransport: transport,
           ...(disabledTools && disabledTools.length > 0
             ? { disabledTools: [...disabledTools] }
             : {}),

@@ -13,6 +13,9 @@ import {
 } from "./databaseReadProtocol";
 
 const READ_WORKERS = 2;
+// Bursts get both workers; once reads go quiet, one stays warm for the next.
+const IDLE_READ_WORKERS = 1;
+const IDLE_WORKER_RETIREMENT_MS = 60_000;
 const MAX_READS = 64;
 // Complete or cancel before the runtime fence's five-second maximum hold.
 const READ_DEADLINE_MS = 4_000;
@@ -39,11 +42,13 @@ export class AsyncDatabaseReads {
   private readonly terminating = new Set<Promise<void>>();
   private nextId = 0;
   private closed = false;
+  private idleTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private readonly dbPath: string,
     private readonly workerPath: string,
     private readonly imagePreviews = false,
+    private readonly idleRetirementMs = IDLE_WORKER_RETIREMENT_MS,
   ) {}
 
   read<K extends DatabaseReadOperation>(
@@ -58,6 +63,7 @@ export class AsyncDatabaseReads {
         new DatabaseReadUnavailableError("Database read capacity is unavailable. Retry shortly."),
       );
     }
+    this.noteActivity();
     return new Promise<DatabaseReadResult<K>>((resolve, reject) => {
       const id = ++this.nextId;
       const timer = setTimeout(() => this.expire(id), READ_DEADLINE_MS);
@@ -189,6 +195,7 @@ export class AsyncDatabaseReads {
       slot.worker.unref();
       slot.worker.channel?.unref();
       this.dispatch();
+      this.noteActivity();
       return;
     }
     const job = slot.job;
@@ -208,6 +215,27 @@ export class AsyncDatabaseReads {
       job.reject(decodeDatabaseReadFailure(message.error));
     }
     this.dispatch();
+    this.noteActivity();
+  }
+
+  /** Each forked worker holds its own runtime and SQLite cache; idle extras leave. */
+  private noteActivity(): void {
+    clearTimeout(this.idleTimer);
+    this.idleTimer = undefined;
+    if (this.closed || this.slots.size <= IDLE_READ_WORKERS) return;
+    this.idleTimer = setTimeout(() => this.retireIdleWorkers(), this.idleRetirementMs);
+    this.idleTimer.unref();
+  }
+
+  private retireIdleWorkers(): void {
+    this.idleTimer = undefined;
+    if (this.closed || this.queued.length > 0) return;
+    for (const slot of [...this.slots]) {
+      if (this.slots.size <= IDLE_READ_WORKERS) return;
+      if (!slot.ready || slot.job) continue;
+      this.slots.delete(slot);
+      this.terminate(slot);
+    }
   }
 
   private expire(id: number): void {
@@ -236,6 +264,10 @@ export class AsyncDatabaseReads {
       // Startup failed. Settle queued callers rather than continually respawning.
       this.rejectQueued(error);
     }
+    this.terminate(slot);
+  }
+
+  private terminate(slot: ReadSlot): void {
     // OS process retirement interrupts native sqlite3_step as well as JS.
     // Worker.terminate() alone cannot provide that deadline guarantee.
     const termination =
@@ -269,6 +301,7 @@ export class AsyncDatabaseReads {
 
   async close(): Promise<void> {
     this.closed = true;
+    clearTimeout(this.idleTimer);
     const error = new DatabaseReadUnavailableError("Database reader is closing.");
     this.rejectQueued(error);
     for (const slot of [...this.slots]) this.failSlot(slot, error);

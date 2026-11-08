@@ -177,6 +177,7 @@ void test("desktop packaging caches exact verified computer-use helper artifacts
     "native/computer-use-helper/.cargo/config.toml",
     "native/computer-use-helper/rust-toolchain.toml",
     "scripts/prepare-computer-use-helper.mjs",
+    "scripts/lib/native-helper-prepare.mjs",
     "src/shared/contracts/computerUse.ts",
   ]) {
     assert.ok(cache.with.key.includes(input), `helper cache key must include ${input}`);
