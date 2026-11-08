@@ -999,6 +999,46 @@ mod tests {
         }
     }
 
+    /// Answers every request with 202 at once. Pool tests use it instead of a
+    /// closed port: Windows retries loopback SYNs for about 2 s before
+    /// refusing, which would make them measure the OS rather than the pool.
+    fn accepting_config() -> RelayConfig {
+        use std::io::BufRead;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        thread::spawn(move || {
+            for stream in listener.incoming() {
+                let Ok(mut stream) = stream else { break };
+                thread::spawn(move || {
+                    let mut reader = io::BufReader::new(stream.try_clone().unwrap());
+                    let mut length = 0usize;
+                    loop {
+                        let mut line = String::new();
+                        if reader.read_line(&mut line).unwrap_or(0) == 0 {
+                            return;
+                        }
+                        let line = line.trim_end().to_ascii_lowercase();
+                        if line.is_empty() {
+                            break;
+                        }
+                        if let Some(value) = line.strip_prefix("content-length:") {
+                            length = value.trim().parse().unwrap_or(0);
+                        }
+                    }
+                    let mut body = vec![0; length];
+                    let _ = reader.read_exact(&mut body);
+                    let _ = stream.write_all(
+                        b"HTTP/1.1 202 Accepted\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    );
+                });
+            }
+        });
+        RelayConfig {
+            url: format!("http://127.0.0.1:{port}/mcp"),
+            ..test_config()
+        }
+    }
+
     fn pool_workers(pool: &Pool) -> usize {
         lock(&pool.inner).workers
     }
@@ -1016,7 +1056,7 @@ mod tests {
 
     #[test]
     fn workers_spawn_on_demand_and_stop_on_close() {
-        let relay = Relay::start(test_config());
+        let relay = Relay::start(accepting_config());
         // An idle relay has no worker threads at all.
         assert_eq!(pool_workers(&relay.request_pool), 0);
         assert_eq!(pool_workers(&relay.forward_pool), 0);
@@ -1034,7 +1074,7 @@ mod tests {
         // exit: every enqueued job must be taken — the queue drains and the
         // pool settles at zero workers. An orphaned job would leave the
         // queue non-empty forever and fail the wait.
-        let relay = Relay::start_inner(test_config(), Duration::from_millis(50));
+        let relay = Relay::start_inner(accepting_config(), Duration::from_millis(50));
         for index in 0..200 {
             relay.enqueue(Job::Forward {
                 line: format!(
