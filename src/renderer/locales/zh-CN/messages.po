@@ -42,6 +42,11 @@ msgstr "（无分支）"
 msgid "(optional)"
 msgstr "（可选）"
 
+#. placeholder {0}: preview.source.git.changedFiles
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{0, plural, =0 {no uncommitted changes} one {# uncommitted change} other {# uncommitted changes}}"
+#~ msgstr "{0, plural, =0 {没有未提交的更改} other {# 处未提交的更改}}"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -733,6 +738,10 @@ msgstr "{minutes} 分钟前"
 msgid "{missingAuthLabel} needs authentication."
 msgstr "{missingAuthLabel}需要身份验证。"
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "{moved} · continued with {agentLabel}"
+msgstr "{moved} · 由 {agentLabel} 继续"
+
 #: src/renderer/actions/workspaceActions.ts
 msgid "{movedCount, plural, one {Moved # project to {target}.} other {Moved # projects to {target}.}}"
 msgstr "{movedCount, plural, other {已将 # 个项目移动到 {target}。}}"
@@ -773,6 +782,14 @@ msgstr "{productName} 已更新到 v{0}。"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation}（已禁用）"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} isn't set up on another machine yet. Add it there to move this thread."
+msgstr "{projectName} 尚未在另一台机器上设置。请先在那里添加它，才能移动此线程。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} on {targetLabel} isn't a Git repository, so its code can't move there."
+msgstr "{targetLabel} 上的 {projectName} 不是 Git 仓库，因此无法移动其代码。"
 
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
@@ -829,6 +846,18 @@ msgstr "{serverName} · WSL {0}"
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{providerLabel} 的 {serverName}：{disabledLabel}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}, and no other chat agent is ready there. Set one up there first."
+msgstr "{targetLabel} 上未设置 {sourceAgentLabel}，也没有其他可用的聊天智能体。请先在那里设置一个。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Choose the agent that continues there."
+#~ msgstr "{targetLabel} 上未设置 {sourceAgentLabel}。请选择在那里继续的智能体。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Pick the agent that continues there."
+msgstr "{targetLabel} 上未设置 {sourceAgentLabel}。请选择在那里继续的智能体。"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "{sourceCrewName} comes along."
 msgstr "{sourceCrewName} 会一同带上。"
@@ -840,6 +869,22 @@ msgstr "{sourceCrewName} 将留在原处：{targetProviderLabel} 无法领导团
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, other {# 步}}"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no project for this repository. Add it there first."
+#~ msgstr "{targetLabel} 上没有此仓库的项目。请先在那里添加。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no projects yet. Add one there first."
+#~ msgstr "{targetLabel} 上还没有项目。请先在那里添加一个。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is offline. Connect to it first."
+msgstr "{targetLabel} 处于离线状态。请先连接它。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is reached through this computer, so you can't open it while this computer is off."
+msgstr "{targetLabel} 通过这台电脑访问，因此这台电脑关机时你无法打开它。"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 #~ msgid "{totalAdditions} additions and {totalDeletions} deletions"
@@ -1722,6 +1767,10 @@ msgstr "代理当前已禁用"
 msgid "Agent not found"
 msgstr "未找到代理"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Agent on {targetLabel}"
+#~ msgstr "{targetLabel} 上的智能体"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -2267,6 +2316,10 @@ msgstr "归档当前线程"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Archive this session?"
 #~ msgstr "归档此会话？"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Archive this thread here after moving"
+#~ msgstr "移动后在此处归档此线程"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive thread"
@@ -2878,6 +2931,7 @@ msgstr "限制此主机上可同时运行的短时生成助手（线程标题、
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "限制此主机上可同时运行的终端 shell 数量。统计的是逻辑执行槽位，而不是操作系统进程或内存。0 = 不限制。"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
@@ -2916,6 +2970,11 @@ msgstr "分支或标签"
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
 msgstr "分支保护规则阻止了这次合并。"
+
+#. placeholder {0}: preview.source.git.branch
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Branch: {0}"
+#~ msgstr "分支：{0}"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Branches"
@@ -3185,7 +3244,7 @@ msgstr "无法加载端口"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "无法连接远程服务器。请确认其处于在线状态，然后重新连接。"
 
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/providerTargetSelection.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Can't use this model selection on that surface"
 msgstr "无法在此界面使用所选模型配置"
@@ -3201,6 +3260,7 @@ msgstr "无法在此界面使用所选模型配置"
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -3578,6 +3638,10 @@ msgstr "正在检查"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Checking {serverName}"
 msgstr "正在检查 {serverName}"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Checking {targetLabel}…"
+msgstr "正在检查 {targetLabel}…"
 
 #: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 msgid "Checking for updates…"
@@ -4541,6 +4605,10 @@ msgid "Commit & Push"
 msgstr "提交&推送"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Commit at least once before moving this thread."
+msgstr "移动此线程前请至少提交一次。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Commit failed: {detail}"
 msgstr "提交失败：{detail}"
 
@@ -5068,6 +5136,10 @@ msgstr "继续使用另一个提供商"
 msgid "Continue in..."
 msgstr "在其他工具中继续..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Continue on {targetLabel}"
+#~ msgstr "Continue on {targetLabel}"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Continue on the desktop address"
 #~ msgstr "在桌面地址上继续"
@@ -5075,6 +5147,14 @@ msgstr "在其他工具中继续..."
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "持续使用同一个对话，直到满足停止条件或达到限制。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Continue where you left off"
+msgstr "从上次停下的地方继续"
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Continue where you left off."
+msgstr "从上次停下的地方继续。"
 
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
@@ -6467,6 +6547,10 @@ msgstr "断开连接"
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "分离侧边聊天"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Detached commit"
+msgstr "游离提交"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -8393,6 +8477,10 @@ msgstr "已完成·等待您的输入"
 msgid "Finishing your report on GitHub…"
 msgstr "正在 GitHub 上完成报告…"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Finishing…"
+msgstr "正在完成…"
+
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
 #~ msgstr "使用 Poracode 的本机运行时实现一流的 Antigravity CLI 集成。"
@@ -9438,6 +9526,10 @@ msgstr "每小时"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hours"
 msgstr "小时"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "How moving works"
+msgstr "移动的工作方式"
 
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 msgid "HTML preview"
@@ -11740,6 +11832,10 @@ msgstr "消息搜索不可用"
 #~ msgid "Message the remote agent…"
 #~ msgstr "向远程代理发送消息…"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Message to send after moving"
+#~ msgstr "移动后要发送的消息"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Messages"
 msgstr "消息"
@@ -12074,6 +12170,8 @@ msgid "Motion"
 msgstr "运动"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/MoveThreadAgentComposer.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Move"
 msgstr "移动"
 
@@ -12115,6 +12213,14 @@ msgstr "移动面板"
 msgid "Move thread {0}"
 msgstr "移动会话 {0}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Move to another machine"
+msgstr "移动到另一台设备"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to another machine…"
+msgstr "移动到另一台设备…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "移至干净的工作树"
@@ -12149,6 +12255,18 @@ msgstr "连同更改移至工作树"
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "已将 1 个项目移动到 {0}。"
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost}"
+msgstr "移自 {sourceHost}"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost} to {targetHost}"
+msgstr "已从 {sourceHost} 移到 {targetHost}"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+#~ msgid "Moved here from {sourceHost}"
+#~ msgstr "从 {sourceHost} 移到此处"
+
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
 msgstr "已将线程和您的更改移至“{newBranch}”上的新工作树中。"
@@ -12160,6 +12278,10 @@ msgstr "已将线程和您的更改移至“{newBranch}”上的新工作树中�
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread to a new worktree on \"{branch}\"."
 msgstr "已将线程移至“{branch}”上的新工作树中。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Moved to {label}."
+msgstr "已移动到 {label}。"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -12809,6 +12931,10 @@ msgstr "没有为此消息存储文件检查点。"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
 msgstr "没有文件匹配“{0}”。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No free branch name is left for {branch}."
+msgstr "{branch} 已没有可用的分支名称。"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
@@ -13483,6 +13609,15 @@ msgstr "一次性配对令牌"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "在线"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Only chat threads can move to another machine."
+msgstr "只有聊天线程可以移动到另一台设备。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Only the conversation moves: this folder isn't a Git repository."
+msgstr "仅移动对话：此文件夹不是 Git 仓库。"
 
 #. placeholder {0}: i18n.number(state.totalBytes)
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
@@ -14162,6 +14297,10 @@ msgstr "包管理器"
 msgid "Package name or Git URL"
 msgstr "包名或 Git URL"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Packaging the thread…"
+msgstr "正在打包线程…"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Page"
 msgstr "页面"
@@ -14194,6 +14333,10 @@ msgstr "将手机、平板电脑或浏览器与此桌面配对。"
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "重新配对"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Pair another machine in Settings to move threads to it."
+#~ msgstr "请在设置中配对另一台设备，以便将线程移动到该设备。"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pair this device"
@@ -15305,6 +15448,10 @@ msgstr "未找到项目。"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "项目笔记"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Project on {targetLabel}"
+#~ msgstr "{targetLabel} 上的项目"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
@@ -16782,6 +16929,10 @@ msgstr "恢复结果"
 msgid "Restore thread"
 msgstr "恢复线程"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Restoring it on {targetLabel}…"
+msgstr "正在 {targetLabel} 上恢复…"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Results"
@@ -16833,6 +16984,7 @@ msgstr "仅显示此主机保留的用量。"
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
@@ -17455,6 +17607,10 @@ msgstr "与 Devin 相同的登录"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
 msgstr "所有设备使用相同的提供方顺序"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Same repository"
+#~ msgstr "同一仓库"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Samsung Galaxy S24 Ultra"
@@ -18194,6 +18350,10 @@ msgstr "发送消息"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "发送终端输入"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Sending {sent} of {total}…"
+msgstr "正在发送 {sent} / {total}…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -19456,6 +19616,10 @@ msgstr "停止 {0}的运行"
 msgid "Stop {label}"
 msgstr "停止 {label}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stop and move"
+msgstr "停止并移动"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "停止转发"
@@ -19505,6 +19669,10 @@ msgstr "正在停止 {label}…"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping task…"
 msgstr "正在停止任务…"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stopping the agent here…"
+msgstr "正在此处停止智能体…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -19920,6 +20088,10 @@ msgstr "团队"
 msgid "Tell {0} what to do next..."
 msgstr "告诉{0}下一步该做什么..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Tell {selectedAgentLabel} what to do next (optional)"
+msgstr "告诉{selectedAgentLabel}下一步该做什么（可选）"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell the target provider what to do next..."
 msgstr "告诉目标提供商下一步该做什么..."
@@ -20080,9 +20252,17 @@ msgstr "这不是 Poracode 的配对码。"
 msgid "That label does not exist in this repository. Refresh the label list and try again."
 msgstr "此仓库中不存在该标签。请刷新标签列表后重试。"
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "That machine is not available."
+msgstr "该设备不可用。"
+
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "该配对代码已失效。请在桌面上打开“设置 → 远程访问”，点击“新代码”后重新配对。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "That project is no longer on {targetLabel}."
+msgstr "该项目已不在 {targetLabel} 上。"
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "That prompt is no longer available."
@@ -20125,9 +20305,17 @@ msgstr "代理"
 msgid "The agent"
 msgstr "代理"
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent did not stop in time. Try the move again."
+msgstr "智能体未能及时停止。请重新尝试移动。"
+
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "The agent is still answering. Ask again when it finishes."
 msgstr "智能体仍在回答。请在其完成后再次提问。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The agent is working. Moving stops it here and resumes the work on {targetLabel}."
+msgstr "智能体正在工作。移动会在此处停止它，并在 {targetLabel} 上继续工作。"
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 msgid "The agent session reloads to apply the new context size; the conversation is kept."
@@ -20136,6 +20324,10 @@ msgstr "智能体会话将重新加载以应用新的上下文大小；对话会
 #: src/renderer/components/thread/useThreadDockState.ts
 msgid "The agent stopped because of an error."
 msgstr "代理因错误而停止。"
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent was stopped here, but the move didn't finish: {reason}"
+msgstr "智能体已在此处停止，但移动未完成：{reason}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -20169,6 +20361,10 @@ msgstr "自动化需要批准才能继续。"
 #~ msgid "the base branch"
 #~ msgstr "基准分支"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The branch name was taken there, so the work continues on {branch}."
+msgstr "该分支名称在那里已被占用，因此工作将在 {branch} 上继续。"
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "The candidates changed after judging. Compare them again."
 msgstr "候选项在评审后发生了更改。请重新比较。"
@@ -20176,6 +20372,10 @@ msgstr "候选项在评审后发生了更改。请重新比较。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "候选项尚未进行任何更改。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The changes are too large to move ({size}). Commit or ignore large files first."
+msgstr "更改过大，无法移动（{size}）。请先提交或忽略大文件。"
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
@@ -20192,6 +20392,10 @@ msgstr "完成检查失败，计划任务已暂停。"
 #: src/renderer/speech/hexVoice.ts
 msgid "The connected Poracode host is unavailable. Reconnect and try again."
 msgstr "连接的 Poracode 主机不可用。重新连接并重试。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The conversation and its code — commits and uncommitted changes — move to the other machine and continue there. Files ignored by Git, such as .env, stay here."
+msgstr "对话及其代码（提交和未提交的更改）会移动到另一台设备并在那里继续。被 Git 忽略的文件（如 .env）会留在此处。"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
@@ -20444,6 +20648,18 @@ msgstr "MCP 服务器配置无效或使用了保留名称。"
 msgid "The MCP server is invalid."
 msgstr "MCP 服务器无效。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The move expired. Start it again."
+msgstr "移动已过期。请重新开始。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The moved thread could not be read. Start the move again."
+msgstr "无法读取已移动的线程。请重新开始移动。"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "The moved thread keeps its agent and model, so that agent needs to be set up on the other machine."
+#~ msgstr "已移动的线程会保留其智能体和模型，因此需要在另一台设备上配置该智能体。"
+
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 #~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
 #~ msgstr "新的上下文大小将从你的下一条消息开始生效。发送该消息前会重新加载智能体会话；对话内容会保留。"
@@ -20588,6 +20804,22 @@ msgid "The selected model compares snapshots of each candidate's changes under a
 msgstr "所选模型会使用匿名标签比较每个候选方案的更改快照，并在不合并任何内容的情况下推荐获胜者。"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is missing commits this thread needs. Fetch its latest changes and try again."
+msgstr "所选项目缺少此线程需要的提交。请获取其最新更改后重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is unavailable."
+msgstr "所选项目不可用。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project isn't a Git repository."
+msgstr "所选项目不是 Git 仓库。"
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The selected project on {label} doesn't share history with this repository."
+msgstr "{label} 上所选的项目与此仓库没有共同的历史记录。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The selected repository no longer matches this project's source remote. Refresh before continuing."
 msgstr "所选仓库不再与此项目的源远程仓库匹配。请刷新后再继续。"
 
@@ -20728,6 +20960,10 @@ msgstr "无法启动会话。草稿仍保存在此设备上。"
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "线程会保留其提供方会话，因此你的下一条消息会从上次中断处继续。"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The thread moved, but your message was not sent. Send it from the moved thread."
+msgstr "线程已移动，但你的消息未发送。请在已移动的线程中发送。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "聊天线程会话不可用于排队的后续消息。"
@@ -20736,6 +20972,10 @@ msgstr "聊天线程会话不可用于排队的后续消息。"
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "线程将在新分支上的独立工作树中运行。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread's branch name can't be used on this machine."
+msgstr "此线程的分支名称无法在此设备上使用。"
+
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "该线程的主机未连接。"
@@ -20743,6 +20983,10 @@ msgstr "该线程的主机未连接。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "与此工作树关联的线程已更改。请刷新后重试。"
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The transfer ended early. Try again."
+msgstr "传输提前结束。请重试。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -20796,6 +21040,10 @@ msgstr "主题和聊天字号"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Theme name"
 msgstr "主题名称"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Then tell the agent (optional)"
+#~ msgstr "然后告诉智能体（可选）"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
@@ -21299,6 +21547,15 @@ msgstr "无法使用已授权的文件夹打开此会话。请更新主机或检
 msgid "This thread does not support queued follow-ups."
 msgstr "此线程不支持排队的后续消息。"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread has no conversation to move yet."
+msgstr "此线程还没有可移动的对话。"
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "This thread is already on {label}."
+msgstr "此线程已在 {label} 上。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "此线程尚未准备好接受引导。"
@@ -21468,6 +21725,11 @@ msgstr "线程待办事项停靠栏"
 msgid "Threads"
 msgstr "线程"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Threads in WSL projects can't move to another machine yet."
+msgstr "WSL 项目中的线程暂时无法移动到另一台设备。"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
@@ -21611,6 +21873,10 @@ msgstr "指示不要编辑文件。不会强制执行。"
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 msgid "Too many HTML previews in this message. Showing source only."
 msgstr "此消息中的 HTML 预览过多。仅显示源代码。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many moves are in progress. Try again shortly."
+msgstr "进行中的移动过多。请稍后重试。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22493,6 +22759,10 @@ msgstr "将{0}更新为{updateLabel}"
 msgid "Update {host} to import its sessions."
 msgstr "请更新 {host} 以导入其会话。"
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Update {label} to move threads between machines."
+msgstr "请更新 {label} 以在设备之间移动线程。"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
 #~ msgstr "全部更新"
@@ -23253,6 +23523,14 @@ msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "请等待所有候选项完成后再创建拉取请求。"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Wait for the agent to finish before moving this thread."
+msgstr "移动此线程前，请等待智能体完成。"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Wait for the agent to finish."
+#~ msgstr "请等待智能体完成。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Wait for the source conversation to finish before forking."
 msgstr "请等待源对话结束后再创建分支。"
 
@@ -23679,6 +23957,7 @@ msgstr "工作区视图"
 msgid "Workspaces"
 msgstr "工作区"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
@@ -23688,6 +23967,7 @@ msgstr "工作树"
 msgid "Worktree {path} has uncommitted changes"
 msgstr "工作树 {path} 中有未提交的更改"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree + changes"
 msgstr "工作树 + 更改"
@@ -23704,6 +23984,7 @@ msgstr "工作树基础文件夹"
 msgid "Worktree location"
 msgstr "工作树位置"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree mode"
 msgstr "工作树模式"

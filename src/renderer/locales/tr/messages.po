@@ -42,6 +42,11 @@ msgstr "(dal yok)"
 msgid "(optional)"
 msgstr "(isteğe bağlı)"
 
+#. placeholder {0}: preview.source.git.changedFiles
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{0, plural, =0 {no uncommitted changes} one {# uncommitted change} other {# uncommitted changes}}"
+#~ msgstr "{0, plural, =0 {kaydedilmemiş değişiklik yok} one {# kaydedilmemiş değişiklik} other {# kaydedilmemiş değişiklik}}"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -733,6 +738,10 @@ msgstr "{minutes} dk önce"
 msgid "{missingAuthLabel} needs authentication."
 msgstr "{missingAuthLabel} kimlik doğrulaması gerektiriyor."
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "{moved} · continued with {agentLabel}"
+msgstr "{moved} · {agentLabel} ile devam edildi"
+
 #: src/renderer/actions/workspaceActions.ts
 msgid "{movedCount, plural, one {Moved # project to {target}.} other {Moved # projects to {target}.}}"
 msgstr "{movedCount, plural, one {# proje {target} alanına taşındı.} other {# proje {target} alanına taşındı.}}"
@@ -773,6 +782,14 @@ msgstr "{productName} v{0} sürümüne güncellendi."
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (devre dışı)"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} isn't set up on another machine yet. Add it there to move this thread."
+msgstr "{projectName} henüz başka bir makinede kurulmadı. Bu iletiyi taşımak için onu oraya ekleyin."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} on {targetLabel} isn't a Git repository, so its code can't move there."
+msgstr "{targetLabel} üzerindeki {projectName} bir Git deposu değil, bu nedenle kodu oraya taşınamaz."
 
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
@@ -829,6 +846,18 @@ msgstr "{serverName} · WSL {0}"
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{providerLabel} kaynağından {serverName}: {disabledLabel}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}, and no other chat agent is ready there. Set one up there first."
+msgstr "{sourceAgentLabel}, {targetLabel} üzerinde kurulu değil ve orada hazır başka bir sohbet ajanı yok. Önce orada birini kurun."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Choose the agent that continues there."
+#~ msgstr "{sourceAgentLabel}, {targetLabel} üzerinde kurulu değil. Orada devam edecek ajanı seçin."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Pick the agent that continues there."
+msgstr "{sourceAgentLabel}, {targetLabel} üzerinde kurulu değil. Orada devam edecek ajanı seçin."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "{sourceCrewName} comes along."
 msgstr "{sourceCrewName} sizinle geliyor."
@@ -840,6 +869,22 @@ msgstr "{sourceCrewName} geride kalıyor: {targetProviderLabel} bir ekibe liderl
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, other {# adım}}"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no project for this repository. Add it there first."
+#~ msgstr "{targetLabel} üzerinde bu depo için proje yok. Önce oraya ekleyin."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no projects yet. Add one there first."
+#~ msgstr "{targetLabel} üzerinde henüz proje yok. Önce oraya bir proje ekleyin."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is offline. Connect to it first."
+msgstr "{targetLabel} çevrimdışı. Önce ona bağlanın."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is reached through this computer, so you can't open it while this computer is off."
+msgstr "{targetLabel} bu bilgisayar üzerinden erişiliyor; bu bilgisayar kapalıyken onu açamazsınız."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 #~ msgid "{totalAdditions} additions and {totalDeletions} deletions"
@@ -1722,6 +1767,10 @@ msgstr "Temsilci şu anda devre dışı"
 msgid "Agent not found"
 msgstr "Temsilci bulunamadı"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Agent on {targetLabel}"
+#~ msgstr "{targetLabel} üzerindeki ajan"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -2267,6 +2316,10 @@ msgstr "Geçerli konuyu arşivle"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Archive this session?"
 #~ msgstr "Bu oturum arşivlensin mi?"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Archive this thread here after moving"
+#~ msgstr "Taşıdıktan sonra bu ileti dizisini burada arşivle"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive thread"
@@ -2878,6 +2931,7 @@ msgstr "Bu ana makinede aynı anda çalışabilecek kısa ömürlü üretim yard
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "Bu ana makinede aynı anda çalışabilecek terminal kabuğu sayısını sınırlar. İşletim sistemi süreçlerini veya belleği değil, mantıksal yürütme yuvalarını sayar. 0 = sınırsız."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
@@ -2916,6 +2970,11 @@ msgstr "Dal veya etiket"
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
 msgstr "Dal koruma kuralları bu birleştirmeyi engelledi."
+
+#. placeholder {0}: preview.source.git.branch
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Branch: {0}"
+#~ msgstr "Dal: {0}"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Branches"
@@ -3185,7 +3244,7 @@ msgstr "Portlar yüklenemedi"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "Uzak sunucuya ulaşılamıyor. Çevrimiçi olduğunu doğrulayıp yeniden bağlanın."
 
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/providerTargetSelection.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Can't use this model selection on that surface"
 msgstr "Bu model seçimi bu arayüzde kullanılamaz"
@@ -3201,6 +3260,7 @@ msgstr "Bu model seçimi bu arayüzde kullanılamaz"
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -3578,6 +3638,10 @@ msgstr "Kontrol ediliyor"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Checking {serverName}"
 msgstr "{serverName} kontrol ediliyor"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Checking {targetLabel}…"
+msgstr "{targetLabel} kontrol ediliyor…"
 
 #: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 msgid "Checking for updates…"
@@ -4541,6 +4605,10 @@ msgid "Commit & Push"
 msgstr "Commit Et ve Push'la"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Commit at least once before moving this thread."
+msgstr "Bu ileti dizisini taşımadan önce en az bir kez commit yapın."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Commit failed: {detail}"
 msgstr "Commit başarısız oldu: {detail}"
 
@@ -5068,6 +5136,10 @@ msgstr "Başka bir sağlayıcıda devam et"
 msgid "Continue in..."
 msgstr "Şurada devam et..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Continue on {targetLabel}"
+#~ msgstr "{targetLabel} üzerinde devam et"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Continue on the desktop address"
 #~ msgstr "Masaüstü adresinde devam et"
@@ -5075,6 +5147,14 @@ msgstr "Şurada devam et..."
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "Durdurma koşuluna veya sınıra ulaşılana kadar tek bir konuşmayı sürdürün."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Continue where you left off"
+msgstr "Kaldığın yerden devam et"
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Continue where you left off."
+msgstr "Kaldığın yerden devam et."
 
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
@@ -6467,6 +6547,10 @@ msgstr "Bağlantıyı kes"
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "Yan sohbeti ayır"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Detached commit"
+msgstr "Bağımsız commit"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -8393,6 +8477,10 @@ msgstr "Bitti · Girişinizi bekliyorum"
 msgid "Finishing your report on GitHub…"
 msgstr "Bildiriminiz GitHub üzerinde tamamlanıyor…"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Finishing…"
+msgstr "Tamamlanıyor…"
+
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
 #~ msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Antigravity CLI entegrasyonu."
@@ -9438,6 +9526,10 @@ msgstr "Saatlik"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hours"
 msgstr "Saat"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "How moving works"
+msgstr "Taşıma nasıl çalışır"
 
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 msgid "HTML preview"
@@ -11741,6 +11833,10 @@ msgstr "Mesaj araması kullanılamıyor"
 #~ msgid "Message the remote agent…"
 #~ msgstr "Uzak ajana mesaj gönder…"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Message to send after moving"
+#~ msgstr "Taşıdıktan sonra gönderilecek mesaj"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Messages"
 msgstr "Mesajlar"
@@ -12075,6 +12171,8 @@ msgid "Motion"
 msgstr "Hareket"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/MoveThreadAgentComposer.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Move"
 msgstr "Taşı"
 
@@ -12116,6 +12214,14 @@ msgstr "Paneli taşı"
 msgid "Move thread {0}"
 msgstr "{0} konuşmasını taşı"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Move to another machine"
+msgstr "Başka bir makineye taşı"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to another machine…"
+msgstr "Başka bir makineye taşı…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "Temiz çalışma ağacına taşı"
@@ -12150,6 +12256,18 @@ msgstr "Değişikliklerle çalışma ağacına taşı"
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "1 proje {0} alanına taşındı."
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost}"
+msgstr "{sourceHost} makinesinden taşındı"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost} to {targetHost}"
+msgstr "{sourceHost} makinesinden {targetHost} makinesine taşındı"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+#~ msgid "Moved here from {sourceHost}"
+#~ msgstr "{sourceHost} makinesinden buraya taşındı"
+
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
 msgstr "Konu ve değişiklikleriniz \"{newBranch}\" üzerindeki yeni bir çalışma ağacına taşındı."
@@ -12161,6 +12279,10 @@ msgstr "Konu ve değişiklikleriniz \"{newBranch}\" üzerindeki yeni bir çalı�
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread to a new worktree on \"{branch}\"."
 msgstr "Konu \"{branch}\" üzerindeki yeni bir çalışma ağacına taşındı."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Moved to {label}."
+msgstr "{label} makinesine taşındı."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -12810,6 +12932,10 @@ msgstr "Bu mesaj için hiçbir dosya kontrol noktası saklanmadı."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
 msgstr "\"{0}\" ile eşleşen dosya yok."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No free branch name is left for {branch}."
+msgstr "{branch} için boş dal adı kalmadı."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
@@ -13484,6 +13610,15 @@ msgstr "Tek kullanımlık eşleştirme belirteci"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Çevrimiçi"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Only chat threads can move to another machine."
+msgstr "Yalnızca sohbet ileti dizileri başka bir makineye taşınabilir."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Only the conversation moves: this folder isn't a Git repository."
+msgstr "Yalnızca konuşma taşınır: bu klasör bir Git deposu değil."
 
 #. placeholder {0}: i18n.number(state.totalBytes)
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
@@ -14163,6 +14298,10 @@ msgstr "Paket yöneticisi"
 msgid "Package name or Git URL"
 msgstr "Paket adı veya Git URL'si"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Packaging the thread…"
+msgstr "İleti dizisi paketleniyor…"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Page"
 msgstr "Sayfa"
@@ -14195,6 +14334,10 @@ msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "Tekrar eşleştir"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Pair another machine in Settings to move threads to it."
+#~ msgstr "İleti dizilerini taşımak için Ayarlar'da başka bir makineyi eşleştirin."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pair this device"
@@ -15306,6 +15449,10 @@ msgstr "Proje bulunamadı."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "Proje notları"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Project on {targetLabel}"
+#~ msgstr "{targetLabel} üzerindeki proje"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
@@ -16783,6 +16930,10 @@ msgstr "Sonucu geri yükle"
 msgid "Restore thread"
 msgstr "Konuyu geri yükle"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Restoring it on {targetLabel}…"
+msgstr "{targetLabel} üzerinde geri yükleniyor…"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Results"
@@ -16834,6 +16985,7 @@ msgstr "Yalnızca bu sunucuda saklanan kullanım."
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
@@ -17456,6 +17608,10 @@ msgstr "Devin ile aynı giriş"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
 msgstr "Tüm makinelerde aynı sağlayıcı sırası"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Same repository"
+#~ msgstr "Aynı depo"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Samsung Galaxy S24 Ultra"
@@ -18195,6 +18351,10 @@ msgstr "Mesaj gönder"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "Terminale girdi gönder"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Sending {sent} of {total}…"
+msgstr "{total} içinden {sent} gönderiliyor…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -19457,6 +19617,10 @@ msgstr "{0} çalıştırmalarını durdur"
 msgid "Stop {label}"
 msgstr "{label} görevini durdur"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stop and move"
+msgstr "Durdur ve taşı"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "Yönlendirmeyi durdur"
@@ -19506,6 +19670,10 @@ msgstr "{label} görevi durduruluyor…"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping task…"
 msgstr "Görev durduruluyor…"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stopping the agent here…"
+msgstr "Ajan burada durduruluyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -19921,6 +20089,10 @@ msgstr "Ekip"
 msgid "Tell {0} what to do next..."
 msgstr "{0}'a bundan sonra ne yapacağını söyle..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Tell {selectedAgentLabel} what to do next (optional)"
+msgstr "{selectedAgentLabel}'a bundan sonra ne yapacağını söyle(isteğe bağlı)"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell the target provider what to do next..."
 msgstr "Hedef sağlayıcıya bundan sonra ne yapacağını söyleyin..."
@@ -20081,9 +20253,17 @@ msgstr "Bu bir Poracode eşleştirme kodu değil."
 msgid "That label does not exist in this repository. Refresh the label list and try again."
 msgstr "Bu etiket bu depoda yok. Etiket listesini yenileyin ve tekrar deneyin."
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "That machine is not available."
+msgstr "Bu makine kullanılamıyor."
+
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "Bu eşleştirme kodu artık geçerli değil. Masaüstünde Ayarlar → Uzaktan Erişim'i açın, «Yeni kod»a basın ve yeniden eşleştirin."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "That project is no longer on {targetLabel}."
+msgstr "Bu proje artık {targetLabel} üzerinde değil."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "That prompt is no longer available."
@@ -20126,9 +20306,17 @@ msgstr "aracı"
 msgid "The agent"
 msgstr "Temsilci"
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent did not stop in time. Try the move again."
+msgstr "Ajan zamanında durmadı. Taşımayı yeniden deneyin."
+
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "The agent is still answering. Ask again when it finishes."
 msgstr "Temsilci hâlâ yanıtlıyor. Bitince tekrar sorun."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The agent is working. Moving stops it here and resumes the work on {targetLabel}."
+msgstr "Ajan çalışıyor. Taşıma onu burada durdurur ve çalışmaya {targetLabel} üzerinde devam eder."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 msgid "The agent session reloads to apply the new context size; the conversation is kept."
@@ -20137,6 +20325,10 @@ msgstr "Yeni bağlam boyutunu uygulamak için ajan oturumu yeniden yüklenir; ko
 #: src/renderer/components/thread/useThreadDockState.ts
 msgid "The agent stopped because of an error."
 msgstr "Aracı bir hata nedeniyle durdu."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent was stopped here, but the move didn't finish: {reason}"
+msgstr "Aracı burada durduruldu ancak taşıma tamamlanmadı: {reason}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -20170,6 +20362,10 @@ msgstr "Otomasyonun devam edebilmesi için onay gerekiyor."
 #~ msgid "the base branch"
 #~ msgstr "ana şube"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The branch name was taken there, so the work continues on {branch}."
+msgstr "Dal adı orada zaten kullanılıyordu, bu yüzden çalışma {branch} üzerinde devam ediyor."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "The candidates changed after judging. Compare them again."
 msgstr "Adaylar değerlendirmeden sonra değişti. Yeniden karşılaştırın."
@@ -20177,6 +20373,10 @@ msgstr "Adaylar değerlendirmeden sonra değişti. Yeniden karşılaştırın."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Adaylar henüz herhangi bir değişiklik yapmadı."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The changes are too large to move ({size}). Commit or ignore large files first."
+msgstr "Değişiklikler taşınamayacak kadar büyük ({size}). Önce büyük dosyaları commit edin veya yok sayın."
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
@@ -20193,6 +20393,10 @@ msgstr "Tamamlanma kontrolü başarısız oldu; zamanlama duraklatıldı."
 #: src/renderer/speech/hexVoice.ts
 msgid "The connected Poracode host is unavailable. Reconnect and try again."
 msgstr "Bağlı Poracode ana bilgisayarı kullanılamıyor. Yeniden bağlanın ve tekrar deneyin."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The conversation and its code — commits and uncommitted changes — move to the other machine and continue there. Files ignored by Git, such as .env, stay here."
+msgstr "Konuşma ve kodu (commit'ler ve kaydedilmemiş değişiklikler) diğer makineye taşınır ve orada devam eder. .env gibi Git'in yok saydığı dosyalar burada kalır."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
@@ -20445,6 +20649,18 @@ msgstr "MCP sunucusu yapılandırması geçersiz veya ayrılmış bir ad kullan�
 msgid "The MCP server is invalid."
 msgstr "MCP sunucusu geçersiz."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The move expired. Start it again."
+msgstr "Taşımanın süresi doldu. Yeniden başlatın."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The moved thread could not be read. Start the move again."
+msgstr "Taşınan ileti dizisi okunamadı. Taşımayı yeniden başlatın."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "The moved thread keeps its agent and model, so that agent needs to be set up on the other machine."
+#~ msgstr "Taşınan ileti dizisi ajanını ve modelini korur; bu yüzden o ajanın diğer makinede kurulu olması gerekir."
+
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 #~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
 #~ msgstr "Yeni bağlam boyutu bir sonraki mesajınızdan itibaren geçerli olur. Bu mesaj gönderilmeden önce aracı oturumu yeniden yüklenir; konuşma korunur."
@@ -20589,6 +20805,22 @@ msgid "The selected model compares snapshots of each candidate's changes under a
 msgstr "Seçilen model, her adayın değişikliklerinin anlık görüntülerini anonim etiketler altında karşılaştırır. Hiçbir şeyi birleştirmeden bir kazanan önerir."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is missing commits this thread needs. Fetch its latest changes and try again."
+msgstr "Seçilen projede bu ileti dizisinin ihtiyaç duyduğu commit'ler eksik. En son değişikliklerini alıp yeniden deneyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is unavailable."
+msgstr "Seçilen proje kullanılamıyor."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project isn't a Git repository."
+msgstr "Seçilen proje bir Git deposu değil."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The selected project on {label} doesn't share history with this repository."
+msgstr "{label} üzerindeki seçili proje bu depoyla ortak geçmişe sahip değil."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The selected repository no longer matches this project's source remote. Refresh before continuing."
 msgstr "Seçilen depo artık bu projenin kaynak uzak deposuyla eşleşmiyor. Devam etmeden önce yenileyin."
 
@@ -20729,6 +20961,10 @@ msgstr "Konuşma başlatılamadı. Taslağınız bu cihazda kayıtlı kalmaya de
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "Konu sağlayıcı oturumunu korur; böylece bir sonraki mesajınız kaldığınız yerden devam eder."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The thread moved, but your message was not sent. Send it from the moved thread."
+msgstr "İleti dizisi taşındı ancak mesajınız gönderilmedi. Taşınan ileti dizisinden gönderin."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "Kuyruğa alınan takip mesajları için konu oturumu kullanılamıyor."
@@ -20737,6 +20973,10 @@ msgstr "Kuyruğa alınan takip mesajları için konu oturumu kullanılamıyor."
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Konu, yeni bir şubede ayrı bir çalışma ağacında çalışacak."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread's branch name can't be used on this machine."
+msgstr "İleti dizisinin dal adı bu makinede kullanılamıyor."
+
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "Konunun ana bilgisayarı bağlı değil."
@@ -20744,6 +20984,10 @@ msgstr "Konunun ana bilgisayarı bağlı değil."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "Bu worktree'ye bağlı iş parçacıkları değişti. Yenileyip tekrar deneyin."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The transfer ended early. Try again."
+msgstr "Aktarım erken sona erdi. Yeniden deneyin."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -20797,6 +21041,10 @@ msgstr "Tema ve sohbet yazı tipi boyutu"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Theme name"
 msgstr "Tema adı"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Then tell the agent (optional)"
+#~ msgstr "Sonra ajana söyle (isteğe bağlı)"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
@@ -21300,6 +21548,15 @@ msgstr "Bu konuşma, onaylanan klasörlerle açılamıyor. Ana makineyi güncell
 msgid "This thread does not support queued follow-ups."
 msgstr "Bu konu, kuyruğa alınan takip mesajlarını desteklemiyor."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread has no conversation to move yet."
+msgstr "Bu ileti dizisinde henüz taşınacak bir konuşma yok."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "This thread is already on {label}."
+msgstr "Bu ileti dizisi zaten {label} üzerinde."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "Bu konu henüz yönlendirme için hazır değil."
@@ -21469,6 +21726,11 @@ msgstr "Konu yapılacaklar yuvası"
 msgid "Threads"
 msgstr "Konular"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Threads in WSL projects can't move to another machine yet."
+msgstr "WSL projelerindeki ileti dizileri henüz başka bir makineye taşınamıyor."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
@@ -21612,6 +21874,10 @@ msgstr "Dosyaları düzenlememesi söylendi. Zorunlu değildir."
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 msgid "Too many HTML previews in this message. Showing source only."
 msgstr "Bu mesajda çok fazla HTML önizlemesi var. Yalnızca kaynak gösteriliyor."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many moves are in progress. Try again shortly."
+msgstr "Devam eden çok fazla taşıma var. Birazdan yeniden deneyin."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22494,6 +22760,10 @@ msgstr "{0} öğesini {updateLabel} olarak güncelleyin"
 msgid "Update {host} to import its sessions."
 msgstr "Oturumlarını içe aktarmak için {host} ana bilgisayarını güncelleyin."
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Update {label} to move threads between machines."
+msgstr "İleti dizilerini makineler arasında taşımak için {label} uygulamasını güncelleyin."
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
 #~ msgstr "Tümünü güncelle"
@@ -23254,6 +23524,14 @@ msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Pull request açmadan önce tüm adayların çalışmasını tamamlamasını bekleyin."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Wait for the agent to finish before moving this thread."
+msgstr "Bu ileti dizisini taşımadan önce ajanın bitirmesini bekleyin."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Wait for the agent to finish."
+#~ msgstr "Ajanın bitirmesini bekleyin."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Wait for the source conversation to finish before forking."
 msgstr "Dallandırmadan önce kaynak konuşmanın bitmesini bekleyin."
 
@@ -23680,6 +23958,7 @@ msgstr "Çalışma alanı görünümü"
 msgid "Workspaces"
 msgstr "Çalışma alanları"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
@@ -23689,6 +23968,7 @@ msgstr "Çalışma Ağacı"
 msgid "Worktree {path} has uncommitted changes"
 msgstr "{path} çalışma ağacında commit edilmemiş değişiklikler var"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree + changes"
 msgstr "Çalışma ağacı + değişiklikler"
@@ -23705,6 +23985,7 @@ msgstr "Çalışma ağacı temel klasörü"
 msgid "Worktree location"
 msgstr "Çalışma ağacı konumu"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree mode"
 msgstr "Çalışma ağacı modu"

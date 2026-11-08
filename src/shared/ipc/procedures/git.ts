@@ -67,6 +67,16 @@ import {
   gitWorktreeStatusBatchResultSchema,
   listFileCheckpointsResultSchema,
   relocateProjectResultSchema,
+  threadTransferExportGitPayloadSchema,
+  threadTransferExportGitResultSchema,
+  threadTransferGitHavesPayloadSchema,
+  threadTransferGitHavesResultSchema,
+  threadTransferImportGitPayloadSchema,
+  threadTransferImportGitResultSchema,
+  threadTransferInspectGitPayloadSchema,
+  threadTransferInspectGitResultSchema,
+  threadTransferRepoProbePayloadSchema,
+  threadTransferRepoProbeResultSchema,
 } from "../../contracts";
 import type {
   CreateFileCheckpointPayload,
@@ -137,6 +147,16 @@ import type {
   RelocateProjectPayload,
   RelocateProjectResult,
   RestoreFileCheckpointPayload,
+  ThreadTransferExportGitPayload,
+  ThreadTransferExportGitResult,
+  ThreadTransferGitHavesPayload,
+  ThreadTransferGitHavesResult,
+  ThreadTransferImportGitPayload,
+  ThreadTransferImportGitResult,
+  ThreadTransferInspectGitPayload,
+  ThreadTransferInspectGitResult,
+  ThreadTransferRepoProbePayload,
+  ThreadTransferRepoProbeResult,
 } from "../../contracts";
 import { definePayloadProcedure, omittedResultSchema } from "../core";
 
@@ -446,4 +466,55 @@ export const gitProcedures = {
     RelocateProjectResult,
     "supervisor"
   >("relocateProject", "supervisor", relocateProjectPayloadSchema, relocateProjectResultSchema),
+  // Thread transfer Git steps: called only by the owning backend, never remote-routable.
+  threadTransferInspectGit: definePayloadProcedure<
+    ThreadTransferInspectGitPayload,
+    ThreadTransferInspectGitResult,
+    "supervisor"
+  >(
+    "threadTransferInspectGit",
+    "supervisor",
+    threadTransferInspectGitPayloadSchema,
+    threadTransferInspectGitResultSchema,
+  ),
+  threadTransferRepoProbe: definePayloadProcedure<
+    ThreadTransferRepoProbePayload,
+    ThreadTransferRepoProbeResult,
+    "supervisor"
+  >(
+    "threadTransferRepoProbe",
+    "supervisor",
+    threadTransferRepoProbePayloadSchema,
+    threadTransferRepoProbeResultSchema,
+  ),
+  threadTransferGitHaves: definePayloadProcedure<
+    ThreadTransferGitHavesPayload,
+    ThreadTransferGitHavesResult,
+    "supervisor"
+  >(
+    "threadTransferGitHaves",
+    "supervisor",
+    threadTransferGitHavesPayloadSchema,
+    threadTransferGitHavesResultSchema,
+  ),
+  threadTransferExportGit: definePayloadProcedure<
+    ThreadTransferExportGitPayload,
+    ThreadTransferExportGitResult,
+    "supervisor"
+  >(
+    "threadTransferExportGit",
+    "supervisor",
+    threadTransferExportGitPayloadSchema,
+    threadTransferExportGitResultSchema,
+  ),
+  threadTransferImportGit: definePayloadProcedure<
+    ThreadTransferImportGitPayload,
+    ThreadTransferImportGitResult,
+    "supervisor"
+  >(
+    "threadTransferImportGit",
+    "supervisor",
+    threadTransferImportGitPayloadSchema,
+    threadTransferImportGitResultSchema,
+  ),
 } as const;

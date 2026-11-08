@@ -58,7 +58,7 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 119,
+  httpRoutes: 121,
   procedures: 173,
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
@@ -267,6 +267,8 @@ const PLANNED_ABSENCE_TOKENS: Record<
       "thread-history-item",
       "thread-history-prompts",
       "thread-history-changes",
+      "thread-transfer-command",
+      "thread-transfer-upload",
     ].map((id) => [
       id,
       [

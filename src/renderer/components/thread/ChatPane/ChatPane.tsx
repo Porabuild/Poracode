@@ -51,7 +51,11 @@ import { createChatPaneFileActions } from "./chatPaneFileActions";
 import { createMarkdownLocalImageAuthority } from "./markdownLocalImageAuthority";
 import { ImportedThreadNotice } from "./parts/ImportedThreadNotice";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
-import { ThreadForkOrigin, ThreadForkTurnAction } from "../ThreadForkControls";
+import {
+  selectForkBoundaryInEntry,
+  ThreadForkOrigin,
+  ThreadForkTurnAction,
+} from "../ThreadForkControls";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
 import { ChatPromptOverlays } from "./ChatPromptOverlays";
 import { promptAnchorScrollTop } from "./promptAnchorScrollTop";
@@ -390,6 +394,14 @@ export function ChatPane(props: ChatPaneProps) {
   const lastRowAlreadyShowsATurn =
     mostRecentCompletedTurnAnchor === null &&
     lastTimelineEntryHasCompletedTurn(timelineEntries, completedTurnsByAnchor);
+  // A fork/move boundary renders inside the last entry after its inline
+  // "Worked for" line, so the tail footer must stay off that turn.
+  const inheritedBoundaryAtTail = useAppStore((state) => {
+    const last = timelineEntries.at(-1);
+    return last
+      ? selectForkBoundaryInEntry(state, threadId, last.kind === "item" ? [last.id] : last.itemIds)
+      : false;
+  });
   const completedTurnCanRenderInTail =
     !showWorkingTimer &&
     // A previous turn's timing survives a failed history read. Keep its
@@ -397,7 +409,8 @@ export function ChatPane(props: ChatPaneProps) {
     (!isEmpty || hydrationStatus !== "failed") &&
     (turn?.endedAt != null || mostRecentDisplayableCompletedTurn !== null) &&
     completedTurnAnchorAtTail &&
-    !lastRowAlreadyShowsATurn;
+    !lastRowAlreadyShowsATurn &&
+    !inheritedBoundaryAtTail;
   const tailTurn =
     completedTurnCanRenderInTail && mostRecentDisplayableCompletedTurn
       ? mostRecentDisplayableCompletedTurn

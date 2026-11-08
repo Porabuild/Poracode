@@ -24,6 +24,14 @@ vi.mock("@/renderer/state/managedRootCatalog/rootCatalogIntents", async (importO
   dispatchThreadGroupIntents: groupIntentsMock,
 }));
 
+const transferCandidatesMock = vi.hoisted(() =>
+  vi.fn<(thread: Thread, members: readonly Project[]) => Project[]>(),
+);
+vi.mock("@/renderer/actions/threadTransferActions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/actions/threadTransferActions")>()),
+  transferCandidateMembers: transferCandidatesMock,
+}));
+
 const project: Project = {
   id: "p1",
   name: "Poracode",
@@ -94,6 +102,7 @@ describe("ThreadContextMenu project actions", () => {
     usePanelStore.setState({ githubActionsContext: null });
     useSharedSettings.setState({ workspaces: [] } as never);
     useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
+    transferCandidatesMock.mockReturnValue([]);
   });
 
   it.each([undefined, status()])(
@@ -360,5 +369,29 @@ describe("ThreadContextMenu project actions", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Group open threads" }));
     expect(useAppStore.getState().threads).toBe(before.threads);
     expect(useAppStore.getState().view).toBe(before.view);
+  });
+
+  it("offers Move to another machine once the project reaches another host", async () => {
+    const guiThread = thread({ presentationMode: "gui" });
+    useAppStore.setState({ projects: [project], threads: [guiThread] });
+    await renderMenu(guiThread);
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to another machine…" }),
+    ).not.toBeInTheDocument();
+
+    // A member joining the group re-derives the candidates on the open menu.
+    const remoteMember = {
+      ...project,
+      id: "remote:d1:project:p1",
+      remoteServerId: "d1",
+      remoteId: "p1",
+    } as Project;
+    transferCandidatesMock.mockReturnValue([remoteMember]);
+    act(() => {
+      useAppStore.setState({ projects: [project, remoteMember] });
+    });
+    expect(
+      await screen.findByRole("menuitem", { name: "Move to another machine…" }),
+    ).toBeInTheDocument();
   });
 });

@@ -1,6 +1,26 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let websocketU2EServerU2EBrowserU2DState: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D6_bd23acb1d6> = .init(id: "websocket.server.browser-state", schema: RemoteSchemas.schema_bd23acb1d60bc91b)
+}
+
+public extension RemoteRootCodecs {
+  static let websocketU2EServerU2EDesktopU2DEvent: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D12_f1c1581e17> = .init(id: "websocket.server.desktop-event", schema: RemoteSchemas.schema_f1c1581e1729d48e)
+}
+
+public extension RemoteRootCodecs {
+  static let websocketU2EServerU2EEvent: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D3_3897f50212> = .init(id: "websocket.server.event", schema: RemoteSchemas.schema_3897f50212cb0b25)
+}
+
+public extension RemoteRootCodecs {
+  static let websocketU2EServerU2EPong: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D5_17b50a5a25> = .init(id: "websocket.server.pong", schema: RemoteSchemas.schema_17b50a5a251b31ce)
+}
+
+public extension RemoteRootCodecs {
+  static let websocketU2EServerU2EReady: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D2_dade9637ae> = .init(id: "websocket.server.ready", schema: RemoteSchemas.schema_dade9637aede6170)
+}
+
+public extension RemoteRootCodecs {
   static let websocketU2EServerU2EResyncU2DRequired: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D4_a633f9a256> = .init(id: "websocket.server.resync-required", schema: RemoteSchemas.schema_a633f9a256d1d0c9)
 }
 

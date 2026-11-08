@@ -78,6 +78,23 @@ const messages = {
   "thread.forkBoundaryActive": "The selected turn still contains active work.",
   "thread.forkContextUnavailable": "The fork's saved conversation is unavailable.",
   "thread.forkRevertUnavailable": "Inherited history cannot be reverted in this fork.",
+  "thread.transferNotChat": "Only chat threads can move to another machine.",
+  "thread.transferBusy": "Wait for the agent to finish before moving this thread.",
+  "thread.transferNoHistory": "This thread has no conversation to move yet.",
+  "thread.transferUnsupportedLocation":
+    "Threads in WSL projects can't move to another machine yet.",
+  "thread.transferNoCommits": "Commit at least once before moving this thread.",
+  "thread.transferTargetNotGit": "The selected project isn't a Git repository.",
+  "thread.transferHistoryMissing":
+    "The selected project is missing commits this thread needs. Fetch its latest changes and try again.",
+  "thread.transferTooLarge":
+    "The changes are too large to move ({size}). Commit or ignore large files first.",
+  "thread.transferBranchUnavailable": "No free branch name is left for {branch}.",
+  "thread.transferBranchInvalid": "The thread's branch name can't be used on this machine.",
+  "thread.transferExpired": "The move expired. Start it again.",
+  "thread.transferPackageInvalid": "The moved thread could not be read. Start the move again.",
+  "thread.transferLimit": "Too many moves are in progress. Try again shortly.",
+  "thread.transferProjectUnavailable": "The selected project is unavailable.",
   "agent.updateQueueTimeout": "The update waited too long for another installation. Try again.",
   "provider.signInDataUnavailable":
     "The provider's sign-in data could not be read. Try again or update Poracode.",
@@ -600,6 +617,26 @@ const errorPatterns: Array<{
     test: /\b(?:ECONNREFUSED|ENOTFOUND|EHOSTUNREACH|ENETUNREACH)\b/,
     key: "remote.server.unreachable",
   },
+  {
+    // The thread_transfer_too_large refusal and supervisor variants arrive with
+    // this interpolated English source; re-localize with the reported size.
+    test: /^The changes are too large to move \(([\s\S]*)\)\. Commit or ignore large files first\.$/,
+    key: "thread.transferTooLarge",
+    params: (raw) => ({
+      size:
+        raw.match(
+          /^The changes are too large to move \(([\s\S]*)\)\. Commit or ignore large files first\.$/,
+        )?.[1] ?? "",
+    }),
+  },
+  {
+    // Same for a branch-name refusal the supervisor throws as thread_transfer_failed.
+    test: /^No free branch name is left for ([\s\S]*)\.$/,
+    key: "thread.transferBranchUnavailable",
+    params: (raw) => ({
+      branch: raw.match(/^No free branch name is left for ([\s\S]*)\.$/)?.[1] ?? "",
+    }),
+  },
 ];
 
 const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
@@ -614,6 +651,21 @@ const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
   experiment_owned: "remote.project.experimentsOwned",
   worktree_threads_changed: "remote.worktree.threadsChanged",
   follow_up_queue_unsupported: "supervisor.followUpQueue.unsupported",
+  thread_transfer_not_chat: "thread.transferNotChat",
+  thread_transfer_busy: "thread.transferBusy",
+  thread_transfer_no_history: "thread.transferNoHistory",
+  thread_transfer_unsupported_location: "thread.transferUnsupportedLocation",
+  thread_transfer_no_commits: "thread.transferNoCommits",
+  thread_transfer_target_not_git: "thread.transferTargetNotGit",
+  thread_transfer_history_missing: "thread.transferHistoryMissing",
+  thread_transfer_branch_invalid: "thread.transferBranchInvalid",
+  thread_transfer_expired: "thread.transferExpired",
+  thread_transfer_invalid_package: "thread.transferPackageInvalid",
+  thread_transfer_mismatch: "thread.transferPackageInvalid",
+  thread_transfer_out_of_order: "thread.transferPackageInvalid",
+  thread_transfer_incomplete: "thread.transferPackageInvalid",
+  thread_transfer_chunk_too_large: "thread.transferPackageInvalid",
+  thread_transfer_limit: "thread.transferLimit",
   // Admission refusals from the desktop bridge, the host's per-client budget,
   // and the host settings authority.
   overloaded: "remote.server.busy",
