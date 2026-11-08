@@ -251,4 +251,16 @@
     <string name="rich_chat_background_task_last_progress">Último progreso hace %1$s</string>
     <string name="rich_chat_background_task_close">Cerrar detalles de la tarea</string>
     <string name="rich_chat_background_task_report_missing">La tarea terminó sin un informe de finalización.</string>
+    <string name="rich_chat_html_visual_title">Vista previa HTML</string>
+    <string name="rich_chat_html_visual_source">Código fuente</string>
+    <string name="rich_chat_html_visual_preview">Vista previa</string>
+    <string name="rich_chat_html_visual_copy_source">Copiar código fuente</string>
+    <string name="rich_chat_html_visual_loading">Cargando vista previa…</string>
+    <string name="rich_chat_html_visual_incomplete">Bloque HTML incompleto. Solo se muestra el código fuente.</string>
+    <string name="rich_chat_html_visual_unsupported">Formato HTML no compatible. Solo se muestra el código fuente.</string>
+    <string name="rich_chat_html_visual_limited">Demasiadas vistas previas HTML en este mensaje. Solo se muestra el código fuente.</string>
+    <string name="rich_chat_html_visual_too_large">Este bloque HTML es demasiado grande para la vista previa. Solo se muestra el código fuente.</string>
+    <string name="rich_chat_html_visual_unavailable">La visualización interactiva no está disponible. Solo se muestra el código fuente.</string>
+    <string name="rich_chat_html_visual_open_link_title">¿Abrir enlace?</string>
+    <string name="rich_chat_html_visual_open_link">Abrir</string>
 </resources>

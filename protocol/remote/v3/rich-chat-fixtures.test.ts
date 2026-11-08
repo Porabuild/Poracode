@@ -38,6 +38,19 @@ import {
 import { MAX_ATTACHMENT_BODY_BYTES } from "../../../src/host/remote/server/requestBody";
 import { readMcpAppReference } from "../../../src/shared/contracts/mcpApps";
 import { readMcpAppResource } from "../../../src/shared/mcpAppResources";
+import {
+  INLINE_VISUAL_FORMAT_VERSION,
+  splitInlineVisuals,
+} from "../../../src/shared/inlineVisuals";
+import {
+  HTML_VISUAL_MAX_HEIGHT,
+  HTML_VISUAL_MIN_HEIGHT,
+  HTML_VISUAL_THEME_VARIABLES,
+  MAX_HTML_VISUAL_PREVIEWS_PER_MESSAGE,
+  MAX_HTML_VISUAL_SOURCE_BYTES,
+} from "../../../src/shared/htmlVisuals";
+import { RUNTIME_STREAM_ELISION_NOTICE_PREFIX } from "../../../src/shared/runtimeStreamRetentionPolicy";
+import { HYDRATED_STREAM_HEAD_CHARS } from "../../../src/renderer/state/slices/runtimeStreamRetention";
 
 const fixtureDirectory = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 
@@ -46,6 +59,7 @@ const FIXTURE_NAMES = [
   "checkpoint-turn-sequences.json",
   "rich-content-blocks.json",
   "rich-image-markers.json",
+  "rich-inline-visuals.json",
   "rich-mcp-apps.json",
   "rich-persisted-transcript.json",
   "rich-request-events.json",
@@ -110,6 +124,32 @@ describe("remote v3 rich chat fixture foundation", () => {
     expect(readMcpAppReference(historical!.payload.result)).toBeUndefined();
     expect(readMcpAppResource(historical!.payload.result)?.text).toContain("Historical");
     expect(readMcpAppReference(future!.payload.result)).toBeUndefined();
+  });
+
+  it("pins inline visual splitting and the elision guard that native clients mirror", () => {
+    const fixture = readFixture<{
+      elision: { noticePrefix: string; headUtf16Units: number };
+      preview: Record<string, unknown>;
+      cases: Array<{ id: string; text: string; parts: unknown[] }>;
+    }>("rich-inline-visuals.json");
+    expect(fixture.elision).toMatchObject({
+      noticePrefix: RUNTIME_STREAM_ELISION_NOTICE_PREFIX,
+      headUtf16Units: HYDRATED_STREAM_HEAD_CHARS,
+    });
+    expect(fixture.preview).toMatchObject({
+      formatVersion: INLINE_VISUAL_FORMAT_VERSION,
+      maxPreviewsPerMessage: MAX_HTML_VISUAL_PREVIEWS_PER_MESSAGE,
+      maxSourceUtf8Bytes: MAX_HTML_VISUAL_SOURCE_BYTES,
+      minHeight: HTML_VISUAL_MIN_HEIGHT,
+      maxHeight: HTML_VISUAL_MAX_HEIGHT,
+      themeVariables: HTML_VISUAL_THEME_VARIABLES,
+    });
+    for (const entry of fixture.cases) {
+      expect({ id: entry.id, parts: splitInlineVisuals(entry.text) }).toEqual({
+        id: entry.id,
+        parts: entry.parts,
+      });
+    }
   });
 
   it("keeps every new fixture standalone, plain JSON, and compact", () => {

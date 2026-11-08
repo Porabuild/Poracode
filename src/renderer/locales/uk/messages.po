@@ -4092,6 +4092,7 @@ msgstr "Закрити вкладку редактора"
 msgid "Close environment actions"
 msgstr "Закрити дії середовища"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "Закрити розгорнуту візуалізацію"
@@ -5251,6 +5252,7 @@ msgstr "Копіювати відносний шлях"
 msgid "Copy selection"
 msgstr "Копіювати вибір"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7848,6 +7850,7 @@ msgstr "Розгорніть, щоб переглянути або відкли�
 msgid "Expand todo dock"
 msgstr "Розгорнути панель завдань"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "Розгорнути візуалізацію"
@@ -9436,6 +9439,10 @@ msgstr "Щогодини"
 msgid "Hours"
 msgstr "Години"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "Попередній перегляд HTML"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "Вихідний код HTML"
@@ -10878,6 +10885,10 @@ msgstr "Завантаження плагінів…"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesFileTree.tsx
 msgid "Loading PR…"
 msgstr "Завантаження PR…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "Завантаження попереднього перегляду…"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
@@ -15076,6 +15087,7 @@ msgstr "Запобігати блокуванню екрана"
 msgid "Prevent system sleep"
 msgstr "Запобігати сну системи"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Попередній перегляд"
@@ -19050,6 +19062,7 @@ msgstr "Сортування pull request"
 #~ msgid "Sort threads"
 #~ msgstr "Сортувати треди"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "Вихідний код"
@@ -21002,6 +21015,10 @@ msgstr "Цей хост більше не налаштовано."
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "Цей хост надає знімки екрана. Трансляція наживо недоступна."
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "Цей блок HTML завеликий для попереднього перегляду. Показано лише вихідний код."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "Ця HTTPS-сторінка не змогла звернутися до десктопа через звичайний HTTP. Дозвольте цьому сайту доступ до локальної мережі та повторіть підключення або продовжте за власною адресою десктопа."
@@ -21591,6 +21608,10 @@ msgstr "Токени з {0}"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Вказівка не редагувати файли. Не примусово."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "У цьому повідомленні забагато попередніх переглядів HTML. Показано лише вихідний код."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22402,6 +22423,10 @@ msgstr "не в індексі"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "Не підтримується"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "Непідтримуваний формат HTML. Показано лише вихідний код."
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"

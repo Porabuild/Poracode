@@ -4092,6 +4092,7 @@ msgstr "关闭编辑器选项卡"
 msgid "Close environment actions"
 msgstr "关闭环境操作"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "关闭展开的可视化"
@@ -5251,6 +5252,7 @@ msgstr "复制相对路径"
 msgid "Copy selection"
 msgstr "复制选区"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7848,6 +7850,7 @@ msgstr "展开以查看或撤销访问权限。"
 msgid "Expand todo dock"
 msgstr "展开待办事项停靠栏"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "放大可视化内容"
@@ -9436,6 +9439,10 @@ msgstr "每小时"
 msgid "Hours"
 msgstr "小时"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "HTML 预览"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "HTML 源码"
@@ -10878,6 +10885,10 @@ msgstr "正在加载插件…"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesFileTree.tsx
 msgid "Loading PR…"
 msgstr "正在加载 PR…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "正在加载预览…"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
@@ -15075,6 +15086,7 @@ msgstr "防止屏幕锁定"
 msgid "Prevent system sleep"
 msgstr "防止系统睡眠"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "预览"
@@ -19049,6 +19061,7 @@ msgstr "排序拉取请求"
 #~ msgid "Sort threads"
 #~ msgstr "对线程进行排序"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "源代码"
@@ -21001,6 +21014,10 @@ msgstr "此主机已不再配置。"
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "此主机提供快照，暂不支持实时流。"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "此 HTML 块过大，无法预览。仅显示源代码。"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "此 HTTPS 页面无法连接使用纯 HTTP 的桌面。请允许该站点访问本地网络后重新配对，或在桌面自身的地址上继续。"
@@ -21590,6 +21607,10 @@ msgstr "来自{0}的token"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "指示不要编辑文件。不会强制执行。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "此消息中的 HTML 预览过多。仅显示源代码。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22401,6 +22422,10 @@ msgstr "未暂存"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "不支持"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "不支持的 HTML 格式。仅显示源代码。"
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"

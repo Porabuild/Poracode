@@ -4091,6 +4091,7 @@ msgstr "エディタタブを閉じる"
 msgid "Close environment actions"
 msgstr "環境の操作を閉じる"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "拡大したビジュアルを閉じる"
@@ -5250,6 +5251,7 @@ msgstr "相対パスをコピー"
 msgid "Copy selection"
 msgstr "選択範囲をコピー"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7847,6 +7849,7 @@ msgstr "展開してアクセスを確認または取り消します。"
 msgid "Expand todo dock"
 msgstr "Todo ドックを展開する"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "ビジュアルを拡大"
@@ -9435,6 +9438,10 @@ msgstr "毎時"
 msgid "Hours"
 msgstr "時間"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "HTMLプレビュー"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "HTMLソース"
@@ -10877,6 +10884,10 @@ msgstr "プラグインを読み込み中…"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesFileTree.tsx
 msgid "Loading PR…"
 msgstr "PRを読み込み中…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "プレビューを読み込み中…"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
@@ -15074,6 +15085,7 @@ msgstr "画面ロックを防ぐ"
 msgid "Prevent system sleep"
 msgstr "システムのスリープを防ぐ"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "プレビュー"
@@ -19048,6 +19060,7 @@ msgstr "プルリクエストを並べ替え"
 #~ msgid "Sort threads"
 #~ msgstr "スレッドを並べ替える"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "ソース"
@@ -21000,6 +21013,10 @@ msgstr "このホストは現在設定されていません。"
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "このホストではスナップショットを利用できます。ライブストリーミングは利用できません。"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "このHTMLブロックはプレビューするには大きすぎます。ソースのみ表示しています。"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "この HTTPS ページは平文 HTTP のデスクトップに接続できませんでした。このサイトにローカルネットワークへのアクセスを許可して再度ペアリングするか、デスクトップ自身のアドレスで続けてください。"
@@ -21589,6 +21606,10 @@ msgstr "{0}からのトークン"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "ファイルを編集しないよう指示。強制ではありません。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "このメッセージのHTMLプレビューが多すぎます。ソースのみ表示しています。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22400,6 +22421,10 @@ msgstr "未ステージ"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "サポートされていません"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "未対応のHTML形式です。ソースのみ表示しています。"
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"

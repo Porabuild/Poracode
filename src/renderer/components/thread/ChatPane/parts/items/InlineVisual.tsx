@@ -8,6 +8,8 @@ interface InlineVisualProps {
   title?: string;
   complete?: boolean;
   isStreaming?: boolean;
+  /** Overrides the default reason a finished block shows source only. */
+  status?: string;
 }
 
 export function InlineVisual({
@@ -15,6 +17,7 @@ export function InlineVisual({
   title,
   complete = true,
   isStreaming = false,
+  status,
 }: InlineVisualProps) {
   const { t } = useLingui();
   const label = title || t`HTML source`;
@@ -35,7 +38,7 @@ export function InlineVisual({
           ? t`Receiving HTML source…`
           : !complete
             ? t`Incomplete HTML block. Showing source only.`
-            : t`Interactive rendering is unavailable. Showing source only.`}
+            : (status ?? t`Interactive rendering is unavailable. Showing source only.`)}
       </p>
       <div className="max-h-[70vh] overflow-auto p-3">
         <VisualSource text={html} lang="html" isStreaming={isStreaming} />

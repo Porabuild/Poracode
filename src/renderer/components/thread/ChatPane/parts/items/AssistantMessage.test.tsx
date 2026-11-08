@@ -1,11 +1,16 @@
 import { Profiler } from "react";
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { AssistantMessage } from "./AssistantMessage";
+
+const sandbox = vi.hoisted(() => ({ endpoint: undefined as string | undefined }));
+vi.mock("./mcpAppSandboxEndpoint", () => ({
+  useMcpAppSandboxEndpoint: () => sandbox.endpoint,
+}));
 
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
@@ -190,6 +195,63 @@ describe("AssistantMessage", () => {
     expect(container.querySelector("#untrusted")).toBeNull();
     expect(screen.getByText("Comparison")).toBeTruthy();
     expect(screen.getByText("Choose a plan.")).toBeTruthy();
+  });
+
+  it("previews only four finished HTML blocks per message in the host sandbox", async () => {
+    sandbox.endpoint = "http://127.0.0.1:4400";
+    try {
+      const fence = "```poracode-html-v1 Chart\n<h1 id='author-node'>42</h1>\n```\n";
+      const item: RuntimeChatItem = {
+        id: "bounded-html-item",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: `Intro\n${fence.repeat(5)}Outro` },
+      };
+      const { container } = render(
+        <AppProvider>
+          <AssistantMessage threadId="html-thread" item={item} isTurnActive={false} />
+        </AppProvider>,
+      );
+      expect(container.querySelectorAll("[data-poracode-html-visual]")).toHaveLength(4);
+      await waitFor(() =>
+        expect(
+          [...container.querySelectorAll("iframe")].filter((frame) =>
+            frame.getAttribute("src")?.includes("/mcp-apps/sandbox/v1"),
+          ),
+        ).toHaveLength(4),
+      );
+      expect(
+        screen.getByText("Too many HTML previews in this message. Showing source only."),
+      ).toBeTruthy();
+      expect(container.querySelector("#author-node")).toBeNull();
+      expect(screen.getByText("Intro")).toBeTruthy();
+      expect(screen.getByText("Outro")).toBeTruthy();
+    } finally {
+      sandbox.endpoint = undefined;
+    }
+  });
+
+  it("keeps an interrupted HTML reply unavailable even when its fence closed", () => {
+    sandbox.endpoint = "http://127.0.0.1:4400";
+    try {
+      const item: RuntimeChatItem = {
+        id: "interrupted-html",
+        type: "assistant_message",
+        state: "updated",
+        streams: { assistant_text: "```poracode-html-v1 Chart\n<h1>42</h1>\n```" },
+      };
+      const { container } = render(
+        <AppProvider>
+          <AssistantMessage threadId="html-thread" item={item} isTurnActive={false} />
+        </AppProvider>,
+      );
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Incomplete HTML block. Showing source only.",
+      );
+      expect(container.querySelector("iframe")).toBeNull();
+    } finally {
+      sandbox.endpoint = undefined;
+    }
   });
 
   it("retains bounded prose navigation beside a visual", () => {

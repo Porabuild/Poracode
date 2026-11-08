@@ -114,7 +114,7 @@ struct RichChatMarkdownView: View {
   }
 }
 
-private struct RichChatMarkdownCodeBlock: View {
+struct RichChatMarkdownCodeBlock: View {
   let language: String?
   let source: String
 
