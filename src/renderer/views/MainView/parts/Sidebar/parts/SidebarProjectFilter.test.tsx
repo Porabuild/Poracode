@@ -131,7 +131,6 @@ describe("SidebarProjectFilter", () => {
     // One Alpha row for both machines, without per-environment badges.
     expect(rows).toHaveLength(3);
     expect(within(rows[1]!).getByText("Alpha")).toBeInTheDocument();
-    expect(rows[1]!.querySelector("[data-project-environments]")).toBeNull();
     expect(within(rows[1]!).queryByText("Local")).toBeNull();
     expect(within(rows[1]!).queryByText("MacBook 16")).toBeNull();
     // The combined row uses the project identity icon, not the local Windows glyph.
@@ -251,6 +250,55 @@ describe("SidebarProjectFilter", () => {
     expect(labels[4]).toContain("Gamma");
   });
 
+  it("keeps connection details out of the mobile sheet's dialog description", async () => {
+    responsiveMenuState.mobile = true;
+    const mirrored = {
+      ...project("r", "Alpha"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-1",
+      location: { kind: "posix", path: "/Users/me/alpha", remoteServerId: "desktop-1" },
+    } as Project;
+    const list = [projects[0]!, mirrored, projects[1]!];
+    useAppStore.setState({ projects: list });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    renderFilter(null, vi.fn(), list);
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Filter by project" });
+
+    const row = within(dialog).getByRole("button", { name: /^Alpha/ });
+    expect(within(row).getByRole("img", { name: "Local, MacBook 16" })).toBeInTheDocument();
+    expect(dialog).not.toHaveAccessibleDescription(/MacBook/);
+    expect(row.querySelector('[slot="description"]')).toBeNull();
+  });
+
+  it("keeps the machine name on a single-machine row in the mobile sheet", async () => {
+    responsiveMenuState.mobile = true;
+    const remoteOnly = {
+      ...project("r2", "RemoteOnly"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-9",
+      location: { kind: "posix", path: "/srv/only", remoteServerId: "desktop-1" },
+    } as Project;
+    const list = [remoteOnly];
+    useAppStore.setState({ projects: list });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    renderFilter(null, vi.fn(), list);
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Filter by project" });
+
+    const row = within(dialog).getByRole("button", { name: /^RemoteOnly/ });
+    expect(row).toHaveTextContent("MacBook 16");
+    expect(row.querySelector("[data-project-connection]")).toBeNull();
+  });
+
   it("groups canonical and mirrored Home into one row", async () => {
     const mirroredHome = {
       ...homeProject,
@@ -269,7 +317,6 @@ describe("SidebarProjectFilter", () => {
     expect(rows).toHaveLength(4);
     expect(rows[0]).toHaveTextContent("All projects");
     expect(rows[1]).toHaveTextContent("Home");
-    expect(rows[1]!.querySelector("[data-project-environments]")).toBeNull();
     expect(within(rows[1]!).queryByText("Local")).toBeNull();
     expect(rows.filter((row) => row.textContent?.includes("Home"))).toHaveLength(1);
   });
@@ -300,7 +347,6 @@ describe("SidebarProjectFilter", () => {
     const menu = await openMenu();
     const alpha = within(menu).getByText("Alpha").closest<HTMLElement>('[data-slot="menu-item"]');
     expect(alpha).not.toBeNull();
-    expect(alpha!.querySelector("[data-project-environments]")).toBeNull();
     expect(within(alpha!).queryByText("Local")).toBeNull();
     expect(within(alpha!).queryByText("MacBook 16")).toBeNull();
     expect(alpha!.querySelector(".lucide-monitor")).toBeNull();
