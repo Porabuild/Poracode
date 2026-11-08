@@ -9,6 +9,7 @@ import { projectQualifiedAllowOtherPresentation } from "./acp/allowOtherPresenta
 const mocks = vi.hoisted(() => ({
   createAcpStructuredSession: vi.fn<(...args: unknown[]) => unknown>(() => ({
     dispose: async () => {},
+    attachExternalSessionUpdateSource: () => {},
   })),
   warmDevinModels: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
   prepareDevinMcpConfig: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
@@ -223,7 +224,10 @@ describe("Devin structured-session wiring", () => {
   });
   beforeEach(() => {
     mocks.createAcpStructuredSession.mockClear();
-    mocks.createAcpStructuredSession.mockImplementation(() => ({ dispose: async () => {} }));
+    mocks.createAcpStructuredSession.mockImplementation(() => ({
+      dispose: async () => {},
+      attachExternalSessionUpdateSource: () => {},
+    }));
     mocks.warmDevinModels.mockReset();
     mocks.warmDevinModels.mockImplementation(async () => undefined);
     mocks.prepareDevinMcpConfig.mockClear();
@@ -285,6 +289,41 @@ describe("Devin structured-session wiring", () => {
       .calls[1]![1] as CreateStructuredSessionInput;
     expect(cloud.acpClientCapabilitiesMeta?.["cognition.ai/requestDiagnostics"]).toBeUndefined();
     expect(cloud.acpExtensionRequestHandler).toBeUndefined();
+  });
+
+  it("orders late native subagent starts through the session's own transform", async () => {
+    const attach = vi.fn<(source: unknown) => void>();
+    mocks.createAcpStructuredSession.mockImplementation(() => ({
+      dispose: async () => {},
+      attachExternalSessionUpdateSource: attach,
+    }));
+    await createDevinAdapter().createStructuredSession?.(guiInput({ model: "" }));
+    const input = mocks.createAcpStructuredSession.mock
+      .calls[0]![1] as CreateStructuredSessionInput;
+    const [source] = attach.mock.calls[0] as [{ onSessionUpdate(notification: unknown): boolean }];
+    const note = (update: Record<string, unknown>) =>
+      ({ sessionId: "native", update }) as Parameters<
+        NonNullable<CreateStructuredSessionInput["acpSessionUpdateTransform"]>
+      >[0];
+    input.acpSessionUpdateTransform!(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "call-late",
+        rawInput: { title: "Late", task: "Task", profile: "subagent_explore", is_background: true },
+        _meta: { "cognition.ai/inferenceToolName": "run_subagent" },
+      }),
+    );
+    // The launch acknowledgement waits for the start that binds its agent.
+    expect(
+      source.onSessionUpdate(
+        note({
+          sessionUpdate: "tool_call_update",
+          toolCallId: "call-late",
+          status: "completed",
+          _meta: { "cognition.ai/inferenceToolName": "run_subagent" },
+        }),
+      ),
+    ).toBe(true);
   });
 
   it("composes vendor session actions plus the Poracode-side persona catalog and strict selection", async () => {
@@ -640,6 +679,7 @@ describe("Devin structured-session wiring", () => {
     let capturedListener: { onUpdate?: (update: unknown) => void } | undefined;
     mocks.createAcpStructuredSession.mockImplementation(() => ({
       dispose: async () => {},
+      attachExternalSessionUpdateSource: () => {},
       getSessionRef: () => ({
         providerSessionId: "native-1",
         discoveredAt: "2026-10-07T00:00:00Z",
@@ -704,6 +744,7 @@ describe("Devin structured-session wiring", () => {
     const nativeRef = { providerSessionId: "default-native", discoveredAt: "2026-10-07T00:00:00Z" };
     mocks.createAcpStructuredSession.mockReturnValue({
       dispose: async () => {},
+      attachExternalSessionUpdateSource: () => {},
       getSessionRef: () => nativeRef,
     });
     const adapter = createDevinAdapter();

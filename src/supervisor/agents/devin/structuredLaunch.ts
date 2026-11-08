@@ -30,6 +30,7 @@ import { DEVIN_ACP_PROMPT_STEERING, devinAcpPromptUsageSampleId } from "./acp/pr
 import { projectQualifiedAllowOtherPresentation } from "./acp/allowOtherPresentation";
 import { devinAcpSessionActionDescriptors } from "./acp/sessionActions";
 import { resolveDevinAcpMode } from "./acp/sessionModes";
+import { attachDevinSubagentLaunchOrder } from "./acp/subagentLaunchOrder";
 import { buildDevinCommand } from "./detection";
 import { buildDevinAcpArgs } from "./argv";
 import { allowDevinCloudRepositorySelection, configureDevinCloudSetup } from "./cloudSetup";
@@ -210,12 +211,13 @@ export function createDevinStructuredSessionLauncher(
         resolveAgentBinaryPath(input.projectLocation, "devin"),
         context?.env,
       );
+      const acpTransform = createDevinAcpTransform();
       const session = createAcpStructuredSession(
         { ...command, ...(overlay?.env ? { env: { ...command.env, ...overlay.env } } : {}) },
         {
           ...input,
           mcpServers,
-          acpSessionUpdateTransform: createDevinAcpTransform(),
+          acpSessionUpdateTransform: acpTransform,
           // Diagnostics are host IDE data, so a cloud execution cannot be
           // paired with a local workspace's findings. Only a local session
           // with the supervisor's project-bound source advertises the pull.
@@ -357,6 +359,7 @@ export function createDevinStructuredSessionLauncher(
         await overlay?.cleanup();
         return undefined;
       }
+      attachDevinSubagentLaunchOrder(session, acpTransform.awaitsNativeStart);
       if (identity) {
         // Stamp every ref this session reports — both listener updates (the
         // persisted ref follows the listener path) and the shared getter
