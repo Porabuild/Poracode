@@ -160,12 +160,17 @@ jobs:
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST || 'https://us.i.posthog.com' }}
           POSTHOG_ENABLE_DEV: "0"
 
+      - name: Prepare helper cache directory
+        run: >-
+          node -e "require('node:fs').mkdirSync('resources/computer-use-helper', { recursive: true })"
+        shell: bash
+
       - name: Cache computer-use helper artifact
         id: helper-artifact
         uses: actions/cache@v5
         with:
           path: resources/computer-use-helper
-          key: computer-use-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.rust-targets }}-${{ hashFiles('native/computer-use-helper/src/**', 'native/computer-use-helper/Cargo.toml', 'native/computer-use-helper/Cargo.lock', 'native/computer-use-helper/.cargo/config.toml', 'native/computer-use-helper/rust-toolchain.toml', 'scripts/prepare-computer-use-helper.mjs', 'src/shared/contracts/computerUse.ts') }}
+          key: computer-use-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ replace(matrix.rust-targets, ',', '-') }}-${{ hashFiles('native/computer-use-helper/src/**', 'native/computer-use-helper/Cargo.toml', 'native/computer-use-helper/Cargo.lock', 'native/computer-use-helper/.cargo/config.toml', 'native/computer-use-helper/rust-toolchain.toml', 'scripts/prepare-computer-use-helper.mjs', 'src/shared/contracts/computerUse.ts') }}
 
       - name: Mark restored helper current
         if: steps.helper-artifact.outputs.cache-hit == 'true'
