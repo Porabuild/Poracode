@@ -1508,6 +1508,7 @@ msgstr "添加备用项"
 msgid "Add files, drop here, or paste an image"
 msgstr "添加文件、拖放到此处或粘贴图片"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "添加文件夹"
@@ -1568,6 +1569,10 @@ msgstr "添加表情回应"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "添加远程仓库"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "添加远程连接"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -3637,6 +3642,10 @@ msgstr "请选择一个已完成的轮次作为分支起点。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "选择文件夹"
+
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "在 {machine} 上选择文件夹"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -12210,8 +12219,6 @@ msgstr "名称为必填项。"
 msgid "Name your project and choose where to create it."
 msgstr "为您的项目命名并选择创建位置。"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "原生"
@@ -12423,6 +12430,7 @@ msgstr "新的手机、平板电脑和浏览器会在配对后显示在这里。
 msgid "New profile name"
 msgstr "新配置文件名称"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "新项目"
@@ -13770,8 +13778,8 @@ msgid "Open on source host"
 msgstr "在源主机上打开"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "通过 SSH 打开"
+#~ msgid "Open over SSH"
+#~ msgstr "通过 SSH 打开"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -16056,7 +16064,6 @@ msgstr "远程访问端口 {occupiedPort} 已被占用。请停止其他服务�
 #~ msgid "Remote environments"
 #~ msgstr "远程环境"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -17412,8 +17419,7 @@ msgstr "在{runOut}中用完"
 #~ msgstr "通过 Cursor CLI 运行。请在上方的环境行中安装、更新并登录。"
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "运行时"
 
@@ -17421,8 +17427,7 @@ msgstr "运行时"
 msgid "Runtime debug"
 msgstr "运行时调试"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "运行时选项"
 
@@ -19251,8 +19256,6 @@ msgstr "以优先事项和后续步骤开启每一天。"
 msgid "Start from a template"
 msgstr "从模板开始"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -22790,8 +22793,8 @@ msgid "Use account"
 msgstr "使用账户"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "使用现有文件夹"
+#~ msgid "Use an existing folder"
+#~ msgstr "使用现有文件夹"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23498,7 +23501,6 @@ msgstr "将在这个环境运行："
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx

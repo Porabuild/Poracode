@@ -1507,6 +1507,7 @@ msgstr "フォールバックを追加"
 msgid "Add files, drop here, or paste an image"
 msgstr "ファイルを追加、ここにドロップ、または画像を貼り付け"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "フォルダーを追加"
@@ -1567,6 +1568,10 @@ msgstr "リアクションを追加"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "リモートの追加"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "リモート接続を追加"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -3636,6 +3641,10 @@ msgstr "分岐元の完了したターンを選んでください。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "フォルダーを選択"
+
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "{machine} 上のフォルダーを選択"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -12209,8 +12218,6 @@ msgstr "名前は必須です。"
 msgid "Name your project and choose where to create it."
 msgstr "プロジェクトに名前を付け、作成する場所を選択します。"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "ネイティブ"
@@ -12422,6 +12429,7 @@ msgstr "新しい電話、タブレット、ブラウザーはペアリング後
 msgid "New profile name"
 msgstr "新しいプロファイル名"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "新しいプロジェクト"
@@ -13769,8 +13777,8 @@ msgid "Open on source host"
 msgstr "ソースホストで開く"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "SSH で開く"
+#~ msgid "Open over SSH"
+#~ msgstr "SSH で開く"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -16055,7 +16063,6 @@ msgstr "リモートアクセス用ポート {occupiedPort} はすでに使用�
 #~ msgid "Remote environments"
 #~ msgstr "リモート環境"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -17411,8 +17418,7 @@ msgstr "あと{runOut}でなくなります"
 #~ msgstr "Cursor CLI 経由で実行されます。上の環境行からインストール、更新、サインインを行ってください。"
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "ランタイム"
 
@@ -17420,8 +17426,7 @@ msgstr "ランタイム"
 msgid "Runtime debug"
 msgstr "ランタイムデバッグ"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "実行時オプション"
 
@@ -19250,8 +19255,6 @@ msgstr "優先事項と次のステップで一日を始めます。"
 msgid "Start from a template"
 msgstr "テンプレートから始める"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -22789,8 +22792,8 @@ msgid "Use account"
 msgstr "このアカウントを使用"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "既存のフォルダーを使用する"
+#~ msgid "Use an existing folder"
+#~ msgstr "既存のフォルダーを使用する"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23497,7 +23500,6 @@ msgstr "この環境で実行されます:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx

@@ -1508,6 +1508,7 @@ msgstr "Dodaj rezerwę"
 msgid "Add files, drop here, or paste an image"
 msgstr "Dodaj pliki, upuść je tutaj lub wklej obraz"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "Dodaj folder"
@@ -1568,6 +1569,10 @@ msgstr "Dodaj reakcję"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Dodaj zdalne repozytorium"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "Dodaj połączenie zdalne"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -3637,6 +3642,10 @@ msgstr "Wybierz zakończoną turę jako punkt rozgałęzienia."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "Wybierz folder"
+
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "Wybierz folder na {machine}"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -12211,8 +12220,6 @@ msgstr "Nazwa jest wymagana."
 msgid "Name your project and choose where to create it."
 msgstr "Nazwij swój projekt i wybierz miejsce, w którym chcesz go utworzyć."
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Natywny"
@@ -12424,6 +12431,7 @@ msgstr "Nowe telefony, tablety i przeglądarki pojawią się tutaj po sparowaniu
 msgid "New profile name"
 msgstr "Nazwa nowego profilu"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Nowy projekt"
@@ -13771,8 +13779,8 @@ msgid "Open on source host"
 msgstr "Otwórz na hoście źródłowym"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "Otwórz przez SSH"
+#~ msgid "Open over SSH"
+#~ msgstr "Otwórz przez SSH"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -16057,7 +16065,6 @@ msgstr "Port dostępu zdalnego {occupiedPort} jest już używany. Zatrzymaj drug
 #~ msgid "Remote environments"
 #~ msgstr "Środowiska zdalne"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -17413,8 +17420,7 @@ msgstr "Wyczerpie się za {runOut}"
 #~ msgstr "Działa przez interfejs CLI Cursor. Zainstaluj go, zaktualizuj i zaloguj się w wierszach środowiska powyżej."
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "Czas wykonania"
 
@@ -17422,8 +17428,7 @@ msgstr "Czas wykonania"
 msgid "Runtime debug"
 msgstr "Debugowanie w czasie wykonywania"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "Opcje środowiska wykonawczego"
 
@@ -19252,8 +19257,6 @@ msgstr "Zaczynaj każdy dzień od priorytetów i kolejnych kroków."
 msgid "Start from a template"
 msgstr "Zacznij od szablonu"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -22791,8 +22794,8 @@ msgid "Use account"
 msgstr "Użyj konta"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "Użyj istniejącego folderu"
+#~ msgid "Use an existing folder"
+#~ msgstr "Użyj istniejącego folderu"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23499,7 +23502,6 @@ msgstr "Będzie działać w tym środowisku:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx

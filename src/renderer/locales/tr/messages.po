@@ -1508,6 +1508,7 @@ msgstr "Yedek ekle"
 msgid "Add files, drop here, or paste an image"
 msgstr "Dosya ekleyin, buraya bırakın veya bir görsel yapıştırın"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "Klasör ekle"
@@ -1568,6 +1569,10 @@ msgstr "Tepki ekle"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Uzak Depo Ekle"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "Uzak bağlantı ekle"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -3637,6 +3642,10 @@ msgstr "Dallandırmak için tamamlanmış bir tur seçin."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "Bir klasör seçin"
+
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "{machine} üzerinde bir klasör seçin"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -12211,8 +12220,6 @@ msgstr "Ad gereklidir."
 msgid "Name your project and choose where to create it."
 msgstr "Projenize bir ad verin ve nerede oluşturulacağını seçin."
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Yerel"
@@ -12424,6 +12431,7 @@ msgstr "Yeni telefonlar, tabletler ve tarayıcılar eşleştirmeden sonra burada
 msgid "New profile name"
 msgstr "Yeni profil adı"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Yeni proje"
@@ -13771,8 +13779,8 @@ msgid "Open on source host"
 msgstr "Kaynak ana makinede aç"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "SSH ile aç"
+#~ msgid "Open over SSH"
+#~ msgstr "SSH ile aç"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -16057,7 +16065,6 @@ msgstr "Uzaktan erişim bağlantı noktası {occupiedPort} zaten kullanılıyor.
 #~ msgid "Remote environments"
 #~ msgstr "Uzak ortamlar"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -17413,8 +17420,7 @@ msgstr "{runOut} içinde biter"
 #~ msgstr "Cursor CLI üzerinden çalışır. Yukarıdaki ortam satırlarından yükleyin, güncelleyin ve oturum açın."
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "Çalışma zamanı"
 
@@ -17422,8 +17428,7 @@ msgstr "Çalışma zamanı"
 msgid "Runtime debug"
 msgstr "Çalışma zamanı hata ayıklaması"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "Çalışma zamanı seçenekleri"
 
@@ -19252,8 +19257,6 @@ msgstr "Her güne öncelikler ve sonraki adımlarla başlayın."
 msgid "Start from a template"
 msgstr "Bir şablonla başla"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -22791,8 +22794,8 @@ msgid "Use account"
 msgstr "Hesabı kullan"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "Mevcut bir klasörü kullan"
+#~ msgid "Use an existing folder"
+#~ msgstr "Mevcut bir klasörü kullan"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23499,7 +23502,6 @@ msgstr "Bu ortam içinde çalışacak:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx

@@ -136,6 +136,7 @@ export function installDevBridge(): void {
         settingsAnchor: null,
         createProjectModalOpen: false,
         cloneProjectModalOpen: false,
+        remoteFolderPickerConnectionKey: null,
         gitOverlayOpen: false,
         prReviewContext: null,
         pullRequestsOverlayOpen: false,

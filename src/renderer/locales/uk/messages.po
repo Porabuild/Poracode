@@ -1508,6 +1508,7 @@ msgstr "Додати резервний варіант"
 msgid "Add files, drop here, or paste an image"
 msgstr "Додайте файли, перетягніть сюди або вставте зображення"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "Додати теку"
@@ -1568,6 +1569,10 @@ msgstr "Додати реакцію"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Додати віддалений репозиторій"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "Додати віддалене підключення"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -3637,6 +3642,10 @@ msgstr "Виберіть завершений хід для відгалужен
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "Виберіть папку"
+
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "Виберіть папку на {machine}"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -12211,8 +12220,6 @@ msgstr "Назва обов’язкова."
 msgid "Name your project and choose where to create it."
 msgstr "Назвіть проєкт і виберіть, де його створити."
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Нативний"
@@ -12424,6 +12431,7 @@ msgstr "Нові телефони, планшети й браузери з’я�
 msgid "New profile name"
 msgstr "Ім'я нового профілю"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Новий проєкт"
@@ -13771,8 +13779,8 @@ msgid "Open on source host"
 msgstr "Відкрити на вихідному хості"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "Відкрити через SSH"
+#~ msgid "Open over SSH"
+#~ msgstr "Відкрити через SSH"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -16057,7 +16065,6 @@ msgstr "Порт віддаленого доступу {occupiedPort} уже в�
 #~ msgid "Remote environments"
 #~ msgstr "Віддалені середовища"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -17413,8 +17420,7 @@ msgstr "Закінчиться через {runOut}"
 #~ msgstr "Працює через CLI Cursor. Установіть і оновіть його, а потім увійдіть у систему в рядках середовища вище."
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "Середовище виконання"
 
@@ -17422,8 +17428,7 @@ msgstr "Середовище виконання"
 msgid "Runtime debug"
 msgstr "Налагодження середовища виконання"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "Параметри середовища виконання"
 
@@ -19252,8 +19257,6 @@ msgstr "Починайте кожен день із пріоритетів і н
 msgid "Start from a template"
 msgstr "Почати з шаблону"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -22791,8 +22794,8 @@ msgid "Use account"
 msgstr "Використати обліковий запис"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "Використати наявну папку"
+#~ msgid "Use an existing folder"
+#~ msgstr "Використати наявну папку"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23499,7 +23502,6 @@ msgstr "Буде виконано в цьому середовищі:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx

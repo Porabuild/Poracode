@@ -48,6 +48,12 @@ export const DeferredCloneProjectModal = preloadable(() =>
   ),
 );
 
+export const DeferredAddRemoteFolderModal = preloadable(() =>
+  import("@/renderer/views/MainView/parts/CreateProject/AddRemoteFolderModal").then(
+    (module) => module.AddRemoteFolderModal,
+  ),
+);
+
 export const DeferredProjectAuxiliaryPanel = preloadable(() =>
   import("@/renderer/views/MainView/parts/ProjectAuxiliaryPanel").then(
     (module) => module.ProjectAuxiliaryPanel,
@@ -147,6 +153,7 @@ const desktopPrewarmTasks = [
   DeferredSettingsOverlay.preload,
   DeferredCreateProjectModal.preload,
   DeferredCloneProjectModal.preload,
+  DeferredAddRemoteFolderModal.preload,
   DeferredProjectSettingsOverlay.preload,
   DeferredBrowserHost.preload,
   DeferredLoginTerminalOverlay.preload,
