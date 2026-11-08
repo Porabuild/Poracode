@@ -16,6 +16,8 @@ export interface AcpToolCallItemState {
   detached: boolean;
   subAgentProgressItemId?: string;
   subAgentProgressText?: string;
+  /** Latest progress text folded into `subAgentProgressText`. */
+  subAgentProgressSegment?: string;
   /**
    * ACP `Terminal` id that hosts this tool's output, if any. Captured on the
    * first `tool_call`/`tool_call_update` whose `content` references a terminal,

@@ -75,11 +75,22 @@ export function buildSubAgentProgressEvents(
   isTerminal: boolean,
 ): RuntimeEvent[] {
   const normalized = text.trim();
-  if (!normalized || normalized === item.subAgentProgressText) return [];
+  const previous = item.subAgentProgressText ?? "";
+  const segment = item.subAgentProgressSegment ?? previous;
+  // A repeated status line is not new progress. Text that extends the whole
+  // transcript or its last line grows in place; anything else starts a line.
+  const delta =
+    !normalized || normalized === previous || normalized === segment
+      ? ""
+      : normalized.startsWith(previous)
+        ? normalized.slice(previous.length)
+        : segment && normalized.startsWith(segment)
+          ? normalized.slice(segment.length)
+          : `\n\n${normalized}`;
   const events: RuntimeEvent[] = [];
   if (!item.subAgentProgressItemId) {
+    if (!delta) return events;
     item.subAgentProgressItemId = newItemId("subagent");
-    item.subAgentProgressText = "";
     events.push({
       type: "item.started",
       threadId: state.threadId,
@@ -88,10 +99,7 @@ export function buildSubAgentProgressEvents(
       parentItemId: item.itemId,
     });
   }
-  const previous = item.subAgentProgressText ?? "";
-  const delta = normalized.startsWith(previous)
-    ? normalized.slice(previous.length)
-    : `${previous ? "\n\n" : ""}${normalized}`;
+  if (delta) item.subAgentProgressSegment = normalized;
   item.subAgentProgressText = previous + delta;
   if (delta.length > 0) {
     events.push({

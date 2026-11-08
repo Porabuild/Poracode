@@ -65,6 +65,16 @@ stays off the SDK stream and out of the session import.
 - Tool-call normalization turns read line summaries into lazy file reads,
   supplies image paths, suppresses the question-call duplicate, and appends
   web-search URLs from metadata.
+- Background `run_subagent` input streams after the call opens, and the call is
+  re-sent with its full input before it runs. Devin rebuilds the call title from
+  the partial input, so the card uses the subagent's own `title` argument
+  instead; otherwise every streamed key adds a status line to the card. In a
+  parallel batch, a launch can be acknowledged before its
+  `cognition.ai/subagent_started` (3000.12.28). A session source holds that
+  acknowledgement until the start binds the call; the next lead output or the
+  turn end releases it unchanged. Child completions omit the shared
+  detached-reply marker, since Devin sends no parent reply, so they do not split
+  the lead's live message or reasoning.
 - Fusion sidekick activity arrives without a handoff tool call: its tool calls
   carry `cognition.ai/sidekick: true`, and its unmarked todo `plan` update renders
   inline in the lead transcript and replaces the lead's plan.
