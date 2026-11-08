@@ -10,6 +10,10 @@ export const DeferredThreadForkDialog = preloadable(() =>
   import("@/renderer/components/thread/ThreadForkDialog").then((module) => module.ThreadForkDialog),
 );
 
+export const DeferredMoveThreadDialog = preloadable(() =>
+  import("@/renderer/components/thread/MoveThreadDialog").then((module) => module.MoveThreadDialog),
+);
+
 export const DeferredDeviceWorkspace = preloadable(() =>
   import("@/renderer/components/devices/DeviceWorkspace").then((module) => module.DeviceWorkspace),
 );

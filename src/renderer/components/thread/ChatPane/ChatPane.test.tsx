@@ -2705,6 +2705,133 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Worked for 0s")).not.toBeInTheDocument();
   });
 
+  it("keeps the inherited turn's worked-for line above the move boundary row", () => {
+    const thread: Thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+      forkedFrom: {
+        version: 1,
+        threadId: "thread-source",
+        title: "Source thread",
+        throughItemId: ASSISTANT_ITEM_ID,
+        inheritedTurnCount: 1,
+        contextStrategy: "transcript",
+        transfer: {
+          version: 1,
+          transferId: "transfer-1",
+          sourceHostLabel: "Laptop",
+          targetHostLabel: "Remote server",
+          transferredAt: "2026-05-01T12:05:00.000Z",
+        },
+      },
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+    ]);
+
+    const { container } = renderChatPane(thread);
+
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Worked for 1m 15s")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("Worked for 1m 15s")).toBeLessThan(text.indexOf("Moved from"));
+    expect(screen.getAllByText("Worked for 1m 15s")).toHaveLength(1);
+  });
+
+  it("keeps the inherited turn's worked-for line above the fork boundary row", () => {
+    const thread: Thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+      forkedFrom: {
+        version: 1,
+        threadId: "thread-source",
+        title: "Source thread",
+        throughItemId: ASSISTANT_ITEM_ID,
+        inheritedTurnCount: 1,
+        contextStrategy: "transcript",
+      },
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+    ]);
+
+    const { container } = renderChatPane(thread);
+
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Worked for 1m 15s")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("Worked for 1m 15s")).toBeLessThan(
+      text.indexOf("Inherited history ends here"),
+    );
+    expect(screen.getAllByText("Worked for 1m 15s")).toHaveLength(1);
+  });
+
+  it("still tails a newer completed turn that follows the fork boundary", () => {
+    const thread: Thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:02:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:02:22.000Z",
+      forkedFrom: {
+        version: 1,
+        threadId: "thread-source",
+        title: "Source thread",
+        throughItemId: ASSISTANT_ITEM_ID,
+        inheritedTurnCount: 1,
+        contextStrategy: "transcript",
+      },
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Inherited answer");
+    completeAssistantMessage(thread.id);
+    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+    seedAssistantMessage(thread.id, "New answer", "asst-new");
+    completeAssistantMessage(thread.id, "asst-new");
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+      {
+        startedAt: new Date("2026-05-01T12:02:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:02:22.000Z").getTime(),
+        anchorItemId: "asst-new",
+      },
+    ]);
+
+    const { container } = renderChatPane(thread);
+
+    const text = container.textContent ?? "";
+    expect(screen.getAllByText("Worked for 1m 15s")).toHaveLength(1);
+    expect(screen.getAllByText("Worked for 22s")).toHaveLength(1);
+    expect(text.indexOf("Worked for 1m 15s")).toBeLessThan(
+      text.indexOf("Inherited history ends here"),
+    );
+    expect(text.indexOf("Inherited history ends here")).toBeLessThan(
+      text.indexOf("Worked for 22s"),
+    );
+  });
+
   it("waits for a base file checkpoint before finalizing a completed turn", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({ projects: [project] });

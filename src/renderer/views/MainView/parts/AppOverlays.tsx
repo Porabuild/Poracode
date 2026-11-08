@@ -22,10 +22,12 @@ import {
   DeferredProjectSettingsOverlay,
   DeferredSettingsOverlay,
   DeferredThreadForkDialog,
+  DeferredMoveThreadDialog,
 } from "@/renderer/deferredFeatures";
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadForkStore } from "@/renderer/state/threadForkStore";
+import { useThreadTransferStore } from "@/renderer/state/threadTransferStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { selectPullRequestsOverlayVisible, usePanelStore } from "@/renderer/state/panelStore";
 
@@ -58,6 +60,7 @@ function useEverEnabled(active: boolean): boolean {
 export function AppOverlays() {
   const forkSourceThreadId = useThreadForkStore((state) => state.sourceThreadId);
   const forkThroughItemId = useThreadForkStore((state) => state.throughItemId);
+  const transferSourceThreadId = useThreadTransferStore((state) => state.sourceThreadId);
   const compactLayout = useCompactLayout();
   const mobileUtilityPage = usePanelStore((s) => s.mobileUtilityPage);
   const projects = useAppStore((s) => s.projects);
@@ -120,6 +123,14 @@ export function AppOverlays() {
             key={`${forkSourceThreadId}:${forkThroughItemId ?? "latest"}`}
             sourceThreadId={forkSourceThreadId}
             throughItemId={forkThroughItemId}
+          />
+        </Suspense>
+      ) : null}
+      {transferSourceThreadId ? (
+        <Suspense fallback={null}>
+          <DeferredMoveThreadDialog
+            key={transferSourceThreadId}
+            sourceThreadId={transferSourceThreadId}
           />
         </Suspense>
       ) : null}

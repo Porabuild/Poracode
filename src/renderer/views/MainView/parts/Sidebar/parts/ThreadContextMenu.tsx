@@ -8,6 +8,7 @@ import {
   FlaskConical,
   GitFork,
   Loader2,
+  MonitorUp,
   Pencil,
   Play,
   Plus,
@@ -22,6 +23,9 @@ import { useLingui } from "@lingui/react/macro";
 import type { Project, Thread } from "@/shared/contracts";
 import { canForkThread } from "@/shared/threadFork";
 import { useThreadForkStore } from "@/renderer/state/threadForkStore";
+import { useThreadTransferStore } from "@/renderer/state/threadTransferStore";
+import { transferCandidateMembers } from "@/renderer/actions/threadTransferActions";
+import { useProjectGroup } from "@/renderer/state/projectGroups/useProjectGroups";
 import { canChangeThreadGroup, dissolveGroupMembership } from "@/shared/threadGroups";
 import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -110,6 +114,13 @@ export function ThreadContextMenu(props: {
   });
   const hasOtherInstalledAgents =
     installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0;
+  // The move entry tracks the thread's logical project: it appears once another
+  // machine's member joins the group and leaves when the last one does. The
+  // group subscription keeps it current while the menu is open.
+  const projectGroup = useProjectGroup(thread.projectId);
+  const hasTransferTargets =
+    thread.presentationMode === "gui" &&
+    transferCandidateMembers(thread, projectGroup?.members ?? []).length > 0;
   const worktreeGitItems = useWorktreeGitItems(
     thread.projectId,
     thread.worktreePath ?? "",
@@ -294,6 +305,16 @@ export function ThreadContextMenu(props: {
                     },
                   ]
                 : []),
+              ...(hasTransferTargets
+                ? [
+                    {
+                      id: "move-to-machine",
+                      label: t`Move to another machine…`,
+                      // A working agent is stopped and resumed on the target by the dialog.
+                      icon: <MonitorUp className="size-3.5" />,
+                    },
+                  ]
+                : []),
               {
                 id: "continue-in",
                 label: t`Continue in...`,
@@ -383,6 +404,8 @@ export function ThreadContextMenu(props: {
         if (key === "continue-in" && !isExperimentCandidate) continueInProvider(thread.id);
         if (key === "fork-thread" && !isExperimentCandidate)
           useThreadForkStore.getState().request(thread.id);
+        if (key === "move-to-machine" && !isExperimentCandidate)
+          useThreadTransferStore.getState().request(thread.id);
         if (key === "group-open-threads") {
           const state = useAppStore.getState();
           if (state.view.kind !== "thread") return;

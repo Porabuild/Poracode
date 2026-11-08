@@ -29,7 +29,21 @@ import { switchDraftProject, type SwitchDraftProjectOptions } from "./switchDraf
  * that only lives here shows nothing, matching the pre-grouping composer.
  */
 export function ProjectEnvironmentMenu(
-  props: { currentProjectId: string } & SwitchDraftProjectOptions,
+  props: {
+    currentProjectId: string;
+    /**
+     * Pure selection for surfaces that don't own a draft (e.g. the move
+     * dialog): called instead of `switchDraftProject`, which would migrate or
+     * discard draft content and record workspace usage.
+     */
+    onSelect?: ((projectId: string) => void) | undefined;
+    /**
+     * Rows it rejects leave the list entirely — for surfaces that offer only
+     * some of the group's environments (e.g. the move dialog's other
+     * machines). The current row always stays; offline handling is unchanged.
+     */
+    filterProject?: ((projectId: string) => boolean) | undefined;
+  } & SwitchDraftProjectOptions,
 ) {
   const { currentProjectId } = props;
   const { t } = useLingui();
@@ -51,6 +65,9 @@ export function ProjectEnvironmentMenu(
     if (!isCurrent && ((member.disabled && !isHomeProject(member)) || !isInWorkspace(member))) {
       return [];
     }
+    if (!isCurrent && props.filterProject && !props.filterProject(member.id)) {
+      return [];
+    }
     const entry = machineFor(member);
     return entry ? [entry] : [];
   });
@@ -70,13 +87,18 @@ export function ProjectEnvironmentMenu(
     );
   }
 
-  const isSelectable = (entry: ProjectEnvironmentMachine) => entry.machine.status !== "offline";
+  const isEntrySelectable = (entry: ProjectEnvironmentMachine) =>
+    entry.machine.status !== "offline";
   const currentLabel = machineOptionLabel(current.machine);
   const triggerLabel = t`Machine: ${currentLabel}`;
 
   function select(projectIdToOpen: string) {
     const target = environments.find((entry) => entry.project.id === projectIdToOpen);
-    if (!target || !isSelectable(target) || projectIdToOpen === currentProjectId) return;
+    if (!target || !isEntrySelectable(target) || projectIdToOpen === currentProjectId) return;
+    if (props.onSelect) {
+      props.onSelect(projectIdToOpen);
+      return;
+    }
     switchDraftProject(currentProjectId, projectIdToOpen, props);
   }
 
@@ -102,7 +124,7 @@ export function ProjectEnvironmentMenu(
     return (
       <Button
         aria-label={triggerLabel}
-        isDisabled={!isSelectable(alternative)}
+        isDisabled={!isEntrySelectable(alternative)}
         className={dropdownVariants().trigger({
           className: `${triggerClass} disabled:cursor-default disabled:hover:bg-transparent disabled:hover:text-muted/60`,
         })}
@@ -141,7 +163,7 @@ export function ProjectEnvironmentMenu(
                 type="button"
                 className="m-sheet-action"
                 aria-pressed={selected || undefined}
-                disabled={!isSelectable(entry)}
+                disabled={!isEntrySelectable(entry)}
                 onClick={() => {
                   setIsOpen(false);
                   select(entry.project.id);
@@ -172,7 +194,7 @@ export function ProjectEnvironmentMenu(
           // An offline machine stays listed but can't be chosen, exactly like
           // the Settings machine picker; its status is spelled out here.
           disabledKeys={environments
-            .filter((entry) => !isSelectable(entry))
+            .filter((entry) => !isEntrySelectable(entry))
             .map((entry) => entry.project.id)}
           onAction={(key) => select(String(key))}
           className="poracode-menu min-w-48"

@@ -142,6 +142,35 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
   "thread.forkRevertUnavailable": msg({
     message: "Inherited history cannot be reverted in this fork.",
   }),
+  "thread.transferNotChat": msg({ message: "Only chat threads can move to another machine." }),
+  "thread.transferBusy": msg({
+    message: "Wait for the agent to finish before moving this thread.",
+  }),
+  "thread.transferNoHistory": msg({ message: "This thread has no conversation to move yet." }),
+  "thread.transferUnsupportedLocation": msg({
+    message: "Threads in WSL projects can't move to another machine yet.",
+  }),
+  "thread.transferNoCommits": msg({ message: "Commit at least once before moving this thread." }),
+  "thread.transferTargetNotGit": msg({ message: "The selected project isn't a Git repository." }),
+  "thread.transferHistoryMissing": msg({
+    message:
+      "The selected project is missing commits this thread needs. Fetch its latest changes and try again.",
+  }),
+  "thread.transferTooLarge": msg({
+    message: "The changes are too large to move ({size}). Commit or ignore large files first.",
+  }),
+  "thread.transferBranchUnavailable": msg({
+    message: "No free branch name is left for {branch}.",
+  }),
+  "thread.transferBranchInvalid": msg({
+    message: "The thread's branch name can't be used on this machine.",
+  }),
+  "thread.transferExpired": msg({ message: "The move expired. Start it again." }),
+  "thread.transferPackageInvalid": msg({
+    message: "The moved thread could not be read. Start the move again.",
+  }),
+  "thread.transferLimit": msg({ message: "Too many moves are in progress. Try again shortly." }),
+  "thread.transferProjectUnavailable": msg({ message: "The selected project is unavailable." }),
   "agent.updateQueueTimeout": msg({
     message: "The update waited too long for another installation. Try again.",
   }),
