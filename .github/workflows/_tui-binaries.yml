@@ -29,6 +29,8 @@ jobs:
           ref: ${{ inputs.ref }}
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: bun
       - name: Install JavaScript dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
       - name: Install TUI workspace dependencies

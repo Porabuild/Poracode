@@ -1,5 +1,10 @@
 name: Setup pinned Bun
 description: Install the exact npm Bun build used by the workspace
+inputs:
+  registry-cache:
+    description: Package registry cache to restore (all, bun, or none)
+    required: false
+    default: "all"
 runs:
   using: composite
   steps:
@@ -55,6 +60,7 @@ runs:
         echo "bun=$(bun pm cache)" >> "$GITHUB_OUTPUT"
         echo "npm=$(npm config get cache)" >> "$GITHUB_OUTPUT"
     - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      if: inputs.registry-cache == 'all'
       with:
         path: |
           ${{ steps.registry-cache.outputs.bun }}
@@ -62,3 +68,10 @@ runs:
         key: registry-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock', 'scripts/device-hub-runtime/package-lock.json') }}
         restore-keys: |
           registry-${{ runner.os }}-${{ runner.arch }}-
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      if: inputs.registry-cache == 'bun'
+      with:
+        path: ${{ steps.registry-cache.outputs.bun }}
+        key: registry-bun-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('bun.lock') }}
+        restore-keys: |
+          registry-bun-${{ runner.os }}-${{ runner.arch }}-
