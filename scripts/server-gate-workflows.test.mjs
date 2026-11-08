@@ -130,6 +130,64 @@ void test("Windows setup excludes the actual npm cache and canonical temp before
   assert.match(defender.run, /\$npmCache,/u);
 });
 
+void test("release Windows jobs restore Bun without the npm registry archive", async () => {
+  const action = parse(
+    await readFile(new URL("../.github/actions/setup-bun/action.yml", import.meta.url), "utf8"),
+  );
+  assert.equal(action.inputs["registry-cache"].default, "all");
+  const steps = action.runs.steps;
+  const combined = steps.find((step) =>
+    String(step.with?.key).startsWith("registry-${{ runner.os }}"),
+  );
+  assert.equal(combined.if, "inputs.registry-cache == 'all'");
+  const bunOnly = steps.find((step) =>
+    String(step.with?.key).startsWith("registry-bun-${{ runner.os }}"),
+  );
+  assert.equal(bunOnly.if, "inputs.registry-cache == 'bun'");
+  assert.equal(bunOnly.with.path, "${{ steps.registry-cache.outputs.bun }}");
+
+  for (const workflowName of ["_build.yml", "_server-artifact.yml"]) {
+    const workflow = await readWorkflow(workflowName);
+    const setup = workflow.jobs.build.steps.find((step) => step.name === "Setup Bun");
+    assert.equal(setup.with["registry-cache"], "${{ runner.os == 'Windows' && 'bun' || 'all' }}");
+  }
+  const tui = await readWorkflow("_tui-binaries.yml");
+  const setup = tui.jobs.binaries.steps.find((step) => step.name === "Setup Bun");
+  assert.equal(setup.with["registry-cache"], "bun");
+});
+
+void test("desktop packaging caches exact verified computer-use helper artifacts", async () => {
+  const workflow = await readWorkflow("_build.yml");
+  const steps = workflow.jobs.build.steps;
+  const cacheIndex = steps.findIndex((step) => step.name === "Cache computer-use helper artifact");
+  const prepareIndex = steps.findIndex((step) => step.name === "Prepare computer-use helper");
+  assert.ok(cacheIndex >= 0 && cacheIndex < prepareIndex);
+  const cache = steps[cacheIndex];
+  assert.equal(cache.id, "helper-artifact");
+  assert.equal(cache.with.path, "resources/computer-use-helper");
+  assert.match(cache.with.key, /matrix\.rust-version/u);
+  assert.match(cache.with.key, /matrix\.rust-targets/u);
+  for (const input of [
+    "native/computer-use-helper/src/**",
+    "native/computer-use-helper/Cargo.toml",
+    "native/computer-use-helper/Cargo.lock",
+    "native/computer-use-helper/.cargo/config.toml",
+    "native/computer-use-helper/rust-toolchain.toml",
+    "scripts/prepare-computer-use-helper.mjs",
+    "src/shared/contracts/computerUse.ts",
+  ]) {
+    assert.ok(cache.with.key.includes(input), `helper cache key must include ${input}`);
+  }
+  assert.equal(cache.with["restore-keys"], undefined);
+  const touch = steps.find((step) => step.name === "Mark restored helper current");
+  assert.equal(touch.if, "steps.helper-artifact.outputs.cache-hit == 'true'");
+  assert.match(touch.run, /touch resources\/computer-use-helper\/\*\/poracode-computer-use\*/u);
+  const setupRust = steps.find((step) => step.name === "Setup Rust");
+  assert.equal(setupRust.with.toolchain, "${{ matrix.rust-version }}");
+  for (const entry of workflow.jobs.build.strategy.matrix.include)
+    assert.equal(entry["rust-version"], "1.98.1");
+});
+
 void test("qualification and release share one server-artifact workflow (plan D3)", async () => {
   const nativeCi = await readWorkflow("native-ci.yml");
   const qualification = nativeCi.jobs.server_install_qualification;

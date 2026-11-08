@@ -61,11 +61,13 @@ jobs:
           - os: windows-latest
             artifact: dist-windows
             platform: win
+            rust-version: 1.98.1
             rust-targets: x86_64-pc-windows-msvc,aarch64-pc-windows-msvc
             electron-cache: "~/AppData/Local/electron/Cache"
           - os: ubuntu-latest
             artifact: dist-linux
             platform: linux
+            rust-version: 1.98.1
             rust-targets: x86_64-unknown-linux-musl
             electron-cache: "~/.cache/electron"
           - os: macos-15
@@ -74,6 +76,7 @@ jobs:
             target: zip
             app_pattern: Lightcode
             expected_zips: 2
+            rust-version: 1.98.1
             rust-targets: x86_64-apple-darwin,aarch64-apple-darwin
             electron-cache: "~/Library/Caches/electron"
           - os: macos-15
@@ -82,6 +85,7 @@ jobs:
             target: dmg
             app_pattern: Poracode
             expected_zips: 0
+            rust-version: 1.98.1
             rust-targets: x86_64-apple-darwin,aarch64-apple-darwin
             electron-cache: "~/Library/Caches/electron"
 
@@ -100,7 +104,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.98.1
+          toolchain: ${{ matrix.rust-version }}
           components: rustfmt, clippy
           targets: ${{ matrix.rust-targets }}
 
@@ -111,6 +115,8 @@ jobs:
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: ${{ runner.os == 'Windows' && 'bun' || 'all' }}
 
       - name: Set package version
         env:
@@ -153,6 +159,18 @@ jobs:
           POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST || 'https://us.i.posthog.com' }}
           POSTHOG_ENABLE_DEV: "0"
+
+      - name: Cache computer-use helper artifact
+        id: helper-artifact
+        uses: actions/cache@v5
+        with:
+          path: resources/computer-use-helper
+          key: computer-use-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.rust-targets }}-${{ hashFiles('native/computer-use-helper/src/**', 'native/computer-use-helper/Cargo.toml', 'native/computer-use-helper/Cargo.lock', 'native/computer-use-helper/.cargo/config.toml', 'native/computer-use-helper/rust-toolchain.toml', 'scripts/prepare-computer-use-helper.mjs', 'src/shared/contracts/computerUse.ts') }}
+
+      - name: Mark restored helper current
+        if: steps.helper-artifact.outputs.cache-hit == 'true'
+        run: touch resources/computer-use-helper/*/poracode-computer-use*
+        shell: bash
 
       - name: Prepare computer-use helper
         run: node scripts/prepare-computer-use-helper.mjs --platform "${{ matrix.platform }}" --require
