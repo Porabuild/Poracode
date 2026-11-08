@@ -251,4 +251,16 @@
     <string name="rich_chat_background_task_last_progress">Последнее обновление %1$s назад</string>
     <string name="rich_chat_background_task_close">Закрыть сведения о задаче</string>
     <string name="rich_chat_background_task_report_missing">Задача завершилась без отчёта о выполнении.</string>
+    <string name="rich_chat_html_visual_title">Предпросмотр HTML</string>
+    <string name="rich_chat_html_visual_source">Исходный код</string>
+    <string name="rich_chat_html_visual_preview">Предпросмотр</string>
+    <string name="rich_chat_html_visual_copy_source">Копировать исходный код</string>
+    <string name="rich_chat_html_visual_loading">Загрузка предпросмотра…</string>
+    <string name="rich_chat_html_visual_incomplete">Блок HTML не завершён. Показан только исходный код.</string>
+    <string name="rich_chat_html_visual_unsupported">Неподдерживаемый формат HTML. Показан только исходный код.</string>
+    <string name="rich_chat_html_visual_limited">В этом сообщении слишком много предпросмотров HTML. Показан только исходный код.</string>
+    <string name="rich_chat_html_visual_too_large">Этот блок HTML слишком велик для предпросмотра. Показан только исходный код.</string>
+    <string name="rich_chat_html_visual_unavailable">Интерактивное отображение недоступно. Показан только исходный код.</string>
+    <string name="rich_chat_html_visual_open_link_title">Открыть ссылку?</string>
+    <string name="rich_chat_html_visual_open_link">Открыть</string>
 </resources>

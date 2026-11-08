@@ -1508,6 +1508,7 @@ msgstr "Yedek ekle"
 msgid "Add files, drop here, or paste an image"
 msgstr "Dosya ekleyin, buraya bırakın veya bir görsel yapıştırın"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "Klasör ekle"
@@ -1568,6 +1569,10 @@ msgstr "Tepki ekle"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Uzak Depo Ekle"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "Uzak bağlantı ekle"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -3638,6 +3643,10 @@ msgstr "Dallandırmak için tamamlanmış bir tur seçin."
 msgid "Choose a folder"
 msgstr "Bir klasör seçin"
 
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "{machine} üzerinde bir klasör seçin"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -4083,6 +4092,7 @@ msgstr "Düzenleyici Sekmesini Kapat"
 msgid "Close environment actions"
 msgstr "Ortam eylemlerini kapat"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "Genişletilmiş görseli kapat"
@@ -5242,6 +5252,7 @@ msgstr "Göreli Yolu Kopyala"
 msgid "Copy selection"
 msgstr "Seçimi kopyala"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7839,6 +7850,7 @@ msgstr "Erişimi incelemek veya iptal etmek için genişletin."
 msgid "Expand todo dock"
 msgstr "Yapılacaklar iskelesini genişlet"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "Görseli büyüt"
@@ -9427,6 +9439,10 @@ msgstr "Saatlik"
 msgid "Hours"
 msgstr "Saat"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "HTML önizlemesi"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "HTML kaynak kodu"
@@ -10870,6 +10886,10 @@ msgstr "Eklentiler yükleniyor…"
 msgid "Loading PR…"
 msgstr "PR yükleniyor…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "Önizleme yükleniyor…"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
 msgstr "Önceki çalıştırmalar yükleniyor"
@@ -12211,8 +12231,6 @@ msgstr "Ad gereklidir."
 msgid "Name your project and choose where to create it."
 msgstr "Projenize bir ad verin ve nerede oluşturulacağını seçin."
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Yerel"
@@ -12424,6 +12442,7 @@ msgstr "Yeni telefonlar, tabletler ve tarayıcılar eşleştirmeden sonra burada
 msgid "New profile name"
 msgstr "Yeni profil adı"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Yeni proje"
@@ -13771,8 +13790,8 @@ msgid "Open on source host"
 msgstr "Kaynak ana makinede aç"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "SSH ile aç"
+#~ msgid "Open over SSH"
+#~ msgstr "SSH ile aç"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -15068,6 +15087,7 @@ msgstr "Ekran kilidini önle"
 msgid "Prevent system sleep"
 msgstr "Sistemin uykuya geçmesini önle"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Önizleme"
@@ -16057,7 +16077,6 @@ msgstr "Uzaktan erişim bağlantı noktası {occupiedPort} zaten kullanılıyor.
 #~ msgid "Remote environments"
 #~ msgstr "Uzak ortamlar"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -17413,8 +17432,7 @@ msgstr "{runOut} içinde biter"
 #~ msgstr "Cursor CLI üzerinden çalışır. Yukarıdaki ortam satırlarından yükleyin, güncelleyin ve oturum açın."
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "Çalışma zamanı"
 
@@ -17422,8 +17440,7 @@ msgstr "Çalışma zamanı"
 msgid "Runtime debug"
 msgstr "Çalışma zamanı hata ayıklaması"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "Çalışma zamanı seçenekleri"
 
@@ -19045,6 +19062,7 @@ msgstr "Çekme isteklerini sırala"
 #~ msgid "Sort threads"
 #~ msgstr "Konuları sırala"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "Kaynak"
@@ -19252,8 +19270,6 @@ msgstr "Her güne öncelikler ve sonraki adımlarla başlayın."
 msgid "Start from a template"
 msgstr "Bir şablonla başla"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -20999,6 +21015,10 @@ msgstr "Bu ana makine artık yapılandırılmamış."
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "Bu ana bilgisayar ekran görüntüleri sağlar. Canlı yayın kullanılamıyor."
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "Bu HTML bloğu önizleme için çok büyük. Yalnızca kaynak gösteriliyor."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "Bu HTTPS sayfası düz HTTP kullanan masaüstüne ulaşamadı. Bu siteye yerel ağ erişimi izni verip yeniden eşleştirin veya masaüstünün kendi adresinde devam edin."
@@ -21588,6 +21608,10 @@ msgstr "{0} kaynağından token"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Dosyaları düzenlememesi söylendi. Zorunlu değildir."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "Bu mesajda çok fazla HTML önizlemesi var. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22400,6 +22424,10 @@ msgstr "hazırlanmamış"
 msgid "Unsupported"
 msgstr "Desteklenmiyor"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "Desteklenmeyen HTML biçimi. Yalnızca kaynak gösteriliyor."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"
 msgstr "Desteklenmeyen pazar yeri gereksinimleri"
@@ -22791,8 +22819,8 @@ msgid "Use account"
 msgstr "Hesabı kullan"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "Mevcut bir klasörü kullan"
+#~ msgid "Use an existing folder"
+#~ msgstr "Mevcut bir klasörü kullan"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23499,7 +23527,6 @@ msgstr "Bu ortam içinde çalışacak:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx

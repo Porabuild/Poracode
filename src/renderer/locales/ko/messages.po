@@ -1508,6 +1508,7 @@ msgstr "대체 항목 추가"
 msgid "Add files, drop here, or paste an image"
 msgstr "파일을 추가하거나 여기에 놓거나 이미지를 붙여넣으세요"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "폴더 추가"
@@ -1568,6 +1569,10 @@ msgstr "반응 추가"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "리모트 추가"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "원격 연결 추가"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -3638,6 +3643,10 @@ msgstr "분기할 완료된 턴을 선택하세요."
 msgid "Choose a folder"
 msgstr "폴더 선택"
 
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "{machine}에서 폴더 선택"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -4083,6 +4092,7 @@ msgstr "편집기 탭 닫기"
 msgid "Close environment actions"
 msgstr "환경 작업 닫기"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "확대된 시각화 닫기"
@@ -5242,6 +5252,7 @@ msgstr "상대 경로 복사"
 msgid "Copy selection"
 msgstr "선택 항목 복사"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7839,6 +7850,7 @@ msgstr "펼쳐서 액세스를 검토하거나 취소합니다."
 msgid "Expand todo dock"
 msgstr "할 일 도크 확장"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "시각 자료 확대"
@@ -9427,6 +9439,10 @@ msgstr "매시간"
 msgid "Hours"
 msgstr "시간"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "HTML 미리 보기"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "HTML 소스"
@@ -10870,6 +10886,10 @@ msgstr "플러그인 불러오는 중…"
 msgid "Loading PR…"
 msgstr "PR 로드 중…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "미리 보기 로드 중…"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
 msgstr "이전 실행 로드 중"
@@ -12211,8 +12231,6 @@ msgstr "이름을 입력해야 합니다."
 msgid "Name your project and choose where to create it."
 msgstr "프로젝트 이름을 지정하고 만들 위치를 선택하세요."
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "네이티브"
@@ -12424,6 +12442,7 @@ msgstr "새 휴대폰, 태블릿, 브라우저는 페어링 후 여기에 표시
 msgid "New profile name"
 msgstr "새 프로필 이름"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "새 프로젝트"
@@ -13771,8 +13790,8 @@ msgid "Open on source host"
 msgstr "소스 호스트에서 열기"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "SSH로 열기"
+#~ msgid "Open over SSH"
+#~ msgstr "SSH로 열기"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -15068,6 +15087,7 @@ msgstr "화면 잠금 방지"
 msgid "Prevent system sleep"
 msgstr "시스템 절전 방지"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "미리 보기"
@@ -16057,7 +16077,6 @@ msgstr "원격 액세스 포트 {occupiedPort}이(가) 이미 사용 중입니�
 #~ msgid "Remote environments"
 #~ msgstr "원격 환경"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -17413,8 +17432,7 @@ msgstr "{runOut} 후 소진"
 #~ msgstr "Cursor CLI를 통해 실행됩니다. 위의 환경 행에서 설치, 업데이트 및 로그인을 진행하세요."
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "런타임"
 
@@ -17422,8 +17440,7 @@ msgstr "런타임"
 msgid "Runtime debug"
 msgstr "런타임 디버그"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "런타임 옵션"
 
@@ -19045,6 +19062,7 @@ msgstr "풀 리퀘스트 정렬"
 #~ msgid "Sort threads"
 #~ msgstr "스레드 정렬"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "소스"
@@ -19252,8 +19270,6 @@ msgstr "우선순위와 다음 단계로 하루를 시작하세요."
 msgid "Start from a template"
 msgstr "템플릿으로 시작"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -20999,6 +21015,10 @@ msgstr "이 호스트는 더 이상 구성되어 있지 않습니다."
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "이 호스트는 스냅샷을 제공합니다. 실시간 스트리밍은 사용할 수 없습니다."
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "이 HTML 블록은 미리 보기에 너무 큽니다. 소스만 표시합니다."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "이 HTTPS 페이지는 일반 HTTP 데스크톱에 연결할 수 없었습니다. 이 사이트에 로컬 네트워크 접근을 허용한 뒤 다시 페어링하거나, 데스크톱 자체 주소에서 계속하세요."
@@ -21588,6 +21608,10 @@ msgstr "{0}의 토큰"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "파일을 편집하지 않도록 지시. 강제되지 않습니다."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "이 메시지에 HTML 미리 보기가 너무 많습니다. 소스만 표시합니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22400,6 +22424,10 @@ msgstr "스테이징되지 않음"
 msgid "Unsupported"
 msgstr "지원되지 않음"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "지원하지 않는 HTML 형식입니다. 소스만 표시합니다."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"
 msgstr "지원되지 않는 마켓플레이스 요구 사항"
@@ -22791,8 +22819,8 @@ msgid "Use account"
 msgstr "계정 사용"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "기존 폴더 사용"
+#~ msgid "Use an existing folder"
+#~ msgstr "기존 폴더 사용"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23499,7 +23527,6 @@ msgstr "이 환경에서 실행됩니다:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx

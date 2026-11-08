@@ -1507,6 +1507,7 @@ msgstr "フォールバックを追加"
 msgid "Add files, drop here, or paste an image"
 msgstr "ファイルを追加、ここにドロップ、または画像を貼り付け"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "フォルダーを追加"
@@ -1567,6 +1568,10 @@ msgstr "リアクションを追加"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "リモートの追加"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "リモート接続を追加"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -3637,6 +3642,10 @@ msgstr "分岐元の完了したターンを選んでください。"
 msgid "Choose a folder"
 msgstr "フォルダーを選択"
 
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "{machine} 上のフォルダーを選択"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -4082,6 +4091,7 @@ msgstr "エディタタブを閉じる"
 msgid "Close environment actions"
 msgstr "環境の操作を閉じる"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "拡大したビジュアルを閉じる"
@@ -5241,6 +5251,7 @@ msgstr "相対パスをコピー"
 msgid "Copy selection"
 msgstr "選択範囲をコピー"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7838,6 +7849,7 @@ msgstr "展開してアクセスを確認または取り消します。"
 msgid "Expand todo dock"
 msgstr "Todo ドックを展開する"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "ビジュアルを拡大"
@@ -9426,6 +9438,10 @@ msgstr "毎時"
 msgid "Hours"
 msgstr "時間"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "HTMLプレビュー"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "HTMLソース"
@@ -10869,6 +10885,10 @@ msgstr "プラグインを読み込み中…"
 msgid "Loading PR…"
 msgstr "PRを読み込み中…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "プレビューを読み込み中…"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
 msgstr "過去の実行を読み込み中"
@@ -12209,8 +12229,6 @@ msgstr "名前は必須です。"
 msgid "Name your project and choose where to create it."
 msgstr "プロジェクトに名前を付け、作成する場所を選択します。"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "ネイティブ"
@@ -12422,6 +12440,7 @@ msgstr "新しい電話、タブレット、ブラウザーはペアリング後
 msgid "New profile name"
 msgstr "新しいプロファイル名"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "新しいプロジェクト"
@@ -13769,8 +13788,8 @@ msgid "Open on source host"
 msgstr "ソースホストで開く"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "SSH で開く"
+#~ msgid "Open over SSH"
+#~ msgstr "SSH で開く"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -15066,6 +15085,7 @@ msgstr "画面ロックを防ぐ"
 msgid "Prevent system sleep"
 msgstr "システムのスリープを防ぐ"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "プレビュー"
@@ -16055,7 +16075,6 @@ msgstr "リモートアクセス用ポート {occupiedPort} はすでに使用�
 #~ msgid "Remote environments"
 #~ msgstr "リモート環境"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -17411,8 +17430,7 @@ msgstr "あと{runOut}でなくなります"
 #~ msgstr "Cursor CLI 経由で実行されます。上の環境行からインストール、更新、サインインを行ってください。"
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "ランタイム"
 
@@ -17420,8 +17438,7 @@ msgstr "ランタイム"
 msgid "Runtime debug"
 msgstr "ランタイムデバッグ"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "実行時オプション"
 
@@ -19043,6 +19060,7 @@ msgstr "プルリクエストを並べ替え"
 #~ msgid "Sort threads"
 #~ msgstr "スレッドを並べ替える"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "ソース"
@@ -19250,8 +19268,6 @@ msgstr "優先事項と次のステップで一日を始めます。"
 msgid "Start from a template"
 msgstr "テンプレートから始める"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -20997,6 +21013,10 @@ msgstr "このホストは現在設定されていません。"
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "このホストではスナップショットを利用できます。ライブストリーミングは利用できません。"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "このHTMLブロックはプレビューするには大きすぎます。ソースのみ表示しています。"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "この HTTPS ページは平文 HTTP のデスクトップに接続できませんでした。このサイトにローカルネットワークへのアクセスを許可して再度ペアリングするか、デスクトップ自身のアドレスで続けてください。"
@@ -21586,6 +21606,10 @@ msgstr "{0}からのトークン"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "ファイルを編集しないよう指示。強制ではありません。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "このメッセージのHTMLプレビューが多すぎます。ソースのみ表示しています。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22398,6 +22422,10 @@ msgstr "未ステージ"
 msgid "Unsupported"
 msgstr "サポートされていません"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "未対応のHTML形式です。ソースのみ表示しています。"
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"
 msgstr "未対応のマーケットプレイス要件"
@@ -22789,8 +22817,8 @@ msgid "Use account"
 msgstr "このアカウントを使用"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "既存のフォルダーを使用する"
+#~ msgid "Use an existing folder"
+#~ msgstr "既存のフォルダーを使用する"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23497,7 +23525,6 @@ msgstr "この環境で実行されます:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx

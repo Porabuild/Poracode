@@ -1508,6 +1508,7 @@ msgstr "Fallback hinzufügen"
 msgid "Add files, drop here, or paste an image"
 msgstr "Dateien hinzufügen, hier ablegen oder ein Bild einfügen"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "Ordner hinzufügen"
@@ -1568,6 +1569,10 @@ msgstr "Reaktion hinzufügen"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Remote hinzufügen"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "Remote-Verbindung hinzufügen"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -3638,6 +3643,10 @@ msgstr "Wähle einen abgeschlossenen Durchgang als Ausgangspunkt."
 msgid "Choose a folder"
 msgstr "Ordner auswählen"
 
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "Ordner auf {machine} auswählen"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -4083,6 +4092,7 @@ msgstr "Editor-Tab schließen"
 msgid "Close environment actions"
 msgstr "Umgebungsaktionen schließen"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "Vergrößerte Visualisierung schließen"
@@ -5242,6 +5252,7 @@ msgstr "Relativen Pfad kopieren"
 msgid "Copy selection"
 msgstr "Auswahl kopieren"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7839,6 +7850,7 @@ msgstr "Zum Prüfen oder Entziehen des Zugriffs erweitern."
 msgid "Expand todo dock"
 msgstr "Erweitern Sie das Aufgaben-Dock"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "Visualisierung vergrößern"
@@ -9427,6 +9439,10 @@ msgstr "Stündlich"
 msgid "Hours"
 msgstr "Stunden"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "HTML-Vorschau"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "HTML-Quelltext"
@@ -10870,6 +10886,10 @@ msgstr "Plugins werden geladen…"
 msgid "Loading PR…"
 msgstr "PR wird geladen…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "Vorschau wird geladen…"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
 msgstr "Frühere Ausführungen werden geladen"
@@ -12211,8 +12231,6 @@ msgstr "Name ist erforderlich."
 msgid "Name your project and choose where to create it."
 msgstr "Benennen Sie Ihr Projekt und wählen Sie aus, wo es erstellt werden soll."
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Nativ"
@@ -12424,6 +12442,7 @@ msgstr "Neue Telefone, Tablets und Browser erscheinen nach dem Pairing hier."
 msgid "New profile name"
 msgstr "Name des neuen Profils"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Neues Projekt"
@@ -13771,8 +13790,8 @@ msgid "Open on source host"
 msgstr "Auf dem Quellhost öffnen"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "Über SSH öffnen"
+#~ msgid "Open over SSH"
+#~ msgstr "Über SSH öffnen"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -15068,6 +15087,7 @@ msgstr "Bildschirmsperre verhindern"
 msgid "Prevent system sleep"
 msgstr "Ruhezustand verhindern"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Vorschau"
@@ -16057,7 +16077,6 @@ msgstr "Der Remote-Zugriffsport {occupiedPort} wird bereits verwendet. Beende de
 #~ msgid "Remote environments"
 #~ msgstr "Remote-Umgebungen"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -17413,8 +17432,7 @@ msgstr "Läuft in {runOut} aus"
 #~ msgstr "Wird über die Cursor-CLI ausgeführt. Installieren und aktualisieren Sie sie und melden Sie sich über die Umgebungszeilen oben an."
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "Laufzeit"
 
@@ -17422,8 +17440,7 @@ msgstr "Laufzeit"
 msgid "Runtime debug"
 msgstr "Laufzeit-Debug"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "Laufzeitoptionen"
 
@@ -19045,6 +19062,7 @@ msgstr "Pull Requests sortieren"
 #~ msgid "Sort threads"
 #~ msgstr "Threads sortieren"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "Quelltext"
@@ -19252,8 +19270,6 @@ msgstr "Beginne jeden Tag mit Prioritäten und nächsten Schritten."
 msgid "Start from a template"
 msgstr "Mit einer Vorlage beginnen"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -20999,6 +21015,10 @@ msgstr "Dieser Host ist nicht mehr konfiguriert."
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "Dieser Host stellt Bildschirmaufnahmen bereit. Live-Streaming ist nicht verfügbar."
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "Dieser HTML-Block ist für eine Vorschau zu groß. Es wird nur der Quelltext angezeigt."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "Diese HTTPS-Seite konnte den Desktop über einfaches HTTP nicht erreichen. Erlaube dieser Website den Zugriff auf das lokale Netzwerk und kopple erneut, oder fahre auf der Adresse des Desktops fort."
@@ -21588,6 +21608,10 @@ msgstr "Tokens von {0}"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Angewiesen, keine Dateien zu bearbeiten. Nicht erzwungen."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "Zu viele HTML-Vorschauen in dieser Nachricht. Es wird nur der Quelltext angezeigt."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22400,6 +22424,10 @@ msgstr "nicht bereitgestellt"
 msgid "Unsupported"
 msgstr "Nicht unterstützt"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "Nicht unterstütztes HTML-Format. Es wird nur der Quelltext angezeigt."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"
 msgstr "Nicht unterstützte Marketplaceanforderungen"
@@ -22791,8 +22819,8 @@ msgid "Use account"
 msgstr "Konto verwenden"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "Verwenden Sie einen vorhandenen Ordner"
+#~ msgid "Use an existing folder"
+#~ msgstr "Verwenden Sie einen vorhandenen Ordner"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23499,7 +23527,6 @@ msgstr "Wird in dieser Umgebung ausgeführt:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx

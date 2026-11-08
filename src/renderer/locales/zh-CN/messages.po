@@ -1508,6 +1508,7 @@ msgstr "添加备用项"
 msgid "Add files, drop here, or paste an image"
 msgstr "添加文件、拖放到此处或粘贴图片"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "添加文件夹"
@@ -1568,6 +1569,10 @@ msgstr "添加表情回应"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "添加远程仓库"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "添加远程连接"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -3638,6 +3643,10 @@ msgstr "请选择一个已完成的轮次作为分支起点。"
 msgid "Choose a folder"
 msgstr "选择文件夹"
 
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "在 {machine} 上选择文件夹"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
@@ -4083,6 +4092,7 @@ msgstr "关闭编辑器选项卡"
 msgid "Close environment actions"
 msgstr "关闭环境操作"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "关闭展开的可视化"
@@ -5242,6 +5252,7 @@ msgstr "复制相对路径"
 msgid "Copy selection"
 msgstr "复制选区"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7839,6 +7850,7 @@ msgstr "展开以查看或撤销访问权限。"
 msgid "Expand todo dock"
 msgstr "展开待办事项停靠栏"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "放大可视化内容"
@@ -9427,6 +9439,10 @@ msgstr "每小时"
 msgid "Hours"
 msgstr "小时"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "HTML 预览"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "HTML 源码"
@@ -10870,6 +10886,10 @@ msgstr "正在加载插件…"
 msgid "Loading PR…"
 msgstr "正在加载 PR…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "正在加载预览…"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
 msgstr "正在加载历史运行记录"
@@ -12210,8 +12230,6 @@ msgstr "名称为必填项。"
 msgid "Name your project and choose where to create it."
 msgstr "为您的项目命名并选择创建位置。"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "原生"
@@ -12423,6 +12441,7 @@ msgstr "新的手机、平板电脑和浏览器会在配对后显示在这里。
 msgid "New profile name"
 msgstr "新配置文件名称"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "新项目"
@@ -13770,8 +13789,8 @@ msgid "Open on source host"
 msgstr "在源主机上打开"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "通过 SSH 打开"
+#~ msgid "Open over SSH"
+#~ msgstr "通过 SSH 打开"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -15067,6 +15086,7 @@ msgstr "防止屏幕锁定"
 msgid "Prevent system sleep"
 msgstr "防止系统睡眠"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "预览"
@@ -16056,7 +16076,6 @@ msgstr "远程访问端口 {occupiedPort} 已被占用。请停止其他服务�
 #~ msgid "Remote environments"
 #~ msgstr "远程环境"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -17412,8 +17431,7 @@ msgstr "在{runOut}中用完"
 #~ msgstr "通过 Cursor CLI 运行。请在上方的环境行中安装、更新并登录。"
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "运行时"
 
@@ -17421,8 +17439,7 @@ msgstr "运行时"
 msgid "Runtime debug"
 msgstr "运行时调试"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "运行时选项"
 
@@ -19044,6 +19061,7 @@ msgstr "排序拉取请求"
 #~ msgid "Sort threads"
 #~ msgstr "对线程进行排序"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "源代码"
@@ -19251,8 +19269,6 @@ msgstr "以优先事项和后续步骤开启每一天。"
 msgid "Start from a template"
 msgstr "从模板开始"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -20998,6 +21014,10 @@ msgstr "此主机已不再配置。"
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "此主机提供快照，暂不支持实时流。"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "此 HTML 块过大，无法预览。仅显示源代码。"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "此 HTTPS 页面无法连接使用纯 HTTP 的桌面。请允许该站点访问本地网络后重新配对，或在桌面自身的地址上继续。"
@@ -21587,6 +21607,10 @@ msgstr "来自{0}的token"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "指示不要编辑文件。不会强制执行。"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "此消息中的 HTML 预览过多。仅显示源代码。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22399,6 +22423,10 @@ msgstr "未暂存"
 msgid "Unsupported"
 msgstr "不支持"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "不支持的 HTML 格式。仅显示源代码。"
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"
 msgstr "不支持的市场要求"
@@ -22790,8 +22818,8 @@ msgid "Use account"
 msgstr "使用账户"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "使用现有文件夹"
+#~ msgid "Use an existing folder"
+#~ msgstr "使用现有文件夹"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23498,7 +23526,6 @@ msgstr "将在这个环境运行："
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx

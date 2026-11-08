@@ -189,10 +189,15 @@ interface PanelState {
   projectSettingsSection: ProjectSettingsSection | null;
   threadSortMode: ThreadSortMode;
   threadListLayout: ThreadListLayout;
-  /** Whether the "Start from scratch" create-project modal is open. */
+  /** Whether the "New project" create-project modal is open. */
   createProjectModalOpen: boolean;
   /** Whether the "Clone a repository" modal is open. */
   cloneProjectModalOpen: boolean;
+  /**
+   * Paired connection whose folder browser "Add folder" opened, or
+   * null while it is closed.
+   */
+  remoteFolderPickerConnectionKey: string | null;
   /** Session-only compact PWA page. Desktop panel state remains independent. */
   mobileUtilityPage: MobileUtilityPage | null;
   setGitReviewContext: (ctx: GitReviewContext | null) => void;
@@ -244,6 +249,8 @@ interface PanelState {
   closeCreateProjectModal: () => void;
   openCloneProjectModal: () => void;
   closeCloneProjectModal: () => void;
+  openRemoteFolderPicker: (connectionKey: string) => void;
+  closeRemoteFolderPicker: () => void;
   openMobileUtilityPage: (page: MobileUtilityPage) => void;
   closeMobileUtilityPage: () => void;
   closeAllPanels: () => void;
@@ -386,6 +393,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   threadListLayout: sanitizeThreadListLayout(initialPersisted?.threadListLayout),
   createProjectModalOpen: false,
   cloneProjectModalOpen: false,
+  remoteFolderPickerConnectionKey: null,
   mobileUtilityPage: null,
 
   setGitReviewContext: (ctx) => {
@@ -763,6 +771,18 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => (state.cloneProjectModalOpen ? {} : { cloneProjectModalOpen: true })),
   closeCloneProjectModal: () =>
     set((state) => (state.cloneProjectModalOpen ? { cloneProjectModalOpen: false } : {})),
+  openRemoteFolderPicker: (connectionKey) =>
+    set((state) =>
+      state.remoteFolderPickerConnectionKey === connectionKey
+        ? {}
+        : { remoteFolderPickerConnectionKey: connectionKey },
+    ),
+  closeRemoteFolderPicker: () =>
+    set((state) =>
+      state.remoteFolderPickerConnectionKey === null
+        ? {}
+        : { remoteFolderPickerConnectionKey: null },
+    ),
   openMobileUtilityPage: (page) =>
     set((state) => ({
       ...(state.mobileUtilityPage === page ? {} : { mobileUtilityPage: page }),

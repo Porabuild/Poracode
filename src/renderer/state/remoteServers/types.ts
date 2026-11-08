@@ -14,6 +14,7 @@ import type {
   RemoteHostWorkspace,
   RemoteImageRefValue,
   RemoteProjectCommand,
+  RemoteProjectCommandResponse,
   RemoteShellSnapshot,
 } from "@/shared/remote";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
@@ -361,11 +362,16 @@ export interface RemoteServersState {
   getHostUpdateState(desktopId: string): ReturnType<RemoteDesktopClient["hostUpdateState"]>;
   checkHostUpdate(desktopId: string): ReturnType<RemoteDesktopClient["checkHostUpdate"]>;
   installHostUpdate(desktopId: string): Promise<void>;
+  /**
+   * Sends one project intent and lets the catalog catch up. Resolves with the
+   * host's response, whose `project` names the affected row (for example the
+   * project a folder registration created or matched).
+   */
   runProjectCommand(
     desktopId: string,
     command: RemoteProjectCommand,
     options?: { readonly commandId?: string },
-  ): Promise<void>;
+  ): Promise<RemoteProjectCommandResponse>;
   browseHostDirectory(desktopId: string, path: string): Promise<BrowseHostDirectoryResult>;
   withClient<Result>(
     desktopId: string,

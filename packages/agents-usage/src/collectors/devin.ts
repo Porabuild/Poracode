@@ -29,10 +29,11 @@ const planStatusSchema = z.object({
   dailyQuotaResetAtUnix: timestamp.optional(),
   weeklyQuotaResetAtUnix: timestamp.optional(),
   overageBalanceMicros: z
-    .union([z.number(), z.string().regex(/^\d+$/)])
+    .union([z.number(), z.string().regex(/^-?\d+$/)])
     .transform(Number)
-    .pipe(z.number().nonnegative().finite())
-    .optional(),
+    .pipe(z.number().finite())
+    .optional()
+    .catch(undefined),
 });
 const statusSchema = z.object({ userStatus: z.object({ planStatus: planStatusSchema }) });
 

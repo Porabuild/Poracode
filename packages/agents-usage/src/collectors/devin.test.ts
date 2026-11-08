@@ -67,6 +67,38 @@ describe("Devin quota collector", () => {
       credits: { balance: 2, currency: "USD" },
     });
   });
+  it("keeps the snapshot when the overage balance is negative", () => {
+    expect(
+      parseDevinUsage(
+        response({
+          planInfo: { planName: "Max", hideDailyQuota: true },
+          weeklyQuotaRemainingPercent: 99,
+          weeklyQuotaResetAtUnix: "1794729600",
+          overageBalanceMicros: "-238996",
+        }),
+        1,
+      ),
+    ).toMatchObject({
+      status: "ok",
+      plan: "Max",
+      windows: [{ id: "weekly", usedPercent: 1, resetsAt: 1794729600000 }],
+      credits: { balance: -0.238996, currency: "USD" },
+    });
+  });
+  it("accepts a numeric negative balance", () => {
+    expect(
+      parseDevinUsage(response({ ...quota, overageBalanceMicros: -5000000 }), 1).credits,
+    ).toEqual({ balance: -5, currency: "USD" });
+  });
+  it.each(["abc", "1.5"])(
+    "drops a malformed balance %s without failing the snapshot",
+    (balance) => {
+      const result = parseDevinUsage(response({ ...quota, overageBalanceMicros: balance }), 1);
+      expect(result.status).toBe("ok");
+      expect(result.windows.map((w) => w.id)).toEqual(["daily", "weekly"]);
+      expect(result.credits).toBeUndefined();
+    },
+  );
   it("does not make requests without credentials", async () => {
     const onRequest = vi.fn<(request: HttpRequest) => void>();
     expect((await collectDevin(createFakeHost({ onRequest }))).status).toBe("auth-missing");

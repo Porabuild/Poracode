@@ -256,4 +256,16 @@
     <string name="rich_chat_background_task_last_progress">Last progress %1$s ago</string>
     <string name="rich_chat_background_task_close">Close task details</string>
     <string name="rich_chat_background_task_report_missing">The task ended without a completion report.</string>
+    <string name="rich_chat_html_visual_title">HTML preview</string>
+    <string name="rich_chat_html_visual_source">Source</string>
+    <string name="rich_chat_html_visual_preview">Preview</string>
+    <string name="rich_chat_html_visual_copy_source">Copy source</string>
+    <string name="rich_chat_html_visual_loading">Loading preview…</string>
+    <string name="rich_chat_html_visual_incomplete">Incomplete HTML block. Showing source only.</string>
+    <string name="rich_chat_html_visual_unsupported">Unsupported HTML format. Showing source only.</string>
+    <string name="rich_chat_html_visual_limited">Too many HTML previews in this message. Showing source only.</string>
+    <string name="rich_chat_html_visual_too_large">This HTML block is too large to preview. Showing source only.</string>
+    <string name="rich_chat_html_visual_unavailable">Interactive rendering is unavailable. Showing source only.</string>
+    <string name="rich_chat_html_visual_open_link_title">Open link?</string>
+    <string name="rich_chat_html_visual_open_link">Open</string>
 </resources>
