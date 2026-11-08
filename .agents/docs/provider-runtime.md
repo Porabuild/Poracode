@@ -116,6 +116,40 @@ launcher, which applies cwd/env and preserves raw MCP traffic, including
 resources and prompts. Servers with disabled tools still use the filtering
 proxy.
 
+### GUI MCP routes and relays
+
+Every launch helper is a separate process per server per agent session,
+so relays are the largest per-thread memory cost. GUI user servers run through
+supervisor-owned `McpAppsService` routes, and built-in servers through their
+own ingresses. Both apply the server's tool policy themselves, so they are
+marked with `ResolvedMcpServer.directTransport`. An ACP agent that negotiates
+HTTP MCP connects to that endpoint directly and spawns no relay. Other clients
+get a stdio-to-HTTP relay that keeps the endpoint's session and enforces
+disabled tools and per-request timeouts. Two interchangeable relays share the
+versioned `PORACODE_MCP_HTTP_RELAY_CONFIG` envelope: `poracode-mcp-relay`, a
+staged Rust binary selected for plain-`http:` endpoints on supported host
+targets (darwin-universal, win32-x64/arm64, linux-x64), and `mcp-relay.mjs`,
+the SDK-free JavaScript fallback used for HTTPS endpoints, WSL locations, and
+hosts without a staged binary. Both fail closed on an unknown config version.
+Failure isolation and schema normalization keep the SDK filtering proxy; a
+server already wrapped by a helper is never wrapped again.
+
+Direct HTTP endpoints bypass relays entirely, so the agent's own HTTP
+client owns the connection — including proxy handling. When the env that
+reaches the agent carries `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY`, the ACP
+session factory (`createAcpStructuredSession`, the one seam every location
+shares) extends `NO_PROXY`/`no_proxy` with the `directTransport` endpoints'
+hostnames — Poracode-served routes only, so a remote user server that needs
+the corporate proxy is never bypassed. Existing entries are merged
+case-insensitively, duplicates dropped, other-cased variants blanked, `*`
+left alone; with no proxy variable the env is untouched. For WSL the bypass
+merges into `command.env` so `injectWslEnv` exports it inside the distro —
+vars on the `wsl.exe` process never cross — while native spawns inherit it
+through `command.env` as well. Linux-side proxy variables set outside
+`command.env` (shell rc files) are invisible to this check. This is
+provider-agnostic: Devin 3000.12.28 was observed failing a loopback MCP
+connect through an unreachable proxy until the bypass listed the host.
+
 Command Code mods and Pi extensions share the SDK connection implementation;
 each provider maps schemas/results and owns its extension lifecycle. Pi closes
 connections on reload/quit and keeps them across native session switches. The

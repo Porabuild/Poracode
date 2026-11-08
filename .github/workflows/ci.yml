@@ -281,6 +281,73 @@ jobs:
         working-directory: .
         run: node --test scripts/prepare-locked-computer-use.test.mjs scripts/locked-computer-use-installer.test.mjs
 
+  mcp_relay:
+    name: MCP relay (${{ matrix.os }})
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: native/mcp-relay
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: native/mcp-relay
+
+      - name: Install cargo-deny
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Check documentation
+        run: cargo doc --no-deps --all-features --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+      - name: Check dependencies
+        if: runner.os == 'Linux'
+        run: cargo deny check
+
+      # cargo test already builds the binary the integration suite spawns;
+      # point the TypeScript transport suite at that same artifact.
+      - name: Setup Bun
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/setup-bun
+
+      - name: Install dependencies
+        if: runner.os == 'Linux'
+        working-directory: .
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+
+      - name: MCP relay transport tests (native)
+        if: runner.os == 'Linux'
+        working-directory: .
+        env:
+          PORACODE_MCP_RELAY_BIN: ${{ github.workspace }}/native/mcp-relay/target/debug/poracode-mcp-relay
+        run: bun run vitest run src/supervisor/mcp/mcpHttpRelay.test.ts
+
   test_shard:
     name: Test shard (${{ matrix.shard }}/8)
     needs: changes
@@ -376,6 +443,7 @@ jobs:
         web_build,
         runtime_deps,
         rust_helper,
+        mcp_relay,
         test_shard,
         test_perf,
       ]
@@ -392,7 +460,7 @@ jobs:
           if (!["true", "false"].includes(process.env.CORE_REQUIRED)) throw new Error("core change scope is missing");
           const required = new Set(["changes", "fmt"]);
           if (process.env.CORE_REQUIRED === "true") {
-            for (const name of ["typecheck", "lint", "tui", "web_build", "runtime_deps", "rust_helper", "test_shard", "test_perf"]) required.add(name);
+            for (const name of ["typecheck", "lint", "tui", "web_build", "runtime_deps", "rust_helper", "mcp_relay", "test_shard", "test_perf"]) required.add(name);
           }
           for (const [name, job] of Object.entries(jobs)) {
             const expected = required.has(name) ? "success" : "skipped";

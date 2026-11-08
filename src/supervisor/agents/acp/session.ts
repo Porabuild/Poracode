@@ -164,6 +164,7 @@ import { AcpSessionActionError, AcpSessionActionRegistry } from "./sessionAction
 import {
   buildAcpMcpServers,
   gateAcpMcpServers,
+  preferDirectAcpMcpTransports,
   resolveAcpMcpCapabilities,
   type AcpMcpCapabilities,
 } from "../userMcp";
@@ -1178,6 +1179,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     const child = spawnChild(command.command, command.args, {
       ...(spawnCwd ? { cwd: spawnCwd } : {}),
       stdio: ["pipe", "pipe", "pipe"],
+      // The proxy bypass for direct MCP endpoints is applied to
+      // `command.env` in the factory — the one seam every location shares —
+      // so vars on the `wsl.exe` process itself never need to cross.
       env: { ...process.env, TERM: "xterm-256color", ...(command.env ?? {}) },
       shell: false,
       windowsHide: true,
@@ -1433,8 +1437,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.agentMcpCapabilities,
       this.assumedMcpCapabilities,
     );
-    const built = buildAcpMcpServers(this.mcpServers);
-    const attempted = this.gateMcpServers(built, capabilities);
+    const servers = preferDirectAcpMcpTransports(this.mcpServers, capabilities);
+    const attempted = this.gateMcpServers(buildAcpMcpServers(servers), capabilities);
     const optimisticTransports = this.optimisticMcpTransports;
     let fallback: ProtocolMcpServer[];
     if (optimisticTransports !== undefined && optimisticTransports.length > 0) {
@@ -1443,7 +1447,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       // session without them.
       fallback = gateAcpMcpServers(
         buildAcpMcpServers(
-          this.mcpServers.filter((server) => !optimisticTransports.includes(server.transport.type)),
+          servers.filter((server) => !optimisticTransports.includes(server.transport.type)),
         ),
         capabilities,
       );
@@ -1451,11 +1455,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.agentMcpCapabilities === undefined &&
       this.assumedMcpCapabilities !== undefined
     ) {
-      fallback = gateAcpMcpServers(built, this.agentMcpCapabilities);
+      // The agent advertised nothing: relayed endpoints return to their relays.
+      fallback = gateAcpMcpServers(buildAcpMcpServers(this.mcpServers), this.agentMcpCapabilities);
     } else {
       fallback = attempted;
     }
-    if (fallback.length === attempted.length) return open(attempted);
+    if (JSON.stringify(fallback) === JSON.stringify(attempted)) return open(attempted);
 
     try {
       return await open(attempted);

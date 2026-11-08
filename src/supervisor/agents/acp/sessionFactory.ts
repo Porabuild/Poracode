@@ -4,6 +4,7 @@ import {
   type CommandSpec,
   type CreateStructuredSessionInput,
 } from "../base";
+import { directMcpProxyBypassEnv } from "./mcpProxyBypass";
 import { AcpStructuredSession, type AcpStructuredSessionOptions } from "./session";
 
 /**
@@ -72,10 +73,25 @@ export function createAcpStructuredSession(
   // provider's `baseSpawnEnv` has to land — an ACP adapter must not have to
   // remember to repeat it on its own launch argv. Command-declared env wins.
   const mergedCommand = withCommandBaseSpawnEnv(acpCommand, input.baseSpawnEnv);
-  const command = mergedCommand.env
-    ? injectWslEnv(mergedCommand, input.projectLocation, mergedCommand.env)
+  // Direct HTTP/SSE MCP endpoints must bypass an HTTP proxy. For WSL the
+  // bypass has to ride `command.env` so `injectWslEnv` exports it inside the
+  // distro — vars on the `wsl.exe` process itself never cross. The proxy
+  // check therefore sees only the env that actually reaches the agent:
+  // `command.env` for WSL (Windows `process.env` does not cross either),
+  // `process.env` merged with `command.env` for native locations.
+  const bypassEnv = directMcpProxyBypassEnv(
+    input.projectLocation.kind === "wsl"
+      ? (mergedCommand.env ?? {})
+      : { ...process.env, ...(mergedCommand.env ?? {}) },
+    input.mcpServers,
+  );
+  const command = bypassEnv
+    ? { ...mergedCommand, env: { ...(mergedCommand.env ?? {}), ...bypassEnv } }
     : mergedCommand;
-  return AcpStructuredSession.create(command, input.projectLocation, input.threadId, {
+  const wslCommand = command.env
+    ? injectWslEnv(command, input.projectLocation, command.env)
+    : command;
+  return AcpStructuredSession.create(wslCommand, input.projectLocation, input.threadId, {
     ...(input.additionalDirectories ? { additionalDirectories: input.additionalDirectories } : {}),
     ...(input.loadSessionErrorRewriter
       ? { loadSessionErrorRewriter: input.loadSessionErrorRewriter }
