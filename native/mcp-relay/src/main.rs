@@ -7,6 +7,7 @@ use poracode_mcp_relay::config::read_relay_config;
 use poracode_mcp_relay::relay::{MAX_LINE_UNITS, Relay};
 use std::io::{self, Read};
 use std::process::ExitCode;
+#[cfg(unix)]
 use std::sync::Arc;
 
 const HELLO_HELPER: &str = "poracode-mcp-relay";
