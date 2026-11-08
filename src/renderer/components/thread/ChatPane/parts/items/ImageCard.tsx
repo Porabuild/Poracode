@@ -220,7 +220,7 @@ export const ImageCard = memo(function ImageCard({
     <span
       ref={viewportRef}
       {...previewIntentHandlers}
-      className={`poracode-image-card relative self-start ${isBlock ? "flex w-fit" : "inline-flex"} max-w-full overflow-hidden rounded-2xl border border-[color:var(--border)] bg-[var(--composer-surface)]${className ? ` ${className}` : ""}`}
+      className={`poracode-image-card relative self-start ${isBlock ? "flex w-fit" : "inline-flex"} max-w-full overflow-hidden rounded-3xl border border-[var(--hairline-soft)] bg-[var(--composer-surface)]${className ? ` ${className}` : ""}`}
       data-poracode-image-card="true"
     >
       <button

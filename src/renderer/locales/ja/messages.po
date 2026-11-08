@@ -21043,8 +21043,8 @@ msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "このメッセージはキューから削除されました。編集中のテキストは引き続きコピーできます。"
 
 #: src/renderer/components/composer/DraftRecoveryNotice.tsx
-msgid "This message was staged with the host. A recovery copy is saved on this device."
-msgstr "このメッセージはホストで送信待ちになっています。復元用コピーがこのデバイスに保存されています。"
+#~ msgid "This message was staged with the host. A recovery copy is saved on this device."
+#~ msgstr "このメッセージはホストで送信待ちになっています。復元用コピーがこのデバイスに保存されています。"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."

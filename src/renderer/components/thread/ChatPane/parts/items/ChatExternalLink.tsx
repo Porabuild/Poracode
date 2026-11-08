@@ -35,17 +35,17 @@ export function ChatExternalLink({ href, children, resolveTitle = false }: ChatE
   const previewTitle = resolvedChatLinkLabel(metadata?.title ?? null, href);
 
   return (
-    <Tooltip delay={350} closeDelay={100}>
+    <Tooltip delay={500} closeDelay={100}>
       <Tooltip.Trigger
         render={(props) => <span {...props} />}
-        className="max-w-full align-baseline"
+        className="max-w-full align-middle"
         tabIndex={-1}
         role="none"
       >
         <Link
           href={href}
           rel="noreferrer noopener"
-          className="group inline max-w-full text-[length:inherit] font-normal text-accent no-underline [width:auto] [overflow-wrap:anywhere] [word-break:break-word] hover:underline hover:underline-offset-2"
+          className="poracode-inline-path-chip no-underline"
           onMouseEnter={() => setPreviewRequested(true)}
           onFocus={() => setPreviewRequested(true)}
           onClick={(event) => {
@@ -53,7 +53,7 @@ export function ChatExternalLink({ href, children, resolveTitle = false }: ChatE
             openExternalWithFeedback(href);
           }}
         >
-          <span className="mr-[0.3em] inline-flex size-[1em] items-center justify-center align-[-0.125em]">
+          <span className="poracode-inline-path-chip__icon inline-flex items-center justify-center">
             {isGitHub ? (
               <GitHubMark className="size-full text-foreground" />
             ) : faviconUrl ? (
@@ -74,7 +74,9 @@ export function ChatExternalLink({ href, children, resolveTitle = false }: ChatE
               <Globe className="size-full text-accent/70" aria-hidden />
             )}
           </span>
-          <span>{resolveTitle ? previewTitle : children}</span>
+          <span className="poracode-inline-path-chip__name">
+            {resolveTitle ? previewTitle : children}
+          </span>
         </Link>
       </Tooltip.Trigger>
       <Tooltip.Content showArrow placement="top" className="pointer-events-none max-w-xs p-3">

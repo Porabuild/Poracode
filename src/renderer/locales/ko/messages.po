@@ -21045,8 +21045,8 @@ msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "이 메시지는 더 이상 대기열에 없습니다. 편집 중인 내용은 계속 복사할 수 있습니다."
 
 #: src/renderer/components/composer/DraftRecoveryNotice.tsx
-msgid "This message was staged with the host. A recovery copy is saved on this device."
-msgstr "이 메시지는 호스트에서 전송 대기 중입니다. 복구 사본이 이 기기에 저장되어 있습니다."
+#~ msgid "This message was staged with the host. A recovery copy is saved on this device."
+#~ msgstr "이 메시지는 호스트에서 전송 대기 중입니다. 복구 사본이 이 기기에 저장되어 있습니다."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
