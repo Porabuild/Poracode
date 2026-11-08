@@ -256,4 +256,16 @@
     <string name="rich_chat_background_task_last_progress">Tiến độ gần nhất cách đây %1$s</string>
     <string name="rich_chat_background_task_close">Đóng chi tiết tác vụ</string>
     <string name="rich_chat_background_task_report_missing">Tác vụ đã kết thúc mà không có báo cáo hoàn thành.</string>
+    <string name="rich_chat_html_visual_title">Xem trước HTML</string>
+    <string name="rich_chat_html_visual_source">Mã nguồn</string>
+    <string name="rich_chat_html_visual_preview">Xem trước</string>
+    <string name="rich_chat_html_visual_copy_source">Sao chép mã nguồn</string>
+    <string name="rich_chat_html_visual_loading">Đang tải bản xem trước…</string>
+    <string name="rich_chat_html_visual_incomplete">Khối HTML chưa hoàn chỉnh. Chỉ hiển thị mã nguồn.</string>
+    <string name="rich_chat_html_visual_unsupported">Định dạng HTML không được hỗ trợ. Chỉ hiển thị mã nguồn.</string>
+    <string name="rich_chat_html_visual_limited">Có quá nhiều bản xem trước HTML trong tin nhắn này. Chỉ hiển thị mã nguồn.</string>
+    <string name="rich_chat_html_visual_too_large">Khối HTML này quá lớn để xem trước. Chỉ hiển thị mã nguồn.</string>
+    <string name="rich_chat_html_visual_unavailable">Không thể hiển thị tương tác. Chỉ hiển thị mã nguồn.</string>
+    <string name="rich_chat_html_visual_open_link_title">Mở liên kết?</string>
+    <string name="rich_chat_html_visual_open_link">Mở</string>
 </resources>

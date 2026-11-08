@@ -251,4 +251,16 @@
     <string name="rich_chat_background_task_last_progress">마지막 진행 보고: %1$s 전</string>
     <string name="rich_chat_background_task_close">작업 세부정보 닫기</string>
     <string name="rich_chat_background_task_report_missing">작업이 완료 보고서 없이 종료되었습니다.</string>
+    <string name="rich_chat_html_visual_title">HTML 미리 보기</string>
+    <string name="rich_chat_html_visual_source">소스</string>
+    <string name="rich_chat_html_visual_preview">미리 보기</string>
+    <string name="rich_chat_html_visual_copy_source">소스 복사</string>
+    <string name="rich_chat_html_visual_loading">미리 보기 로드 중…</string>
+    <string name="rich_chat_html_visual_incomplete">완성되지 않은 HTML 블록입니다. 소스만 표시합니다.</string>
+    <string name="rich_chat_html_visual_unsupported">지원하지 않는 HTML 형식입니다. 소스만 표시합니다.</string>
+    <string name="rich_chat_html_visual_limited">이 메시지에 HTML 미리 보기가 너무 많습니다. 소스만 표시합니다.</string>
+    <string name="rich_chat_html_visual_too_large">이 HTML 블록은 미리 보기에 너무 큽니다. 소스만 표시합니다.</string>
+    <string name="rich_chat_html_visual_unavailable">대화형 표시를 사용할 수 없습니다. 소스만 표시합니다.</string>
+    <string name="rich_chat_html_visual_open_link_title">링크를 여시겠습니까?</string>
+    <string name="rich_chat_html_visual_open_link">열기</string>
 </resources>

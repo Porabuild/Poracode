@@ -4083,6 +4083,7 @@ msgstr "Zamknij kartę Edytora"
 msgid "Close environment actions"
 msgstr "Zamknij działania środowiska"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "Zamknij powiększoną wizualizację"
@@ -5242,6 +5243,7 @@ msgstr "Skopiuj ścieżkę względną"
 msgid "Copy selection"
 msgstr "Kopiuj zaznaczenie"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7839,6 +7841,7 @@ msgstr "Rozwiń, aby sprawdzić lub odebrać dostęp."
 msgid "Expand todo dock"
 msgstr "Rozwiń dok zadań do wykonania"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "Powiększ wizualizację"
@@ -9427,6 +9430,10 @@ msgstr "Co godzinę"
 msgid "Hours"
 msgstr "Godziny"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "Podgląd HTML"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "Kod źródłowy HTML"
@@ -10869,6 +10876,10 @@ msgstr "Wczytywanie wtyczek…"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesFileTree.tsx
 msgid "Loading PR…"
 msgstr "Ładowanie PR…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "Ładowanie podglądu…"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
@@ -15068,6 +15079,7 @@ msgstr "Zapobiegaj blokadzie ekranu"
 msgid "Prevent system sleep"
 msgstr "Zapobiegaj uśpieniu systemu"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Podgląd"
@@ -19045,6 +19057,7 @@ msgstr "Sortuj pull requesty"
 #~ msgid "Sort threads"
 #~ msgstr "Sortuj wątki"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "Źródło"
@@ -20999,6 +21012,10 @@ msgstr "Ten host nie jest już skonfigurowany."
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "Ten host udostępnia zrzuty ekranu. Transmisja na żywo jest niedostępna."
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "Ten blok HTML jest zbyt duży, aby wyświetlić podgląd. Wyświetlane jest tylko źródło."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "Ta strona HTTPS nie mogła połączyć się z desktopem po zwykłym HTTP. Zezwól tej witrynie na dostęp do sieci lokalnej i sparuj ponownie albo kontynuuj na własnym adresie desktopa."
@@ -21588,6 +21605,10 @@ msgstr "Tokeny z {0}"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Instrukcja, aby nie edytować plików. Nie jest wymuszona."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "Zbyt wiele podglądów HTML w tej wiadomości. Wyświetlane jest tylko źródło."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22399,6 +22420,10 @@ msgstr "wycofane z poczekalni"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "Nieobsługiwane"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "Nieobsługiwany format HTML. Wyświetlane jest tylko źródło."
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"

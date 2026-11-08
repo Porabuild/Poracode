@@ -4083,6 +4083,7 @@ msgstr "Düzenleyici Sekmesini Kapat"
 msgid "Close environment actions"
 msgstr "Ortam eylemlerini kapat"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "Genişletilmiş görseli kapat"
@@ -5242,6 +5243,7 @@ msgstr "Göreli Yolu Kopyala"
 msgid "Copy selection"
 msgstr "Seçimi kopyala"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7839,6 +7841,7 @@ msgstr "Erişimi incelemek veya iptal etmek için genişletin."
 msgid "Expand todo dock"
 msgstr "Yapılacaklar iskelesini genişlet"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "Görseli büyüt"
@@ -9427,6 +9430,10 @@ msgstr "Saatlik"
 msgid "Hours"
 msgstr "Saat"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "HTML önizlemesi"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "HTML kaynak kodu"
@@ -10869,6 +10876,10 @@ msgstr "Eklentiler yükleniyor…"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesFileTree.tsx
 msgid "Loading PR…"
 msgstr "PR yükleniyor…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "Önizleme yükleniyor…"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
@@ -15068,6 +15079,7 @@ msgstr "Ekran kilidini önle"
 msgid "Prevent system sleep"
 msgstr "Sistemin uykuya geçmesini önle"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Önizleme"
@@ -19045,6 +19057,7 @@ msgstr "Çekme isteklerini sırala"
 #~ msgid "Sort threads"
 #~ msgstr "Konuları sırala"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "Kaynak"
@@ -20999,6 +21012,10 @@ msgstr "Bu ana makine artık yapılandırılmamış."
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "Bu ana bilgisayar ekran görüntüleri sağlar. Canlı yayın kullanılamıyor."
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "Bu HTML bloğu önizleme için çok büyük. Yalnızca kaynak gösteriliyor."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "Bu HTTPS sayfası düz HTTP kullanan masaüstüne ulaşamadı. Bu siteye yerel ağ erişimi izni verip yeniden eşleştirin veya masaüstünün kendi adresinde devam edin."
@@ -21588,6 +21605,10 @@ msgstr "{0} kaynağından token"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Dosyaları düzenlememesi söylendi. Zorunlu değildir."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "Bu mesajda çok fazla HTML önizlemesi var. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22399,6 +22420,10 @@ msgstr "hazırlanmamış"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "Desteklenmiyor"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "Desteklenmeyen HTML biçimi. Yalnızca kaynak gösteriliyor."
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"

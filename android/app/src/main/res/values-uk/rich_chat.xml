@@ -251,4 +251,16 @@
     <string name="rich_chat_background_task_last_progress">Останнє оновлення %1$s тому</string>
     <string name="rich_chat_background_task_close">Закрити відомості про завдання</string>
     <string name="rich_chat_background_task_report_missing">Завдання завершилося без звіту про виконання.</string>
+    <string name="rich_chat_html_visual_title">Попередній перегляд HTML</string>
+    <string name="rich_chat_html_visual_source">Вихідний код</string>
+    <string name="rich_chat_html_visual_preview">Попередній перегляд</string>
+    <string name="rich_chat_html_visual_copy_source">Копіювати вихідний код</string>
+    <string name="rich_chat_html_visual_loading">Завантаження попереднього перегляду…</string>
+    <string name="rich_chat_html_visual_incomplete">Блок HTML не завершено. Показано лише вихідний код.</string>
+    <string name="rich_chat_html_visual_unsupported">Непідтримуваний формат HTML. Показано лише вихідний код.</string>
+    <string name="rich_chat_html_visual_limited">У цьому повідомленні забагато попередніх переглядів HTML. Показано лише вихідний код.</string>
+    <string name="rich_chat_html_visual_too_large">Цей блок HTML завеликий для попереднього перегляду. Показано лише вихідний код.</string>
+    <string name="rich_chat_html_visual_unavailable">Інтерактивне відображення недоступне. Показано лише вихідний код.</string>
+    <string name="rich_chat_html_visual_open_link_title">Відкрити посилання?</string>
+    <string name="rich_chat_html_visual_open_link">Відкрити</string>
 </resources>

@@ -4083,6 +4083,7 @@ msgstr "Đóng tab trình chỉnh sửa"
 msgid "Close environment actions"
 msgstr "Đóng thao tác môi trường"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "Đóng chế độ xem trực quan mở rộng"
@@ -5242,6 +5243,7 @@ msgstr "Sao chép đường dẫn tương đối"
 msgid "Copy selection"
 msgstr "Sao chép lựa chọn"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -7839,6 +7841,7 @@ msgstr "Mở rộng để xem xét hoặc thu hồi quyền truy cập."
 msgid "Expand todo dock"
 msgstr "Mở rộng dock việc cần làm"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "Phóng to hình trực quan"
@@ -9427,6 +9430,10 @@ msgstr "Hằng giờ"
 msgid "Hours"
 msgstr "Giờ"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "Xem trước HTML"
+
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
 msgstr "Mã nguồn HTML"
@@ -10869,6 +10876,10 @@ msgstr "Đang tải plugin…"
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesFileTree.tsx
 msgid "Loading PR…"
 msgstr "Đang tải PR…"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "Đang tải bản xem trước…"
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
@@ -15068,6 +15079,7 @@ msgstr "Ngăn khóa màn hình"
 msgid "Prevent system sleep"
 msgstr "Ngăn hệ thống chuyển sang chế độ ngủ"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Xem trước"
@@ -19045,6 +19057,7 @@ msgstr "Sắp xếp pull request"
 #~ msgid "Sort threads"
 #~ msgstr "Sắp xếp luồng"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "Mã nguồn"
@@ -20999,6 +21012,10 @@ msgstr "Máy chủ này không còn được cấu hình."
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "Máy chủ này cung cấp ảnh chụp. Không thể phát trực tiếp."
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "Khối HTML này quá lớn để xem trước. Chỉ hiển thị mã nguồn."
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
 #~ msgstr "Trang HTTPS này không thể kết nối tới desktop dùng HTTP thuần. Hãy cho phép trang này truy cập mạng cục bộ rồi ghép đôi lại, hoặc tiếp tục trên địa chỉ riêng của desktop."
@@ -21588,6 +21605,10 @@ msgstr "Tokens từ {0}"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Được dặn không chỉnh sửa tệp. Không được thực thi."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "Có quá nhiều bản xem trước HTML trong tin nhắn này. Chỉ hiển thị mã nguồn."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22399,6 +22420,10 @@ msgstr "chưa đưa vào staging"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "Không được hỗ trợ"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "Định dạng HTML không được hỗ trợ. Chỉ hiển thị mã nguồn."
 
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"

@@ -134,7 +134,7 @@ private fun MarkdownList(items: List<String>, ordered: Boolean) {
 }
 
 @Composable
-private fun MarkdownCodeBlock(block: RichMarkdownBlock.Code) {
+internal fun MarkdownCodeBlock(block: RichMarkdownBlock.Code) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
