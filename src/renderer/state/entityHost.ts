@@ -229,8 +229,9 @@ function pairedHost(desktopId: string, hostId: string): EntityHost {
     // The store's command entry already schedules the catalog refresh.
     sendThreadCommand: (command, ...options) =>
       store().sendThreadCommand(desktopId, command, ...options),
-    runProjectCommand: (command, ...options) =>
-      store().runProjectCommand(desktopId, command, ...options),
+    runProjectCommand: async (command, ...options) => {
+      await store().runProjectCommand(desktopId, command, ...options);
+    },
     pinThread: pinThreadRow,
     removeConfirmedThreads: (viewThreadIds) => {
       removeConfirmedCatalogThreads(

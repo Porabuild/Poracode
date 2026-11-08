@@ -510,6 +510,18 @@ describe("create project modal", () => {
     usePanelStore.getState().closeCreateProjectModal();
     expect(usePanelStore.getState().createProjectModalOpen).toBe(false);
   });
+
+  it("opens the remote folder picker for one paired machine at a time", () => {
+    expect(usePanelStore.getState().remoteFolderPickerConnectionKey).toBeNull();
+
+    usePanelStore.getState().openRemoteFolderPicker("mac");
+    expect(usePanelStore.getState().remoteFolderPickerConnectionKey).toBe("mac");
+    usePanelStore.getState().openRemoteFolderPicker("linux-box");
+    expect(usePanelStore.getState().remoteFolderPickerConnectionKey).toBe("linux-box");
+
+    usePanelStore.getState().closeRemoteFolderPicker();
+    expect(usePanelStore.getState().remoteFolderPickerConnectionKey).toBeNull();
+  });
 });
 
 describe("browserOverlayMaximized lifecycle", () => {

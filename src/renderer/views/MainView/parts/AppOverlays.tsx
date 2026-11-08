@@ -10,6 +10,7 @@ import {
 } from "@/renderer/analytics/useProductViewTracking";
 import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
 import {
+  DeferredAddRemoteFolderModal as PrewarmedAddRemoteFolderModal,
   DeferredBrowserHost as PrewarmedBrowserHost,
   DeferredCloneProjectModal as PrewarmedCloneProjectModal,
   DeferredCreateProjectModal as PrewarmedCreateProjectModal,
@@ -270,6 +271,7 @@ export function AppOverlays() {
       <DeferredLoginTerminalOverlay />
       <DeferredCreateProjectModal />
       <DeferredCloneProjectModal />
+      <DeferredAddRemoteFolderModal />
     </>
   );
 }
@@ -325,6 +327,16 @@ function DeferredCloneProjectModal() {
   return enabled ? (
     <Suspense>
       <PrewarmedCloneProjectModal />
+    </Suspense>
+  ) : null;
+}
+
+function DeferredAddRemoteFolderModal() {
+  const open = usePanelStore((state) => state.remoteFolderPickerConnectionKey !== null);
+  const enabled = useEverEnabled(open);
+  return enabled ? (
+    <Suspense>
+      <PrewarmedAddRemoteFolderModal />
     </Suspense>
   ) : null;
 }

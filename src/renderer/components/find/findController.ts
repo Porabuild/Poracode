@@ -42,7 +42,8 @@ export function resolveFindTarget(target?: EventTarget | null): FindTarget | nul
   if (
     useCommandPaletteStore.getState().isOpen ||
     panel.createProjectModalOpen ||
-    panel.cloneProjectModalOpen
+    panel.cloneProjectModalOpen ||
+    panel.remoteFolderPickerConnectionKey !== null
   ) {
     return null;
   }
