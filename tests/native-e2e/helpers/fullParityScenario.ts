@@ -126,9 +126,19 @@ async function requestGeneratedRoute(
   const queryValues = schemaExample(route.request.querySchema) as Record<string, unknown>;
   if (routeId === "local-image") queryValues.path = "/tmp/image one.png";
   if (routeId === "runtime-image") queryValues.path = ["payload", 0, "image key"];
+  if (routeId === "thread-transfer-upload") {
+    // The staged-upload contract needs a well-formed transfer id and a query
+    // that matches the five-byte fixture body; the hash is only checked at commit.
+    queryValues.offset = 0;
+    queryValues.total = 5;
+    queryValues.sha256 = "0".repeat(64);
+  }
   let path = route.path;
   for (const name of route.pathParameters ?? []) {
-    const value = `${name} fixture/encoded`;
+    const value =
+      routeId === "thread-transfer-upload" && name === "transferId"
+        ? "11111111-1111-4111-8111-111111111111"
+        : `${name} fixture/encoded`;
     path = path.replace(`{${name}}`, encodeURIComponent(String(value)));
   }
   const url = new URL(path, harness.httpBaseUrl);
