@@ -82,6 +82,23 @@ function buildRuntimeTarball(root, options = {}) {
   );
   writeFileSync(join(stage, "lib", "server.cjs"), options.serverSource ?? STUB_SERVER);
   writeFileSync(join(stage, "resources", "wsl-helpers", "README.md"), "helpers\n");
+  if (options.standalone) {
+    // A self-contained runtime: its bundled "Node" delegates to this test's Node.
+    mkdirSync(join(stage, "runtime"), { recursive: true });
+    writeFileSync(join(stage, "runtime", "node"), `#!/bin/sh\nexec "${process.execPath}" "$@"\n`, {
+      mode: 0o755,
+    });
+    writeFileSync(
+      join(stage, "standalone.json"),
+      `${JSON.stringify({
+        formatVersion: 1,
+        kind: "poracode-standalone-runtime",
+        version,
+        target: options.standalone.target,
+        node: { version: "26.13.0", executable: "runtime/node" },
+      })}\n`,
+    );
+  }
   for (const script of [
     "server-release-install.mjs",
     "server-host-tools.mjs",
@@ -1332,9 +1349,36 @@ void test("runCli forwards the selected profile to the runtime without forwardin
   assert.equal(env.PORACODE_BASE_DIR, undefined);
 });
 
+void test("parseRuntimeManifest reads formats 1 and 2 and pins standalone archives in 2", () => {
+  const url = "https://example.invalid/poracode-1.0.0-linux-x64.tar.gz";
+  const digest = "a".repeat(64);
+  assert.equal(
+    parseRuntimeManifest({
+      formatVersion: 1,
+      version: "1.0.0",
+      targets: { x: { url, sha256: digest } },
+    }).formatVersion,
+    1,
+  );
+  const standalone = {
+    formatVersion: 2,
+    version: "1.0.0",
+    targets: { "linux-x64": { url, sha256: digest, kind: "standalone", archive: "tar.gz" } },
+  };
+  assert.equal(parseRuntimeManifest(standalone).formatVersion, 2);
+  assert.throws(
+    () =>
+      parseRuntimeManifest({
+        ...standalone,
+        targets: { "linux-x64": { url, sha256: digest } },
+      }),
+    /standalone tar\.gz or zip/u,
+  );
+});
+
 void test("parseRuntimeManifest rejects malformed manifests", () => {
   assert.throws(
-    () => parseRuntimeManifest({ formatVersion: 2, version: "1.0.0", targets: {} }),
+    () => parseRuntimeManifest({ formatVersion: 3, version: "1.0.0", targets: {} }),
     /formatVersion/u,
   );
   assert.throws(
@@ -1349,5 +1393,73 @@ void test("parseRuntimeManifest rejects malformed manifests", () => {
         targets: { "linux-x64": { url: "https://example.invalid/a.tgz", sha256: "nope" } },
       }),
     /malformed sha256/u,
+  );
+});
+
+const posixOnly = { skip: process.platform === "win32" ? "POSIX standalone fixture" : false };
+
+void test(
+  "a standalone runtime installs without npm and runs on its bundled Node",
+  posixOnly,
+  async () => {
+    const { hostRuntimeTarget } = await import(
+      pathToFileURL(join(repoRoot, "scripts", "server-release-install.mjs")).href
+    );
+    const root = tempDir("poracode-cli-standalone-");
+    const { tarball, sha256: artifactSha } = buildRuntimeTarball(root, {
+      version: launcherVersion(),
+      standalone: { target: hostRuntimeTarget() },
+    });
+    let captured;
+    const code = await runCli(["doctor", "--json"], {
+      env: {
+        ...process.env,
+        PORACODE_SERVER_TARBALL: tarball,
+        PORACODE_SERVER_TARBALL_SHA256: artifactSha,
+        PORACODE_RUNTIME_CACHE_DIR: join(root, "cache"),
+      },
+      installOptions: { npm: join(root, "npm-must-not-run") },
+      spawnImpl: (command, args, options) => {
+        captured = { command, args, options };
+        const child = new EventEmitter();
+        child.kill = () => {};
+        queueMicrotask(() => child.emit("exit", 0, null));
+        return child;
+      },
+    });
+    assert.equal(code, 0);
+    const runtimeDir = dirname(dirname(captured.args[0]));
+    assert.equal(captured.command, join(runtimeDir, "runtime", "node"));
+    assert.deepEqual(captured.args.slice(1), ["doctor", "--json"]);
+    assert.ok(existsSync(join(runtimeDir, "standalone.json")));
+    assert.equal(existsSync(join(runtimeDir, "node_modules")), false);
+  },
+);
+
+void test("standaloneRuntimeNode fails closed on a foreign or mismatched marker", async () => {
+  const { standaloneRuntimeNode } = await import("../lib/standalone.mjs");
+  const runtimeDir = tempDir("poracode-cli-standalone-marker-");
+  assert.equal(standaloneRuntimeNode(runtimeDir), null);
+  const write = (marker) =>
+    writeFileSync(join(runtimeDir, "standalone.json"), `${JSON.stringify(marker)}\n`);
+  const valid = {
+    formatVersion: 1,
+    kind: "poracode-standalone-runtime",
+    version: "1.2.3",
+    target: "linux-x64",
+    node: { version: "26.13.0", executable: "runtime/node" },
+  };
+  write({ ...valid, formatVersion: 2 });
+  assert.throws(() => standaloneRuntimeNode(runtimeDir), /unknown format/u);
+  write({ ...valid, node: { version: "26.13.0", executable: "../node" } });
+  assert.throws(() => standaloneRuntimeNode(runtimeDir), /node executable path/u);
+  write(valid);
+  assert.throws(() => standaloneRuntimeNode(runtimeDir), /node executable missing/u);
+  mkdirSync(join(runtimeDir, "runtime"));
+  writeFileSync(join(runtimeDir, "runtime", "node"), "");
+  assert.throws(() => standaloneRuntimeNode(runtimeDir, { version: "9.9.9" }), /version mismatch/u);
+  assert.equal(
+    standaloneRuntimeNode(runtimeDir, { version: "1.2.3", target: "linux-x64" }),
+    join(runtimeDir, "runtime", "node"),
   );
 });

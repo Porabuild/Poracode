@@ -212,6 +212,16 @@ describe("parseServerCliCommand", () => {
     expect(parseServerCliCommand(["tui", "--help"])).toBe("help");
   });
 
+  it("parses --prefetch alone and refuses it combined with anything else", () => {
+    expect(parseTuiCliOptions(["--prefetch"])).toEqual({ prefetch: true });
+    for (const args of [
+      ["--prefetch", "-c"],
+      ["--prefetch", "some/dir"],
+      ["--prefetch", "--server", "x"],
+    ])
+      expect(() => parseTuiCliOptions(args)).toThrow("Usage: poracode tui");
+  });
+
   it("recognizes the TLS material generation command", () => {
     expect(parseServerCliCommand(["init-tls"])).toBe("init-tls");
     expect(parseServerCliCommand(["init-tls", "--json"])).toBe("init-tls");

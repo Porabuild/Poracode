@@ -363,6 +363,7 @@ describe("explicit installed-prefix service administration", () => {
     expect(registration).toMatchObject({
       state: "installed",
       installPrefix: realpathSync.native(f.prefix),
+      nodeExecutable: realpathSync.native(process.execPath),
       configPath: null,
       launcher: null,
     });

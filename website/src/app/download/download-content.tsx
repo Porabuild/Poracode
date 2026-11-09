@@ -8,6 +8,12 @@ import { localizedPath } from "@/lib/i18n/config";
 import { downloadUrlFor, type ReleaseInfo } from "@/lib/releases";
 import { extensionStoreLinks } from "@/lib/extensionStores";
 
+const CLI_INSTALLERS = [
+  { labelKey: "download.cli.unix", command: "curl -fsSL https://poracode.com/install.sh | sh" },
+  { labelKey: "download.cli.windows", command: "irm https://poracode.com/install.ps1 | iex" },
+] as const;
+const NPX_COMMAND = { labelKey: "download.cli.npx", command: "npx poracode@latest" } as const;
+
 const PLATFORMS = [
   {
     os: "macOS",
@@ -32,7 +38,13 @@ const PLATFORMS = [
   },
 ];
 
-export function DownloadContent({ release }: { release: ReleaseInfo }) {
+export function DownloadContent({
+  release,
+  npxAvailable,
+}: {
+  release: ReleaseInfo;
+  npxAvailable: boolean;
+}) {
   const { locale, t } = useI18n();
   const versionSuffix = release.version ? ` v${release.version}` : "";
   const homeHref = localizedPath("/", locale);
@@ -113,11 +125,37 @@ export function DownloadContent({ release }: { release: ReleaseInfo }) {
               </div>
             </motion.div>
           ))}
-          {extensionStores.length > 0 ? (
+          {release.cliInstaller ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 * (PLATFORMS.length + 1) }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Terminal className="w-5 h-5 text-gray-400" />
+                <h2 className="text-xl font-semibold">{t("download.cli.title")}</h2>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">{t("download.cli.description")}</p>
+              <div className="grid gap-3">
+                {[...CLI_INSTALLERS, ...(npxAvailable ? [NPX_COMMAND] : [])].map((entry) => (
+                  <div
+                    key={entry.command}
+                    className="px-5 py-4 rounded-xl bg-white/[0.03] border border-white/[0.06]"
+                  >
+                    <span className="block text-xs text-gray-500 mb-2">{t(entry.labelKey)}</span>
+                    <code className="block select-all overflow-x-auto whitespace-nowrap font-mono text-sm text-gray-200">
+                      {entry.command}
+                    </code>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          ) : null}
+          {extensionStores.length > 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 * (PLATFORMS.length + 2) }}
             >
               <div className="flex items-center gap-3 mb-2">
                 <Puzzle className="w-5 h-5 text-gray-400" />

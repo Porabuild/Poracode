@@ -1,11 +1,12 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { requestOwnerShutdown } from "./ownerShutdown";
 import { probeLeaseKernelLock } from "./serverDoctorIo";
+import { serviceNodeExecutable } from "./serverStandaloneRuntime";
 import { acquireServerUpgradeLock, type ServerUpgradeLock } from "./serverUpgradeLock";
 import { readServerUpgradeJournalState, isTerminalUpgradePhase } from "./serverUpgradeJournal";
 import {
@@ -408,7 +409,7 @@ export async function runServerService(
           account: context.account,
           profileNamespace: profile,
           installPrefix: selected.prefix,
-          nodeExecutable: realpathSync.native(process.execPath),
+          nodeExecutable: serviceNodeExecutable(selected.prefix),
           entrypointRelative: "current/lib/server.cjs",
           configPath: options.config ? resolve(options.config) : null,
           definition: { locator: serviceDefinitionPath(id, context.home), sha256: "0".repeat(64) },
