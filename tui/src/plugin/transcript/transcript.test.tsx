@@ -118,7 +118,7 @@ async function renderTranscript(input: {
   thread: Thread;
   items: PersistedRuntimeItem[];
   turns?: PersistedCompletedTurn[];
-  waitFor: string;
+  waitFor: string | readonly string[];
   verbosity?: "low" | "medium" | "high";
   width?: number;
   act?: (setup: Setup) => Promise<void>;
@@ -174,7 +174,9 @@ async function renderTranscript(input: {
     ),
   );
   try {
-    await setup.waitForFrame((frame) => frame.includes(input.waitFor));
+    await setup.waitForFrame((frame) =>
+      [input.waitFor].flat().every((text) => frame.includes(text)),
+    );
     await setup.waitForVisualIdle({ quietFrames: 3 });
     await input.act?.(setup);
     return setup.captureCharFrame();
@@ -197,7 +199,7 @@ test("a finished turn reads like the desktop chat: bubble, collapsed groups, pil
   const frame = await renderTranscript({
     thread: thread("idle", "2026-11-08T10:02:10.000Z"),
     items: turn,
-    waitFor: "Worked for",
+    waitFor: ["Worked for", "Done."],
   });
   expect(frame).toContain("╭");
   expect(frame).toContain("│ Make the server port configurable and run the tests.");
