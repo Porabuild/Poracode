@@ -117,6 +117,14 @@ jobs:
         with:
           workspaces: native/computer-use-helper
 
+      - name: Cache MCP relay Rust build
+        # A distinct prefix keeps restore-keys from ever matching the
+        # computer-use helper's cache entries.
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: native/mcp-relay
+          prefix: mcp-relay-rust
+
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
         with:
@@ -166,7 +174,7 @@ jobs:
 
       - name: Prepare helper cache directory
         run: >-
-          node -e "require('node:fs').mkdirSync('resources/computer-use-helper', { recursive: true })"
+          node -e "const fs=require('node:fs');fs.mkdirSync('resources/computer-use-helper',{recursive:true});fs.mkdirSync('resources/wsl-helpers/mcp-relay',{recursive:true})"
         shell: bash
 
       - name: Cache computer-use helper artifact
@@ -174,7 +182,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: resources/computer-use-helper
-          key: computer-use-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.helper-targets }}-${{ hashFiles('native/computer-use-helper/src/**', 'native/computer-use-helper/Cargo.toml', 'native/computer-use-helper/Cargo.lock', 'native/computer-use-helper/.cargo/config.toml', 'native/computer-use-helper/rust-toolchain.toml', 'scripts/prepare-computer-use-helper.mjs', 'src/shared/contracts/computerUse.ts') }}
+          key: computer-use-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.helper-targets }}-${{ hashFiles('native/computer-use-helper/src/**', 'native/computer-use-helper/Cargo.toml', 'native/computer-use-helper/Cargo.lock', 'native/computer-use-helper/.cargo/config.toml', 'native/computer-use-helper/rust-toolchain.toml', 'scripts/prepare-computer-use-helper.mjs', 'scripts/lib/native-helper-prepare.mjs', 'src/shared/contracts/computerUse.ts') }}
 
       - name: Mark restored helper current
         if: steps.helper-artifact.outputs.cache-hit == 'true'
@@ -183,6 +191,22 @@ jobs:
 
       - name: Prepare computer-use helper
         run: node scripts/prepare-computer-use-helper.mjs --platform "${{ matrix.platform }}" --require
+        shell: bash
+
+      - name: Cache MCP relay artifact
+        id: mcp-relay-artifact
+        uses: actions/cache@v5
+        with:
+          path: resources/wsl-helpers/mcp-relay
+          key: mcp-relay-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.helper-targets }}-${{ hashFiles('native/mcp-relay/src/**', 'native/mcp-relay/Cargo.toml', 'native/mcp-relay/Cargo.lock', 'native/mcp-relay/.cargo/config.toml', 'native/mcp-relay/rust-toolchain.toml', 'scripts/prepare-mcp-relay.mjs', 'scripts/lib/native-helper-prepare.mjs', 'src/supervisor/mcp/mcpToolFilterConfig.ts') }}
+
+      - name: Mark restored MCP relay current
+        if: steps.mcp-relay-artifact.outputs.cache-hit == 'true'
+        run: touch resources/wsl-helpers/mcp-relay/*/poracode-mcp-relay*
+        shell: bash
+
+      - name: Prepare MCP relay
+        run: node scripts/prepare-mcp-relay.mjs --platform "${{ matrix.platform }}" --require
         shell: bash
 
       - name: Prepare locked computer use plug-in
@@ -308,6 +332,14 @@ jobs:
             helper_signature="$(codesign -d --verbose=4 "$helper" 2>&1)"
             if ! grep -q 'flags=.*runtime' <<<"$helper_signature"; then
               echo "::error file=$helper::Computer-use helper is missing the hardened-runtime signature flag."
+              exit 1
+            fi
+
+            relay="$app/Contents/Resources/wsl-helpers/mcp-relay/darwin-universal/poracode-mcp-relay"
+            codesign --verify --strict --verbose=4 "$relay"
+            relay_signature="$(codesign -d --verbose=4 "$relay" 2>&1)"
+            if ! grep -q 'flags=.*runtime' <<<"$relay_signature"; then
+              echo "::error file=$relay::MCP relay is missing the hardened-runtime signature flag."
               exit 1
             fi
 

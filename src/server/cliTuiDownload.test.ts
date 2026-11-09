@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { SERVER_INSTALL_LAYOUT_VERSION, type ServerInstallLayout } from "./serverInstallLayout";
 import {
@@ -18,6 +18,7 @@ import {
   tuiBinaryTarget,
   type TuiManifest,
 } from "@/shared/tuiManifest";
+import { prefetchTuiBinary } from "./cliTui";
 
 const sha256 = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
 
@@ -283,6 +284,71 @@ describe("ensureTuiBinaryDownload", () => {
         appVersion: "9.9.9",
       }),
     ).rejects.toBeInstanceOf(TuiDownloadError);
+  });
+});
+
+describe("prefetchTuiBinary", () => {
+  it("returns the PORACODE_TUI_BIN override without fetching", async () => {
+    const root = stage();
+    const override = resolve("compiled-tui");
+    const fetchImpl = (async () => {
+      throw new Error("prefetch must not fetch for an override");
+    }) as typeof fetch;
+    await expect(
+      prefetchTuiBinary(
+        {},
+        {
+          layout: layout("prefix", root),
+          env: { PORACODE_TUI_BIN: "compiled-tui" },
+          fileExists: (path) => path === override,
+          fetchImpl,
+        },
+      ),
+    ).resolves.toBe(override);
+  });
+
+  it("returns undefined when the install offers no TUI binary for this target", async () => {
+    const root = stage();
+    await expect(
+      prefetchTuiBinary(
+        {},
+        {
+          layout: layout("prefix", root),
+          env: { PORACODE_TUI_CACHE_DIR: join(scratch!, "cache") },
+        },
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("downloads the manifest's target into the cache and reuses it", async () => {
+    const root = stage();
+    const bytes = Buffer.from("compiled-tui-bytes");
+    const target = tuiBinaryTarget(process.platform, process.arch)!;
+    const name = tuiBinaryAssetName(target);
+    const manifest = manifestFor({ [target]: { bytes, name } });
+    const port = await httpFixture((url) =>
+      url === `/v9.9.9/${name}` ? { status: 200, body: bytes } : undefined,
+    );
+    writeManifest(join(root, "resources", "tui"), {
+      ...manifest,
+      downloadBaseUrl: `http://127.0.0.1:${port}`,
+    });
+    const env = {
+      PORACODE_TUI_CACHE_DIR: join(scratch!, "cache"),
+      PORACODE_TUI_DOWNLOAD_BASE_URL: `http://127.0.0.1:${port}`,
+    };
+    const binary = await prefetchTuiBinary(
+      {},
+      { layout: layout("prefix", root), appVersion: "9.9.9", env },
+    );
+    expect(binary).toBe(join(env.PORACODE_TUI_CACHE_DIR, "9.9.9", target, name));
+    expect(readFileSync(binary!)).toEqual(bytes);
+    // The cache hit needs no server: any fetch would now fail.
+    server?.close();
+    server = undefined;
+    await expect(
+      prefetchTuiBinary({}, { layout: layout("prefix", root), appVersion: "9.9.9", env }),
+    ).resolves.toBe(binary);
   });
 });
 

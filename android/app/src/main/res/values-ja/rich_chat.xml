@@ -251,4 +251,16 @@
     <string name="rich_chat_background_task_last_progress">最後の進捗報告は%1$s前</string>
     <string name="rich_chat_background_task_close">タスクの詳細を閉じる</string>
     <string name="rich_chat_background_task_report_missing">タスクは完了レポートなしで終了しました。</string>
+    <string name="rich_chat_html_visual_title">HTMLプレビュー</string>
+    <string name="rich_chat_html_visual_source">ソース</string>
+    <string name="rich_chat_html_visual_preview">プレビュー</string>
+    <string name="rich_chat_html_visual_copy_source">ソースをコピー</string>
+    <string name="rich_chat_html_visual_loading">プレビューを読み込み中…</string>
+    <string name="rich_chat_html_visual_incomplete">HTMLブロックが未完了です。ソースのみ表示しています。</string>
+    <string name="rich_chat_html_visual_unsupported">未対応のHTML形式です。ソースのみ表示しています。</string>
+    <string name="rich_chat_html_visual_limited">このメッセージのHTMLプレビューが多すぎます。ソースのみ表示しています。</string>
+    <string name="rich_chat_html_visual_too_large">このHTMLブロックはプレビューするには大きすぎます。ソースのみ表示しています。</string>
+    <string name="rich_chat_html_visual_unavailable">インタラクティブ表示は利用できません。ソースのみ表示しています。</string>
+    <string name="rich_chat_html_visual_open_link_title">リンクを開きますか？</string>
+    <string name="rich_chat_html_visual_open_link">開く</string>
 </resources>

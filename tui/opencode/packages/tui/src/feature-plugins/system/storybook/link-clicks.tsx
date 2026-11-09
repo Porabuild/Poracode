@@ -86,6 +86,9 @@ function LinkClicksStory(props: { context: Plugin.Context }) {
           anchors: createTimelineAnchors(),
           groupExpanded: () => true,
           setGroupExpanded: () => {},
+          // poracode: the story's rows keep no plugin disclosure.
+          savedDisclosure: () => undefined,
+          setDisclosure: () => {},
           thinkingMode: () => "show",
           markdownMode,
           groupExploration: () => false,

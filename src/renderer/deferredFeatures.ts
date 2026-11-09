@@ -10,6 +10,10 @@ export const DeferredThreadForkDialog = preloadable(() =>
   import("@/renderer/components/thread/ThreadForkDialog").then((module) => module.ThreadForkDialog),
 );
 
+export const DeferredMoveThreadDialog = preloadable(() =>
+  import("@/renderer/components/thread/MoveThreadDialog").then((module) => module.MoveThreadDialog),
+);
+
 export const DeferredDeviceWorkspace = preloadable(() =>
   import("@/renderer/components/devices/DeviceWorkspace").then((module) => module.DeviceWorkspace),
 );
@@ -45,6 +49,12 @@ export const DeferredCreateProjectModal = preloadable(() =>
 export const DeferredCloneProjectModal = preloadable(() =>
   import("@/renderer/views/MainView/parts/CreateProject/CloneProjectModal").then(
     (module) => module.CloneProjectModal,
+  ),
+);
+
+export const DeferredAddRemoteFolderModal = preloadable(() =>
+  import("@/renderer/views/MainView/parts/CreateProject/AddRemoteFolderModal").then(
+    (module) => module.AddRemoteFolderModal,
   ),
 );
 
@@ -147,6 +157,7 @@ const desktopPrewarmTasks = [
   DeferredSettingsOverlay.preload,
   DeferredCreateProjectModal.preload,
   DeferredCloneProjectModal.preload,
+  DeferredAddRemoteFolderModal.preload,
   DeferredProjectSettingsOverlay.preload,
   DeferredBrowserHost.preload,
   DeferredLoginTerminalOverlay.preload,

@@ -3118,6 +3118,34 @@
         "note": "B1 declared-only history-gap reads and command-id acknowledgements are implemented in both handwritten native transports. Both platforms have executed visible recovery and foreground/reconnect journeys; iOS additionally proves a fresh second-turn response after foregrounding. See the V2 execution log for exact artifacts and qualification limits."
       },
       {
+        "id": "thread-transfer-command",
+        "scopes": ["session:operate"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "note": "Thread transfer (Move to another machine) is driven by the shared browser renderer (Electron and web/PWA), which holds grants for both hosts. Native clients can open and continue a moved thread on its new host but have no move surface yet."
+      },
+      {
+        "id": "thread-transfer-upload",
+        "scopes": ["session:operate"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "note": "Thread transfer (Move to another machine) is driven by the shared browser renderer (Electron and web/PWA), which holds grants for both hosts. Native clients can open and continue a moved thread on its new host but have no move surface yet."
+      },
+      {
         "id": "experiment-state",
         "scopes": ["session:read"],
         "batch": "thread-lifecycle",

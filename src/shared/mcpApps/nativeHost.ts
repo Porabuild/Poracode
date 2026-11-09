@@ -1,6 +1,8 @@
 import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps/app-bridge";
 import type { CallToolResult } from "@modelcontextprotocol/client";
 import type { McpAppReference, ControlMcpAppResult } from "../contracts/mcpApps";
+import type { HtmlVisualTheme } from "../htmlVisuals";
+import { mountHtmlVisual, type HtmlVisualView } from "./htmlVisualView";
 import { mountMcpApp } from "./viewBridge";
 
 interface NativeConfiguration {
@@ -9,6 +11,11 @@ interface NativeConfiguration {
   input: Record<string, unknown>;
   result: CallToolResult;
   context: McpUiHostContext;
+}
+
+interface NativeHtmlConfiguration {
+  html: string;
+  theme: HtmlVisualTheme;
 }
 
 interface NativeWindow extends Window {
@@ -20,13 +27,30 @@ interface NativeWindow extends Window {
     setContext(context: McpUiHostContext): void;
     close(): void;
   };
+  PoracodeHtmlVisual?: {
+    start(configuration: NativeHtmlConfiguration): void;
+    setTheme(theme: HtmlVisualTheme): void;
+    close(): void;
+  };
 }
 
 const nativeWindow = window as NativeWindow;
 const pending = new Map<string, { resolve(value: unknown): void; reject(error: Error): void }>();
 let controller: AbortController | undefined;
 let view: Awaited<ReturnType<typeof mountMcpApp>> | undefined;
+let htmlController: AbortController | undefined;
+let htmlView: HtmlVisualView | undefined;
 let nativePort: MessagePort | undefined;
+
+function sandboxFrame(): HTMLIFrameElement {
+  const frame = document.createElement("iframe");
+  frame.setAttribute("sandbox", "allow-scripts");
+  frame.setAttribute("referrerpolicy", "no-referrer");
+  frame.style.cssText = "width:100%;height:100%;border:0;display:block";
+  document.body.replaceChildren(frame);
+  document.body.style.cssText = "margin:0;overflow:hidden";
+  return frame;
+}
 
 function post(message: unknown): void {
   if (nativeWindow.webkit) nativeWindow.webkit.messageHandlers.poracodeMcpApp.postMessage(message);
@@ -47,12 +71,7 @@ nativeWindow.PoracodeMcpApp = {
     this.close();
     const owner = new AbortController();
     controller = owner;
-    const frame = document.createElement("iframe");
-    frame.setAttribute("sandbox", "allow-scripts");
-    frame.setAttribute("referrerpolicy", "no-referrer");
-    frame.style.cssText = "width:100%;height:100%;border:0;display:block";
-    document.body.replaceChildren(frame);
-    document.body.style.cssText = "margin:0;overflow:hidden";
+    const frame = sandboxFrame();
     try {
       const mounted = await mountMcpApp({
         ...configuration,
@@ -110,6 +129,44 @@ nativeWindow.PoracodeMcpApp = {
   },
 };
 
+nativeWindow.PoracodeHtmlVisual = {
+  start(configuration) {
+    this.close();
+    const owner = new AbortController();
+    htmlController = owner;
+    htmlView = mountHtmlVisual({
+      frame: sandboxFrame(),
+      endpoint: "http://localhost",
+      html: configuration.html,
+      theme: configuration.theme,
+      signal: owner.signal,
+      inlineSandbox: true,
+      // Native still confirms before leaving the app.
+      openLink: (url) => {
+        if (!owner.signal.aborted) post({ operation: "openLink", url });
+      },
+      onReady: () => {
+        if (!owner.signal.aborted) post({ operation: "ready" });
+      },
+      onHeight: (height) => {
+        if (!owner.signal.aborted) post({ operation: "height", height });
+      },
+      onUnavailable: () => {
+        if (owner.signal.aborted) return;
+        post({ operation: "unavailable" });
+        owner.abort();
+      },
+    });
+  },
+  setTheme(theme) {
+    htmlView?.setTheme(theme);
+  },
+  close() {
+    htmlController?.abort();
+    htmlView = undefined;
+  },
+};
+
 // Android transfers this port only to the credential-free trusted main frame.
 // A child window cannot impersonate the native sender (its source is non-null).
 window.addEventListener("message", (event) => {
@@ -128,7 +185,13 @@ window.addEventListener("message", (event) => {
       else if (data.operation === "response")
         nativeWindow.PoracodeMcpApp!.respond(data.id, data.result, data.error);
       else if (data.operation === "context") nativeWindow.PoracodeMcpApp!.setContext(data.context);
-      else if (data.operation === "close") nativeWindow.PoracodeMcpApp!.close();
+      else if (data.operation === "startHtml")
+        nativeWindow.PoracodeHtmlVisual!.start(data.configuration);
+      else if (data.operation === "theme") nativeWindow.PoracodeHtmlVisual!.setTheme(data.theme);
+      else if (data.operation === "close") {
+        nativeWindow.PoracodeMcpApp!.close();
+        nativeWindow.PoracodeHtmlVisual!.close();
+      }
     } catch {
       post({ operation: "unavailable" });
     }

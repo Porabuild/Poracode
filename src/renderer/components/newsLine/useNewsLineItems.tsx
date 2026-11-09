@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Gauge, Keyboard, Star } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { formatResetCountdown } from "@poracode/agents-usage/formatters";
@@ -35,6 +35,7 @@ import { useFeatureContext } from "./useFeatureContext";
 import { useDiscoveryItems } from "./useDiscoveryItems";
 import { useAnnouncementItems } from "./useAnnouncementItems";
 import { useInsightItems } from "./useInsightItems";
+import type { NewsVisit } from "./newsVisit";
 import { NewsUsageMeter } from "./NewsVisuals";
 
 /** Changelog points and keyboard tips featured per visit. */
@@ -71,16 +72,15 @@ export interface NewsLineModel {
  * Builds the news line's rotation for one visit to the new-thread page:
  * activity insights, changelog highlights, remote announcements, features the
  * user has not tried, a usage limit, keyboard tips, and community promotions.
- * Choices are fixed for the visit (seeded once); dismissals and settings apply
- * live. The caller remounts the line for each draft visit, so reopening the
- * draft re-rolls the rotation instead of repeating the last one.
+ * Choices come from the visit's seed and history snapshots, so a remount within
+ * the visit rebuilds the same rotation; dismissals and settings apply live.
+ * Each draft visit starts a new record, so reopening the draft re-rolls the
+ * rotation instead of repeating the last one.
  */
-export function useNewsLineItems(): NewsLineModel {
+export function useNewsLineItems(visit: NewsVisit): NewsLineModel {
   const { t } = useLingui();
-  const [seed] = useState(() => Math.floor(Math.random() * 2 ** 32));
-  const [historyAtVisit] = useState(() => useNewsLineStore.getState().highlightHistory);
   // Reset countdowns are read once per visit, like the rest of the visit's choices.
-  const [visitStartedAt] = useState(() => Date.now());
+  const { seed, highlightHistory: historyAtVisit, startedAt: visitStartedAt } = visit;
 
   const activity = useSharedSettings((state) => state.newsLineActivity);
   const dismissedPromotions = useSharedSettings((state) => state.dismissedPromotions);
@@ -106,6 +106,7 @@ export function useNewsLineItems(): NewsLineModel {
     releases,
     appVersion,
     visitStartedAt,
+    history: visit.discoveryHistory,
   });
   const announcements = useAnnouncementItems({
     context: featureContext,

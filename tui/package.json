@@ -21,6 +21,7 @@
     "@opencode/util": "workspace:*",
     "@opentui/solid": "catalog:",
     "effect": "4.0.1",
+    "marked": "17.0.1",
     "zod": "catalog:"
   },
   "devDependencies": {

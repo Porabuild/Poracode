@@ -352,7 +352,7 @@ private fun RichTimelineItem(
                 val body = RichChatUiLogic.messageBody(item)
                 val fileCards = RichChatUiLogic.chatFiles(item)
                 if (body.isNotBlank()) {
-                    RichMarkdownView(body)
+                    RichAssistantMarkdown(body, settled = item.state == RichItemState.COMPLETED)
                 }
                 fileCards.forEach { ref -> RichChatFileCard(ref) }
                 if (body.isBlank() && fileCards.isEmpty() && text.isNotBlank()) {

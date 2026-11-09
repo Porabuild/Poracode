@@ -42,6 +42,11 @@ msgstr "(không có nhánh)"
 msgid "(optional)"
 msgstr "(không bắt buộc)"
 
+#. placeholder {0}: preview.source.git.changedFiles
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{0, plural, =0 {no uncommitted changes} one {# uncommitted change} other {# uncommitted changes}}"
+#~ msgstr "{0, plural, =0 {không có thay đổi chưa commit} other {# thay đổi chưa commit}}"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -733,6 +738,10 @@ msgstr "{minutes} phút trước"
 msgid "{missingAuthLabel} needs authentication."
 msgstr "{missingAuthLabel} cần xác thực."
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "{moved} · continued with {agentLabel}"
+msgstr "{moved} · tiếp tục với {agentLabel}"
+
 #: src/renderer/actions/workspaceActions.ts
 msgid "{movedCount, plural, one {Moved # project to {target}.} other {Moved # projects to {target}.}}"
 msgstr "{movedCount, plural, other {Đã chuyển # dự án sang {target}.}}"
@@ -773,6 +782,14 @@ msgstr "{productName} đã được cập nhật lên v{0}."
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (bị vô hiệu hóa)"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} isn't set up on another machine yet. Add it there to move this thread."
+msgstr "{projectName} chưa được thiết lập trên máy khác. Hãy thêm nó vào đó để chuyển luồng này."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} on {targetLabel} isn't a Git repository, so its code can't move there."
+msgstr "{projectName} trên {targetLabel} không phải là kho Git, nên không thể chuyển mã của nó sang đó."
 
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
@@ -829,6 +846,18 @@ msgstr "{serverName} · WSL {0}"
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{serverName} từ {providerLabel}: {disabledLabel}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}, and no other chat agent is ready there. Set one up there first."
+msgstr "{sourceAgentLabel} chưa được thiết lập trên {targetLabel} và ở đó không có tác tử trò chuyện nào khác sẵn sàng. Hãy thiết lập một tác tử ở đó trước."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Choose the agent that continues there."
+#~ msgstr "{sourceAgentLabel} chưa được thiết lập trên {targetLabel}. Hãy chọn tác tử sẽ tiếp tục ở đó."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Pick the agent that continues there."
+msgstr "{sourceAgentLabel} chưa được thiết lập trên {targetLabel}. Hãy chọn tác tử sẽ tiếp tục ở đó."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "{sourceCrewName} comes along."
 msgstr "{sourceCrewName} sẽ đi cùng."
@@ -840,6 +869,22 @@ msgstr "{sourceCrewName} sẽ ở lại: {targetProviderLabel} không thể dẫ
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, other {# bước}}"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no project for this repository. Add it there first."
+#~ msgstr "{targetLabel} không có dự án nào cho kho này. Hãy thêm nó ở đó trước."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no projects yet. Add one there first."
+#~ msgstr "{targetLabel} chưa có dự án nào. Hãy thêm một dự án ở đó trước."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is offline. Connect to it first."
+msgstr "{targetLabel} đang ngoại tuyến. Hãy kết nối với máy đó trước."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is reached through this computer, so you can't open it while this computer is off."
+msgstr "{targetLabel} được truy cập qua máy tính này, nên bạn không thể mở nó khi máy tính này tắt."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 #~ msgid "{totalAdditions} additions and {totalDeletions} deletions"
@@ -1508,6 +1553,7 @@ msgstr "Thêm phương án dự phòng"
 msgid "Add files, drop here, or paste an image"
 msgstr "Thêm tệp, thả vào đây hoặc dán hình ảnh"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "Thêm thư mục"
@@ -1568,6 +1614,10 @@ msgstr "Thêm biểu cảm"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Thêm remote"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "Thêm kết nối từ xa"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -1716,6 +1766,10 @@ msgstr "Tác nhân hiện đang bị vô hiệu hóa"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent not found"
 msgstr "Không tìm thấy tác nhân"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Agent on {targetLabel}"
+#~ msgstr "Tác tử trên {targetLabel}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -2262,6 +2316,10 @@ msgstr "Lưu trữ luồng hiện tại"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Archive this session?"
 #~ msgstr "Lưu trữ phiên này?"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Archive this thread here after moving"
+#~ msgstr "Lưu trữ luồng này ở đây sau khi chuyển"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive thread"
@@ -2873,6 +2931,7 @@ msgstr "Giới hạn số trợ lý tạo ngắn hạn (tiêu đề luồng, th�
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "Giới hạn số shell terminal có thể chạy đồng thời trên máy chủ này. Đếm khe thực thi logic, không phải tiến trình hệ điều hành hay bộ nhớ. 0 = không giới hạn."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
@@ -2911,6 +2970,11 @@ msgstr "Nhánh hoặc thẻ"
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
 msgstr "Quy tắc bảo vệ nhánh đã chặn lần hợp nhất này."
+
+#. placeholder {0}: preview.source.git.branch
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Branch: {0}"
+#~ msgstr "Nhánh: {0}"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Branches"
@@ -3184,7 +3248,7 @@ msgstr "Không thể tải danh sách cổng"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "Không thể kết nối tới máy chủ từ xa. Hãy kiểm tra máy chủ đang trực tuyến rồi kết nối lại."
 
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/providerTargetSelection.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Can't use this model selection on that surface"
 msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
@@ -3200,6 +3264,7 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -3578,6 +3643,10 @@ msgstr "Đang kiểm tra"
 msgid "Checking {serverName}"
 msgstr "Đang kiểm tra {serverName}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Checking {targetLabel}…"
+msgstr "Đang kiểm tra {targetLabel}…"
+
 #: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 msgid "Checking for updates…"
 msgstr "Đang kiểm tra các bản cập nhật…"
@@ -3641,6 +3710,10 @@ msgstr "Chọn một lượt đã hoàn tất để tạo nhánh."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "Chọn một thư mục"
+
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "Chọn một thư mục trên {machine}"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -4087,6 +4160,7 @@ msgstr "Đóng tab trình chỉnh sửa"
 msgid "Close environment actions"
 msgstr "Đóng thao tác môi trường"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "Đóng chế độ xem trực quan mở rộng"
@@ -4533,6 +4607,10 @@ msgstr "Ngôn ngữ commit & PR"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit & Push"
 msgstr "Cam kết & Đẩy"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Commit at least once before moving this thread."
+msgstr "Hãy commit ít nhất một lần trước khi chuyển luồng này."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Commit failed: {detail}"
@@ -5007,11 +5085,11 @@ msgstr "Ngữ cảnh"
 msgid "Context compacted"
 msgstr "Ngữ cảnh được nén"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "Ngữ cảnh được nén từ {before} token"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "Ngữ cảnh được nén: {before} → {after} token"
 
@@ -5020,11 +5098,11 @@ msgstr "Ngữ cảnh được nén: {before} → {after} token"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "Trích xuất ngữ cảnh ({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "Ngữ cảnh được nén thủ công từ {before} token"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Ngữ cảnh được nén thủ công: {before} → {after} token"
 
@@ -5062,6 +5140,10 @@ msgstr "Tiếp tục ở nhà cung cấp khác"
 msgid "Continue in..."
 msgstr "Tiếp tục trong..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Continue on {targetLabel}"
+#~ msgstr "Tiếp tục trên {targetLabel}"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Continue on the desktop address"
 #~ msgstr "Tiếp tục trên địa chỉ của desktop"
@@ -5069,6 +5151,14 @@ msgstr "Tiếp tục trong..."
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "Tiếp tục một cuộc trò chuyện cho đến khi đạt điều kiện dừng hoặc giới hạn."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Continue where you left off"
+msgstr "Tiếp tục từ chỗ bạn đã dừng"
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Continue where you left off."
+msgstr "Tiếp tục từ chỗ bạn đã dừng."
 
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
@@ -5246,6 +5336,7 @@ msgstr "Sao chép đường dẫn tương đối"
 msgid "Copy selection"
 msgstr "Sao chép lựa chọn"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -6464,6 +6555,10 @@ msgstr "Ngắt kết nối"
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "Tách cuộc trò chuyện bên"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Detached commit"
+msgstr "Commit tách rời"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -7847,6 +7942,7 @@ msgstr "Mở rộng để xem xét hoặc thu hồi quyền truy cập."
 msgid "Expand todo dock"
 msgstr "Mở rộng dock việc cần làm"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "Phóng to hình trực quan"
@@ -8388,6 +8484,10 @@ msgstr "Đã hoàn tất · Đang chờ bạn nhập"
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Finishing your report on GitHub…"
 msgstr "Đang hoàn tất báo cáo trên GitHub…"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Finishing…"
+msgstr "Đang hoàn tất…"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
@@ -9435,6 +9535,14 @@ msgstr "Hằng giờ"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hours"
 msgstr "Giờ"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "How moving works"
+msgstr "Cách hoạt động của việc chuyển"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "Xem trước HTML"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
@@ -10879,6 +10987,10 @@ msgstr "Đang tải plugin…"
 msgid "Loading PR…"
 msgstr "Đang tải PR…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "Đang tải bản xem trước…"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
 msgstr "Đang tải các lần chạy trước"
@@ -11730,6 +11842,10 @@ msgstr "Không thể tìm kiếm tin nhắn"
 #~ msgid "Message the remote agent…"
 #~ msgstr "Nhắn cho tác nhân từ xa…"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Message to send after moving"
+#~ msgstr "Tin nhắn gửi sau khi chuyển"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Messages"
 msgstr "Tin nhắn"
@@ -12064,6 +12180,8 @@ msgid "Motion"
 msgstr "Chuyển động"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/MoveThreadAgentComposer.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Move"
 msgstr "Di chuyển"
 
@@ -12109,6 +12227,14 @@ msgstr "Di chuyển bảng điều khiển"
 msgid "Move thread {0}"
 msgstr "Di chuyển luồng {0}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Move to another machine"
+msgstr "Chuyển sang máy khác"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to another machine…"
+msgstr "Chuyển sang máy khác…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "Chuyển sang cây làm việc sạch"
@@ -12143,6 +12269,18 @@ msgstr "Chuyển sang cây làm việc kèm thay đổi"
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "Đã chuyển 1 dự án sang {0}."
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost}"
+msgstr "Đã chuyển từ {sourceHost}"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost} to {targetHost}"
+msgstr "Đã chuyển từ {sourceHost} sang {targetHost}"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+#~ msgid "Moved here from {sourceHost}"
+#~ msgstr "Đã chuyển đến đây từ {sourceHost}"
+
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
 msgstr "Đã chuyển luồng và các thay đổi của bạn sang một cây làm việc mới trên \"{newBranch}\"."
@@ -12154,6 +12292,10 @@ msgstr "Đã chuyển luồng và các thay đổi của bạn sang một cây l
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread to a new worktree on \"{branch}\"."
 msgstr "Đã chuyển luồng sang một cây làm việc mới trên \"{branch}\"."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Moved to {label}."
+msgstr "Đã chuyển sang {label}."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -12224,8 +12366,6 @@ msgstr "Bắt buộc phải có tên."
 msgid "Name your project and choose where to create it."
 msgstr "Đặt tên cho dự án của bạn và chọn nơi để tạo nó."
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Bản địa"
@@ -12437,6 +12577,7 @@ msgstr "Điện thoại, máy tính bảng và trình duyệt mới sẽ xuất 
 msgid "New profile name"
 msgstr "Tên hồ sơ mới"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Dự án mới"
@@ -12804,6 +12945,10 @@ msgstr "Không có điểm kiểm tra tập tin nào được lưu trữ cho tin
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
 msgstr "Không có tệp nào khớp với \"{0}\"."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No free branch name is left for {branch}."
+msgstr "Không còn tên nhánh trống nào cho {branch}."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
@@ -13479,6 +13624,15 @@ msgstr "Mã ghép nối dùng một lần"
 msgid "Online"
 msgstr "Trực tuyến"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Only chat threads can move to another machine."
+msgstr "Chỉ có thể chuyển luồng trò chuyện sang máy khác."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Only the conversation moves: this folder isn't a Git repository."
+msgstr "Chỉ cuộc trò chuyện được chuyển: thư mục này không phải là kho Git."
+
 #. placeholder {0}: i18n.number(state.totalBytes)
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Only the end of the output is shown ({0} bytes)."
@@ -13792,8 +13946,8 @@ msgid "Open on source host"
 msgstr "Mở trên máy chủ nguồn"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "Mở qua SSH"
+#~ msgid "Open over SSH"
+#~ msgstr "Mở qua SSH"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -14165,6 +14319,10 @@ msgstr "Trình quản lý gói"
 msgid "Package name or Git URL"
 msgstr "Tên gói hoặc URL Git"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Packaging the thread…"
+msgstr "Đang đóng gói luồng…"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Page"
 msgstr "Trang"
@@ -14197,6 +14355,10 @@ msgstr "Ghép đôi điện thoại, máy tính bảng hoặc trình duyệt v�
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "Ghép đôi lại"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Pair another machine in Settings to move threads to it."
+#~ msgstr "Hãy ghép nối một máy khác trong Cài đặt để chuyển luồng sang đó."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pair this device"
@@ -15089,6 +15251,7 @@ msgstr "Ngăn khóa màn hình"
 msgid "Prevent system sleep"
 msgstr "Ngăn hệ thống chuyển sang chế độ ngủ"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Xem trước"
@@ -15307,6 +15470,10 @@ msgstr "Không tìm thấy dự án."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "ghi chú dự án"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Project on {targetLabel}"
+#~ msgstr "Dự án trên {targetLabel}"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
@@ -16078,7 +16245,6 @@ msgstr "Cổng truy cập từ xa {occupiedPort} đang được sử dụng. Hã
 #~ msgid "Remote environments"
 #~ msgstr "Môi trường từ xa"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -16785,6 +16951,10 @@ msgstr "Khôi phục kết quả"
 msgid "Restore thread"
 msgstr "Khôi phục luồng"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Restoring it on {targetLabel}…"
+msgstr "Đang khôi phục trên {targetLabel}…"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Results"
@@ -16836,6 +17006,7 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
@@ -17435,8 +17606,7 @@ msgstr "Sẽ hết sau {runOut}"
 #~ msgstr "Chạy qua Cursor CLI. Hãy cài đặt, cập nhật và đăng nhập từ các hàng môi trường ở trên."
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "Thời gian chạy"
 
@@ -17444,8 +17614,7 @@ msgstr "Thời gian chạy"
 msgid "Runtime debug"
 msgstr "Gỡ lỗi thời gian chạy"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "Tùy chọn thời gian chạy"
 
@@ -17461,6 +17630,10 @@ msgstr "Cùng đăng nhập với Devin"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
 msgstr "Cùng thứ tự nhà cung cấp trên tất cả các máy"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Same repository"
+#~ msgstr "Cùng kho"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Samsung Galaxy S24 Ultra"
@@ -18200,6 +18373,10 @@ msgstr "Gửi tin nhắn"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "Gửi dữ liệu vào terminal"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Sending {sent} of {total}…"
+msgstr "Đang gửi {sent} trên {total}…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -19067,6 +19244,7 @@ msgstr "Sắp xếp pull request"
 #~ msgid "Sort threads"
 #~ msgstr "Sắp xếp luồng"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "Mã nguồn"
@@ -19274,8 +19452,6 @@ msgstr "Bắt đầu mỗi ngày với các ưu tiên và bước tiếp theo."
 msgid "Start from a template"
 msgstr "Bắt đầu từ mẫu"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -19463,6 +19639,10 @@ msgstr "Dừng các lượt chạy của {0}"
 msgid "Stop {label}"
 msgstr "Dừng {label}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stop and move"
+msgstr "Dừng và chuyển"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "Dừng chuyển tiếp"
@@ -19512,6 +19692,10 @@ msgstr "Đang dừng {label}…"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping task…"
 msgstr "Đang dừng tác vụ…"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stopping the agent here…"
+msgstr "Đang dừng tác tử ở đây…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -19927,6 +20111,10 @@ msgstr "Nhóm"
 msgid "Tell {0} what to do next..."
 msgstr "Hãy cho {0} biết phải làm gì tiếp theo..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Tell {selectedAgentLabel} what to do next (optional)"
+msgstr "Hãy cho {selectedAgentLabel} biết phải làm gì tiếp theo(không bắt buộc)"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell the target provider what to do next..."
 msgstr "Cho nhà cung cấp mục tiêu biết phải làm gì tiếp theo..."
@@ -20087,9 +20275,17 @@ msgstr "Đó không phải là mã ghép nối Poracode."
 msgid "That label does not exist in this repository. Refresh the label list and try again."
 msgstr "Nhãn đó không tồn tại trong kho lưu trữ này. Hãy làm mới danh sách nhãn rồi thử lại."
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "That machine is not available."
+msgstr "Máy đó không khả dụng."
+
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "Mã ghép đôi này không còn hiệu lực. Trên desktop, hãy mở Cài đặt → Truy cập từ xa, nhấn “Mã mới” rồi ghép đôi lại."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "That project is no longer on {targetLabel}."
+msgstr "Dự án đó không còn trên {targetLabel} nữa."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "That prompt is no longer available."
@@ -20132,9 +20328,17 @@ msgstr "tác nhân"
 msgid "The agent"
 msgstr "Tác nhân"
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent did not stop in time. Try the move again."
+msgstr "Tác tử không dừng kịp thời. Hãy thử chuyển lại."
+
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "The agent is still answering. Ask again when it finishes."
 msgstr "Tác nhân vẫn đang trả lời. Hãy hỏi lại khi nó hoàn tất."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The agent is working. Moving stops it here and resumes the work on {targetLabel}."
+msgstr "Tác tử đang làm việc. Khi chuyển, nó sẽ dừng ở đây và tiếp tục công việc trên {targetLabel}."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 msgid "The agent session reloads to apply the new context size; the conversation is kept."
@@ -20143,6 +20347,10 @@ msgstr "Phiên tác nhân tải lại để áp dụng kích thước ngữ cả
 #: src/renderer/components/thread/useThreadDockState.ts
 msgid "The agent stopped because of an error."
 msgstr "Tác nhân đã dừng do lỗi."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent was stopped here, but the move didn't finish: {reason}"
+msgstr "Tác tử đã bị dừng tại đây nhưng việc chuyển chưa hoàn tất: {reason}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -20176,6 +20384,10 @@ msgstr "Tự động hóa cần được phê duyệt trước khi có thể ti�
 #~ msgid "the base branch"
 #~ msgstr "nhánh cơ sở"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The branch name was taken there, so the work continues on {branch}."
+msgstr "Tên nhánh đã được dùng ở đó, nên công việc tiếp tục trên {branch}."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "The candidates changed after judging. Compare them again."
 msgstr "Các ứng viên đã thay đổi sau khi đánh giá. Hãy so sánh lại."
@@ -20183,6 +20395,10 @@ msgstr "Các ứng viên đã thay đổi sau khi đánh giá. Hãy so sánh l�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Các ứng viên chưa thực hiện thay đổi nào."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The changes are too large to move ({size}). Commit or ignore large files first."
+msgstr "Các thay đổi quá lớn để chuyển ({size}). Hãy commit hoặc bỏ qua các tệp lớn trước."
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
@@ -20199,6 +20415,10 @@ msgstr "Kiểm tra hoàn tất thất bại; lịch tác vụ đã được tạ
 #: src/renderer/speech/hexVoice.ts
 msgid "The connected Poracode host is unavailable. Reconnect and try again."
 msgstr "Máy chủ Poracode được kết nối không khả dụng. Hãy kết nối lại và thử lại."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The conversation and its code — commits and uncommitted changes — move to the other machine and continue there. Files ignored by Git, such as .env, stay here."
+msgstr "Cuộc trò chuyện và mã của nó (các commit và thay đổi chưa commit) được chuyển sang máy kia và tiếp tục ở đó. Các tệp Git bỏ qua, như .env, vẫn ở lại đây."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
@@ -20451,6 +20671,18 @@ msgstr "Cấu hình máy chủ MCP không hợp lệ hoặc sử dụng tên dà
 msgid "The MCP server is invalid."
 msgstr "Máy chủ MCP không hợp lệ."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The move expired. Start it again."
+msgstr "Phiên chuyển đã hết hạn. Hãy bắt đầu lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The moved thread could not be read. Start the move again."
+msgstr "Không thể đọc luồng đã chuyển. Hãy bắt đầu chuyển lại."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "The moved thread keeps its agent and model, so that agent needs to be set up on the other machine."
+#~ msgstr "Luồng đã chuyển giữ nguyên tác tử và mô hình, nên tác tử đó cần được thiết lập trên máy kia."
+
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 #~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
 #~ msgstr "Kích thước ngữ cảnh mới áp dụng từ tin nhắn tiếp theo của bạn. Phiên tác nhân sẽ được tải lại trước khi gửi tin nhắn đó; cuộc trò chuyện vẫn được giữ nguyên."
@@ -20595,6 +20827,22 @@ msgid "The selected model compares snapshots of each candidate's changes under a
 msgstr "Mô hình đã chọn so sánh ảnh chụp nhanh các thay đổi của từng ứng viên bằng nhãn ẩn danh. Mô hình đề xuất người thắng mà không hợp nhất bất kỳ nội dung nào."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is missing commits this thread needs. Fetch its latest changes and try again."
+msgstr "Dự án đã chọn thiếu các commit mà luồng này cần. Hãy lấy các thay đổi mới nhất của nó rồi thử lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is unavailable."
+msgstr "Dự án đã chọn không khả dụng."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project isn't a Git repository."
+msgstr "Dự án đã chọn không phải là kho Git."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The selected project on {label} doesn't share history with this repository."
+msgstr "Dự án đã chọn trên {label} không có lịch sử chung với kho này."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The selected repository no longer matches this project's source remote. Refresh before continuing."
 msgstr "Kho mã đã chọn không còn khớp với nguồn từ xa của dự án. Làm mới trước khi tiếp tục."
 
@@ -20735,6 +20983,10 @@ msgstr "Không thể bắt đầu cuộc trò chuyện. Bản nháp của bạn 
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "Luồng giữ nguyên phiên của nhà cung cấp, nên tin nhắn tiếp theo của bạn sẽ tiếp tục từ chỗ bạn dừng lại."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The thread moved, but your message was not sent. Send it from the moved thread."
+msgstr "Luồng đã được chuyển nhưng tin nhắn của bạn chưa được gửi. Hãy gửi nó từ luồng đã chuyển."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "Không có phiên của cuộc trò chuyện để xử lý tin nhắn tiếp theo trong hàng đợi."
@@ -20743,6 +20995,10 @@ msgstr "Không có phiên của cuộc trò chuyện để xử lý tin nhắn t
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Luồng sẽ chạy trong một cây làm việc riêng trên một nhánh mới."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread's branch name can't be used on this machine."
+msgstr "Không thể dùng tên nhánh của luồng trên máy này."
+
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "Máy chủ của luồng chưa được kết nối."
@@ -20750,6 +21006,10 @@ msgstr "Máy chủ của luồng chưa được kết nối."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "Các luồng liên kết với worktree này đã thay đổi. Hãy làm mới và thử lại."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The transfer ended early. Try again."
+msgstr "Quá trình truyền kết thúc sớm. Hãy thử lại."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -20803,6 +21063,10 @@ msgstr "Giao diện và cỡ chữ chat"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Theme name"
 msgstr "Tên giao diện"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Then tell the agent (optional)"
+#~ msgstr "Sau đó nói với tác tử (không bắt buộc)"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
@@ -21020,6 +21284,10 @@ msgstr "Máy chủ này không còn được cấu hình."
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "Máy chủ này cung cấp ảnh chụp. Không thể phát trực tiếp."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "Khối HTML này quá lớn để xem trước. Chỉ hiển thị mã nguồn."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -21302,6 +21570,15 @@ msgstr "Không thể mở cuộc trò chuyện này với các thư mục đã �
 msgid "This thread does not support queued follow-ups."
 msgstr "Cuộc trò chuyện này không hỗ trợ tin nhắn tiếp theo trong hàng đợi."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread has no conversation to move yet."
+msgstr "Luồng này chưa có cuộc trò chuyện nào để chuyển."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "This thread is already on {label}."
+msgstr "Luồng này đã ở trên {label}."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "Luồng này chưa sẵn sàng để điều hướng."
@@ -21475,6 +21752,11 @@ msgstr "Dock việc cần làm của luồng"
 msgid "Threads"
 msgstr "luồng"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Threads in WSL projects can't move to another machine yet."
+msgstr "Chưa thể chuyển các luồng trong dự án WSL sang máy khác."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
@@ -21614,6 +21896,14 @@ msgstr "Tokens từ {0}"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Được dặn không chỉnh sửa tệp. Không được thực thi."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "Có quá nhiều bản xem trước HTML trong tin nhắn này. Chỉ hiển thị mã nguồn."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many moves are in progress. Try again shortly."
+msgstr "Có quá nhiều lượt chuyển đang diễn ra. Hãy thử lại sau giây lát."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22426,6 +22716,10 @@ msgstr "chưa đưa vào staging"
 msgid "Unsupported"
 msgstr "Không được hỗ trợ"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "Định dạng HTML không được hỗ trợ. Chỉ hiển thị mã nguồn."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"
 msgstr "Yêu cầu chợ plugin không được hỗ trợ"
@@ -22491,6 +22785,10 @@ msgstr "Cập nhật {0} lên {updateLabel}"
 #: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "Cập nhật {host} để nhập các phiên của máy chủ đó."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Update {label} to move threads between machines."
+msgstr "Hãy cập nhật {label} để chuyển luồng giữa các máy."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
@@ -22817,8 +23115,8 @@ msgid "Use account"
 msgstr "Dùng tài khoản"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "Sử dụng thư mục hiện có"
+#~ msgid "Use an existing folder"
+#~ msgstr "Sử dụng thư mục hiện có"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23252,6 +23550,14 @@ msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi mở pull request."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Wait for the agent to finish before moving this thread."
+msgstr "Hãy đợi tác tử hoàn tất trước khi chuyển luồng này."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Wait for the agent to finish."
+#~ msgstr "Hãy đợi tác tử hoàn tất."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Wait for the source conversation to finish before forking."
 msgstr "Đợi cuộc trò chuyện nguồn kết thúc trước khi tạo nhánh."
 
@@ -23525,7 +23831,6 @@ msgstr "Sẽ chạy trong môi trường này:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -23679,6 +23984,7 @@ msgstr "Chế độ xem không gian làm việc"
 msgid "Workspaces"
 msgstr "Không gian làm việc"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
@@ -23688,6 +23994,7 @@ msgstr "Cây làm việc"
 msgid "Worktree {path} has uncommitted changes"
 msgstr "Cây làm việc {path} có các thay đổi chưa được commit"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree + changes"
 msgstr "Cây làm việc + thay đổi"
@@ -23704,6 +24011,7 @@ msgstr "Thư mục gốc của cây làm việc"
 msgid "Worktree location"
 msgstr "Vị trí cây làm việc"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree mode"
 msgstr "Chế độ cây làm việc"

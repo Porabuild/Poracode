@@ -95,6 +95,14 @@ describe("MCP Apps host custody", () => {
     expect(config.args.join(" ")).not.toContain("private-fixture-value");
   });
 
+  it("offers each route as the server's direct transport", async () => {
+    const service = new McpAppsService();
+    services.push(service);
+    const { server } = await connect(service, "thread-direct");
+    expect(server.directTransport).toEqual(server.transport);
+    expect(server.disabledTools).toEqual(["disabled"]);
+  });
+
   it("retires a connection when upstream transport construction fails synchronously", async () => {
     vi.spyOn(filterProxy, "createUpstreamTransport").mockImplementationOnce(() => {
       throw new Error("fixture constructor failure");

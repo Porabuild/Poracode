@@ -36,6 +36,27 @@ export type ThreadStatusSource = z.infer<typeof threadStatusSourceSchema>;
 export const threadTurnInterruptionSchema = z.enum(["error", "restart"]);
 export type ThreadTurnInterruption = z.infer<typeof threadTurnInterruptionSchema>;
 
+/**
+ * Set when the inherited conversation was moved here from another host
+ * (thread transfer v1). The fork source's `threadId` then names the
+ * conversation on that other host, so it never resolves on this one. Additive:
+ * older readers strip it and show the row as an ordinary fork.
+ */
+export const threadTransferLineageSchema = z.object({
+  version: z.literal(1),
+  transferId: z.string().min(1),
+  sourceHostLabel: z.string().min(1),
+  sourceHostId: z.string().min(1).optional(),
+  /** The conversation's working directory on the source host, for path mapping. */
+  sourceWorkingDirectory: z.string().min(1).optional(),
+  /** The machine name of the host that saved the moved thread. */
+  targetHostLabel: z.string().min(1).optional(),
+  /** Set when the move also switched the thread to another provider. */
+  fromAgentKind: z.string().min(1).optional(),
+  transferredAt: z.string().min(1),
+});
+export type ThreadTransferLineage = z.infer<typeof threadTransferLineageSchema>;
+
 export const threadForkSourceSchema = z.object({
   version: z.literal(1),
   threadId: z.string().min(1),
@@ -43,6 +64,7 @@ export const threadForkSourceSchema = z.object({
   throughItemId: z.string().min(1),
   inheritedTurnCount: z.number().int().positive(),
   contextStrategy: z.literal("transcript"),
+  transfer: threadTransferLineageSchema.optional(),
 });
 export type ThreadForkSource = z.infer<typeof threadForkSourceSchema>;
 

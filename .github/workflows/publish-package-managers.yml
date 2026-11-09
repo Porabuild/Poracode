@@ -1,0 +1,144 @@
+name: Publish package-manager manifests
+
+# Renders Homebrew, Scoop, winget and AUR manifests from a published release's
+# own SHA256SUMS (scripts/package-managers.mjs) and pushes each one only when
+# its repository variable and credential are configured. Run it manually after
+# a stable release; every channel is skipped until a maintainer sets it up.
+# The rendered winget/ manifests in the uploaded artifact are what the first
+# manual winget-pkgs submission uses; later versions go through komac.
+#
+#   HOMEBREW_TAP_REPO (var, e.g. Porabuild/homebrew-tap) + HOMEBREW_TAP_TOKEN (secret)
+#   SCOOP_BUCKET_REPO (var, e.g. Porabuild/scoop-bucket) + SCOOP_BUCKET_TOKEN (secret)
+#   AUR_SSH_PRIVATE_KEY (secret; the AUR package must exist)
+#   WINGET_TOKEN (secret; classic PAT, after the first manual winget-pkgs submission)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Published stable version (plain X.Y.Z)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    name: Render and publish manifests for v${{ inputs.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "26"
+
+      - name: Render from the release's SHA256SUMS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          case "$RELEASE_VERSION" in
+            *[!0-9.]* | "") echo "::error::package managers track plain releases only"; exit 1 ;;
+          esac
+          gh release download "v$RELEASE_VERSION" --repo "${{ github.repository }}" \
+            --pattern SHA256SUMS --dir "$RUNNER_TEMP/release"
+          node scripts/package-managers.mjs --version "$RELEASE_VERSION" \
+            --sums "$RUNNER_TEMP/release/SHA256SUMS" --out "$RUNNER_TEMP/manifests"
+        shell: bash
+
+      - name: Upload the rendered manifests
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: package-manager-manifests-${{ inputs.version }}
+          path: ${{ runner.temp }}/manifests
+          if-no-files-found: error
+
+      - name: Push the Homebrew tap
+        if: ${{ vars.HOMEBREW_TAP_REPO != '' }}
+        env:
+          TAP_REPO: ${{ vars.HOMEBREW_TAP_REPO }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$TAP_TOKEN" || { echo "::error::HOMEBREW_TAP_TOKEN is not set"; exit 1; }
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/${TAP_REPO}.git" "$RUNNER_TEMP/tap"
+          mkdir -p "$RUNNER_TEMP/tap/Formula" "$RUNNER_TEMP/tap/Casks"
+          cp "$RUNNER_TEMP/manifests/homebrew/Formula/poracode-cli.rb" "$RUNNER_TEMP/tap/Formula/"
+          cp "$RUNNER_TEMP/manifests/homebrew/Casks/poracode.rb" "$RUNNER_TEMP/tap/Casks/"
+          cd "$RUNNER_TEMP/tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula Casks
+          git diff --cached --quiet || git commit -m "poracode $RELEASE_VERSION"
+          git push origin HEAD
+        shell: bash
+
+      - name: Push the Scoop bucket
+        if: ${{ vars.SCOOP_BUCKET_REPO != '' }}
+        env:
+          BUCKET_REPO: ${{ vars.SCOOP_BUCKET_REPO }}
+          BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$BUCKET_TOKEN" || { echo "::error::SCOOP_BUCKET_TOKEN is not set"; exit 1; }
+          git clone "https://x-access-token:${BUCKET_TOKEN}@github.com/${BUCKET_REPO}.git" "$RUNNER_TEMP/bucket"
+          mkdir -p "$RUNNER_TEMP/bucket/bucket"
+          cp "$RUNNER_TEMP/manifests/scoop/poracode.json" "$RUNNER_TEMP/bucket/bucket/"
+          cd "$RUNNER_TEMP/bucket"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket
+          git diff --cached --quiet || git commit -m "poracode $RELEASE_VERSION"
+          git push origin HEAD
+        shell: bash
+
+      - name: Push the AUR package
+        env:
+          AUR_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$AUR_KEY" ]; then
+            echo "AUR_SSH_PRIVATE_KEY is not set; skipping the AUR package."
+            exit 0
+          fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$AUR_KEY" > ~/.ssh/aur && chmod 600 ~/.ssh/aur
+          ssh-keyscan -t ed25519 aur.archlinux.org >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes"
+          git clone ssh://aur@aur.archlinux.org/poracode-cli-bin.git "$RUNNER_TEMP/aur"
+          cp "$RUNNER_TEMP/manifests/aur/poracode-cli-bin/PKGBUILD" "$RUNNER_TEMP/aur/"
+          cd "$RUNNER_TEMP/aur"
+          docker run --rm -v "$PWD":/pkg -w /pkg archlinux:base \
+            sh -c 'pacman -Sy --noconfirm --needed pacman-contrib >/dev/null && useradd -m builder && chown -R builder /pkg && su builder -c "makepkg --printsrcinfo > .SRCINFO"'
+          git config user.name "Porabuild"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add PKGBUILD .SRCINFO
+          git diff --cached --quiet || git commit -m "poracode-cli-bin $RELEASE_VERSION"
+          git push origin HEAD:master
+        shell: bash
+
+  winget:
+    name: Submit to winget-pkgs
+    needs: render
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Submit the new version
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if (-not $env:WINGET_TOKEN) { Write-Host "WINGET_TOKEN is not set; skipping winget."; exit 0 }
+          winget install --id RussellBanks.Komac --exact --silent --accept-source-agreements --accept-package-agreements
+          $base = "https://github.com/${{ github.repository }}/releases/download/v$env:RELEASE_VERSION"
+          komac update Porabuild.Poracode --version $env:RELEASE_VERSION `
+            --urls "$base/Poracode-Setup-$env:RELEASE_VERSION-x64.exe" "$base/Poracode-Setup-$env:RELEASE_VERSION-arm64.exe" `
+            --token $env:WINGET_TOKEN --submit
+        shell: pwsh

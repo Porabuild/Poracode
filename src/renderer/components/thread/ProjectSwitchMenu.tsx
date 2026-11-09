@@ -92,7 +92,7 @@ export function ProjectSwitchMenu(props: {
   }
 
   /** Finger-sized rows for the mobile bottom drawer. */
-  function sheetRows(list: readonly ProjectGroupRow[]) {
+  function sheetRows(list: readonly ProjectSwitchEntry[]) {
     return list.map((entry) => {
       const project = entryProject(entry);
       const isHome = isHomeProject(project);
@@ -113,7 +113,9 @@ export function ProjectSwitchMenu(props: {
         >
           <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />
           <span className="min-w-0 flex-1 truncate">{itemLabel}</span>
-          {serverName ? (
+          {entry.environments.length > 1 ? (
+            <ProjectEnvironmentIndicator members={entry.environments} machineFor={machineFor} />
+          ) : serverName ? (
             <span className="max-w-28 shrink-0 truncate text-xs text-muted/60">{serverName}</span>
           ) : null}
           {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}

@@ -11,6 +11,7 @@ import { readDatabaseAsync } from "@/host/db/asyncReads";
 import { readCommittedRuntimeSnapshot } from "@/host/db/runtimeSnapshotRead";
 import { HISTORY_DETAILS_VERSION } from "@/shared/remote/historyPresentation";
 import { THREAD_HISTORY_RESUME_VERSION } from "@/shared/remote/historyResume";
+import { THREAD_TRANSFER_VERSION } from "@/shared/threadTransfer";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_CATALOG_MUTATIONS_VERSION,
@@ -190,6 +191,9 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       conversationSnapshots: { versions: [REMOTE_CONVERSATION_SNAPSHOTS_VERSION] },
       threadForks: { versions: [1] },
       sessionImport: { versions: [1] },
+      // Every composition serves the transfer routes over its own database,
+      // attachment root and supervisor, so the capability is unconditional.
+      threadTransfer: { versions: [THREAD_TRANSFER_VERSION] },
       // Managed-root bounded project-command results: the existing project
       // command route honors the exact per-request bounded declaration.
       projectCommandResults: {

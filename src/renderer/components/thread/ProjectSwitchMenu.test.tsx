@@ -14,9 +14,17 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 import * as hostModule from "@/renderer/state/entityHost";
+
+const responsiveMenuState = vi.hoisted(() => ({ mobile: false }));
+
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
-  isRemoteSession: () => false,
+  isRemoteSession: () => responsiveMenuState.mobile,
+}));
+
+vi.mock("@/renderer/components/common/ResponsiveMenuSurface", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/components/common/ResponsiveMenuSurface")>()),
+  useResponsiveMenu: () => ({ mobile: responsiveMenuState.mobile }),
 }));
 
 function project(id: string, name: string, workspaceId?: string): Project {
@@ -44,6 +52,7 @@ async function openMenu() {
 
 describe("ProjectSwitchMenu", () => {
   beforeEach(() => {
+    responsiveMenuState.mobile = false;
     localStorage.clear();
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: {} });
@@ -625,6 +634,43 @@ describe("ProjectSwitchMenu", () => {
       expect(useAppStore.getState().draftContents).toEqual({ [mac.id]: content });
       expect(useProjectGroupStore.getState().lastUsedAt[mac.id]).toBeTypeOf("number");
     });
+  });
+
+  it("marks only combined projects with a connection marker in the mobile sheet", async () => {
+    responsiveMenuState.mobile = true;
+    const mirrored = {
+      ...workProject,
+      id: `remote:desktop-1:project:${workProject.id}`,
+      remoteServerId: "desktop-1",
+      remoteId: workProject.id,
+      location: { kind: "posix", path: "/Users/me/alpha", remoteServerId: "desktop-1" },
+    } as Project;
+    const remoteOnly = {
+      ...project("r2", "RemoteOnly"),
+      remoteServerId: "desktop-1",
+      remoteId: "rp-9",
+      location: { kind: "posix", path: "/srv/only", remoteServerId: "desktop-1" },
+    } as Project;
+    useAppStore.setState({
+      projects: [homeProject, workProject, mirrored, remoteOnly],
+      view: { kind: "draft", projectId: "a" },
+    });
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    render(<ProjectSwitchMenu currentProjectId="a" variant="compact" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Switch project" });
+
+    const combined = within(dialog).getByRole("button", { name: /^Alpha/ });
+    expect(within(combined).getByRole("img", { name: "Local, MacBook 16" })).toBeInTheDocument();
+    expect(within(combined).queryByText("MacBook 16")).toBeNull();
+
+    const single = within(dialog).getByRole("button", { name: /^RemoteOnly/ });
+    expect(single).toHaveTextContent("MacBook 16");
+    expect(single.querySelector("[data-project-connection]")).toBeNull();
   });
 
   describe("Home machines", () => {

@@ -131,7 +131,11 @@ import { isRemoteProcedure } from "../remote/procedures";
 // all existing payloads remain valid, so the hop stays unchanged.
 // Link metadata adds a read-only supervisor name. Older peers reject the unknown
 // name and clients keep their local labels, so hop 19 stays compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:2830589d2a8db497cb5adf4f469aae95325831990aecbafd32038a0e0d81274d`;
+// Thread transfer adds five supervisor-only Git names (`threadTransfer*`) that
+// only the owning backend calls. Older supervisors reject unknown names before
+// any effect, none enters the remote allowlist, and existing names and payloads
+// are unchanged, so hop 19 stays compatible.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:e7d56779b0a1910e7bf1b1e1a877255af172c66dec31b92512f223dc7250f2c9`;
 
 describe("IPC procedure map versioning", () => {
   it("routes Hex voice through the supervisor as an additive procedure", () => {

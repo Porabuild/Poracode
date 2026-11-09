@@ -1,6 +1,7 @@
 package com.poracode.app.ui.richchat
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.net.Uri
 import android.webkit.CookieManager
 import android.webkit.WebMessage
@@ -39,6 +40,50 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.put
 import java.util.TimeZone
 
+/**
+ * Credential-free web view running the bundled sandbox host (`mcp-app-host.js`)
+ * for MCP Apps and authored HTML previews. [onHostReady] runs once the host page
+ * loads; later main-frame navigations are refused.
+ */
+@SuppressLint("SetJavaScriptEnabled")
+internal fun createSandboxWebView(context: Context, onHostReady: (WebView) -> Unit): WebView =
+    WebView(context).apply {
+        settings.javaScriptEnabled = true
+        settings.allowFileAccess = false
+        settings.allowContentAccess = false
+        settings.domStorageEnabled = false
+        settings.javaScriptCanOpenWindowsAutomatically = false
+        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+        CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        webViewClient = object : WebViewClient() {
+            private var started = false
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
+                request.isForMainFrame && started
+
+            override fun onPageFinished(view: WebView, url: String?) {
+                if (started) return
+                started = true
+                onHostReady(view)
+            }
+        }
+        val script = context.assets.open("mcp-app-host.js").bufferedReader().use { it.readText() }.replace("</script", "<\\/script", ignoreCase = true)
+        loadDataWithBaseURL("http://localhost/", "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head><body><script>$script</script></body></html>", "text/html", "utf-8", null)
+    }
+
+/** Transfers the host's message port only to the credential-free main frame. */
+internal fun connectSandboxPort(view: WebView, onMessage: (port: WebMessagePort, data: JsonObject) -> Unit): WebMessagePort {
+    val channel = view.createWebMessageChannel()
+    channel[0].setWebMessageCallback(object : WebMessagePort.WebMessageCallback() {
+        override fun onMessage(port: WebMessagePort, message: WebMessage?) {
+            val data = try { Json.parseToJsonElement(message?.data ?: "") as? JsonObject } catch (_: Exception) { null } ?: return
+            onMessage(port, data)
+        }
+    })
+    view.postWebMessage(WebMessage("poracode-mcp-app-port-v1", arrayOf(channel[1])), Uri.parse("http://localhost"))
+    return channel[0]
+}
+
 @Composable
 @SuppressLint("SetJavaScriptEnabled")
 fun RichMcpAppView(app: McpAppPresentation, runtime: RichChatSessionRuntime, fallback: String) {
@@ -64,76 +109,50 @@ fun RichMcpAppView(app: McpAppPresentation, runtime: RichChatSessionRuntime, fal
             AndroidView(
                 modifier = Modifier.fillMaxWidth().height(height.dp),
                 factory = { androidContext ->
-                    WebView(androidContext).apply {
-                        settings.javaScriptEnabled = true
-                        settings.allowFileAccess = false
-                        settings.allowContentAccess = false
-                        settings.domStorageEnabled = false
-                        settings.javaScriptCanOpenWindowsAutomatically = false
-                        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                        CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
-                        setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                        webViewClient = object : WebViewClient() {
-                            private var started = false
-                            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
-                                request.isForMainFrame && started
-
-                            override fun onPageFinished(view: WebView, url: String?) {
-                                if (started) return
-                                started = true
-                                val channel = view.createWebMessageChannel()
-                                port = channel[0]
-                                channel[0].setWebMessageCallback(object : WebMessagePort.WebMessageCallback() {
-                                    override fun onMessage(port: WebMessagePort, message: WebMessage?) {
-                                        val data = try { Json.parseToJsonElement(message?.data ?: "") as? JsonObject } catch (_: Exception) { null } ?: return
-                                        when ((data["operation"] as? JsonPrimitive)?.content) {
-                                            "boot" -> port.postMessage(WebMessage(buildJsonObject {
-                                                put("operation", "start")
-                                                put("configuration", buildJsonObject {
-                                                    put("app", app.reference); put("threadId", owner.threadId)
-                                                    put("input", app.input); put("result", app.result); put("context", context)
-                                                })
-                                            }.toString()))
-                                            "height" -> (data["height"] as? JsonPrimitive)?.doubleOrNull?.takeIf { it.isFinite() }?.let { height = it.coerceIn(120.0, 1200.0).toFloat() }
-                                            "unavailable" -> unavailable = true
-                                            "control", "openLink", "sendMessage" -> {
-                                                val id = (data["id"] as? JsonPrimitive)?.content ?: return
-                                                val payload = data["payload"] as? JsonObject ?: return
-                                                if (jobs.size >= 16 || jobs.containsKey(id)) return
-                                                jobs[id] = scope.launch {
-                                                    try {
-                                                        if (runtime.chat.selection.value != owner) error("Selected thread changed.")
-                                                        val result = when ((data["operation"] as? JsonPrimitive)?.content) {
-                                                            "control" -> {
-                                                                if (payload["app"] != app.reference) error("App changed.")
-                                                                runtime.chat.controlMcpApp(payload)
-                                                            }
-                                                            "openLink" -> {
-                                                                val target = Uri.parse((payload["url"] as? JsonPrimitive)?.content ?: "")
-                                                                if (target.scheme?.lowercase() !in setOf("http", "https") || target.host.isNullOrEmpty() || target.userInfo != null) error("Invalid URL.")
-                                                                uriHandler.openUri(target.toString())
-                                                                JsonObject(emptyMap())
-                                                            }
-                                                            else -> {
-                                                                val text = (payload["text"] as? JsonPrimitive)?.content ?: error("Invalid message.")
-                                                                if (text.isBlank() || text.length > 65_536 || runtime.chat.send(text) !is RichChatOperationResult.Success) error("Message unavailable.")
-                                                                JsonObject(emptyMap())
-                                                            }
-                                                        }
-                                                        if (runtime.chat.selection.value == owner) port.postMessage(WebMessage(buildJsonObject { put("operation", "response"); put("id", id); put("result", result) }.toString()))
-                                                    } catch (_: Exception) {
-                                                        if (runtime.chat.selection.value == owner) runCatching { port.postMessage(WebMessage(buildJsonObject { put("operation", "response"); put("id", id); put("error", "MCP App request failed.") }.toString())) }
-                                                    } finally { jobs.remove(id) }
+                    createSandboxWebView(androidContext) { view ->
+                        port = connectSandboxPort(view) { port, data ->
+                            when ((data["operation"] as? JsonPrimitive)?.content) {
+                                "boot" -> port.postMessage(WebMessage(buildJsonObject {
+                                    put("operation", "start")
+                                    put("configuration", buildJsonObject {
+                                        put("app", app.reference); put("threadId", owner.threadId)
+                                        put("input", app.input); put("result", app.result); put("context", context)
+                                    })
+                                }.toString()))
+                                "height" -> (data["height"] as? JsonPrimitive)?.doubleOrNull?.takeIf { it.isFinite() }?.let { height = it.coerceIn(120.0, 1200.0).toFloat() }
+                                "unavailable" -> unavailable = true
+                                "control", "openLink", "sendMessage" -> {
+                                    val id = (data["id"] as? JsonPrimitive)?.content ?: return@connectSandboxPort
+                                    val payload = data["payload"] as? JsonObject ?: return@connectSandboxPort
+                                    if (jobs.size >= 16 || jobs.containsKey(id)) return@connectSandboxPort
+                                    jobs[id] = scope.launch {
+                                        try {
+                                            if (runtime.chat.selection.value != owner) error("Selected thread changed.")
+                                            val result = when ((data["operation"] as? JsonPrimitive)?.content) {
+                                                "control" -> {
+                                                    if (payload["app"] != app.reference) error("App changed.")
+                                                    runtime.chat.controlMcpApp(payload)
+                                                }
+                                                "openLink" -> {
+                                                    val target = Uri.parse((payload["url"] as? JsonPrimitive)?.content ?: "")
+                                                    if (target.scheme?.lowercase() !in setOf("http", "https") || target.host.isNullOrEmpty() || target.userInfo != null) error("Invalid URL.")
+                                                    uriHandler.openUri(target.toString())
+                                                    JsonObject(emptyMap())
+                                                }
+                                                else -> {
+                                                    val text = (payload["text"] as? JsonPrimitive)?.content ?: error("Invalid message.")
+                                                    if (text.isBlank() || text.length > 65_536 || runtime.chat.send(text) !is RichChatOperationResult.Success) error("Message unavailable.")
+                                                    JsonObject(emptyMap())
                                                 }
                                             }
-                                        }
+                                            if (runtime.chat.selection.value == owner) port.postMessage(WebMessage(buildJsonObject { put("operation", "response"); put("id", id); put("result", result) }.toString()))
+                                        } catch (_: Exception) {
+                                            if (runtime.chat.selection.value == owner) runCatching { port.postMessage(WebMessage(buildJsonObject { put("operation", "response"); put("id", id); put("error", "MCP App request failed.") }.toString())) }
+                                        } finally { jobs.remove(id) }
                                     }
-                                })
-                                view.postWebMessage(WebMessage("poracode-mcp-app-port-v1", arrayOf(channel[1])), Uri.parse("http://localhost"))
+                                }
                             }
                         }
-                        val script = androidContext.assets.open("mcp-app-host.js").bufferedReader().use { it.readText() }.replace("</script", "<\\/script", ignoreCase = true)
-                        loadDataWithBaseURL("http://localhost/", "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head><body><script>$script</script></body></html>", "text/html", "utf-8", null)
                     }
                 },
                 update = { port?.postMessage(WebMessage(buildJsonObject { put("operation", "context"); put("context", context) }.toString())) },

@@ -1,4 +1,5 @@
 import type { CreateStructuredSessionInput, StructuredSessionHandle } from "../base/types";
+import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 
 import { createAcpStructuredSession } from "../acp";
@@ -46,9 +47,10 @@ import type { DevinAdapterContexts, devinDefaultAccountContext } from "./adapter
 /**
  * Structured (GUI/ACP) session composition. Extracted from `index.ts`
  * (God-file rule): identity validation, MCP policy (cloud omission /
- * profile overlay / stdio relays), the neutral persona catalog, the
- * negotiated-menu model resolver, and the cloud-target-gated session
- * actions — one provider-owned composition with no shared seams.
+ * profile overlay / hosted HTTP endpoints / stdio relays), the neutral
+ * persona catalog, the negotiated-menu model resolver, and the
+ * cloud-target-gated session actions — one provider-owned composition with
+ * no shared seams.
  */
 
 export function createDevinStructuredSessionLauncher(
@@ -129,9 +131,11 @@ export function createDevinStructuredSessionLauncher(
         (input.mcpServers ?? []).filter(
           (server) => server.transport.type !== "stdio" && !server.disabledTools?.length,
         )
-      : await prepareMcpToolFilters(input.mcpServers ?? [], input.projectLocation, {
-          remoteViaStdio: true,
-        });
+      : // Poracode-hosted endpoints connect over HTTP directly — the host
+        // applies each server's tool policy itself — while every other
+        // server stays on the stdio relays the disk overlay and
+        // `session/new` share.
+        await prepareDevinLocalMcpServers(input.mcpServers ?? [], input.projectLocation);
     // Disk-catalog overlay: the default account uses the shared overlay; a
     // redirected profile builds its own PRIVATE overlay from its config
     // root, preserving the account's resources and credential root. A cloud
@@ -381,4 +385,26 @@ export function createDevinStructuredSessionLauncher(
       throw error;
     }
   };
+}
+
+/**
+ * Local MCP catalog for Devin. Servers carrying `directTransport` are
+ * Poracode-hosted endpoints whose host already applies the server's tool
+ * policy, so they connect over HTTP in both the disk overlay and
+ * `session/new` and spawn no relay process. Every other server keeps the
+ * stdio-relay path (`remoteViaStdio`), which is what keeps non-hosted
+ * remote servers reachable and `disabledTools` filtering enforced.
+ */
+async function prepareDevinLocalMcpServers(
+  servers: readonly ResolvedMcpServer[],
+  location: ProjectLocation,
+): Promise<ResolvedMcpServer[]> {
+  const relayed = servers.filter((server) => server.directTransport === undefined);
+  const prepared = await prepareMcpToolFilters(relayed, location, { remoteViaStdio: true });
+  let next = 0;
+  return servers.map((server) =>
+    server.directTransport === undefined
+      ? prepared[next++]!
+      : { ...server, transport: server.directTransport },
+  );
 }

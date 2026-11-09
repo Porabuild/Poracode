@@ -82,6 +82,8 @@ export function createRouter(input: {
     handleRemoteEvent,
     sessionOptions,
     setSessionOptions,
+    composerState,
+    gitChanges,
     exportSession,
     offeredProviders,
     threadFlags,
@@ -200,6 +202,10 @@ export function createRouter(input: {
     sessionOptions,
     setSessionOptions,
     // Plugin calls bypass `handle`; run them in their session's project.
+    composerState: (...args: Parameters<typeof composerState>) =>
+      ctx.runInSessionScope(args[0], () => composerState(...args)),
+    gitChanges: (...args: Parameters<typeof gitChanges>) =>
+      ctx.runInSessionScope(args[0], () => gitChanges(...args)),
     exportSession: (...args: Parameters<typeof exportSession>) =>
       ctx.runInSessionScope(args[0], () => exportSession(...args)),
     offeredProviders,

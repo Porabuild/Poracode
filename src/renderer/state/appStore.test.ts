@@ -673,6 +673,22 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().draftVisit).toBe(before + 2);
   });
 
+  it("moves the open draft within its visit and starts one from other views", () => {
+    const first = useAppStore.getState().addProject({ kind: "posix", path: "/repo-a" });
+    const second = useAppStore.getState().addProject({ kind: "posix", path: "/repo-b" });
+    useAppStore.getState().openDraft(first.id);
+    const visit = useAppStore.getState().draftVisit;
+
+    useAppStore.getState().moveDraft(second.id);
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: second.id });
+    expect(useAppStore.getState().draftVisit).toBe(visit);
+
+    useAppStore.getState().openHome();
+    useAppStore.getState().moveDraft(first.id);
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: first.id });
+    expect(useAppStore.getState().draftVisit).toBe(visit + 1);
+  });
+
   it.each([
     ["Home", (state: AppStoreState, _projectId: string, _threadId: string) => state.openHome()],
     [

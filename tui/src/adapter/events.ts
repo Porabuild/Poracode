@@ -16,7 +16,14 @@ import {
 } from "@/shared/contracts/runtimeEvent";
 import { z } from "zod";
 import { formId, messageId, permissionId, sessionId, subSessionId } from "./ids";
-import { bounded, mapToolItem, record, stringValue, type ToolDefinition } from "./toolMapping";
+import {
+  bounded,
+  mapToolItem,
+  mergePayload,
+  record,
+  stringValue,
+  type ToolDefinition,
+} from "./toolMapping";
 import {
   ELICITATION_PERMISSION_OPTIONS,
   emptyFormElicitation,
@@ -49,6 +56,8 @@ type ToolPart = {
   kind: "tool";
   id: string;
   itemType: string;
+  /** The item's payload with every update merged in, as the desktop reducer keeps it. */
+  payload: unknown;
   definition: ToolDefinition;
   lastProgressAt: number;
 };
@@ -56,7 +65,12 @@ type Part = TextPart | ToolPart;
 type Run = {
   assistantMessageID: string;
   context: ThreadEventContext;
-  nextOrdinal: number;
+  /**
+   * Per-kind ordinals: the host resolves `text:N` / `reasoning:N` as the N-th
+   * part of that type, so a shared counter would shift every later text into
+   * an earlier slot. Tool parts never consume an ordinal.
+   */
+  ordinals: { text: number; reasoning: number };
   parts: Map<string, Part>;
 };
 type SessionState = {
@@ -530,7 +544,7 @@ export function createEventTranslator(
         run = {
           assistantMessageID: messageId(event.itemId),
           context,
-          nextOrdinal: 0,
+          ordinals: { text: 0, reasoning: 0 },
           parts: new Map(),
         };
         state.run = run;
@@ -552,7 +566,12 @@ export function createEventTranslator(
         );
       }
       if (event.itemType === "assistant_message") {
-        const part: TextPart = { kind: "text", ordinal: run.nextOrdinal++, text: "", ended: false };
+        const part: TextPart = {
+          kind: "text",
+          ordinal: run.ordinals.text++,
+          text: "",
+          ended: false,
+        };
         run.parts.set(event.itemId, part);
         output.push(
           openCodeEvent(
@@ -571,7 +590,7 @@ export function createEventTranslator(
         const parsed = reasoningItemPayloadSchema.safeParse(event.payload);
         const part: TextPart = {
           kind: "reasoning",
-          ordinal: run.nextOrdinal++,
+          ordinal: run.ordinals.reasoning++,
           text: parsed.success ? (parsed.data.summary ?? "") : "",
           ended: false,
         };
@@ -598,10 +617,10 @@ export function createEventTranslator(
         kind: "tool",
         id: event.itemId,
         itemType: event.itemType,
+        payload: event.payload,
         definition: tool,
         lastProgressAt: 0,
       };
-      run.nextOrdinal += 1;
       run.parts.set(event.itemId, part);
       output.push(
         openCodeEvent(
@@ -642,16 +661,11 @@ export function createEventTranslator(
       const run = state.run;
       const part = run?.parts.get(event.itemId);
       if (!run || !part || part.kind !== "tool") return [];
-      const update = mapToolItem(part.itemType, event.payload, {
-        threadId,
-        itemId: event.itemId,
-      });
-      if (update) {
-        part.definition = {
-          ...update,
-          output: bounded(part.definition.output + update.output),
-        };
-      }
+      const item = { threadId, itemId: event.itemId };
+      const output = mapToolItem(part.itemType, event.payload, item)?.output ?? "";
+      part.payload = mergePayload(part.payload, event.payload);
+      const update = mapToolItem(part.itemType, part.payload, item);
+      if (update) part.definition = { ...update, output: bounded(part.definition.output + output) };
       return progress(sessionID, run, part);
     }
     if (event.type === "content.delta") {
@@ -760,6 +774,15 @@ export function createEventTranslator(
             { durable: durable(sessionID), location: run.context.location },
           ),
         ];
+      }
+      if (event.payload !== undefined) {
+        // The final payload carries exit codes, diff summaries, and results.
+        part.payload = mergePayload(part.payload, event.payload);
+        const update = mapToolItem(part.itemType, part.payload, {
+          threadId,
+          itemId: event.itemId,
+        });
+        if (update) part.definition = { ...update, output: part.definition.output };
       }
       return toolCompletion(sessionID, run, part, event.payload, durableTool);
     }

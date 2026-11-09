@@ -7,6 +7,59 @@ export const MCP_FILTER_CONFIG_V1_ENV = "PORACODE_MCP_FILTER_CONFIG_V1";
 // because no legacy configuration key is supplied; v0/v1 configurations stay valid.
 export const MCP_FILTER_CONFIG_V2_ENV = "PORACODE_MCP_FILTER_CONFIG_V2";
 export const MCP_STDIO_CONFIG_ENV = "PORACODE_MCP_STDIO_CONFIG";
+export const MCP_HTTP_RELAY_CONFIG_ENV = "PORACODE_MCP_HTTP_RELAY_CONFIG";
+// v1 is the first relay envelope. A changed shape takes a new version, and the
+// relay refuses any other version before connecting.
+export const MCP_HTTP_RELAY_CONFIG_VERSION = 1;
+
+/** Envelope keys of every Poracode MCP launch helper. */
+export const MCP_HELPER_CONFIG_ENVS = [
+  MCP_FILTER_CONFIG_ENV,
+  MCP_FILTER_CONFIG_V1_ENV,
+  MCP_FILTER_CONFIG_V2_ENV,
+  MCP_STDIO_CONFIG_ENV,
+  MCP_HTTP_RELAY_CONFIG_ENV,
+] as const;
+
+/** Stdio relay to a Poracode-served HTTP endpoint that applies its own tool policy. */
+export interface McpHttpRelayConfig {
+  version: typeof MCP_HTTP_RELAY_CONFIG_VERSION;
+  url: string;
+  headers: Record<string, string>;
+  timeoutMs: number;
+  /** Defense in depth; the endpoint already hides and rejects these tools. */
+  disabledTools: string[];
+}
+
+export function encodeMcpHttpRelayConfig(config: Omit<McpHttpRelayConfig, "version">): string {
+  return Buffer.from(
+    JSON.stringify({ version: MCP_HTTP_RELAY_CONFIG_VERSION, ...config }),
+    "utf8",
+  ).toString("base64url");
+}
+
+export function readMcpHttpRelayConfig(env: NodeJS.ProcessEnv): McpHttpRelayConfig {
+  const encoded = env[MCP_HTTP_RELAY_CONFIG_ENV];
+  if (!encoded) throw new Error("Missing MCP relay configuration");
+  const config = JSON.parse(
+    Buffer.from(encoded, "base64url").toString("utf8"),
+  ) as Partial<McpHttpRelayConfig> | null;
+  if (
+    config?.version !== MCP_HTTP_RELAY_CONFIG_VERSION ||
+    typeof config.url !== "string" ||
+    !/^https?:$/u.test(new URL(config.url).protocol) ||
+    !config.headers ||
+    typeof config.headers !== "object" ||
+    Array.isArray(config.headers) ||
+    !Object.values(config.headers).every((value) => typeof value === "string") ||
+    !Number.isSafeInteger(config.timeoutMs) ||
+    config.timeoutMs! <= 0 ||
+    !Array.isArray(config.disabledTools)
+  ) {
+    throw new Error("Unsupported MCP relay configuration");
+  }
+  return config as McpHttpRelayConfig;
+}
 
 export interface McpToolFilterConfig {
   server: McpServer;

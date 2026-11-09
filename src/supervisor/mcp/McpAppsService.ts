@@ -4,7 +4,12 @@ import { isIP } from "node:net";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/server";
-import type { McpServer, ProjectLocation } from "@/shared/contracts";
+import type {
+  McpHttpTransport,
+  McpServer,
+  ProjectLocation,
+  ResolvedMcpServer,
+} from "@/shared/contracts";
 import {
   controlMcpAppPayloadSchema,
   MCP_APP_HOST_META_KEY,
@@ -60,11 +65,15 @@ export class McpAppsService {
 
   constructor(private readonly hostAccess?: WslHostAccessResolver) {}
 
+  /**
+   * Route each server through a supervisor-owned connection. The route applies
+   * the server's tool policy, so it is also each server's `directTransport`.
+   */
   async prepare(
     threadId: string,
     servers: McpServer[],
     location: ProjectLocation,
-  ): Promise<McpServer[]> {
+  ): Promise<Array<McpServer & Pick<ResolvedMcpServer, "directTransport">>> {
     if (this.stopping) throw new Error("MCP Apps service is shutting down.");
     await this.releaseThread(threadId);
     if (servers.length === 0) return servers;
@@ -86,14 +95,12 @@ export class McpAppsService {
         sessions: new Map(),
       };
       this.routes.set(route.id, route);
-      return {
-        ...server,
-        transport: {
-          type: "http",
-          url: `http://${host.includes(":") ? `[${host}]` : host}:${port}/${route.id}/mcp`,
-          headers: { Authorization: `Bearer ${route.token}` },
-        },
+      const transport: McpHttpTransport = {
+        type: "http",
+        url: `http://${host.includes(":") ? `[${host}]` : host}:${port}/${route.id}/mcp`,
+        headers: { Authorization: `Bearer ${route.token}` },
       };
+      return { ...server, transport, directTransport: transport };
     });
   }
 

@@ -158,6 +158,11 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
     param("variant", "string", true),
   ],
   "attachment-upload": [param("threadId", "string", false), param("name", "string", false)],
+  "thread-transfer-upload": [
+    param("offset", "int", false),
+    param("total", "int", false),
+    param("sha256", "string", false),
+  ],
   "schedule-runs-read": [param("id", "string", false)],
   "automations-snapshot": [
     param("filter", "string", false),

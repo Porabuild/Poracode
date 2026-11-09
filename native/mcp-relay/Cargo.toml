@@ -1,0 +1,47 @@
+[package]
+name = "poracode-mcp-relay"
+# helperVersion reported by the hello handshake. Bump on any behavior change so
+# stale staged binaries are detectable (see .agents/docs/versioning.md).
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98"
+license = "Apache-2.0"
+publish = false
+description = "Poracode stdio-to-HTTP MCP relay helper"
+
+[lib]
+name = "poracode_mcp_relay"
+path = "src/lib.rs"
+
+[[bin]]
+name = "poracode-mcp-relay"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "raw_value"] }
+# Plain HTTP only: default-features drops TLS and compression. Loopback MCP
+# endpoints are http:, and the relay must never route through a proxy, so TLS
+# and proxy support stay out of the binary entirely.
+ureq = { version = "=3.5.0", default-features = false }
+base64 = "0.23"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"

@@ -36,6 +36,16 @@ const nextConfig = {
           { key: "Cache-Control", value: "public, max-age=300, s-maxage=300" },
         ],
       },
+      // One-line installers (`curl … | sh`, `irm … | iex`). Served as plain
+      // text so PowerShell's Invoke-RestMethod returns the script source.
+      ...["/install.sh", "/install.ps1"].map((source) => ({
+        source,
+        headers: [
+          { key: "Content-Type", value: "text/plain; charset=utf-8" },
+          { key: "Cache-Control", value: "public, max-age=300, s-maxage=300" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+        ],
+      })),
     ];
   },
   async redirects() {

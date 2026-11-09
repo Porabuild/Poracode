@@ -1,15 +1,9 @@
 import { randomBytes } from "node:crypto";
-import {
-  existsSync,
-  lstatSync,
-  readFileSync,
-  realpathSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, lstatSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { probeLeaseKernelLock } from "./serverDoctorIo";
+import { serviceNodeExecutable } from "./serverStandaloneRuntime";
 import {
   stopRegisteredOwner,
   qualifyRegisteredOwner,
@@ -77,7 +71,7 @@ export function installWindowsService(
       account,
       profileNamespace: profile,
       installPrefix: selected.prefix,
-      nodeExecutable: realpathSync.native(process.execPath),
+      nodeExecutable: serviceNodeExecutable(selected.prefix),
       entrypointRelative: "current/lib/server.cjs",
       configPath: options.config ? resolve(options.config) : null,
       definition: {

@@ -623,6 +623,49 @@ describe("worker-backed SQLite reads", () => {
     }
   });
 
+  it("keeps one warm worker once reads go quiet and adds one back for a burst", async () => {
+    const spawns = join(directory, "spawns.txt");
+    const recorder = join(directory, "record-spawn.cjs");
+    writeFileSync(
+      recorder,
+      `if(require('node:worker_threads').isMainThread)require('node:fs').appendFileSync(${JSON.stringify(spawns)}, process.pid + '\\n');`,
+    );
+    const pids = () =>
+      existsSync(spawns) ? readFileSync(spawns, "utf8").trim().split("\n").map(Number) : [];
+    const alive = () =>
+      pids().filter((pid) => {
+        try {
+          process.kill(pid, 0);
+          return true;
+        } catch {
+          return false;
+        }
+      });
+    const previous = process.env.NODE_OPTIONS;
+    process.env.NODE_OPTIONS = `${previous ?? ""} --require=${JSON.stringify(recorder)}`;
+    try {
+      const reads = new AsyncDatabaseReads(dbPath, workerPath, false, 100);
+      pools.push(reads);
+      reads.warm();
+      await vi.waitFor(() => expect(pids()).toHaveLength(2), { timeout: 10_000 });
+      await vi.waitFor(() => expect(alive()).toHaveLength(1), { timeout: 10_000 });
+
+      const expected = dbReadThreadRuntimeItems("thread-1");
+      await expect(
+        Promise.all([
+          reads.read("runtimeItems", ["thread-1"]),
+          reads.read("runtimeItems", ["thread-1"]),
+        ]),
+      ).resolves.toEqual([expected, expected]);
+      await vi.waitFor(() => expect(pids()).toHaveLength(3), { timeout: 10_000 });
+      await vi.waitFor(() => expect(alive()).toHaveLength(1), { timeout: 10_000 });
+      expect(await reads.read("runtimeItems", ["thread-1"])).toEqual(expected);
+    } finally {
+      if (previous === undefined) delete process.env.NODE_OPTIONS;
+      else process.env.NODE_OPTIONS = previous;
+    }
+  });
+
   it("serves app state on the owner connection while read workers are enabled", async () => {
     // A worker that cannot start would reject any read routed to it.
     enableAsyncDatabaseReads(dbPath, join(directory, "missing-worker.cjs"));

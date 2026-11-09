@@ -91,11 +91,18 @@ stays off the SDK stream and out of the session import.
   native session. Terminal launches use native SQLite ID discovery without
   reading transcript content; overlapping discoveries in the same cwd stay
   unresolved on purpose.
-- Devin advertises only stdio MCP (verified on 3000.10.21), so remote MCP
-  servers are relayed through the existing tool-filter stdio worker. A
-  per-session configuration overlay makes injected servers visible to its
-  native MCP discovery tools while preserving existing config and durable
-  session storage.
+- Devin advertises HTTP and SSE MCP since 3000.12. Its disk overlay remote
+  shape (`{url, transport:"http", headers?: map}`) is turn-proven on
+  3000.12.28 (2026-11-08): Poracode-hosted endpoints therefore connect over
+  HTTP directly in both the overlay and `session/new` — the host applies
+  their tool policy, so no relay process spawns and `disabledTools`
+  filtering still holds. Non-hosted remote servers and filtered stdio
+  servers keep the stdio relays, and cloud launches still omit stdio
+  servers entirely. Devin routed a loopback MCP endpoint through an
+  unreachable `HTTP_PROXY` until `NO_PROXY` listed the host; the shared ACP
+  launch extends `NO_PROXY`/`no_proxy` for direct MCP endpoints whenever a
+  proxy variable reaches the agent (exported inside WSL via `command.env`).
+  The overlay preserves existing config and durable session storage.
 - Terminal MCP injection is not supported: the CLI has no verified per-thread
   MCP override, and shared user/project config is left untouched.
 - Usage comes from the private CLI quota endpoint. Accounts without quota

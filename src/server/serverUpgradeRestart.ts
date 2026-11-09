@@ -1,6 +1,7 @@
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, isAbsolute, join, resolve } from "node:path";
+import { releaseNodeExecutable } from "./serverStandaloneRuntime";
 
 /**
  * D4 service targeting for upgrades.
@@ -304,7 +305,7 @@ export async function startServerService(
   const entry = join(resolve(prefix), "current", "lib", "server.cjs");
   const env: NodeJS.ProcessEnv = { ...(input.env ?? process.env) };
   if (input.staging) env.PORACODE_UPGRADE_STAGING = "1";
-  const child = spawn(process.execPath, [entry], {
+  const child = spawn(releaseNodeExecutable(join(resolve(prefix), "current")), [entry], {
     detached: true,
     stdio: "ignore",
     // No console window for the detached daemon on Windows; ignored elsewhere.

@@ -42,6 +42,11 @@ msgstr "(нет ветки)"
 msgid "(optional)"
 msgstr "(необязательно)"
 
+#. placeholder {0}: preview.source.git.changedFiles
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{0, plural, =0 {no uncommitted changes} one {# uncommitted change} other {# uncommitted changes}}"
+#~ msgstr "{0, plural, =0 {нет незакоммиченных изменений} one {# незакоммиченное изменение} few {# незакоммиченных изменения} many {# незакоммиченных изменений} other {# незакоммиченного изменения}}"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -733,6 +738,10 @@ msgstr "{minutes}м назад"
 msgid "{missingAuthLabel} needs authentication."
 msgstr "{missingAuthLabel} требует аутентификации."
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "{moved} · continued with {agentLabel}"
+msgstr "{moved} · продолжено с {agentLabel}"
+
 #: src/renderer/actions/workspaceActions.ts
 msgid "{movedCount, plural, one {Moved # project to {target}.} other {Moved # projects to {target}.}}"
 msgstr "{movedCount, plural, one {# проект перемещён в {target}.} few {# проекта перемещены в {target}.} many {# проектов перемещены в {target}.} other {# проекта перемещены в {target}.}}"
@@ -773,6 +782,14 @@ msgstr "{productName} обновлён до v{0}."
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (отключено)"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} isn't set up on another machine yet. Add it there to move this thread."
+msgstr "{projectName} ещё не настроен на другой машине. Добавьте его там, чтобы переместить этот тред."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} on {targetLabel} isn't a Git repository, so its code can't move there."
+msgstr "{projectName} на {targetLabel} не является Git-репозиторием, поэтому его код нельзя переместить туда."
 
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
@@ -829,6 +846,18 @@ msgstr "{serverName} · WSL {0}"
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{serverName} из {providerLabel}: {disabledLabel}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}, and no other chat agent is ready there. Set one up there first."
+msgstr "{sourceAgentLabel} не настроен на {targetLabel}, и другого готового чат-агента там нет. Сначала настройте его там."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Choose the agent that continues there."
+#~ msgstr "{sourceAgentLabel} не настроен на {targetLabel}. Выберите агента, который продолжит работу там."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Pick the agent that continues there."
+msgstr "{sourceAgentLabel} не настроен на {targetLabel}. Выберите агента, который продолжит работу там."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "{sourceCrewName} comes along."
 msgstr "{sourceCrewName} перейдёт вместе с вами."
@@ -840,6 +869,22 @@ msgstr "{sourceCrewName} останется здесь: {targetProviderLabel} н
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, one {# шаг} few {# шага} many {# шагов} other {# шага}}"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no project for this repository. Add it there first."
+#~ msgstr "На {targetLabel} нет проекта для этого репозитория. Сначала добавьте его там."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no projects yet. Add one there first."
+#~ msgstr "На {targetLabel} ещё нет проектов. Сначала добавьте проект там."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is offline. Connect to it first."
+msgstr "{targetLabel} не в сети. Сначала подключитесь к нему."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is reached through this computer, so you can't open it while this computer is off."
+msgstr "{targetLabel} доступен через этот компьютер, поэтому его нельзя открыть, пока этот компьютер выключен."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 #~ msgid "{totalAdditions} additions and {totalDeletions} deletions"
@@ -1508,6 +1553,7 @@ msgstr "Добавить резервный вариант"
 msgid "Add files, drop here, or paste an image"
 msgstr "Добавьте файлы, перетащите сюда или вставьте изображение"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "Добавить папку"
@@ -1568,6 +1614,10 @@ msgstr "Добавить реакцию"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Добавить удалённый репозиторий"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "Добавить удалённое подключение"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -1716,6 +1766,10 @@ msgstr "Агент сейчас отключён"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent not found"
 msgstr "Агент не найден"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Agent on {targetLabel}"
+#~ msgstr "Агент на {targetLabel}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -2262,6 +2316,10 @@ msgstr "Архивировать текущий тред"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Archive this session?"
 #~ msgstr "Архивировать эту сессию?"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Archive this thread here after moving"
+#~ msgstr "Архивировать этот тред здесь после переноса"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive thread"
@@ -2873,6 +2931,7 @@ msgstr "Ограничивает число недолговечных помо�
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "Ограничивает число оболочек терминала, которые могут выполняться одновременно на этом узле. Учитываются логические слоты выполнения, а не процессы ОС или память. 0 — без ограничений."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
@@ -2911,6 +2970,11 @@ msgstr "Ветка или тег"
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
 msgstr "Правила защиты ветки заблокировали это слияние."
+
+#. placeholder {0}: preview.source.git.branch
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Branch: {0}"
+#~ msgstr "Ветка: {0}"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Branches"
@@ -3184,7 +3248,7 @@ msgstr "Не удалось загрузить порты"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "Не удалось связаться с удалённым сервером. Убедитесь, что он в сети, и переподключите его."
 
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/providerTargetSelection.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Can't use this model selection on that surface"
 msgstr "Этот выбор модели нельзя использовать в данном интерфейсе"
@@ -3200,6 +3264,7 @@ msgstr "Этот выбор модели нельзя использовать �
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -3578,6 +3643,10 @@ msgstr "Проверка"
 msgid "Checking {serverName}"
 msgstr "Проверка {serverName}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Checking {targetLabel}…"
+msgstr "Проверка {targetLabel}…"
+
 #: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 msgid "Checking for updates…"
 msgstr "Проверка обновлений…"
@@ -3641,6 +3710,10 @@ msgstr "Выберите завершённый ход для ответвлен
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "Выберите папку"
+
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "Выберите папку на {machine}"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -4087,6 +4160,7 @@ msgstr "Закрыть вкладку редактора"
 msgid "Close environment actions"
 msgstr "Закрыть действия среды"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "Закрыть развёрнутую визуализацию"
@@ -4533,6 +4607,10 @@ msgstr "Язык коммитов и PR"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit & Push"
 msgstr "Коммит и push"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Commit at least once before moving this thread."
+msgstr "Сделайте хотя бы один коммит перед переносом этого треда."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Commit failed: {detail}"
@@ -5007,11 +5085,11 @@ msgstr "Контекст"
 msgid "Context compacted"
 msgstr "Контекст сжат"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "Контекст сжат с {before} токенов"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "Контекст сжат: {before} → {after} токенов"
 
@@ -5020,11 +5098,11 @@ msgstr "Контекст сжат: {before} → {after} токенов"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "Извлечение контекста ({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "Контекст вручную сжат с {before} токенов"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Контекст вручную сжат: {before} → {after} токенов"
 
@@ -5062,6 +5140,10 @@ msgstr "Продолжить в другом провайдере"
 msgid "Continue in..."
 msgstr "Продолжить в..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Continue on {targetLabel}"
+#~ msgstr "Продолжить на {targetLabel}"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Continue on the desktop address"
 #~ msgstr "Продолжить по адресу десктопа"
@@ -5069,6 +5151,14 @@ msgstr "Продолжить в..."
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "Продолжать один диалог, пока не будет выполнено условие остановки или достигнут лимит."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Continue where you left off"
+msgstr "Продолжи с того места, где остановился"
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Continue where you left off."
+msgstr "Продолжи с того места, где остановился."
 
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
@@ -5246,6 +5336,7 @@ msgstr "Копировать относительный путь"
 msgid "Copy selection"
 msgstr "Копировать выделенное"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -6464,6 +6555,10 @@ msgstr "Отключить"
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "Открепить боковой чат"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Detached commit"
+msgstr "Отсоединённый коммит"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -7847,6 +7942,7 @@ msgstr "Разверните, чтобы проверить или отозва�
 msgid "Expand todo dock"
 msgstr "Развернуть панель задач"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "Развернуть визуализацию"
@@ -8388,6 +8484,10 @@ msgstr "Завершено · Ожидается ваш ввод"
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Finishing your report on GitHub…"
 msgstr "Завершаем создание обращения на GitHub…"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Finishing…"
+msgstr "Завершение…"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
@@ -9435,6 +9535,14 @@ msgstr "Ежечасно"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hours"
 msgstr "Часы"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "How moving works"
+msgstr "Как работает перенос"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "Предпросмотр HTML"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
@@ -10879,6 +10987,10 @@ msgstr "Загрузка плагинов…"
 msgid "Loading PR…"
 msgstr "Загрузка PR…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "Загрузка предпросмотра…"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
 msgstr "Загрузка предыдущих запусков"
@@ -11730,6 +11842,10 @@ msgstr "Поиск сообщений недоступен"
 #~ msgid "Message the remote agent…"
 #~ msgstr "Напишите удалённому агенту…"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Message to send after moving"
+#~ msgstr "Сообщение, которое отправится после переноса"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Messages"
 msgstr "Сообщения"
@@ -12064,6 +12180,8 @@ msgid "Motion"
 msgstr "Движение"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/MoveThreadAgentComposer.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Move"
 msgstr "Переместить"
 
@@ -12109,6 +12227,14 @@ msgstr "Переместить панель"
 msgid "Move thread {0}"
 msgstr "Переместить тред {0}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Move to another machine"
+msgstr "Перенести на другой компьютер"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to another machine…"
+msgstr "Перенести на другой компьютер…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "Переместить в чистый worktree"
@@ -12143,6 +12269,18 @@ msgstr "Переместить в worktree с изменениями"
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "1 проект перемещён в {0}."
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost}"
+msgstr "Перенесено с {sourceHost}"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost} to {targetHost}"
+msgstr "Перенесено с {sourceHost} на {targetHost}"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+#~ msgid "Moved here from {sourceHost}"
+#~ msgstr "Перенесено сюда с {sourceHost}"
+
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
 msgstr "Тред и ваши изменения перемещены в новый worktree на \"{newBranch}\"."
@@ -12154,6 +12292,10 @@ msgstr "Тред и ваши изменения перемещены в новы
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread to a new worktree on \"{branch}\"."
 msgstr "Тред перемещён в новый worktree на \"{branch}\"."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Moved to {label}."
+msgstr "Перенесено на {label}."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -12224,8 +12366,6 @@ msgstr "Имя обязательно."
 msgid "Name your project and choose where to create it."
 msgstr "Назовите проект и выберите, где его создать."
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Нативный"
@@ -12437,6 +12577,7 @@ msgstr "Новые телефоны, планшеты и браузеры поя
 msgid "New profile name"
 msgstr "Имя нового профиля"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Новый проект"
@@ -12804,6 +12945,10 @@ msgstr "Для этого сообщения не сохранена контр�
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
 msgstr "Нет файлов, соответствующих \"{0}\"."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No free branch name is left for {branch}."
+msgstr "Для {branch} не осталось свободного имени ветки."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
@@ -13479,6 +13624,15 @@ msgstr "Одноразовый токен сопряжения"
 msgid "Online"
 msgstr "Онлайн"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Only chat threads can move to another machine."
+msgstr "На другой компьютер можно переносить только чат-треды."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Only the conversation moves: this folder isn't a Git repository."
+msgstr "Переносится только разговор: эта папка не является Git-репозиторием."
+
 #. placeholder {0}: i18n.number(state.totalBytes)
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Only the end of the output is shown ({0} bytes)."
@@ -13792,8 +13946,8 @@ msgid "Open on source host"
 msgstr "Открыть на исходном хосте"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "Открыть по SSH"
+#~ msgid "Open over SSH"
+#~ msgstr "Открыть по SSH"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -14165,6 +14319,10 @@ msgstr "Менеджер пакетов"
 msgid "Package name or Git URL"
 msgstr "Имя пакета или URL Git"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Packaging the thread…"
+msgstr "Упаковка треда…"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Page"
 msgstr "Страница"
@@ -14197,6 +14355,10 @@ msgstr "Сопрягите телефон, планшет или браузер 
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "Связать снова"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Pair another machine in Settings to move threads to it."
+#~ msgstr "Подключите другой компьютер в настройках, чтобы переносить на него треды."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pair this device"
@@ -15089,6 +15251,7 @@ msgstr "Предотвращать блокировку экрана"
 msgid "Prevent system sleep"
 msgstr "Предотвращать сон системы"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Предпросмотр"
@@ -15307,6 +15470,10 @@ msgstr "Проект не найден."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "Заметки проекта"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Project on {targetLabel}"
+#~ msgstr "Проект на {targetLabel}"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
@@ -16078,7 +16245,6 @@ msgstr "Порт удалённого доступа {occupiedPort} уже ис�
 #~ msgid "Remote environments"
 #~ msgstr "Удалённые среды"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -16785,6 +16951,10 @@ msgstr "Восстановить результат"
 msgid "Restore thread"
 msgstr "Восстановить тред"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Restoring it on {targetLabel}…"
+msgstr "Восстановление на {targetLabel}…"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Results"
@@ -16836,6 +17006,7 @@ msgstr "Только использование, сохранённое на э�
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
@@ -17435,8 +17606,7 @@ msgstr "Закончится через {runOut}"
 #~ msgstr "Работает через CLI Cursor. Установите и обновите его, затем войдите в систему в строках окружения выше."
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "Среда выполнения"
 
@@ -17444,8 +17614,7 @@ msgstr "Среда выполнения"
 msgid "Runtime debug"
 msgstr "Отладка среды выполнения"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "Параметры среды выполнения"
 
@@ -17461,6 +17630,10 @@ msgstr "Тот же вход, что у Devin"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
 msgstr "Одинаковый порядок провайдеров на всех компьютерах"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Same repository"
+#~ msgstr "Тот же репозиторий"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Samsung Galaxy S24 Ultra"
@@ -18200,6 +18373,10 @@ msgstr "Отправить сообщение"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "Отправить ввод в терминал"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Sending {sent} of {total}…"
+msgstr "Отправлено {sent} из {total}…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -19067,6 +19244,7 @@ msgstr "Сортировка pull request"
 #~ msgid "Sort threads"
 #~ msgstr "Сортировать треды"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "Исходный код"
@@ -19274,8 +19452,6 @@ msgstr "Начинайте каждый день с приоритетов и с
 msgid "Start from a template"
 msgstr "Начать с шаблона"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -19463,6 +19639,10 @@ msgstr "Остановить запуски {0}"
 msgid "Stop {label}"
 msgstr "Остановить {label}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stop and move"
+msgstr "Остановить и перенести"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "Остановить перенаправление"
@@ -19512,6 +19692,10 @@ msgstr "Остановка: {label}…"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping task…"
 msgstr "Остановка задачи…"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stopping the agent here…"
+msgstr "Остановка агента здесь…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -19927,6 +20111,10 @@ msgstr "Команда"
 msgid "Tell {0} what to do next..."
 msgstr "Укажите {0}, что делать дальше..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Tell {selectedAgentLabel} what to do next (optional)"
+msgstr "Укажите {selectedAgentLabel}, что делать дальше(необязательно)"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell the target provider what to do next..."
 msgstr "Укажите целевому провайдеру, что делать дальше..."
@@ -20087,9 +20275,17 @@ msgstr "Это не код сопряжения Poracode."
 msgid "That label does not exist in this repository. Refresh the label list and try again."
 msgstr "Такой метки нет в этом репозитории. Обновите список меток и повторите попытку."
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "That machine is not available."
+msgstr "Этот компьютер недоступен."
+
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "Этот код привязки больше не действует. Откройте на десктопе Настройки → Удалённый доступ, нажмите «Новый код» и повторите привязку."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "That project is no longer on {targetLabel}."
+msgstr "Этого проекта больше нет на {targetLabel}."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "That prompt is no longer available."
@@ -20132,9 +20328,17 @@ msgstr "агент"
 msgid "The agent"
 msgstr "Агент"
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent did not stop in time. Try the move again."
+msgstr "Агент не остановился вовремя. Попробуйте перенести ещё раз."
+
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "The agent is still answering. Ask again when it finishes."
 msgstr "Агент ещё отвечает. Задайте вопрос снова, когда он закончит."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The agent is working. Moving stops it here and resumes the work on {targetLabel}."
+msgstr "Агент работает. При переносе он остановится здесь, а работа продолжится на {targetLabel}."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 msgid "The agent session reloads to apply the new context size; the conversation is kept."
@@ -20143,6 +20347,10 @@ msgstr "Сеанс агента перезагружается, чтобы пр�
 #: src/renderer/components/thread/useThreadDockState.ts
 msgid "The agent stopped because of an error."
 msgstr "Агент остановился из-за ошибки."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent was stopped here, but the move didn't finish: {reason}"
+msgstr "Агент был остановлен здесь, но перемещение не завершилось: {reason}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -20176,6 +20384,10 @@ msgstr "Для продолжения автоматизации требует�
 #~ msgid "the base branch"
 #~ msgstr "базовую ветку"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The branch name was taken there, so the work continues on {branch}."
+msgstr "Имя ветки там уже занято, поэтому работа продолжится в {branch}."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "The candidates changed after judging. Compare them again."
 msgstr "Кандидаты изменились после оценки. Сравните их снова."
@@ -20183,6 +20395,10 @@ msgstr "Кандидаты изменились после оценки. Сра�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Кандидаты пока не внесли изменений."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The changes are too large to move ({size}). Commit or ignore large files first."
+msgstr "Изменения слишком велики для переноса ({size}). Сначала закоммитьте или добавьте в игнор большие файлы."
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
@@ -20199,6 +20415,10 @@ msgstr "Проверка завершения не удалась; распис�
 #: src/renderer/speech/hexVoice.ts
 msgid "The connected Poracode host is unavailable. Reconnect and try again."
 msgstr "Подключенный хост Poracode недоступен. Подключитесь и повторите попытку."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The conversation and its code — commits and uncommitted changes — move to the other machine and continue there. Files ignored by Git, such as .env, stay here."
+msgstr "Разговор и его код — коммиты и незакоммиченные изменения — переносятся на другой компьютер и продолжаются там. Файлы, игнорируемые Git, например .env, остаются здесь."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
@@ -20451,6 +20671,18 @@ msgstr "Конфигурация сервера MCP недопустима ил�
 msgid "The MCP server is invalid."
 msgstr "Сервер MCP недопустим."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The move expired. Start it again."
+msgstr "Время переноса истекло. Начните его заново."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The moved thread could not be read. Start the move again."
+msgstr "Не удалось прочитать перенесённый тред. Начните перенос заново."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "The moved thread keeps its agent and model, so that agent needs to be set up on the other machine."
+#~ msgstr "Перенесённый тред сохраняет агента и модель, поэтому этот агент должен быть настроен на другом компьютере."
+
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 #~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
 #~ msgstr "Новый размер контекста применяется со следующего сообщения. Сессия агента перезагрузится перед его отправкой; беседа сохранится."
@@ -20595,6 +20827,22 @@ msgid "The selected model compares snapshots of each candidate's changes under a
 msgstr "Выбранная модель сравнивает снимки изменений каждого кандидата под анонимными метками. Она рекомендует победителя, ничего не объединяя."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is missing commits this thread needs. Fetch its latest changes and try again."
+msgstr "В выбранном проекте нет коммитов, нужных этому треду. Получите его последние изменения и повторите попытку."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is unavailable."
+msgstr "Выбранный проект недоступен."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project isn't a Git repository."
+msgstr "Выбранный проект не является Git-репозиторием."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The selected project on {label} doesn't share history with this repository."
+msgstr "Выбранный проект на {label} не имеет общей истории с этим репозиторием."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The selected repository no longer matches this project's source remote. Refresh before continuing."
 msgstr "Выбранный репозиторий больше не соответствует удалённому источнику проекта. Обновите данные перед продолжением."
 
@@ -20735,6 +20983,10 @@ msgstr "Не удалось запустить тред. Черновик по-�
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "Тред сохраняет сессию провайдера, поэтому следующее сообщение продолжит разговор с того места, где вы остановились."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The thread moved, but your message was not sent. Send it from the moved thread."
+msgstr "Тред перенесён, но ваше сообщение не отправлено. Отправьте его из перенесённого треда."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "Сессия треда недоступна для сообщений в очереди."
@@ -20743,6 +20995,10 @@ msgstr "Сессия треда недоступна для сообщений �
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Тред будет работать в отдельном worktree на новой ветке."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread's branch name can't be used on this machine."
+msgstr "Имя ветки этого треда нельзя использовать на этом компьютере."
+
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "Хост треда не подключён."
@@ -20750,6 +21006,10 @@ msgstr "Хост треда не подключён."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "Потоки, связанные с этим worktree, изменились. Обновите страницу и попробуйте снова."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The transfer ended early. Try again."
+msgstr "Передача завершилась преждевременно. Повторите попытку."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -20803,6 +21063,10 @@ msgstr "Тема и размер шрифта чата"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Theme name"
 msgstr "Название темы"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Then tell the agent (optional)"
+#~ msgstr "Затем сказать агенту (необязательно)"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
@@ -21020,6 +21284,10 @@ msgstr "Этот хост больше не настроен."
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "Этот хост предоставляет снимки экрана. Трансляция в реальном времени недоступна."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "Этот блок HTML слишком велик для предпросмотра. Показан только исходный код."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -21302,6 +21570,15 @@ msgstr "Не удалось открыть этот диалог с разреш
 msgid "This thread does not support queued follow-ups."
 msgstr "Этот тред не поддерживает сообщения в очереди."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread has no conversation to move yet."
+msgstr "В этом треде пока нет разговора для переноса."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "This thread is already on {label}."
+msgstr "Этот тред уже находится на {label}."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "Этот поток пока не готов к корректировке."
@@ -21475,6 +21752,11 @@ msgstr "Панель задач треда"
 msgid "Threads"
 msgstr "Треды"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Threads in WSL projects can't move to another machine yet."
+msgstr "Треды из WSL-проектов пока нельзя переносить на другой компьютер."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
@@ -21614,6 +21896,14 @@ msgstr "Токены от {0}"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Указание не редактировать файлы. Не принудительно."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "В этом сообщении слишком много предпросмотров HTML. Показан только исходный код."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many moves are in progress. Try again shortly."
+msgstr "Выполняется слишком много переносов. Повторите попытку чуть позже."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22426,6 +22716,10 @@ msgstr "не в индексе"
 msgid "Unsupported"
 msgstr "Не поддерживается"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "Неподдерживаемый формат HTML. Показан только исходный код."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"
 msgstr "Неподдерживаемые требования маркетплейса"
@@ -22491,6 +22785,10 @@ msgstr "Обновить {0} до {updateLabel}"
 #: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "Обновите {host}, чтобы импортировать его сессии."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Update {label} to move threads between machines."
+msgstr "Обновите {label}, чтобы переносить треды между компьютерами."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
@@ -22817,8 +23115,8 @@ msgid "Use account"
 msgstr "Использовать аккаунт"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "Использовать существующую папку"
+#~ msgid "Use an existing folder"
+#~ msgstr "Использовать существующую папку"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23252,6 +23550,14 @@ msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Дождитесь завершения работы всех кандидатов перед созданием pull request."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Wait for the agent to finish before moving this thread."
+msgstr "Дождитесь, пока агент закончит, прежде чем переносить этот тред."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Wait for the agent to finish."
+#~ msgstr "Дождитесь, пока агент закончит."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Wait for the source conversation to finish before forking."
 msgstr "Перед созданием ответвления дождитесь завершения исходного разговора."
 
@@ -23525,7 +23831,6 @@ msgstr "Будет выполнено в этом окружении:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -23679,6 +23984,7 @@ msgstr "Представление рабочей области"
 msgid "Workspaces"
 msgstr "Рабочие области"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
@@ -23688,6 +23994,7 @@ msgstr "Worktree"
 msgid "Worktree {path} has uncommitted changes"
 msgstr "В worktree {path} есть незакоммиченные изменения"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree + changes"
 msgstr "Worktree + изменения"
@@ -23704,6 +24011,7 @@ msgstr "Базовая папка worktree"
 msgid "Worktree location"
 msgstr "Расположение worktree"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree mode"
 msgstr "Режим worktree"

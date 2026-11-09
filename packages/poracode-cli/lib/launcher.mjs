@@ -24,6 +24,7 @@ import {
 } from "./signals.mjs";
 import { requireRuntimeTargetKey } from "./target.mjs";
 import { CLI_COMPLETION_HELP, renderCompletion } from "./completion.mjs";
+import { standaloneRuntimeNode } from "./standalone.mjs";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -111,7 +112,13 @@ export function execServer(input) {
   const platform = input.platform ?? process.platform;
   const entry = join(input.runtimeDir, "lib", "server.cjs");
   const childEnv = { ...input.env, PORACODE_APP_VERSION: input.version };
-  const child = spawnImpl(process.execPath, [entry, ...input.args], {
+  // A standalone runtime runs on its bundled Node; an ordinary one on ours.
+  const node =
+    standaloneRuntimeNode(input.runtimeDir, {
+      version: input.version,
+      ...(input.target ? { target: input.target } : {}),
+    }) ?? process.execPath;
+  const child = spawnImpl(node, [entry, ...input.args], {
     stdio: "inherit",
     env: childEnv,
   });
@@ -131,6 +138,7 @@ export function execServer(input) {
             env: childEnv,
             timeoutMs: windowsHardKillDeadlineMs(childEnv),
             expectedPid: child.pid,
+            execPath: node,
           }),
     ...(input.processImpl ? { processImpl: input.processImpl } : {}),
     ...(input.setTimeoutImpl ? { setTimeoutImpl: input.setTimeoutImpl } : {}),

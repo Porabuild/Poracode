@@ -19,21 +19,18 @@ import { quotePosixShellArg, readAgentCommandOutput } from "../base";
 /**
  * Devin session MCP serialization for the disk-catalog overlay.
  *
- * Corrected live evidence (devin 3000.11.3, tmp/devin/probe/results/):
- * native `session/new` injection works for stdio entries and spec-exact
- * remote entries (`{type:"http"|"sse", name, url, headers:[{name,value}]}`),
- * and the overlay disk catalog works for stdio — all with real
- * tools/list + tools/call round trips inside a prompt turn. Direct native
- * injection is therefore proven and is NOT the reason this overlay serializes
- * everything as stdio.
+ * Live evidence (devin 3000.12.28, 2026-11-08, tmp/devin-http-probe/):
+ * the disk remote shape `{url, transport:"http", headers?: map}` is
+ * turn-proven — Devin sent the configured header, ran tools/list and
+ * tools/call inside a prompt turn, and deduplicated a single MCP session
+ * when the overlay and `session/new` name the same server. Poracode-hosted
+ * endpoints reach Devin over this shape directly (no relay process); the
+ * host applies each server's tool policy itself, so `disabledTools`
+ * filtering still holds without a stdio proxy.
  *
- * The relay is retained because Poracode's per-server `disabledTools`
- * filtering is enforced by its stdio tool-filter proxy
- * (`prepareMcpToolFilters(..., { remoteViaStdio: true })`); a natively
- * injected remote server bypasses that proxy, and Devin's documented native
- * filter (`disabled_tools` in config.json / `permissions` patterns) has
- * different, coarser semantics. Switching a server to direct native
- * injection requires the filter guarantee to be re-established first.
+ * Only `http` is serialized: the disk SSE shape is documented but was never
+ * turn-proven, so `sse` transports keep failing closed here — callers route
+ * them through relays instead.
  */
 export function mergeDevinMcpConfig(raw: string, servers: readonly ResolvedMcpServer[]) {
   const config: unknown = JSON5.parse(raw);
@@ -44,9 +41,20 @@ export function mergeDevinMcpConfig(raw: string, servers: readonly ResolvedMcpSe
     throw new Error("Invalid Devin MCP server catalog");
   const injected = Object.fromEntries(
     servers.map((server) => {
-      if (server.transport.type !== "stdio")
-        throw new Error("Devin session MCP requires a stdio relay");
-      const { command, args, env } = server.transport;
+      const transport = server.transport;
+      if (transport.type === "http") {
+        return [
+          server.name,
+          {
+            url: transport.url,
+            transport: "http",
+            ...(Object.keys(transport.headers).length > 0 ? { headers: transport.headers } : {}),
+          },
+        ];
+      }
+      if (transport.type !== "stdio")
+        throw new Error(`Devin session MCP does not support the ${transport.type} transport`);
+      const { command, args, env } = transport;
       return [server.name, { command, ...(args ? { args } : {}), ...(env ? { env } : {}) }];
     }),
   );

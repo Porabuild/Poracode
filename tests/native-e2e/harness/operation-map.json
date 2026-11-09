@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:ca651779b027e7fd464f3ba0645f482eca5520ccd80563974983cdd0813a84ae",
-  "keyCount": 348,
+  "manifestHash": "sha256:db62e87559b9a3b9b350fd7846d9eecc670154f3eb84bcbee752fa8d06652615",
+  "keyCount": 350,
   "counts": {
-    "route": 119,
+    "route": 121,
     "procedure": 173,
     "ws-client": 11,
     "ws-server": 12,
@@ -1237,6 +1237,14 @@
     "route:thread-steer-set": {
       "kind": "route",
       "id": "thread-steer-set"
+    },
+    "route:thread-transfer-command": {
+      "kind": "route",
+      "id": "thread-transfer-command"
+    },
+    "route:thread-transfer-upload": {
+      "kind": "route",
+      "id": "thread-transfer-upload"
     },
     "route:thread-turns": {
       "kind": "route",

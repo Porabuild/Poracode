@@ -2,8 +2,10 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ThreadConfig, ProjectLocation } from "@/shared/contracts";
+import type { ThreadConfig, ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import type { CreateStructuredSessionInput } from "../base/types";
+import { buildAcpMcpServers } from "../userMcp";
+import { prepareMcpToolFilters } from "../../mcp/McpToolFilterService";
 import { projectQualifiedAllowOtherPresentation } from "./acp/allowOtherPresentation";
 
 const mocks = vi.hoisted(() => ({
@@ -193,6 +195,150 @@ describe("Devin structured-session wiring", () => {
       acpElicitationPresentation: projectQualifiedAllowOtherPresentation,
     });
     expect(input).not.toHaveProperty("acpLocalResourceResolution");
+  });
+
+  it("hands session/new the same stdio relays as the disk overlay", async () => {
+    const helpers = await mkdtemp(join(tmpdir(), "devin-mcp-helpers-"));
+    try {
+      for (const name of ["mcp-filter.mjs", "mcp-relay.mjs", "mcp-stdio.mjs"])
+        await writeFile(join(helpers, name), "");
+      vi.stubEnv("PORACODE_WSL_HELPERS_DIR", helpers);
+      // A server wrapped by a launch helper keeps its marker through the
+      // pipeline: the second pass must not wrap it again.
+      const [relayed] = await prepareMcpToolFilters(
+        [
+          {
+            id: "sentry",
+            name: "sentry",
+            timeoutMs: 30_000,
+            disabledTools: ["delete_project"],
+            transport: { type: "stdio" as const, command: "srv", args: [], env: {} },
+          },
+        ],
+        { kind: "posix", path: "/repo" },
+      );
+      await createDevinAdapter().createStructuredSession?.({
+        ...guiInput({ model: "" }),
+        mcpServers: [relayed!],
+      });
+      const input = mocks.createAcpStructuredSession.mock.calls.at(-1)?.[1] as {
+        mcpServers: unknown[];
+      };
+      // Already relayed and no direct endpoint: not wrapped again.
+      expect(input.mcpServers).toEqual([relayed]);
+      expect(mocks.prepareDevinMcpConfig).toHaveBeenCalledWith(expect.anything(), [relayed]);
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(helpers, { recursive: true, force: true });
+    }
+  });
+
+  it("connects hosted endpoints over HTTP in session/new and the disk overlay", async () => {
+    const helpers = await mkdtemp(join(tmpdir(), "devin-mcp-helpers-"));
+    try {
+      for (const name of ["mcp-filter.mjs", "mcp-relay.mjs", "mcp-stdio.mjs"])
+        await writeFile(join(helpers, name), "");
+      vi.stubEnv("PORACODE_WSL_HELPERS_DIR", helpers);
+      const route = {
+        type: "http" as const,
+        url: "http://127.0.0.1:9300/route-1/mcp",
+        headers: { Authorization: "Bearer route-token" },
+      };
+      const hosted = {
+        id: "browser",
+        name: "browser",
+        timeoutMs: 30_000,
+        disabledTools: ["secret_tool"],
+        transport: route,
+        directTransport: route,
+      };
+      const remote = {
+        id: "remote",
+        name: "remote",
+        timeoutMs: 30_000,
+        transport: { type: "http" as const, url: "https://mcp.example.com", headers: {} },
+      };
+      const filteredStdio = {
+        id: "fs",
+        name: "fs",
+        timeoutMs: 30_000,
+        disabledTools: ["danger"],
+        transport: { type: "stdio" as const, command: "srv", args: [], env: {} },
+      };
+      await createDevinAdapter().createStructuredSession?.({
+        ...guiInput({ model: "" }),
+        mcpServers: [hosted, remote, filteredStdio],
+      });
+      const input = mocks.createAcpStructuredSession.mock.calls.at(-1)?.[1] as {
+        mcpServers: ResolvedMcpServer[];
+      };
+      const [hostedOut, remoteOut, filteredOut] = input.mcpServers;
+      // The hosted endpoint keeps its HTTP transport and directTransport —
+      // the shared ACP layer serializes it as the proven session/new shape.
+      expect(hostedOut).toMatchObject({
+        name: "browser",
+        transport: { type: "http", url: route.url, headers: route.headers },
+      });
+      expect(hostedOut).toHaveProperty("directTransport");
+      expect(buildAcpMcpServers(input.mcpServers)).toContainEqual({
+        type: "http",
+        name: "browser",
+        url: route.url,
+        headers: [{ name: "Authorization", value: "Bearer route-token" }],
+      });
+      // Non-hosted remote and filtered stdio servers stay on stdio relays.
+      for (const relayed of [remoteOut, filteredOut]) {
+        expect(relayed!.transport.type).toBe("stdio");
+        expect(relayed).not.toHaveProperty("directTransport");
+      }
+      const wire = buildAcpMcpServers(input.mcpServers);
+      for (const name of ["remote", "fs"]) {
+        expect(wire.find((entry) => entry.name === name)).toMatchObject({
+          command: expect.any(String),
+          args: [expect.stringContaining("mcp-filter.mjs")],
+        });
+      }
+      // The disk overlay receives the same catalog, so it serializes the
+      // hosted endpoint as the proven remote disk shape.
+      expect(mocks.prepareDevinMcpConfig).toHaveBeenCalledWith(expect.anything(), input.mcpServers);
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(helpers, { recursive: true, force: true });
+    }
+  });
+
+  it("gives the WSL overlay the same direct HTTP entries", async () => {
+    const route = {
+      type: "http" as const,
+      url: "http://172.30.0.1:9300/route-1/mcp",
+      headers: { Authorization: "Bearer route-token" },
+    };
+    const hosted = {
+      id: "browser",
+      name: "browser",
+      timeoutMs: 30_000,
+      transport: route,
+      directTransport: route,
+    };
+    await createDevinAdapter().createStructuredSession?.({
+      ...guiInput({ model: "" }),
+      projectLocation: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/u/proj",
+        uncPath: "\\\\wsl$\\Ubuntu\\home\\u\\proj",
+      },
+      mcpServers: [hosted],
+    });
+    const input = mocks.createAcpStructuredSession.mock.calls.at(-1)?.[1] as {
+      mcpServers: ResolvedMcpServer[];
+    };
+    expect(input.mcpServers[0]!.transport).toMatchObject({ type: "http", url: route.url });
+    expect(mocks.prepareDevinMcpConfig).toHaveBeenCalledWith(expect.anything(), [
+      expect.objectContaining({
+        transport: expect.objectContaining({ type: "http", url: route.url }),
+      }),
+    ]);
   });
 
   it("passes cloud setup only through the shared factory options and rejects CLI ignore", async () => {

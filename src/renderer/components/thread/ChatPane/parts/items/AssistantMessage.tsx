@@ -9,6 +9,7 @@ import { MarkdownVideo } from "./MarkdownVideo";
 import { splitInlineVisuals } from "@/shared/inlineVisuals";
 import { RUNTIME_STREAM_ELISION_NOTICE_PREFIX } from "@/shared/runtimeStreamRetentionPolicy";
 import { MAX_NATIVE_VISUALS_PER_MESSAGE } from "@/shared/nativeVisuals";
+import { MAX_HTML_VISUAL_PREVIEWS_PER_MESSAGE } from "@/shared/htmlVisuals";
 import type { MessageItemPayload } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -26,7 +27,7 @@ import { ChatReaderFollowContext } from "../../chatReaderFollow";
 import { CopyTextButton } from "./CopyTextButton";
 import { RemoteImageCard } from "./RemoteImageCard";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
-import { InlineVisual } from "./InlineVisual";
+import { HtmlVisual } from "./HtmlVisual";
 import { NativeVisual } from "./NativeVisual";
 import { SmoothItemMarkdown } from "./ItemMarkdown";
 import { WindowedPlainText } from "./WindowedPlainText";
@@ -226,15 +227,18 @@ function AssistantTextBody({
       ? splitInlineVisuals(text)
       : undefined;
   let nativeCount = 0;
+  let htmlCount = 0;
   if (parts?.some((part) => part.kind !== "markdown")) {
     return parts.map((part, index) =>
       part.kind === "visual" ? (
-        <InlineVisual
+        <HtmlVisual
           key={index}
           html={part.html}
           title={part.title}
-          complete={part.complete}
-          isStreaming={isStreaming}
+          version={part.version}
+          complete={part.complete && !isStreaming}
+          isStreaming={isStreaming && isTurnActive}
+          limited={htmlCount++ >= MAX_HTML_VISUAL_PREVIEWS_PER_MESSAGE}
         />
       ) : part.kind === "native" ? (
         <NativeVisual

@@ -404,6 +404,8 @@ export const remoteEnvironmentCapabilitiesSchema = z.object({
   threadForks: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Host transcript listing and the `import-session` thread command. */
   sessionImport: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
+  /** Thread transfer between hosts (`THREAD_TRANSFER_VERSION`): command and upload routes. */
+  threadTransfer: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
   pushRouting: remotePushRoutingCapabilitySchema.optional(),
   browserForward: remoteBrowserForwardCapabilitySchema.optional(),

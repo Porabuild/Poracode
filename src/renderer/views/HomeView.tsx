@@ -19,7 +19,7 @@ import {
 } from "@/renderer/components/common/ProjectRemoteServer";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import {
-  ProjectEnvironmentGlyphs,
+  ProjectEnvironmentIndicator,
   type ProjectEnvironmentMachine,
   useProjectEnvironmentMachineLookup,
 } from "@/renderer/components/common/ProjectEnvironment";
@@ -208,7 +208,7 @@ function ProjectGroup(props: { name: string; icon?: ReactNode; children: ReactNo
 
 function ProjectRow(props: {
   project: Project;
-  /** Every environment row of this project listed here; more than one shows machine glyphs. */
+  /** Every environment row of this project listed here; more than one combine into one connection marker. */
   members: readonly Project[];
   machineFor: (project: Project) => ProjectEnvironmentMachine | undefined;
   remote: ProjectRemoteServerInfo;
@@ -230,12 +230,17 @@ function ProjectRow(props: {
         onClick={props.onSelect}
         type="button"
       >
-        <ProjectSelectorIcon project={project} remote={remote} className="size-3.5" />
+        <ProjectSelectorIcon
+          project={project}
+          remote={remote}
+          showEnvironment={props.members.length === 1}
+          className="size-3.5"
+        />
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
           {isHomeProject(project) ? <Trans>Home</Trans> : project.name}
         </span>
         {props.members.length > 1 ? (
-          <ProjectEnvironmentGlyphs members={props.members} machineFor={props.machineFor} />
+          <ProjectEnvironmentIndicator members={props.members} machineFor={props.machineFor} />
         ) : (
           <span className="flex shrink-0 items-center gap-1 text-[11px]">
             <ProjectRemoteServerChip info={remote} size="xs" />

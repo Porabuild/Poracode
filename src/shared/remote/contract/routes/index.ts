@@ -6,6 +6,7 @@ import { experimentsRoutes } from "./experiments";
 import { opsRoutes } from "./ops";
 import { sessionRoutes } from "./session";
 import { threadRoutes } from "./threads";
+import { threadTransferRoutes } from "./threadTransfer";
 import { workspaceRoutes } from "./workspace";
 
 /** Manifest `httpRoutes` order is the stable inventory order. */
@@ -112,6 +113,8 @@ const MANIFEST_ROUTE_IDS = [
   "request-resolve",
   "thread-runtime-gap",
   "thread-runtime-gap-acknowledge",
+  "thread-transfer-command",
+  "thread-transfer-upload",
   "experiment-state",
   "experiment-command",
   "device-inventory",
@@ -136,6 +139,7 @@ const unorderedRoutes = [
   ...environmentManagementRoutes,
   ...workspaceRoutes,
   ...threadRoutes,
+  ...threadTransferRoutes,
   ...experimentsRoutes,
   ...opsRoutes,
   ...deviceRoutes,

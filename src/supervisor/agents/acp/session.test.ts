@@ -2484,6 +2484,113 @@ describe("ACP client protocol helpers", () => {
     });
   });
 
+  describe("relayed host endpoints", () => {
+    const route = {
+      type: "http" as const,
+      url: "http://127.0.0.1:9300/route-1/mcp",
+      headers: { Authorization: "Bearer route-token" },
+    };
+    const relayed = {
+      id: "sentry",
+      name: "sentry",
+      timeoutMs: 30_000,
+      disabledTools: ["delete_project"],
+      transport: {
+        type: "stdio" as const,
+        command: "/app/node",
+        args: ["/helpers/mcp-relay.mjs"],
+        env: { PORACODE_MCP_HTTP_RELAY_CONFIG: "relay-envelope" },
+      },
+      directTransport: route,
+    };
+    const relayEntry = {
+      name: "sentry",
+      command: "/app/node",
+      args: ["/helpers/mcp-relay.mjs"],
+      env: [{ name: "PORACODE_MCP_HTTP_RELAY_CONFIG", value: "relay-envelope" }],
+    };
+    const directEntry = {
+      type: "http",
+      name: "sentry",
+      url: route.url,
+      headers: [{ name: "Authorization", value: "Bearer route-token" }],
+    };
+
+    it("connects HTTP-capable agents to the endpoint instead of spawning the relay", async () => {
+      const { connection, session } = makeConfigSyncSession({
+        agentMcpCapabilities: { http: true },
+        mcpServers: [relayed],
+      });
+
+      await expect(session.openThread({ model: "model-a" })).resolves.toBe("session-1");
+
+      expect(connection.newSession).toHaveBeenCalledWith({
+        cwd: "C:\\repo",
+        mcpServers: [directEntry],
+      });
+    });
+
+    it("keeps the stdio relay for agents without HTTP MCP", async () => {
+      const { connection, session } = makeConfigSyncSession({
+        agentMcpCapabilities: { http: false },
+        mcpServers: [relayed],
+      });
+
+      await expect(session.openThread({ model: "model-a" })).resolves.toBe("session-1");
+
+      expect(connection.newSession).toHaveBeenCalledWith({
+        cwd: "C:\\repo",
+        mcpServers: [relayEntry],
+      });
+    });
+
+    it("falls back to the relay when an assumed HTTP transport is refused", async () => {
+      const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const { connection, session } = makeConfigSyncSession({
+        agentMcpCapabilities: undefined,
+        assumedMcpCapabilities: { http: true },
+        mcpServers: [relayed],
+      });
+      connection.newSession
+        .mockRejectedValueOnce(RequestError.internalError())
+        .mockResolvedValueOnce({
+          sessionId: "session-1",
+          modes: { availableModes: [] },
+          configOptions: [],
+        });
+
+      try {
+        await expect(session.openThread({ model: "model-a" })).resolves.toBe("session-1");
+        expect(connection.newSession).toHaveBeenNthCalledWith(1, {
+          cwd: "C:\\repo",
+          mcpServers: [directEntry],
+        });
+        expect(connection.newSession).toHaveBeenLastCalledWith({
+          cwd: "C:\\repo",
+          mcpServers: [relayEntry],
+        });
+      } finally {
+        log.mockRestore();
+      }
+    });
+
+    it("keeps a direct endpoint when only optimistic stdio servers are retried away", async () => {
+      const { connection, session } = makeConfigSyncSession({
+        agentMcpCapabilities: { http: true, sse: true },
+        optimisticMcpTransports: ["stdio"],
+        mcpServers: [relayed],
+      });
+
+      await expect(session.openThread({ model: "model-a" })).resolves.toBe("session-1");
+
+      expect(connection.newSession).toHaveBeenCalledTimes(1);
+      expect(connection.newSession).toHaveBeenCalledWith({
+        cwd: "C:\\repo",
+        mcpServers: [directEntry],
+      });
+    });
+  });
+
   it("retries without the assumed-transport MCP servers when session creation fails", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const { connection, session } = makeConfigSyncSession({

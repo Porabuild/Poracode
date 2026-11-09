@@ -454,7 +454,12 @@ export function SidebarProjectFilter(props: {
                       showEnvironment={row.environments.length === 1}
                     />
                     <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                    {serverName ? (
+                    {row.environments.length > 1 ? (
+                      <ProjectEnvironmentIndicator
+                        members={row.environments}
+                        machineFor={machineFor}
+                      />
+                    ) : serverName ? (
                       <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
                         {serverName}
                       </span>
@@ -489,7 +494,12 @@ export function SidebarProjectFilter(props: {
                       showEnvironment={row.environments.length === 1}
                     />
                     <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                    {serverName ? (
+                    {row.environments.length > 1 ? (
+                      <ProjectEnvironmentIndicator
+                        members={row.environments}
+                        machineFor={machineFor}
+                      />
+                    ) : serverName ? (
                       <span className="max-w-24 shrink-0 truncate text-xs text-muted/60">
                         {serverName}
                       </span>

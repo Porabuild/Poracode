@@ -153,6 +153,8 @@ export async function createAdapter(launchBootstrap: TuiBootstrap) {
     },
     sessionOptions: router.sessionOptions,
     setSessionOptions: router.setSessionOptions,
+    composerState: router.composerState,
+    gitChanges: router.gitChanges,
     exportSession: router.exportSession,
     offeredProviders: router.offeredProviders,
     threadFlags: router.threadFlags,

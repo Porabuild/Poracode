@@ -44,7 +44,9 @@ const TUI_HELP =
   '    --server NAME reopens a saved host. Switch hosts inside the TUI with the "Switch server" command.\n' +
   "    A checkout requires bun run tui:install; packaged builds use their staged binary or PORACODE_TUI_BIN.\n" +
   "    The server remains running after the TUI exits; stop it with poracode stop and the same --base-dir.\n" +
-  "    Each launch pairs a Poracode TUI client. Use clients list/revoke to inspect or remove client entries.\n";
+  "    Each launch pairs a Poracode TUI client. Use clients list/revoke to inspect or remove client entries.\n" +
+  "  tui --prefetch\n" +
+  "    Download and verify this install's terminal UI binary, then exit (the one-line installers run this).\n";
 const PRINT_HELP =
   "  -p|--print PROMPT [--provider PROVIDER] [--model MODEL] [--effort EFFORT] [--format text|json]\n" +
   "    Run one prompt through the controlled run engine. Defaults use the last TUI provider/model/effort; when no saved model applies, use the first advertised model.\n" +
@@ -423,6 +425,23 @@ const COMMAND_HELP: Record<string, string> = {
   "init-tls":
     "  init-tls [--json] [--cert PATH] [--key PATH]\n    Generate self-signed TLS material; default: <profile>/tls/server.crt and server.key (private key mode 0600).\n" +
     "    Configure tlsCert/tlsKey or the corresponding environment variables explicitly. This does not start a listener.\n",
+  update:
+    "  update [VERSION] [--channel stable|nightly] [--prefix PATH] [--json]\n" +
+    "    Update an install made by the one-line installer: download the release's self-contained archive, verify it against SHA256SUMS, then switch current.\n" +
+    "    The channel defaults to this install's train. A running owner or managed service goes through upgrade (drain, admission, rollback);\n" +
+    "    otherwise the new release installs beside the previous one, which is kept.\n",
+  up:
+    "  up [--tailnet | --lan | --local-only] [--relay-url URL] [--prefix PATH] [--no-service] [--no-pair]\n" +
+    "    Make an install from the one-line installer reachable from your other devices in one step.\n" +
+    "    --tailnet binds the Tailscale interface; --lan creates self-signed TLS once and binds all interfaces (never plaintext);\n" +
+    "    --local-only returns to loopback; --relay-url registers a relay. Then installs and starts the managed user service\n" +
+    "    (restarts it when already registered). Lingering and elevation are explained, never changed. In an interactive\n" +
+    "    terminal it waits for the service and shows a pairing QR code (as pairings create --qr); --no-pair skips that.\n" +
+    "    From an npm or package-manager install, up uses the one-line installer's prefix when one exists, else saves settings only.\n",
+  uninstall:
+    "  uninstall [--prefix PATH] [--bin-dir PATH] [--yes] [--json]\n" +
+    "    Remove an install made by the one-line installer, the command link it created, and the terminal UI cache of the installed versions. Profile data and PATH entries are kept.\n" +
+    "    Refuses while a managed service or a server for this profile runs. Scripts and --json require --yes.\n",
   upgrade:
     "  upgrade (--from TARBALL | --resume [--from TARBALL] | --abandon-journal --confirm) [--prefix PATH] [--json]\n" +
     "    Stage and explicitly upgrade the selected installed prefix, or recover its existing journal. Some resume states require --confirm.\n" +
