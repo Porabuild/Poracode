@@ -81,10 +81,16 @@ download path.
 ## How it works
 
 - This package contains **no server code and no native modules**. It resolves
-  the runtime tarball pinned to its own version in `runtime-manifest.json`,
-  downloads it from the matching GitHub release, verifies its sha256, installs
-  it atomically into a versioned cache, and then executes the artifact's server
-  CLI.
+  the self-contained archive pinned to its own version in
+  `runtime-manifest.json`, downloads it from the matching GitHub release,
+  verifies its sha256, installs it atomically into a versioned cache through
+  the archive's own installer (no npm install), and then executes the
+  artifact's server CLI on the archive's bundled Node. The launcher itself
+  needs only Node.js 20.11 or newer; nothing else is required on the host.
+- Without installing anything permanent, `npx poracode@latest` runs the newest
+  release and `npx poracode@nightly` the nightly train. For a permanent command
+  without Node at all, use `curl -fsSL https://poracode.com/install.sh | sh`
+  (Windows: `irm https://poracode.com/install.ps1 | iex`).
 - The cache lives at `<PORACODE_BASE_DIR or ~/.poracode>/runtime/<version>/<target>`,
   separate from profile data. A verified install is reused without network
   access. `PORACODE_RUNTIME_CACHE_DIR` overrides the cache root.

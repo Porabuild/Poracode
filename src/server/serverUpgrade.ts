@@ -59,6 +59,7 @@ import {
 } from "./serverUpgradeCandidate";
 import { stopUpgradeCandidate } from "./serverUpgradeCandidateStop";
 import { registeredServiceUpgradeIo } from "./serverServiceUpgrade";
+import { releaseNodeExecutable } from "./serverStandaloneRuntime";
 import { installServerRelease } from "../../scripts/server-release-install.mjs";
 import {
   DEFAULT_QUALIFICATION_TIMEOUT_MS,
@@ -150,7 +151,7 @@ function readProfileSchemaVersion(paths: HostRootPaths): number | null {
 
 function runCandidateDoctor(releaseDir: string): UpgradeDoctorResult {
   const result = execFileSync(
-    process.execPath,
+    releaseNodeExecutable(releaseDir),
     [join(releaseDir, "lib", "server.cjs"), "doctor", "--json"],
     {
       encoding: "utf8",

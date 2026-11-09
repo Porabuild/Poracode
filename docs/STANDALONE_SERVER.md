@@ -16,7 +16,8 @@ story is in [REMOTE_ARCHITECTURE.md](./REMOTE_ARCHITECTURE.md).
 
 | Mode                            | Use it for                                                                         | Section |
 | ------------------------------- | ---------------------------------------------------------------------------------- | ------- |
-| `npx` launcher (`poracode`)     | quickest start; version-pinned runtime, no checkout, no compiler                   | §2      |
+| One-line installer              | quickest install; self-contained archive with its own Node, no npm or compiler     | §2.1    |
+| `npx` launcher (`poracode`)     | try without installing; version-pinned self-contained runtime                      | §2.2    |
 | Release artifact service prefix | supported production deployment; immutable release directories, verified upgrades  | §3–§4   |
 | Container image                 | container hosts; built from the Linux tarball, no compiler                         | §5      |
 | Development checkout            | working on the server source inside the repository; **not** a supported deployment | §6      |
@@ -26,13 +27,109 @@ configure a wider bind **and** satisfy its security gate (§4.3). Writable state
 never lives in an install prefix: `PORACODE_BASE_DIR` selects the profile
 namespace and the server owns its `<namespace>.host-v1` root (§3.1).
 
-## 2. npx launcher (`poracode`)
+## 2. Install the CLI
+
+Every release publishes one **self-contained archive** per target:
+`poracode-<version>-<target>.tar.gz` (`.zip` for Windows) for `darwin-arm64`,
+`darwin-x64`, `linux-x64`, `linux-arm64` and `win32-x64`, plus `SHA256SUMS`.
+Each archive is the qualified server tarball (§3.1) with its dependency closure
+already installed, the native overlay applied, the Claude Code platform
+binaries pruned (the server launches the user's own `claude`, as the desktop
+app does), a pinned Node.js under `runtime/`, a `bin/poracode` launcher and a
+`standalone.json` marker. `scripts/build-standalone-archive.mjs` derives it from
+the exact qualified tarball on a native runner for each target (npm optional
+dependencies and the overlay follow the build host); the release workflow then
+qualifies it with its own Node and no host Node or npm on PATH, and
+`standalone-<target>.json` records its provenance. Installing it needs no
+Node, npm, registry access or compiler. musl Linux is not published.
+
+### 2.1 One-line installer
+
+```sh
+curl -fsSL https://poracode.com/install.sh | sh   # macOS, Linux (glibc)
+irm https://poracode.com/install.ps1 | iex        # Windows PowerShell 5.1+
+```
+
+Stable releases before 2.0.0 do not include these archives; until a 2.x stable
+release is out, install the nightly train:
+`curl -fsSL https://poracode.com/install.sh | PORACODE_CHANNEL=nightly sh`
+(PowerShell: `$env:PORACODE_CHANNEL = 'nightly'; irm https://poracode.com/install.ps1 | iex`).
+`PORACODE_VERSION` pins a release. Once the launcher is published to npm,
+`npx poracode@latest` runs it without installing (Node.js 20.11 or newer, for
+`npx` only).
+
+The scripts (served from `website/public/` and attached to every release)
+resolve the release, download `SHA256SUMS` and the archive for this machine,
+verify the checksum, refuse absolute, parent and link entries, extract into a
+staging directory, confirm the archive's target and that its launcher reports
+the expected version, and only then publish it. The install uses the §3.1
+prefix layout, so `poracode service` (§7.2) and `poracode upgrade` (§9) manage
+it: `<prefix>/releases/<version>` with `<prefix>/current` (a junction on
+Windows) pointing at the active one. The default prefix is `~/.poracode/server`
+(`%LOCALAPPDATA%\Poracode\server` on Windows). Re-running the installer
+switches versions; earlier releases are kept.
+
+| Variable                    | Meaning                                                           |
+| --------------------------- | ----------------------------------------------------------------- |
+| `PORACODE_CHANNEL`          | `stable` (default) or `nightly`                                   |
+| `PORACODE_VERSION`          | exact version to install (overrides the channel)                  |
+| `PORACODE_INSTALL_DIR`      | install prefix                                                    |
+| `PORACODE_BIN_DIR`          | command directory (`~/.local/bin`; `%LOCALAPPDATA%\Poracode\bin`) |
+| `PORACODE_RELEASE_BASE_URL` | mirror for `releases/download`                                    |
+| `PORACODE_NO_MODIFY_PATH=1` | never edit shell startup files or the user `PATH`                 |
+| `PORACODE_NO_TUI=1`         | skip the terminal UI download; the first `poracode` downloads it  |
+
+On macOS and Linux the command is a link to `<prefix>/current/bin/poracode`; on
+Windows a `poracode.cmd` shim calls `<prefix>\current\bin\poracode.cmd`. An
+existing `poracode` the installer does not own (for example the desktop app's
+registered command or an npm installation) is never replaced; the script prints
+the command to run instead. When the command directory is not on `PATH`, the
+POSIX script appends the same `PATH` line the desktop app writes (zsh, bash or
+fish), and the PowerShell script appends the directory to the user `PATH`,
+preserving the registry value type. Profile data lives outside the prefix and is
+never touched. An x64 shell under Rosetta still installs the Apple silicon build.
+
+`poracode update [VERSION] [--channel stable|nightly]` updates such an install:
+it resolves the release (the channel defaults to the installed train), verifies
+the archive against `SHA256SUMS`, and either installs it beside the previous
+release and moves `current` (nothing running), or hands it to `upgrade` (§9)
+when a server owns the profile or a managed service is registered, so the
+drain, candidate admission and rollback rules apply. The side-by-side path
+keeps the previous release for a manual rollback and removes older
+self-contained releases (a release still in use is left in place); the
+`upgrade` path keeps every release, because a registered service may still
+launch an earlier release's Node.
+
+`poracode up [--tailnet | --lan | --local-only] [--relay-url URL]` makes such an
+install reachable from other devices in one step: it saves the bind mode
+(`--lan` creates the profile's self-signed TLS once and never configures a
+plaintext LAN listener; `--local-only` returns to loopback) and relay through
+`configure`, then installs and starts the managed user service (§7.2), or
+restarts it when already registered. On Linux it explains, but never enables,
+lingering. In an interactive terminal it then waits for the service and shows
+a pairing QR code and link, exactly as `poracode pairings create --qr` does;
+`--no-pair` skips that, and non-interactive runs never create a grant.
+`--no-service` only saves the settings. From an npm (`npx`) or package-manager
+install, `up` uses the one-line installer's prefix when one exists; otherwise it
+saves the settings and explains that the managed service needs the one-line
+installer.
+
+`poracode uninstall [--yes]` removes the prefix, the command link the
+installer created and the terminal UI cache of the installed versions; it
+refuses while a managed service is registered or a server for the profile
+runs, and keeps profile data and `PATH` entries. Both refuse in
+the desktop app's bundled CLI, which updates with the desktop app.
+
+### 2.2 npx launcher (`poracode`)
 
 `packages/poracode-cli` is a small publishable package with a `poracode` bin. It
-contains no server code and no native modules: it resolves the runtime tarball
-pinned to its own version in `runtime-manifest.json`, downloads it from the
-matching GitHub release, verifies its sha256, installs it atomically into a
-versioned cache, and then hands the terminal to the artifact's server CLI.
+contains no server code and no native modules: it resolves the self-contained
+archive pinned to its own version in `runtime-manifest.json` (format 2), downloads
+it from the matching GitHub release, verifies its sha256, installs it atomically
+into a versioned cache through the archive's own installer, and then hands the
+terminal to the artifact's server CLI running on the archive's bundled Node. The
+launcher itself only needs Node.js 20.11 or newer. A format-1 manifest (the
+npm-installed tarball, run on the host Node) is still read.
 
 ```sh
 npx poracode@<version>                 # TUI in a terminal; serve without opening when non-interactive
@@ -93,12 +190,16 @@ credentials remain separate from provider logins.
   exactly as documented below. The launcher also exports `PORACODE_APP_VERSION`
   for the pinned artifact version.
 
-Publication status: the release workflow packs and publishes this package only
-when npm publishing is enabled for the repository (`NPM_PUBLISH_ENABLED`); see
-§10. Until a release has published it, use the artifact install in §3 — the
-launcher's runtime format is the same tarball.
+Publication status: both release workflows dispatch `publish-npm.yml` once their
+GitHub release is public and wait for that run (npm allows up to 10 trusted
+publishers per package; one dispatched workflow keeps a single
+trusted-publisher entry to audit plus a manual entry point for publishing an
+earlier release); it publishes the exact qualified package under `latest` (stable) or `nightly`
+(`npx poracode@nightly`), never a prerelease under `latest`, and only when the
+repository variable `NPM_PUBLISH_ENABLED` is `true` and the trusted publisher is
+configured; see §10. Until then, use §2.1 or the artifact install in §3.
 
-### 2.1 Desktop-bundled entry
+### 2.3 Desktop-bundled entry
 
 Windows, macOS, and Linux packaging also stages a command under
 `<desktop-resources>/desktop-cli/`: `poracode.cmd` on Windows, `poracode` on macOS,
@@ -1636,8 +1737,19 @@ qualified bytes; it never rebuilds a lookalike after tests. Status of the gates
 that are wired but not yet proven for a released artifact:
 
 - **npm publication** is gated behind the repository's `NPM_PUBLISH_ENABLED`
-  setting; until it is enabled, `npx poracode@<version>` is not available from
-  the registry and the artifact install (§3) is the supported path.
+  setting and the `publish-npm.yml` trusted publisher. The first version must be
+  published by a maintainer (`node scripts/npm-claim-placeholder.mjs --publish`)
+  because trusted publishing only applies to an existing package; until then
+  `npx poracode` is not available and §2.1 or §3 is the supported path.
+- **Self-contained archives** are built and qualified per target from the same
+  qualified bytes (§2); a target without its archive leg is not published.
+- **Package managers**: `publish-package-managers.yml` (manual, plain releases
+  only) renders a Homebrew formula (`poracode-cli`) and cask (`poracode`), a
+  Scoop manifest, winget manifests and an AUR `poracode-cli-bin` PKGBUILD from
+  the release's own `SHA256SUMS` (`scripts/package-managers.mjs`), and pushes
+  each one only when its repository variable or credential is configured.
+  Package-managed CLIs update through their package manager; `poracode update`
+  refuses them.
 - **Platform qualification** is per artifact: install the frozen bytes on the
   target with the artifact's own shipped installer (§3.3) and run the harness
   steps above against that prefix; do not describe a platform as qualified
@@ -1647,3 +1759,8 @@ that are wired but not yet proven for a released artifact:
   release and is not an N−1 claim.
 - **Power-loss durability** is not implemented or claimed; the upgrade journal
   guarantees process-crash atomicity only (§9).
+- **Not shipped yet**: Windows code signing (SmartScreen warns on unsigned
+  installers); a hosted relay such as T3 Connect (`--relay-url` takes a
+  self-hosted relay); Nix/nixpkgs packaging; desktop AUR and Nix packages
+  (they need a way to turn off the desktop updater); and publishing the
+  container image to `ghcr.io`.

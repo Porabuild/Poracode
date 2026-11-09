@@ -66,7 +66,7 @@ import { ServerUpgradeBusyError, ServerUpgradeLockUnreadableError } from "./serv
 import { ServerUpgradeServiceTargetError } from "./serverUpgradeRestart";
 import { requestPairingFromRunningServer } from "./pairingControl";
 import { ensureCliOwner } from "./cliOwner";
-import { runCliTui, TuiLaunchUnavailableError } from "./cliTui";
+import { prefetchTuiBinary, runCliTui, TuiLaunchUnavailableError } from "./cliTui";
 import { isInteractiveInvocation, resolveInteractiveStdin } from "./cliConsole";
 import {
   parseActivateCliOptions,
@@ -75,9 +75,11 @@ import {
   parseDoctorCliOptions,
   parseInitTlsCliOptions,
   parsePairCliOptions,
+  parseSelfUpdateCliOptions,
   parseServerCliCommand,
   parseStopCliOptions,
   parseTuiCliOptions,
+  parseUninstallCliOptions,
   type ActivateCliOptions,
   type BackupCliOptions,
   type DoctorCliOptions,
@@ -87,6 +89,9 @@ import {
 } from "./cliParse";
 import { writeInitTlsMaterial } from "./initTlsWrite";
 import { connectHostAdministration, runAdminCli, reportAdminError } from "./cliAdmin";
+import { runSelfUpdateCli } from "./cliSelfUpdate";
+import { runSelfUninstallCli } from "./cliSelfUninstall";
+import { parseUpCliOptions, runUpCli } from "./cliUp";
 import { CLI_ADMIN_HELP, CLI_PROFILE_HELP, cliCommandHelp } from "./cliHelp";
 import { extractBaseDir, runConfigure } from "./cliConfigure";
 import {
@@ -607,7 +612,7 @@ function printHelp(args: readonly string[]): void {
       "Usage: poracode [tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [--pair LINK [--name NAME] | --server NAME] [DIRECTORY] | " +
       "-p|--print PROMPT [--provider K] [--model M] [--effort E] [--format text|json] [--directory PATH] | " +
       "serve [--open|--no-open] [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | " +
-      "setup [--start|--no-start] [--skip-auth] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | logs [--follow] [--lines N] [--json] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | pair --json [--scope viewer|operator] | status [--details] [--json] | stop [--if-pid PID] | --version | --help]\n" +
+      "setup [--start|--no-start] [--skip-auth] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | logs [--follow] [--lines N] [--json] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | update [VERSION] [--channel stable|nightly] | uninstall [--yes] | up [--tailnet|--lan|--local-only] [--relay-url URL] | pair --json [--scope viewer|operator] | status [--details] [--json] | stop [--if-pid PID] | --version | --help]\n" +
       "\nPORACODE_BASE_DIR selects a profile namespace. The server owns its .host-v1 sibling.\n" +
       "Bare invocation opens the TUI when stdin and stdout are terminals; otherwise it serves the current profile without opening a browser.\n" +
       "Use serve --open (or --open) for the web app; --no-open means server only.\n" +
@@ -719,6 +724,15 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
     }
     return;
   }
+  if (capturedBuild && (command === "update" || command === "uninstall" || command === "up")) {
+    reportAdminError(
+      new Error(
+        "This command manages installs made by the one-line installer. The desktop app's CLI updates and uninstalls with the desktop app.",
+      ),
+      args.includes("--json"),
+    );
+    return;
+  }
   if (capturedBuild && command === "upgrade") {
     reportAdminError(
       new Error(
@@ -806,11 +820,27 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
                                 ? runInitTls(parseInitTlsCliOptions(args.slice(1)))
                                 : command === "upgrade"
                                   ? runUpgrade(parseUpgradeCliOptions(args.slice(1)))
-                                  : serve(
-                                      parseServeCliOptions(args),
-                                      args[0] !== "serve",
-                                      capturedBuild,
-                                    );
+                                  : command === "update"
+                                    ? runSelfUpdateCli(
+                                        parseSelfUpdateCliOptions(args.slice(1)),
+                                        resolve(__dirname, ".."),
+                                      )
+                                    : command === "uninstall"
+                                      ? runSelfUninstallCli(
+                                          parseUninstallCliOptions(args.slice(1)),
+                                          resolve(__dirname, ".."),
+                                        )
+                                      : command === "up"
+                                        ? runUpCli(
+                                            parseUpCliOptions(args.slice(1)),
+                                            profileNamespace(),
+                                            resolve(__dirname, ".."),
+                                          )
+                                        : serve(
+                                            parseServeCliOptions(args),
+                                            args[0] !== "serve",
+                                            capturedBuild,
+                                          );
   operation.catch(async (error) => {
     await performanceDiagnostics?.stop();
     if (error instanceof HeadlessCompositionShutdownError) {
@@ -830,6 +860,9 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
         "status-json",
         "service",
         "logs",
+        "up",
+        "update",
+        "uninstall",
       ].includes(command)
     ) {
       reportAdminError(error, command !== "logs" && args.includes("--json"));
@@ -865,6 +898,16 @@ async function runTuiCommand(
   capturedBuild: HostBuildIdentity | undefined,
   baseDir: string | undefined,
 ) {
+  if (args.includes("--prefetch")) {
+    parseTuiCliOptions(args); // refuses --prefetch combined with anything else
+    const binary = await prefetchTuiBinary(capturedBuild !== undefined ? { capturedBuild } : {});
+    process.stdout.write(
+      binary
+        ? `Poracode TUI ready: ${binary}\n`
+        : "This install offers no terminal UI binary for this platform.\n",
+    );
+    return;
+  }
   const stdin = resolveInteractiveStdin();
   try {
     assertTuiTerminal(stdin !== undefined, process.stdout.isTTY === true);

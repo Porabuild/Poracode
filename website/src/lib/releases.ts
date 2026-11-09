@@ -30,6 +30,7 @@ export interface ReleaseInfo {
   version: string | null;
   releasesUrl: string;
   downloads: Partial<Record<string, string>>;
+  cliInstaller: boolean;
   publishedAt?: string | null;
 }
 
@@ -43,6 +44,7 @@ function buildReleaseInfo(release: GitHubReleaseResponse): ReleaseInfo {
     version: release.tag_name.replace(/^v/, ""),
     releasesUrl: release.html_url,
     downloads,
+    cliInstaller: release.assets.some((asset) => asset.name === "SHA256SUMS"),
     publishedAt: release.published_at ?? null,
   };
 }
@@ -79,6 +81,7 @@ export async function getLatestRelease(): Promise<ReleaseInfo> {
       version: null,
       releasesUrl: RELEASES_LATEST_URL,
       downloads: {},
+      cliInstaller: false,
       publishedAt: null,
     };
   }
@@ -110,6 +113,7 @@ export async function getLatestNightlyRelease(): Promise<ReleaseInfo> {
         version: null,
         releasesUrl: RELEASES_INDEX_URL,
         downloads: {},
+        cliInstaller: false,
         publishedAt: null,
       };
     }
@@ -120,8 +124,32 @@ export async function getLatestNightlyRelease(): Promise<ReleaseInfo> {
       version: null,
       releasesUrl: RELEASES_INDEX_URL,
       downloads: {},
+      cliInstaller: false,
       publishedAt: null,
     };
+  }
+}
+
+const NPM_LAUNCHER_VERSION_PATTERN = /^[1-9]\d*\.\d+\.\d+$/u;
+
+/**
+ * The published `poracode` npm launcher version, or null while the registry
+ * only carries the 0.0.0 claim placeholder (or nothing at all). Cached for 5
+ * minutes like the release lookups; every failure yields null so the download
+ * page simply hides the npx entry.
+ */
+export async function getNpmLauncherVersion(): Promise<string | null> {
+  try {
+    const res = await fetch("https://registry.npmjs.org/poracode/latest", {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { version?: unknown };
+    return typeof body.version === "string" && NPM_LAUNCHER_VERSION_PATTERN.test(body.version)
+      ? body.version
+      : null;
+  } catch {
+    return null;
   }
 }
 
