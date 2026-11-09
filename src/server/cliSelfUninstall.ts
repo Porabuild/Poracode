@@ -11,10 +11,16 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join, posix, win32 } from "node:path";
+import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { readStandaloneRuntimeMarker } from "../../scripts/server-release-install.mjs";
 import { promptCli } from "./cliPrompts";
-import { SERVER_SERVICE_REGISTRATION_FILE } from "./serverServiceRegistration";
+import { runServerService } from "./serverService";
+import {
+  readServiceRegistration,
+  ServerServiceRefusedError,
+  type ServerServiceRegistration,
+} from "./serverServiceRegistration";
 import {
   defaultProbeOwner,
   removeTuiCachesForVersions,
@@ -24,10 +30,11 @@ import {
 
 /**
  * `poracode uninstall` for installs made by the one-line installers
- * (`website/public/install.sh`, `install.ps1`): removes the prefix's command
- * link/shim, the TUI download caches of the versions it installed, and the
- * prefix itself — but never profile data, PATH entries it did not create, or
- * anything while a server or managed service still uses the prefix.
+ * (`website/public/install.sh`, `install.ps1`): removes the managed background
+ * service registered for the prefix (its owner is stopped first), the
+ * prefix's command link/shim, the TUI download caches of the versions it
+ * installed, and the prefix itself — but never profile data, PATH entries it
+ * did not create, or anything while another server for the profile runs.
  */
 const INSTALLER_SHIM_MARKER = "rem poracode-installer-shim v1";
 const INSTALLER_SHIM_LAUNCHER = /^"([^"\r\n]+)" %\*\s*$/mu;
@@ -185,6 +192,7 @@ export function windowsDeferredRemovalCommand(prefix: string): {
 export interface SelfUninstallResult {
   readonly ok: true;
   readonly prefix: string;
+  readonly removedService: string | null;
   readonly removedCommands: readonly string[];
   readonly removedCaches: readonly string[];
   readonly prefixRemoval: "removed" | "scheduled";
@@ -201,6 +209,9 @@ export async function runSelfUninstall(
     readonly platform?: NodeJS.Platform;
     readonly env?: NodeJS.ProcessEnv;
     readonly home?: string;
+    readonly profile?: string;
+    readonly readRegistration?: (prefix: string) => ServerServiceRegistration | null;
+    readonly removeService?: (profileNamespace: string, prefix: string) => Promise<unknown>;
   },
 ): Promise<SelfUninstallResult> {
   const install = resolveInstallerPrefix({
@@ -208,19 +219,58 @@ export async function runSelfUninstall(
     releaseRoot: deps.releaseRoot,
   });
   const probeOwner = deps.probeOwner ?? defaultProbeOwner;
-  const assertUnused = async (): Promise<void> => {
-    if (existsSync(join(install.prefix, SERVER_SERVICE_REGISTRATION_FILE))) {
+  const profile =
+    deps.profile ?? (process.env.PORACODE_BASE_DIR?.trim() || resolvePoracodeBaseDir());
+  const readRegistration = deps.readRegistration ?? readServiceRegistration;
+  const removeService =
+    deps.removeService ??
+    ((profileNamespace: string, prefix: string) =>
+      runServerService(profileNamespace, {
+        action: "uninstall",
+        prefix,
+        recover: false,
+        json: false,
+      }));
+  // Safety preflight, run before the prompt and again after the confirmation:
+  // an unusable or unfinished registration, or a server this uninstall may not
+  // stop, refuses before anything is removed.
+  const preflight = async (): Promise<ServerServiceRegistration | null> => {
+    let registration: ServerServiceRegistration | null;
+    try {
+      registration = readRegistration(install.prefix);
+    } catch (error) {
+      if (error instanceof ServerServiceRefusedError)
+        throw new SelfUpdateError(`${error.message} Nothing was removed.`);
+      throw error;
+    }
+    if (registration !== null && registration.state !== "installed") {
       throw new SelfUpdateError(
-        `A managed service uses ${install.prefix}; run poracode service uninstall --prefix ${install.prefix} first.`,
+        `The background service for ${install.prefix} was not fully ${registration.state === "prepared" ? "installed" : "removed"}. ` +
+          `Inspect it with poracode service status --prefix ${install.prefix}, finish with ` +
+          `poracode service uninstall --prefix ${install.prefix} --recover, then run uninstall again. ` +
+          "Nothing was removed.",
       );
     }
     if ((await probeOwner()) !== null) {
-      throw new SelfUpdateError(
-        "A Poracode server is running for this profile; stop it with poracode stop first.",
-      );
+      // The registered service's own owner is expected to run; stopRegisteredOwner
+      // still refuses before any effect for a foreign or desktop owner. Any other
+      // running server for this profile blocks the uninstall.
+      let managedProfile = false;
+      try {
+        managedProfile =
+          registration?.profileNamespace === resolveHostRootPaths(profile).profileNamespace;
+      } catch {
+        // An unresolvable profile namespace can never match the registration.
+      }
+      if (!managedProfile) {
+        throw new SelfUpdateError(
+          "A Poracode server is running for this profile; stop it with poracode stop first.",
+        );
+      }
     }
+    return registration;
   };
-  await assertUnused();
+  let registration = await preflight();
   if (!options.yes) {
     const interactive =
       deps.interactive ?? (process.stdin.isTTY === true && process.stderr.isTTY === true);
@@ -228,12 +278,36 @@ export async function runSelfUninstall(
       throw new SelfUpdateError("Pass --yes to uninstall from a script.");
     }
     const answer = await (deps.confirm ?? ((question: string) => promptCli(question)))(
-      `Remove Poracode from ${install.prefix}? Profile data is kept. Type "uninstall" to confirm: `,
+      registration !== null
+        ? `Remove Poracode and its background service from ${install.prefix}? Profile data is kept. Type "uninstall" to confirm: `
+        : `Remove Poracode from ${install.prefix}? Profile data is kept. Type "uninstall" to confirm: `,
     );
     if (answer.trim() !== "uninstall")
       throw new SelfUpdateError("Uninstall cancelled; nothing was removed.");
     // A long confirmation leaves a window for a service or owner to appear.
-    await assertUnused();
+    registration = await preflight();
+  }
+  let removedService: string | null = null;
+  if (registration !== null) {
+    try {
+      await removeService(registration.profileNamespace, install.prefix);
+    } catch (error) {
+      if (error instanceof ServerServiceRefusedError)
+        throw new SelfUpdateError(
+          `Could not remove the background service: ${error.message} Nothing else was removed.`,
+        );
+      throw error;
+    }
+    removedService = registration.registrationId;
+  }
+  // The service's owner should be gone now; anything still running keeps the
+  // prefix (and the command link) in place.
+  if ((await probeOwner()) !== null) {
+    throw new SelfUpdateError(
+      registration !== null
+        ? "Removed the background service, but a Poracode server still runs for this profile; stop it with poracode stop, then run uninstall again."
+        : "A Poracode server is running for this profile; stop it with poracode stop first.",
+    );
   }
   const platform = deps.platform ?? process.platform;
   const removedCommands = removeOwnedCommandLinks({
@@ -267,10 +341,11 @@ export async function runSelfUninstall(
   return {
     ok: true,
     prefix: install.prefix,
+    removedService,
     removedCommands,
     removedCaches,
     prefixRemoval,
-    keptProfile: process.env.PORACODE_BASE_DIR?.trim() || resolvePoracodeBaseDir(),
+    keptProfile: profile,
   };
 }
 
@@ -283,6 +358,8 @@ export async function runSelfUninstallCli(
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return;
   }
+  if (result.removedService !== null)
+    process.stdout.write(`Removed the background service ${result.removedService}\n`);
   for (const command of result.removedCommands) process.stdout.write(`Removed ${command}\n`);
   for (const cache of result.removedCaches)
     process.stdout.write(`Removed the terminal UI cache ${cache}\n`);

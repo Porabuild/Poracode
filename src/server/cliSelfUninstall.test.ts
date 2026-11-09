@@ -11,9 +11,14 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { hostRuntimeTarget } from "../../scripts/server-release-install.mjs";
 import { tuiBinaryTarget } from "@/shared/tuiManifest";
 import { SelfUpdateError } from "./installerPrefix";
+import {
+  ServerServiceRefusedError,
+  type ServerServiceRegistration,
+} from "./serverServiceRegistration";
 import {
   installerShimTargetsPrefix,
   launcherTargetsPrefix,
@@ -279,7 +284,7 @@ describe.runIf(posix)("runSelfUninstall", () => {
     expect(result.removedCaches).toEqual([]);
   });
 
-  it("refuses a managed service, a running owner and an unconfirmed script", async () => {
+  it("refuses a script, a running owner and an unusable registration", async () => {
     const context = fixture();
     const releaseRoot = join(context.prefix, "releases", "1.0.0");
     await expect(
@@ -297,7 +302,7 @@ describe.runIf(posix)("runSelfUninstall", () => {
     writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     await expect(
       runSelfUninstall({ yes: true, json: false }, { releaseRoot, probeOwner: async () => null }),
-    ).rejects.toThrow(/service uninstall/u);
+    ).rejects.toThrow(/Nothing was removed/u);
     expect(existsSync(context.prefix)).toBe(true);
   });
 
@@ -322,5 +327,227 @@ describe.runIf(posix)("runSelfUninstall", () => {
     ).rejects.toThrow(/poracode stop/u);
     expect(existsSync(context.prefix)).toBe(true);
     expect(lstatSync(link).isSymbolicLink()).toBe(true);
+  });
+
+  function installedRegistration(
+    profileNamespace: string,
+    installPrefix: string,
+    state: "prepared" | "installed" | "removing" = "installed",
+  ): ServerServiceRegistration {
+    return {
+      state,
+      registrationId: "poracode-0123456789abcdef0123456789abcdef",
+      profileNamespace,
+      installPrefix,
+    } as unknown as ServerServiceRegistration;
+  }
+
+  it("removes the registered service before the link and the prefix", async () => {
+    const context = fixture();
+    const home = join(context.root, "home");
+    mkdirSync(join(home, ".local", "bin"), { recursive: true });
+    const link = join(home, ".local", "bin", "poracode");
+    symlinkSync(join(context.prefix, "current", "bin", "poracode"), link);
+    const profile = join(context.root, "profile");
+    const registration = installedRegistration(
+      resolveHostRootPaths(profile).profileNamespace,
+      context.prefix,
+    );
+    const removals: [string, string][] = [];
+    let linkAliveDuringRemoval = false;
+    const result = await runSelfUninstall(
+      { yes: true, json: false },
+      {
+        releaseRoot: join(context.prefix, "releases", "1.0.0"),
+        probeOwner: async () => null,
+        home,
+        profile,
+        readRegistration: () => registration,
+        removeService: async (profileNamespace, prefix) => {
+          removals.push([profileNamespace, prefix]);
+          linkAliveDuringRemoval = lstatSync(link).isSymbolicLink();
+        },
+      },
+    );
+    expect(removals).toEqual([[registration.profileNamespace, context.prefix]]);
+    expect(linkAliveDuringRemoval).toBe(true);
+    expect(result.removedService).toBe(registration.registrationId);
+    expect(result.removedCommands).toEqual([link]);
+    expect(existsSync(link)).toBe(false);
+    expect(existsSync(context.prefix)).toBe(false);
+  });
+
+  it("keeps the prefix and link when the service refuses to be removed", async () => {
+    const context = fixture();
+    const home = join(context.root, "home");
+    mkdirSync(join(home, ".local", "bin"), { recursive: true });
+    const link = join(home, ".local", "bin", "poracode");
+    symlinkSync(join(context.prefix, "current", "bin", "poracode"), link);
+    const profile = join(context.root, "profile");
+    const registration = installedRegistration(
+      resolveHostRootPaths(profile).profileNamespace,
+      context.prefix,
+    );
+    await expect(
+      runSelfUninstall(
+        { yes: true, json: false },
+        {
+          releaseRoot: join(context.prefix, "releases", "1.0.0"),
+          probeOwner: async () => null,
+          home,
+          profile,
+          readRegistration: () => registration,
+          removeService: async () => {
+            throw new ServerServiceRefusedError("the service manager refused");
+          },
+        },
+      ),
+    ).rejects.toThrow(/Could not remove the background service/u);
+    expect(existsSync(context.prefix)).toBe(true);
+    expect(lstatSync(link).isSymbolicLink()).toBe(true);
+  });
+
+  it("refuses unfinished registrations before confirming, naming --recover", async () => {
+    for (const state of ["prepared", "removing"] as const) {
+      const context = fixture();
+      const profile = join(context.root, "profile");
+      const registration = installedRegistration(
+        resolveHostRootPaths(profile).profileNamespace,
+        context.prefix,
+        state,
+      );
+      let confirmCalls = 0;
+      let removeCalls = 0;
+      await expect(
+        runSelfUninstall(
+          { yes: false, json: false },
+          {
+            releaseRoot: join(context.prefix, "releases", "1.0.0"),
+            probeOwner: async () => null,
+            profile,
+            readRegistration: () => registration,
+            removeService: async () => {
+              removeCalls += 1;
+            },
+            confirm: async () => {
+              confirmCalls += 1;
+              return "uninstall";
+            },
+            interactive: true,
+          },
+        ),
+      ).rejects.toThrow(/--recover/u);
+      expect(confirmCalls).toBe(0);
+      expect(removeCalls).toBe(0);
+      expect(existsSync(context.prefix)).toBe(true);
+    }
+  });
+
+  it("lets the registered service's own running owner be removed", async () => {
+    const context = fixture();
+    const profile = join(context.root, "profile");
+    const registration = installedRegistration(
+      resolveHostRootPaths(profile).profileNamespace,
+      context.prefix,
+    );
+    const probes = [{ pid: 7 }, null];
+    const result = await runSelfUninstall(
+      { yes: true, json: false },
+      {
+        releaseRoot: join(context.prefix, "releases", "1.0.0"),
+        probeOwner: async () => probes.shift() ?? null,
+        profile,
+        readRegistration: () => registration,
+        removeService: async () => {},
+      },
+    );
+    expect(result.removedService).toBe(registration.registrationId);
+    expect(existsSync(context.prefix)).toBe(false);
+  });
+
+  it("refuses a running owner registered for a different profile", async () => {
+    const context = fixture();
+    const profile = join(context.root, "profile");
+    const registration = installedRegistration(
+      resolveHostRootPaths(join(context.root, "other-profile")).profileNamespace,
+      context.prefix,
+    );
+    let removeCalls = 0;
+    await expect(
+      runSelfUninstall(
+        { yes: true, json: false },
+        {
+          releaseRoot: join(context.prefix, "releases", "1.0.0"),
+          probeOwner: async () => ({ pid: 7 }),
+          profile,
+          readRegistration: () => registration,
+          removeService: async () => {
+            removeCalls += 1;
+          },
+        },
+      ),
+    ).rejects.toThrow(/poracode stop/u);
+    expect(removeCalls).toBe(0);
+    expect(existsSync(context.prefix)).toBe(true);
+  });
+
+  it("keeps the prefix when a server still runs after the service is removed", async () => {
+    const context = fixture();
+    const home = join(context.root, "home");
+    mkdirSync(join(home, ".local", "bin"), { recursive: true });
+    const link = join(home, ".local", "bin", "poracode");
+    symlinkSync(join(context.prefix, "current", "bin", "poracode"), link);
+    const profile = join(context.root, "profile");
+    const registration = installedRegistration(
+      resolveHostRootPaths(profile).profileNamespace,
+      context.prefix,
+    );
+    const probes = [null, { pid: 9 }];
+    let removeCalls = 0;
+    await expect(
+      runSelfUninstall(
+        { yes: true, json: false },
+        {
+          releaseRoot: join(context.prefix, "releases", "1.0.0"),
+          probeOwner: async () => probes.shift() ?? null,
+          home,
+          profile,
+          readRegistration: () => registration,
+          removeService: async () => {
+            removeCalls += 1;
+          },
+        },
+      ),
+    ).rejects.toThrow(/still runs/u);
+    expect(removeCalls).toBe(1);
+    expect(existsSync(context.prefix)).toBe(true);
+    expect(lstatSync(link).isSymbolicLink()).toBe(true);
+  });
+
+  it("mentions the background service in the interactive confirmation", async () => {
+    const context = fixture();
+    const profile = join(context.root, "profile");
+    const registration = installedRegistration(
+      resolveHostRootPaths(profile).profileNamespace,
+      context.prefix,
+    );
+    const questions: string[] = [];
+    const result = await runSelfUninstall(
+      { yes: false, json: false },
+      {
+        releaseRoot: join(context.prefix, "releases", "1.0.0"),
+        probeOwner: async () => null,
+        profile,
+        readRegistration: () => registration,
+        removeService: async () => {},
+        confirm: async (question) => {
+          questions.push(question);
+          return "uninstall";
+        },
+        interactive: true,
+      },
+    );
+    expect(questions[0]).toContain("its background service");
+    expect(result.removedService).toBe(registration.registrationId);
   });
 });
