@@ -7,9 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material.icons.outlined.SettingsEthernet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
@@ -28,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.protocol.settingsintegrations.SkillOwner
 import com.poracode.app.session.settingsintegrations.SettingsIntegrationsState
+import com.poracode.app.ui.theme.PoracodeIcons
 
 internal enum class SettingsIntegrationsPage { Skills, Mcp }
 
@@ -51,13 +49,13 @@ internal fun SettingsIntegrationsScreen(
                     NavigationRailItem(
                         selected = page == SettingsIntegrationsPage.Skills,
                         onClick = { page = SettingsIntegrationsPage.Skills },
-                        icon = { Icon(Icons.Outlined.Extension, null) },
+                        icon = { Icon(PoracodeIcons.Extension, null) },
                         label = { Text(stringResource(R.string.settings_integrations_skills)) },
                     )
                     NavigationRailItem(
                         selected = page == SettingsIntegrationsPage.Mcp,
                         onClick = { page = SettingsIntegrationsPage.Mcp },
-                        icon = { Icon(Icons.Outlined.SettingsEthernet, null) },
+                        icon = { Icon(PoracodeIcons.SettingsEthernet, null) },
                         label = { Text(stringResource(R.string.settings_integrations_mcp)) },
                     )
                 }
@@ -73,13 +71,13 @@ internal fun SettingsIntegrationsScreen(
                         selected = page == SettingsIntegrationsPage.Skills,
                         onClick = { page = SettingsIntegrationsPage.Skills },
                         text = { Text(stringResource(R.string.settings_integrations_skills)) },
-                        icon = { Icon(Icons.Outlined.Extension, null) },
+                        icon = { Icon(PoracodeIcons.Extension, null) },
                     )
                     Tab(
                         selected = page == SettingsIntegrationsPage.Mcp,
                         onClick = { page = SettingsIntegrationsPage.Mcp },
                         text = { Text(stringResource(R.string.settings_integrations_mcp)) },
-                        icon = { Icon(Icons.Outlined.SettingsEthernet, null) },
+                        icon = { Icon(PoracodeIcons.SettingsEthernet, null) },
                     )
                 }
                 Content(

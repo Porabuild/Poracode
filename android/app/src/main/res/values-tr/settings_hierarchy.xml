@@ -6,7 +6,7 @@
     <string name="settings_device_general">Genel</string>
     <string name="settings_device_general_description">Dil, sürüm ve cihaz bilgileri</string>
     <string name="settings_device_appearance">Görünüm</string>
-    <string name="settings_device_appearance_description">Tema ve sistem renkleri</string>
+    <string name="settings_device_appearance_description">Tema ve sohbet yazı tipi boyutu</string>
     <string name="settings_device_notifications">Bildirimler</string>
     <string name="settings_device_notifications_description">İzin ve masaüstü kayıt durumu</string>
     <string name="settings_device_terminal">Terminal</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">Sistem</string>
     <string name="settings_appearance_light">Açık</string>
     <string name="settings_appearance_dark">Koyu</string>
-    <string name="settings_dynamic_color">Cihaz renklerini kullan</string>
     <string name="settings_notification_status">Durum</string>
     <string name="settings_notification_registering">Kaydediliyor</string>
     <string name="settings_notification_available">Kullanılabilir</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Poracode kullanılırken bildirimleri göster</string>
     <string name="settings_notification_categories">Bildirim gönderilecek durumlar</string>
     <string name="settings_configuration_section">Yapılandırma</string>
+    <string name="settings_appearance_mode">Mod</string>
+    <string name="settings_appearance_mode_description">Sisteminizle eşleştirin veya açık veya koyu olanı zorlayın.</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_notifications_enabled_description">Konu durumu değiştiğinde bildirimleri göster.</string>
+    <string name="settings_notification_sound_description">Bir bildirim gösterildiğinde ses çalın.</string>
+    <string name="settings_home_shortcut_reorder">%1$s öğesini yeniden sırala</string>
 </resources>

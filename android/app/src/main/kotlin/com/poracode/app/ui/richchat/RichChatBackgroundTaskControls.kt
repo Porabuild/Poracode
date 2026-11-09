@@ -10,14 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.PlayCircleOutline
-import androidx.compose.material.icons.outlined.Radio
-import androidx.compose.material.icons.outlined.SmartToy
-import androidx.compose.material.icons.outlined.Stop
-import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,6 +36,7 @@ import com.poracode.app.session.richchat.RichChatBackgroundTaskStopState
 import com.poracode.app.session.richchat.RichChatOperationFailure
 import com.poracode.app.session.richchat.RichChatThreadLease
 import com.poracode.app.session.richchat.richChatBackgroundTaskStopKey
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.delay
 
 /**
@@ -158,7 +151,7 @@ private fun RichBackgroundTaskRow(
                     modifier = Modifier.testTag("background-task-stop-row:${task.taskId}"),
                 ) {
                     Icon(
-                        Icons.Outlined.Stop,
+                        PoracodeIcons.Stop,
                         contentDescription = stringResource(
                             if (stopping) R.string.rich_chat_background_task_stopping
                             else R.string.rich_chat_background_task_stop,
@@ -222,10 +215,10 @@ internal fun taskCategoryLabel(category: RichChatBackgroundTaskCategory): String
 )
 
 internal fun taskCategoryIcon(category: RichChatBackgroundTaskCategory): ImageVector = when (category) {
-    RichChatBackgroundTaskCategory.Command -> Icons.Outlined.Terminal
-    RichChatBackgroundTaskCategory.Monitor -> Icons.Outlined.Radio
-    RichChatBackgroundTaskCategory.Tool -> Icons.Outlined.Build
-    RichChatBackgroundTaskCategory.Agent -> Icons.Outlined.SmartToy
-    RichChatBackgroundTaskCategory.Workflow -> Icons.Outlined.AccountTree
-    RichChatBackgroundTaskCategory.Other -> Icons.Outlined.PlayCircleOutline
+    RichChatBackgroundTaskCategory.Command -> PoracodeIcons.Terminal
+    RichChatBackgroundTaskCategory.Monitor -> PoracodeIcons.Radio
+    RichChatBackgroundTaskCategory.Tool -> PoracodeIcons.Build
+    RichChatBackgroundTaskCategory.Agent -> PoracodeIcons.SmartToy
+    RichChatBackgroundTaskCategory.Workflow -> PoracodeIcons.AccountTree
+    RichChatBackgroundTaskCategory.Other -> PoracodeIcons.PlayCircleOutline
 }

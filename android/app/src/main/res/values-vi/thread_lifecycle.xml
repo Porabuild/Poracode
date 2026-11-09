@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">Không có luồng đã lưu trữ</string>
     <string name="thread_status_starting_agent">Đang khởi chạy tác nhân…</string>
     <string name="thread_status_resuming">Đang tiếp tục phiên…</string>
+    <string name="thread_lifecycle_pin_top">Ghim lên đầu</string>
+    <string name="thread_lifecycle_archive_thread">Lưu trữ luồng</string>
+    <string name="thread_lifecycle_delete_thread">Xóa chủ đề</string>
+    <string name="thread_lifecycle_notes">Ghi chú và việc cần làm</string>
+    <string name="thread_lifecycle_open_terminal">Mở terminal</string>
+    <string name="thread_lifecycle_fork_thread">Tạo nhánh trò chuyện</string>
+    <string name="thread_lifecycle_continue_in">Tiếp tục ở nhà cung cấp khác</string>
+    <string name="thread_lifecycle_move_worktree_changes">Di chuyển vào cây làm việc cùng các thay đổi</string>
+    <string name="thread_lifecycle_move_worktree_clean">Di chuyển vào cây làm việc sạch</string>
+    <string name="thread_lifecycle_move_worktree_title">Di chuyển luồng vào cây làm việc?</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">Phiên chạy hiện tại sẽ dừng. Một cây làm việc và nhánh mới sẽ được tạo, rồi các thay đổi chưa commit sẽ được chuyển sang đó trước khi luồng tiếp tục.</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">Phiên chạy hiện tại sẽ dừng. Một cây làm việc sạch và nhánh mới sẽ được tạo trước khi luồng tiếp tục.</string>
+    <string name="thread_lifecycle_move_confirm">Di chuyển</string>
 </resources>

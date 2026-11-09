@@ -797,12 +797,15 @@ struct RichChatComposerControlsSheet: View {
         }
         if supportsFast {
           Toggle(HomeStrings.fast, isOn: fastBinding)
+          .poracodeSwitchStyle()
         }
         if supportsThinking {
           Toggle(RichChatStrings.thinking, isOn: optionalBooleanBinding(\.thinking))
+          .poracodeSwitchStyle()
         }
         if supportsWorkflows {
           Toggle(catalog.workflowsLabel, isOn: optionalBooleanBinding(\.workflows))
+          .poracodeSwitchStyle()
         }
       }
     }
@@ -813,9 +816,10 @@ struct RichChatComposerControlsSheet: View {
     let options = catalog.modeOptions(for: draft.model)
     if options.count > 1 {
       Section(HomeStrings.mode) {
-        Picker(HomeStrings.mode, selection: optionalStringBinding(\.mode, options: options)) {
-          ForEach(options) { option in Text(option.label).tag(option.id) }
-        }
+        choicePicker(
+          HomeStrings.mode, options: options,
+          selection: optionalStringBinding(\.mode, options: options)
+        )
       }
     }
   }
@@ -825,12 +829,32 @@ struct RichChatComposerControlsSheet: View {
     let options = catalog.permissionOptions
     if options.count > 1 {
       Section(HomeStrings.permissions) {
-        Picker(
-          HomeStrings.permissions,
+        choicePicker(
+          HomeStrings.permissions, options: options,
           selection: optionalStringBinding(\.approvalPolicy, options: options)
-        ) {
-          ForEach(options) { option in Text(option.label).tag(option.id) }
-        }
+        )
+      }
+    }
+  }
+
+  /// Mode and Permissions use a native segmented picker for the small,
+  /// mutually exclusive option sets (2–3), matching Android; larger sets keep
+  /// the menu picker.
+  @ViewBuilder
+  private func choicePicker(
+    _ title: String,
+    options: [RichChatComposerOption],
+    selection: Binding<String>
+  ) -> some View {
+    if (2...3).contains(options.count) {
+      Picker(title, selection: selection) {
+        ForEach(options) { option in Text(option.label).tag(option.id) }
+      }
+      .pickerStyle(.segmented)
+      .labelsHidden()
+    } else {
+      Picker(title, selection: selection) {
+        ForEach(options) { option in Text(option.label).tag(option.id) }
       }
     }
   }
@@ -840,15 +864,19 @@ struct RichChatComposerControlsSheet: View {
       Toggle(isOn: optionalBooleanBinding(\.browserMcp)) {
         Label(HomeStrings.browser, systemImage: "globe")
       }
+      .poracodeSwitchStyle()
       Toggle(isOn: optionalBooleanBinding(\.crossagentMcp)) {
         Label(HomeStrings.crossagents, systemImage: "person.2")
       }
+      .poracodeSwitchStyle()
       Toggle(isOn: optionalBooleanBinding(\.chromeMcp)) {
         Label(HomeStrings.chrome, systemImage: "rectangle")
       }
+      .poracodeSwitchStyle()
       Toggle(isOn: optionalBooleanBinding(\.computerUse)) {
         Label(HomeStrings.computerUse, systemImage: "desktopcomputer")
       }
+      .poracodeSwitchStyle()
     }
   }
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="rich_chat_activity_view">
+        <item quantity="other">%1$d개 보기</item>
+    </plurals>
+    <plurals name="rich_chat_activity_search">
+        <item quantity="other">%1$d개 검색</item>
+    </plurals>
+    <plurals name="rich_chat_activity_edit">
+        <item quantity="other">%1$d개 편집</item>
+    </plurals>
+    <plurals name="rich_chat_activity_command">
+        <item quantity="other">%1$d개 명령</item>
+    </plurals>
+    <plurals name="rich_chat_activity_tool">
+        <item quantity="other">%1$d개 도구</item>
+    </plurals>
+    <plurals name="rich_chat_activity_thought">
+        <item quantity="other">%1$d개 생각</item>
+    </plurals>
+</resources>

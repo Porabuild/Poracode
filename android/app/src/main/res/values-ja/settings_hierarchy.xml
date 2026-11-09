@@ -6,7 +6,7 @@
     <string name="settings_device_general">一般</string>
     <string name="settings_device_general_description">言語、バージョン、デバイス情報</string>
     <string name="settings_device_appearance">外観</string>
-    <string name="settings_device_appearance_description">テーマとシステムカラー</string>
+    <string name="settings_device_appearance_description">テーマとチャットのフォントサイズ</string>
     <string name="settings_device_notifications">通知</string>
     <string name="settings_device_notifications_description">権限とデスクトップ登録の状態</string>
     <string name="settings_device_terminal">ターミナル</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">システム</string>
     <string name="settings_appearance_light">ライト</string>
     <string name="settings_appearance_dark">ダーク</string>
-    <string name="settings_dynamic_color">デバイスの色を使用</string>
     <string name="settings_notification_status">状態</string>
     <string name="settings_notification_registering">登録中</string>
     <string name="settings_notification_available">利用可能</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Poracode の使用中も通知を表示</string>
     <string name="settings_notification_categories">通知する項目</string>
     <string name="settings_configuration_section">構成</string>
+    <string name="settings_appearance_mode">モード</string>
+    <string name="settings_appearance_mode_description">システムに合わせたり、明暗を強制したりできます。</string>
+    <string name="settings_theme">テーマ</string>
+    <string name="settings_notifications_enabled_description">スレッドのステータスが変化したときに通知を表示します。</string>
+    <string name="settings_notification_sound_description">通知が表示されたときに音を鳴らします。</string>
+    <string name="settings_home_shortcut_reorder">%1$sを並べ替える</string>
 </resources>

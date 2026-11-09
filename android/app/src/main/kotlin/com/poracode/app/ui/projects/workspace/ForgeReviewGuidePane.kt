@@ -14,9 +14,11 @@ import com.poracode.app.R
 import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.protocol.forge.ForgeReviewOperation
 import com.poracode.app.session.projects.ForgeReviewEntry
+import com.poracode.app.ui.components.PoracodeTextField
 import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.*
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun ForgeReviewGuidePane(
@@ -44,7 +46,16 @@ internal fun ForgeReviewGuidePane(
         while (generating && !entry.isCached) { delay(5000); refresh() }
     }
     Column(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            Modifier.weight(1f),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 16.dp,
+                bottom = 16.dp + WorkspaceBottomBarClearance,
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             item("configuration") {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box {
@@ -57,10 +68,10 @@ internal fun ForgeReviewGuidePane(
                             }
                         }
                     }
-                    OutlinedTextField(model, { model = it }, label = { Text(stringResource(R.string.forge_review_model)) }, enabled = !generating && !entry.mutating, modifier = Modifier.fillMaxWidth())
-                    OutlinedTextField(instructions, { instructions = it }, label = { Text(stringResource(R.string.forge_review_instructions)) }, enabled = !generating && !entry.mutating, minLines = 2, maxLines = 6, modifier = Modifier.fillMaxWidth())
-                    Button(onClick = {
-                        val selected = selectedWriter ?: return@Button
+                    PoracodeTextField(model, { model = it }, label = { Text(stringResource(R.string.forge_review_model)) }, enabled = !generating && !entry.mutating, modifier = Modifier.fillMaxWidth())
+                    PoracodeTextField(instructions, { instructions = it }, label = { Text(stringResource(R.string.forge_review_instructions)) }, enabled = !generating && !entry.mutating, minLines = 2, maxLines = 6, modifier = Modifier.fillMaxWidth())
+                    FilledTonalButton(onClick = {
+                        val selected = selectedWriter ?: return@FilledTonalButton
                         mutate(ForgeReviewOperation.WritePrReviewGuide, buildMap {
                             put("agentKind", JsonPrimitive(selected.kind))
                             put("instructions", JsonPrimitive(instructions))
@@ -107,8 +118,8 @@ internal fun ForgeReviewGuidePane(
             HorizontalDivider()
             Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton({ stopIndex = index - 1 }, enabled = index > 0) { Text(stringResource(R.string.forge_review_back)) }
-                if (index < stops.lastIndex) Button({ stopIndex = index + 1 }) { Text(stringResource(R.string.forge_review_next)) }
-                else Button(finish, enabled = canMutate) { Text(stringResource(R.string.forge_review_finish)) }
+                if (index < stops.lastIndex) FilledTonalButton({ stopIndex = index + 1 }) { Text(stringResource(R.string.forge_review_next)) }
+                else FilledTonalButton(finish, enabled = canMutate) { Text(stringResource(R.string.forge_review_finish)) }
             }
         }
     }

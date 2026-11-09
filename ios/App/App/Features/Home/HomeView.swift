@@ -15,6 +15,7 @@ struct HomeView: View {
   @State private var composerExpanded = false
   @State private var isRefreshing = false
   @State private var threadLifecycle: HomeThreadLifecycleCoordinator
+  @Namespace private var glassNamespace
 
   init(session: AppSession) {
     _session = Bindable(wrappedValue: session)
@@ -134,8 +135,10 @@ struct HomeView: View {
           drafts: session.richChatComposerDrafts,
           lifecycle: threadLifecycle
         )
+        .poracodeZoomTransition(sourceID: "home.search", in: glassNamespace)
       case .more:
         HomeMoreSheet(session: session, isRefreshing: $isRefreshing)
+          .poracodeZoomTransition(sourceID: "home.more", in: glassNamespace)
       case .projectManagement:
         ProjectManagementView(session: session)
       case .settings:
@@ -204,7 +207,7 @@ struct HomeView: View {
           .onTapGesture { dismissComposer() }
       }
     }
-    .safeAreaInset(edge: .bottom, spacing: 0) {
+    .poracodeBottomBar {
       if path.isEmpty {
         homeActionDock
           .frame(maxWidth: 560)
@@ -239,6 +242,7 @@ struct HomeView: View {
       entries: threadEntries,
       openingThreadID: openingThreadID,
       gitSummary: gitSummary,
+      agentLabel: agentLabel,
       hostIsOnline: hostIsOnline,
       open: open,
       openProject: openProject,
@@ -265,29 +269,37 @@ struct HomeView: View {
   }
 
   private var homeActionDock: some View {
-    HStack(alignment: .bottom, spacing: 12) {
-      if !composerExpanded {
-        PoracodeCircleButton {
-          sheetDestination = .search
-        } label: {
-          Image(systemName: "magnifyingglass")
+    PoracodeGlassGroup(spacing: 8) {
+      HStack(alignment: .bottom, spacing: 12) {
+        if !composerExpanded {
+          PoracodeCircleButton {
+            sheetDestination = .search
+          } label: {
+            Image(systemName: "magnifyingglass")
+          }
+          .accessibilityLabel(HomeStrings.searchThreads)
+          .poracodeGlassID("home.search", in: glassNamespace)
+          .poracodeZoomSource(id: "home.search", in: glassNamespace)
         }
-        .accessibilityLabel(HomeStrings.searchThreads)
-      }
 
-      HomeQuickComposeView(session: session, isExpanded: $composerExpanded) { threadID in
-        guard let connectionID = session.selectedConnectionId else { return }
-        path.append(
-          ThreadRoute(
-            id: CompositeRemoteID(connectionId: connectionID, remoteId: threadID),
-            title: HomeStrings.newConversationTitle
+        HomeQuickComposeView(
+          session: session,
+          isExpanded: $composerExpanded,
+          glassNamespace: glassNamespace
+        ) { threadID in
+          guard let connectionID = session.selectedConnectionId else { return }
+          path.append(
+            ThreadRoute(
+              id: CompositeRemoteID(connectionId: connectionID, remoteId: threadID),
+              title: HomeStrings.newConversationTitle
+            )
           )
-        )
-      }
+        }
 
-      if !composerExpanded { sessionMenu }
+        if !composerExpanded { sessionMenu }
+      }
+      .animation(.snappy(duration: 0.25), value: composerExpanded)
     }
-    .animation(.snappy(duration: 0.25), value: composerExpanded)
   }
 
   private var sessionMenu: some View {
@@ -304,14 +316,26 @@ struct HomeView: View {
     .disabled(isRefreshing)
     .accessibilityLabel(isRefreshing ? HomeStrings.refresh : HomeStrings.sessionMenu)
     .accessibilityIdentifier("native-e2e.session-menu")
+    .poracodeGlassID("home.more", in: glassNamespace)
+    .poracodeZoomSource(id: "home.more", in: glassNamespace)
   }
 
   private func gitSummary(for item: UnifiedThreadListItem) -> GitThreadSummary? {
     if item.connectionID == session.state.selectedConnectionId {
-      return session.state.replay.summary(forThread: item.thread.id)
+      return session.state.replay.gitSummary(forThread: item.thread.id, thread: item.thread)
     }
     return session.sessionPool.cache(for: .host(item.connectionID)).replay
-      .summary(forThread: item.thread.id)
+      .gitSummary(forThread: item.thread.id, thread: item.thread)
+  }
+
+  /// The agent's display label for the generic provider glyph, resolved from
+  /// the same agent-status records the PWA/Android clients match by `kind`.
+  private func agentLabel(for item: UnifiedThreadListItem) -> String? {
+    let replay =
+      item.connectionID == session.state.selectedConnectionId
+      ? session.state.replay
+      : session.sessionPool.cache(for: .host(item.connectionID)).replay
+    return replay.agentStatuses.ordered.first { $0.kind == item.thread.agentKind }?.label
   }
 
   private func hostIsOnline(_ connectionID: ClientConnectionID) -> Bool {

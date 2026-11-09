@@ -68,6 +68,7 @@ struct RichChatGitChanges: Equatable {
 /// counts or percentages.
 struct RichChatCompactInfoControls: View {
   let controls: [RichChatCompactInfoControl]
+  let glassNamespace: Namespace.ID
   let select: (RichChatCompactControlDestination) -> Void
 
   var body: some View {
@@ -103,6 +104,7 @@ struct RichChatCompactInfoControls: View {
           .foregroundStyle(.secondary)
           .tint(.secondary)
           .accessibilityLabel(usageControl.accessibilityLabel)
+          .poracodeZoomSource(id: usageControl.destination.id, in: glassNamespace)
         }
       }
     }
@@ -149,6 +151,7 @@ struct RichChatCompactInfoControls: View {
     .tint(.secondary)
     .accessibilityLabel(control.accessibilityLabel)
     .accessibilityValue(accessibilityValue(control))
+    .poracodeZoomSource(id: control.destination.id, in: glassNamespace)
   }
 
   private func controlButton(_ control: RichChatCompactInfoControl) -> some View {
@@ -161,6 +164,7 @@ struct RichChatCompactInfoControls: View {
     .tint(control.tone.color)
     .accessibilityLabel(control.accessibilityLabel)
     .accessibilityValue(accessibilityValue(control))
+    .poracodeZoomSource(id: control.destination.id, in: glassNamespace)
   }
 
   private func controlLabel(_ control: RichChatCompactInfoControl) -> some View {

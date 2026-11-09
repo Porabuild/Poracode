@@ -6,8 +6,10 @@ final class PushAlertLocalizationTests: XCTestCase {
     let value: String
   }
 
+  // Plural-variation keys carry `variations` instead of a flat stringUnit and
+  // decode with nil here; the alert keys this checks all use the flat unit.
   private struct Localization: Decodable {
-    let stringUnit: Unit
+    let stringUnit: Unit?
   }
 
   private struct Entry: Decodable {
@@ -58,8 +60,8 @@ final class PushAlertLocalizationTests: XCTestCase {
     for key in Self.keys {
       for locale in Self.locales {
         XCTAssertEqual(
-          catalogs["app"]?.strings[key]?.localizations[locale]?.stringUnit.value,
-          catalogs["activity"]?.strings[key]?.localizations[locale]?.stringUnit.value,
+          catalogs["app"]?.strings[key]?.localizations[locale]?.stringUnit?.value,
+          catalogs["activity"]?.strings[key]?.localizations[locale]?.stringUnit?.value,
           "App and Activity catalogs diverged at \(key)/\(locale)")
       }
     }

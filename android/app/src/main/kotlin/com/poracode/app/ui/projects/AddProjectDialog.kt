@@ -11,14 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,7 +48,10 @@ import com.poracode.app.session.projects.ProjectCommandOutcome
 import com.poracode.app.session.projects.ProjectHostLease
 import com.poracode.app.session.projects.ProjectOperationFailure
 import com.poracode.app.session.projects.ProjectSessionRuntime
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.launch
+import androidx.compose.material3.FilledTonalButton
 
 private enum class ProjectAddMode { EXISTING, CREATE, CLONE }
 
@@ -148,7 +148,7 @@ internal fun AddProjectDialog(
                         onClick = { mode = ProjectAddMode.CLONE },
                     )
                 }
-                OutlinedTextField(
+                PoracodeTextField(
                     value = path,
                     onValueChange = { path = it; validationMessage = null },
                     label = {
@@ -170,10 +170,10 @@ internal fun AddProjectDialog(
                     onClick = { showFolders = true },
                     enabled = enabled && !submitting,
                 ) {
-                    Icon(Icons.Outlined.FolderOpen, contentDescription = null)
+                    Icon(PoracodeIcons.FolderOpen, contentDescription = null)
                     Text(stringResource(R.string.projects_browse), Modifier.padding(start = 8.dp))
                 }
-                OutlinedTextField(
+                PoracodeTextField(
                     value = name,
                     onValueChange = { name = it; nameEditedByUser = true; validationMessage = null },
                     label = {
@@ -191,7 +191,7 @@ internal fun AddProjectDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 if (mode == ProjectAddMode.CLONE) {
-                    OutlinedTextField(
+                    PoracodeTextField(
                         value = cloneUrl,
                         onValueChange = { cloneUrl = it; validationMessage = null },
                         label = { Text(stringResource(R.string.projects_repository_url)) },
@@ -208,9 +208,9 @@ internal fun AddProjectDialog(
                     TextButton(onClick = onDismiss, enabled = !submitting) {
                         Text(stringResource(R.string.projects_cancel))
                     }
-                    Button(
+                    FilledTonalButton(
                         onClick = {
-                            val command = validateAndBuild() ?: return@Button
+                            val command = validateAndBuild() ?: return@FilledTonalButton
                             submitting = true
                             failure = null
                             scope.launch {

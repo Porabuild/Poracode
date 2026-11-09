@@ -37,6 +37,7 @@ internal class RemoteBoundedReadClient(
         threadLimit?.let { requireRange(it, 1, RemoteBoundedWire.MAX_THREAD_LIMIT, "threadLimit") }
         requireRange(projectLimit, 1, RemoteBoundedWire.MAX_PROJECT_LIMIT, "projectLimit")
         val raw = client.requestText(
+            retryableRead = true,
             path = RemoteBoundedWire.shellSnapshotPath,
             query = RemoteBoundedWire.shellSnapshotQuery(
                 order = order,
@@ -72,6 +73,7 @@ internal class RemoteBoundedReadClient(
             throw RemoteBoundedWire.protocolError("cursor_mismatch")
         }
         val raw = client.requestText(
+            retryableRead = true,
             path = RemoteBoundedWire.threadListPath,
             query = RemoteBoundedWire.threadListQuery(
                 mode = mode,
@@ -108,6 +110,7 @@ internal class RemoteBoundedReadClient(
         }
         return mapRouteUnavailable("project-list") {
             val raw = client.requestText(
+                retryableRead = true,
                 path = RemoteBoundedWire.projectListPath,
                 query = RemoteBoundedWire.projectListQuery(
                     mode = mode,
@@ -131,6 +134,7 @@ internal class RemoteBoundedReadClient(
             throw invalidRequest("membership request must contain at least one id")
         }
         val raw = client.requestText(
+            retryableRead = true,
             path = RemoteBoundedWire.membershipPath,
             method = "POST",
             jsonBody = RemoteBoundedWire.membershipRequestJson(threadIds, projectIds),
@@ -158,6 +162,7 @@ internal class RemoteBoundedReadClient(
         requireRange(completedTurnsLimit, 1, 500, "completedTurnsLimit")
         targetTimelineEntryCount?.let { requireRange(it, 1, 100, "targetTimelineEntryCount") }
         val raw = client.requestText(
+            retryableRead = true,
             path = RemoteBoundedWire.threadHistoryPath(threadId),
             query = RemoteBoundedWire.threadHistoryQuery(
                 completedTurnsLimit = completedTurnsLimit,
@@ -184,6 +189,7 @@ internal class RemoteBoundedReadClient(
         beforePosition?.let { requireRange(it, 0, Int.MAX_VALUE, "beforePosition") }
         targetTimelineEntryCount?.let { requireRange(it, 1, 100, "targetTimelineEntryCount") }
         val raw = client.requestText(
+            retryableRead = true,
             path = RemoteBoundedWire.historyItemsPath(threadId),
             query = RemoteBoundedWire.historyItemsQuery(
                 beforePosition = beforePosition,
@@ -211,6 +217,7 @@ internal class RemoteBoundedReadClient(
         }
         return mapRouteUnavailable("thread-turns") {
             val raw = client.requestText(
+                retryableRead = true,
                 path = RemoteBoundedWire.threadTurnsPath(threadId),
                 query = RemoteBoundedWire.threadTurnsQuery(
                     cursor = cursor,

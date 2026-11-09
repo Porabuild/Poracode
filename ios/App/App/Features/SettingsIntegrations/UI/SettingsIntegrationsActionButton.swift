@@ -5,12 +5,7 @@ struct SettingsIntegrationsActionButton<Label: View>: View {
   @ViewBuilder let label: () -> Label
 
   var body: some View {
-    if #available(iOS 26, *) {
-      Button(action: action, label: label)
-        .buttonStyle(.glass)
-    } else {
-      Button(action: action, label: label)
-        .buttonStyle(.bordered)
-    }
+    Button(action: action, label: label)
+      .poracodeGlassButtonStyle()
   }
 }

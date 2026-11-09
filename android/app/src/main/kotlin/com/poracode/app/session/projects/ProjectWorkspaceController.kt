@@ -107,6 +107,17 @@ class ProjectWorkspaceController(
         },
     ) { lease -> gateway.readFile(lease, target, path) }
 
+    /** Clears the open file so compact single-pane layouts can return to the tree. */
+    fun closeFile(target: ProjectWorkspaceTarget) {
+        mutableState.update { current ->
+            val entry = current.entries[target.identity] ?: return@update current
+            current.copy(
+                entries = current.entries +
+                    (target.identity to entry.copy(openFile = null, loadingFile = false)),
+            )
+        }
+    }
+
     suspend fun saveFile(
         target: ProjectWorkspaceTarget,
         content: String,

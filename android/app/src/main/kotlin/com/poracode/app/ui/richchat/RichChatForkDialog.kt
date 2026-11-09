@@ -3,7 +3,6 @@ package com.poracode.app.ui.richchat
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,6 +18,7 @@ import com.poracode.app.R
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.session.richchat.RichChatOperationResult
 import com.poracode.app.session.richchat.RichChatSessionRuntime
+import com.poracode.app.ui.components.PoracodeTextField
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -48,6 +48,25 @@ internal fun RichChatForkOrigin(thread: RemoteThread?, onOpenThread: (String) ->
 }
 
 @Composable
+internal fun RichChatForkDialogHost(
+    runtime: RichChatSessionRuntime,
+    intent: RichChatForkIntent?,
+    canFork: Boolean,
+    onDismiss: () -> Unit,
+    onOpenThread: (String) -> Unit,
+) {
+    intent?.let {
+        RichChatForkDialog(
+            runtime = runtime,
+            intent = it,
+            canFork = canFork,
+            onDismiss = onDismiss,
+            onOpenThread = onOpenThread,
+        )
+    }
+}
+
+@Composable
 internal fun RichChatForkDialog(
     runtime: RichChatSessionRuntime,
     intent: RichChatForkIntent,
@@ -66,7 +85,7 @@ internal fun RichChatForkDialog(
         text = {
             Column {
                 Text(stringResource(R.string.rich_chat_fork_explanation))
-                OutlinedTextField(
+                PoracodeTextField(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text(stringResource(R.string.rich_chat_fork_name)) },

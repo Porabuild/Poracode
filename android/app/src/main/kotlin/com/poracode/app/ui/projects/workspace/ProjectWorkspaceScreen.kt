@@ -1,6 +1,6 @@
 package com.poracode.app.ui.projects.workspace
 
-import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,10 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -23,8 +20,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -43,6 +40,9 @@ import com.poracode.app.session.projects.invalidates
 import com.poracode.app.session.projects.ProjectWorkspaceController
 import com.poracode.app.session.projects.ProjectWorkspaceEntry
 import com.poracode.app.session.projects.ProjectWorkspaceGateway
+import com.poracode.app.ui.components.PoracodeHazeHost
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -217,10 +217,31 @@ fun ProjectWorkspaceScreen(
             }
         }
     }
-    BackHandler { requestAction(EditorExitAction.Back, null) }
+    val backModifier = rememberPredictiveBackModifier(
+        onBack = { requestAction(EditorExitAction.Back, null) },
+    )
+    val refreshSection: () -> Unit = {
+        if (section == ProjectWorkspaceSection.Files) {
+            scope.launch {
+                if (showingSearch && searchText.isNotBlank()) {
+                    controller.searchFiles(target, searchText.trim())
+                } else {
+                    controller.loadTree(
+                        target,
+                        entry.tree?.directoryPath.orEmpty(),
+                    )
+                }
+            }
+        } else if (section == ProjectWorkspaceSection.Git) {
+            selectedDiffPath = null
+            scope.launch { controller.refreshGit(target) }
+        } else {
+            scope.launch { githubController.refresh(target) }
+        }
+    }
 
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.then(backModifier),
         topBar = {
             ProjectWorkspaceTopBar(
                 projectName = projectName,
@@ -230,29 +251,13 @@ fun ProjectWorkspaceScreen(
                 onBack = { requestAction(EditorExitAction.Back, null) },
                 onShowBranches = { showingBranches = true },
                 onShowWorktrees = { showingWorktrees = true },
-                onRefresh = {
-                    if (section == ProjectWorkspaceSection.Files) {
-                        scope.launch {
-                            if (showingSearch && searchText.isNotBlank()) {
-                                controller.searchFiles(target, searchText.trim())
-                            } else {
-                                controller.loadTree(
-                                    target,
-                                    entry.tree?.directoryPath.orEmpty(),
-                                )
-                            }
-                        }
-                    } else if (section == ProjectWorkspaceSection.Git) {
-                        selectedDiffPath = null
-                        scope.launch { controller.refreshGit(target) }
-                    } else {
-                        scope.launch { githubController.refresh(target) }
-                    }
-                },
+                onRefresh = refreshSection,
             )
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        PoracodeHazeHost { backdrop ->
+            Box(Modifier.fillMaxSize().padding(padding)) {
+                Column(Modifier.fillMaxSize().then(backdrop)) {
             if (
                 entry.loadingTree || entry.searching || entry.loadingFile ||
                 entry.savingFile || entry.mutatingEntry || entry.loadingGit ||
@@ -268,33 +273,7 @@ fun ProjectWorkspaceScreen(
                     modifier = Modifier,
                 )
             }
-            PrimaryTabRow(selectedTabIndex = section.ordinal) {
-                ProjectWorkspaceSection.entries.forEach { candidate ->
-                    Tab(
-                        selected = section == candidate,
-                        onClick = { sectionName = candidate.name },
-                        modifier = Modifier.testTag(
-                            when (candidate) {
-                                ProjectWorkspaceSection.Files -> "workspace_files"
-                                ProjectWorkspaceSection.Git -> "workspace_git"
-                                ProjectWorkspaceSection.Github -> "workspace_github"
-                            },
-                        ),
-                        text = {
-                            Text(
-                                stringResource(
-                                    when (candidate) {
-                                        ProjectWorkspaceSection.Files -> R.string.workspace_files
-                                        ProjectWorkspaceSection.Git -> R.string.workspace_git
-                                        ProjectWorkspaceSection.Github -> R.string.workspace_github
-                                    },
-                                ),
-                            )
-                        },
-                    )
-                }
-            }
-            BoxWithConstraints(Modifier.fillMaxSize()) {
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 val expanded = maxWidth >= 900.dp
                 if (section == ProjectWorkspaceSection.Files) {
                     FilesWorkspaceContent(
@@ -322,6 +301,7 @@ fun ProjectWorkspaceScreen(
                             scope.launch { controller.loadTree(target, path) }
                         },
                         onFile = { path -> requestAction(EditorExitAction.Open, path) },
+                        onCloseFile = { controller.closeFile(target) },
                         onMutation = { mutation ->
                             val pending = PendingProjectEntryMutation(
                                 target,
@@ -361,6 +341,10 @@ fun ProjectWorkspaceScreen(
                             selectedDiffStaged = change.staged
                             diffRequest += 1
                         },
+                        onClearSelection = {
+                            selectedDiffPath = null
+                            selectedDiffStaged = false
+                        },
                         onStage = { change -> submitGit(gitStageRequest(target.location, change.path)) },
                         onUnstage = { change ->
                             submitGit(gitUnstageRequest(target.location, change.path))
@@ -399,6 +383,20 @@ fun ProjectWorkspaceScreen(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
+            }
+        }
+                ProjectWorkspaceBottomBar(
+                    section = section,
+                    refreshEnabled = when (section) {
+                        ProjectWorkspaceSection.Files -> actions.canBrowse
+                        ProjectWorkspaceSection.Git -> actions.canRefreshGit
+                        ProjectWorkspaceSection.Github -> access.canRead
+                    },
+                    onBack = { requestAction(EditorExitAction.Back, null) },
+                    onRefresh = refreshSection,
+                    onSelectSection = { sectionName = it.name },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
     }

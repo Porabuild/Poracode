@@ -251,4 +251,15 @@
     <string name="rich_chat_background_task_last_progress">Último progreso hace %1$s</string>
     <string name="rich_chat_background_task_close">Cerrar detalles de la tarea</string>
     <string name="rich_chat_background_task_report_missing">La tarea terminó sin un informe de finalización.</string>
+    <string name="rich_chat_copy_message">Copiar mensaje</string>
+    <string name="rich_chat_add_to_composer">Agregar al composer</string>
+    <string name="rich_chat_file">Archivo</string>
+    <string name="rich_chat_attach">Adjuntar</string>
+    <string name="rich_chat_message_agent">Pregunta a %1$s cualquier cosa sobre este espacio de trabajo</string>
+    <string name="rich_chat_worked_for">Trabajó durante %1$s</string>
+    <string name="rich_chat_search_models">Buscar modelos...</string>
+    <string name="rich_chat_plugins">Plugins</string>
+    <string name="rich_chat_handoff_fork">Bifurcar conversación</string>
+    <string name="rich_chat_handoff_prompt">Indica al nuevo proveedor qué hacer a continuación…</string>
+    <string name="rich_chat_handoff_switch">Cambiar</string>
 </resources>

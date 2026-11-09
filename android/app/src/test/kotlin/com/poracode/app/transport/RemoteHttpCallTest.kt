@@ -4,6 +4,7 @@ import com.poracode.app.model.RemoteClientException
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -223,6 +224,100 @@ class RemoteHttpCallTest {
             server.shutdown()
         }
     }
+
+    @Test
+    fun retryableReadReplaysOnceOnPreResponseDisconnect() = runBlocking {
+        val server = MockWebServer()
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
+        server.enqueue(MockResponse().setBody("ok").setResponseCode(200))
+        server.start()
+        try {
+            val gate = ForegroundNetworkGate()
+            val attempts = AtomicInteger(0)
+            val client = disconnectCountingClient(attempts)
+
+            val result = executeRemoteRequest(
+                client,
+                gate,
+                request(server),
+                retryableRead = true,
+            ) { response ->
+                response.body!!.string()
+            }
+
+            assertEquals("ok", result)
+            assertEquals("a stale-socket read replays exactly once", 2, attempts.get())
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun mutationNeverReplaysOnPreResponseDisconnect() = runBlocking {
+        val server = MockWebServer()
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
+        server.enqueue(MockResponse().setBody("ok").setResponseCode(200))
+        server.start()
+        try {
+            val gate = ForegroundNetworkGate()
+            val attempts = AtomicInteger(0)
+            val client = disconnectCountingClient(attempts)
+
+            val error = runCatching {
+                executeRemoteRequest(client, gate, request(server)) { response ->
+                    response.body!!.string()
+                }
+            }.exceptionOrNull()
+
+            assertTrue("expected a typed transport failure, got $error", error is RemoteClientException)
+            assertEquals("network", (error as RemoteClientException).code)
+            assertEquals("a mutation makes exactly one attempt", 1, attempts.get())
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun retryableReadStopsAfterSingleReplay() = runBlocking {
+        val server = MockWebServer()
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START))
+        server.start()
+        try {
+            val gate = ForegroundNetworkGate()
+            val attempts = AtomicInteger(0)
+            val client = disconnectCountingClient(attempts)
+
+            val error = runCatching {
+                executeRemoteRequest(
+                    client,
+                    gate,
+                    request(server),
+                    retryableRead = true,
+                ) { response ->
+                    response.body!!.string()
+                }
+            }.exceptionOrNull()
+
+            assertTrue("expected a typed transport failure, got $error", error is RemoteClientException)
+            assertEquals("network", (error as RemoteClientException).code)
+            assertEquals("the read replays once then surfaces the error", 2, attempts.get())
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    private fun disconnectCountingClient(attempts: AtomicInteger): OkHttpClient =
+        OkHttpClient.Builder()
+            // Match production transports: OkHttp's own transparent retry stays
+            // off so the single replay under test is the one in executeRemoteRequest.
+            .retryOnConnectionFailure(false)
+            .eventListener(object : EventListener() {
+                override fun callStart(call: Call) {
+                    attempts.incrementAndGet()
+                }
+            })
+            .build()
 
     private fun request(server: MockWebServer): Request =
         Request.Builder().url(server.url("/api/snapshot")).build()

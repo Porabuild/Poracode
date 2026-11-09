@@ -256,4 +256,15 @@
     <string name="rich_chat_background_task_last_progress">Tiến độ gần nhất cách đây %1$s</string>
     <string name="rich_chat_background_task_close">Đóng chi tiết tác vụ</string>
     <string name="rich_chat_background_task_report_missing">Tác vụ đã kết thúc mà không có báo cáo hoàn thành.</string>
+    <string name="rich_chat_copy_message">Sao chép tin nhắn</string>
+    <string name="rich_chat_add_to_composer">Thêm vào trình soạn thảo</string>
+    <string name="rich_chat_file">tập tin</string>
+    <string name="rich_chat_attach">Đính kèm</string>
+    <string name="rich_chat_message_agent">Hỏi %1$s bất cứ điều gì về không gian làm việc này</string>
+    <string name="rich_chat_worked_for">Đã làm việc trong %1$s</string>
+    <string name="rich_chat_search_models">Tìm kiếm mô hình...</string>
+    <string name="rich_chat_plugins">Plugin</string>
+    <string name="rich_chat_handoff_fork">Tách nhánh cuộc trò chuyện</string>
+    <string name="rich_chat_handoff_prompt">Cho nhà cung cấp mới biết cần làm gì tiếp theo…</string>
+    <string name="rich_chat_handoff_switch">Chuyển</string>
 </resources>

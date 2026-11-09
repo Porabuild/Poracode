@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">Перенаправлення портів</string>
+    <string name="ports_title">Порти</string>
     <string name="ports_back">Назад</string>
     <string name="ports_refresh">Оновити порти</string>
     <string name="ports_target_port">Цільовий порт</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">Переадресацию в браузер не налаштовано на цьому комп’ютері.</string>
     <string name="ports_failure_ambiguous">Запит міг бути виконаний. Список оновлено.</string>
     <string name="ports_failure_unavailable">Перенаправлення портів зараз недоступне.</string>
+    <string name="ports_intro">Сервери розробки, що слухають localhost вашого комп\'ютера.</string>
+    <string name="ports_forward_a_port">Переспрямувати порт</string>
 </resources>

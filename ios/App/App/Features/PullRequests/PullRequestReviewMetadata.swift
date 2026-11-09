@@ -97,18 +97,27 @@ enum PullRequestTimelineProjection {
 }
 
 enum PullRequestTimelineTime {
+  // Formatters are configured once and safe to share for parsing/formatting.
+  nonisolated(unsafe) private static let fractional: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter
+  }()
+  nonisolated(unsafe) private static let standard = ISO8601DateFormatter()
+  nonisolated(unsafe) private static let relativeFormatter: RelativeDateTimeFormatter = {
+    let formatter = RelativeDateTimeFormatter()
+    formatter.unitsStyle = .short
+    return formatter
+  }()
+
   static func parse(_ value: String) -> Date? {
-    let fractional = ISO8601DateFormatter()
-    fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+    fractional.date(from: value) ?? standard.date(from: value)
   }
 
   /// A localized relative time such as "2 hr. ago", or nil when the host sent an unreadable value.
   static func relative(_ value: String, now: Date = Date()) -> String? {
     guard let date = parse(value) else { return nil }
-    let formatter = RelativeDateTimeFormatter()
-    formatter.unitsStyle = .short
-    return formatter.localizedString(for: date, relativeTo: now)
+    return relativeFormatter.localizedString(for: date, relativeTo: now)
   }
 }
 

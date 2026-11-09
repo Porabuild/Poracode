@@ -157,6 +157,7 @@ internal fun buildSessionControllerGraph(
         requestResync = ::requestResync,
         requestLegacyRefresh = { live.refreshSnapshot() },
         currentEventSeq = { live.lastSeenSeq?.toLong() ?: 0L },
+        onGitSummaries = { events.mergeGitPageSummaries(it) },
     )
     resync = ResyncEngine(
         scope = scope,

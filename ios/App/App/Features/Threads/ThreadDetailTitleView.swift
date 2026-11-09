@@ -154,7 +154,7 @@ struct ThreadDetailTitleView: View {
     case "error": return .red
     case "finished": return .indigo
     case "inactive": return .secondary
-    default: return .accentColor
+    default: return .primary
     }
   }
 

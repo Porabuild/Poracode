@@ -4,31 +4,36 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.FilledIconButton
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import com.poracode.app.ui.theme.PoracodeMetrics
+import com.poracode.app.ui.theme.PoracodeRadius
+import com.poracode.app.ui.theme.PoracodeTextStyles
+import com.poracode.app.ui.theme.PoracodeTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,7 +61,9 @@ import com.poracode.app.model.ProjectFileEntry
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.transport.richchat.AttachmentUploadBody
+import com.poracode.app.ui.components.PoracodeTextField
 import com.poracode.app.ui.components.rememberCameraCapture
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.serialization.json.JsonObject
 
 data class PickedAttachmentUpload(
@@ -117,6 +124,7 @@ fun RichChatComposer(
     modifier: Modifier = Modifier,
 ) {
     var showControls by rememberSaveable(contextKey) { mutableStateOf(false) }
+    var controlsFocus by remember { mutableStateOf<RichChatComposerControlsFocus?>(null) }
     var showCrewRoster by rememberSaveable(contextKey) { mutableStateOf(false) }
     val crewPresentation = remember(configuration.crew) { decodeReadOnlyCrew(configuration.crew) }
     var editorValue by remember(contextKey) { mutableStateOf(TextFieldValue(draft, TextRange(draft.length))) }
@@ -148,6 +156,9 @@ fun RichChatComposer(
         onUnavailable = onCameraUnavailable,
     )
     val inputDescription = stringResource(R.string.rich_chat_message)
+    val placeholderText = agentStatus?.label?.let {
+        stringResource(R.string.rich_chat_message_agent, it)
+    } ?: stringResource(R.string.rich_chat_message)
     val mcpLabels = mapOf(
         "app-controls" to stringResource(R.string.rich_chat_app_controls),
         "browser" to stringResource(R.string.rich_chat_browser_mcp),
@@ -177,54 +188,21 @@ fun RichChatComposer(
     }
     val hasSendableContent =
         draft.isNotBlank() || queuedSegments.isNotEmpty() || attachments.isNotEmpty()
-    Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 3.dp) {
-        Column(
-            Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            RuntimeContextUsageDock(contextKey, contextUsage) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    catalog?.let { controlCatalog ->
-                        val summary = buildList {
-                            add(controlCatalog.modelLabel(configuration.model))
-                            controlCatalog.displayEffort(configuration)?.let {
-                                add(controlCatalog.effortLabel(configuration.model, it))
-                            }
-                        }.joinToString(" · ")
-                        val controlsDescription = stringResource(
-                            R.string.rich_chat_composer_controls_summary,
-                            summary,
-                        )
-                        AssistChip(
-                            onClick = { showControls = true },
-                            enabled = controlsEnabled,
-                            label = { Text(summary, maxLines = 1) },
-                            leadingIcon = {
-                                Icon(Icons.Outlined.Tune, contentDescription = null)
-                            },
-                            modifier = Modifier
-                                .testTag("rich_chat_composer_controls")
-                                .semantics { contentDescription = controlsDescription },
-                        )
-                    }
-                    crewPresentation?.let { crew ->
-                        RichChatCrewChip(crew = crew, enabled = true) {
-                            showCrewRoster = true
-                        }
-                    }
-                    crewPresentation?.let { crew ->
-                        RichChatCrewChip(
-                            crew = crew,
-                            enabled = controlsEnabled,
-                            onClick = { showCrewRoster = true },
-                        )
-                    }
-
-                }
-            }
+    val colors = PoracodeTheme.colors
+    Column(
+        modifier
+            .fillMaxWidth()
+            .padding(
+                start = PoracodeMetrics.pageInline,
+                end = PoracodeMetrics.pageInline,
+                top = 4.dp,
+                bottom = 8.dp,
+            ),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+            // Context usage keeps its own disclosure above the card; the model
+            // controls live in the card's toolbar like the PWA composer.
+            RuntimeContextUsageDock(contextKey, contextUsage) {}
             if (slashSuggestions.isNotEmpty()) {
                 RichChatSlashSuggestions(
                     options = slashSuggestions,
@@ -260,7 +238,7 @@ fun RichChatComposer(
                             label = { Text(attachment.name) },
                             trailingIcon = {
                                 Icon(
-                                    Icons.Filled.Close,
+                                    PoracodeIcons.Close,
                                     contentDescription = stringResource(
                                         R.string.rich_chat_remove_attachment,
                                         attachment.name,
@@ -281,7 +259,7 @@ fun RichChatComposer(
                                 label = { Text(label, maxLines = 1) },
                                 trailingIcon = {
                                     Icon(
-                                        Icons.Filled.Close,
+                                        PoracodeIcons.Close,
                                         contentDescription = stringResource(
                                             R.string.rich_chat_remove_context,
                                             label,
@@ -297,119 +275,193 @@ fun RichChatComposer(
                 Text(
                     it,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color = colors.danger,
                 )
             }
-            Row(verticalAlignment = Alignment.Bottom) {
-                RichChatSessionActionEntry(
-                    contextKey = sessionActionOwnerKey ?: contextKey,
-                    agentKind = currentThread?.agentKind.orEmpty(),
-                    actionIds = sessionActionIds.orEmpty(),
-                    invokingActionId = sessionActionInvokingId,
-                    enabled = enabled && !sending,
-                    onInvoke = onSessionActionInvoke ?: { _, _, _ ->
-                        com.poracode.app.session.richchat.RichChatOperationResult.Stale
-                    },
-                    onInsertIntoComposer = onInsertIntoComposer ?: {},
-                ) { entries, open ->
-                    RichChatComposerAddMenu(
-                        enabled = enabled && !sending,
-                        uploading = uploading,
-                        entries = entries,
-                        actionsEnabled = sessionActionInvokingId == null && onSessionActionInvoke != null,
-                        inventoryFailure = richChatFailureText(sessionActionInventoryFailure),
-                        inventoryRefreshing = sessionActionInventoryRefreshing,
-                        onAttach = { launcher.launch(arrayOf("*/*")) },
-                        onCamera = captureFromCamera,
-                        onOpenAction = open,
-                        onRetry = onSessionActionRefreshInventory,
+            val cardShape = RoundedCornerShape(PoracodeRadius.composer)
+            val inputInteraction = remember { MutableInteractionSource() }
+            val inputFocused by inputInteraction.collectIsFocusedAsState()
+            // Like the PWA, the idle composer is a one-line pill; focus or content
+            // opens the toolbar beneath the same text field instance.
+            val compact = !inputFocused && !hasSendableContent
+            val modelControl: @Composable (Modifier) -> Unit = { controlModifier ->
+                catalog?.let { controlCatalog ->
+                    val summary = buildList {
+                        controlCatalog.modelLabel(configuration.model)
+                            .takeIf { it.isNotBlank() }?.let(::add)
+                        controlCatalog.displayEffort(configuration)?.let { effort ->
+                            controlCatalog.effortLabel(configuration.model, effort)
+                                .takeIf { it.isNotBlank() }?.let(::add)
+                        }
+                    }.joinToString(" · ")
+                    ComposerModelControl(
+                        summary = summary,
+                        providerLabel = agentStatus?.label ?: currentThread?.agentKind.orEmpty(),
+                        enabled = controlsEnabled,
+                        onClick = { controlsFocus = null; showControls = true },
+                        modifier = controlModifier.testTag("rich_chat_composer_controls"),
                     )
                 }
-                OutlinedTextField(
-                    value = inputValue,
-                    onValueChange = {
-                        editorValue = it
-                        if (it.text != draft) onDraftChange(it.text)
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 52.dp)
-                        .testTag("rich_chat_message")
-                        .semantics { contentDescription = inputDescription },
-                    placeholder = { Text(stringResource(R.string.rich_chat_message)) },
-                    maxLines = 6,
-                    enabled = enabled,
-                )
+            }
+            val primaryAction: @Composable () -> Unit = {
                 if (sending || (isTurnActive && !hasSendableContent)) {
-                    IconButton(
-                        onClick = onInterrupt,
+                    ComposerCircleAction(
+                        icon = PoracodeIcons.Stop,
+                        label = stringResource(R.string.rich_chat_stop_generation),
                         enabled = enabled,
+                        onClick = onInterrupt,
                         modifier = Modifier.testTag("rich_chat_stop_generation"),
-                    ) {
-                        Icon(
-                            Icons.Filled.Stop,
-                            contentDescription = stringResource(R.string.rich_chat_stop_generation),
-                        )
-                    }
+                    )
                 } else if (resumePlan != null && !hasSendableContent) {
                     // A turn cut off by an error or a restart is picked back up
                     // from the empty composer, so nobody has to type "continue".
-                    FilledIconButton(
-                        onClick = onResume,
+                    ComposerCircleAction(
+                        icon = PoracodeIcons.PlayArrow,
+                        label = stringResource(
+                            when (resumePlan) {
+                                is RichChatResumePlan.Resend -> R.string.rich_chat_resend_last_message
+                                RichChatResumePlan.Continue -> R.string.rich_chat_resume_response
+                            },
+                        ),
                         enabled = enabled && !uploading,
-                        modifier = Modifier
-                            .testTag("rich_chat_resume_turn")
-                            .size(48.dp),
-                    ) {
-                        Icon(
-                            Icons.Filled.PlayArrow,
-                            contentDescription = stringResource(
-                                when (resumePlan) {
-                                    is RichChatResumePlan.Resend -> R.string.rich_chat_resend_last_message
-                                    RichChatResumePlan.Continue -> R.string.rich_chat_resume_response
-                                },
-                            ),
-                        )
-                    }
-                } else {
+                        onClick = onResume,
+                        modifier = Modifier.testTag("rich_chat_resume_turn"),
+                    )
+                } else if (!compact) {
                     // Box + combinedClickable (not FilledIconButton): one
                     // coordinated gesture detector, so a long-press cannot
                     // also fire the click and queue AND steer the same draft.
+                    val canSend = enabled && hasSendableContent && !uploading
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .testTag("rich_chat_send_message")
-                            .size(48.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .background(
-                                if (enabled && hasSendableContent && !uploading) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                                },
-                            )
+                            .background(if (canSend) colors.accentSoft else colors.default.copy(alpha = 0.6f))
                             .combinedClickable(
-                                enabled = enabled && hasSendableContent && !uploading,
+                                enabled = canSend,
                                 onClick = onSend,
                                 onLongClick = if (isTurnActive) onQueueSend else null,
                             ),
                     ) {
                         Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            tint = if (enabled && hasSendableContent && !uploading) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                            },
+                            PoracodeIcons.Send,
+                            tint = if (canSend) colors.foreground else colors.muted.copy(alpha = 0.6f),
                             contentDescription = stringResource(
                                 if (isTurnActive) R.string.rich_chat_send_steer
                                 else R.string.rich_chat_send_message,
                             ),
+                            modifier = Modifier.size(18.dp),
                         )
                     }
                 }
             }
-        }
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(cardShape)
+                    .background(colors.composerSurface)
+                    .border(1.dp, colors.hairlineStrong, cardShape)
+                    .padding(
+                        start = 8.dp,
+                        end = if (compact) 4.dp else 8.dp,
+                        top = if (compact) 2.dp else 4.dp,
+                        bottom = if (compact) 2.dp else 8.dp,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    BasicTextField(
+                        value = inputValue,
+                        onValueChange = {
+                            editorValue = it
+                            if (it.text != draft) onDraftChange(it.text)
+                        },
+                        enabled = enabled,
+                        maxLines = 6,
+                        interactionSource = inputInteraction,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = if (enabled) colors.foreground else colors.muted,
+                        ),
+                        cursorBrush = SolidColor(colors.foreground),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 40.dp)
+                            .testTag("rich_chat_message")
+                            .semantics { contentDescription = inputDescription },
+                        decorationBox = { inner ->
+                            Box(
+                                Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                if (inputValue.text.isEmpty()) {
+                                    Text(
+                                        placeholderText,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = colors.fieldPlaceholder,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                inner()
+                            }
+                        },
+                    )
+                    if (compact) {
+                        modelControl(Modifier)
+                        primaryAction()
+                    }
+                }
+                if (!compact) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        RichChatSessionActionEntry(
+                            contextKey = sessionActionOwnerKey ?: contextKey,
+                            agentKind = currentThread?.agentKind.orEmpty(),
+                            actionIds = sessionActionIds.orEmpty(),
+                            invokingActionId = sessionActionInvokingId,
+                            enabled = enabled && !sending,
+                            onInvoke = onSessionActionInvoke ?: { _, _, _ ->
+                                com.poracode.app.session.richchat.RichChatOperationResult.Stale
+                            },
+                            onInsertIntoComposer = onInsertIntoComposer ?: {},
+                        ) { entries, open ->
+                            RichChatComposerAddMenu(
+                                enabled = enabled && !sending,
+                                uploading = uploading,
+                                entries = entries,
+                                actionsEnabled = sessionActionInvokingId == null && onSessionActionInvoke != null,
+                                inventoryFailure = richChatFailureText(sessionActionInventoryFailure),
+                                inventoryRefreshing = sessionActionInventoryRefreshing,
+                                onAttach = { launcher.launch(arrayOf("*/*")) },
+                                onCamera = captureFromCamera,
+                                onOpenAction = open,
+                                onRetry = onSessionActionRefreshInventory,
+                                onOpenControls = { focus ->
+                                    controlsFocus = focus
+                                    showControls = true
+                                },
+                            )
+                        }
+                        modelControl(Modifier.weight(1f, fill = false))
+                        crewPresentation?.let { crew ->
+                            RichChatCrewChip(
+                                crew = crew,
+                                enabled = controlsEnabled,
+                                onClick = { showCrewRoster = true },
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        primaryAction()
+                    }
+                }
+            }
     }
     if (showControls && catalog != null) {
         RichChatComposerControlsSheet(
@@ -417,22 +469,13 @@ fun RichChatComposer(
             catalog = catalog,
             enabled = controlsEnabled,
             hasStartedSession = currentThread?.sessionRef != null,
-            onDismiss = { showControls = false },
+            focusSection = controlsFocus,
+            onDismiss = { controlsFocus = null; showControls = false },
             onSave = {
                 onConfigurationChange(it)
+                controlsFocus = null
                 showControls = false
             },
-        )
-    }
-    if (showCrewRoster) {
-        crewPresentation?.let { crew ->
-            ReadOnlyCrewRosterSheet(
-                crew = crew,
-                leadAgentKind = currentThread?.agentKind.orEmpty(),
-                leadModel = configuration.model,
-                leadEffort = configuration.effort,
-                leadFast = configuration.fast == true,
-                onDismiss = { showCrewRoster = false },
         )
     }
     if (showCrewRoster) {
@@ -447,7 +490,6 @@ fun RichChatComposer(
             )
         }
     }
-}
 }
 
 private const val MAX_SUGGESTIONS = 6

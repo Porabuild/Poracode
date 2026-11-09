@@ -1,31 +1,26 @@
 package com.poracode.app.ui.home
 
-import android.text.format.DateUtils
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.Computer
-import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,13 +35,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.poracode.app.R
 import com.poracode.app.model.RemoteGitSummary
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.session.HostPresentation
 import com.poracode.app.session.threads.ThreadLifecycleController
 import com.poracode.app.ui.GitSummaryText
+import com.poracode.app.ui.components.PoracodeListRow
+import com.poracode.app.ui.components.PoracodeProjectHostLine
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.theme.PoracodeTextStyles
+import com.poracode.app.ui.theme.PoracodeTheme
 import java.time.Instant
+
+private val RowPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
 
 @Composable
 internal fun HomeWorktreeGroup(
@@ -56,64 +59,59 @@ internal fun HomeWorktreeGroup(
     onOpenThread: (String) -> Unit,
     lifecycleController: ThreadLifecycleController,
     canOperateThreads: Boolean,
+    online: Boolean = false,
 ) {
+    val colors = PoracodeTheme.colors
     val rotation by animateFloatAsState(if (collapsed) -90f else 0f, label = "worktree-chevron")
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Surface(
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        PoracodeListRow(
             onClick = onToggle,
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentPadding = RowPadding,
+            modifier = Modifier.heightIn(min = 54.dp),
         ) {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Icon(
-                    Icons.Outlined.AccountTree,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
-                )
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            group.branch,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        HomeRelativeTime(group.updatedAt)
-                        Icon(
-                            Icons.Outlined.ExpandMore,
-                            contentDescription = stringResource(
-                                if (collapsed) R.string.home_expand_worktree
-                                else R.string.home_collapse_worktree,
-                            ),
-                            modifier = Modifier
-                                .padding(start = 5.dp)
-                                .size(17.dp)
-                                .rotate(rotation),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    HomeProjectLine(group.project.name, group.hostName)
+            Icon(
+                PoracodeIcons.AccountTree,
+                contentDescription = null,
+                tint = colors.muted,
+                modifier = Modifier.size(14.dp),
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(Modifier.height(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        group.branch,
+                        modifier = Modifier.weight(1f),
+                        style = PoracodeTextStyles.rowTitle.copy(fontWeight = FontWeight.Medium),
+                        color = colors.foreground.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    HomeRelativeTime(group.updatedAt)
+                    Icon(
+                        PoracodeIcons.ExpandMore,
+                        contentDescription = stringResource(
+                            if (collapsed) R.string.home_expand_worktree
+                            else R.string.home_collapse_worktree,
+                        ),
+                        modifier = Modifier
+                            .padding(start = 6.dp)
+                            .size(14.dp)
+                            .rotate(rotation),
+                        tint = colors.muted,
+                    )
                 }
+                PoracodeProjectHostLine(group.project.name, group.hostName, online = online)
             }
         }
         AnimatedVisibility(visible = !collapsed) {
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 group.threads.forEach { item ->
                     Row(Modifier.height(IntrinsicSize.Min)) {
                         Box(
                             Modifier
-                                .padding(start = 13.dp, end = 5.dp)
+                                .padding(start = 16.dp, end = 6.dp, bottom = 6.dp)
                                 .width(1.dp)
                                 .fillMaxHeight()
-                                .background(MaterialTheme.colorScheme.outlineVariant),
+                                .background(colors.border),
                         )
                         HomeThreadRowWithActions(
                             item = item,
@@ -132,6 +130,10 @@ internal fun HomeWorktreeGroup(
     }
 }
 
+/**
+ * Compact thread row from the PWA sidebar: provider glyph, a single-line 12 sp
+ * title with a mono relative time, and a 10 sp project/host line.
+ */
 @Composable
 internal fun HomeThreadRow(
     item: HostPresentation.UnifiedThreadItem,
@@ -140,8 +142,12 @@ internal fun HomeThreadRow(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    trailing: (@Composable () -> Unit)? = null,
+    agentLabel: String? = null,
+    online: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
+    val colors = PoracodeTheme.colors
     val thread = item.thread
     val title = thread.title.ifBlank { stringResource(R.string.untitled_thread) }
     val description = stringResource(
@@ -150,149 +156,143 @@ internal fun HomeThreadRow(
         thread.agentKind,
         thread.status,
     )
-    Surface(
+    val active = thread.isActiveStatus || thread.needsAttention
+    PoracodeListRow(
         modifier = modifier
-            .semantics { contentDescription = description }
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
+            .heightIn(min = 54.dp)
+            .semantics(mergeDescendants = true) { contentDescription = description },
+        onClick = onClick,
+        onLongClick = onLongClick,
+        onLongClickLabel = onLongClickLabel,
+        selected = selected,
+        contentPadding = RowPadding,
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.Top,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            HomeStatusGlyph(thread)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        title,
+        HomeProviderGlyph(thread, agentLabel)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(
+                Modifier.heightIn(min = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    title,
+                    modifier = Modifier.weight(1f),
+                    style = PoracodeTextStyles.rowTitle.copy(
+                        textDecoration = if (thread.isDone) TextDecoration.LineThrough else TextDecoration.None,
+                    ),
+                    color = when {
+                        thread.isDone -> colors.muted
+                        active || selected -> colors.foreground
+                        else -> colors.foreground.copy(alpha = 0.85f)
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (thread.isStarred) {
+                    Icon(
+                        PoracodeIcons.Star,
+                        contentDescription = stringResource(R.string.starred),
+                        tint = colors.muted,
+                        modifier = Modifier.size(11.dp),
+                    )
+                }
+                HomeRelativeTime(thread.updatedAt)
+            }
+            if (!grouped) {
+                Row(
+                    Modifier.heightIn(min = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    PoracodeProjectHostLine(
+                        item.project.name,
+                        item.hostName,
                         modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Medium,
-                            textDecoration = if (thread.isDone) {
-                                TextDecoration.LineThrough
-                            } else {
-                                TextDecoration.None
-                            },
-                        ),
-                        color = if (thread.isDone) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
+                        online = online,
                     )
-                    if (thread.isStarred) {
-                        Icon(
-                            Icons.Outlined.Star,
-                            contentDescription = stringResource(R.string.starred),
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .size(14.dp),
-                        )
-                    }
-                    HomeRelativeTime(thread.updatedAt)
-                }
-                if (!grouped) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        HomeProjectLine(
-                            item.project.name,
-                            item.hostName,
-                            modifier = Modifier.weight(1f),
-                        )
-                        GitSummaryText.CompactLine(summary = gitSummary)
-                    }
-                }
-                if (thread.status == "error" && !thread.errorMessage.isNullOrBlank()) {
-                    Text(
-                        thread.errorMessage,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    GitSummaryText.ThreadBadge(summary = gitSummary)
                 }
             }
-            if (trailing != null) {
-                Box(Modifier.align(Alignment.CenterVertically)) { trailing() }
+            if (thread.status == "error" && !thread.errorMessage.isNullOrBlank()) {
+                Text(
+                    thread.errorMessage,
+                    style = PoracodeTextStyles.rowMeta,
+                    color = colors.danger,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
 }
 
+private val RemoteThread.isActiveStatus: Boolean
+    get() = status == "working" || status == "launching"
+
+private val RemoteThread.needsAttention: Boolean
+    get() = status == "needs_approval" || status == "needs_reply" || status == "error"
+
+/**
+ * The PWA's generic provider icon: the provider's initial in a hairline tile,
+ * replaced by a spinner while the agent works and tinted for attention states.
+ */
 @Composable
-private fun HomeStatusGlyph(thread: RemoteThread) {
-    Box(
-        modifier = Modifier
-            .padding(top = 2.dp)
-            .size(16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (thread.status == "working" || thread.status == "launching") {
+private fun HomeProviderGlyph(thread: RemoteThread, agentLabel: String?) {
+    val colors = PoracodeTheme.colors
+    Box(Modifier.size(14.dp), contentAlignment = Alignment.Center) {
+        if (thread.isActiveStatus) {
             CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
-                strokeWidth = 1.8.dp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(12.dp),
+                strokeWidth = 1.5.dp,
+                color = colors.success,
+                trackColor = Color.Transparent,
             )
         } else {
+            val tone = homeStatusColor(thread)
             Box(
                 Modifier
-                    .size(8.dp)
-                    .background(homeStatusColor(thread.status), RoundedCornerShape(50)),
-            )
+                    .size(12.dp)
+                    .border(1.dp, tone.copy(alpha = 0.34f), RoundedCornerShape(4.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    providerInitial(agentLabel ?: thread.agentKind),
+                    style = PoracodeTextStyles.rowMeta.copy(
+                        fontSize = 6.7.sp,
+                        lineHeight = 7.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    color = tone,
+                )
+            }
+            if (thread.needsAttention) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 2.dp, y = (-2).dp)
+                        .size(5.dp)
+                        .background(tone, CircleShape),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun homeStatusColor(status: String): Color = when (status) {
-    "needs_approval", "needs_reply" -> MaterialTheme.colorScheme.tertiary
-    "error" -> MaterialTheme.colorScheme.error
-    "finished" -> MaterialTheme.colorScheme.primary
-    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+private fun homeStatusColor(thread: RemoteThread): Color {
+    val colors = PoracodeTheme.colors
+    return when (thread.status) {
+        "needs_approval", "needs_reply" -> colors.warning
+        "error" -> colors.danger
+        "finished" -> colors.finishedTone
+        "idle" -> colors.foreground
+        else -> colors.muted
+    }
 }
 
-@Composable
-private fun HomeProjectLine(
-    project: String,
-    host: String,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            project,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Icon(
-            Icons.Outlined.Computer,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(12.dp),
-        )
-        Text(
-            host,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+internal fun providerInitial(label: String): String {
+    val name = label.substringAfterLast(':').trim()
+    return name.firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: "•"
 }
 
 @Composable
@@ -300,19 +300,19 @@ private fun HomeRelativeTime(value: String) {
     compactRelativeTime(value)?.let {
         Text(
             it,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+            style = PoracodeTextStyles.monoMeta,
+            color = PoracodeTheme.colors.muted,
             maxLines = 1,
         )
     }
 }
 
-private fun compactRelativeTime(value: String): String? {
+/** Same compact clock as the PWA's `formatRelativeTime`: minutes, hours, then days. */
+internal fun compactRelativeTime(value: String, nowMillis: Long = System.currentTimeMillis()): String? {
     val timestamp = runCatching { Instant.parse(value).toEpochMilli() }.getOrNull() ?: return null
-    return DateUtils.getRelativeTimeSpanString(
-        timestamp,
-        System.currentTimeMillis(),
-        DateUtils.MINUTE_IN_MILLIS,
-        DateUtils.FORMAT_ABBREV_RELATIVE,
-    ).toString()
+    val minutes = maxOf(1L, (nowMillis - timestamp) / 60_000L)
+    if (minutes < 60) return "${minutes}m"
+    val hours = minutes / 60
+    if (hours < 24) return "${hours}h"
+    return "${hours / 24}d"
 }

@@ -3,6 +3,7 @@ package com.poracode.app.session.catalog
 import com.poracode.app.model.RemoteBoundedReadCodes
 import com.poracode.app.model.RemoteBoundedReadResult
 import com.poracode.app.model.RemoteClientException
+import com.poracode.app.model.RemoteGitSummary
 import com.poracode.app.model.RemoteShellSnapshot
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.protocol.AppLifecycleGate
@@ -63,6 +64,7 @@ class CatalogSyncController(
     private val requestResync: (String) -> Unit,
     private val requestLegacyRefresh: () -> Unit,
     private val currentEventSeq: () -> Long,
+    private val onGitSummaries: (Map<String, RemoteGitSummary>) -> Unit = {},
     private val reconcileIntervalMs: Long = RECONCILE_INTERVAL_MS,
     private val jitterMs: () -> Long = { Random.nextLong(0L, RECONCILE_JITTER_MS) },
     private val nowIso: () -> String = {
@@ -81,6 +83,7 @@ class CatalogSyncController(
         updateState = updateState,
         gateway = { api() as? RemoteBoundedReadGateway },
         currentEventSeq = currentEventSeq,
+        onGitSummaries = onGitSummaries,
         onFailure = ::handleWalkFailure,
     )
     private var fetchedAuthoritative: FetchedShell? = null

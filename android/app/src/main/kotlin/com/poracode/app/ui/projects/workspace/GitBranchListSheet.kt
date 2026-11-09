@@ -8,9 +8,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -28,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
+import com.poracode.app.ui.theme.PoracodeIcons
 
 /**
  * Browsable Git branch list reached from the workspace Git tab, with per-row switch/delete
@@ -110,7 +108,7 @@ private fun GitBranchRow(
         if (!branch.current) {
             IconButton(onClick = { onSwitch(branch.name) }, enabled = enabled) {
                 Icon(
-                    Icons.Outlined.SwapHoriz,
+                    PoracodeIcons.SwapHoriz,
                     contentDescription = stringResource(R.string.git_branch_switch_action, branch.name),
                 )
             }
@@ -118,7 +116,7 @@ private fun GitBranchRow(
         if (!branch.current && !branch.isRemote) {
             IconButton(onClick = { onDelete(branch.name) }, enabled = enabled) {
                 Icon(
-                    Icons.Outlined.DeleteOutline,
+                    PoracodeIcons.DeleteOutline,
                     contentDescription = stringResource(R.string.git_branch_delete_action, branch.name),
                 )
             }

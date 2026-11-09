@@ -64,7 +64,7 @@ struct RichChatTimelineView: View {
                 Text(RichChatStrings.loadOlder).frame(maxWidth: .infinity)
               }
             }
-            .buttonStyle(.bordered)
+            .poracodeGlassButtonStyle()
             .disabled(controller.state.isLoadingOlder)
           }
           if let entries = projection?.visibleEntries {
@@ -75,7 +75,10 @@ struct RichChatTimelineView: View {
                 actions: actions
               )
               .id(entry.stableID)
-              if !isBusy, !isRefreshing, let requestFork,
+              // The inline assistant action row already offers fork for a
+              // completed reply; keep this per-entry button only for entries
+              // that have no forkable assistant message (e.g. tool-only turns).
+              if !isBusy, !isRefreshing, !actions.entryOffersInlineFork(entry), let requestFork,
                 let displayTurn = controller.state.displayedCompletedTurns(in: projection)
                   .first(where: { entry.rootItemIDs.contains($0.anchorItemID ?? "") }),
                 let rawAnchor = controller.state.completedTurns
@@ -215,7 +218,8 @@ struct RichChatTimelineView: View {
           )
           guard eligible else { return }
           truncateIntent = RichChatTruncateIntent(id: itemID)
-        } : nil
+        } : nil,
+      requestFork: allowsActions ? requestFork : nil
     )
     actions.bindMcpAppActions(conversation: conversation, config: config, canOperate: canOperate)
     return actions

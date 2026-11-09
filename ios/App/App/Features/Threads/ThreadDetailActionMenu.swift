@@ -185,8 +185,15 @@ struct ThreadDetailActionMenu: View {
     .onDisappear { lifecycle.deactivate() }
   }
 
+  /// Rename, Mark Done and Pin are rendered inline in the shared PWA order by
+  /// `ThreadDetailActionMenuContent`; this supplies only the remaining
+  /// lifecycle extras (Relaunch, Acknowledge, Remove from group).
   private var lifecycleButtons: some View {
-    ThreadLifecyclePrimaryActionsContent(thread: thread, perform: perform)
+    ThreadLifecyclePrimaryActionsContent(
+      thread: thread,
+      perform: perform,
+      actions: [.relaunch, .acknowledge, .removeFromGroup]
+    )
   }
 
   private var canUseMenu: Bool {

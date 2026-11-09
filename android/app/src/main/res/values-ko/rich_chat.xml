@@ -251,4 +251,15 @@
     <string name="rich_chat_background_task_last_progress">마지막 진행 보고: %1$s 전</string>
     <string name="rich_chat_background_task_close">작업 세부정보 닫기</string>
     <string name="rich_chat_background_task_report_missing">작업이 완료 보고서 없이 종료되었습니다.</string>
+    <string name="rich_chat_copy_message">메시지 복사</string>
+    <string name="rich_chat_add_to_composer">작성기에 추가</string>
+    <string name="rich_chat_file">파일</string>
+    <string name="rich_chat_attach">첨부</string>
+    <string name="rich_chat_message_agent">이 작업 공간에 대해 %1$s에게 무엇이든 물어보세요</string>
+    <string name="rich_chat_worked_for">%1$s 동안 작업함</string>
+    <string name="rich_chat_search_models">모델 검색...</string>
+    <string name="rich_chat_plugins">플러그인</string>
+    <string name="rich_chat_handoff_fork">대화 분기</string>
+    <string name="rich_chat_handoff_prompt">새 제공업체에 다음 작업을 알려주세요…</string>
+    <string name="rich_chat_handoff_switch">전환</string>
 </resources>

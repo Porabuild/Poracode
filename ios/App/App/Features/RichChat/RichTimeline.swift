@@ -24,6 +24,17 @@ indirect enum RichTimelineEntry: Sendable, Equatable {
   case group(stableID: String, members: [RichVisibleTimelineNode])
 }
 
+extension RichTimelineEntry {
+  /// Runtime items this entry addresses directly (the entry's own node or its
+  /// group members), excluding nested child entries.
+  var runtimeItems: [RichRuntimeItem] {
+    switch self {
+    case .item(let node): [node.item]
+    case .group(_, let members): members.map { $0.item }
+    }
+  }
+}
+
 struct RichTimelineProjection: Sendable, Equatable {
   /// Lossless transport order, including presentation-hidden items.
   let rawItems: [RichRuntimeItem]

@@ -15,7 +15,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,6 +32,7 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
+import com.poracode.app.ui.components.PoracodeTextField
 import java.text.DateFormatSymbols
 import java.time.Instant
 import java.time.LocalDate
@@ -41,6 +41,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.poracode.app.ui.components.PoracodeSwitch
 
 @Composable
 internal fun ScheduleEditorDialog(
@@ -153,7 +154,7 @@ internal fun ScheduleField(
     label: Int,
     minLines: Int = 1,
 ) {
-    OutlinedTextField(
+    PoracodeTextField(
         value,
         onValueChange,
         label = { Text(stringResource(label)) },
@@ -187,7 +188,7 @@ internal fun ToggleRow(label: Int, checked: Boolean, enabled: Boolean = true, on
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(stringResource(label))
-        Switch(checked, onCheckedChange, enabled = enabled)
+        PoracodeSwitch(checked, onCheckedChange, enabled = enabled)
     }
 }
 

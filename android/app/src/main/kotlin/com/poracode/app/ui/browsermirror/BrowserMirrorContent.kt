@@ -8,15 +8,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,6 +25,8 @@ import com.poracode.app.model.browsermirror.BrowserMirrorAvailability
 import com.poracode.app.session.browsermirror.BrowserMirrorController
 import com.poracode.app.session.browsermirror.BrowserMirrorFailure
 import com.poracode.app.session.browsermirror.BrowserMirrorUiState
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 internal fun BrowserContent(
@@ -74,7 +71,7 @@ private fun BrowserToolbar(
             enabled = tab?.canGoBack == true,
         ) {
             Icon(
-                Icons.AutoMirrored.Outlined.ArrowBack,
+                PoracodeIcons.ArrowBack,
                 contentDescription = stringResource(R.string.browser_mirror_back),
             )
         }
@@ -83,7 +80,7 @@ private fun BrowserToolbar(
             enabled = tab?.canGoForward == true,
         ) {
             Icon(
-                Icons.AutoMirrored.Outlined.ArrowForward,
+                PoracodeIcons.ArrowForward,
                 contentDescription = stringResource(R.string.browser_mirror_forward),
             )
         }
@@ -92,11 +89,11 @@ private fun BrowserToolbar(
             enabled = tab != null,
         ) {
             Icon(
-                Icons.Outlined.Refresh,
+                PoracodeIcons.Refresh,
                 contentDescription = stringResource(R.string.browser_mirror_reload),
             )
         }
-        OutlinedTextField(
+        PoracodeTextField(
             value = address,
             onValueChange = setAddress,
             label = { Text(stringResource(R.string.browser_mirror_address)) },

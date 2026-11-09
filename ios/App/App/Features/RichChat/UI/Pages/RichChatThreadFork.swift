@@ -20,7 +20,7 @@ struct RichChatForkPresentation: ViewModifier {
 
   func body(content: Content) -> some View {
     content
-      .safeAreaInset(edge: .top, spacing: 0) { sourceLink }
+      .poracodeTopBar { sourceLink }
       .sheet(
         isPresented: Binding(
           get: { page.fork.anchor != nil },

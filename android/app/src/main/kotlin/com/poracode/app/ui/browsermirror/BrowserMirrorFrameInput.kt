@@ -16,7 +16,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,6 +43,7 @@ import com.poracode.app.model.browsermirror.BrowserFrame
 import com.poracode.app.model.browsermirror.BrowserInput
 import com.poracode.app.model.browsermirror.BrowserSafeKey
 import com.poracode.app.session.browsermirror.BrowserMirrorController
+import com.poracode.app.ui.components.PoracodeTextField
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -116,7 +116,7 @@ private fun mappedImage(frame: BrowserFrame?, size: IntSize): BrowserMirrorMappe
 @Composable
 internal fun BrowserInputProxy(controller: BrowserMirrorController) {
     val keyboard = LocalSoftwareKeyboardController.current
-    OutlinedTextField(
+    PoracodeTextField(
         value = "",
         onValueChange = { text ->
             text.takeIf(String::isNotEmpty)?.take(BrowserInput.MAX_UTF16_UNITS)?.let {

@@ -178,7 +178,18 @@ class Android37WireLabFamilyInstrumentedTest {
     fun familyGitStagesFromWorkspace() {
         pairUntilHome()
         compose.onNodeWithContentDescription(context.getString(R.string.home_more)).performClick()
-        compose.onNodeWithTag("home_more_projects").performScrollTo().performClick()
+        compose.onNodeWithTag("home_more_projects").performScrollTo()
+        // The Projects row stays disabled until the session socket is Online;
+        // a disabled click is a no-op that leaves the sheet open over Home.
+        compose.waitUntil(15_000) {
+            runCatching {
+                compose.onNodeWithTag("home_more_projects").assertIsEnabled()
+            }.isSuccess
+        }
+        compose.onNodeWithTag("home_more_projects").performClick()
+        compose.waitUntil(15_000) {
+            hasText(context.getString(R.string.projects_manage_title))
+        }
         val projectLabel = if (isRealPeer) realArg("projectLabel", "native-e2e-fixture") else "Fixture Project"
         compose.waitUntil(15_000) { hasText(projectLabel) }
         compose.onNodeWithText(projectLabel).performClick()

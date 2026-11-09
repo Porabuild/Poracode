@@ -1,12 +1,9 @@
 package com.poracode.app.ui.settingsintegrations
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -15,7 +12,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +29,9 @@ import com.poracode.app.protocol.settingsintegrations.SkillOwner
 import com.poracode.app.protocol.settingsintegrations.McpDiscoveryRequest
 import com.poracode.app.protocol.settingsintegrations.McpDiscoveryScope
 import com.poracode.app.model.ProjectIdentity
+import com.poracode.app.ui.components.PoracodeTopAppBar
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,12 +98,12 @@ internal fun SettingsIntegrationsSessionScreen(
         )
     }
     DisposableEffect(composition) { onDispose(composition::onBackground) }
-    BackHandler(onBack = onBack)
+    val backModifier = rememberPredictiveBackModifier(onBack = onBack)
 
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.then(backModifier),
         topBar = {
-            TopAppBar(
+            PoracodeTopAppBar(
                 title = {
                     Text(
                         stringResource(
@@ -121,7 +120,7 @@ internal fun SettingsIntegrationsSessionScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            PoracodeIcons.ArrowBack,
                             stringResource(R.string.settings_back),
                         )
                     }

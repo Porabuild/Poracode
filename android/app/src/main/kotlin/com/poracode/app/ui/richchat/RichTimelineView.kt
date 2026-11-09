@@ -1,32 +1,41 @@
 package com.poracode.app.ui.richchat
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.icu.text.MeasureFormat
+import android.icu.text.NumberFormat
+import android.icu.util.Measure
+import android.icu.util.MeasureUnit
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.automirrored.outlined.CallSplit
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.rememberTooltipState
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -34,16 +43,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.poracode.app.R
+import com.poracode.app.chat.RichCompletedTurn
 import com.poracode.app.chat.RichItemState
 import com.poracode.app.chat.RichItemTypes
 import com.poracode.app.chat.RichRuntimeItem
@@ -52,11 +72,21 @@ import com.poracode.app.chat.RichTimeline
 import com.poracode.app.chat.RichTimelineEntry
 import com.poracode.app.chat.RichVisibleTimelineNode
 import com.poracode.app.session.richchat.RichChatSessionRuntime
+import com.poracode.app.ui.components.PoracodeIconButton
+import com.poracode.app.ui.theme.GeistMono
 import com.poracode.app.ui.theme.LocalChatTextSizeSp
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.theme.PoracodeTextStyles
+import com.poracode.app.ui.theme.PoracodeTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
 
+/**
+ * Conversation transcript in the PWA's chat language: user prompts in a bordered
+ * bubble, assistant prose without chrome, tool activity as quiet one-line rows
+ * (grouped activity collapses into an icon/count summary), and a small icon
+ * action strip under each message.
+ */
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 fun RichTimelineView(
     transcript: RichThreadState,
     olderCursor: Int?,
@@ -71,10 +101,21 @@ fun RichTimelineView(
     onForkItem: ((String) -> Unit)? = null,
     forkBoundaryItemId: String? = null,
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 16.dp),
 ) {
     val projection = RichTimeline.project(transcript.itemsInOrder)
     val entries = projection.visibleEntries
     val displayedTurns = RichTimeline.resolveCompletedTurnAnchors(transcript.completedTurns, projection)
+    val lastVisibleItemId = entries.lastOrNull()?.let { entry ->
+        when (entry) {
+            is RichTimelineEntry.Item -> entry.node.item.id
+            is RichTimelineEntry.Group -> entry.members.lastOrNull()?.item?.id
+        }
+    }
+    val canTruncateItem: (String) -> Boolean = { itemId ->
+        RichChatUiLogic.canTruncate(itemId, lastVisibleItemId)
+    }
+    val colors = PoracodeTheme.colors
     val boundaryTurnIndex = transcript.completedTurns.indexOfFirst { it.anchorItemId == forkBoundaryItemId }
     val displayedBoundary = displayedTurns.getOrNull(boundaryTurnIndex)?.anchorItemId ?: forkBoundaryItemId
     val boundaryIndex = transcript.itemsInOrder.indexOfFirst { it.id == forkBoundaryItemId }
@@ -104,31 +145,31 @@ fun RichTimelineView(
     }
 
     val forkFooter: @Composable (RichTimelineEntry) -> Unit = { entry ->
-        val rootIds = when (entry) {
-            is RichTimelineEntry.Item -> listOf(entry.node.item.id)
-            is RichTimelineEntry.Group -> entry.members.map { it.item.id }
-        }
+        val rootIds = timelineEntryItemIds(entry)
         val displayedTurn = displayedTurns.firstOrNull { it.anchorItemId in rootIds }
         val rawAnchor = displayedTurn?.let { displayed -> transcript.completedTurns.firstOrNull {
             it.startedAtEpochMs == displayed.startedAtEpochMs
         }?.anchorItemId }
         if (rawAnchor != null && onForkItem != null) {
-            val label = stringResource(R.string.rich_chat_fork_action)
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                tooltip = { PlainTooltip { Text(label) } },
-                state = rememberTooltipState(),
-            ) {
-                IconButton(onClick = { onForkItem(rawAnchor) }) {
-                    Icon(Icons.AutoMirrored.Outlined.CallSplit, contentDescription = label)
-                }
-            }
+            MessageActionButton(
+                icon = PoracodeIcons.CallSplit,
+                label = stringResource(R.string.rich_chat_fork_action),
+                onClick = { onForkItem(rawAnchor) },
+            )
         }
         if (displayedBoundary != null && displayedBoundary in rootIds) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                HorizontalDivider(Modifier.weight(1f))
-                Text(stringResource(R.string.rich_chat_fork_boundary), style = MaterialTheme.typography.labelSmall)
-                HorizontalDivider(Modifier.weight(1f))
+            Row(
+                Modifier.padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                HorizontalDivider(Modifier.weight(1f), color = PoracodeTheme.colors.separator)
+                Text(
+                    stringResource(R.string.rich_chat_fork_boundary),
+                    style = PoracodeTextStyles.rowDescription,
+                    color = PoracodeTheme.colors.muted,
+                )
+                HorizontalDivider(Modifier.weight(1f), color = PoracodeTheme.colors.separator)
             }
         }
     }
@@ -137,7 +178,7 @@ fun RichTimelineView(
             .fillMaxSize()
             .semantics { contentDescription = timelineDescription },
         state = listState,
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (hasOlder || loadingOlder) {
@@ -155,6 +196,7 @@ fun RichTimelineView(
                                 R.string.rich_chat_load_older
                             },
                         ),
+                        color = PoracodeTheme.colors.muted,
                     )
                 }
             }
@@ -170,9 +212,18 @@ fun RichTimelineView(
                             onTruncateItem,
                             revertableItemIds,
                             onRevertItem,
+                            canTruncateItem = canTruncateItem,
                             depth = 0,
+                            trailingActions = { forkFooter(entry) },
                         )
-                        forkFooter(entry)
+                        workedForLabel(entry, displayedTurns)?.let { label ->
+                            Text(
+                                label,
+                                modifier = Modifier.padding(top = 2.dp),
+                                style = PoracodeTextStyles.rowDescription,
+                                color = colors.muted,
+                            )
+                        }
                     }
                 }
                 is RichTimelineEntry.Group -> item(key = entry.stableId) {
@@ -184,8 +235,17 @@ fun RichTimelineView(
                             onTruncateItem,
                             revertableItemIds,
                             onRevertItem,
+                            canTruncateItem,
                         )
-                        forkFooter(entry)
+                        Row(verticalAlignment = Alignment.CenterVertically) { forkFooter(entry) }
+                        workedForLabel(entry, displayedTurns)?.let { label ->
+                            Text(
+                                label,
+                                modifier = Modifier.padding(top = 2.dp),
+                                style = PoracodeTextStyles.rowDescription,
+                                color = colors.muted,
+                            )
+                        }
                     }
                 }
             }
@@ -194,6 +254,7 @@ fun RichTimelineView(
     }
 }
 
+/** Collapsed activity summary (`1 view · 1 search · 1 thought ⌄`) that expands into its rows. */
 @Composable
 private fun RichTimelineGroup(
     group: RichTimelineEntry.Group,
@@ -202,54 +263,114 @@ private fun RichTimelineGroup(
     onTruncateItem: (String) -> Unit,
     revertableItemIds: Set<String>,
     onRevertItem: (String) -> Unit,
+    canTruncateItem: (String) -> Boolean,
 ) {
+    val colors = PoracodeTheme.colors
     var expanded by rememberSaveable(group.stableId) { mutableStateOf(false) }
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
+    val summary = remember(group.members) { activitySummarySegments(group.members) }
+    val description = stringResource(R.string.rich_chat_activity_group, group.members.size)
+    val toggleLabel = stringResource(
+        if (expanded) R.string.rich_chat_collapse_activity else R.string.rich_chat_expand_activity,
+    )
+    Column(Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 12.dp, top = 6.dp, bottom = 6.dp),
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(role = Role.Button, onClickLabel = toggleLabel) { expanded = !expanded }
+                .semantics(mergeDescendants = true) { contentDescription = description }
+                .heightIn(min = 32.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(
-                stringResource(R.string.rich_chat_activity_group, group.members.size),
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(top = 10.dp),
-            )
-            IconButton(onClick = { expanded = !expanded }) {
+            summary.forEachIndexed { index, segment ->
+                if (index > 0) {
+                    Text("·", style = PoracodeTextStyles.monoSummary, color = colors.muted.copy(alpha = 0.6f))
+                }
                 Icon(
-                    if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                    contentDescription = stringResource(
-                        if (expanded) {
-                            R.string.rich_chat_collapse_activity
-                        } else {
-                            R.string.rich_chat_expand_activity
-                        },
-                    ),
+                    activityIcon(segment.iconKey),
+                    contentDescription = null,
+                    modifier = Modifier.size(13.dp),
+                    tint = colors.muted,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text(
+                        pluralStringResource(
+                            activitySummaryPluralRes(segment.iconKey),
+                            segment.count,
+                            segment.count,
+                        ),
+                        style = PoracodeTextStyles.monoSummary,
+                        color = colors.muted,
+                    )
+                    if (segment.hasDiff) {
+                        if (segment.added > 0) {
+                            Text(
+                                "+${segment.added}",
+                                style = PoracodeTextStyles.monoSummary,
+                                color = colors.success,
+                            )
+                        }
+                        if (segment.removed > 0) {
+                            Text(
+                                "−${segment.removed}",
+                                style = PoracodeTextStyles.monoSummary,
+                                color = colors.danger,
+                            )
+                        }
+                    }
+                }
+            }
+            if (group.members.any { it.item.state != RichItemState.COMPLETED }) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(11.dp),
+                    strokeWidth = 1.5.dp,
+                    color = colors.muted,
+                    trackColor = Color.Transparent,
                 )
             }
+            Icon(
+                if (expanded) PoracodeIcons.ExpandLess else PoracodeIcons.ExpandMore,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = colors.muted,
+            )
         }
-        if (expanded) {
-            Column(
-                Modifier.padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+        AnimatedVisibility(expanded) {
+            // One continuous guide line centred under the summary's first
+            // icon (8 dp header padding + half the 13 dp icon), matching the
+            // PWA/iOS expanded group instead of per-row line segments.
+            Row(
+                Modifier
+                    .padding(start = 8.dp, top = 2.dp)
+                    .height(IntrinsicSize.Min),
             ) {
-                group.members.forEach {
-                    RichTimelineNode(
-                        it,
-                        runtime,
-                        canMutate,
-                        onTruncateItem,
-                        revertableItemIds,
-                        onRevertItem,
-                        depth = 0,
-                    )
+                Box(
+                    Modifier
+                        .padding(start = 6.dp, end = 10.dp)
+                        .width(1.dp)
+                        .fillMaxHeight()
+                        .background(colors.separator),
+                )
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    group.members.forEach { member ->
+                        RichTimelineNode(
+                            member,
+                            runtime,
+                            canMutate,
+                            onTruncateItem,
+                            revertableItemIds,
+                            onRevertItem,
+                            canTruncateItem = canTruncateItem,
+                            depth = 0,
+                        )
+                    }
                 }
             }
         }
@@ -264,15 +385,27 @@ private fun RichTimelineNode(
     onTruncateItem: (String) -> Unit,
     revertableItemIds: Set<String>,
     onRevertItem: (String) -> Unit,
+    canTruncateItem: (String) -> Boolean,
     depth: Int,
+    trailingActions: (@Composable () -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier
+        modifier
             .fillMaxWidth()
             .padding(start = (depth * 12).dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        RichTimelineItem(node.item, runtime, canMutate, onTruncateItem, revertableItemIds, onRevertItem)
+        RichTimelineItem(
+            node.item,
+            runtime,
+            canMutate,
+            onTruncateItem,
+            revertableItemIds,
+            onRevertItem,
+            trailingActions,
+            canTruncateItem,
+        )
         node.children.forEach { entry ->
             when (entry) {
                 is RichTimelineEntry.Item -> RichTimelineNode(
@@ -282,6 +415,7 @@ private fun RichTimelineNode(
                     onTruncateItem,
                     revertableItemIds,
                     onRevertItem,
+                    canTruncateItem,
                     depth + 1,
                 )
                 is RichTimelineEntry.Group -> RichTimelineGroup(
@@ -291,122 +425,45 @@ private fun RichTimelineNode(
                     onTruncateItem,
                     revertableItemIds,
                     onRevertItem,
+                    canTruncateItem,
                 )
             }
         }
     }
 }
 
+private fun timelineEntryItemIds(entry: RichTimelineEntry): List<String> = when (entry) {
+    is RichTimelineEntry.Item -> listOf(entry.node.item.id)
+    is RichTimelineEntry.Group -> entry.members.map { it.item.id }
+}
+
+/** "Worked for <duration>" under the entry anchoring a displayable completed turn. */
 @Composable
-private fun RichTimelineItem(
-    item: RichRuntimeItem,
-    runtime: RichChatSessionRuntime,
-    canMutate: Boolean,
-    onTruncateItem: (String) -> Unit,
-    revertableItemIds: Set<String>,
-    onRevertItem: (String) -> Unit,
-) {
-    val missingReportText = stringResource(R.string.rich_chat_background_task_report_missing)
-    val text = if (RichChatUiLogic.backgroundTaskReportMissing(item)) {
-        missingReportText
-    } else {
-        RichChatUiLogic.itemText(item)
-    }
-    val images = RichChatUiLogic.images(item)
-    val label = itemTypeLabel(item.type)
-    val description = stringResource(
-        R.string.rich_chat_item_description,
-        label,
-        text.take(120),
+private fun workedForLabel(
+    entry: RichTimelineEntry,
+    displayedTurns: List<RichCompletedTurn>,
+): String? {
+    val itemIds = timelineEntryItemIds(entry)
+    val turn = displayedTurns.firstOrNull {
+        it.isDisplayable && it.anchorItemId in itemIds
+    } ?: return null
+    val parts = RichChatUiLogic.completedTurnDurationParts(turn.durationMs) ?: return null
+    val locale = LocalConfiguration.current.locales[0]
+    val formatted = MeasureFormat.getInstance(
+        locale,
+        MeasureFormat.FormatWidth.NARROW,
+        NumberFormat.getIntegerInstance(locale),
+    ).formatMeasures(
+        *parts.map { (value, unit) ->
+            Measure(
+                value,
+                when (unit) {
+                    RichChatUiLogic.RichDurationUnit.Hour -> MeasureUnit.HOUR
+                    RichChatUiLogic.RichDurationUnit.Minute -> MeasureUnit.MINUTE
+                    RichChatUiLogic.RichDurationUnit.Second -> MeasureUnit.SECOND
+                },
+            )
+        }.toTypedArray(),
     )
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics { contentDescription = description },
-        colors = CardDefaults.cardColors(containerColor = itemColor(item)),
-    ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(Modifier.fillMaxWidth()) {
-                Text(
-                    label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                if (item.state != RichItemState.COMPLETED) {
-                    Text(
-                        stringResource(R.string.rich_chat_working),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
-            val mcpApp = com.poracode.app.chat.McpAppPresentation.from(item)
-            if (mcpApp != null) {
-                RichMcpAppView(mcpApp, runtime, text)
-            } else if (item.type == RichItemTypes.QUESTION_ANSWER) {
-                RichQuestionAnswerContent(RichQuestionAnswerPresentation.entries(item))
-            } else if (item.type == RichItemTypes.ASSISTANT_MESSAGE) {
-                // Assistant text is text-blocks only; typed file payloads
-                // render as download cards below instead of duplicated prose.
-                val body = RichChatUiLogic.messageBody(item)
-                val fileCards = RichChatUiLogic.chatFiles(item)
-                if (body.isNotBlank()) {
-                    RichMarkdownView(body)
-                }
-                fileCards.forEach { ref -> RichChatFileCard(ref) }
-                if (body.isBlank() && fileCards.isEmpty() && text.isNotBlank()) {
-                    RichMarkdownView(text)
-                }
-            } else if (text.isNotBlank()) {
-                val chatTextSize = LocalChatTextSizeSp.current
-                SelectionContainer {
-                    Text(
-                        text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontSize = chatTextSize.sp,
-                        lineHeight = (chatTextSize + 6).sp,
-                    )
-                }
-            }
-            images.forEach { RichRemoteImage(it, runtime) }
-            if (item.id in revertableItemIds && canMutate) {
-                TextButton(
-                    onClick = { onRevertItem(item.id) },
-                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                ) {
-                    Text(stringResource(R.string.rich_chat_revert_to_checkpoint))
-                }
-            }
-            if (canMutate) {
-                TextButton(
-                    onClick = { onTruncateItem(item.id) },
-                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                ) {
-                    Text(stringResource(R.string.rich_chat_truncate_from_here))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun itemTypeLabel(type: String): String = stringResource(
-    when (type) {
-        RichItemTypes.USER_MESSAGE, RichItemTypes.QUESTION_ANSWER -> R.string.rich_chat_you
-        RichItemTypes.ASSISTANT_MESSAGE -> R.string.rich_chat_assistant
-        RichItemTypes.REASONING -> R.string.rich_chat_reasoning
-        RichItemTypes.COMMAND_EXECUTION -> R.string.rich_chat_command
-        RichItemTypes.FILE_CHANGE -> R.string.rich_chat_file_changes
-        RichItemTypes.WEB_SEARCH -> R.string.rich_chat_web_search
-        RichItemTypes.IMAGE_VIEW -> R.string.rich_chat_image
-        else -> R.string.rich_chat_activity
-    },
-)
-
-@Composable
-private fun itemColor(item: RichRuntimeItem) = when (item.type) {
-    RichItemTypes.USER_MESSAGE, RichItemTypes.QUESTION_ANSWER -> MaterialTheme.colorScheme.primaryContainer
-    RichItemTypes.ASSISTANT_MESSAGE -> MaterialTheme.colorScheme.surfaceContainer
-    else -> MaterialTheme.colorScheme.surfaceContainerLow
+    return stringResource(R.string.rich_chat_worked_for, formatted)
 }

@@ -106,8 +106,8 @@ fun PoracodeApp(
     LaunchedEffect(useDarkTheme) { onThemeDarkChanged(useDarkTheme) }
     PoracodeTheme(
         darkTheme = useDarkTheme,
-        dynamicColor = deviceSettingsState.dynamicColor,
         chatTextSizeSp = deviceSettingsState.chatTextSizeSp,
+        themeId = deviceSettingsState.themeId,
     ) {
         Surface(modifier = Modifier.fillMaxSize()) {
             when (rootPresentation) {

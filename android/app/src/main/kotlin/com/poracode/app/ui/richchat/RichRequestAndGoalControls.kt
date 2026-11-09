@@ -13,7 +13,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,6 +32,8 @@ import com.poracode.app.chat.RichRequestOption
 import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.transport.richchat.RequestResolution
 import com.poracode.app.transport.richchat.ThreadGoalUpdate
+import com.poracode.app.ui.components.PoracodeTextField
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 fun RichRequestCards(
@@ -124,7 +125,7 @@ private fun RichRequestCard(
                             label = { Text(option.label) },
                         )
                     }
-                    Button(
+                    FilledTonalButton(
                         onClick = {
                             onResolve(
                                 RichChatUiLogic.requestResolution(
@@ -149,7 +150,7 @@ private fun RichRequestCard(
                             )
                         }
                         if (index == 0) {
-                            Button(
+                            FilledTonalButton(
                                 onClick = action,
                                 enabled = !resolving,
                                 modifier = Modifier.testTag("request_option_${option.optionId}"),
@@ -220,7 +221,7 @@ fun RichGoalCard(
             onDismissRequest = { if (!busy) editing = false },
             title = { Text(stringResource(R.string.rich_chat_edit_goal)) },
             text = {
-                OutlinedTextField(
+                PoracodeTextField(
                     value = draft,
                     onValueChange = { if (it.length <= MAX_GOAL_LENGTH) draft = it },
                     label = { Text(stringResource(R.string.rich_chat_goal_objective)) },
@@ -229,7 +230,7 @@ fun RichGoalCard(
                 )
             },
             confirmButton = {
-                Button(
+                FilledTonalButton(
                     onClick = { onUpdate(ThreadGoalUpdate.Edit(draft.trim())) },
                     enabled = !busy && draft.isNotBlank() && draft.trim() != goal.objective,
                 ) { Text(stringResource(R.string.rich_chat_save)) }
@@ -296,7 +297,7 @@ fun RichPendingSteerCard(
             onDismissRequest = { if (!busy) editing = false },
             title = { Text(stringResource(R.string.rich_chat_edit_steer)) },
             text = {
-                OutlinedTextField(
+                PoracodeTextField(
                     value = draft,
                     onValueChange = { draft = it },
                     label = { Text(stringResource(R.string.rich_chat_steer_message)) },
@@ -305,7 +306,7 @@ fun RichPendingSteerCard(
                 )
             },
             confirmButton = {
-                Button(
+                FilledTonalButton(
                     onClick = { onSet(draft.trim()) },
                     enabled = !busy && draft.isNotBlank(),
                 ) { Text(stringResource(R.string.rich_chat_save)) }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">포트 전달</string>
+    <string name="ports_title">포트</string>
     <string name="ports_back">뒤로</string>
     <string name="ports_refresh">포트 새로고침</string>
     <string name="ports_target_port">대상 포트</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">이 데스크톱에서는 브라우저 전달이 설정되지 않았습니다.</string>
     <string name="ports_failure_ambiguous">요청이 완료되었을 수 있습니다. 목록을 새로고침했습니다.</string>
     <string name="ports_failure_unavailable">현재 포트 전달을 사용할 수 없습니다.</string>
+    <string name="ports_intro">데스크톱의 localhost에서 대기 중인 개발 서버입니다.</string>
+    <string name="ports_forward_a_port">포트 전달</string>
 </resources>

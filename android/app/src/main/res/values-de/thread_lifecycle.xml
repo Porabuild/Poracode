@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">Keine archivierten Threads</string>
     <string name="thread_status_starting_agent">Agent wird gestartet…</string>
     <string name="thread_status_resuming">Sitzung wird fortgesetzt…</string>
+    <string name="thread_lifecycle_pin_top">Oben anheften</string>
+    <string name="thread_lifecycle_archive_thread">Thread archivieren</string>
+    <string name="thread_lifecycle_delete_thread">Thread löschen</string>
+    <string name="thread_lifecycle_notes">Notizen &amp; Aufgaben</string>
+    <string name="thread_lifecycle_open_terminal">Terminal öffnen</string>
+    <string name="thread_lifecycle_fork_thread">Unterhaltung verzweigen</string>
+    <string name="thread_lifecycle_continue_in">In einem anderen Anbieter fortfahren</string>
+    <string name="thread_lifecycle_move_worktree_changes">Mit Änderungen in Worktree verschieben</string>
+    <string name="thread_lifecycle_move_worktree_clean">In sauberen Worktree verschieben</string>
+    <string name="thread_lifecycle_move_worktree_title">Thread in einen Worktree verschieben?</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">Die aktuelle Laufzeit wird beendet. Ein neuer Worktree und Branch werden erstellt und nicht übertragene Änderungen dorthin verschoben, bevor der Thread fortgesetzt wird.</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">Die aktuelle Laufzeit wird beendet. Ein sauberer Worktree und Branch werden erstellt, bevor der Thread fortgesetzt wird.</string>
+    <string name="thread_lifecycle_move_confirm">Verschieben</string>
 </resources>

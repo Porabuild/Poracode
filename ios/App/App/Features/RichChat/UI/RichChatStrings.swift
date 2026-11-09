@@ -168,6 +168,19 @@ enum RichChatStrings {
     let format = value("rich_chat_activity_group", "%lld activity items")
     return String(format: format, locale: .current, Int64(count))
   }
+
+  /// Canonical activity buckets shared with the PWA/Android summary wording.
+  enum RichChatActivityCategory: String, Sendable, CaseIterable {
+    case view, search, edit, command, tool, thought
+  }
+
+  /// "1 view" / "2 tools" style count word for one activity category. The
+  /// catalog entry carries real CLDR plural variations, so the runtime picks
+  /// one/few/many/other per locale from the count alone.
+  static func activityCategoryCount(_ category: RichChatActivityCategory, _ count: Int) -> String {
+    let format = value("rich_chat_activity_count_\(category.rawValue)", "%lld")
+    return String.localizedStringWithFormat(format, Int64(count))
+  }
   static let noPendingSteer = value(
     "rich_chat_no_pending_steer", "No follow-up instruction is staged."
   )
@@ -268,6 +281,12 @@ enum RichChatStrings {
   )
   static let loadOlder = value("rich_chat_load_older", "Load earlier messages")
   static let message = value("rich_chat_message_placeholder", "Message")
+  private static let messageAgentFormat = value(
+    "rich_chat_message_agent", "Ask %@ anything about this workspace"
+  )
+  static func messageAgent(_ name: String) -> String {
+    String(format: messageAgentFormat, locale: .current, name)
+  }
   static let send = value("rich_chat_send_message", "Send message")
   static let stop = value("rich_chat_stop_generation", "Stop generation")
   static let resendLastMessage = value("rich_chat_resend_last_message", "Resend last message")

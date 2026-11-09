@@ -27,7 +27,7 @@
               .accessibilityLabel(label)
           }
 
-          BrowserMirrorToolbarButton(action: onRefresh) {
+          BrowserMirrorToolbarButton(action: onRefresh, onSurface: true) {
             Image(systemName: "arrow.triangle.2.circlepath")
           }
           .accessibilityLabel(BrowserMirrorStrings.refresh)
@@ -55,7 +55,7 @@
           .font(.footnote)
       }
       .padding(10)
-      .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+      .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
       .padding(.horizontal)
       .accessibilityElement(children: .combine)
     }
@@ -80,7 +80,7 @@
             .foregroundStyle(.white.opacity(0.8))
           message
           Button(retryTitle, action: projection.phase == .empty ? onCreateTab : onRetry)
-            .buttonStyle(.borderedProminent)
+            .poracodeGlassButtonStyle()
         case .streaming:
           EmptyView()
         }

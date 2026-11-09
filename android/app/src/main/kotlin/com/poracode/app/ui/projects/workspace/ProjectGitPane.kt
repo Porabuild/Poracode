@@ -11,12 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.AddCircleOutline
-import androidx.compose.material.icons.outlined.DeleteSweep
-import androidx.compose.material.icons.outlined.Merge
-import androidx.compose.material.icons.outlined.RemoveCircleOutline
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +36,7 @@ import com.poracode.app.session.projects.ProjectOperationFailure
 import com.poracode.app.ui.components.EmptyStateView
 import com.poracode.app.ui.components.ErrorStateView
 import com.poracode.app.ui.components.LoadingStateView
+import com.poracode.app.ui.theme.PoracodeIcons
 
 internal sealed interface ProjectGitDiffUiState {
     data object Idle : ProjectGitDiffUiState
@@ -63,6 +58,7 @@ internal fun ProjectGitPane(
     canOperate: Boolean,
     expanded: Boolean,
     onSelectChange: (GitFileChange) -> Unit,
+    onClearSelection: () -> Unit,
     onStage: (GitFileChange) -> Unit,
     onUnstage: (GitFileChange) -> Unit,
     onRevert: (GitFileChange) -> Unit,
@@ -110,12 +106,18 @@ internal fun ProjectGitPane(
             VerticalDivider()
             diff(Modifier.weight(1f).fillMaxSize())
         }
-    } else {
+    } else if (selectedPath != null) {
         Column(modifier.fillMaxSize()) {
-            list(Modifier.weight(0.46f).fillMaxWidth())
-            HorizontalDivider()
-            diff(Modifier.weight(0.54f).fillMaxWidth())
+            IconButton(onClick = onClearSelection) {
+                Icon(
+                    PoracodeIcons.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                )
+            }
+            diff(Modifier.weight(1f).fillMaxWidth())
         }
+    } else {
+        list(Modifier.fillMaxSize())
     }
 }
 
@@ -141,7 +143,12 @@ private fun GitChangeList(
     val unstagedTitle = stringResource(R.string.workspace_unstaged)
     Column(modifier) {
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-        LazyColumn(Modifier.fillMaxSize()) {
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                bottom = WorkspaceBottomBarClearance,
+            ),
+        ) {
             item(key = "summary") {
                 Column(
                     Modifier.fillMaxWidth().padding(16.dp),
@@ -170,7 +177,7 @@ private fun GitChangeList(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(Icons.Outlined.Merge, contentDescription = null)
+                            Icon(PoracodeIcons.Merge, contentDescription = null)
                             Column {
                                 Text(stringResource(R.string.workspace_merge_in_progress))
                                 Text(
@@ -320,7 +327,7 @@ private fun GitChangeRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Outlined.Code, contentDescription = null)
+            Icon(PoracodeIcons.Code, contentDescription = null)
             Column(Modifier.weight(1f)) {
                 Text(change.path, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
@@ -338,9 +345,9 @@ private fun GitChangeRow(
             ) {
                 Icon(
                     if (change.staged) {
-                        Icons.Outlined.RemoveCircleOutline
+                        PoracodeIcons.RemoveCircleOutline
                     } else {
-                        Icons.Outlined.AddCircleOutline
+                        PoracodeIcons.AddCircleOutline
                     },
                     contentDescription = stringResource(
                         if (change.staged) R.string.git_unstage_file else R.string.git_stage_file,
@@ -351,7 +358,7 @@ private fun GitChangeRow(
             if (!change.staged) {
                 IconButton(onClick = { onRevert(change) }, enabled = canOperate) {
                     Icon(
-                        Icons.Outlined.DeleteSweep,
+                        PoracodeIcons.DeleteSweep,
                         contentDescription = stringResource(R.string.git_revert_file, change.path),
                     )
                 }

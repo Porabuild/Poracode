@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="remote_notification_done">Completed</string>
+    <string name="remote_notification_done">Done</string>
     <string name="remote_notification_needs_attention">Needs attention</string>
     <string name="remote_notification_error">Error</string>
     <string name="remote_notification_dismiss">Dismiss notification</string>
+    <string name="remote_notification_done_description">Thread finished or waiting for your input.</string>
+    <string name="remote_notification_needs_attention_description">Approval or reply required from you.</string>
+    <string name="remote_notification_error_description">Agent encountered an error.</string>
 </resources>

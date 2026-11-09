@@ -256,4 +256,15 @@
     <string name="rich_chat_background_task_last_progress">Last progress %1$s ago</string>
     <string name="rich_chat_background_task_close">Close task details</string>
     <string name="rich_chat_background_task_report_missing">The task ended without a completion report.</string>
+    <string name="rich_chat_copy_message">Copy message</string>
+    <string name="rich_chat_add_to_composer">Add to composer</string>
+    <string name="rich_chat_file">File</string>
+    <string name="rich_chat_attach">Attach</string>
+    <string name="rich_chat_message_agent">Ask %1$s anything about this workspace</string>
+    <string name="rich_chat_worked_for">Worked for %1$s</string>
+    <string name="rich_chat_search_models">Search models...</string>
+    <string name="rich_chat_plugins">Plugins</string>
+    <string name="rich_chat_handoff_fork">Fork Conversation</string>
+    <string name="rich_chat_handoff_prompt">Tell the new provider what to do next…</string>
+    <string name="rich_chat_handoff_switch">Switch</string>
 </resources>

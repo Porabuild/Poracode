@@ -2,17 +2,23 @@ import SwiftUI
 
 struct HomeComposerSurface<Content: View>: View {
   let isExpanded: Bool
+  var glassNamespace: Namespace.ID? = nil
   @ViewBuilder let content: () -> Content
 
   var body: some View {
+    Group {
+      if let glassNamespace {
+        surface.poracodeGlassID("home.compose", in: glassNamespace)
+      } else {
+        surface
+      }
+    }
+  }
+
+  private var surface: some View {
     content()
       .frame(maxWidth: .infinity)
-      .poracodeNativeComposerSurface(in: shape)
-      .shadow(
-        color: .black.opacity(0.16),
-        radius: isExpanded ? 18 : 10,
-        y: isExpanded ? 8 : 4
-      )
+      .poracodeNativeComposerSurface(in: shape, interactive: !isExpanded)
       .animation(.snappy(duration: 0.25), value: isExpanded)
   }
 
@@ -77,16 +83,18 @@ struct HomeComposerStartButton: View {
   let isBusy: Bool
   let start: () -> Void
 
+  @Environment(\.poracodeAccent) private var accent
+
   var body: some View {
     Button(action: start) {
       ZStack {
-        Circle().fill(canStart ? Color.accentColor : Color.secondary.opacity(0.15))
+        Circle().fill(canStart ? accent.opacity(0.2) : Color.secondary.opacity(0.15))
         if isBusy {
-          ProgressView().controlSize(.small).tint(.white)
+          ProgressView().controlSize(.small).tint(.primary)
         } else {
           Image(systemName: "arrow.up")
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(canStart ? Color.white : Color.secondary)
+            .foregroundStyle(canStart ? Color.primary : Color.secondary)
         }
       }
       .frame(width: 38, height: 38)

@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -33,6 +31,7 @@ import com.poracode.app.R
 import com.poracode.app.model.browsermirror.BrowserTab
 import com.poracode.app.session.browsermirror.BrowserMirrorController
 import com.poracode.app.session.browsermirror.BrowserMirrorUiState
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 internal fun BrowserTabList(
@@ -107,7 +106,7 @@ private fun BrowserTabChip(
                     modifier = Modifier.size(40.dp),
                 ) {
                     Icon(
-                        Icons.Outlined.Close,
+                        PoracodeIcons.Close,
                         contentDescription = stringResource(R.string.browser_mirror_close_tab),
                     )
                 }

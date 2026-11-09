@@ -113,7 +113,7 @@ object GeneratedEnvironmentContract {
 }
 
 suspend fun RemoteApiClient.listEnvironments(): List<RemoteEnvironmentProjection> {
-    val raw = requestText(EnvironmentProtocol.MANAGEMENT_BASE_PATH)
+    val raw = requestText(EnvironmentProtocol.MANAGEMENT_BASE_PATH, retryableRead = true)
     val canonical = GeneratedEnvironmentContract.listResponse(raw)
     return RemoteJson.decodeFromString<RemoteEnvironmentListView>(canonical).environments
 }
@@ -243,10 +243,12 @@ private suspend fun RemoteApiClient.environmentEnvelope(
     method: String,
     jsonBody: String? = null,
 ): RemoteEnvironmentProjection {
+    // Only the GET envelope is a read; every POST here is a mutation.
+    val retryableRead = method == "GET" && jsonBody == null
     val raw = if (jsonBody == null) {
-        requestText(path, method = method)
+        requestText(path, method = method, retryableRead = retryableRead)
     } else {
-        requestText(path, method = method, jsonBody = jsonBody)
+        requestText(path, method = method, jsonBody = jsonBody, retryableRead = retryableRead)
     }
     val canonical = GeneratedEnvironmentContract.resultResponse(raw)
     return RemoteJson.decodeFromString<RemoteEnvironmentEnvelope>(canonical).environment

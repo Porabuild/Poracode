@@ -68,6 +68,7 @@ struct SettingsAgentsView: View {
                     set: { visible in setModelVisible(visible, modelID: model.id, agent: agent) }
                   )
                 )
+                .poracodeSwitchStyle()
               }
             } label: {
               LabeledContent(agent.label) {
@@ -236,6 +237,7 @@ struct SettingsUsageView: View {
         if composition.document.document?.usage != nil {
           Toggle(SettingsUIStrings.cost, isOn: estimatedCostBinding)
             .disabled(composition.isMutating || composition.gate(.sessionOperate) != nil)
+            .poracodeSwitchStyle()
         }
         if usage.fromCache {
           Label(SettingsUIStrings.cached, systemImage: "clock.arrow.circlepath")
@@ -273,7 +275,7 @@ struct SettingsUsageView: View {
         await controller.refresh(.usage)
         await composition.document.load()
       }
-      .safeAreaInset(edge: .bottom, spacing: 0) {
+      .poracodeBottomBar {
         if canReorder(usage) {
           PoracodeBottomActionDock(placement: .trailing) {
             PoracodeCircleButton {

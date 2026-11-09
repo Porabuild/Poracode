@@ -140,6 +140,12 @@ dependencies {
 
     implementation("com.squareup.okhttp3:okhttp:5.4.0")
 
+    // Floating-chrome backdrop blur matching the PWA backdrop-filter and iOS
+    // Liquid Glass. Pinned to the newest stable at least 7 days old that is
+    // compatible with Compose BOM 2026.08.00 / minSdk 34 (2.0.1, ~2026-09-30).
+    implementation("dev.chrisbanes.haze:haze:2.0.1")
+    implementation("dev.chrisbanes.haze:haze-blur:2.0.1")
+
     // Pairing QR scanner. The bundled ML Kit barcode model is used deliberately:
     // the Play-Services variant would fail on devices/emulators without Play Services.
     implementation("androidx.camera:camera-core:1.6.1")

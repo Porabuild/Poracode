@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="remote_notification_done">已完成</string>
+    <string name="remote_notification_done">完成</string>
     <string name="remote_notification_needs_attention">需要注意</string>
     <string name="remote_notification_error">错误</string>
     <string name="remote_notification_dismiss">关闭通知</string>
+    <string name="remote_notification_done_description">线程已完成或正在等待您的输入。</string>
+    <string name="remote_notification_needs_attention_description">需要您的批准或答复。</string>
+    <string name="remote_notification_error_description">代理遇到错误。</string>
 </resources>

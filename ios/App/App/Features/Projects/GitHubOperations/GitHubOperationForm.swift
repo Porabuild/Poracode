@@ -85,6 +85,7 @@ struct GitHubOperationFormView: View {
       textField(GitHubOperationsStrings.pullRequestTitle, text: $draft.title)
       bodyField
       Toggle(GitHubOperationsStrings.draft, isOn: $draft.isDraft)
+      .poracodeSwitchStyle()
     case .ghMergePr:
       pullRequestField
       Picker(GitHubOperationsStrings.mergeMethod, selection: $draft.mergeMethod) {
@@ -93,6 +94,7 @@ struct GitHubOperationFormView: View {
         Text(GitHubOperationsStrings.rebase).tag(GitHubMergeMethod.rebase)
       }
       Toggle(GitHubOperationsStrings.admin, isOn: $draft.admin)
+      .poracodeSwitchStyle()
     case .ghSubmitPrReview:
       pullRequestField
       Picker(GitHubOperationsStrings.reviewDecision, selection: $draft.reviewDecision) {
@@ -104,6 +106,7 @@ struct GitHubOperationFormView: View {
     case .ghUpdatePrBranch:
       pullRequestField
       Toggle(GitHubOperationsStrings.rebase, isOn: $draft.rebase)
+      .poracodeSwitchStyle()
     case .ghPostPrComment:
       pullRequestField
       bodyField
@@ -114,6 +117,7 @@ struct GitHubOperationFormView: View {
     case .ghRerunWorkflowRun:
       workflowRunField
       Toggle(GitHubOperationsStrings.failedOnly, isOn: $draft.failedOnly)
+      .poracodeSwitchStyle()
     }
   }
 

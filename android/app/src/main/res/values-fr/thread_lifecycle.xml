@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">Aucun fil archivé</string>
     <string name="thread_status_starting_agent">Démarrage de l’agent…</string>
     <string name="thread_status_resuming">Reprise de la session…</string>
+    <string name="thread_lifecycle_pin_top">Épingler en haut</string>
+    <string name="thread_lifecycle_archive_thread">Archiver le fil de discussion</string>
+    <string name="thread_lifecycle_delete_thread">Supprimer le fil de discussion</string>
+    <string name="thread_lifecycle_notes">Notes et tâches</string>
+    <string name="thread_lifecycle_open_terminal">Ouvrir le terminal</string>
+    <string name="thread_lifecycle_fork_thread">Créer une branche de conversation</string>
+    <string name="thread_lifecycle_continue_in">Continuer dans un autre fournisseur</string>
+    <string name="thread_lifecycle_move_worktree_changes">Déplacer vers l’arbre de travail avec les modifications</string>
+    <string name="thread_lifecycle_move_worktree_clean">Déplacer vers un arbre de travail propre</string>
+    <string name="thread_lifecycle_move_worktree_title">Déplacer le fil vers un arbre de travail ?</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">L’exécution actuelle va s’arrêter. Un nouvel arbre de travail et une nouvelle branche seront créés, puis les modifications non validées y seront déplacées avant la reprise du fil.</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">L’exécution actuelle va s’arrêter. Un arbre de travail propre et une branche seront créés avant la reprise du fil.</string>
+    <string name="thread_lifecycle_move_confirm">Déplacer</string>
 </resources>

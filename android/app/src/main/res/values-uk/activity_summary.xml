@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="rich_chat_activity_view">
+        <item quantity="one">%1$d перегляд</item>
+        <item quantity="few">%1$d перегляди</item>
+        <item quantity="many">%1$d переглядів</item>
+        <item quantity="other">%1$d перегляду</item>
+    </plurals>
+    <plurals name="rich_chat_activity_search">
+        <item quantity="one">%1$d пошук</item>
+        <item quantity="few">%1$d пошуки</item>
+        <item quantity="many">%1$d пошуків</item>
+        <item quantity="other">%1$d пошуку</item>
+    </plurals>
+    <plurals name="rich_chat_activity_edit">
+        <item quantity="one">%1$d зміна</item>
+        <item quantity="few">%1$d зміни</item>
+        <item quantity="many">%1$d змін</item>
+        <item quantity="other">%1$d зміни</item>
+    </plurals>
+    <plurals name="rich_chat_activity_command">
+        <item quantity="one">%1$d команда</item>
+        <item quantity="few">%1$d команди</item>
+        <item quantity="many">%1$d команд</item>
+        <item quantity="other">%1$d команди</item>
+    </plurals>
+    <plurals name="rich_chat_activity_tool">
+        <item quantity="one">%1$d інструмент</item>
+        <item quantity="few">%1$d інструменти</item>
+        <item quantity="many">%1$d інструментів</item>
+        <item quantity="other">%1$d інструменту</item>
+    </plurals>
+    <plurals name="rich_chat_activity_thought">
+        <item quantity="one">%1$d думка</item>
+        <item quantity="few">%1$d думки</item>
+        <item quantity="many">%1$d думок</item>
+        <item quantity="other">%1$d думки</item>
+    </plurals>
+</resources>

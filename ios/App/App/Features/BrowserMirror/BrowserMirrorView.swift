@@ -26,7 +26,7 @@
           VStack(spacing: 10) {
             viewportContent(projection)
           }
-          .safeAreaInset(edge: .bottom, spacing: 0) {
+          .poracodeBottomBar {
             compactChrome(projection)
           }
         }
@@ -65,10 +65,7 @@
         BrowserMirrorNavigationControls(controller: controller, projection: projection)
       }
       .padding(.vertical, 8)
-      .background(.ultraThinMaterial)
-      .overlay(alignment: .top) {
-        Divider()
-      }
+      .poracodeBarBackground(divider: .top)
     }
 
     @ViewBuilder

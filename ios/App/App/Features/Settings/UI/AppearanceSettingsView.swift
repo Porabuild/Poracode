@@ -82,7 +82,7 @@ struct AppearanceSettingsView: View {
       if theme.id == selectedThemeID {
         Image(systemName: "checkmark")
           .font(.subheadline.weight(.semibold))
-          .foregroundStyle(variant.accent)
+          .foregroundStyle(.primary)
       }
     }
     .contentShape(Rectangle())

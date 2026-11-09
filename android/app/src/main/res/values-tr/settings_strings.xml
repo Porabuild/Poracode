@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s, %2$s, %3$s</string>
-    <string name="settings_usage_title">Sağlayıcı kullanımı</string>
+    <string name="settings_usage_title">Kullanım</string>
     <string name="settings_usage_cached">Önbelleğe alınmış kullanım gösteriliyor.</string>
     <string name="settings_usage_empty">Sağlayıcı kullanım bilgisi yok.</string>
     <string name="settings_usage_empty_title">Kullanım verisi yok</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">Kota doldu</string>
     <string name="settings_usage_unsupported">Desteklenmiyor</string>
     <string name="settings_usage_meter_description">%1$s kullanımı: %2$s</string>
+    <string name="settings_usage_pace_projected">sıfırlamaya kadar ≈%1$d%%</string>
+    <string name="settings_usage_pace_over">Aşırı tempo — erken biter</string>
+    <string name="settings_usage_pace_ran_out">Bitti</string>
+    <string name="settings_usage_pace_ran_out_resets">Bitti · %1$s içinde sıfırlanıyor</string>
+    <string name="settings_usage_pace_runs_out_in">%1$s içinde biter</string>
+    <string name="settings_usage_pace_runs_out_early">Erken tükeniyor</string>
     <string name="settings_profile_identity">Kimlik</string>
     <string name="settings_profile_identity_description">Bu profil seçili masaüstünde saklanır.</string>
     <string name="settings_profile_name">Ad</string>

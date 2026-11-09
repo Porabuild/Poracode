@@ -123,7 +123,7 @@ struct ThreadGitSummaryBadge: View {
             .foregroundStyle(color(for: state))
         }
       }
-      .font(.system(size: 10, weight: .medium))
+      .font(.caption.weight(.medium))
       .foregroundStyle(.secondary)
       .accessibilityElement(children: .combine)
     }

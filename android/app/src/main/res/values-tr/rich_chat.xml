@@ -256,4 +256,15 @@
     <string name="rich_chat_background_task_last_progress">Son ilerleme %1$s önce</string>
     <string name="rich_chat_background_task_close">Görev ayrıntılarını kapat</string>
     <string name="rich_chat_background_task_report_missing">Görev, tamamlanma raporu olmadan sona erdi.</string>
+    <string name="rich_chat_copy_message">Mesajı kopyala</string>
+    <string name="rich_chat_add_to_composer">Yazım alanına ekle</string>
+    <string name="rich_chat_file">Dosya</string>
+    <string name="rich_chat_attach">Ekle</string>
+    <string name="rich_chat_message_agent">%1$s öğesine bu çalışma alanıyla ilgili her şeyi sorun</string>
+    <string name="rich_chat_worked_for">%1$s boyunca çalıştı</string>
+    <string name="rich_chat_search_models">Modelleri ara...</string>
+    <string name="rich_chat_plugins">Eklentiler</string>
+    <string name="rich_chat_handoff_fork">Konuşmayı çatalla</string>
+    <string name="rich_chat_handoff_prompt">Yeni sağlayıcıya sırada ne yapacağını söyleyin…</string>
+    <string name="rich_chat_handoff_switch">Geç</string>
 </resources>

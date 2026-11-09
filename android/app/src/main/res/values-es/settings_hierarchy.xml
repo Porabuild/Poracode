@@ -6,7 +6,7 @@
     <string name="settings_device_general">General</string>
     <string name="settings_device_general_description">Idioma, versión e información del dispositivo</string>
     <string name="settings_device_appearance">Apariencia</string>
-    <string name="settings_device_appearance_description">Tema y colores del sistema</string>
+    <string name="settings_device_appearance_description">Tema y tamaño de fuente del chat</string>
     <string name="settings_device_notifications">Notificaciones</string>
     <string name="settings_device_notifications_description">Permiso y estado de registro del escritorio</string>
     <string name="settings_device_terminal">Terminal</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">Sistema</string>
     <string name="settings_appearance_light">Claro</string>
     <string name="settings_appearance_dark">Oscuro</string>
-    <string name="settings_dynamic_color">Usar colores del dispositivo</string>
     <string name="settings_notification_status">Estado</string>
     <string name="settings_notification_registering">Registrando</string>
     <string name="settings_notification_available">Disponible</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Mostrar notificaciones mientras usas Poracode</string>
     <string name="settings_notification_categories">Notificar sobre</string>
     <string name="settings_configuration_section">Configuración</string>
+    <string name="settings_appearance_mode">Modo</string>
+    <string name="settings_appearance_mode_description">Coincide con tu sistema, o fuerza el modo claro u oscuro.</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_notifications_enabled_description">Mostrar notificaciones cuando cambie el estado de un hilo.</string>
+    <string name="settings_notification_sound_description">Reproducir un sonido cuando se muestre una notificación.</string>
+    <string name="settings_home_shortcut_reorder">Reordenar %1$s</string>
 </resources>

@@ -34,14 +34,24 @@ struct RichChatTranscriptItemView: View {
           duration: duration
         )
       case RichItemType.assistantMessage:
-        RichChatAssistantMessage(
-          text: bodyText,
-          supplements: supplements,
-          images: images,
-          mediaController: mediaController,
-          duration: duration,
-          isWorking: isWorking
-        )
+        VStack(alignment: .leading, spacing: 2) {
+          RichChatAssistantMessage(
+            text: bodyText,
+            supplements: supplements,
+            images: images,
+            mediaController: mediaController,
+            duration: nil,
+            isWorking: isWorking
+          )
+          assistantActionRow
+          // PWA order: action row, then the turn's "Worked for" footer.
+          if let duration {
+            Text(duration)
+              .poracodeChatText(.metadata)
+              .foregroundStyle(.tertiary)
+              .padding(.top, 2)
+          }
+        }
       case RichItemType.reasoning:
         RichChatReasoningRow(text: bodyText, isWorking: isWorking)
       case "question_answer":
@@ -102,6 +112,57 @@ struct RichChatTranscriptItemView: View {
       }
       .accessibilityLabel(RichChatStrings.truncateAccessibilityLabel)
     }
+  }
+
+  /// Compact inline action row under a completed assistant reply, mirroring the
+  /// PWA's copy / truncate / fork affordances. The same gating as the
+  /// long-press menu applies, so truncate is never offered on the last item.
+  @ViewBuilder
+  private var assistantActionRow: some View {
+    if !isWorking, hasInlineAction {
+      HStack(spacing: 14) {
+        if actions.canCopy(item: item, text: text) {
+          actionButton(RichChatMessageActionStrings.copy, systemImage: "doc.on.doc") {
+            UIPasteboard.general.string = text
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+          }
+        }
+        if actions.canTruncate(itemID: item.id), let requestTruncate = actions.requestTruncate {
+          actionButton(RichChatStrings.truncateAction, systemImage: "scissors") {
+            requestTruncate(item.id)
+          }
+        }
+        if actions.canFork(itemID: item.id),
+          let anchor = actions.forkAnchorItemID(for: item.id),
+          let requestFork = actions.requestFork
+        {
+          actionButton(RichChatMessageActionStrings.forkAction, systemImage: "arrow.triangle.branch") {
+            requestFork(anchor)
+          }
+        }
+      }
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .padding(.leading, 4)
+      .padding(.top, 1)
+    }
+  }
+
+  private var hasInlineAction: Bool {
+    actions.canCopy(item: item, text: text)
+      || actions.canTruncate(itemID: item.id)
+      || actions.canFork(itemID: item.id)
+  }
+
+  private func actionButton(
+    _ label: String, systemImage: String, action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      Image(systemName: systemImage)
+        .contentTransition(.symbolEffect(.replace))
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel(label)
   }
 }
 

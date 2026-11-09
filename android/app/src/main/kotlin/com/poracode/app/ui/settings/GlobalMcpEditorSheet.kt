@@ -16,7 +16,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,8 +35,11 @@ import com.poracode.app.model.McpServer
 import com.poracode.app.model.McpSseTransport
 import com.poracode.app.model.McpStdioTransport
 import com.poracode.app.model.SensitiveStringMap
+import com.poracode.app.ui.components.PoracodeTextField
 import java.net.URI
 import java.util.UUID
+import com.poracode.app.ui.components.PoracodeSwitch
+import androidx.compose.material3.FilledTonalButton
 
 private enum class EditorTransport { Stdio, Http, Sse }
 
@@ -134,7 +136,7 @@ internal fun McpServerEditorSheet(
                             stringResource(R.string.remote_integrations_enabled),
                             modifier = Modifier.weight(1f),
                         )
-                        Switch(
+                        PoracodeSwitch(
                             checked = enabled,
                             onCheckedChange = null,
                             modifier = Modifier.clearAndSetSemantics {},
@@ -202,7 +204,7 @@ internal fun McpServerEditorSheet(
                 TextButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.settings_global_mcp_cancel))
                 }
-                Button(
+                FilledTonalButton(
                     enabled = valid,
                     modifier = Modifier.weight(1f),
                     onClick = {
@@ -238,7 +240,7 @@ internal fun McpServerEditorSheet(
 
 @Composable
 private fun Field(value: String, onValueChange: (String) -> Unit, label: Int) {
-    OutlinedTextField(
+    PoracodeTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(stringResource(label)) },

@@ -8,10 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.settings.SettingsHostInformationEntry
 import com.poracode.app.session.settings.SettingsInformationSlot
+import com.poracode.app.ui.theme.PoracodeIcons
+import androidx.compose.material3.FilledTonalButton
 
 /**
  * Full parity with the iOS/PWA "Generation" settings: per-environment (Windows/WSL) provider,
@@ -110,7 +109,6 @@ private fun SettingsGenerationEditor(
                 allowsDisabled = true,
                 enabled = enabled,
             ) { draft = draft.copy(windows = draft.windows.copy(title = it)) }
-            HorizontalDivider()
             GenerationSlotGroup(
                 title = stringResource(R.string.settings_generation_commits),
                 slot = draft.windows.commit,
@@ -118,7 +116,6 @@ private fun SettingsGenerationEditor(
                 allowsDisabled = false,
                 enabled = enabled,
             ) { draft = draft.copy(windows = draft.windows.copy(commit = it)) }
-            HorizontalDivider()
             GenerationSlotGroup(
                 title = stringResource(R.string.settings_generation_conflicts),
                 slot = draft.windows.conflict,
@@ -136,16 +133,14 @@ private fun SettingsGenerationEditor(
                     allowsDisabled = true,
                     enabled = enabled,
                 ) { draft = draft.copy(wsl = draft.wsl.copy(title = it)) }
-                HorizontalDivider()
-                GenerationSlotGroup(
+                    GenerationSlotGroup(
                     title = stringResource(R.string.settings_generation_commits),
                     slot = draft.wsl.commit,
                     agents = wslOneShotAgents,
                     allowsDisabled = false,
                     enabled = enabled,
                 ) { draft = draft.copy(wsl = draft.wsl.copy(commit = it)) }
-                HorizontalDivider()
-                GenerationSlotGroup(
+                    GenerationSlotGroup(
                     title = stringResource(R.string.settings_generation_conflicts),
                     slot = draft.wsl.conflict,
                     agents = wslAllAgents,
@@ -155,7 +150,7 @@ private fun SettingsGenerationEditor(
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
+            FilledTonalButton(
                 onClick = { onSave(draft, baseline) },
                 enabled = enabled && draft != baseline,
                 modifier = Modifier.align(Alignment.End),
@@ -181,7 +176,7 @@ private fun SettingsGenerationEditor(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Outlined.Security, contentDescription = null)
+                Icon(PoracodeIcons.Security, contentDescription = null)
                 Text(
                     stringResource(R.string.settings_secrets_description),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

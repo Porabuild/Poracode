@@ -80,12 +80,12 @@
     <string name="home_quick_compose_prompt">规划、提问、构建…</string>
     <string name="home_quick_compose_camera_capture">拍照</string>
     <string name="home_more">更多</string>
+    <string name="home_more_browser">浏览器</string>
+    <string name="home_more_refresh">刷新</string>
     <string name="home_connections">连接</string>
     <string name="home_new_thread">新线程</string>
     <string name="home_project">项目</string>
     <string name="home_project_host">%1$s — %2$s</string>
-    <string name="home_agent_value">智能体：%1$s</string>
-    <string name="home_model_value">模型：%1$s</string>
     <string name="home_start">开始</string>
     <string name="home_quick_compose_agent">智能体</string>
     <string name="home_quick_compose_presentation">呈现模式</string>
@@ -165,4 +165,6 @@
     <string name="rich_chat_crew_policy_first">优先团队</string>
     <string name="rich_chat_download_file">下载 %1$s</string>
     <string name="rich_chat_download_failed">无法下载文件。</string>
+    <string name="home_filter_by_project">按项目筛选</string>
+    <string name="common_more_actions">更多操作</string>
 </resources>

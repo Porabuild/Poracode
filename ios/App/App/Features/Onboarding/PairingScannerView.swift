@@ -65,7 +65,7 @@ struct PairingScannerView: View {
         )
       }
       .accessibilityIdentifier("native-e2e.pair.scan.viewfinder")
-      .safeAreaInset(edge: .bottom, spacing: 0) { scannerFallbackBar }
+      .poracodeBottomBar { scannerFallbackBar }
     case .permissionDenied:
       guidanceCard(
         PairingScannerGuidance(
@@ -138,7 +138,7 @@ struct PairingScannerView: View {
           )
           .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
+        .poracodeGlassButtonStyle()
         .disabled(decodingPhoto)
         Button {
           dismiss()
@@ -147,7 +147,7 @@ struct PairingScannerView: View {
           Label(OnboardingStrings.scanUsePairingLink, systemImage: "link")
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
+        .poracodeGlassButtonStyle()
       }
     }
     .padding(.horizontal, 20)
