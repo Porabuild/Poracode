@@ -253,9 +253,14 @@ void test("launchers and helpers keep their documented shapes", () => {
   assert.match(POSIX_LAUNCHER, /^#!\/bin\/sh\n/u);
   assert.match(POSIX_LAUNCHER, /exec "\$root\/runtime\/node" "\$root\/lib\/server\.cjs" "\$@"/u);
   assert.match(WINDOWS_LAUNCHER, /\r\n/u);
-  assert.match(
-    WINDOWS_LAUNCHER,
-    /"%~dp0\.\.\\runtime\\node\.exe" "%~dp0\.\.\\lib\\server\.cjs" %\*/u,
+  const windowsLines = WINDOWS_LAUNCHER.split("\r\n").filter(Boolean);
+  assert.equal(
+    windowsLines.at(-1),
+    'goto #_undefined_# 2>NUL || title %COMSPEC% & "%~dp0..\\runtime\\node.exe" "%~dp0..\\lib\\server.cjs" %*',
+  );
+  assert.ok(
+    windowsLines.slice(0, -1).every((line) => /^(@echo off|rem )/u.test(line)),
+    "nothing may run after Node: cmd.exe would reread a launcher that update or uninstall replaced",
   );
   assert.equal(standaloneArchiveName("2.0.0", "win32-x64"), "poracode-2.0.0-win32-x64.zip");
   assert.equal(standaloneArchiveName("2.0.0", "linux-arm64"), "poracode-2.0.0-linux-arm64.tar.gz");
