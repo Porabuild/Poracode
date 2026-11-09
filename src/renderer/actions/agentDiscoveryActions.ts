@@ -9,16 +9,20 @@ import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
 let run = 0;
 let baseline: { windows: AgentStatus[]; wsl: AgentStatus[] } | undefined;
 
-export function refreshAgentDiscovery(wslDistros: string[]): void {
-  if (useAgentStatusesStore.getState().inFirstLaunchDiscovery) {
-    useAgentStatusesStore.getState().setDiscoveryHidden(false);
+export async function refreshAgentDiscovery(
+  wslDistros: string[],
+  options: { background?: boolean } = {},
+): Promise<void> {
+  const previous = useAgentStatusesStore.getState();
+  if (previous.inFirstLaunchDiscovery && (previous.discoveryScanning || !options.background)) {
+    useAgentStatusesStore.getState().setDiscoveryHidden(options.background === true);
     return;
   }
   const current = ++run;
-  const previous = useAgentStatusesStore.getState();
   baseline = { windows: previous.agentStatuses, wsl: previous.wslAgentStatuses };
   useAgentStatusesStore.getState().beginFirstLaunchDiscovery({ kind: "all", wslDistros });
-  void readBridge()
+  useAgentStatusesStore.getState().setDiscoveryHidden(options.background === true);
+  await readBridge()
     .refreshAgentStatuses(wslDistros)
     .then((response) => {
       if (run !== current) return;
@@ -29,7 +33,9 @@ export function refreshAgentDiscovery(wslDistros: string[]): void {
         wslLoaded: true,
       });
     })
-    .catch(() => undefined)
+    .catch((error: unknown) => {
+      if (run === current) throw error;
+    })
     .finally(() => {
       setTimeout(() => {
         if (run === current) {
