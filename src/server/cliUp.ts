@@ -30,7 +30,11 @@ import { readStandaloneRuntimeMarker } from "../../scripts/server-release-instal
 import { runConfigure } from "./cliConfigure";
 import { writeInitTlsMaterial } from "./initTlsWrite";
 import { runServerService, type ServiceCliOptions } from "./serverService";
-import { SERVER_SERVICE_REGISTRATION_FILE } from "./serverServiceRegistration";
+import {
+  readServiceRegistration,
+  ServerServiceRefusedError,
+  type ServerServiceRegistration,
+} from "./serverServiceRegistration";
 import { probeRunningOwner } from "./serverUpgradeIdentity";
 
 export type { UpReachability } from "./cliUpReachability";
@@ -269,6 +273,7 @@ export async function runUp(
     readonly ownerRunning?: (profile: string) => Promise<boolean>;
     readonly tailnetAddress?: () => string | undefined;
     readonly lanAddress?: () => string | undefined;
+    readonly readRegistration?: (prefix: string) => ServerServiceRegistration | null;
   },
 ): Promise<UpResult> {
   const serviceTarget = resolveUpServicePrefix(options, {
@@ -369,7 +374,21 @@ export async function runUp(
       }
       const base = { prefix: serviceTarget.prefix, recover: false, json: false } as const;
       const runService = deps.service ?? runServerService;
-      if (existsSync(join(serviceTarget.prefix, SERVER_SERVICE_REGISTRATION_FILE))) {
+      let registration: ServerServiceRegistration | null;
+      try {
+        registration = (deps.readRegistration ?? readServiceRegistration)(serviceTarget.prefix);
+      } catch (error) {
+        if (error instanceof ServerServiceRefusedError)
+          throw new Error(`${error.message} Nothing was changed.`, { cause: error });
+        throw error;
+      }
+      if (registration !== null && registration.state !== "installed")
+        throw new Error(
+          `The background service for ${serviceTarget.prefix} was not fully ${
+            registration.state === "prepared" ? "installed" : "removed"
+          }. Finish removing it with poracode service uninstall --prefix ${serviceTarget.prefix} --recover, then run poracode up again. Nothing was changed.`,
+        );
+      if (registration !== null) {
         if (plan.restartNeeded) {
           const ownerRunning = await (deps.ownerRunning ?? defaultOwnerRunning)(deps.profile);
           if (ownerRunning && interactive) {
