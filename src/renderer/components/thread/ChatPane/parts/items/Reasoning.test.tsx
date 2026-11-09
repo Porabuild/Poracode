@@ -133,6 +133,13 @@ describe("Reasoning", () => {
     expect(container.textContent).toContain("Weighing the tradeoffs.");
   });
 
+  it("renders a row-length Thought preview whole inside the CSS-truncated span", () => {
+    const thought = "Checking the registry before the next release step. ".repeat(5).trimEnd();
+    const { container } = renderReasoning({ ...makeReasoningItem(thought), state: "completed" });
+
+    expect(container.querySelector("button span.truncate")?.textContent).toBe(thought);
+  });
+
   it("stops auto-scrolling once the user scrolls up inside the live reasoning block", async () => {
     const { container, rerender } = renderReasoning(makeReasoningItem("Inspecting logs"));
     expandReasoning(container);
