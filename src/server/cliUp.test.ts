@@ -11,6 +11,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ServiceCliOptions } from "./serverService";
+import type { ServerServiceRegistration } from "./serverServiceRegistration";
+import { ServerServiceRefusedError } from "./serverServiceRegistration";
 import { pairWhenReady, parseUpCliOptions, runUp, runUpCli } from "./cliUp";
 import { describeUpReachability } from "./cliUpReachability";
 
@@ -71,6 +73,19 @@ const quiet = {
   lanAddress: () => undefined,
   ownerRunning: async () => false,
 } as const;
+
+/** Minimal installed registration; runUp only reads `state`. */
+function installedServiceRegistration(
+  prefix: string,
+  state: "prepared" | "installed" | "removing" = "installed",
+): ServerServiceRegistration {
+  return {
+    state,
+    registrationId: "poracode-0123456789abcdef0123456789abcdef",
+    profileNamespace: "unused",
+    installPrefix: prefix,
+  } as unknown as ServerServiceRegistration;
+}
 
 describe("parseUpCliOptions", () => {
   it("accepts one reachability choice, a relay and service opt-out", () => {
@@ -174,7 +189,6 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
   it("keeps saved settings non-interactively: start a registered service, configure nothing", async () => {
     const context = installedPrefix();
     writeFileSync(`${context.profile}.server.json`, JSON.stringify({ bindMode: "tailnet" }));
-    writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     const steps = recorder();
     const result = await runUp(
       { service: true, pair: false },
@@ -182,6 +196,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         profile: context.profile,
         releaseRoot: context.release,
         configure: steps.configure,
+        readRegistration: () => installedServiceRegistration(context.prefix),
         service: steps.service,
         lingerEnabled: () => true,
         platform: "linux",
@@ -197,7 +212,6 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
   it("does not rewrite settings when a flag repeats the saved choice", async () => {
     const context = installedPrefix();
     writeFileSync(`${context.profile}.server.json`, JSON.stringify({ bindMode: "tailnet" }));
-    writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     const steps = recorder();
     const result = await runUp(
       { reachability: "tailnet", service: true, pair: false },
@@ -205,6 +219,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         profile: context.profile,
         releaseRoot: context.release,
         configure: steps.configure,
+        readRegistration: () => installedServiceRegistration(context.prefix),
         service: steps.service,
         lingerEnabled: () => true,
         platform: "linux",
@@ -278,7 +293,6 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         tlsKey: "/certs/custom.key",
       }),
     );
-    writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     const steps = recorder();
     let tlsCalls = 0;
     const result = await runUp(
@@ -287,6 +301,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         profile: context.profile,
         releaseRoot: context.release,
         configure: steps.configure,
+        readRegistration: () => installedServiceRegistration(context.prefix),
         service: steps.service,
         ensureTls: () => {
           tlsCalls += 1;
@@ -316,7 +331,6 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         tlsKey: "/certs/custom.key",
       }),
     );
-    writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     const steps = recorder();
     let tlsCalls = 0;
     const result = await runUp(
@@ -325,6 +339,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         profile: context.profile,
         releaseRoot: context.release,
         configure: steps.configure,
+        readRegistration: () => installedServiceRegistration(context.prefix),
         service: steps.service,
         ensureTls: () => {
           tlsCalls += 1;
@@ -351,7 +366,6 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         tlsKey: join(context.profile, "tls", "server.key"),
       }),
     );
-    writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     const steps = recorder();
     let tlsCalls = 0;
     const result = await runUp(
@@ -360,6 +374,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         profile: context.profile,
         releaseRoot: context.release,
         configure: steps.configure,
+        readRegistration: () => installedServiceRegistration(context.prefix),
         service: steps.service,
         ensureTls: () => {
           tlsCalls += 1;
@@ -387,7 +402,6 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         tlsKey: join(context.profile, "tls", "server.key"),
       }),
     );
-    writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     const steps = recorder();
     let tlsCalls = 0;
     const result = await runUp(
@@ -396,6 +410,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         profile: context.profile,
         releaseRoot: context.release,
         configure: steps.configure,
+        readRegistration: () => installedServiceRegistration(context.prefix),
         service: steps.service,
         ensureTls: () => {
           tlsCalls += 1;
@@ -436,7 +451,6 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
   it("declines a restart confirmation before writing anything", async () => {
     const context = installedPrefix();
     writeFileSync(`${context.profile}.server.json`, JSON.stringify({ bindMode: "tailnet" }));
-    writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     const steps = recorder();
     let tlsCalls = 0;
     let confirmCalls = 0;
@@ -447,6 +461,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
           profile: context.profile,
           releaseRoot: context.release,
           configure: steps.configure,
+          readRegistration: () => installedServiceRegistration(context.prefix),
           service: steps.service,
           ensureTls: () => {
             tlsCalls += 1;
@@ -472,7 +487,6 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
   it("configures before restarting a registered service when confirmed", async () => {
     const context = installedPrefix();
     writeFileSync(`${context.profile}.server.json`, JSON.stringify({ bindMode: "tailnet" }));
-    writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     const steps = recorder();
     const result = await runUp(
       { reachability: "local", service: true, pair: false },
@@ -480,6 +494,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         profile: context.profile,
         releaseRoot: context.release,
         configure: steps.configure,
+        readRegistration: () => installedServiceRegistration(context.prefix),
         service: steps.service,
         lingerEnabled: () => true,
         platform: "linux",
@@ -497,7 +512,6 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
   it("restarts non-interactively with a note about running agent turns", async () => {
     const context = installedPrefix();
     writeFileSync(`${context.profile}.server.json`, JSON.stringify({ bindMode: "tailnet" }));
-    writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     const steps = recorder();
     let confirmCalls = 0;
     const result = await runUp(
@@ -506,6 +520,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         profile: context.profile,
         releaseRoot: context.release,
         configure: steps.configure,
+        readRegistration: () => installedServiceRegistration(context.prefix),
         service: steps.service,
         lingerEnabled: () => true,
         platform: "linux",
@@ -526,7 +541,6 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
 
   it("writes loopback for a fresh local choice and starts the registered service", async () => {
     const context = installedPrefix();
-    writeFileSync(join(context.prefix, "service-registration.json"), "{}");
     const steps = recorder();
     const result = await runUp(
       { reachability: "local", service: true, pair: false },
@@ -534,6 +548,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         profile: context.profile,
         releaseRoot: context.release,
         configure: steps.configure,
+        readRegistration: () => installedServiceRegistration(context.prefix),
         service: steps.service,
         lingerEnabled: () => true,
         platform: "linux",
@@ -545,6 +560,72 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
     expect(result.service).toBe("running");
     expect(result.reachability).toBe("local");
     expect(result.reachable).toBe(false);
+  });
+
+  it("refuses a prepared registration with recovery guidance before any effect", async () => {
+    const context = installedPrefix();
+    writeFileSync(`${context.profile}.server.json`, JSON.stringify({ bindMode: "tailnet" }));
+    const steps = recorder();
+    let tlsCalls = 0;
+    let confirmCalls = 0;
+    const failure = await runUp(
+      { reachability: "local", service: true, pair: false },
+      {
+        profile: context.profile,
+        releaseRoot: context.release,
+        configure: steps.configure,
+        readRegistration: () => installedServiceRegistration(context.prefix, "prepared"),
+        service: steps.service,
+        ensureTls: () => {
+          tlsCalls += 1;
+          return { certPath: "/p/tls/server.crt", keyPath: "/p/tls/server.key", created: true };
+        },
+        lingerEnabled: () => true,
+        platform: "linux",
+        interactive: true,
+        tailnetAddress: () => undefined,
+        lanAddress: () => undefined,
+        ownerRunning: async () => true,
+        confirmRestart: async () => {
+          confirmCalls += 1;
+          return true;
+        },
+      },
+    ).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(Error);
+    const message = (failure as Error).message;
+    expect(message).toContain("not fully installed");
+    expect(message).toContain(`service uninstall --prefix ${context.prefix} --recover`);
+    expect(message).toContain("Nothing was changed");
+    expect(confirmCalls).toBe(0);
+    expect(steps.configured).toEqual([]);
+    expect(steps.services).toEqual([]);
+    expect(tlsCalls).toBe(0);
+  });
+
+  it("rethrows an unusable registration as a nothing-changed error", async () => {
+    const context = installedPrefix();
+    const steps = recorder();
+    await expect(
+      runUp(
+        { reachability: "local", service: true, pair: false },
+        {
+          profile: context.profile,
+          releaseRoot: context.release,
+          configure: steps.configure,
+          service: steps.service,
+          readRegistration: () => {
+            throw new ServerServiceRefusedError("Unusable service registration; preserve it.");
+          },
+          ...quiet,
+        },
+      ),
+    ).rejects.toThrow(/Unusable service registration.*Nothing was changed\./su);
+    expect(steps.configured).toEqual([]);
+    expect(steps.services).toEqual([]);
   });
 
   it("warns that tailnet without Tailscale keeps the server local", async () => {

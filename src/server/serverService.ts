@@ -301,7 +301,9 @@ export async function runServerService(
         profileNamespace: profile,
         account: context.account,
       });
-      qualifyServicePolicy(registration, deps);
+      qualifyServicePolicy(registration, deps, {
+        legacyPreparedRemoval: options.action === "uninstall" && options.recover,
+      });
     }
     if (options.action === "status") {
       if (!registration)
@@ -473,7 +475,9 @@ export async function runServerService(
         : null;
     if (
       removingNative &&
-      (removingNative.LoadState === "not-found" || !existsSync(registration.definition.locator))
+      (removingNative.LoadState === "not-found" ||
+        removingNative.LoadState === "bad-setting" ||
+        !existsSync(registration.definition.locator))
     ) {
       const paths = resolveHostRootPaths(profile);
       if (
@@ -497,7 +501,7 @@ export async function runServerService(
           "The cached native definition is not the retired owned registration; no reload/removal was attempted.",
         );
       if (existsSync(registration.definition.locator)) {
-        qualifyServiceDefinition(registration, deps);
+        qualifyServiceDefinition(registration, deps, { legacyPreparedRemoval: true });
         assertCurrent();
         unlinkSync(registration.definition.locator);
       }
