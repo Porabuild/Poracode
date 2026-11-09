@@ -51,12 +51,15 @@ struct RichChatReasoningRow: View {
     .padding(.vertical, 6)
   }
 
+  private static let previewMaxLength = 500
+
   private var preview: String {
     let lines = text.split(whereSeparator: \.isNewline)
       .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
       .filter { !$0.isEmpty }
     let source = isWorking ? lines.last ?? "" : lines.joined(separator: " ")
-    return source.count > 90 ? "\(source.prefix(87))…" : source
+    guard source.count > Self.previewMaxLength else { return source }
+    return "\(source.prefix(Self.previewMaxLength - 1))…"
   }
 
   private func toggleExpanded() {
