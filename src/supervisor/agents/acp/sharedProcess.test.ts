@@ -1061,8 +1061,10 @@ describe("acquireSharedAcpProcess", () => {
     // An elicitation/complete notification carries only an elicitationId:
     // every attached member sees it and matches the id it owns.
     await prompt(first.lease, sessionA, "elicit-complete");
-    expect(first.spy.completes).toHaveLength(1);
-    expect(second.spy.completes).toHaveLength(1);
+    await vi.waitFor(() => {
+      expect(first.spy.completes).toHaveLength(1);
+      expect(second.spy.completes).toHaveLength(1);
+    });
     expect(first.spy.completes[0]).toMatchObject({ elicitationId: "elicit-done" });
     expect(second.spy.completes[0]).toMatchObject({ elicitationId: "elicit-done" });
     expect(updateTexts(first.spy)).toContain("complete-sent");

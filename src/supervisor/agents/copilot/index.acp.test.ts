@@ -35,6 +35,11 @@ const guiInput = (config: Partial<ThreadConfig> & { model: string }) =>
     presentationMode: "gui" as const,
   }) satisfies CreateStructuredSessionInput;
 
+const commandLine = (command: unknown) => {
+  const spec = command as { command: string; args: string[] };
+  return [spec.command, ...spec.args].join(" ");
+};
+
 const wslLocation = {
   kind: "wsl" as const,
   distro: "Ubuntu",
@@ -49,10 +54,9 @@ describe("createCopilotAdapter shared ACP process", () => {
     expect(mocks.createSharedAcpStructuredSession).toHaveBeenCalledTimes(1);
     const [command, input, shared, overrides] =
       mocks.createSharedAcpStructuredSession.mock.calls[0]!;
-    expect(command).toMatchObject({
-      args: expect.arrayContaining(["--acp", "--stdio"]),
-    });
-    expect((command as { args: string[] }).args).not.toContain("--yolo");
+    expect(commandLine(command)).toContain("--acp");
+    expect(commandLine(command)).toContain("--stdio");
+    expect(commandLine(command)).not.toContain("--yolo");
     expect(input).toMatchObject({ threadId: "t1" });
     expect(shared).toMatchObject({ scope: "copilot" });
     expect(overrides).toBeUndefined();
@@ -65,7 +69,7 @@ describe("createCopilotAdapter shared ACP process", () => {
     });
 
     const [command] = mocks.createSharedAcpStructuredSession.mock.calls[0]!;
-    expect((command as { args: string[] }).args).toContain("--yolo");
+    expect(commandLine(command)).toContain("--yolo");
   });
 
   it("keeps WSL launches on the dedicated per-thread factory", async () => {
