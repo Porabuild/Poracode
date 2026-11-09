@@ -159,7 +159,11 @@ main() {
     fetch_status=0
     fetch "${base_url}/v${version}/SHA256SUMS" "$tmp/SHA256SUMS" || fetch_status=$?
     if [ "$fetch_status" -eq 44 ]; then
-      fail "release ${version} has no SHA256SUMS; releases before the one-line installer need the desktop app or a newer version (try PORACODE_CHANNEL=nightly)"
+      hint=""
+      if [ -z "${PORACODE_VERSION:-}" ] && [ "$channel" = stable ]; then
+        hint=" (try PORACODE_CHANNEL=nightly)"
+      fi
+      fail "release ${version} has no SHA256SUMS; releases before the one-line installer need the desktop app or a newer version${hint}"
     elif [ "$fetch_status" -ne 0 ]; then
       fail "could not download the release checksums from ${base_url}/v${version}/"
     fi
@@ -191,8 +195,26 @@ main() {
     tar -xzf "$tmp/${archive}" -C "$staging"
     grep -F "\"target\": \"${target}\"" "$staging/standalone.json" >/dev/null 2>&1 ||
       fail "${archive} is not a self-contained archive for ${target}"
-    [ "$(installed_version "$staging" || true)" = "$version" ] ||
+    # Keep the runtime's own complaint: a missing system library is the usual
+    # reason a verified archive still cannot execute on this machine.
+    reported=""
+    if [ -x "$staging/bin/poracode" ]; then
+      reported="$("$staging/bin/poracode" --version </dev/null 2>"$tmp/version.stderr" | tail -n 1 || true)"
+    fi
+    if [ "$reported" != "$version" ]; then
+      reason="$(head -n 3 "$tmp/version.stderr" 2>/dev/null || true)"
+      case "$reason" in
+        *libatomic.so*)
+          reason="$reason
+Install libatomic1 (Debian, Ubuntu: sudo apt-get install libatomic1; Fedora, RHEL: sudo dnf install libatomic), then run the installer again."
+          ;;
+      esac
+      if [ -n "$reason" ]; then
+        fail "the downloaded Poracode ${version} does not run on this machine:
+$reason"
+      fi
       fail "the downloaded Poracode ${version} does not run on this machine"
+    fi
     if [ -e "$release_dir" ]; then
       mv "$release_dir" "${staging}.previous"
       rm -rf "${staging}.previous"

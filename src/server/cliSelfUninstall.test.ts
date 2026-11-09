@@ -14,7 +14,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import { hostRuntimeTarget } from "../../scripts/server-release-install.mjs";
 import { tuiBinaryTarget } from "@/shared/tuiManifest";
 import { SelfUpdateError } from "./installerPrefix";
-import { runSelfUninstall, windowsDeferredRemovalCommand } from "./cliSelfUninstall";
+import {
+  installerShimTargetsPrefix,
+  launcherTargetsPrefix,
+  removeOwnedCommandLinks,
+  runSelfUninstall,
+  windowsDeferredRemovalCommand,
+} from "./cliSelfUninstall";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -68,6 +74,26 @@ describe("uninstall helpers", () => {
     expect(command.args[3]).not.toMatch(/timeout/u);
     expect(() => windowsDeferredRemovalCommand('C:\\x"&calc')).toThrow(SelfUpdateError);
   });
+
+  it("matches a Windows shim or launcher literally, case-insensitively", () => {
+    expect(launcherTargetsPrefix("C:\\P\\current\\bin\\PORACODE.CMD", "c:\\p", "win32")).toBe(true);
+    expect(
+      installerShimTargetsPrefix(
+        '@echo off\r\nrem poracode-installer-shim v1\r\n"C:\\P\\current\\bin\\poracode.cmd" %*\r\n',
+        "c:\\p",
+      ),
+    ).toBe(true);
+    expect(
+      installerShimTargetsPrefix(
+        '@echo off\r\n"C:\\P\\current\\bin\\poracode.cmd" %*\r\n',
+        "c:\\p",
+      ),
+    ).toBe(false);
+    expect(launcherTargetsPrefix("C:\\P\\current\\bin\\poracode", "c:\\p", "win32")).toBe(false);
+    expect(launcherTargetsPrefix("relative\\current\\bin\\poracode.cmd", "c:\\p", "win32")).toBe(
+      false,
+    );
+  });
 });
 
 describe.runIf(posix)("runSelfUninstall", () => {
@@ -105,6 +131,92 @@ describe.runIf(posix)("runSelfUninstall", () => {
     );
     expect(kept.removedCommands).toEqual([]);
     expect(lstatSync(join(otherHome, ".local", "bin", "poracode")).isSymbolicLink()).toBe(true);
+  });
+
+  it("removes a command link whose prefix spelling crosses a symlink", async () => {
+    const root = tempDir();
+    const real = join(root, "real");
+    const alias = join(root, "alias");
+    mkdirSync(real, { recursive: true });
+    symlinkSync(real, alias, "dir");
+    const prefix = join(alias, "prefix");
+    writeRelease(join(prefix, "releases", "1.0.0"), "1.0.0");
+    symlinkSync("releases/1.0.0", join(prefix, "current"));
+    const home = join(root, "home");
+    mkdirSync(join(home, ".local", "bin"), { recursive: true });
+    const link = join(home, ".local", "bin", "poracode");
+    symlinkSync(join(alias, "prefix", "current", "bin", "poracode"), link);
+    const result = await runSelfUninstall(
+      { yes: true, json: false },
+      {
+        releaseRoot: join(alias, "prefix", "releases", "1.0.0"),
+        probeOwner: async () => null,
+        home,
+      },
+    );
+    expect(result.removedCommands).toEqual([link]);
+    expect(existsSync(link)).toBe(false);
+    expect(existsSync(join(real, "prefix"))).toBe(false);
+  });
+
+  it("keeps links to another prefix's alias and to a release directory", () => {
+    const root = tempDir();
+    const real = join(root, "real");
+    const alias = join(root, "alias");
+    const otherReal = join(root, "other-real");
+    const otherAlias = join(root, "other-alias");
+    for (const dir of [real, otherReal]) mkdirSync(dir, { recursive: true });
+    symlinkSync(real, alias, "dir");
+    symlinkSync(otherReal, otherAlias, "dir");
+    mkdirSync(join(otherAlias, "prefix"), { recursive: true });
+    const prefix = join(real, "prefix");
+    mkdirSync(prefix, { recursive: true });
+    const cases: readonly (readonly [string, string])[] = [
+      ["foreign-alias", join(otherAlias, "prefix", "current", "bin", "poracode")],
+      ["direct-release", join(alias, "prefix", "releases", "1.0.0", "bin", "poracode")],
+    ];
+    for (const [name, target] of cases) {
+      const binDir = join(root, name);
+      mkdirSync(binDir);
+      const link = join(binDir, "poracode");
+      symlinkSync(target, link);
+      expect(
+        removeOwnedCommandLinks({ prefix, binDir, platform: "linux", home: join(root, "home") }),
+      ).toEqual([]);
+      expect(lstatSync(link).isSymbolicLink()).toBe(true);
+    }
+  });
+
+  it("matches a junctioned prefix spelling through realpath on either platform", () => {
+    const root = tempDir();
+    const real = join(root, "real");
+    const alias = join(root, "alias");
+    mkdirSync(real, { recursive: true });
+    symlinkSync(real, alias, "dir");
+    const prefix = join(real, "prefix");
+    mkdirSync(prefix, { recursive: true });
+    expect(
+      launcherTargetsPrefix(join(alias, "prefix", "current", "bin", "poracode"), prefix, "linux"),
+    ).toBe(true);
+    expect(launcherTargetsPrefix(join(prefix, "current", "bin", "poracode"), prefix, "linux")).toBe(
+      true,
+    );
+    expect(
+      launcherTargetsPrefix(
+        join(alias, "prefix", "releases", "1.0.0", "bin", "poracode"),
+        prefix,
+        "linux",
+      ),
+    ).toBe(false);
+    expect(
+      launcherTargetsPrefix(join(alias, "missing", "current", "bin", "poracode"), prefix, "linux"),
+    ).toBe(false);
+    const launcher = `${join(alias, "prefix")}\\current\\bin\\poracode.cmd`;
+    const shim = `@echo off\r\nrem poracode-installer-shim v1\r\n"${launcher}" %*\r\n`;
+    expect(installerShimTargetsPrefix(shim, prefix)).toBe(true);
+    expect(installerShimTargetsPrefix(shim.replace("poracode.cmd", "poracode.exe"), prefix)).toBe(
+      false,
+    );
   });
 
   it("finds the command in PORACODE_BIN_DIR like the installers", async () => {

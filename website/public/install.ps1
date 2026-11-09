@@ -102,7 +102,8 @@
         Invoke-WebRequest -Uri "$baseUrl/v$version/SHA256SUMS" -OutFile (Join-Path $tmp "SHA256SUMS") -UseBasicParsing
       } catch {
         if ((Get-Status $_) -eq 404) {
-          Fail "release $version has no SHA256SUMS; releases before the one-line installer need the desktop app or a newer version (try `$env:PORACODE_CHANNEL = 'nightly')"
+          $nightlyHint = if (-not $env:PORACODE_VERSION -and $channel -eq "stable") { " (try `$env:PORACODE_CHANNEL = 'nightly')" } else { "" }
+          Fail "release $version has no SHA256SUMS; releases before the one-line installer need the desktop app or a newer version$nightlyHint"
         }
         Fail "could not download the release checksums from $baseUrl/v$version/"
       }

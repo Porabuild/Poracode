@@ -5,11 +5,12 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
+  realpathSync,
   rmSync,
   unlinkSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join, win32 } from "node:path";
+import { join, posix, win32 } from "node:path";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { readStandaloneRuntimeMarker } from "../../scripts/server-release-install.mjs";
 import { promptCli } from "./cliPrompts";
@@ -29,6 +30,59 @@ import {
  * anything while a server or managed service still uses the prefix.
  */
 const INSTALLER_SHIM_MARKER = "rem poracode-installer-shim v1";
+const INSTALLER_SHIM_LAUNCHER = /^"([^"\r\n]+)" %\*\s*$/mu;
+const POSIX_LAUNCHER_SUFFIX = "/current/bin/poracode";
+const WINDOWS_LAUNCHER_SUFFIX = "\\current\\bin\\poracode.cmd";
+
+/**
+ * True when a command entry's launcher is `<prefix>/current/bin/poracode[.cmd]`
+ * — the only target the installers write. The recorded target keeps the prefix
+ * spelling the installer was given, which can cross a symlink or junction
+ * (macOS `/tmp`, a symlinked home, a Windows junction), while `prefix` here is
+ * canonical. After the exact match fails, both sides are realpath'ed without
+ * following `current`, so a link aimed straight at `releases/<v>/bin/poracode`
+ * or at a different prefix's alias stays unowned.
+ */
+export function launcherTargetsPrefix(
+  launcher: string,
+  prefix: string,
+  platform: NodeJS.Platform,
+): boolean {
+  if (platform === "win32") {
+    const expected = win32.join(prefix, "current", "bin", "poracode.cmd");
+    if (launcher.toLowerCase() === expected.toLowerCase()) return true;
+    if (!win32.isAbsolute(launcher) || !launcher.toLowerCase().endsWith(WINDOWS_LAUNCHER_SUFFIX)) {
+      return false;
+    }
+    try {
+      const written = launcher.slice(0, launcher.length - WINDOWS_LAUNCHER_SUFFIX.length);
+      return realpathSync(written).toLowerCase() === realpathSync(prefix).toLowerCase();
+    } catch {
+      return false;
+    }
+  }
+  const expected = posix.join(prefix, "current", "bin", "poracode");
+  if (launcher === expected) return true;
+  if (!posix.isAbsolute(launcher) || !launcher.endsWith(POSIX_LAUNCHER_SUFFIX)) return false;
+  try {
+    const written = launcher.slice(0, launcher.length - POSIX_LAUNCHER_SUFFIX.length);
+    return realpathSync(written) === realpathSync(prefix);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when a `poracode.cmd` shim's text was written by the installer for
+ * `prefix`: it carries the shim marker and either names the prefix literally
+ * or launches `<prefix>\current\bin\poracode.cmd` through a junctioned spelling.
+ */
+export function installerShimTargetsPrefix(text: string, prefix: string): boolean {
+  if (!text.includes(INSTALLER_SHIM_MARKER)) return false;
+  if (text.toLowerCase().includes(prefix.toLowerCase())) return true;
+  const launcher = INSTALLER_SHIM_LAUNCHER.exec(text)?.[1];
+  return launcher !== undefined && launcherTargetsPrefix(launcher, prefix, "win32");
+}
 
 export interface UninstallCliOptions {
   readonly prefix?: string;
@@ -54,15 +108,9 @@ export function removeOwnedCommandLinks(input: {
     const localAppData =
       env.LOCALAPPDATA?.trim() || win32.join(input.home ?? homedir(), "AppData", "Local");
     const shim = win32.join(binDir ?? win32.join(localAppData, "Poracode", "bin"), "poracode.cmd");
-    if (existsSync(shim)) {
-      const text = readFileSync(shim, "utf8");
-      if (
-        text.includes(INSTALLER_SHIM_MARKER) &&
-        text.toLowerCase().includes(input.prefix.toLowerCase())
-      ) {
-        unlinkSync(shim);
-        removed.push(shim);
-      }
+    if (existsSync(shim) && installerShimTargetsPrefix(readFileSync(shim, "utf8"), input.prefix)) {
+      unlinkSync(shim);
+      removed.push(shim);
     }
     return removed;
   }
@@ -70,7 +118,7 @@ export function removeOwnedCommandLinks(input: {
   try {
     if (
       lstatSync(link).isSymbolicLink() &&
-      readlinkSync(link) === join(input.prefix, "current", "bin", "poracode")
+      launcherTargetsPrefix(readlinkSync(link), input.prefix, platform)
     ) {
       unlinkSync(link);
       removed.push(link);

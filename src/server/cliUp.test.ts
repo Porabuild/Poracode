@@ -172,6 +172,45 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
     const notes = result.notes.join("\n");
     expect(notes).toMatch(/one-line installer/u);
     expect(notes).toMatch(/install\.sh/u);
+    expect(notes).not.toMatch(/PORACODE_CHANNEL/u);
+  });
+
+  it("suggests the nightly installer one-liner for a nightly build", async () => {
+    for (const platform of ["linux", "win32"] as const) {
+      const root = realpathSync(mkdtempSync(join(tmpdir(), "poracode-up-nightly-")));
+      roots.push(root);
+      const releaseRoot = join(root, "runtime");
+      mkdirSync(releaseRoot, { recursive: true });
+      writeFileSync(
+        join(releaseRoot, "standalone.json"),
+        JSON.stringify({
+          formatVersion: 1,
+          kind: "poracode-standalone-runtime",
+          version: "2.0.0-nightly.202611090222",
+          target: "linux-x64",
+          node: { version: "26.13.0", executable: "runtime/node" },
+        }),
+      );
+      const steps = recorder();
+      const result = await runUp(
+        { service: true, pair: false },
+        {
+          profile: join(root, "profile"),
+          releaseRoot,
+          configure: steps.configure,
+          service: steps.service,
+          env: { PORACODE_INSTALL_DIR: join(root, "missing") },
+          lingerEnabled: () => true,
+          platform,
+        },
+      );
+      expect(result.service).toBe("unavailable");
+      const expected =
+        platform === "win32"
+          ? "$env:PORACODE_CHANNEL = 'nightly'; irm https://poracode.com/install.ps1 | iex"
+          : "curl -fsSL https://poracode.com/install.sh | PORACODE_CHANNEL=nightly sh";
+      expect(result.notes.join("\n")).toContain(expected);
+    }
   });
 
   it("uses the one-line installer's prefix for the service from another install", async () => {

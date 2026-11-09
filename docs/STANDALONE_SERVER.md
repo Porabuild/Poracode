@@ -50,13 +50,18 @@ curl -fsSL https://poracode.com/install.sh | sh   # macOS, Linux (glibc)
 irm https://poracode.com/install.ps1 | iex        # Windows PowerShell 5.1+
 ```
 
+On Linux the bundled Node.js needs glibc and the `libatomic1` package; minimal
+images such as `debian:bookworm-slim` lack it (`apt-get install libatomic1`),
+and the installer names a missing library in its failure message.
+
 Stable releases before 2.0.0 do not include these archives; until a 2.x stable
 release is out, install the nightly train:
 `curl -fsSL https://poracode.com/install.sh | PORACODE_CHANNEL=nightly sh`
 (PowerShell: `$env:PORACODE_CHANNEL = 'nightly'; irm https://poracode.com/install.ps1 | iex`).
-`PORACODE_VERSION` pins a release. Once the launcher is published to npm,
-`npx poracode@latest` runs it without installing (Node.js 20.11 or newer, for
-`npx` only).
+`PORACODE_VERSION` pins a release. The npm launcher is already published:
+`npx poracode@nightly` runs the nightly train without installing, and
+`npx poracode@latest` will once a 2.x stable release is out (Node.js 20.11 or
+newer, for `npx` only).
 
 The scripts (served from `website/public/` and attached to every release)
 resolve the release, download `SHA256SUMS` and the archive for this machine,
