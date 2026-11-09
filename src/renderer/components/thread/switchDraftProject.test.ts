@@ -89,6 +89,12 @@ describe("client-owned environment selection", () => {
       { kind: "text", content: "Existing" },
     ]);
   });
+  it("keeps the draft visit so the news line continues on the other environment", () => {
+    const visit = useAppStore.getState().draftVisit;
+    switchDraftProject(source.id, target.id);
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: target.id });
+    expect(useAppStore.getState().draftVisit).toBe(visit);
+  });
   it("hands the target to an embedded surface without navigating the main view", () => {
     const select = vi.fn<(id: string) => void>();
     switchDraftProject(source.id, target.id, { onSelectProject: select });

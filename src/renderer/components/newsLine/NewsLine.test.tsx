@@ -10,6 +10,7 @@ import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { NEWS_LINE_STORAGE_KEYS, useNewsLineStore } from "@/renderer/state/newsLineStore";
 import { COMMUNITY_PROMOTION_URLS } from "@/shared/communityLinks";
 import { NEWS_LONG_DWELL_MS, NEWS_ROTATE_MS, NEWS_TYPING_PAUSE_MS, NewsLine } from "./NewsLine";
+import { resetNewsVisit } from "./newsVisit";
 import { resetProfileStatsCache } from "./useProfileStats";
 import { useFeatureUsageStore } from "@/renderer/state/featureUsageStore";
 import { useNewsFeedStore } from "@/renderer/state/newsFeedStore";
@@ -117,9 +118,21 @@ function advanceTo(kind: string) {
   expect(currentKind()).toBe(kind);
 }
 
+// jsdom has no Web Animations API; the line skips its entrance without it.
+function stubElementAnimate() {
+  const animate = vi.fn<(keyframes: unknown, options?: unknown) => void>();
+  Object.defineProperty(HTMLElement.prototype, "animate", {
+    configurable: true,
+    writable: true,
+    value: animate,
+  });
+  return animate;
+}
+
 describe("NewsLine", () => {
   beforeEach(() => {
     localStorage.clear();
+    resetNewsVisit();
     resetProfileStatsCache();
     mocks.stats = null;
     mocks.browserClient = false;
@@ -150,6 +163,7 @@ describe("NewsLine", () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     dismissPromotion.mockClear();
+    delete (HTMLElement.prototype as { animate?: unknown }).animate;
   });
 
   it("shows an activity insight and opens Profile from it", async () => {
@@ -418,5 +432,92 @@ describe("NewsLine", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("group", { name: "Release note" })).not.toBeInTheDocument();
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("resumes the item on screen without replaying its entrance when remounted within a visit", () => {
+    vi.useFakeTimers();
+    const animate = stubElementAnimate();
+    const first = render(<NewsLine visitKey={1} />);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    const id = currentId();
+    first.unmount();
+    animate.mockClear();
+
+    render(<NewsLine visitKey={1} />);
+    expect(currentId()).toBe(id);
+    expect(animate).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(NEWS_LONG_DWELL_MS);
+    });
+    expect(currentId()).not.toBe(id);
+    expect(animate).toHaveBeenCalled();
+  });
+
+  it("starts a fresh rotation for a new visit", () => {
+    const animate = stubElementAnimate();
+    const first = render(<NewsLine visitKey={1} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pause news" }));
+    first.unmount();
+    animate.mockClear();
+
+    render(<NewsLine visitKey={2} />);
+    expect(animate).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Pause news" })).toBeInTheDocument();
+  });
+
+  it("counts each showing once per visit across remounts", () => {
+    const markHighlightShown = vi.fn<(id: string, poolIds: ReadonlySet<string>) => void>();
+    const original = useNewsLineStore.getState().markHighlightShown;
+    useNewsLineStore.setState({ markHighlightShown });
+    try {
+      const first = render(<NewsLine visitKey={1} />);
+      advanceTo("changelog");
+      const itemId = currentId();
+      const highlightId = itemId?.slice("changelog:".length);
+      expect(markHighlightShown).toHaveBeenCalledTimes(1);
+      expect(markHighlightShown.mock.calls[0]?.[0]).toBe(highlightId);
+      first.unmount();
+
+      render(<NewsLine visitKey={1} />);
+      expect(currentId()).toBe(itemId);
+      expect(markHighlightShown).toHaveBeenCalledTimes(1);
+    } finally {
+      useNewsLineStore.setState({ markHighlightShown: original });
+    }
+  });
+
+  it("keeps the user's pause across a remount within the visit", () => {
+    vi.useFakeTimers();
+    const first = render(<NewsLine visitKey={1} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pause news" }));
+    const id = currentId();
+    first.unmount();
+
+    render(<NewsLine visitKey={1} />);
+    expect(screen.getByRole("button", { name: "Resume news" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    act(() => {
+      vi.advanceTimersByTime(NEWS_LONG_DWELL_MS * 2);
+    });
+    expect(currentId()).toBe(id);
+  });
+
+  it("shows the next item with one entrance when the resumed item is gone", () => {
+    const first = render(<NewsLine visitKey={1} />);
+    advanceTo("tip");
+    const gone = currentId()!;
+    first.unmount();
+    useNewsLineStore.getState().hideItem(gone);
+    const animate = stubElementAnimate();
+
+    render(<NewsLine visitKey={1} />);
+    expect(currentId()).not.toBeNull();
+    expect(currentId()).not.toBe(gone);
+    expect(animate).toHaveBeenCalledTimes(1);
+    act(() => useNewsLineStore.setState({ sessionHiddenIds: ["unrelated"] }));
+    expect(animate).toHaveBeenCalledTimes(1);
   });
 });

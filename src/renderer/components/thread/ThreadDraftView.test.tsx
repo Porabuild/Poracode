@@ -40,14 +40,14 @@ const { composerSpy, launchExperimentMock, newsLineMounts } = vi.hoisted(() => (
 vi.mock("@/renderer/components/newsLine/NewsLine", async () => {
   const React = await import("react");
   return {
-    NewsLine: () => {
+    NewsLine: (props: { visitKey?: number }) => {
       // Stable for the lifetime of one mount, so a re-render keeps the id while
       // a key change (a new draft visit) produces a new one.
       const [mountId] = React.useState(() => {
         newsLineMounts.count += 1;
         return newsLineMounts.count;
       });
-      return <div data-testid="news-line" data-mount={mountId} />;
+      return <div data-testid="news-line" data-mount={mountId} data-visit={props.visitKey} />;
     },
   };
 });
@@ -716,15 +716,16 @@ describe("ThreadDraftView", () => {
       />,
     );
     await waitFor(() => expect(screen.getByTestId("news-line")).toBeInTheDocument());
-    const firstMount = screen.getByTestId("news-line").getAttribute("data-mount");
+    const newsLine = () => screen.getByTestId("news-line");
+    const firstMount = newsLine().getAttribute("data-mount");
+    expect(newsLine().getAttribute("data-visit")).toBe(String(useAppStore.getState().draftVisit));
 
     act(() => {
       useAppStore.getState().openDraft(project.id);
     });
 
-    await waitFor(() =>
-      expect(screen.getByTestId("news-line").getAttribute("data-mount")).not.toBe(firstMount),
-    );
+    await waitFor(() => expect(newsLine().getAttribute("data-mount")).not.toBe(firstMount));
+    expect(newsLine().getAttribute("data-visit")).toBe(String(useAppStore.getState().draftVisit));
     useAppStore.setState({ projects: previousProjects });
   });
 

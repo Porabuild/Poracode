@@ -1885,7 +1885,11 @@ export function ThreadDraftView(props: {
         {compactComposer ? null : (
           <div data-draft-slack="" className="flex min-h-0 w-full flex-1 flex-col items-center">
             {showNewsLine ? (
-              <NewsLine key={draftVisit} className={`mt-3 w-full ${blockMaxWidthClass}`} />
+              <NewsLine
+                key={draftVisit}
+                visitKey={draftVisit}
+                className={`mt-3 w-full ${blockMaxWidthClass}`}
+              />
             ) : null}
           </div>
         )}
