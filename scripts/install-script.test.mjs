@@ -70,7 +70,15 @@ function publishRelease(base, version, options = {}) {
   const name = `poracode-${version}-${hostTarget}.tar.gz`;
   const archive = join(releaseDir, name);
   const members = options.escape ? [".", "../escape.txt"] : ["."];
-  execFileSync("tar", ["-czf", archive, "-C", stage, ...members], { stdio: "pipe" });
+  execFileSync(
+    "tar",
+    ["-czf", archive, ...(options.escape ? ["-P"] : []), "-C", stage, ...members],
+    { stdio: "pipe" },
+  );
+  if (options.escape) {
+    const listing = execFileSync("tar", ["-tzf", archive], { encoding: "utf8" });
+    assert.match(listing, /^\.\.\/escape\.txt$/mu);
+  }
   const sha = createHash("sha256").update(readFileSync(archive)).digest("hex");
   const listed = options.omitTarget ? "other.tar.gz" : name;
   writeFileSync(
