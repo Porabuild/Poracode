@@ -296,6 +296,10 @@ export async function handleCatalogRoutes({
     });
     return json({ location: requestLocation(url), data });
   }
+  // The vendored client polls provider search backends; Poracode threads have
+  // none, so answer an empty list instead of a 404 the client retries forever.
+  if (path === "/api/websearch/provider" && method === "GET")
+    return json({ location: requestLocation(url), data: [] });
   // `!command` — a one-off host dev shell, never a local spawn. PTY bytes
   // stream over the watched-terminal socket seam; the vendored UI reads
   // the rendered bash part, the next prompt carries the output as context.

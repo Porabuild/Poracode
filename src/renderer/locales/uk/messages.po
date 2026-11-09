@@ -5081,11 +5081,11 @@ msgstr "Контекст"
 msgid "Context compacted"
 msgstr "Контекст стиснено"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "Контекст стиснуто з {before} токенів"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "Контекст стиснуто: {before} → {after} токенів"
 
@@ -5094,11 +5094,11 @@ msgstr "Контекст стиснуто: {before} → {after} токенів"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "Витягнення контексту ({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "Контекст вручну стиснуто з {before} токенів"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Контекст вручну стиснуто: {before} → {after} токенів"
 

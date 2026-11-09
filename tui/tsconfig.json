@@ -4,6 +4,10 @@
   "compilerOptions": {
     "types": ["bun"],
     "paths": {
+      "@/renderer/i18n/i18n": ["./src/desktop/i18n.ts"],
+      "@/renderer/state/slices/runtimeEventSlice": [
+        "../src/renderer/state/slices/runtimeChatItem.ts"
+      ],
       "@/*": ["../src/*"]
     },
     "jsx": "preserve",
@@ -12,6 +16,12 @@
     "noUncheckedIndexedAccess": false,
     "noUnusedLocals": true
   },
-  "include": ["src", "opencode/packages/tui/src"],
+  "include": [
+    "src",
+    "opencode/packages/tui/src",
+    // `*.po` module declarations for renderer i18n modules the desktop
+    // presentation bridge pulls into this program.
+    "../src/renderer/i18n/po.d.ts"
+  ],
   "exclude": ["opencode/packages/tui/src/**/*.test.ts", "opencode/packages/tui/src/**/*.test.tsx"]
 }

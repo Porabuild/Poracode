@@ -449,7 +449,7 @@ export async function handleSessionRoutes({
     const remoteThread = (await guiThreads()).find((value) => value.id === threadId(id));
     if (!remoteThread)
       return json({ error: { code: "not_found", message: "Session not found" } }, 404);
-    const items = await listThreadItems(remoteThread.id);
+    const items = (await listThreadItems(remoteThread.id)).filter((value) => !value.parentItemId);
     const message = historyMessages(remoteThread, items).find(
       (value) => value.id === decodeURIComponent(messageGetMatch[2]!),
     );
@@ -484,10 +484,13 @@ export async function handleSessionRoutes({
       });
     }
     await input.setThreadInterests([threadId(id)]);
-    await Promise.all([
+    // Completed turns carry the per-turn start/end times historyMessages
+    // stamps onto each turn's footer; a failed walk degrades to latest-only.
+    const [, , , completedTurns] = await Promise.all([
       seedInbox(remoteThread.id),
       seedGoal(remoteThread.id),
       seedBackgroundTasks(remoteThread.id),
+      input.client.threadCompletedTurns(remoteThread.id).catch(() => []),
     ]);
     // Turns completed while the TUI was closed still need their anchors
     // finalized before checkpointRevert can restore them.
@@ -544,6 +547,11 @@ export async function handleSessionRoutes({
             nextCursor: page.nextCursor,
           });
         return page;
+      },
+      // Subagent child items render inside their virtual subsession only.
+      {
+        includeItem: (item) => !item.parentItemId,
+        completedTurns,
       },
     );
     if (ctx.debug)

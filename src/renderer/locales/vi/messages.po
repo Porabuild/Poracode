@@ -5081,11 +5081,11 @@ msgstr "Ngữ cảnh"
 msgid "Context compacted"
 msgstr "Ngữ cảnh được nén"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "Ngữ cảnh được nén từ {before} token"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "Ngữ cảnh được nén: {before} → {after} token"
 
@@ -5094,11 +5094,11 @@ msgstr "Ngữ cảnh được nén: {before} → {after} token"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "Trích xuất ngữ cảnh ({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "Ngữ cảnh được nén thủ công từ {before} token"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Ngữ cảnh được nén thủ công: {before} → {after} token"
 

@@ -13,6 +13,7 @@ import type { PersistedRuntimeItem } from "@/shared/ipc/schemas";
 import { createEventTranslator } from "./events";
 import { historyMessages } from "./history";
 import { formId } from "./ids";
+import { resolvePart } from "../plugin/transcript/items";
 
 const thread = "thread-1";
 const sessionID = "ses_thread-1";
@@ -118,7 +119,9 @@ describe("live TUI projections", () => {
       (event): event is Extract<OpenCodeEvent, { type: "session.text.started" }> =>
         event.type === "session.text.started",
     );
-    expect(textStarts.map((event) => event.data.ordinal)).toEqual([1, 3]);
+    // Per-kind ordinals: the host resolves text:N / reasoning:N within each
+    // type, so tools never shift a later text into an earlier slot.
+    expect(textStarts.map((event) => event.data.ordinal)).toEqual([0, 1]);
 
     const messages = harness.store.session.message.list(sessionID);
     const assistants = messages.filter((message) => message.type === "assistant");
@@ -146,6 +149,81 @@ describe("live TUI projections", () => {
         .map((part) => part.text)
         .join(""),
     ).not.toContain("command output");
+    harness.close();
+  });
+
+  test("text and reasoning ordinals count per kind across interleaved tools", async () => {
+    const harness = await createHarness();
+    const events = harness.translate([
+      { type: "turn.started", threadId: thread, turnId: "turn-ordinals" },
+      {
+        type: "item.started",
+        threadId: thread,
+        itemId: "reasoning-1",
+        itemType: "reasoning",
+        payload: { summary: "Think" },
+      },
+      { type: "item.started", threadId: thread, itemId: "text-1", itemType: "assistant_message" },
+      {
+        type: "content.delta",
+        threadId: thread,
+        itemId: "text-1",
+        stream: "assistant_text",
+        delta: "First",
+      },
+      {
+        type: "item.started",
+        threadId: thread,
+        itemId: "tool-1",
+        itemType: "command_execution",
+        payload: { command: "ls", status: "running" },
+      },
+      { type: "item.started", threadId: thread, itemId: "text-2", itemType: "assistant_message" },
+      {
+        type: "content.delta",
+        threadId: thread,
+        itemId: "text-2",
+        stream: "assistant_text",
+        delta: "Second",
+      },
+      {
+        type: "item.started",
+        threadId: thread,
+        itemId: "tool-2",
+        itemType: "command_execution",
+        payload: { command: "pwd", status: "running" },
+      },
+      { type: "item.started", threadId: thread, itemId: "text-3", itemType: "assistant_message" },
+      {
+        type: "content.delta",
+        threadId: thread,
+        itemId: "text-3",
+        stream: "assistant_text",
+        delta: "Third",
+      },
+      { type: "turn.completed", threadId: thread, turnId: "turn-ordinals", state: "completed" },
+    ]);
+    expect(
+      events
+        .filter((event) => event.type === "session.text.started")
+        .map((event) => event.data.ordinal),
+    ).toEqual([0, 1, 2]);
+    expect(
+      events
+        .filter((event) => event.type === "session.reasoning.started")
+        .map((event) => event.data.ordinal),
+    ).toEqual([0]);
+    const messages = harness.store.session.message.list(sessionID);
+    const assistant = messages.find((message) => message.type === "assistant");
+    if (!assistant || assistant.type !== "assistant") throw new Error("Assistant missing");
+    // text:N resolves to the N-th text part — ordinals must be 0,1,2 with the
+    // tools interleaved, not shifted by them.
+    for (const [index, text] of ["First", "Second", "Third"].entries()) {
+      const part = resolvePart(assistant, `text:${index}`);
+      expect(part?.type === "text" ? part.text : undefined).toBe(text);
+    }
+    const reasoning = resolvePart(assistant, "reasoning:0");
+    expect(reasoning?.type).toBe("reasoning");
     harness.close();
   });
 
@@ -512,6 +590,39 @@ describe("live TUI projections", () => {
     if (!assistant || assistant.type !== "assistant") throw new Error("Assistant message missing");
     expect(assistant.content).toContainEqual({ type: "text", text: "Authoritative snapshot" });
     harness.close();
+  });
+
+  test("tool metadata carries the merged runtime item, including the completion payload", () => {
+    const translator = createEventTranslator(context, () => 1);
+    const events = translator.translate({
+      type: "thread-runtime-events",
+      threadId: thread,
+      events: [
+        { type: "turn.started", threadId: thread, turnId: "turn-1" },
+        {
+          type: "item.started",
+          threadId: thread,
+          itemId: "command-1",
+          itemType: "command_execution",
+          payload: { command: "bun test", cwd: "/repo" },
+        },
+        {
+          type: "item.completed",
+          threadId: thread,
+          itemId: "command-1",
+          payload: { exitCode: 0, durationMs: 4300 },
+        },
+      ],
+    });
+    const success = events.find((event) => event.type === "session.tool.success");
+    expect(success?.data).toMatchObject({
+      metadata: {
+        poracode: {
+          type: "command_execution",
+          payload: { command: "bun test", cwd: "/repo", exitCode: 0, durationMs: 4300 },
+        },
+      },
+    });
   });
 
   test("resetThread clears the open run so a replayed item.started re-emits", () => {

@@ -275,7 +275,10 @@ export interface RouterContext {
   ) => Promise<Response | { status: number; error: { code: string; message: string } }>;
 
   // facade.ts — session options shape consumed by the plugin layer
-  sessionOptions: (session: string) => Promise<{
+  sessionOptions: (
+    session: string,
+    remoteThread?: Thread | null,
+  ) => Promise<{
     approvalPolicies: readonly { id: string; label: string }[];
     sandboxModes: readonly { id: string; label: string }[];
     fast: { offered: boolean; disabledReason: string | undefined };
@@ -295,6 +298,24 @@ export interface RouterContext {
       contextSize?: string;
     },
   ) => Promise<{ error: string; status: number } | { ok: true }>;
+  composerState: (session: string) => Promise<{
+    approval?: {
+      current: string;
+      label: string;
+      options: readonly { id: string; label: string }[];
+    };
+    fast?: { on: boolean; disabledReason?: string };
+    thinking?: { on: boolean };
+    workflows?: { on: boolean; label: string };
+    context?: {
+      current?: string;
+      label?: string;
+      options: readonly { id: string; label: string }[];
+    };
+  }>;
+  gitChanges: (
+    session: string,
+  ) => Promise<{ insertions: number; deletions: number; worktree?: string } | undefined>;
   exportSession: (
     session: string,
     remoteThread?: Thread,

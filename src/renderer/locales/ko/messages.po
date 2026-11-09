@@ -5081,11 +5081,11 @@ msgstr "컨텍스트"
 msgid "Context compacted"
 msgstr "컨텍스트가 압축됨"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "{before} 토큰에서 압축된 컨텍스트"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "압축된 컨텍스트:{before}→{after}토큰"
 
@@ -5094,11 +5094,11 @@ msgstr "압축된 컨텍스트:{before}→{after}토큰"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "컨텍스트 추출({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "{before} 토큰에서 수동으로 압축된 컨텍스트"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "수동으로 압축된 컨텍스트:{before}→{after}토큰"
 

@@ -5081,11 +5081,11 @@ msgstr "Bağlam"
 msgid "Context compacted"
 msgstr "Bağlam sıkıştırılmış"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "Bağlam {before} belirteçten sıkıştırıldı"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "Bağlam sıkıştırıldı: {before} → {after} belirteç"
 
@@ -5094,11 +5094,11 @@ msgstr "Bağlam sıkıştırıldı: {before} → {after} belirteç"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "Bağlam çıkarma ({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "Bağlam {before} belirteçten manuel olarak sıkıştırıldı"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Bağlam manuel olarak sıkıştırıldı: {before} → {after} belirteç"
 
