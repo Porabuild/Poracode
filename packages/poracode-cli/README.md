@@ -90,7 +90,10 @@ download path.
 - Without installing anything permanent, `npx poracode@latest` runs the newest
   release and `npx poracode@nightly` the nightly train. For a permanent command
   without Node at all, use `curl -fsSL https://poracode.com/install.sh | sh`
-  (Windows: `irm https://poracode.com/install.ps1 | iex`).
+  (Windows: `irm https://poracode.com/install.ps1 | iex`). The downloaded
+  runtime is the same self-contained archive, so on Linux it needs glibc and
+  `libatomic1`; minimal images such as `debian:bookworm-slim` lack it
+  (`apt-get install libatomic1`).
 - The cache lives at `<PORACODE_BASE_DIR or ~/.poracode>/runtime/<version>/<target>`,
   separate from profile data. A verified install is reused without network
   access. `PORACODE_RUNTIME_CACHE_DIR` overrides the cache root.
@@ -181,8 +184,8 @@ local-admin v12; removing a catalog source keeps its installed packages.
 ## Status
 
 The release workflow publishes this package only when npm publishing is enabled
-for the repository. Until a release has published it, `npx poracode@<version>`
-is not available from the registry; install the release artifact instead. The
-operator runbook (artifact layout, service units, TLS binds, backup, upgrades,
-qualification) is
+for the repository. Nightly releases are already on the registry under the
+`nightly` dist-tag (`npx poracode@nightly`); `latest` remains a placeholder
+until a 2.x stable release is out. The operator runbook (artifact layout,
+service units, TLS binds, backup, upgrades, qualification) is
 [docs/STANDALONE_SERVER.md](https://github.com/Porabuild/Poracode/blob/main/docs/STANDALONE_SERVER.md).

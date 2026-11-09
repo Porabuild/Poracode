@@ -9,6 +9,7 @@ import {
 } from "@/host/remote/server/tlsMaterial";
 import { runAdminCli } from "./cliAdmin";
 import { defaultInstallerPrefix, resolveInstallerPrefix, SelfUpdateError } from "./installerPrefix";
+import { readStandaloneRuntimeMarker } from "../../scripts/server-release-install.mjs";
 import { runConfigure } from "./cliConfigure";
 import { writeInitTlsMaterial } from "./initTlsWrite";
 import { runServerService, type ServiceCliOptions } from "./serverService";
@@ -218,6 +219,7 @@ export async function runUp(
     readonly platform?: NodeJS.Platform;
     readonly env?: NodeJS.ProcessEnv;
     readonly home?: string;
+    readonly version?: string;
   },
 ): Promise<UpResult> {
   const serviceTarget = resolveUpServicePrefix(options, {
@@ -246,10 +248,29 @@ export async function runUp(
     const platform = deps.platform ?? process.platform;
     if (serviceTarget === undefined) {
       service = "unavailable";
+      // The running train decides which installer one-liner can help: a nightly
+      // build needs PORACODE_CHANNEL=nightly because stable has no archives yet.
+      const version =
+        deps.version ??
+        (() => {
+          try {
+            return readStandaloneRuntimeMarker(deps.releaseRoot)?.version;
+          } catch {
+            return undefined;
+          }
+        })();
+      const nightly = version !== undefined && /-nightly\./u.test(version);
+      const installCommand = nightly
+        ? platform === "win32"
+          ? "$env:PORACODE_CHANNEL = 'nightly'; irm https://poracode.com/install.ps1 | iex"
+          : "curl -fsSL https://poracode.com/install.sh | PORACODE_CHANNEL=nightly sh"
+        : platform === "win32"
+          ? "irm https://poracode.com/install.ps1 | iex"
+          : "curl -fsSL https://poracode.com/install.sh | sh";
       notes.push(
         "This poracode came from npm or a package manager, whose layout cannot host the " +
           "managed background service. Install the CLI with the one-line installer, then " +
-          `run poracode up again: ${platform === "win32" ? "irm https://poracode.com/install.ps1 | iex" : "curl -fsSL https://poracode.com/install.sh | sh"}`,
+          `run poracode up again: ${installCommand}`,
       );
       if (configureArgs.length > 0)
         notes.push("Saved settings apply the next time the server starts.");

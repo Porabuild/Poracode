@@ -24,6 +24,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { createServer } from "node:http";
@@ -172,7 +173,11 @@ export async function qualifyInstaller({ archive, metadataPath, platform = proce
   const server = await serveDirectory(releaseRoot);
   try {
     const home = join(root, "home");
-    const prefix = join(root, "prefix");
+    // Install through an alias so the recorded command target keeps a
+    // spelling that only realpath resolves — the layout uninstall must match.
+    mkdirSync(join(root, "real"), { recursive: true });
+    symlinkSync(join(root, "real"), join(root, "alias"), "junction");
+    const prefix = join(root, "alias", "prefix");
     const binDir = join(root, "bin");
     const profile = join(root, "profile");
     mkdirSync(home, { recursive: true });

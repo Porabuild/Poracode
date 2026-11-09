@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { serveDirectory } from "./installer-qualification.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const installScript = join(repoRoot, "website", "public", "install.sh");
@@ -60,7 +61,13 @@ function publishRelease(base, version, options = {}) {
     `#!/bin/sh\n` +
       `if [ -n "\${PORACODE_FAKE_LOG:-}" ]; then printf '%s\\n' "$*" >> "$PORACODE_FAKE_LOG"; fi\n` +
       `if [ "$1" = "tui" ] && [ "\${PORACODE_FAKE_TUI_FAIL:-}" = "1" ]; then exit 1; fi\n` +
-      `if [ "$1" = "--version" ]; then echo ${version}; else echo "ran:$*"; fi\n`,
+      `if [ "$1" = "--version" ]; then\n` +
+      `  if [ -n "\${PORACODE_FAKE_VERSION_FAIL:-}" ]; then\n` +
+      `    printf '%s\\n' "\${PORACODE_FAKE_VERSION_STDERR:-boom}" >&2\n` +
+      `    exit "\${PORACODE_FAKE_VERSION_EXIT:-1}"\n` +
+      `  fi\n` +
+      `  echo ${version}\n` +
+      `else echo "ran:$*"; fi\n`,
     { mode: 0o755 },
   );
   writeFileSync(join(stage, "lib", "server.cjs"), "\n");
@@ -85,7 +92,7 @@ function publishRelease(base, version, options = {}) {
     join(releaseDir, "SHA256SUMS"),
     `${options.badChecksum ? "0".repeat(64) : sha}  ${listed}\n`,
   );
-  return { archive, sha };
+  return { archive, sha, stage };
 }
 
 function setup() {
@@ -103,21 +110,38 @@ function setup() {
   };
 }
 
-function install(context, env = {}) {
+function installEnv(context, env = {}) {
   const path = (process.env.PATH ?? "")
     .split(delimiter)
     .filter((entry) => entry && entry !== context.bin)
     .join(delimiter);
+  return {
+    PATH: path,
+    HOME: context.home,
+    SHELL: "/bin/bash",
+    TMPDIR: context.root,
+    PORACODE_RELEASE_BASE_URL: `file://${context.base}`,
+    ...env,
+  };
+}
+
+function install(context, env = {}) {
   return spawnSync("/bin/sh", [installScript], {
     encoding: "utf8",
-    env: {
-      PATH: path,
-      HOME: context.home,
-      SHELL: "/bin/bash",
-      TMPDIR: context.root,
-      PORACODE_RELEASE_BASE_URL: `file://${context.base}`,
-      ...env,
-    },
+    env: installEnv(context, env),
+  });
+}
+
+/** Async variant: an in-process HTTP release server needs the event loop free. */
+function installAsync(context, env = {}) {
+  return new Promise((resolveRun, rejectRun) => {
+    const child = spawn("/bin/sh", [installScript], { env: installEnv(context, env) });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => (stdout += chunk));
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    child.once("error", rejectRun);
+    child.once("close", (code) => resolveRun({ status: code, stdout, stderr }));
   });
 }
 
@@ -262,6 +286,62 @@ void test("refuses an archive built for another target", posixOnly, () => {
   assert.match(result.stderr, /not a self-contained archive for/u);
   assert.equal(existsSync(join(context.prefix, "current")), false);
 });
+
+void test("reports the runtime's own error when the downloaded CLI cannot run", posixOnly, () => {
+  const context = setup();
+  const { stage } = publishRelease(context.base, "2.1.0");
+  const loader =
+    `${stage}/runtime/node: error while loading shared libraries: ` +
+    "libatomic.so.1: cannot open shared object file: No such file or directory";
+  const result = install(context, {
+    PORACODE_VERSION: "2.1.0",
+    PORACODE_FAKE_VERSION_FAIL: "1",
+    PORACODE_FAKE_VERSION_STDERR: loader,
+    PORACODE_FAKE_VERSION_EXIT: "127",
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /does not run on this machine/u);
+  assert.match(result.stderr, /error while loading shared libraries: libatomic\.so\.1/u);
+  assert.match(result.stderr, /sudo apt-get install libatomic1/u);
+  assert.equal(existsSync(join(context.prefix, "current")), false);
+  assert.equal(existsSync(join(context.prefix, "releases", "2.1.0")), false);
+});
+
+void test("reports a runtime failure without the library hint", posixOnly, () => {
+  const context = setup();
+  publishRelease(context.base, "2.1.0");
+  const result = install(context, {
+    PORACODE_VERSION: "2.1.0",
+    PORACODE_FAKE_VERSION_FAIL: "1",
+    PORACODE_FAKE_VERSION_STDERR: "boom",
+    PORACODE_FAKE_VERSION_EXIT: "1",
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /does not run on this machine/u);
+  assert.match(result.stderr, /\bboom\b/u);
+  assert.doesNotMatch(result.stderr, /libatomic/u);
+});
+
+void test(
+  "the no-SHA256SUMS failure suggests nightly only for an unpinned stable install",
+  posixOnly,
+  async () => {
+    const context = setup();
+    mkdirSync(join(context.base, "v9.9.9"), { recursive: true });
+    const server = await serveDirectory(context.base);
+    try {
+      const result = await installAsync(context, {
+        PORACODE_VERSION: "9.9.9",
+        PORACODE_RELEASE_BASE_URL: server.url,
+      });
+      assert.notEqual(result.status, 0);
+      assert.match(result.stderr, /has no SHA256SUMS/u);
+      assert.doesNotMatch(result.stderr, /PORACODE_CHANNEL/u);
+    } finally {
+      await server.close();
+    }
+  },
+);
 
 void test("a truncated install.sh piped to sh changes nothing", posixOnly, () => {
   const script = readFileSync(installScript, "utf8");
