@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AgentStatus, Project, Thread } from "@/shared/contracts";
@@ -237,7 +237,9 @@ describe("HomeView", () => {
       .getAllByRole("button", { pressed: false })
       .filter((row) => row.textContent?.includes("demo"));
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.querySelector("[data-project-environments]")).not.toBeNull();
+    expect(within(rows[0]!).getByRole("img", { name: "MacBook, Mac mini" })).toBeInTheDocument();
+    expect(within(rows[0]!).queryByText("MacBook")).toBeNull();
+    expect(within(rows[0]!).queryByText("Mac mini")).toBeNull();
 
     fireEvent.click(rows[0]!);
     expect(screen.getByText("On MacBook")).toBeInTheDocument();
@@ -359,12 +361,90 @@ describe("HomeView", () => {
       .getAllByRole("button", { pressed: false })
       .filter((row) => row.textContent?.startsWith(HOME_PROJECT_NAME));
     expect(homeRows).toHaveLength(1);
-    expect(homeRows[0]).toHaveTextContent("MacBook 16");
-    expect(homeRows[0]).toHaveTextContent("Studio PC");
+    expect(
+      within(homeRows[0]!).getByRole("img", { name: "MacBook 16, Studio PC" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Mac chat").closest("button")).toHaveTextContent("MacBook 16");
     expect(screen.getByText("Studio chat").closest("button")).toHaveTextContent("Studio PC");
   });
+
+  it("marks a project on paired machines with one connection marker", async () => {
+    seedDemoOnLocalAndMacBook();
+
+    render(<HomeView />);
+
+    const rows = screen
+      .getAllByRole("button", { pressed: false })
+      .filter((row) => row.textContent?.includes("demo"));
+    expect(rows).toHaveLength(1);
+    const row = rows[0]!;
+    const marker = within(row).getByRole("img", { name: "Local, MacBook" });
+    expect(within(row).queryByText("Local")).toBeNull();
+    expect(within(row).queryByText("MacBook")).toBeNull();
+    expect(row.querySelector(".lucide-monitor")).toBeNull();
+    expect(row.querySelector(".lucide-folder-open")).not.toBeNull();
+
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    fireEvent.pointerEnter(marker, { pointerType: "mouse" });
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Local");
+    expect(tooltip).toHaveTextContent("C:\\repo");
+    expect(tooltip).toHaveTextContent("MacBook");
+    expect(tooltip).toHaveTextContent("/Users/me/demo");
+  });
+
+  it("opens connection details on keyboard focus and closes them on Escape", async () => {
+    seedDemoOnLocalAndMacBook();
+
+    render(<HomeView />);
+
+    const rows = screen
+      .getAllByRole("button", { pressed: false })
+      .filter((row) => row.textContent?.includes("demo"));
+    expect(rows).toHaveLength(1);
+    const row = rows[0]!;
+
+    fireEvent.keyDown(document.body, { key: "Tab" });
+    act(() => row.focus());
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("/Users/me/demo");
+
+    fireEvent.keyDown(row, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull());
+  });
+
+  it("keeps environment paths out of the project row's accessible name", () => {
+    seedDemoOnLocalAndMacBook();
+
+    render(<HomeView />);
+
+    const rows = screen
+      .getAllByRole("button", { pressed: false })
+      .filter((row) => row.textContent?.includes("demo"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).not.toHaveAccessibleName(/\/Users\/me\/demo/);
+  });
 });
+
+function seedDemoOnLocalAndMacBook() {
+  useRemoteServersStore.setState({
+    servers: [{ desktopId: "mac", label: "Poracode on MacBook" }],
+    runtime: { mac: { status: "online", projects: [], threads: [] } },
+  } as never);
+  useAppStore.setState({
+    projects: [
+      makeProject({ name: "demo" }),
+      makeProject({
+        id: "on-mac",
+        name: "demo",
+        remoteServerId: "mac",
+        remoteId: "p1",
+        location: { kind: "posix", path: "/Users/me/demo", remoteServerId: "mac" },
+      }),
+    ],
+    threads: [],
+  });
+}
 
 function makeProject(overrides?: Partial<Project>): Project {
   return {

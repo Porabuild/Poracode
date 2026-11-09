@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Description, Tooltip } from "@heroui/react";
 import { useFocusVisible } from "react-aria";
+import { TextContext } from "react-aria-components";
 import type { Project } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { agentEnvForLocation, parseMachineKey } from "@/shared/machines";
@@ -81,38 +82,6 @@ export function useProjectEnvironmentMachines(
   });
 }
 
-/**
- * Machines a logical project lives on, for a list row: each machine's glyph
- * and short name ("Local", "Ubuntu", "MacBook"), so two paired machines stay
- * distinguishable. Takes the list's lookup instead of subscribing per row.
- */
-export function ProjectEnvironmentGlyphs(props: {
-  members: readonly Project[];
-  machineFor: (project: Project) => ProjectEnvironmentMachine | undefined;
-  className?: string | undefined;
-}) {
-  if (props.members.length < 2) return null;
-  const machines = props.members.flatMap((member) => {
-    const entry = props.machineFor(member);
-    return entry ? [entry.machine] : [];
-  });
-  const labels = machines.map(machineOptionLabel);
-  return (
-    <span
-      className={`inline-flex min-w-0 shrink items-center gap-1.5 text-[11px] text-muted/70 ${props.className ?? ""}`}
-      title={labels.join(", ")}
-      data-project-environments=""
-    >
-      {machines.map((machine, index) => (
-        <span key={machine.id} className="inline-flex min-w-0 items-center gap-1">
-          <MachineIcon machine={machine} className="size-3" />
-          <span className="truncate">{labels[index]}</span>
-        </span>
-      ))}
-    </span>
-  );
-}
-
 /** One compact connection marker; machine names and paths live in its tooltip. */
 export function ProjectEnvironmentIndicator(props: {
   members: readonly Project[];
@@ -121,6 +90,12 @@ export function ProjectEnvironmentIndicator(props: {
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const { isFocusVisible } = useFocusVisible();
+  const textContext = useContext(TextContext);
+  const describesItem =
+    textContext != null &&
+    "slots" in textContext &&
+    textContext.slots?.label != null &&
+    textContext.slots?.description != null;
   const entries = props.members.flatMap((project) => {
     const entry = props.machineFor(project);
     return entry ? [entry] : [];
@@ -135,10 +110,10 @@ export function ProjectEnvironmentIndicator(props: {
     : remoteMachines.some((machine) => machine.status === "connecting")
       ? "connecting"
       : "offline";
-  // Arrow navigation focuses the enclosing menu row, not its informational icon.
+  // Keyboard focus lands on the enclosing row — a menu item or button — not its informational icon.
   useEffect(() => {
     if (!showDetails) return;
-    const row = wrapperRef.current?.closest('[data-slot="menu-item"]');
+    const row = wrapperRef.current?.closest('[data-slot="menu-item"], button');
     if (!row) return;
     const onFocus = () => {
       if (isFocusVisible && document.activeElement === row) setIsOpen(true);
@@ -155,13 +130,16 @@ export function ProjectEnvironmentIndicator(props: {
   if (!showDetails) return null;
   return (
     <span ref={wrapperRef} className="inline-flex shrink-0">
-      <Description className="sr-only">
-        {entries
-          .map(
-            ({ machine, project }) => `${machineOptionLabel(machine)}: ${environmentPath(project)}`,
-          )
-          .join("; ")}
-      </Description>
+      {describesItem ? (
+        <Description className="sr-only">
+          {entries
+            .map(
+              ({ machine, project }) =>
+                `${machineOptionLabel(machine)}: ${environmentPath(project)}`,
+            )
+            .join("; ")}
+        </Description>
+      ) : null}
       <Tooltip delay={500} isOpen={isOpen} onOpenChange={setIsOpen}>
         <Tooltip.Trigger
           className="shrink-0 text-muted/60"
