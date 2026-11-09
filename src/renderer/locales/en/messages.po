@@ -5090,11 +5090,11 @@ msgstr "Context"
 msgid "Context compacted"
 msgstr "Context compacted"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "Context compacted from {before} tokens"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "Context compacted: {before} → {after} tokens"
 
@@ -5103,11 +5103,11 @@ msgstr "Context compacted: {before} → {after} tokens"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "Context extraction ({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "Context manually compacted from {before} tokens"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Context manually compacted: {before} → {after} tokens"
 

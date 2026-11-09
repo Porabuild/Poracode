@@ -5080,11 +5080,11 @@ msgstr "コンテキスト"
 msgid "Context compacted"
 msgstr "コンテキストを圧縮しました"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "{before}トークンから圧縮されたコンテキスト"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "圧縮されたコンテキスト:{before}→{after}トークン"
 
@@ -5093,11 +5093,11 @@ msgstr "圧縮されたコンテキスト:{before}→{after}トークン"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "コンテキスト抽出 ({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "{before}トークンから手動で圧縮されたコンテキスト"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "手動で圧縮されたコンテキスト:{before}→{after}トークン"
 

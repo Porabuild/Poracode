@@ -5081,11 +5081,11 @@ msgstr "上下文"
 msgid "Context compacted"
 msgstr "上下文压缩"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "已从 {before} 个标记压缩上下文"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "上下文压缩：{before}→{after}标记"
 
@@ -5094,11 +5094,11 @@ msgstr "上下文压缩：{before}→{after}标记"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "上下文提取 ({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "从{before}标记手动压缩上下文"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "手动压缩上下文：{before}→{after}标记"
 
