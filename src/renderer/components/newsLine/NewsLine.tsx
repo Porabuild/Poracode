@@ -5,6 +5,13 @@ import { useNewsLineStore } from "@/renderer/state/newsLineStore";
 import type { ChangelogHighlight } from "@/shared/changelogHighlights";
 import { NewsHighlightCard } from "./NewsHighlightCard";
 import { useNewsLineItems } from "./useNewsLineItems";
+import {
+  countShowing,
+  recordOnScreen,
+  rememberPaused,
+  useNewsVisit,
+  type NewsCursor,
+} from "./newsVisit";
 import type { NewsItem } from "./newsTypes";
 
 /** Time a regular item stays before the next one slides in. */
@@ -25,18 +32,24 @@ const controlButtonClass =
  * composer, while a changelog point is expanded, while the window is hidden,
  * and through the pause button (WCAG 2.2.2).
  */
-export function NewsLine(props: { className?: string }) {
+export function NewsLine(props: {
+  className?: string;
+  /**
+   * The draft visit this line belongs to; pass the same value as the React
+   * `key`, since the visit is read once per mount. A remount within the visit
+   * (the draft moved to another project or machine) resumes the item on screen
+   * instead of starting over.
+   */
+  visitKey?: number;
+}) {
   const { t } = useLingui();
-  const { items, highlights } = useNewsLineItems();
+  const visit = useNewsVisit(props.visitKey);
+  const { items, highlights } = useNewsLineItems(visit);
   const rootRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const shownIdsRef = useRef(new Set<string>());
 
-  const [cursor, setCursor] = useState<{ id: string | null; index: number }>({
-    id: null,
-    index: 0,
-  });
-  const [userPaused, setUserPaused] = useState(false);
+  const [cursor, setCursor] = useState<NewsCursor>(() => visit.onScreen);
+  const [userPaused, setUserPaused] = useState(() => visit.paused);
   const [interacting, setInteracting] = useState(false);
   const [typing, setTyping] = useState(false);
   const [pageHidden, setPageHidden] = useState(() => document.visibilityState === "hidden");
@@ -83,15 +96,16 @@ export function NewsLine(props: { className?: string }) {
     return () => window.clearTimeout(rotateTimerRef.current);
   }, [paused, itemCount, currentId, rotateMs]);
 
-  // Count a showing once per visit, and slide the new item in.
+  // Count a showing once per visit, and slide a newly shown item in. A remount
+  // within the visit finds its item already on screen: it neither counts again
+  // nor slides in.
   useEffect(() => {
-    if (!current || shownIdsRef.current.has(current.id)) return;
-    shownIdsRef.current.add(current.id);
-    current.onShown?.();
-  }, [current]);
+    if (current && countShowing(visit, current.id)) current.onShown?.();
+  }, [current, visit]);
   useEffect(() => {
+    if (currentId === null || !recordOnScreen(visit, currentId, index)) return;
     const element = contentRef.current;
-    if (!element || currentId === null || typeof element.animate !== "function") return;
+    if (!element || typeof element.animate !== "function") return;
     if (window.matchMedia?.(REDUCED_MOTION_QUERY).matches) return;
     element.animate(
       [
@@ -100,7 +114,7 @@ export function NewsLine(props: { className?: string }) {
       ],
       { duration: 260, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" },
     );
-  }, [currentId]);
+  }, [currentId, index, visit]);
 
   // Pause while the user types in this draft's composer.
   const typingTimerRef = useRef<number | undefined>(undefined);
@@ -265,7 +279,10 @@ export function NewsLine(props: { className?: string }) {
                 aria-label={userPaused ? t`Resume news` : t`Pause news`}
                 aria-pressed={userPaused}
                 className={controlButtonClass}
-                onClick={() => setUserPaused(!userPaused)}
+                onClick={() => {
+                  rememberPaused(visit, !userPaused);
+                  setUserPaused(!userPaused);
+                }}
               >
                 {userPaused ? <Play className="size-3" /> : <Pause className="size-3" />}
               </button>

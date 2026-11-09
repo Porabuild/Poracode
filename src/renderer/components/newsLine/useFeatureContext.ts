@@ -22,15 +22,23 @@ function mcpRowMatches(rowName: string, serverName: string): boolean {
 }
 
 let scheduleCount: Promise<number | null> | null = null;
+let settledScheduleCount: number | null = null;
 
-/** Saved schedules, read once per app session; null when the host cannot say. */
+/**
+ * Saved schedules, read once per app session; null when the host cannot say.
+ * A remount starts from the settled count, so a resumed news line rebuilds the
+ * same discovery picks instead of reshuffling them while the count reloads.
+ */
 function useScheduleCount(): number | null {
-  const [count, setCount] = useState<number | null>(null);
+  const [count, setCount] = useState<number | null>(() => settledScheduleCount);
   useEffect(() => {
     let active = true;
     scheduleCount ??= Promise.resolve()
       .then(() => readBridge().getSchedules())
-      .then((schedules) => schedules.length)
+      .then((schedules) => {
+        settledScheduleCount = schedules.length;
+        return settledScheduleCount;
+      })
       .catch(() => null);
     void scheduleCount.then((value) => {
       if (active) setCount(value);
