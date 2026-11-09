@@ -1,8 +1,8 @@
 /**
  * Build the concrete `{ command, args, cwd, env }` launch spec for an ACP
  * `terminal/create` request, per host shell (Windows PowerShell/cmd, WSL,
- * POSIX login shell), plus the small text-matching helpers used to correlate
- * a launched terminal's command line back to its ACP request.
+ * POSIX login environment with Bash scripts), plus the text-matching helpers
+ * used to correlate a launched terminal's command line back to its ACP request.
  */
 import { stat } from "node:fs/promises";
 import { wslLinuxToHostFsPath } from "@/shared/wsl";
@@ -88,8 +88,15 @@ function buildWindowsTerminalScript(
 }
 
 function buildPosixTerminalScript(command: string, args: string[]): string {
+  // A shell line is agent-authored script, not input for the user's preferred
+  // interactive shell. Load that shell's environment, then let Bash interpret
+  // the script (fish, for example, cannot parse heredocs). Keep it one quoted
+  // argument so the outer shell cannot expand substitutions or redirections.
+  // Fish also decodes backslash pairs inside single quotes: keep backslashes
+  // outside the quoted chunks, escaped in both fish and POSIX shells.
+  // No wire or persisted shape changes are needed.
   return args.length === 0
-    ? command
+    ? `exec /bin/bash -c ${command.split("\\").map(quotePosixShellArg).join("\\\\")}`
     : `exec ${[command, ...args].map(quotePosixShellArg).join(" ")}`;
 }
 
@@ -174,7 +181,7 @@ export function buildAcpTerminalLaunch(
   if (args.length === 0) {
     return {
       command: process.env.SHELL || "/bin/bash",
-      args: getPosixLoginShellArgs(command),
+      args: getPosixLoginShellArgs(buildPosixTerminalScript(command, args)),
       cwd,
       env: { ...buildAcpTerminalEnv(location), ...requestEnv },
     };
