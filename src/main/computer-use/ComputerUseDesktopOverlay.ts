@@ -5,6 +5,7 @@ import {
 } from "@/host/computer-use/ComputerUseActivityTracker";
 import type { ComputerUseActivityEvent } from "@/host/computer-use/ComputerUseMcpIngress";
 import {
+  COMPUTER_USE_BADGE_BACKGROUND,
   COMPUTER_USE_OVERLAY_TITLE,
   OVERLAY_EXIT_URL,
   TAKEOVER_OVERLAY_URL,
@@ -50,6 +51,7 @@ function badgeDisplayId(
 interface OverlayWindow {
   contentKey: string;
   loaded: boolean;
+  nativeBadge: boolean;
   window: BrowserWindow;
 }
 
@@ -117,7 +119,7 @@ export class ComputerUseDesktopOverlay {
           ),
     );
     for (const display of displays) {
-      const existing = this.windows.get(display.id);
+      let existing = this.windows.get(display.id);
       if (!visibleDisplayIds.has(display.id)) {
         if (existing && !existing.window.isDestroyed()) {
           existing.contentKey = "";
@@ -125,6 +127,14 @@ export class ComputerUseDesktopOverlay {
           existing.window.hide();
         }
         continue;
+      }
+      // macOS only draws a native shadow for opaque windows. Recreate when
+      // switching between the native badge and the transparent takeover.
+      const nativeBadge = process.platform === "darwin" && this.state.level === "badge";
+      if (existing && existing.nativeBadge !== nativeBadge) {
+        existing.contentKey = "";
+        existing.window.destroy();
+        existing = undefined;
       }
       const overlay = existing ?? this.createWindow(display);
       // The takeover border frames the whole display. The badge is a chip
@@ -143,14 +153,16 @@ export class ComputerUseDesktopOverlay {
   }
 
   private createWindow(display: Display): OverlayWindow {
+    const nativeBadge = process.platform === "darwin" && this.state.level === "badge";
     const window = new BrowserWindow({
       ...display.bounds,
-      transparent: true,
-      backgroundColor: "#00000000",
+      transparent: !nativeBadge,
+      backgroundColor: nativeBadge ? COMPUTER_USE_BADGE_BACKGROUND : "#00000000",
       frame: false,
       focusable: false,
       fullscreenable: false,
-      hasShadow: false,
+      hasShadow: nativeBadge,
+      ...(nativeBadge ? { roundedCorners: true } : {}),
       maximizable: false,
       minimizable: false,
       movable: false,
@@ -164,7 +176,7 @@ export class ComputerUseDesktopOverlay {
         sandbox: true,
       },
     });
-    const overlay: OverlayWindow = { contentKey: "", loaded: false, window };
+    const overlay: OverlayWindow = { contentKey: "", loaded: false, nativeBadge, window };
     this.windows.set(display.id, overlay);
     window.setAlwaysOnTop(true, "screen-saver");
     window.setContentProtection(true);
