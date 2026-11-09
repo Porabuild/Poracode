@@ -28,6 +28,8 @@ import {
   type CreateElicitationRequest,
   type CreateElicitationResponse,
   type CreateTerminalRequest,
+  type InitializeRequest,
+  type InitializeResponse,
   type KillTerminalRequest,
   type McpCapabilities,
   type McpServer as ProtocolMcpServer,
@@ -142,6 +144,7 @@ export {
 import { segmentsToContentBlocks } from "./sessionContentBlocks";
 import { looksLikeAcpSessionNotification } from "./sessionStreamFilter";
 import { createAcpInboundStream, ACP_STDOUT_QUEUED_BYTES } from "./sessionInboundStream";
+import type { AcpSharedProcessLease, AcpSharedProcessMember } from "./sharedProcess";
 import { maybeCaptureAcpUpdate } from "./sessionDiagnostics";
 import { AcpTerminalManager } from "./terminalManager";
 import {
@@ -520,6 +523,38 @@ export interface AcpExternalSessionUpdateSource {
   dispose(): void;
 }
 
+/**
+ * Build the ACP `initialize` request Poracode sends. Shared between the
+ * dedicated per-thread transport and pooled shared processes so every
+ * transport advertises identical client capabilities.
+ */
+export function buildAcpInitializeRequest(input: {
+  readonly fsTextCapability: boolean;
+  readonly terminalCapability: boolean;
+  readonly booleanConfigOptions: boolean;
+  readonly clientCapabilitiesMeta?: Record<string, unknown>;
+  readonly initializeMeta?: Record<string, unknown>;
+}): InitializeRequest {
+  return {
+    protocolVersion: PROTOCOL_VERSION,
+    clientInfo: { name: "poracode", version: "0.1.0" },
+    clientCapabilities: {
+      fs: {
+        readTextFile: input.fsTextCapability,
+        writeTextFile: input.fsTextCapability,
+      },
+      elicitation: { form: {}, url: {} },
+      terminal: input.terminalCapability,
+      // Only advertised when the provider declares it: the shared session
+      // records boolean config options it observes but cannot yet drive a
+      // generic boolean control, so the default stays off.
+      ...(input.booleanConfigOptions ? { session: { configOptions: { boolean: {} } } } : {}),
+      ...(input.clientCapabilitiesMeta ? { _meta: input.clientCapabilitiesMeta } : {}),
+    },
+    ...(input.initializeMeta ? { _meta: input.initializeMeta } : {}),
+  };
+}
+
 export class AcpStructuredSession implements StructuredSessionHandle {
   readonly supportsOpenCancellation = true;
   private static readonly MAX_PENDING_UNREFERENCED_TERMINALS = 32;
@@ -576,7 +611,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private externalSessionUpdateSources?: Set<AcpExternalSessionUpdateSource>;
 
   private readonly acpToolCallIdToItemId = new Map<string, string>();
-  private readonly child: ChildProcess;
+  private readonly child: ChildProcess | undefined;
+  private readonly sharedLease: AcpSharedProcessLease | undefined;
   private readonly connection: ClientSideConnection;
   private readonly cwd: string;
   private readonly projectLocation: ProjectLocation;
@@ -599,6 +635,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   /** Poracode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
   private readonly stderrChunks: string[];
+  private stderrLineTail = "";
   private listener: StructuredSessionListener | undefined;
   private sessionId: string | undefined;
   /**
@@ -653,6 +690,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
    * Mirrors Codex's `pendingTurnInterrupt` race guard at codex/acp.ts:264.
    */
   private promptInFlight = false;
+  /**
+   * Set when an in-flight prompt settled because the transport aborted: the
+   * rejection cleanup clears `promptInFlight` before the shared pool's
+   * transport-close notification runs, so this latch preserves the fact that
+   * the member had agent work when the process died.
+   */
+  private promptInterruptedByTransportClose = false;
   /** Ordered steer requests accepted for the current turn; see `steerRunningTurn`. */
   private pendingSteers: Array<{
     blocks: ContentBlock[];
@@ -944,13 +988,14 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   }
 
   private constructor(
-    child: ChildProcess,
+    child: ChildProcess | undefined,
     connection: ClientSideConnection,
     projectLocation: ProjectLocation,
     cwd: string,
     threadId: string,
     stderrChunks: string[],
     options?: AcpStructuredSessionOptions,
+    sharedLease?: AcpSharedProcessLease,
   ) {
     this.resolveMode = options?.resolveMode;
     this.permissionRequestTransform = options?.permissionRequestTransform;
@@ -1004,6 +1049,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       options?.localResourceResolution !== false
         ? createAcpLocalImageResolver(this.projectLocation)
         : undefined;
+    this.sharedLease = sharedLease;
   }
 
   /** Initialize the canonical mapper once we have a stable thread id. */
@@ -1201,23 +1247,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
     // Collect stderr for error diagnostics
     const stderrChunks: string[] = [];
-    let stderrLineTail = "";
     child.stderr?.on("data", (chunk) => {
       const text = String(chunk);
       if (!options?.behavior?.suppressStderrLogging) {
         console.log("[acp stderr]", text.trimEnd());
       }
-      stderrChunks.push(text);
-      if (stderrChunks.length > 20) stderrChunks.shift();
-      if (options?.stderrTurnSignalParser) {
-        stderrLineTail += text;
-        let newlineIdx;
-        while ((newlineIdx = stderrLineTail.indexOf("\n")) !== -1) {
-          const line = stderrLineTail.slice(0, newlineIdx);
-          stderrLineTail = stderrLineTail.slice(newlineIdx + 1);
-          session.handleStderrTurnSignalLine(line);
-        }
-      }
+      session.ingestStderrText(text);
     });
 
     // Wrap Node.js streams into Web Streams for the ACP SDK.
@@ -1235,52 +1270,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     });
 
     const connection = new ClientSideConnection(
-      (_agent): Client => ({
-        requestPermission(params: RequestPermissionRequest) {
-          return session.handlePermissionRequest(params);
-        },
-        createElicitation(params: CreateElicitationRequest) {
-          return session.handleElicitationRequest(params);
-        },
-        completeElicitation(params: CompleteElicitationNotification) {
-          session.handleElicitationComplete(params);
-          return Promise.resolve();
-        },
-        sessionUpdate(params: SessionNotification) {
-          session.handleSessionUpdate(params);
-          return Promise.resolve();
-        },
-        async readTextFile(params) {
-          return session.handleReadTextFile(params);
-        },
-        async writeTextFile(params) {
-          return session.handleWriteTextFile(params);
-        },
-        async createTerminal(params: CreateTerminalRequest) {
-          return session.handleCreateTerminal(params);
-        },
-        async terminalOutput(params: TerminalOutputRequest) {
-          return session.handleTerminalOutput(params);
-        },
-        async releaseTerminal(params: ReleaseTerminalRequest) {
-          session.handleReleaseTerminal(params);
-          return {};
-        },
-        waitForTerminalExit(params: WaitForTerminalExitRequest) {
-          return session.handleWaitForTerminalExit(params);
-        },
-        async killTerminal(params: KillTerminalRequest) {
-          session.handleKillTerminal(params);
-          return {};
-        },
-        extNotification(method: string, params: Record<string, unknown>) {
-          session.handleExtNotification(method, params);
-          return Promise.resolve();
-        },
-        extMethod(method: string, params: Record<string, unknown>) {
-          return session.handleExtMethod(method, params);
-        },
-      }),
+      // The SDK invokes `toClient` eagerly during construction — before
+      // `session` is assigned — so the handlers resolve it lazily per call.
+      (_agent): Client => AcpStructuredSession.acpClient(() => session),
       stream,
     );
 
@@ -1328,6 +1320,167 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     return session;
   }
 
+  /**
+   * Create a session handle on an already-running shared ACP process. The
+   * lease supplies the transport, the single process-wide `initialize`, and
+   * per-session routing; this handle still owns its own ACP session id,
+   * listeners, and turn state. Stderr turn signals are per-session and cannot
+   * be attributed on a shared process, so they are rejected here.
+   */
+  static createShared(
+    lease: AcpSharedProcessLease,
+    projectLocation: ProjectLocation,
+    threadId: string,
+    options?: AcpStructuredSessionOptions,
+  ): AcpStructuredSession {
+    if (options?.stderrTurnSignalParser) {
+      throw new Error("ACP shared processes do not support per-session stderr turn signals.");
+    }
+    options = {
+      ...options,
+      additionalDirectories: snapshotAcpAdditionalDirectories(
+        projectLocation,
+        options?.additionalDirectories,
+      ),
+    };
+    const sessionCwd = resolveSessionCwd(projectLocation);
+    const session = new AcpStructuredSession(
+      undefined,
+      lease.connection,
+      projectLocation,
+      sessionCwd,
+      threadId,
+      [],
+      options,
+      lease,
+    );
+    const member: AcpSharedProcessMember = {
+      client: session.buildClient(),
+      onTransportClosed: (exitCode) => session.handleSharedTransportClosed(exitCode),
+      onStderr: (text) => session.ingestStderrText(text),
+      onBeforeWrite: (message) => session.endHistoryReplay(message),
+      hasAgentWork: () => session.agentWorkInFlight,
+      // Unaddressed requests (diagnostics-style pulls) are answered from
+      // project-bound host state, so members of the same project may share
+      // the routing slot safely.
+      unaddressedRouteKey: () => `${projectLocation.kind}:${sessionCwd}`,
+    };
+    lease.attach(member);
+    return session;
+  }
+
+  /**
+   * The agent→client handler surface shared by the dedicated transport and
+   * pooled shared processes. `getSession` resolves lazily because the
+   * dedicated path's SDK invokes `toClient` before the session object exists.
+   */
+  private static acpClient(getSession: () => AcpStructuredSession): Client {
+    return {
+      requestPermission(params: RequestPermissionRequest) {
+        return getSession().handlePermissionRequest(params);
+      },
+      createElicitation(params: CreateElicitationRequest) {
+        return getSession().handleElicitationRequest(params);
+      },
+      completeElicitation(params: CompleteElicitationNotification) {
+        getSession().handleElicitationComplete(params);
+        return Promise.resolve();
+      },
+      sessionUpdate(params: SessionNotification) {
+        getSession().handleSessionUpdate(params);
+        return Promise.resolve();
+      },
+      async readTextFile(params) {
+        return getSession().handleReadTextFile(params);
+      },
+      async writeTextFile(params) {
+        return getSession().handleWriteTextFile(params);
+      },
+      async createTerminal(params: CreateTerminalRequest) {
+        return getSession().handleCreateTerminal(params);
+      },
+      async terminalOutput(params: TerminalOutputRequest) {
+        return getSession().handleTerminalOutput(params);
+      },
+      async releaseTerminal(params: ReleaseTerminalRequest) {
+        getSession().handleReleaseTerminal(params);
+        return {};
+      },
+      waitForTerminalExit(params: WaitForTerminalExitRequest) {
+        return getSession().handleWaitForTerminalExit(params);
+      },
+      async killTerminal(params: KillTerminalRequest) {
+        getSession().handleKillTerminal(params);
+        return {};
+      },
+      extNotification(method: string, params: Record<string, unknown>) {
+        getSession().handleExtNotification(method, params);
+        return Promise.resolve();
+      },
+      extMethod(method: string, params: Record<string, unknown>) {
+        return getSession().handleExtMethod(method, params);
+      },
+    };
+  }
+
+  /** This session's agent→client handlers for a shared-process member slot. */
+  private buildClient(): Client {
+    return AcpStructuredSession.acpClient(() => this);
+  }
+
+  /** Ring-buffer stderr for diagnostics and feed the optional turn-signal parser. */
+  private ingestStderrText(text: string): void {
+    this.stderrChunks.push(text);
+    if (this.stderrChunks.length > 20) this.stderrChunks.shift();
+    if (this.stderrTurnSignalParser) {
+      this.stderrLineTail += text;
+      let newlineIdx;
+      while ((newlineIdx = this.stderrLineTail.indexOf("\n")) !== -1) {
+        const line = this.stderrLineTail.slice(0, newlineIdx);
+        this.stderrLineTail = this.stderrLineTail.slice(newlineIdx + 1);
+        this.handleStderrTurnSignalLine(line);
+      }
+    }
+  }
+
+  /** Agent work still in flight: an open prompt, awaited subagents, or an orphan turn. */
+  private get agentWorkInFlight(): boolean {
+    return (
+      this.promptInFlight || this.foregroundTurnAwaitingSubagents || this.orphanTurnId !== undefined
+    );
+  }
+
+  /**
+   * Shared-process transport outcome: the pool notifies each attached member
+   * once with the best available exit code (null when the transport closed
+   * without an observed exit). An idle member closes quietly — its session
+   * ref survives for the next launch's session/load — while a member with
+   * agent work still reports the unexpected exit as an error.
+   */
+  private handleSharedTransportClosed(exitCode: number | null): void {
+    this.transportClosed = true;
+    if (this.isDisposed || this.transportOutcomeReported) return;
+    const expected = this.isExpectedTransportExit(exitCode);
+    // `promptInFlight` may already be cleared: the dead transport rejects the
+    // pending prompt before this notification runs. The latch preserves that
+    // the member had agent work when the process died.
+    const hadAgentWork = this.agentWorkInFlight || this.promptInterruptedByTransportClose;
+    if (!expected && !hadAgentWork) {
+      console.log(
+        `[acp] shared agent process exited (code ${exitCode ?? "unknown"}); idle session closed`,
+      );
+      this.reportTransportOutcome(undefined);
+      return;
+    }
+    this.reportTransportOutcome(
+      expected
+        ? undefined
+        : exitCode === null
+          ? "ACP connection closed unexpectedly."
+          : `ACP agent exited unexpectedly (code ${exitCode}).`,
+    );
+  }
+
   setListener(listener: StructuredSessionListener): void {
     this.listener = listener;
 
@@ -1360,27 +1513,32 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (this.isDisposed) {
       throw new Error("ACP session was disposed before activation.");
     }
+    // A shared process performs `initialize` once for every member; this
+    // handle only awaits the pooled result instead of handshaking again.
+    const initResult = this.sharedLease
+      ? await this.sharedLease.initialized
+      : await this.initializeOnDedicatedTransport();
+    this.adoptInitializeResult(initResult);
+  }
+
+  private async initializeOnDedicatedTransport(): Promise<InitializeResponse> {
     await this.spawnReady;
 
     console.log("[acp] sending initialize...");
-    const initResult = await this.connection.initialize({
-      protocolVersion: PROTOCOL_VERSION,
-      clientInfo: { name: "poracode", version: "0.1.0" },
-      clientCapabilities: {
-        fs: {
-          readTextFile: this.fsTextCapability,
-          writeTextFile: this.fsTextCapability,
-        },
-        elicitation: { form: {}, url: {} },
-        terminal: this.terminalCapability !== false,
-        // Only advertised when the provider declares it: the shared session
-        // records boolean config options it observes but cannot yet drive a
-        // generic boolean control, so the default stays off.
-        ...(this.booleanConfigOptions ? { session: { configOptions: { boolean: {} } } } : {}),
-        ...(this.clientCapabilitiesMeta ? { _meta: this.clientCapabilitiesMeta } : {}),
-      },
-      ...(this.initializeMeta ? { _meta: this.initializeMeta } : {}),
-    });
+    return this.connection.initialize(
+      buildAcpInitializeRequest({
+        fsTextCapability: this.fsTextCapability,
+        terminalCapability: this.terminalCapability,
+        booleanConfigOptions: this.booleanConfigOptions,
+        ...(this.clientCapabilitiesMeta
+          ? { clientCapabilitiesMeta: this.clientCapabilitiesMeta }
+          : {}),
+        ...(this.initializeMeta ? { initializeMeta: this.initializeMeta } : {}),
+      }),
+    );
+  }
+
+  private adoptInitializeResult(initResult: InitializeResponse): void {
     this.agentPromptCapabilities = initResult.agentCapabilities?.promptCapabilities;
     this.agentSessionCapabilities = initResult.agentCapabilities?.sessionCapabilities;
     this.agentMcpCapabilities = initResult.agentCapabilities?.mcpCapabilities;
@@ -1541,14 +1699,18 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.isReplayingHistory = true;
         this.replayHistoryUntil = Infinity;
         try {
-          const result = await this.openWithMcpServers((mcpServers) =>
-            this.connection.resumeSession({
-              sessionId: sessionRef.providerSessionId,
-              cwd: this.cwd,
-              ...workspaceParams(),
-              mcpServers,
-            }),
-          );
+          const open = () =>
+            this.openWithMcpServers((mcpServers) =>
+              this.connection.resumeSession({
+                sessionId: sessionRef.providerSessionId,
+                cwd: this.cwd,
+                ...workspaceParams(),
+                mcpServers,
+              }),
+            );
+          const result = this.sharedLease
+            ? await this.sharedLease.openKnown(sessionRef.providerSessionId, open)
+            : await open();
           // The RPC resolved after this open was superseded — adopt nothing:
           // the successor incarnation owns the id, inventory, and launch
           // custody, and the old result must not overwrite any of it.
@@ -1577,14 +1739,18 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.isReplayingHistory = true;
         this.replayHistoryUntil = Infinity;
         try {
-          const result = await this.openWithMcpServers((mcpServers) =>
-            this.connection.loadSession({
-              sessionId: sessionRef.providerSessionId,
-              cwd: this.cwd,
-              ...workspaceParams(),
-              mcpServers,
-            }),
-          );
+          const open = () =>
+            this.openWithMcpServers((mcpServers) =>
+              this.connection.loadSession({
+                sessionId: sessionRef.providerSessionId,
+                cwd: this.cwd,
+                ...workspaceParams(),
+                mcpServers,
+              }),
+            );
+          const result = this.sharedLease
+            ? await this.sharedLease.openKnown(sessionRef.providerSessionId, open)
+            : await open();
           // The RPC resolved after this open was superseded — adopt nothing:
           // the successor incarnation owns the id, inventory, and launch
           // custody, and the old result must not overwrite any of it.
@@ -1611,13 +1777,18 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       }
     } else {
       console.log("[acp] creating new session in", this.cwd);
-      const result = await this.openWithMcpServers((mcpServers) =>
-        this.connection.newSession({
-          cwd: this.cwd,
-          ...workspaceParams(),
-          mcpServers,
-        }),
-      );
+      // openNew wraps each session/new write, not the whole retry loop: a
+      // fallback attempt queues its own member record, so the pool never
+      // shifts another member's attribution onto this session's request.
+      const result = await this.openWithMcpServers((mcpServers) => {
+        const openSession = () =>
+          this.connection.newSession({
+            cwd: this.cwd,
+            ...workspaceParams(),
+            mcpServers,
+          });
+        return this.sharedLease ? this.sharedLease.openNew(openSession) : openSession();
+      });
       // The RPC resolved after this open was superseded — adopt nothing: the
       // successor incarnation owns the id, inventory, and launch custody.
       assertOpenGeneration();
@@ -1931,8 +2102,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.emitPromptFailure(error);
       }
     } finally {
+      const promptWasInFlight = this.promptInFlight;
       this.pendingPromptAdmission = undefined;
       this.promptInFlight = false;
+      if (promptWasInFlight && this.connection.signal?.aborted === true) {
+        this.promptInterruptedByTransportClose = true;
+      }
       this.promptHeldForBackgroundWork = false;
       this.foregroundTurnOpen = false;
       this.pendingPromptInterrupt = false;
@@ -2176,9 +2351,15 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     const disposal = Promise.resolve()
       .then(async () => {
         if (firstDisposal) this.closeSessionResources();
-        await awaitProcessTermination(this.child, {
-          ownedProcessGroup: process.platform !== "win32",
-        });
+        if (this.sharedLease) {
+          // The lease cancels+closes this session and retires the shared
+          // process once the last member releases.
+          await this.sharedLease.release();
+        } else {
+          await awaitProcessTermination(this.child!, {
+            ownedProcessGroup: process.platform !== "win32",
+          });
+        }
       })
       .catch((error: unknown) => {
         this.disposal = undefined;
@@ -2211,7 +2392,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.sessionRequests.cancelPending();
     this._terminalManager?.releaseAllAcpTerminals();
 
-    if (this.sessionId && this.agentSessionCapabilities?.close !== undefined) {
+    // On a shared process the lease owns cancel+close during release; a
+    // fire-and-forget close here would race it.
+    if (
+      this.sessionId &&
+      this.agentSessionCapabilities?.close !== undefined &&
+      this.sharedLease === undefined
+    ) {
       try {
         // This optional RPC may never answer; process termination remains authoritative.
         void this.connection.closeSession({ sessionId: this.sessionId }).catch((error: unknown) => {

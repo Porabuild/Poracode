@@ -13,7 +13,7 @@ import {
   lstat,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { join } from "node:path";
 import JSON5 from "json5";
 import type { ProjectLocation, ResolvedMcpServer, ThreadConfig } from "@/shared/contracts";
@@ -24,6 +24,7 @@ import type { DevinExecutionContext } from "./profileContext";
 import { resolveDevinModel } from "./models";
 import type { DevinModelFamily } from "./models";
 import { mergeDevinMcpConfig } from "./mcpConfig";
+import type { AcpSharedProcessPrepare } from "../acp";
 import type { ModelSelection, SelectionBindingOwner } from "@/shared/selectionBinding.schemas";
 import { devinColdSelectionView } from "./terminalSelectionPolicy";
 
@@ -477,56 +478,91 @@ export async function prepareDevinProfileMcpOverlay(
   context: DevinExecutionContext,
   servers: readonly ResolvedMcpServer[],
 ): Promise<DevinMcpOverlay | undefined> {
+  const plan = await planDevinProfileMcpOverlay(location, context, servers);
+  if (plan === undefined) return undefined;
+  const materialized = await plan.materialize();
+  return materialized.env === undefined
+    ? undefined
+    : { env: { ...materialized.env }, cleanup: materialized.cleanup };
+}
+
+/**
+ * Plan a shared-process overlay for a redirected profile: read and merge the
+ * profile's disk catalog NOW so policy failures surface at plan time exactly
+ * as the eager prepare did, then materialize the private overlay root once
+ * per pooled process. `deleteNames` removes same-named native catalog entries
+ * a per-session route owns inside the shared process.
+ */
+export async function planDevinProfileMcpOverlay(
+  location: ProjectLocation,
+  context: DevinExecutionContext,
+  servers: readonly ResolvedMcpServer[],
+  deleteNames?: readonly string[],
+): Promise<AcpSharedProcessPrepare | undefined> {
   if (location.kind === "wsl") return undefined;
   const variable = location.kind === "windows" ? "APPDATA" : "XDG_CONFIG_HOME";
   const sourceRoot = context.env?.[variable];
   if (!sourceRoot) return undefined;
-  const root = await mkdtemp(
-    join(
-      tmpdir(),
-      process.platform === "win32" ? ".poracode-devin-profile-mcp-" : "poracode-devin-profile-mcp-",
-    ),
-  );
-  const cleanup = async () => {
-    await rm(root, { recursive: true, force: true }).catch(() => undefined);
-  };
+  let raw = "{}";
   try {
-    await chmod(root, 0o700);
-    await mirrorOverlayEntries(sourceRoot, root, "devin");
-    await mkdir(join(root, "devin"));
-    await mirrorOverlayEntries(join(sourceRoot, "devin"), join(root, "devin"), "mcp_config.json");
-    let raw = "{}";
-    try {
-      raw = await readFile(join(sourceRoot, "devin", "mcp_config.json"), "utf8");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-        // Absent is a normal state; the overlay seeds a catalog with only the
-        // injected servers.
-      } else {
-        throw new DevinProfilePolicyError(
-          `The Devin MCP configuration for this profile exists but could not be read (${
-            (error as NodeJS.ErrnoException).code ?? "unknown error"
-          }); refusing to build an overlay that would silently replace it.`,
-        );
-      }
-    }
-    let merged: string;
-    try {
-      merged = mergeDevinMcpConfig(raw, servers);
-    } catch (error) {
-      // An unparseable account MCP catalog is a policy failure, not an
-      // enrichment gap: degrading would run the session without the account's
-      // servers and hide the real cause behind a generic MCP error.
+    raw = await readFile(join(sourceRoot, "devin", "mcp_config.json"), "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      // Absent is a normal state; the overlay seeds a catalog with only the
+      // injected servers.
+    } else {
       throw new DevinProfilePolicyError(
-        `The Devin MCP configuration for this profile could not be applied: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `The Devin MCP configuration for this profile exists but could not be read (${
+          (error as NodeJS.ErrnoException).code ?? "unknown error"
+        }); refusing to build an overlay that would silently replace it.`,
       );
     }
-    await writeFile(join(root, "devin", "mcp_config.json"), merged, { mode: 0o600 });
-    return { env: { [variable]: root }, cleanup };
-  } catch (error) {
-    await cleanup();
-    throw error;
   }
+  let merged: string;
+  try {
+    merged = mergeDevinMcpConfig(raw, servers, deleteNames);
+  } catch (error) {
+    // An unparseable account MCP catalog is a policy failure, not an
+    // enrichment gap: degrading would run the session without the account's
+    // servers and hide the real cause behind a generic MCP error.
+    throw new DevinProfilePolicyError(
+      `The Devin MCP configuration for this profile could not be applied: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  const key = createHash("sha256")
+    .update(JSON.stringify({ variable, sourceRoot, merged }))
+    .digest("hex");
+  return {
+    key,
+    materialize: async () => {
+      const root = await mkdtemp(
+        join(
+          tmpdir(),
+          process.platform === "win32"
+            ? ".poracode-devin-profile-mcp-"
+            : "poracode-devin-profile-mcp-",
+        ),
+      );
+      const cleanup = async () => {
+        await rm(root, { recursive: true, force: true }).catch(() => undefined);
+      };
+      try {
+        await chmod(root, 0o700);
+        await mirrorOverlayEntries(sourceRoot, root, "devin");
+        await mkdir(join(root, "devin"));
+        await mirrorOverlayEntries(
+          join(sourceRoot, "devin"),
+          join(root, "devin"),
+          "mcp_config.json",
+        );
+        await writeFile(join(root, "devin", "mcp_config.json"), merged, { mode: 0o600 });
+        return { env: { [variable]: root }, cleanup };
+      } catch (error) {
+        await cleanup();
+        throw error;
+      }
+    },
+  };
 }
