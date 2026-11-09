@@ -11,9 +11,11 @@ import {
   writeFile,
 } from "node:fs/promises";
 import JSON5 from "json5";
+import { createHash } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
+import type { AcpSharedProcessPrepare } from "../acp";
 import { quotePosixShellArg, readAgentCommandOutput } from "../base";
 
 /**
@@ -32,13 +34,22 @@ import { quotePosixShellArg, readAgentCommandOutput } from "../base";
  * turn-proven, so `sse` transports keep failing closed here — callers route
  * them through relays instead.
  */
-export function mergeDevinMcpConfig(raw: string, servers: readonly ResolvedMcpServer[]) {
+export function mergeDevinMcpConfig(
+  raw: string,
+  servers: readonly ResolvedMcpServer[],
+  deleteNames?: readonly string[],
+) {
   const config: unknown = JSON5.parse(raw);
   if (!config || typeof config !== "object" || Array.isArray(config))
     throw new Error("Invalid Devin MCP configuration");
   const current = (config as Record<string, unknown>).mcpServers ?? {};
   if (!current || typeof current !== "object" || Array.isArray(current))
     throw new Error("Invalid Devin MCP server catalog");
+  // Shared-process overlays drop catalog entries that must not resolve
+  // inside the pooled agent (for example names a per-session route owns).
+  for (const name of deleteNames ?? []) {
+    delete (current as Record<string, unknown>)[name];
+  }
   const injected = Object.fromEntries(
     servers.map((server) => {
       const transport = server.transport;
@@ -142,25 +153,50 @@ export async function prepareDevinMcpConfigForRoots(
   roots: DevinMcpConfigRoots,
   servers: readonly ResolvedMcpServer[],
 ) {
+  return (await planDevinMcpConfigForRoots(roots, servers)).materialize();
+}
+
+/**
+ * Plan a shared-process overlay for explicit roots: read and merge the disk
+ * catalog NOW so plan-time errors surface exactly as the eager prepare did,
+ * then materialize the private overlay root once per pooled process —
+ * returning the spawn env and the cleanup the pool runs after exit. The key
+ * covers everything materialize() produces, so only identical overlays share
+ * a process.
+ */
+export async function planDevinMcpConfigForRoots(
+  roots: DevinMcpConfigRoots,
+  servers: readonly ResolvedMcpServer[],
+  deleteNames?: readonly string[],
+): Promise<AcpSharedProcessPrepare> {
   const { root: original, variable, overlayParent } = roots;
   await mkdir(join(original, "devin", "cli"), { recursive: true });
-  const root = await mkdtemp(join(overlayParent, ".poracode-devin-config-"));
-  const cleanup = () => rm(root, { recursive: true, force: true });
-  try {
-    await chmod(root, 0o700);
-    await mirrorEntries(original, root, "devin");
-    await mkdir(join(root, "devin"));
-    await mirrorEntries(join(original, "devin"), join(root, "devin"), "mcp_config.json");
-    const config = mergeDevinMcpConfig(
-      await optionalFile(join(original, "devin", "mcp_config.json")),
-      servers,
-    );
-    await writeFile(join(root, "devin", "mcp_config.json"), config, { mode: 0o600 });
-    return { env: { [variable]: root }, cleanup };
-  } catch (error) {
-    await cleanup();
-    throw error;
-  }
+  const config = mergeDevinMcpConfig(
+    await optionalFile(join(original, "devin", "mcp_config.json")),
+    servers,
+    deleteNames,
+  );
+  const key = createHash("sha256")
+    .update(JSON.stringify({ variable, root: original, overlayParent, config }))
+    .digest("hex");
+  return {
+    key,
+    materialize: async () => {
+      const root = await mkdtemp(join(overlayParent, ".poracode-devin-config-"));
+      const cleanup = () => rm(root, { recursive: true, force: true });
+      try {
+        await chmod(root, 0o700);
+        await mirrorEntries(original, root, "devin");
+        await mkdir(join(root, "devin"));
+        await mirrorEntries(join(original, "devin"), join(root, "devin"), "mcp_config.json");
+        await writeFile(join(root, "devin", "mcp_config.json"), config, { mode: 0o600 });
+        return { env: { [variable]: root }, cleanup };
+      } catch (error) {
+        await cleanup();
+        throw error;
+      }
+    },
+  };
 }
 
 async function prepareWslConfig(location: ProjectLocation, servers: readonly ResolvedMcpServer[]) {

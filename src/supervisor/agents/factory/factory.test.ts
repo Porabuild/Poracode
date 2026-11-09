@@ -1,8 +1,14 @@
 import type { AuthMethod } from "@agentclientprotocol/sdk";
 import { describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
-import { createAcpStructuredSession, type AcpProbeResult } from "../acp";
+import {
+  createAcpStructuredSession,
+  createSharedAcpStructuredSession,
+  shutdownSharedAcpProcesses,
+  type AcpProbeResult,
+} from "../acp";
 import { AcpStructuredSession, type AcpExternalSessionUpdateSource } from "../acp/session";
+import { primeWslLaunchEnvironment } from "../base";
 import { buildAgentRegistry } from "../registry";
 import {
   buildFactoryCommand,
@@ -18,9 +24,28 @@ const probeAcpCapabilitiesMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<AcpProbeResult | undefined>>(),
 );
 
+const acpSessionMocks = vi.hoisted(() => {
+  const dedicated = vi.fn<(...args: unknown[]) => unknown>(() => undefined);
+  // The shared factory's fourth argument is the adapter overrides; delegate
+  // to the dedicated mock so existing call-shape assertions keep working
+  // while the shared mock records scope/prepare/unaddressedRequests itself.
+  const shared = vi.fn<(...args: unknown[]) => Promise<unknown>>(
+    async (command: unknown, input: unknown, _shared: unknown, overrides: unknown) =>
+      dedicated(command, input, overrides),
+  );
+  const shutdown = vi.fn<(...args: unknown[]) => Promise<void>>(async () => {});
+  return {
+    createAcpStructuredSession: dedicated,
+    createSharedAcpStructuredSession: shared,
+    shutdownSharedAcpProcesses: shutdown,
+  };
+});
+
 vi.mock("../acp", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../acp")>()),
-  createAcpStructuredSession: vi.fn<() => undefined>(() => undefined),
+  createAcpStructuredSession: acpSessionMocks.createAcpStructuredSession,
+  createSharedAcpStructuredSession: acpSessionMocks.createSharedAcpStructuredSession,
+  shutdownSharedAcpProcesses: acpSessionMocks.shutdownSharedAcpProcesses,
   probeAcpCapabilities: probeAcpCapabilitiesMock,
 }));
 
@@ -267,5 +292,48 @@ describe("Factory Droid adapter", () => {
     expect(vi.mocked(createAcpStructuredSession).mock.calls[0]?.[2]).toEqual({
       assumedMcpCapabilities: { http: true },
     });
+  });
+
+  it("launches native GUI threads on the shared pooled-process factory", async () => {
+    await createFactoryAdapter().createStructuredSession?.({
+      threadId: "thread-1",
+      projectLocation: { kind: "posix", path: "/project" },
+      config: { model: "auto" },
+      presentationMode: "gui",
+    });
+
+    expect(vi.mocked(createSharedAcpStructuredSession)).toHaveBeenCalledTimes(1);
+    const [command, input, shared, overrides] = vi.mocked(createSharedAcpStructuredSession).mock
+      .calls[0]!;
+    expect(command).toBeDefined();
+    expect(input).toMatchObject({ threadId: "thread-1" });
+    expect(shared).toMatchObject({ scope: "factory" });
+    expect(overrides).toEqual({ assumedMcpCapabilities: { http: true } });
+  });
+
+  it("keeps WSL launches on the dedicated per-thread factory", async () => {
+    primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/u" });
+    await createFactoryAdapter().createStructuredSession?.({
+      threadId: "thread-1",
+      projectLocation: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/u/repo",
+        uncPath: "\\\\wsl$\\Ubuntu\\home\\u\\repo",
+      },
+      config: { model: "auto" },
+      presentationMode: "gui",
+    });
+
+    expect(vi.mocked(createSharedAcpStructuredSession)).not.toHaveBeenCalled();
+    expect(vi.mocked(createAcpStructuredSession)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(createAcpStructuredSession).mock.calls[0]?.[2]).toEqual({
+      assumedMcpCapabilities: { http: true },
+    });
+  });
+
+  it("shuts down the shared pool scoped to its own kind", async () => {
+    await createFactoryAdapter().shutdown?.();
+    expect(vi.mocked(shutdownSharedAcpProcesses)).toHaveBeenCalledExactlyOnceWith("factory");
   });
 });

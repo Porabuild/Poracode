@@ -1,10 +1,25 @@
-import { createAcpStructuredSession, type AcpSessionBehavior } from "../acp";
-import { detectAgentInstall, prepareAgentLocationEnvironment, type AgentAdapter } from "../base";
+import {
+  createAcpStructuredSession,
+  createSharedAcpStructuredSession,
+  shutdownSharedAcpProcesses,
+  type AcpSessionBehavior,
+} from "../acp";
+import {
+  detectAgentInstall,
+  prepareAgentLocationEnvironment,
+  type AgentAdapter,
+  type Awaitable,
+} from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildDeepSeekCommand } from "./argv";
 import { deepSeekDefaultCapabilities, deepSeekDetectionSpec } from "./detection";
 import { runDeepSeekOneShot } from "./oneShot";
-import { normalizeDeepSeekConfig, stageDeepSeekPermissions } from "./permissions";
+import {
+  createDeepSeekPolicyHome,
+  createDeepSeekSessionPolicyWriter,
+  normalizeDeepSeekConfig,
+  stageDeepSeekPolicyFiles,
+} from "./permissions";
 import { manageDeepSeekModelProviders } from "./modelProviders";
 import { deepSeekGoalExtension } from "./goals";
 
@@ -16,6 +31,7 @@ export const DEEPSEEK_ACP_SESSION_BEHAVIOR: AcpSessionBehavior = {
 
 export function createDeepSeekAdapter(): AgentAdapter {
   let capabilities = deepSeekDefaultCapabilities;
+  const policyHome = createDeepSeekPolicyHome();
   return {
     kind: deepSeekDetectionSpec.kind,
     label: deepSeekDetectionSpec.label,
@@ -30,6 +46,7 @@ export function createDeepSeekAdapter(): AgentAdapter {
     },
     runOneShot: runDeepSeekOneShot,
     manageModelProviders: manageDeepSeekModelProviders,
+    shutdown: () => shutdownSharedAcpProcesses(deepSeekDetectionSpec.kind),
     skillSupport: {
       roots: [
         {
@@ -70,21 +87,43 @@ export function createDeepSeekAdapter(): AgentAdapter {
     },
     async createStructuredSession(input) {
       await prepareAgentLocationEnvironment(input.projectLocation);
-      const staged = await stageDeepSeekPermissions(input.projectLocation, input.config);
+      const location = input.projectLocation;
+      // Native threads share one refcounted policy directory so pooled `dsh`
+      // processes launch with an identical `--patch` path; each session still
+      // gets its own `session-<id>.json`. WSL keeps a dedicated directory per
+      // thread because its launch already stays off the shared pool.
+      const files: { directory: string; patchPath: string; release(): Awaitable<void> } =
+        location.kind === "wsl"
+          ? await stageDeepSeekPolicyFiles(location).then((staged) => ({
+              directory: staged.directory,
+              patchPath: staged.patchPath,
+              release: staged.cleanup,
+            }))
+          : await policyHome.acquire(location);
       try {
         const command = buildDeepSeekCommand(
-          input.projectLocation,
-          resolveAgentBinaryPath(input.projectLocation, "dsh"),
-          staged.patchPath,
+          location,
+          resolveAgentBinaryPath(location, "dsh"),
+          files.patchPath,
         );
-        const session = createAcpStructuredSession(command, input, {
+        const overrides = {
           behavior: DEEPSEEK_ACP_SESSION_BEHAVIOR,
           textStreamExtension: deepSeekGoalExtension,
-        });
+        };
+        const session =
+          location.kind === "wsl"
+            ? createAcpStructuredSession(command, input, overrides)
+            : await createSharedAcpStructuredSession(
+                command,
+                input,
+                { scope: deepSeekDetectionSpec.kind },
+                overrides,
+              );
         if (!session) {
-          await staged.cleanup();
+          await files.release();
           return undefined;
         }
+        const policies = createDeepSeekSessionPolicyWriter(location, files.directory);
         const dispose = session.dispose.bind(session);
         const openThread = session.openThread.bind(session);
         const startTurn = session.startTurn.bind(session);
@@ -92,14 +131,23 @@ export function createDeepSeekAdapter(): AgentAdapter {
         let generation = 0;
         let disposed = false;
         let turns = Promise.resolve();
-        session.openThread = (config, sessionRef) =>
-          openThread(normalizeDeepSeekConfig(config), sessionRef);
+        session.openThread = async (config, sessionRef) => {
+          const normalized = normalizeDeepSeekConfig(config);
+          if (sessionRef) {
+            // Pin a resumed session's policy before dsh's resume hooks run.
+            await policies.write(sessionRef.providerSessionId, normalized);
+          }
+          const id = await openThread(normalized, sessionRef);
+          await policies.write(id, normalized);
+          return id;
+        };
         session.startTurn = (...args) => {
           const admittedGeneration = generation;
           const turn = turns.then(async () => {
             if (disposed || generation !== admittedGeneration) return;
             args[1] = normalizeDeepSeekConfig(args[1]);
-            await staged.setConfig(args[1]);
+            const sessionId = session.getSessionRef?.()?.providerSessionId;
+            if (sessionId) await policies.write(sessionId, args[1]);
             if (disposed || generation !== admittedGeneration) return;
             await startTurn(...args);
           });
@@ -113,13 +161,17 @@ export function createDeepSeekAdapter(): AgentAdapter {
         session.dispose = async () => {
           disposed = true;
           generation++;
-          await dispose();
-          await turns;
-          await staged.cleanup();
+          try {
+            await dispose();
+            await turns;
+          } finally {
+            await policies.clear();
+            await files.release();
+          }
         };
         return session;
       } catch (error) {
-        await staged.cleanup();
+        await files.release();
         throw error;
       }
     },
