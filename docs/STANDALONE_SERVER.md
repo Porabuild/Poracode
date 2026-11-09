@@ -106,24 +106,30 @@ self-contained releases (a release still in use is left in place); the
 launch an earlier release's Node.
 
 `poracode up [--tailnet | --lan | --local-only] [--relay-url URL]` makes such an
-install reachable from other devices in one step: it saves the bind mode
-(`--lan` creates the profile's self-signed TLS once and never configures a
-plaintext LAN listener; `--local-only` returns to loopback) and relay through
-`configure`, then installs and starts the managed user service (§7.2), or
-restarts it when already registered. On Linux it explains, but never enables,
-lingering. In an interactive terminal it then waits for the service and shows
-a pairing QR code and link, exactly as `poracode pairings create --qr` does;
+install reachable from other devices in one step and keeps its server running
+as a background service. Without a choice it asks how other devices should
+reach this machine — Tailscale (`--tailnet`), the local network over HTTPS
+with a self-signed certificate (`--lan`; never plaintext), or this machine
+only (`--local-only`) — and a script that names nothing when nothing is saved
+fails with the flag list. Later runs keep the saved choice; `--relay-url`
+also registers a relay. It then installs and starts the managed user service
+(§7.2), restarting it only when a setting changed — asking first in a
+terminal, because a restart stops running agent turns. On Linux it explains,
+but never enables, lingering. In an interactive terminal it waits for the
+service and shows a pairing QR code and link, exactly as
+`poracode pairings create --qr` does, unless only this machine can connect;
 `--no-pair` skips that, and non-interactive runs never create a grant.
-`--no-service` only saves the settings. From an npm (`npx`) or package-manager
-install, `up` uses the one-line installer's prefix when one exists; otherwise it
-saves the settings and explains that the managed service needs the one-line
-installer.
+`--no-service` only saves the settings. From an npm (`npx`) or
+package-manager install, `up` uses the one-line installer's prefix when one
+exists; otherwise it saves the settings and explains that the managed service
+needs the one-line installer.
 
-`poracode uninstall [--yes]` removes the prefix, the command link the
+`poracode uninstall [--yes]` removes the background service registered for the
+install (its owner is stopped first), the prefix, the command link the
 installer created and the terminal UI cache of the installed versions; it
-refuses while a managed service is registered or a server for the profile
-runs, and keeps profile data and `PATH` entries. Both refuse in
-the desktop app's bundled CLI, which updates with the desktop app.
+keeps profile data and `PATH` entries, and refuses while another server for
+the profile runs. Update and uninstall refuse in the desktop app's bundled
+CLI, which updates with the desktop app.
 
 ### 2.2 npx launcher (`poracode`)
 

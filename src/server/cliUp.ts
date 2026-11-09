@@ -3,11 +3,28 @@ import { existsSync } from "node:fs";
 import { userInfo } from "node:os";
 import { join } from "node:path";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import { detectLanIpv4Address, detectTailnetIpv4Address } from "@/host/remote/config";
 import {
   defaultTlsSubjectNames,
   generateSelfSignedTlsMaterial,
 } from "@/host/remote/server/tlsMaterial";
 import { runAdminCli } from "./cliAdmin";
+import { promptCli } from "./cliPrompts";
+import {
+  describeUpReachability,
+  loadSavedUpConfig,
+  planUpSettings,
+  profileTlsPaths,
+  resolveUpBindChoice,
+  savedHostLocalNote,
+  savedHostOverrideNote,
+  savedTlsPair,
+  tailnetUnavailableNote,
+  UP_USAGE,
+  upReachabilityView,
+  type UpReachability,
+  type UpReachabilityPromptInput,
+} from "./cliUpReachability";
 import { defaultInstallerPrefix, resolveInstallerPrefix, SelfUpdateError } from "./installerPrefix";
 import { readStandaloneRuntimeMarker } from "../../scripts/server-release-install.mjs";
 import { runConfigure } from "./cliConfigure";
@@ -15,6 +32,8 @@ import { writeInitTlsMaterial } from "./initTlsWrite";
 import { runServerService, type ServiceCliOptions } from "./serverService";
 import { SERVER_SERVICE_REGISTRATION_FILE } from "./serverServiceRegistration";
 import { probeRunningOwner } from "./serverUpgradeIdentity";
+
+export type { UpReachability } from "./cliUpReachability";
 
 /**
  * `poracode up`: one command that makes an installed CLI reachable from other
@@ -25,8 +44,6 @@ import { probeRunningOwner } from "./serverUpgradeIdentity";
  * plaintext LAN bind is never configured, lingering and elevation are only
  * explained, and a pairing code is only shown in an interactive terminal.
  */
-export type UpReachability = "local" | "tailnet" | "lan";
-
 export interface UpCliOptions {
   readonly reachability?: UpReachability;
   readonly relayUrl?: string;
@@ -34,9 +51,6 @@ export interface UpCliOptions {
   readonly service: boolean;
   readonly pair: boolean;
 }
-
-const UP_USAGE =
-  "Usage: poracode up [--tailnet | --lan | --local-only] [--relay-url URL] [--prefix PATH] [--no-service] [--no-pair]";
 
 export function parseUpCliOptions(args: readonly string[]): UpCliOptions {
   let reachability: UpReachability | undefined;
@@ -124,8 +138,7 @@ export function ensureProfileTls(profile: string): {
   keyPath: string;
   created: boolean;
 } {
-  const certPath = join(profile, "tls", "server.crt");
-  const keyPath = join(profile, "tls", "server.key");
+  const { certPath, keyPath } = profileTlsPaths(profile);
   if (existsSync(certPath) && existsSync(keyPath)) return { certPath, keyPath, created: false };
   if (existsSync(certPath) || existsSync(keyPath))
     throw new Error(`Only one of ${certPath} and ${keyPath} exists; restore or remove it first.`);
@@ -158,7 +171,14 @@ export interface UpResult {
   readonly prefix?: string;
   readonly configured: readonly string[];
   readonly tlsCreated: boolean;
-  readonly service: "installed-started" | "restarted" | "skipped" | "unavailable";
+  readonly service: "installed-started" | "restarted" | "running" | "skipped" | "unavailable";
+  readonly reachability: UpReachability | "custom";
+  readonly reachable: boolean;
+  readonly tailnetAddress?: string;
+  readonly lanAddress?: string;
+  readonly relayHost?: string;
+  readonly savedHost?: string;
+  readonly customTls?: boolean;
   readonly notes: readonly string[];
 }
 
@@ -203,6 +223,29 @@ function resolveUpServicePrefix(
   return { prefix: install.prefix, fallback: true };
 }
 
+/** `true` when the profile already has a running owner; probe failures count as running. */
+async function defaultOwnerRunning(profile: string): Promise<boolean> {
+  try {
+    return (await probeRunningOwner(resolveHostRootPaths(profile))) !== null;
+  } catch {
+    return true;
+  }
+}
+
+/** Yes/no confirmation before restarting a service with running agent turns. */
+async function confirmServiceRestart(): Promise<boolean> {
+  const answer = (
+    await promptCli(
+      "Restart the background service to apply this? Running agent turns stop. [Y/n]: ",
+    )
+  )
+    .trim()
+    .toLowerCase();
+  if (answer === "" || answer === "y" || answer === "yes") return true;
+  if (answer === "n" || answer === "no") return false;
+  throw new Error("Answer yes or no; nothing was changed.");
+}
+
 export async function runUp(
   options: UpCliOptions,
   deps: {
@@ -220,6 +263,12 @@ export async function runUp(
     readonly env?: NodeJS.ProcessEnv;
     readonly home?: string;
     readonly version?: string;
+    readonly interactive?: boolean;
+    readonly chooseReachability?: (input: UpReachabilityPromptInput) => Promise<UpReachability>;
+    readonly confirmRestart?: () => Promise<boolean>;
+    readonly ownerRunning?: (profile: string) => Promise<boolean>;
+    readonly tailnetAddress?: () => string | undefined;
+    readonly lanAddress?: () => string | undefined;
   },
 ): Promise<UpResult> {
   const serviceTarget = resolveUpServicePrefix(options, {
@@ -228,22 +277,60 @@ export async function runUp(
     ...(deps.home !== undefined ? { home: deps.home } : {}),
     ...(deps.platform !== undefined ? { platform: deps.platform } : {}),
   });
-  const configureArgs: string[] = [];
-  let tlsCreated = false;
-  if (options.reachability === "local") configureArgs.push("--bind-mode", "loopback");
-  if (options.reachability === "tailnet") configureArgs.push("--bind-mode", "tailnet");
-  if (options.reachability === "lan") {
-    // A LAN listener is always encrypted here; plaintext needs an explicit
-    // acknowledgement that `up` never gives on the user's behalf.
-    const tls = (deps.ensureTls ?? ensureProfileTls)(deps.profile);
-    tlsCreated = tls.created;
-    configureArgs.push("--bind-mode", "lan", "--tls-cert", tls.certPath, "--tls-key", tls.keyPath);
-  }
-  if (options.relayUrl !== undefined) configureArgs.push("--relay-url", options.relayUrl);
-  if (configureArgs.length > 0) await (deps.configure ?? runConfigure)(deps.profile, configureArgs);
+  const saved = loadSavedUpConfig(deps.profile);
+  const interactive =
+    deps.interactive ?? (process.stdin.isTTY === true && process.stderr.isTTY === true);
+  const tailnetAddress = (deps.tailnetAddress ?? detectTailnetIpv4Address)();
+  const lanAddress = (deps.lanAddress ?? detectLanIpv4Address)();
+  const tlsPair = savedTlsPair(saved, deps.profile);
+  // The choice and its plan are settled before anything is written; a refused
+  // or cancelled choice leaves no config, TLS material, or service change.
+  const choice = await resolveUpBindChoice({
+    flagChoice: options.reachability,
+    relayFlagged: options.relayUrl !== undefined,
+    interactive,
+    saved,
+    ...(tailnetAddress !== undefined ? { tailnetAddress } : {}),
+    ...(lanAddress !== undefined ? { lanAddress } : {}),
+    ...(tlsPair.customTls ? { customTls: true } : {}),
+    ...(deps.chooseReachability !== undefined ? { choose: deps.chooseReachability } : {}),
+  });
+  const tlsPaths = profileTlsPaths(deps.profile);
+  const tlsFilesExist = existsSync(tlsPaths.certPath) && existsSync(tlsPaths.keyPath);
+  const plan = planUpSettings({
+    saved,
+    choice,
+    relayUrl: options.relayUrl,
+    profile: deps.profile,
+    tlsFilesExist,
+  });
+  const effectiveRelayUrl = plan.patch.relayUrl ?? saved.relayUrl;
+  const effectiveBindMode = plan.patch.bindMode ?? saved.bindMode;
+  const view = upReachabilityView({
+    ...(effectiveBindMode !== undefined ? { bindMode: effectiveBindMode } : {}),
+    ...(saved.host !== undefined ? { savedHost: saved.host } : {}),
+    ...(effectiveRelayUrl !== undefined ? { relayUrl: effectiveRelayUrl } : {}),
+    ...(tailnetAddress !== undefined ? { tailnetAddress } : {}),
+    ...(lanAddress !== undefined ? { lanAddress } : {}),
+    ...(tlsPair.customTls ? { customTls: true } : {}),
+  });
 
   const notes: string[] = [];
   let service: UpResult["service"] = "skipped";
+  let tlsCreated = false;
+  const configure =
+    deps.configure ??
+    ((profile: string, args: readonly string[]) => runConfigure(profile, args, { quiet: true }));
+  // TLS material and the configure write happen together, after any restart
+  // confirmation, so a declined restart leaves nothing behind.
+  const applyPlan = async (): Promise<void> => {
+    if (plan.createProfileTls) {
+      const tls = (deps.ensureTls ?? ensureProfileTls)(deps.profile);
+      tlsCreated ||= tls.created;
+    }
+    if (plan.write) await configure(deps.profile, plan.configureArgs);
+  };
+
   if (options.service) {
     const platform = deps.platform ?? process.platform;
     if (serviceTarget === undefined) {
@@ -272,8 +359,8 @@ export async function runUp(
           "managed background service. Install the CLI with the one-line installer, then " +
           `run poracode up again: ${installCommand}`,
       );
-      if (configureArgs.length > 0)
-        notes.push("Saved settings apply the next time the server starts.");
+      await applyPlan();
+      if (plan.write) notes.push("Saved settings apply the next time the server starts.");
     } else {
       if (serviceTarget.fallback) {
         notes.push(
@@ -283,10 +370,29 @@ export async function runUp(
       const base = { prefix: serviceTarget.prefix, recover: false, json: false } as const;
       const runService = deps.service ?? runServerService;
       if (existsSync(join(serviceTarget.prefix, SERVER_SERVICE_REGISTRATION_FILE))) {
-        // Saved configuration applies on the next start.
-        await runService(deps.profile, { ...base, action: "restart" });
-        service = "restarted";
+        if (plan.restartNeeded) {
+          const ownerRunning = await (deps.ownerRunning ?? defaultOwnerRunning)(deps.profile);
+          if (ownerRunning && interactive) {
+            const confirmed = await (deps.confirmRestart ?? confirmServiceRestart)();
+            if (!confirmed)
+              throw new Error(
+                "Nothing was changed; the background service keeps its current settings.",
+              );
+          }
+          await applyPlan();
+          await runService(deps.profile, { ...base, action: "restart" });
+          service = "restarted";
+          if (ownerRunning && !interactive)
+            notes.push("The restart stopped any running agent turns.");
+        } else {
+          // Nothing changed: qualify and return a running owner, or start a
+          // stopped service. Never restart when nothing changed.
+          await applyPlan();
+          await runService(deps.profile, { ...base, action: "start" });
+          service = "running";
+        }
       } else {
+        await applyPlan();
         await runService(deps.profile, { ...base, action: "install" });
         await runService(deps.profile, { ...base, action: "start" });
         service = "installed-started";
@@ -299,14 +405,37 @@ export async function runUp(
       if (platform === "darwin") notes.push("macOS runs the service while you are logged in.");
       if (platform === "win32") notes.push("Windows starts the service when you sign in.");
     }
-  } else if (configureArgs.length > 0) {
-    notes.push("Saved settings apply the next time the server starts.");
+  } else {
+    await applyPlan();
+    if (plan.write) notes.push("Saved settings apply the next time the server starts.");
   }
+
+  if (view.reachability === "tailnet" && tailnetAddress === undefined) {
+    notes.push(
+      tailnetUnavailableNote({
+        hasService: options.service && serviceTarget !== undefined,
+        ...(serviceTarget !== undefined ? { prefix: serviceTarget.prefix } : {}),
+      }),
+    );
+  }
+  if (plan.patch.bindMode !== undefined && saved.host !== undefined) {
+    notes.push(savedHostOverrideNote(saved.host));
+  } else if (view.reachability === "custom" && !view.reachable && saved.host !== undefined) {
+    notes.push(savedHostLocalNote(saved.host));
+  }
+
   return {
     ...(serviceTarget !== undefined ? { prefix: serviceTarget.prefix } : {}),
-    configured: configureArgs,
+    configured: plan.write ? plan.configureArgs : [],
     tlsCreated,
     service,
+    reachability: view.reachability,
+    reachable: view.reachable,
+    ...(view.tailnetAddress !== undefined ? { tailnetAddress: view.tailnetAddress } : {}),
+    ...(view.lanAddress !== undefined ? { lanAddress: view.lanAddress } : {}),
+    ...(view.relayHost !== undefined ? { relayHost: view.relayHost } : {}),
+    ...(view.savedHost !== undefined ? { savedHost: view.savedHost } : {}),
+    ...(view.customTls === true ? { customTls: true } : {}),
     notes,
   };
 }
@@ -322,24 +451,30 @@ export async function runUpCli(
       `Saved remote access settings: ${result.configured.filter((arg) => arg.startsWith("--")).join(" ")}\n`,
     );
   }
+  process.stdout.write(`${describeUpReachability(result)}\n`);
   if (result.tlsCreated)
     process.stdout.write("Created self-signed TLS material for the LAN listener.\n");
   process.stdout.write(
     result.service === "installed-started"
       ? `Installed and started the background service for ${result.prefix}.\n`
       : result.service === "restarted"
-        ? "Restarted the background service with the saved settings.\n"
-        : result.service === "unavailable"
-          ? "No background service was set up for this install.\n"
-          : "No background service was changed (--no-service).\n",
+        ? "Restarted the background service with the new settings.\n"
+        : result.service === "running"
+          ? "The background service is running.\n"
+          : result.service === "unavailable"
+            ? "No background service was set up for this install.\n"
+            : "No background service was changed (--no-service).\n",
   );
   for (const note of result.notes) process.stdout.write(`${note}\n`);
   const interactive = process.stdin.isTTY === true && process.stdout.isTTY === true;
   let paired = false;
   if (
-    (result.service === "installed-started" || result.service === "restarted") &&
+    (result.service === "installed-started" ||
+      result.service === "restarted" ||
+      result.service === "running") &&
     options.pair &&
-    interactive
+    interactive &&
+    result.reachable
   ) {
     process.stdout.write("Waiting for the service to answer...\n");
     paired = await pairWhenReady({ profile });
@@ -349,7 +484,15 @@ export async function runUpCli(
         : "The service has not answered yet.\n",
     );
   }
-  if (!paired) process.stdout.write("Pair a phone or browser: poracode pairings create --qr\n");
+  if (!paired) {
+    if (result.reachable) {
+      process.stdout.write("Pair a phone or browser: poracode pairings create --qr\n");
+    } else if (result.reachability === "local") {
+      process.stdout.write(
+        "To let your other devices connect, run poracode up again and choose Tailscale or the local network.\n",
+      );
+    }
+  }
   process.stdout.write(
     `Check it with: poracode status${result.prefix === undefined ? "" : ` (and poracode service status --prefix ${result.prefix})`}\n`,
   );
