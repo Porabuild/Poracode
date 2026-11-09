@@ -29,6 +29,8 @@ export function ThreadPane(props: {
   threadId: string;
   paneCount: number;
   chatOnly?: boolean;
+  /** `window`: the pane is the whole content of a thread window. */
+  surface?: "main" | "window";
   hidden?: boolean;
   paneAlign: "left" | "center" | "right";
   headerNeedsTrafficLightPad?: boolean;
@@ -95,7 +97,7 @@ export function ThreadPane(props: {
       agentStatus={agentStatus}
       isWsl={project.location.kind === "wsl"}
       {...(props.chatOnly ? { chatOnly: true } : {})}
-      showCloseButton
+      {...(props.surface === "window" ? { surface: "window" as const } : { showCloseButton: true })}
       paneAlign={props.paneAlign}
       isDragging={isDragging}
       dropIndicator={dropIndicator}

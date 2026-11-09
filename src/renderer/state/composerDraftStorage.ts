@@ -427,6 +427,18 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
     load,
     save,
     remove,
+    /**
+     * Hands a draft back from another window that owned it meanwhile: forgets
+     * this window's cached copy and any write still queued from before, so the
+     * next read and write start from the other window's stored record.
+     */
+    refresh(kind: DraftKind, id: string) {
+      const name = key(kind, id);
+      pending.delete(name);
+      records.delete(name);
+      observed.delete(name);
+      legacyObserved.delete(name);
+    },
     flush,
     flushRequired,
     canReclaimAssets,

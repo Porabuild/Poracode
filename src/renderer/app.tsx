@@ -53,6 +53,7 @@ import {
   installSideChatOwnershipReconciliation,
 } from "@/renderer/components/thread/SideChat/sideChatOwnershipActions";
 import { applySideChatPanel } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
+import { installThreadWindowTracking } from "@/renderer/state/threadWindowTracking";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
@@ -85,6 +86,11 @@ const QuickComposerWindowApp = lazy(() =>
 const SideChatWindowApp = lazy(() =>
   import("@/renderer/windowApps/SideChatWindowApp").then((module) => ({
     default: module.SideChatWindowApp,
+  })),
+);
+const ThreadWindowApp = lazy(() =>
+  import("@/renderer/windowApps/ThreadWindowApp").then((module) => ({
+    default: module.ThreadWindowApp,
   })),
 );
 
@@ -242,7 +248,7 @@ export function installUpdateStatusSync(
 // Chat windows consume the same runtime reducer; shell navigation and global
 // notification policies remain owned by the main window.
 const runtimeWindowCleanups: Array<() => void> =
-  isMainWindow || windowKind === "sideChat"
+  isMainWindow || windowKind === "sideChat" || windowKind === "thread"
     ? [
         installDraftPersistenceNotifications(),
         readBridge().onSupervisorEvent((event, rendererSequence, sequenceSpace) =>
@@ -282,8 +288,21 @@ const runtimeWindowCleanups: Array<() => void> =
         supervisorReducer.installScheduling(),
       ]
     : [];
+// Thread windows show the same branch and change counts as the main window.
+const gitStateCleanups: Array<() => void> =
+  isMainWindow || windowKind === "thread"
+    ? [
+        readBridge().onGitStateChanged((patch) => {
+          const previous = useGitReadModelStore.getState();
+          if (patch.revision <= previous.revision) return;
+          previous.applyPatch(patch);
+          projectGitReadModelIntoLegacyStore(useGitReadModelStore.getState(), previous);
+        }),
+      ]
+    : [];
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
+      installThreadWindowTracking(),
       onRemoteTerminalExited((terminalId) => {
         if (terminalId.startsWith("shell:")) closeExitedShell(terminalId);
       }),
@@ -293,12 +312,6 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       // it runs inside the host-origin fence so it never echoes a command back.
       readBridge().onRemoteThreadCommand((command) => {
         applyForwardedRemoteThreadCommand(command);
-      }),
-      readBridge().onGitStateChanged((patch) => {
-        const previous = useGitReadModelStore.getState();
-        if (patch.revision <= previous.revision) return;
-        previous.applyPatch(patch);
-        projectGitReadModelIntoLegacyStore(useGitReadModelStore.getState(), previous);
       }),
       readBridge().onUserNotification((notification) => {
         showUserNotification(notification);
@@ -347,7 +360,8 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     unsubscribeSideChatWindows?.();
     uninstallSideChatReconciliation?.();
-    for (const cleanup of [...runtimeWindowCleanups, ...mainWindowCleanups]) cleanup();
+    for (const cleanup of [...runtimeWindowCleanups, ...gitStateCleanups, ...mainWindowCleanups])
+      cleanup();
     supervisorReducer.clear();
     clearSupervisorSequenceTracking();
     uninstallSupervisorIntakeHooks();
@@ -362,6 +376,12 @@ export function App() {
     return (
       <Suspense>
         <SideChatWindowApp />
+      </Suspense>
+    );
+  if (windowKind === "thread")
+    return (
+      <Suspense>
+        <ThreadWindowApp />
       </Suspense>
     );
   if (isBrowserExtractWindow) {

@@ -2916,6 +2916,10 @@ msgstr "Las reglas de protección de ramas bloquearon esta fusión."
 msgid "Branches"
 msgstr "Ramas"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "Devolver a la ventana principal"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "Devolver al panel"
@@ -5344,6 +5348,10 @@ msgstr "No se pudo gestionar este marketplace o plugin. Comprueba el origen, la 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "No se pudo abrir este PDF."
+
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "No se pudo abrir este hilo. Inténtalo de nuevo."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -8518,6 +8526,7 @@ msgstr "Enfocar barra de direcciones del navegador"
 msgid "Focus the in-app browser address bar"
 msgstr "Enfocar la barra de direcciones del navegador integrado"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "Enfocar ventana"
@@ -12062,6 +12071,10 @@ msgstr "Mover"
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "Mueve una conexión SSH local del dispositivo a este entorno mediante su id. de conexión. Las claves nunca se suben."
 
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "Mover de vuelta a la ventana principal"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "Mover navegador de vuelta a la ventana principal"
@@ -13713,6 +13726,14 @@ msgstr "Abrir en el navegador"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "Abrir en el editor"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "Abrir en una ventana nueva"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "Abrir en una ventana nueva"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 msgid "Open in Poracode browser"
@@ -16834,6 +16855,7 @@ msgstr "Solo el uso conservado en este host."
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "Reintentar"
 
@@ -21283,6 +21305,10 @@ msgstr "Este hilo no admite seguimientos en cola."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "Este hilo no está listo para una redirección."
+
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "Este hilo está abierto en una ventana separada."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

@@ -2916,6 +2916,10 @@ msgstr "Dal koruma kuralları bu birleştirmeyi engelledi."
 msgid "Branches"
 msgstr "Şubeler"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "Ana pencereye geri getir"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "Panele geri getir"
@@ -5344,6 +5348,10 @@ msgstr "Bu pazar yeri veya eklenti yönetilemedi. Kaynağı, uyumluluğu ve yere
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "Bu PDF açılamadı."
+
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "Bu konu açılamadı. Tekrar deneyin."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -8518,6 +8526,7 @@ msgstr "Tarayıcı adres çubuğuna odakla"
 msgid "Focus the in-app browser address bar"
 msgstr "Uygulama içi tarayıcı adres çubuğuna odakla"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "Pencereyi öne getir"
@@ -12062,6 +12071,10 @@ msgstr "Taşı"
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "Mevcut cihaza yerel SSH bağlantısını bağlantı kimliğiyle bu ortama taşıyın. Anahtarlar hiçbir zaman yüklenmez."
 
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "Ana pencereye geri taşı"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "Tarayıcıyı ana pencereye geri taşı"
@@ -13713,6 +13726,14 @@ msgstr "Tarayıcıda aç"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "Düzenleyicide aç"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "Yeni pencerede aç"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "Yeni pencerede aç"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 msgid "Open in Poracode browser"
@@ -16834,6 +16855,7 @@ msgstr "Yalnızca bu sunucuda saklanan kullanım."
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "Tekrar dene"
 
@@ -21283,6 +21305,10 @@ msgstr "Bu konu, kuyruğa alınan takip mesajlarını desteklemiyor."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "Bu konu henüz yönlendirme için hazır değil."
+
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "Bu konu ayrı bir pencerede açık."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

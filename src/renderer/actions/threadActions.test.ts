@@ -22,6 +22,7 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
+import { setOwnWindowThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import {
   archiveThread,
   acknowledgeThread,
@@ -44,6 +45,9 @@ import {
 const { bridge } = vi.hoisted(() => ({
   bridge: {
     closeThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    closeThreadWindow: vi
+      .fn<(threadId: string, options?: { returnToMain?: boolean }) => Promise<void>>()
+      .mockResolvedValue(undefined),
     appendUsageEvents: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   },
 }));
@@ -1318,6 +1322,31 @@ describe("threadActions", () => {
     expect(useAppStore.getState().threads).toEqual([]);
     expect(sendThreadCommand).not.toHaveBeenCalled();
     expect(bridge.closeThread).not.toHaveBeenCalled();
+  });
+
+  it("closes a deleted thread's own window without reopening it in the main window", () => {
+    const thread = makeThread();
+    useAppStore.setState({ threads: [thread] });
+
+    deleteThread(thread.id);
+
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(bridge.closeThreadWindow).toHaveBeenCalledWith(thread.id, { returnToMain: false });
+  });
+
+  it.each([
+    ["archiving", archiveThread],
+    ["marking done", toggleMarkThreadDone],
+  ])("closes the thread's own window when %s it", (_label, action) => {
+    const thread = makeThread();
+    useAppStore.setState({ threads: [thread] });
+    setOwnWindowThreadIds([thread.id]);
+    try {
+      action(thread.id);
+      expect(bridge.closeThreadWindow).toHaveBeenCalledWith(thread.id, { returnToMain: false });
+    } finally {
+      setOwnWindowThreadIds([]);
+    }
   });
 
   it("clears visual inputs only after delete confirmation for the host captured before dispatch", async () => {

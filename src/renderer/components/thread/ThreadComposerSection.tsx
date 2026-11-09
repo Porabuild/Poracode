@@ -299,7 +299,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const threadOnThisMachine = hostRunsOnThisMachine(thread);
   const hostIsLocalToClient = threadOnThisMachine && !isBrowserClient;
   const { importFiles } = props;
-  const docksPlacement = compactLayout ? requestedDocksPlacement : "right";
+  // Thread windows have no right panel to host the docks.
+  const docksPlacement =
+    readBridge().windowKind === "thread"
+      ? "composer"
+      : compactLayout
+        ? requestedDocksPlacement
+        : "right";
   const docksInComposer = docksPlacement === "composer";
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
   const showVoiceInputButton = voiceInputEnabled;

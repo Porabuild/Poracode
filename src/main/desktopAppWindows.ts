@@ -15,6 +15,7 @@ import {
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { createMainWindow } from "./window/createMainWindow";
 import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
+import type { ThreadWindowBootstrap } from "@/shared/ipc/threadWindow";
 import { createMainWindowCloseLifecycle } from "./window/mainWindowClose";
 import { installMainRendererInvalidation } from "./window/mainRendererInvalidation";
 import { prewarmManagedLoopbackBootstrap } from "./backend/managedLoopbackBootstrapPrewarm";
@@ -221,6 +222,28 @@ export function createSideChatAppWindow(bootstrap: SideChatBootstrap): BrowserWi
     windowKind: "sideChat",
     defaultWidth: 620,
     defaultHeight: 740,
+    minWidth: 420,
+    minHeight: 400,
+    windowChromeHeight: WINDOW_CHROME_HEIGHT,
+    appearance: chrome.appearance,
+    sidebarTranslucency: false,
+    onClosed: () => {},
+    onRendererProcessGone: (details, intent) =>
+      captureRendererProcessGone(details, "renderer", intent),
+  });
+}
+
+export function createThreadAppWindow(bootstrap: ThreadWindowBootstrap): BrowserWindow {
+  const chrome = resolveWindowChromeOptions();
+  return createMainWindow({
+    ...commonAppWindowOptions(),
+    // Thread windows never write the primary window's saved geometry.
+    state: { get: () => null, set: () => {} },
+    boundsStateKey: null,
+    ...(bootstrap.title ? { title: bootstrap.title } : {}),
+    windowKind: "thread",
+    defaultWidth: 900,
+    defaultHeight: 820,
     minWidth: 420,
     minHeight: 400,
     windowChromeHeight: WINDOW_CHROME_HEIGHT,

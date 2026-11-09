@@ -26,6 +26,7 @@ import {
   ensureMainWindow,
   toggleQuickComposerWindow,
   createSideChatAppWindow,
+  createThreadAppWindow,
 } from "./desktopAppWindows";
 
 /**
@@ -99,6 +100,7 @@ export async function startStandaloneAttachMode(): Promise<void> {
   const attachQuickComposer = desktopApp.quickComposerLifecycle;
   registerStandaloneAttachIpc({
     createSideChatWindow: createSideChatAppWindow,
+    createThreadWindow: createThreadAppWindow,
     getMainWindow: () => desktopApp.mainWindow,
     getQuickComposerWindow: () => desktopApp.quickComposerWindow,
     profileNamespace: standaloneAttachInfo.profileNamespace,

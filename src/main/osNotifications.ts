@@ -4,6 +4,7 @@ import type { ShowNotificationPayload } from "@/shared/ipc/schemas";
 import type { ThreadStatus } from "@/shared/contracts";
 import type { UserNotification, UserNotificationCategory } from "@/shared/threadNotification";
 import { showAndFocusWindow } from "./window/showAndFocusWindow";
+import { findThreadWindow } from "./window/threadWindows";
 
 // Electron's Notification is a thin JS wrapper over a native object. If the
 // wrapper is garbage-collected before the user interacts, its "click" listener
@@ -16,7 +17,8 @@ const liveNotifications = new Set<Notification>();
  * Notification API, which — unlike the renderer's Web Notification API — is not
  * gated by Chromium's per-session permission handler, so it works regardless of
  * the app's `setPermissionCheckHandler` policy. Clicking the notification
- * focuses the main window and asks the renderer to open the originating thread.
+ * focuses the main window and asks the renderer to open the originating thread,
+ * or focuses the thread's own window when it has one.
  */
 export function showOsNotification(
   payload: ShowNotificationPayload,
@@ -24,6 +26,8 @@ export function showOsNotification(
   openThread?: (threadId: string) => void,
 ): boolean {
   if (!Notification.isSupported()) return false;
+  // The user is already looking at this thread in its own window.
+  if (findThreadWindow(payload.threadId)?.isFocused()) return false;
 
   let notification: Notification;
   try {
@@ -46,6 +50,11 @@ export function showOsNotification(
   notification.on("failed", release);
   notification.on("click", () => {
     release();
+    const threadWindow = findThreadWindow(payload.threadId);
+    if (threadWindow) {
+      showAndFocusWindow(threadWindow);
+      return;
+    }
     const win = getMainWindow();
     if (!win || win.isDestroyed()) {
       openThread?.(payload.threadId);

@@ -1,5 +1,5 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
-import { isQuickComposerWindow, readBridge } from "../bridge";
+import { isConversationWindow, isQuickComposerWindow, readBridge } from "../bridge";
 import { captureRendererException } from "../diagnostics/sentry";
 import { hasAnyClientBridge, hasClientCapability } from "../clientRuntime";
 import type { AppView } from "@/shared/contracts";
@@ -85,11 +85,7 @@ export function createDbStorage<S>(): PersistStorage<S> {
 
     async setItem(name: string, value: StorageValue<S>): Promise<void> {
       if (name === APP_STORE_NAME) {
-        if (
-          hasAnyClientBridge() &&
-          (isQuickComposerWindow() || readBridge().windowKind === "sideChat")
-        )
-          return;
+        if (hasAnyClientBridge() && (isQuickComposerWindow() || isConversationWindow())) return;
         if (!hasBridge()) {
           return browserCache.write(name, value);
         }
@@ -107,8 +103,7 @@ export function createDbStorage<S>(): PersistStorage<S> {
     },
 
     async removeItem(name: string): Promise<void> {
-      if (name === APP_STORE_NAME && hasAnyClientBridge() && readBridge().windowKind === "sideChat")
-        return;
+      if (name === APP_STORE_NAME && hasAnyClientBridge() && isConversationWindow()) return;
       lastStorageJson.delete(name);
       if (!hasBridge()) {
         return browserCache.remove(name);

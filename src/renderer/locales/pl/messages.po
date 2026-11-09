@@ -2916,6 +2916,10 @@ msgstr "Reguły ochrony gałęzi zablokowały to scalanie."
 msgid "Branches"
 msgstr "Gałęzie"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "Przywróć do głównego okna"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "Przywróć do panelu"
@@ -5344,6 +5348,10 @@ msgstr "Nie można zarządzać tym marketplaceiem lub wtyczkaem. Sprawdź źród
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "Nie udało się otworzyć tego pliku PDF."
+
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "Nie udało się otworzyć tego wątku. Spróbuj ponownie."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -8518,6 +8526,7 @@ msgstr "Przejdź do paska adresu przeglądarki"
 msgid "Focus the in-app browser address bar"
 msgstr "Przejdź do paska adresu przeglądarki w aplikacji"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "Przejdź do okna"
@@ -12062,6 +12071,10 @@ msgstr "Przenieś"
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "Przenieś istniejące lokalne połączenie SSH na to środowisko, podając jego identyfikator. Klucze nigdy nie są przesyłane."
 
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "Przenieś z powrotem do głównego okna"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "Przenieś przeglądarkę z powrotem do głównego okna"
@@ -13713,6 +13726,14 @@ msgstr "Otwórz w przeglądarce"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "Otwórz w edytorze"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "Otwórz w nowym oknie"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "Otwórz w nowym oknie"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 msgid "Open in Poracode browser"
@@ -16834,6 +16855,7 @@ msgstr "Tylko użycie zachowane na tym hoście."
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "Spróbuj ponownie"
 
@@ -21283,6 +21305,10 @@ msgstr "Ten wątek nie obsługuje wiadomości uzupełniających w kolejce."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "Ten wątek nie jest gotowy na przekierowanie."
+
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "Ten wątek jest otwarty w osobnym oknie."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

@@ -23,6 +23,7 @@ import { buildDesktopBackendInitialize } from "./backend/desktopBackendInitializ
 import { BackendStateStore } from "./backend/BackendStateStore";
 import { ensureMainWindow, openThreadFromTray } from "./desktopAppWindows";
 import { getSideChatWindows } from "./window/sideChatWindows";
+import { getThreadWindows } from "./window/threadWindows";
 import {
   applyThreadActivity,
   handleSharedSettingsChanged,
@@ -146,7 +147,11 @@ function createNativeEventHandler(trayFeed: DesktopTrayFeed): (event: BackendNat
       case "shared-settings-changed":
         updatePowerSaveBlocker();
         handleSharedSettingsChanged(event.settings);
-        for (const window of [desktopApp.mainWindow, ...getSideChatWindows()]) {
+        for (const window of [
+          desktopApp.mainWindow,
+          ...getSideChatWindows(),
+          ...getThreadWindows(),
+        ]) {
           if (window && !window.isDestroyed())
             window.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, event.settings);
         }
@@ -164,7 +169,10 @@ function createNativeEventHandler(trayFeed: DesktopTrayFeed): (event: BackendNat
         desktopApp.mainWindow?.webContents.send(IPC_EVENT_CHANNELS.prWatchMerged, event.event);
         return;
       case "git-state-changed":
-        desktopApp.mainWindow?.webContents.send(IPC_EVENT_CHANNELS.gitStateChanged, event.patch);
+        for (const window of [desktopApp.mainWindow, ...getThreadWindows()]) {
+          if (window && !window.isDestroyed())
+            window.webContents.send(IPC_EVENT_CHANNELS.gitStateChanged, event.patch);
+        }
         return;
       case "user-notification": {
         const window = desktopApp.mainWindow;
@@ -216,6 +224,7 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
       desktopApp.quickComposerWindow,
       desktopApp.browserExtractWindow,
       ...getSideChatWindows(),
+      ...getThreadWindows(),
     ]) {
       if (window && !window.isDestroyed()) {
         window.webContents.send(IPC_EVENT_CHANNELS.backendSupervisorReset);

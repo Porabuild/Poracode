@@ -18,7 +18,9 @@ function normalizeRequestType(raw: unknown): CanonicalRequestType {
   return parsed.success ? parsed.data : "tool_call_approval";
 }
 
-function requestFromLegacyItem(item: PersistedRuntimeItem): OpenRuntimeRequestPreview | null {
+type RequestItem = Pick<PersistedRuntimeItem, "type" | "state" | "payload">;
+
+function requestFromLegacyItem(item: RequestItem): OpenRuntimeRequestPreview | null {
   if (!item.type.includes("request") || item.state === "completed") return null;
   const payload = item.payload;
   if (!payload || typeof payload !== "object") return null;
@@ -42,7 +44,7 @@ function requestFromLegacyItem(item: PersistedRuntimeItem): OpenRuntimeRequestPr
 }
 
 export function requestsFromRuntimeItems(
-  items: readonly PersistedRuntimeItem[],
+  items: readonly RequestItem[],
 ): OpenRuntimeRequestPreview[] {
   const requests = items
     .map((item) => requestFromLegacyItem(item))

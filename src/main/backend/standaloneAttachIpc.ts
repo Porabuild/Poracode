@@ -29,13 +29,16 @@ import { showAndFocusWindow } from "../window/showAndFocusWindow";
 import { notifyRendererStartupReady } from "../window/deferredDevTools";
 import { requestTrackedRendererReload } from "../window/windowHardening";
 import { registerSideChatWindowIpc, isSideChatWindow } from "../window/sideChatWindows";
+import { registerThreadWindowIpc, isThreadWindow } from "../window/threadWindows";
 import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
+import type { ThreadWindowBootstrap } from "@/shared/ipc/threadWindow";
 import type { QuickComposerLifecycle } from "../window/quickComposerLifecycle";
 import { createAutoUpdaterController, type AutoUpdaterController } from "../updates/autoUpdater";
 import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintProbe";
 
 export interface StandaloneAttachIpcDeps {
   createSideChatWindow?: (bootstrap: SideChatBootstrap) => BrowserWindow;
+  createThreadWindow?: (bootstrap: ThreadWindowBootstrap) => BrowserWindow;
   getMainWindow(): BrowserWindow | null;
   getQuickComposerWindow(): BrowserWindow | null;
   /** Owned profile namespace from the attach payload; device keybindings live here. */
@@ -65,7 +68,12 @@ function attachSenderWindow(
   if (!window || window.isDestroyed()) return null;
   const mainWindow = deps.getMainWindow();
   const quickComposerWindow = deps.getQuickComposerWindow();
-  if (window !== mainWindow && window !== quickComposerWindow && !isSideChatWindow(window))
+  if (
+    window !== mainWindow &&
+    window !== quickComposerWindow &&
+    !isSideChatWindow(window) &&
+    !isThreadWindow(window)
+  )
     return null;
   return window;
 }
@@ -83,6 +91,13 @@ export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): Auto
     createWindow: (bootstrap) => {
       if (!deps.createSideChatWindow) throw new Error("Side chat windows are unavailable");
       return deps.createSideChatWindow(bootstrap);
+    },
+  });
+  registerThreadWindowIpc({
+    getMainWindow: deps.getMainWindow,
+    createWindow: (bootstrap) => {
+      if (!deps.createThreadWindow) throw new Error("Thread windows are unavailable");
+      return deps.createThreadWindow(bootstrap);
     },
   });
   const autoUpdater = createAutoUpdaterController(

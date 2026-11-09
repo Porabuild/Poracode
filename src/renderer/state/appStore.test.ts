@@ -17,6 +17,7 @@ import { usePanelStore } from "./panelStore";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { useThreadFollowUpQueueStore } from "./threadFollowUpQueueStore";
+import { setOwnWindowThreadIds } from "./auxiliaryThreadWindows";
 
 const volatileInventory: SessionConfigOptions = [
   {
@@ -1366,6 +1367,33 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().threads[0]?.activeTurnStartedAt).toBeUndefined();
     expect(useAppStore.getState().threads[0]?.lastTurnStartedAt).toBe("2026-05-01T12:00:00.000Z");
     expect(useAppStore.getState().threads[0]?.lastTurnEndedAt).toBe("2026-05-01T12:01:15.000Z");
+  });
+
+  it("working→idle on a thread open in its own window stays idle", () => {
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const t1 = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+    useAppStore.setState((s) => ({ ...s, view: { kind: "home" } }));
+    setOwnWindowThreadIds([t1.id]);
+    try {
+      useAppStore.getState().updateThreadRuntime(t1.id, {
+        status: "working",
+        attention: "working",
+        canResumeWithConfig: false,
+      });
+      useAppStore.getState().updateThreadRuntime(t1.id, {
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+      });
+      expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    } finally {
+      setOwnWindowThreadIds([]);
+    }
   });
 
   it("working→idle on visible thread stays idle", () => {

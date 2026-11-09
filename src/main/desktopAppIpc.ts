@@ -11,6 +11,7 @@ import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
 import { notifyRendererStartupReady } from "./window/deferredDevTools";
 import { requestTrackedRendererReload } from "./window/windowHardening";
 import { registerSideChatWindowIpc } from "./window/sideChatWindows";
+import { registerThreadWindowIpc } from "./window/threadWindows";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import type { AutoUpdaterController } from "./updates/autoUpdater";
 import type { BackendHostClient } from "./backend/BackendHostClient";
@@ -23,10 +24,12 @@ import {
   finishQuickComposerDismiss,
   flushPendingThreadCommands,
   flushTrayThreadOpen,
+  openThreadFromTray,
   injectBrowserToMain,
   quickComposerWindowFor,
   toggleQuickComposerWindow,
   createSideChatAppWindow,
+  createThreadAppWindow,
 } from "./desktopAppWindows";
 
 export interface DesktopIpcDeps {
@@ -72,6 +75,12 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     getMainWindow: () => desktopApp.mainWindow,
     createWindow: createSideChatAppWindow,
     statePath: join(requirePoracodePaths().baseDir, "side-chat-ownership.json"),
+  });
+  registerThreadWindowIpc({
+    getMainWindow: () => desktopApp.mainWindow,
+    createWindow: createThreadAppWindow,
+    // Waits for the main renderer, which may be reloading when a thread returns.
+    showThreadInMain: openThreadFromTray,
   });
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {
     const overlay = quickComposerWindowFor(event);

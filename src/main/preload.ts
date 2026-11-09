@@ -156,6 +156,19 @@ const bridge: ElectronHostBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.sideChatWindowsChanged, handler);
     return () => ipcRenderer.removeListener(IPC_EVENT_CHANNELS.sideChatWindowsChanged, handler);
   },
+  openThreadWindow: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowOpen, input),
+  closeThreadWindow: (threadId, options) =>
+    ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowClose, threadId, options),
+  getThreadWindowInfo: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowInfo),
+  getThreadWindowIds: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowIds),
+  onThreadWindowsChanged: (listener) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: import("@/shared/ipc/threadWindow").ThreadWindowsChanged,
+    ) => listener(payload);
+    ipcRenderer.on(IPC_EVENT_CHANNELS.threadWindowsChanged, handler);
+    return () => ipcRenderer.removeListener(IPC_EVENT_CHANNELS.threadWindowsChanged, handler);
+  },
   channel: resolveChannel(),
   hostCapabilities: resolveHostCapabilities(),
   ...(homeDir ? { homeDir } : {}),

@@ -2916,6 +2916,10 @@ msgstr "Quy tắc bảo vệ nhánh đã chặn lần hợp nhất này."
 msgid "Branches"
 msgstr "Nhánh"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "Đưa về cửa sổ chính"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "Đưa về bảng điều khiển"
@@ -5344,6 +5348,10 @@ msgstr "Không thể quản lý chợ plugin hoặc plugin này. Kiểm tra ngu�
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "Không thể mở tệp PDF này."
+
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "Không thể mở luồng này. Hãy thử lại."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -8518,6 +8526,7 @@ msgstr "Tập trung vào thanh địa chỉ trình duyệt"
 msgid "Focus the in-app browser address bar"
 msgstr "Tập trung vào thanh địa chỉ của trình duyệt tích hợp"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "Chuyển đến cửa sổ"
@@ -12062,6 +12071,10 @@ msgstr "Di chuyển"
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "Di chuyển kết nối SSH cục bộ trên thiết bị hiện có sang môi trường này bằng ID kết nối. Khóa không bao giờ được tải lên."
 
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "Chuyển về cửa sổ chính"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "Chuyển trình duyệt về cửa sổ chính"
@@ -13713,6 +13726,14 @@ msgstr "Mở trong trình duyệt"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "Mở trong trình chỉnh sửa"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "Mở trong cửa sổ mới"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "Mở trong cửa sổ mới"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 msgid "Open in Poracode browser"
@@ -16834,6 +16855,7 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "Thử lại"
 
@@ -21283,6 +21305,10 @@ msgstr "Cuộc trò chuyện này không hỗ trợ tin nhắn tiếp theo trong
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "Luồng này chưa sẵn sàng để điều hướng."
+
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "Luồng này đang mở trong một cửa sổ riêng."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

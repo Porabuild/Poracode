@@ -2916,6 +2916,10 @@ msgstr "Правила защиты ветки заблокировали это
 msgid "Branches"
 msgstr "Ветки"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "Вернуть в главное окно"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "Вернуть на панель"
@@ -5344,6 +5348,10 @@ msgstr "Не удалось обработать маркетплейс или �
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "Не удалось открыть этот PDF-файл."
+
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "Не удалось открыть этот тред. Попробуйте ещё раз."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -8518,6 +8526,7 @@ msgstr "Перейти на адресную строку браузера"
 msgid "Focus the in-app browser address bar"
 msgstr "Перейти на адресную строку встроенного браузера"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "Перейти к окну"
@@ -12062,6 +12071,10 @@ msgstr "Переместить"
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "Перенесите существующее локальное SSH-подключение на эту среду по идентификатору подключения. Ключи никогда не загружаются."
 
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "Вернуть в главное окно"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "Вернуть браузер в главное окно"
@@ -13713,6 +13726,14 @@ msgstr "Открыть в браузере"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "Открыть в редакторе"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "Открыть в новом окне"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "Открыть в новом окне"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 msgid "Open in Poracode browser"
@@ -16834,6 +16855,7 @@ msgstr "Только использование, сохранённое на э�
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "Повторить"
 
@@ -21283,6 +21305,10 @@ msgstr "Этот тред не поддерживает сообщения в о
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "Этот поток пока не готов к корректировке."
+
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "Этот тред открыт в отдельном окне."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
