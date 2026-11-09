@@ -2,9 +2,11 @@ import { toast } from "@heroui/react";
 import type { Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { hasAnyClientBridge } from "@/renderer/clientRuntime";
 
 /** Only the desktop main window can move a thread into its own window. */
 export function canOpenThreadWindow(): boolean {
+  if (!hasAnyClientBridge()) return false;
   const bridge = readBridge();
   return bridge.windowKind === "main" && bridge.openThreadWindow !== undefined;
 }
