@@ -8,7 +8,7 @@
 # Environment:
 #   PORACODE_CHANNEL           release train: stable (default) or nightly
 #   PORACODE_VERSION           exact version to install (overrides the channel)
-#   PORACODE_INSTALL_DIR       install prefix (default: ~/.poracode/server). Each
+#   PORACODE_INSTALL_DIR       install prefix (default: ~/.local/share/poracode/server). Each
 #                              version lives in <prefix>/releases/<version> and
 #                              <prefix>/current points at the active one, the
 #                              layout `poracode service` and `poracode upgrade`
@@ -73,7 +73,7 @@ main() {
   repo="Porabuild/Poracode"
   base_url="${PORACODE_RELEASE_BASE_URL:-https://github.com/${repo}/releases/download}"
   base_url="${base_url%/}"
-  prefix="${PORACODE_INSTALL_DIR:-$HOME/.poracode/server}"
+  prefix="${PORACODE_INSTALL_DIR:-$HOME/.local/share/poracode/server}"
   bin_dir="${PORACODE_BIN_DIR:-$HOME/.local/bin}"
   channel="${PORACODE_CHANNEL:-stable}"
   version="${PORACODE_VERSION:-}"
@@ -151,8 +151,30 @@ main() {
   releases_dir="${prefix}/releases"
   release_dir="${releases_dir}/${version}"
   launcher_target="${prefix}/current/bin/poracode"
+  legacy_candidate=0
+  if [ -z "${PORACODE_INSTALL_DIR:-}" ] && [ -d "$HOME/.poracode/server/current" ]; then legacy_candidate=1; fi
+  if [ -e "${prefix}/legacy-install-migration.json" ] || [ -L "${prefix}/legacy-install-migration.json" ]; then
+    [ -x "${prefix}/current/bin/poracode" ] || fail "the pending installation migration has no usable current CLI; inspect it before retrying"
+    say "Checking the previous installation migration..."
+    "${prefix}/current/bin/poracode" migrate-install </dev/null ||
+      fail "the previous installation migration did not finish; inspect it before retrying"
+    legacy_candidate=0
+  fi
+  if [ "$legacy_candidate" = 1 ] && [ ! -e "$HOME/.poracode/server/service-registration.json" ] &&
+    [ -L "${bin_dir}/poracode" ] && [ "$(readlink "${bin_dir}/poracode")" = "$launcher_target" ]; then
+    legacy_candidate=0
+  fi
+  service_registered=0
+  if [ -e "${prefix}/service-registration.json" ] || [ -L "${prefix}/service-registration.json" ]; then
+    service_registered=1
+    prior_version="$(installed_version "${prefix}/current" || true)"
+    [ -n "$prior_version" ] || fail "the registered service has no usable current release; inspect its registration before retrying"
+  fi
 
-  if [ "$(installed_version "$release_dir" || true)" = "$version" ]; then
+  if [ "$service_registered" = 1 ] && [ "$prior_version" = "$version" ]; then
+    release_dir="${prefix}/current"
+    say "Poracode ${version} is already installed."
+  elif [ "$legacy_candidate" = 0 ] && [ "$(installed_version "$release_dir" || true)" = "$version" ]; then
     say "Poracode ${version} is already installed."
   else
     say "Installing Poracode ${version} (${target})..."
@@ -215,7 +237,10 @@ $reason"
       fi
       fail "the downloaded Poracode ${version} does not run on this machine"
     fi
-    if [ -e "$release_dir" ]; then
+    if [ "$legacy_candidate" = 1 ]; then
+      release_dir="${releases_dir}/${version}-migrated-${staging##*.staging-}"
+      [ ! -e "$release_dir" ] && [ ! -L "$release_dir" ] || fail "the staged release destination already exists; retry"
+    elif [ -e "$release_dir" ]; then
       mv "$release_dir" "${staging}.previous"
       rm -rf "${staging}.previous"
     fi
@@ -226,7 +251,38 @@ $reason"
   if [ -d "${prefix}/current" ] && [ ! -L "${prefix}/current" ]; then
     fail "${prefix}/current is a directory, not a release link; move it aside and retry"
   fi
-  ln -sfn "releases/${version}" "${prefix}/current"
+  if [ "$service_registered" = 1 ]; then
+    if [ "$prior_version" != "$version" ]; then
+      say "Upgrading the registered service safely..."
+      "${prefix}/current/bin/poracode" update "$version" --prefix "$prefix" ||
+        fail "the registered service could not be upgraded; its current release was not replaced by the installer"
+      [ "$(installed_version "${prefix}/current" || true)" = "$version" ] ||
+        fail "the service upgrade did not select ${version}; inspect the service before retrying"
+    fi
+  else
+    if [ -L "${prefix}/current" ] && [ "$(readlink "${prefix}/current")" = "releases/${version}" ] && [ "$release_dir" = "${releases_dir}/${version}" ]; then
+      : # The selected release is already current; no link mutation is needed.
+    elif "$release_dir/bin/poracode" install-activate --help </dev/null 2>/dev/null | grep -q 'install-activate PREFIX RELEASE'; then
+      "$release_dir/bin/poracode" install-activate "$prefix" "$release_dir" </dev/null ||
+        fail "could not select the release while another install or migration is active; retry"
+    elif { [ -z "${PORACODE_INSTALL_DIR:-}" ] && [ -d "$HOME/.poracode/server/current" ]; } || [ -e "${prefix}/legacy-install-migration.json" ]; then
+      fail "this older release cannot safely migrate the existing installation; install a current release first"
+    else
+      ln -sfn "releases/${version}" "${prefix}/current"
+    fi
+  fi
+
+  # Older nightly installers used a prefix inside the profile. The new CLI
+  # owns service migration and crash recovery; do not guess at registration files here.
+  if [ -z "${PORACODE_INSTALL_DIR:-}" ] && { [ -d "$HOME/.poracode/server/current" ] || [ -d "$HOME/.poracode/runtime" ]; }; then
+    if "$release_dir/bin/poracode" migrate-install --help </dev/null 2>/dev/null | grep -q 'migrate-install'; then
+      say "Moving the existing CLI and its service to ${prefix}..."
+      "$release_dir/bin/poracode" migrate-install </dev/null ||
+        fail "legacy migration did not finish; run the installer again to resume it"
+    elif [ -d "$HOME/.poracode/server/current" ]; then
+      fail "this older release cannot migrate the existing installation; install a current release first"
+    fi
+  fi
 
   # Link the command, never replacing a `poracode` this installer does not own
   # (for example one registered by the desktop app or installed with npm).
@@ -294,8 +350,8 @@ $reason"
   fi
 
   if [ -f "${prefix}/service-registration.json" ]; then
-    say "A managed service uses this prefix; restart it to run ${version}:"
-    say "  poracode service restart --prefix ${prefix}"
+    say "A managed service uses this prefix. Check it with:"
+    say "  poracode service status --prefix ${prefix}"
   fi
 
   # Fetch the terminal UI now, so the first `poracode` opens without a download.

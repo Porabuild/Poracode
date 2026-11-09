@@ -99,9 +99,64 @@ describe("uninstall helpers", () => {
       false,
     );
   });
+
+  it("recognizes the ASCII relative Windows shim for a Unicode home", () => {
+    const bin = "C:\\Users\\Jos\u00e9\\AppData\\Local\\Poracode\\bin";
+    const prefix = "C:\\Users\\Jos\u00e9\\AppData\\Local\\Poracode\\server";
+    const shim =
+      '@echo off\r\nrem poracode-installer-shim v1\r\n"%~dp0..\\server\\current\\bin\\poracode.cmd" %*\r\n';
+    expect(installerShimTargetsPrefix(shim, prefix, bin)).toBe(true);
+    expect(installerShimTargetsPrefix(shim, "C:\\other", bin)).toBe(false);
+  });
 });
 
 describe.runIf(posix)("runSelfUninstall", () => {
+  it("refuses to remove a prefix that contains the shared or explicitly overridden runtime cache", async () => {
+    const root = tempDir();
+    const prefix = join(root, ".local", "share", "poracode");
+    const release = join(prefix, "releases", "1.0.0");
+    writeRelease(release, "1.0.0");
+    symlinkSync("releases/1.0.0", join(prefix, "current"));
+    for (const [env, cache] of [
+      [{}, join(prefix, "runtime-cache")],
+      [{ PORACODE_RUNTIME_CACHE_DIR: join(prefix, "custom-cache") }, join(prefix, "custom-cache")],
+    ] as const) {
+      mkdirSync(cache, { recursive: true });
+      writeFileSync(join(cache, "in-use"), "other profile");
+      await expect(
+        runSelfUninstall(
+          { yes: true, json: false },
+          {
+            releaseRoot: release,
+            env,
+            home: root,
+            platform: "linux",
+            probeOwner: async () => null,
+          },
+        ),
+      ).rejects.toThrow(/runtime cache .* inside/u);
+      expect(existsSync(join(cache, "in-use"))).toBe(true);
+      rmSync(cache, { recursive: true });
+    }
+  });
+  it("preserves an unrecognized cache from another process even without its override", async () => {
+    const f = fixture();
+    const cache = join(f.prefix, "other-process-cache", "version");
+    mkdirSync(cache, { recursive: true });
+    writeFileSync(join(cache, "in-use"), "another profile");
+    await expect(
+      runSelfUninstall(
+        { yes: true, json: false },
+        {
+          releaseRoot: join(f.prefix, "releases", "1.0.0"),
+          env: {},
+          home: f.root,
+          probeOwner: async () => null,
+        },
+      ),
+    ).rejects.toThrow(/files not owned/u);
+    expect(existsSync(join(cache, "in-use"))).toBe(true);
+  });
   it("removes the owned command link and the prefix, keeping foreign commands", async () => {
     const context = fixture();
     const home = join(context.root, "home");
@@ -502,7 +557,7 @@ describe.runIf(posix)("runSelfUninstall", () => {
       resolveHostRootPaths(profile).profileNamespace,
       context.prefix,
     );
-    const probes = [null, { pid: 9 }];
+    const probes = [null, null, { pid: 9 }];
     let removeCalls = 0;
     await expect(
       runSelfUninstall(

@@ -66,7 +66,7 @@ export function installWindowsService(
       formatVersion: 2,
       state: "prepared",
       registrationId: id,
-      registrationNonce: randomBytes(24).toString("hex"),
+      registrationNonce: deps.registrationNonce ?? randomBytes(24).toString("hex"),
       manager: "windows-task",
       account,
       profileNamespace: profile,

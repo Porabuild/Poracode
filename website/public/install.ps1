@@ -90,7 +90,15 @@
     try { return ((& $cmd --version 2>$null) | Select-Object -Last 1) } catch { return $null }
   }
 
-  if ((Get-InstalledVersion $releaseDir) -eq $version) {
+  $serviceRegistered = $false
+  try { $null = [System.IO.File]::GetAttributes((Join-Path $prefix "service-registration.json")); $serviceRegistered = $true } catch { }
+  $priorVersion = Get-InstalledVersion $current
+  if ($serviceRegistered -and -not $priorVersion) { Fail "the registered service has no usable current release; inspect its registration before retrying" }
+
+  if ($serviceRegistered -and $priorVersion -eq $version) {
+    $releaseDir = $current
+    Say "Poracode $version is already installed."
+  } elseif ((Get-InstalledVersion $releaseDir) -eq $version) {
     Say "Poracode $version is already installed."
   } else {
     Say "Installing Poracode $version ($target)..."
@@ -158,18 +166,37 @@
     }
   }
 
-  # <prefix>\current is a junction, exactly like the server's own installer.
-  # GetAttributes reads the link's own entry, so a dangling junction counts too.
-  $currentAttributes = $null
-  try { $currentAttributes = [System.IO.File]::GetAttributes($current) } catch { }
-  if ($null -ne $currentAttributes) {
-    if (-not ($currentAttributes -band [System.IO.FileAttributes]::ReparsePoint)) {
-      Fail "$current is a directory, not a release link; move it aside and retry"
+  # A registered service owns its current link and must use the upgrade
+  # protocol (drain, backup, candidate admission) before switching versions.
+  if ($serviceRegistered) {
+    if ($priorVersion -ne $version) {
+      Say "Upgrading the registered service safely..."
+      & $launcher update $version --prefix $prefix
+      if ($LASTEXITCODE -ne 0 -or (Get-InstalledVersion $current) -ne $version) {
+        Fail "the registered service could not be upgraded; inspect it before retrying"
+      }
     }
-    cmd /c rmdir "$current" | Out-Null
+  } else {
+    $releaseCommand = Join-Path $releaseDir "bin\poracode.cmd"
+    $activationHelp = & $releaseCommand install-activate --help 2>$null
+    if ($LASTEXITCODE -eq 0 -and (($activationHelp -join "`n") -match "install-activate PREFIX RELEASE")) {
+      & $releaseCommand install-activate $prefix $releaseDir
+      if ($LASTEXITCODE -ne 0) { Fail "could not select the release while another install or migration is active; retry" }
+    } else {
+      # Older released CLIs have no activation helper. Their fresh install
+      # retains the original junction path; registered services use update.
+      $currentAttributes = $null
+      try { $currentAttributes = [System.IO.File]::GetAttributes($current) } catch { }
+      if ($null -ne $currentAttributes) {
+        if (-not ($currentAttributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+          Fail "$current is a directory, not a release link; move it aside and retry"
+        }
+        cmd /c rmdir "$current" | Out-Null
+      }
+      cmd /c mklink /J "$current" "$releaseDir" | Out-Null
+      if ($LASTEXITCODE -ne 0) { Fail "could not link $current to $releaseDir" }
+    }
   }
-  cmd /c mklink /J "$current" "$releaseDir" | Out-Null
-  if ($LASTEXITCODE -ne 0) { Fail "could not link $current to $releaseDir" }
 
   # A small shim on PATH; never replace a poracode.cmd this installer does not own.
   New-Item -ItemType Directory -Force -Path $binDir | Out-Null
@@ -180,7 +207,15 @@
     Say "Run $launcher directly, or set PORACODE_BIN_DIR to another directory."
     $linked = $false
   } else {
-    Set-Content -Path $shim -Encoding ASCII -Value @("@echo off", $shimMarker, "`"$launcher`" %*")
+    $shimLauncher = $launcher
+    $defaultPrefix = [System.IO.Path]::GetFullPath((Join-Path $localAppData "Poracode\server"))
+    $defaultBinDir = [System.IO.Path]::GetFullPath((Join-Path $localAppData "Poracode\bin"))
+    if ($prefix -eq $defaultPrefix -and $binDir -eq $defaultBinDir) {
+      $shimLauncher = '%~dp0..\server\current\bin\poracode.cmd'
+    } elseif ($launcher -match '[^\x20-\x7e]|[%"]') {
+      Fail "the custom install path cannot be represented safely in a Windows command shim"
+    }
+    Set-Content -Path $shim -Encoding ASCII -Value @("@echo off", "setlocal DisableDelayedExpansion", $shimMarker, "`"$shimLauncher`" %*")
   }
 
   if ($linked -and $env:PORACODE_NO_MODIFY_PATH -ne "1") {
@@ -214,8 +249,8 @@
     Say "Another poracode comes first on PATH: $($resolved.Source)"
   }
   if (Test-Path (Join-Path $prefix "service-registration.json")) {
-    Say "A managed service uses this prefix; restart it to run ${version}:"
-    Say "  poracode service restart --prefix `"$prefix`""
+    Say "A managed service uses this prefix. Check it with:"
+    Say "  poracode service status --prefix `"$prefix`""
   }
 
   # Fetch the terminal UI now, so the first `poracode` opens without a download.

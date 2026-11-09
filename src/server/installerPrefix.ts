@@ -1,9 +1,9 @@
 import { existsSync, realpathSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
-import { basename, dirname, join, resolve, win32 } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { readStandaloneRuntimeMarker } from "../../scripts/server-release-install.mjs";
+import { defaultCliInstallPrefix } from "../../packages/poracode-cli/lib/installPaths.mjs";
 import { resolveTuiCacheRoot } from "./cliTuiDownload";
 import { probeRunningOwner } from "./serverUpgradeIdentity";
 
@@ -75,7 +75,7 @@ export function resolveInstallerPrefix(input: {
 /**
  * The one-line installer's default prefix, matching install.sh/install.ps1:
  * PORACODE_INSTALL_DIR wins, then %LOCALAPPDATA%\Poracode\server on Windows or
- * ~/.poracode/server elsewhere.
+ * ~/.local/share/poracode/server elsewhere.
  */
 export function defaultInstallerPrefix(
   input: {
@@ -84,15 +84,7 @@ export function defaultInstallerPrefix(
     readonly home?: string;
   } = {},
 ): string {
-  const env = input.env ?? process.env;
-  const override = env.PORACODE_INSTALL_DIR?.trim();
-  if (override) return resolve(override);
-  const home = input.home ?? homedir();
-  if ((input.platform ?? process.platform) === "win32") {
-    const localAppData = env.LOCALAPPDATA?.trim() || win32.join(home, "AppData", "Local");
-    return win32.join(localAppData, "Poracode", "server");
-  }
-  return join(home, ".poracode", "server");
+  return defaultCliInstallPrefix(input);
 }
 
 export function defaultProbeOwner() {

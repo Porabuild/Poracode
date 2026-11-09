@@ -1,9 +1,9 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import {
-  createReadStream,
-  createWriteStream,
   existsSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   realpathSync,
@@ -12,8 +12,6 @@ import {
 } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
 import {
   hostRuntimeTarget,
   installServerRelease,
@@ -24,6 +22,12 @@ import { SERVER_SERVICE_REGISTRATION_FILE } from "./serverServiceRegistration";
 import { upgradeServerPrefix } from "./serverUpgrade";
 import type { UpgradeCliOptions, UpgradeResult } from "./serverUpgradeContract";
 import { acquireServerUpgradeLock } from "./serverUpgradeLock";
+import { compareCliReleaseVersions } from "./cliReleaseVersion";
+import { refusePendingCliInstallMigration } from "./cliInstallMigrationJournal";
+import { sha256OfFile } from "./cliArtifactDigest";
+import { copyVerifiedRuntime, verifiedLauncherCache } from "./cliServiceRuntimeCache";
+import { downloadArtifact } from "../../packages/poracode-cli/lib/artifact.mjs";
+import { resolveTar, tarCommand } from "../../scripts/server-host-tools.mjs";
 import {
   defaultProbeOwner,
   type InstallerPrefix,
@@ -145,12 +149,6 @@ export async function resolveReleaseVersion(input: {
   throw new SelfUpdateError("No nightly release was found; pass an explicit version.");
 }
 
-async function sha256OfFile(path: string): Promise<string> {
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(path)) hash.update(chunk as Buffer);
-  return hash.digest("hex");
-}
-
 /** Download the release archive for `target` and prove it matches SHA256SUMS. */
 export async function downloadVerifiedArchive(input: {
   readonly base: string;
@@ -176,23 +174,22 @@ export async function downloadVerifiedArchive(input: {
       `Release ${input.version} has no self-contained archive for ${input.target}.`,
     );
   }
-  const response = await fetchRelease(fetchImpl, `${releaseUrl}/${name}`);
-  if (!response.ok || response.body === null) {
-    throw new SelfUpdateError(
-      `Could not download ${releaseUrl}/${name} (HTTP ${response.status}).`,
-    );
-  }
   const destination = join(input.directory, name);
-  await pipeline(
-    Readable.fromWeb(response.body as import("node:stream/web").ReadableStream),
-    createWriteStream(destination),
-  );
-  const actual = await sha256OfFile(destination);
-  if (actual !== expected) {
-    rmSync(destination, { force: true });
-    throw new SelfUpdateError(
-      `Checksum mismatch for ${name}: expected ${expected}, got ${actual}.`,
-    );
+  try {
+    await downloadArtifact({ url: `${releaseUrl}/${name}`, sha256: expected }, destination, {
+      allowHttp: input.base.startsWith("http://"),
+      fetchImpl: (url) => fetchRelease(fetchImpl, url),
+    });
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "PORACODE_ARTIFACT_CHECKSUM_MISMATCH"
+    ) {
+      throw new SelfUpdateError(`Checksum mismatch for ${name}.`);
+    }
+    throw error;
   }
   return destination;
 }
@@ -233,12 +230,14 @@ export async function runSelfUpdate(
     readonly upgrade?: (options: UpgradeCliOptions) => Promise<UpgradeResult>;
     readonly platform?: NodeJS.Platform;
     readonly home?: string;
+    readonly onlyIfNewer?: boolean;
   },
 ): Promise<SelfUpdateResult> {
   const install = resolveInstallerPrefix({
     ...(options.prefix !== undefined ? { explicitPrefix: options.prefix } : {}),
     releaseRoot: deps.releaseRoot,
   });
+  refusePendingCliInstallMigration(install.prefix);
   const channel =
     options.channel ?? (/-nightly\./u.test(install.currentVersion) ? "nightly" : "stable");
   const version = await resolveReleaseVersion({
@@ -247,6 +246,21 @@ export async function runSelfUpdate(
     ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
   });
   const base = { version, previous: install.currentVersion, prefix: install.prefix };
+  if (deps.onlyIfNewer) {
+    const order = compareCliReleaseVersions(version, install.currentVersion);
+    if (order === undefined)
+      throw new SelfUpdateError(
+        "Cannot safely compare the installed and requested release versions.",
+      );
+    if (order <= 0) {
+      return {
+        ...base,
+        ok: true,
+        outcome: "current",
+        detail: `The installed Poracode ${install.currentVersion} is at least as new as ${version}.`,
+      };
+    }
+  }
   if (version === install.currentVersion) {
     return {
       ...base,
@@ -259,13 +273,34 @@ export async function runSelfUpdate(
   // Same filesystem as releases/, so publishing the staged release is a rename.
   const work = mkdtempSync(join(install.prefix, ".update-"));
   try {
-    const archive = await downloadVerifiedArchive({
-      base: releaseDownloadBase(deps.env),
-      version,
-      target,
-      directory: work,
-      ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
-    });
+    const env = deps.env ?? process.env;
+    const sourceVersion = readStandaloneRuntimeMarker(deps.releaseRoot)?.version;
+    const cached =
+      sourceVersion === version
+        ? await verifiedLauncherCache({ env, releaseRoot: deps.releaseRoot, version, target })
+        : null;
+    let archive: string;
+    if (cached) {
+      const stagedCache = join(work, "verified-cache");
+      mkdirSync(stagedCache);
+      copyVerifiedRuntime(cached.root, stagedCache);
+      if ((await sha256OfFile(join(stagedCache, "lib", "server.cjs"))) !== cached.entrySha256) {
+        throw new SelfUpdateError(
+          "The npm runtime changed while it was being copied; nothing was published.",
+        );
+      }
+      archive = join(work, "verified-runtime.tar.gz");
+      const tar = tarCommand(resolveTar(), ["-czf", archive, "-C", stagedCache, "."]);
+      execFileSync(tar[0], tar[1], { stdio: "pipe" });
+    } else {
+      archive = await downloadVerifiedArchive({
+        base: releaseDownloadBase(env),
+        version,
+        target,
+        directory: work,
+        ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
+      });
+    }
     const registered = existsSync(join(install.prefix, SERVER_SERVICE_REGISTRATION_FILE));
     const owner = registered ? null : await (deps.probeOwner ?? defaultProbeOwner)();
     if (registered || owner !== null) {
@@ -273,6 +308,7 @@ export async function runSelfUpdate(
         from: archive,
         prefix: install.prefix,
         json: options.json,
+        ...(deps.onlyIfNewer ? { expectedCurrentDir: install.currentDir } : {}),
       });
       return {
         ...base,
@@ -288,6 +324,15 @@ export async function runSelfUpdate(
       releaseId: `update-${version}`,
     });
     try {
+      refusePendingCliInstallMigration(install.prefix);
+      if (
+        deps.onlyIfNewer &&
+        realpathSync(join(install.prefix, "current")) !== install.currentDir
+      ) {
+        throw new SelfUpdateError(
+          "The current release changed before the automatic update acquired its lock; retry.",
+        );
+      }
       const releaseDir = join(install.prefix, "releases", version);
       const staging = join(
         install.prefix,

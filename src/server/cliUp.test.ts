@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ServiceCliOptions } from "./serverService";
 import type { ServerServiceRegistration } from "./serverServiceRegistration";
@@ -40,7 +40,11 @@ function installedPrefix() {
       node: { version: "26.13.0", executable: "runtime/node" },
     }),
   );
-  symlinkSync("releases/2.0.0", join(prefix, "current"));
+  symlinkSync(
+    process.platform === "win32" ? release : "releases/2.0.0",
+    join(prefix, "current"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
   return { root, prefix, release, profile: join(root, "profile") };
 }
 
@@ -74,7 +78,7 @@ const quiet = {
   ownerRunning: async () => false,
 } as const;
 
-/** Minimal installed registration; runUp only reads `state`. */
+/** Minimal installed registration for this fixture's profile. */
 function installedServiceRegistration(
   prefix: string,
   state: "prepared" | "installed" | "removing" = "installed",
@@ -82,7 +86,7 @@ function installedServiceRegistration(
   return {
     state,
     registrationId: "poracode-0123456789abcdef0123456789abcdef",
-    profileNamespace: "unused",
+    profileNamespace: join(dirname(prefix), "profile"),
     installPrefix: prefix,
   } as unknown as ServerServiceRegistration;
 }
@@ -118,7 +122,7 @@ describe("parseUpCliOptions", () => {
   });
 });
 
-describe.runIf(process.platform !== "win32")("runUp", () => {
+describe("runUp", () => {
   it("configures an encrypted LAN listener, installs and starts the service", async () => {
     const context = installedPrefix();
     const steps = recorder();
@@ -714,36 +718,53 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
     expect(result.service).toBe("skipped");
   });
 
-  it("saves settings without a service when no installer prefix exists", async () => {
+  it("refuses a registration for a different profile before writing settings", async () => {
+    const context = installedPrefix();
+    const steps = recorder();
+    await expect(
+      runUp(
+        { reachability: "tailnet", service: true, pair: false },
+        {
+          profile: context.profile,
+          releaseRoot: context.release,
+          ...steps,
+          readRegistration: () => ({
+            ...installedServiceRegistration(context.prefix),
+            profileNamespace: join(context.root, "legacy-profile"),
+          }),
+          ...quiet,
+        },
+      ),
+    ).rejects.toThrow(/--base-dir.*legacy-profile/u);
+    expect(steps.events).toEqual([]);
+  });
+
+  it("refuses an unversioned checkout before changing settings or installing a service", async () => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), "poracode-up-plain-")));
     roots.push(root);
     const releaseRoot = join(root, "runtime");
     mkdirSync(releaseRoot, { recursive: true });
     const steps = recorder();
-    const result = await runUp(
-      { reachability: "tailnet", service: true, pair: false },
-      {
-        profile: join(root, "profile"),
-        releaseRoot,
-        configure: steps.configure,
-        service: steps.service,
-        env: { PORACODE_INSTALL_DIR: join(root, "missing") },
-        lingerEnabled: () => true,
-        platform: "linux",
-        ...quiet,
-      },
-    );
-    expect(steps.configured).toEqual([["--bind-mode", "tailnet"]]);
+    await expect(
+      runUp(
+        { reachability: "tailnet", service: true, pair: false },
+        {
+          profile: join(root, "profile"),
+          releaseRoot,
+          configure: steps.configure,
+          service: steps.service,
+          env: { PORACODE_INSTALL_DIR: join(root, "missing") },
+          lingerEnabled: () => true,
+          platform: "linux",
+          ...quiet,
+        },
+      ),
+    ).rejects.toThrow(/no self-contained runtime marker/u);
+    expect(steps.configured).toEqual([]);
     expect(steps.services).toEqual([]);
-    expect(result.service).toBe("unavailable");
-    expect(result.prefix).toBeUndefined();
-    const notes = result.notes.join("\n");
-    expect(notes).toMatch(/one-line installer/u);
-    expect(notes).toMatch(/install\.sh/u);
-    expect(notes).not.toMatch(/PORACODE_CHANNEL/u);
   });
 
-  it("suggests the nightly installer one-liner for a nightly build", async () => {
+  it("provisions the running nightly release before starting a service", async () => {
     for (const platform of ["linux", "win32"] as const) {
       const root = realpathSync(mkdtempSync(join(tmpdir(), "poracode-up-nightly-")));
       roots.push(root);
@@ -760,6 +781,7 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
         }),
       );
       const steps = recorder();
+      const installed: string[] = [];
       const result = await runUp(
         { reachability: "tailnet", service: true, pair: false },
         {
@@ -770,15 +792,15 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
           env: { PORACODE_INSTALL_DIR: join(root, "missing") },
           lingerEnabled: () => true,
           platform,
+          installServiceRelease: async ({ prefix, version }) => {
+            installed.push(`${prefix}:${version}`);
+          },
           ...quiet,
         },
       );
-      expect(result.service).toBe("unavailable");
-      const expected =
-        platform === "win32"
-          ? "$env:PORACODE_CHANNEL = 'nightly'; irm https://poracode.com/install.ps1 | iex"
-          : "curl -fsSL https://poracode.com/install.sh | PORACODE_CHANNEL=nightly sh";
-      expect(result.notes.join("\n")).toContain(expected);
+      expect(result.service).toBe("installed-started");
+      expect(installed).toEqual([`${join(root, "missing")}:2.0.0-nightly.202611090222`]);
+      expect(steps.services).toEqual(["install", "start"]);
     }
   });
 
@@ -807,7 +829,63 @@ describe.runIf(process.platform !== "win32")("runUp", () => {
     expect(steps.serviceCalls.map((call) => call.prefix)).toEqual([context.prefix, context.prefix]);
     expect(result.service).toBe("installed-started");
     expect(result.prefix).toBe(context.prefix);
-    expect(result.notes.join("\n")).toMatch(/Using the one-line installer's prefix/u);
+    expect(result.notes.join("\n")).toMatch(/Using the shared prefix/u);
+  });
+
+  it("upgrades an older shared service after confirming its running owner", async () => {
+    const context = installedPrefix();
+    const external = join(context.root, "external");
+    mkdirSync(external);
+    const steps = recorder();
+    const events: string[] = [];
+    const result = await runUp(
+      { reachability: "tailnet", service: true, pair: false },
+      {
+        profile: context.profile,
+        releaseRoot: external,
+        version: "2.1.0",
+        env: { PORACODE_INSTALL_DIR: context.prefix },
+        ...steps,
+        ...quiet,
+        interactive: true,
+        ownerRunning: async () => true,
+        confirmRestart: async () => {
+          events.push("confirm");
+          return true;
+        },
+        readRegistration: () => installedServiceRegistration(context.prefix),
+        updateServiceRelease: async (options, deps) => {
+          events.push(`update:${options.version}:${String(deps.onlyIfNewer)}`);
+          expect(steps.events).toEqual(["configure"]);
+          return { ok: true, outcome: "upgraded", detail: "upgraded" } as never;
+        },
+      },
+    );
+    expect(events).toEqual(["confirm", "update:2.1.0:true"]);
+    expect(steps.services).toEqual(["start"]);
+    expect(result.service).toBe("restarted");
+  });
+
+  it("never downgrades a newer shared service when an older CLI runs up", async () => {
+    const context = installedPrefix();
+    const external = join(context.root, "external");
+    mkdirSync(external);
+    const steps = recorder();
+    const update = vi.fn<typeof import("./cliSelfUpdate").runSelfUpdate>();
+    const result = await runUp(
+      { reachability: "tailnet", service: true, pair: false },
+      {
+        profile: context.profile,
+        releaseRoot: external,
+        version: "1.9.0",
+        env: { PORACODE_INSTALL_DIR: context.prefix },
+        ...steps,
+        ...quiet,
+        updateServiceRelease: update,
+      },
+    );
+    expect(update).not.toHaveBeenCalled();
+    expect(result.notes.join("\n")).toContain("Keeping the newer installed Poracode 2.0.0");
   });
 });
 

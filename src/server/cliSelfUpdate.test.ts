@@ -157,6 +157,100 @@ describe("self-update helpers", () => {
 });
 
 describe.runIf(posix)("runSelfUpdate", () => {
+  it("refuses an automatic downgrade while preserving the selected release", async () => {
+    const context = fixture();
+    const result = await runSelfUpdate(
+      { version: "0.9.0", json: false },
+      {
+        releaseRoot: join(context.prefix, "releases", "1.0.0"),
+        onlyIfNewer: true,
+        fetchImpl: context.fetchImpl,
+      },
+    );
+    expect(result.outcome).toBe("current");
+    expect(readlinkSync(join(context.prefix, "current"))).toBe("releases/1.0.0");
+    expect(context.requests).toEqual([]);
+  });
+
+  it("updates from the launcher's pinned cache without fetching a second archive", async () => {
+    const context = fixture();
+    const cached = join(context.root, "stage");
+    const sha = "a".repeat(64);
+    const entrySha = createHash("sha256")
+      .update(readFileSync(join(cached, "lib", "server.cjs")))
+      .digest("hex");
+    writeFileSync(
+      join(cached, ".poracode-runtime.json"),
+      JSON.stringify({
+        formatVersion: 1,
+        version: "2.0.0",
+        target: hostRuntimeTarget(),
+        tarballSha256: sha,
+        entrySha256: entrySha,
+      }),
+    );
+    const result = await runSelfUpdate(
+      { version: "2.0.0", prefix: context.prefix, json: false },
+      {
+        releaseRoot: cached,
+        onlyIfNewer: true,
+        env: {
+          PORACODE_LAUNCHER_RUNTIME_ROOT: cached,
+          PORACODE_LAUNCHER_RUNTIME_SHA256: sha,
+          PORACODE_LAUNCHER_RUNTIME_TARGET: hostRuntimeTarget(),
+        },
+        fetchImpl: async () => {
+          throw new Error("network must not be used");
+        },
+        probeOwner: async () => null,
+      },
+    );
+    expect(result.outcome).toBe("installed");
+    expect(readlinkSync(join(context.prefix, "current"))).toBe("releases/2.0.0");
+  });
+
+  it("rechecks migration custody under the update lock after downloading", async () => {
+    const context = fixture();
+    const fetchImpl = async (url: string) => {
+      const response = await context.fetchImpl(url);
+      if (!url.endsWith("SHA256SUMS")) {
+        writeFileSync(
+          join(context.prefix, "legacy-install-migration.json"),
+          JSON.stringify({
+            formatVersion: 1,
+            oldPrefix: "/old",
+            newPrefix: context.prefix,
+            profile: "/profile",
+            oldNonce: "a".repeat(48),
+            newNonce: "b".repeat(48),
+            registrationId: `poracode-${"c".repeat(32)}`,
+            account: { kind: "uid", id: "1" },
+            configPath: null,
+            releaseVersion: "1.0.0",
+            entrypointSha256: "d".repeat(64),
+            ownerGeneration: null,
+            nativeMainPid: "0",
+            nativeState: "inactive",
+            wasRunning: false,
+            phase: "prepared",
+          }),
+        );
+      }
+      return response;
+    };
+    await expect(
+      runSelfUpdate(
+        { version: "2.0.0", json: false },
+        {
+          releaseRoot: join(context.prefix, "releases", "1.0.0"),
+          fetchImpl,
+          probeOwner: async () => null,
+        },
+      ),
+    ).rejects.toThrow(/install migration .* incomplete/u);
+    expect(readlinkSync(join(context.prefix, "current"))).toBe("releases/1.0.0");
+  });
+
   it("installs the verified release beside the current one and moves current", async () => {
     const context = fixture();
     const result = await runSelfUpdate(

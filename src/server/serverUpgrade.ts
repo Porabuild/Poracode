@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, realpathSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import Database from "better-sqlite3";
 import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
@@ -61,6 +61,7 @@ import { stopUpgradeCandidate } from "./serverUpgradeCandidateStop";
 import { registeredServiceUpgradeIo } from "./serverServiceUpgrade";
 import { releaseNodeExecutable } from "./serverStandaloneRuntime";
 import { installServerRelease } from "../../scripts/server-release-install.mjs";
+import { refusePendingCliInstallMigration } from "./cliInstallMigrationJournal";
 import {
   DEFAULT_QUALIFICATION_TIMEOUT_MS,
   OWNER_POLL_MS,
@@ -383,6 +384,20 @@ export async function upgradeServerPrefix(
     resumed: false,
   };
   try {
+    refusePendingCliInstallMigration(prefix);
+    if (options.expectedCurrentDir !== undefined) {
+      let current: string | undefined;
+      try {
+        current = realpathSync(join(prefix, "current"));
+      } catch {
+        // A missing or dangling link is also a changed selection.
+      }
+      if (current !== options.expectedCurrentDir) {
+        throw new UpgradeRefusedError(
+          "The current release changed before the automatic update acquired its lock; retry.",
+        );
+      }
+    }
     io = await registeredServiceUpgradeIo(
       io,
       prefix,

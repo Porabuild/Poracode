@@ -105,7 +105,7 @@ function setup() {
     root,
     home,
     base,
-    prefix: join(home, ".poracode", "server"),
+    prefix: join(home, ".local", "share", "poracode", "server"),
     bin: join(home, ".local", "bin"),
   };
 }
@@ -182,6 +182,56 @@ void test("installs, links, updates PATH once, and switches versions", posixOnly
     "2.2.0-nightly.202611080110",
   );
   assert.ok(existsSync(join(context.prefix, "releases", "2.1.0")), "previous release is kept");
+});
+
+void test("a registered service never has its current release switched directly", posixOnly, () => {
+  const context = setup();
+  publishRelease(context.base, "2.1.0");
+  publishRelease(context.base, "2.2.0");
+  assert.equal(install(context, { PORACODE_VERSION: "2.1.0", PORACODE_NO_TUI: "1" }).status, 0);
+  writeFileSync(join(context.prefix, "service-registration.json"), "{}\n");
+  const log = join(context.root, "commands.log");
+  const result = install(context, {
+    PORACODE_VERSION: "2.2.0",
+    PORACODE_NO_TUI: "1",
+    PORACODE_FAKE_LOG: log,
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /service upgrade did not select/u);
+  assert.match(readFileSync(log, "utf8"), /update 2\.2\.0 --prefix/u);
+  assert.equal(readlinkSync(join(context.prefix, "current")), "releases/2.1.0");
+});
+
+void test("retained legacy files do not trigger repeated release downloads", posixOnly, () => {
+  const context = setup();
+  publishRelease(context.base, "2.1.0");
+  assert.equal(install(context, { PORACODE_VERSION: "2.1.0", PORACODE_NO_TUI: "1" }).status, 0);
+  const old = join(context.home, ".poracode", "server");
+  mkdirSync(old, { recursive: true });
+  symlinkSync(join(context.prefix, "releases", "2.1.0"), join(old, "current"));
+  const before = readdirSync(join(context.prefix, "releases"));
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const result = install(context, { PORACODE_VERSION: "2.1.0", PORACODE_NO_TUI: "1" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.doesNotMatch(result.stderr, /Downloading/u);
+    assert.deepEqual(readdirSync(join(context.prefix, "releases")), before);
+  }
+});
+
+void test("a legacy default install does not block an explicit separate prefix", posixOnly, () => {
+  const context = setup();
+  publishRelease(context.base, "2.1.0");
+  const old = join(context.home, ".poracode", "server");
+  mkdirSync(join(old, "release"), { recursive: true });
+  symlinkSync("release", join(old, "current"));
+  const custom = join(context.root, "custom-prefix");
+  const result = install(context, {
+    PORACODE_VERSION: "2.1.0",
+    PORACODE_INSTALL_DIR: custom,
+    PORACODE_NO_TUI: "1",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(readlinkSync(join(custom, "current")), "releases/2.1.0");
 });
 
 void test("refuses a checksum mismatch, an unsafe archive and a missing target", posixOnly, () => {

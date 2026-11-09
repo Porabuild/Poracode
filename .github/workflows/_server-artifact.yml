@@ -227,6 +227,10 @@ jobs:
           echo "version=$(node -p "require('./dist/server-artifact.json').version")" >> "$GITHUB_OUTPUT"
         shell: bash
 
+      - name: Verify CLI provisioning on Windows
+        if: ${{ runner.os == 'Windows' }}
+        run: node scripts/setup-bun.mjs --run run vitest run src/server/cliServiceInstall.test.ts src/server/cliUp.test.ts src/server/cliInstallCommand.test.ts
+
       - name: Build the standalone container
         if: runner.os == 'Linux'
         run: |

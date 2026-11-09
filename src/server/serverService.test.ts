@@ -380,6 +380,20 @@ describe("explicit installed-prefix service administration", () => {
     expect(text).not.toContain(f.release);
     expect(readServerUpgradeLockRecord(f.prefix)).toBeNull();
   });
+  it("accepts the same lifecycle lock through a symlinked prefix", async () => {
+    const f = fixture();
+    await f.execute("install");
+    const alias = join(f.root, "prefix-alias");
+    symlinkSync(f.prefix, alias, "dir");
+    const lock = acquireServerUpgradeLock({ prefix: alias, releaseId: "alias-test" });
+    try {
+      await expect(
+        runServerService(f.profile, f.options("status"), { ...f.deps, existingLock: lock }),
+      ).resolves.toMatchObject({ state: "installed" });
+    } finally {
+      lock.release();
+    }
+  });
   it("preserves future registration bytes and refuses before native effects", async () => {
     const f = fixture();
     const bytes = '{"formatVersion":99,"retain":"future"}\n';
@@ -521,6 +535,19 @@ describe("explicit installed-prefix service administration", () => {
     await expect(f.execute("restart")).rejects.toThrow("build.root");
     expect(f.shutdown).not.toHaveBeenCalled();
     expect(f.calls.some(([action]) => ["stop", "restart", "kill"].includes(action!))).toBe(false);
+  });
+  it("does not retire a service that started after migration's status snapshot", async () => {
+    const f = fixture();
+    await f.execute("install");
+    f.startOwner();
+    await expect(
+      runServerService(f.profile, f.options("uninstall"), {
+        ...f.deps,
+        expectedOwner: { generation: null, mainPid: "0", state: "inactive", allowRetired: false },
+      }),
+    ).rejects.toThrow(/service state changed/u);
+    expect(f.shutdown).not.toHaveBeenCalled();
+    expect(readServiceRegistration(f.prefix)?.state).toBe("installed");
   });
   it("starts, proves the fresh owner, joins shutdown and removes only its registration", async () => {
     const f = fixture();
