@@ -21,7 +21,7 @@ import {
 } from "@/shared/runtimeItemVisibility";
 import { parseMcpName } from "@/shared/toolCallClassification";
 import { extractAcpDiffSummary, readAcpStringField } from "./acpToolPayload";
-import { commandIntentDisplay } from "./commandSummary";
+import { commandPayloadDisplay } from "./commandActionsDisplay";
 import { isContextCompactionToolCall } from "./contextCompactionToolCall";
 import { isPlanProposalToolCall } from "./planProposalToolCall";
 import { deriveToolDisplay, isDelegatedAgentTool } from "./toolDisplay";
@@ -385,8 +385,8 @@ export { isToolLikeItem, getToolLikePayload };
 export function categorizeCommandExecution(item: RuntimeChatItem): GroupCategory {
   const payload = getRuntimeItemPayload<CommandExecutionPayload>(item, "command_execution");
   const command = readCommandPayloadCommand(payload);
-  if (!command) return "executed";
-  switch (commandIntentDisplay(command).kind) {
+  if (!command && !payload?.actions?.length) return "executed";
+  switch (commandPayloadDisplay(payload, command).kind) {
     case "view":
     case "list":
       return "viewed";

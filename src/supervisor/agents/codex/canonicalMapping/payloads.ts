@@ -9,7 +9,12 @@ import { goalPayloadFromProviderState } from "../../goalRuntime";
 import { isCodexSpawnAgentToolCall, readCollabAgentProgress } from "./collabAgent";
 import { readCodexGoalStatus } from "./goal";
 import { readCodexAsyncQuestions } from "./asyncQuestions";
-import { type CodexItemPayload, extractMessageText, readChangesPayload } from "./readers";
+import {
+  type CodexItemPayload,
+  extractMessageText,
+  readChangesPayload,
+  readRecord,
+} from "./readers";
 import {
   classifyCodexFileChangeKind,
   codexFinalStatus,
@@ -20,8 +25,11 @@ import {
   pickCodexWebSearchInput,
   pickToolInput,
   pickToolOutput,
+  readCodexCommandActions,
   readCodexImageViewDataUrl,
   readCodexChangesDiffSummary,
+  readCodexWebSearchAction,
+  readCodexWebSearchResultContents,
   toolName,
   toolServerId,
 } from "./toolExtraction";
@@ -67,9 +75,11 @@ export function buildStartedPayload(
   source: CodexItemPayload,
 ): unknown {
   if (itemType === "command_execution") {
+    const actions = readCodexCommandActions(source);
     return {
       command: typeof source.command === "string" ? source.command : "",
       ...(typeof source.cwd === "string" ? { cwd: source.cwd } : {}),
+      ...(actions ? { actions } : {}),
       status: "running",
     };
   }
@@ -154,20 +164,24 @@ export function buildCompletedPayload(
     return replyForm ? buildStartedPayload(itemType, source) : undefined;
   }
   if (itemType === "command_execution") {
+    const actions = readCodexCommandActions(source);
     return {
       ...(typeof source.status === "string" ? { status: codexFinalStatus(source.status) } : {}),
       ...(typeof source.exitCode === "number" ? { exitCode: source.exitCode } : {}),
       ...(typeof source.durationMs === "number" ? { durationMs: source.durationMs } : {}),
+      ...(actions ? { actions } : {}),
     };
   }
   if (isToolLikeItemType(itemType)) {
+    const args = source.type === "imageGeneration" ? pickToolInput(source) : undefined;
     const result = pickToolOutput(source);
     const image = readCodexImageViewDataUrl(source, wslDistro);
     const progress = isCodexSpawnAgentToolCall(source)
       ? readCollabAgentProgress(source)
       : undefined;
     return {
-      status: codexFinalStatus(source.status),
+      status: codexFinalStatus(source.status, source.failure),
+      ...(args !== undefined ? { args } : {}),
       ...(result !== undefined ? { result } : {}),
       ...(image ? { images: [image] } : {}),
       ...(progress ? { progress } : {}),
@@ -197,13 +211,23 @@ export function buildCompletedPayload(
   }
   if (itemType === "web_search") {
     const result = pickToolOutput(source);
+    const resultContents = readCodexWebSearchResultContents(source);
     const resultCount = countWebSearchResults(source);
     const query = extractCodexWebSearchQuery(source);
+    const webAction = readCodexWebSearchAction(source);
+    const rawAction = readRecord(source.action);
     return {
       status: codexFinalStatus(source.status),
       ...(query ? { query } : {}),
       ...(resultCount != null ? { resultCount } : {}),
-      ...(result !== undefined ? { result } : {}),
+      ...(webAction ? { action: webAction.action } : {}),
+      ...(webAction?.action === "search" && webAction.queries && webAction.queries.length > 0
+        ? { queries: webAction.queries }
+        : {}),
+      ...(webAction?.url ? { url: webAction.url } : {}),
+      ...(webAction?.pattern ? { pattern: webAction.pattern } : {}),
+      ...(rawAction ? { args: source.action } : {}),
+      ...(resultContents ? { result: resultContents } : result !== undefined ? { result } : {}),
     };
   }
   return undefined;

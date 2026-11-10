@@ -8428,6 +8428,10 @@ msgstr "Tài chính"
 msgid "Find"
 msgstr "Tìm kiếm"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
+msgid "Find \"{pattern}\" in {url}"
+msgstr "Tìm \"{pattern}\" trong {url}"
+
 #: src/renderer/components/find/ChatFindBar.tsx
 msgid "Find in chat"
 msgstr "Tìm trong cuộc trò chuyện"
@@ -8436,6 +8440,7 @@ msgstr "Tìm trong cuộc trò chuyện"
 msgid "Find in diff"
 msgstr "Tìm trong diff"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserFindBar.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Find in page"
@@ -9797,6 +9802,10 @@ msgstr "Cải thiện"
 msgid "Improved in {version}"
 msgstr "Đã cải thiện trong {version}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+#~ msgid "in {scope}"
+#~ msgstr "trong {scope}"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "In progress"
 msgstr "Đang chạy"
@@ -10803,6 +10812,7 @@ msgstr "Đã liên kết"
 msgid "Linux"
 msgstr "Linux"
 
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -13927,6 +13937,10 @@ msgstr "Mở trên máy chủ nguồn"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #~ msgid "Open over SSH"
 #~ msgstr "Mở qua SSH"
+
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
+msgid "Open page"
+msgstr "Mở trang"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -17943,6 +17957,7 @@ msgstr "Chưa cài SDK"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18117,6 +18132,11 @@ msgstr "Tìm luồng, lệnh, cài đặt và tệp…"
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Search titles, messages and folders"
 msgstr "Tìm trong tiêu đề, tin nhắn và thư mục"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "Search: \"{query}\" in {scope}"
+msgstr "Tìm kiếm: \"{query}\" trong {scope}"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 #~ msgid "Search…"

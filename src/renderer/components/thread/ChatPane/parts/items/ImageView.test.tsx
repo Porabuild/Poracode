@@ -46,6 +46,41 @@ function installBridge(overrides: Record<string, unknown> = {}) {
 }
 
 describe("ImageView", () => {
+  it("renders a generated file's preview alongside fileId result metadata", () => {
+    render(
+      <AppProvider>
+        <ImageView
+          item={imageItem({
+            name: "imageGeneration",
+            status: "success",
+            result: { fileId: "file-generated", savedPath: "C:\\fixture\\generated.png" },
+            images: [`data:image/png;base64,${PNG_BASE64}`],
+          })}
+        />
+      </AppProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Open image preview" })).toBeInTheDocument();
+    expect(screen.getByRole("img")).toHaveAttribute("src", `data:image/png;base64,${PNG_BASE64}`);
+  });
+
+  it("shows generated file metadata when Codex provides no accessible image bytes", () => {
+    render(
+      <AppProvider>
+        <ImageView
+          item={imageItem({
+            name: "imageGeneration",
+            status: "success",
+            args: { prompt: "A blue square" },
+            result: { fileId: "file-remote-only", generationId: "generation-1" },
+          })}
+        />
+      </AppProvider>,
+    );
+    expect(screen.queryByRole("img")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.getByText(/file-remote-only/)).toBeInTheDocument();
+  });
+
   it("shows completed MCP resource source without starting a viewer session", () => {
     const item: RuntimeChatItem = {
       id: "app-tool",

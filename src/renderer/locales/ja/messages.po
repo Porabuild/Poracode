@@ -8427,6 +8427,10 @@ msgstr "ファイナンス"
 msgid "Find"
 msgstr "検索"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
+msgid "Find \"{pattern}\" in {url}"
+msgstr "{url} で「{pattern}」を検索"
+
 #: src/renderer/components/find/ChatFindBar.tsx
 msgid "Find in chat"
 msgstr "チャット内を検索"
@@ -8435,6 +8439,7 @@ msgstr "チャット内を検索"
 msgid "Find in diff"
 msgstr "差分内を検索"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserFindBar.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Find in page"
@@ -9796,6 +9801,10 @@ msgstr "改善"
 msgid "Improved in {version}"
 msgstr "{version} で改善"
 
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+#~ msgid "in {scope}"
+#~ msgstr "{scope} 内"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "In progress"
 msgstr "実行中"
@@ -10802,6 +10811,7 @@ msgstr "リンク済み"
 msgid "Linux"
 msgstr "Linux"
 
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -13925,6 +13935,10 @@ msgstr "ソースホストで開く"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #~ msgid "Open over SSH"
 #~ msgstr "SSH で開く"
+
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
+msgid "Open page"
+msgstr "ページを開く"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -17941,6 +17955,7 @@ msgstr "SDK 未インストール"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18115,6 +18130,11 @@ msgstr "スレッド、コマンド、設定、ファイルを検索…"
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Search titles, messages and folders"
 msgstr "タイトル、メッセージ、フォルダーを検索"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "Search: \"{query}\" in {scope}"
+msgstr "検索: 「{query}」({scope} 内)"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 #~ msgid "Search…"

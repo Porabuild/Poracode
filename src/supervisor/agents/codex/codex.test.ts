@@ -14,6 +14,7 @@ import {
   codexDefaultCapabilities,
   formatCodexPlanLabel,
   parseCodexLoginStatusOutput,
+  probeResultToCapabilityPartial,
 } from "./detection";
 import { CodexStructuredSession } from "./acp";
 import { CodexLiveVoice } from "./liveVoice";
@@ -1248,6 +1249,46 @@ describe("CodexStructuredSession", () => {
       params: { threadId: "provider-thread", turnId: "turn-1" },
       timeoutMs: 2_000,
     });
+  });
+
+  it("force-completes only the current turn's commands and retains earlier background output", () => {
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    const events: RuntimeEvent[] = [];
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "current-turn",
+      listener: { onRuntimeEvent: (event: RuntimeEvent) => events.push(event) },
+    });
+    for (const [id, turnId] of [
+      ["background", "previous-turn"],
+      ["foreground", "current-turn"],
+    ]) {
+      state.itemIdMap.set(id!, id!);
+      state.itemTypeMap.set(id!, "command_execution");
+      state.itemTurnIdMap.set(id!, turnId!);
+    }
+
+    structuredSession.forceCompleteTurn();
+
+    expect(events).toEqual([
+      {
+        type: "item.completed",
+        threadId: "local-thread",
+        itemId: "foreground",
+        payload: { status: "error" },
+      },
+      {
+        type: "turn.completed",
+        threadId: "local-thread",
+        turnId: "current-turn",
+        state: "interrupted",
+      },
+    ]);
+    expect(state.itemIdMap.get("background")).toBe("background");
+    expect(state.itemTurnIdMap.get("background")).toBe("previous-turn");
+    expect(state.settledItemIds.has("foreground")).toBe(true);
+    expect(state.settledItemIds.has("background")).toBe(false);
   });
 
   it("merges tracked and authoritative active provider turns during dispose", async () => {
@@ -3626,10 +3667,45 @@ describe("CodexStructuredSession", () => {
 });
 
 describe("mapCodexSlashCommands", () => {
-  it("keeps built-in Codex slash commands available when app-server init omits commands", () => {
-    expect(codexDefaultCapabilities.slashCommands?.map((cmd) => cmd.id)).toEqual(
-      expect.arrayContaining(["status", "model", "review", "compact", "permissions"]),
+  it("retains built-in terminal commands when the probe reports only skills", () => {
+    const skill = { id: "review-code", label: "Review code", section: "skills" as const };
+    const commands = probeResultToCapabilityPartial({ slashCommands: [skill] }).slashCommands;
+    expect(commands).toContainEqual(skill);
+    expect(commands?.map((command) => command.id)).toEqual(
+      expect.arrayContaining(["status", "model", "daybreak"]),
     );
+    expect(commands?.map((command) => command.id)).not.toContain("personality");
+  });
+
+  it("uses an authoritative probed terminal catalog without adding fallback commands", () => {
+    const commands = [{ id: "native-command", label: "Native command" }];
+    expect(probeResultToCapabilityPartial({ slashCommands: commands }).slashCommands).toEqual(
+      commands,
+    );
+  });
+
+  it("keeps built-in Codex 0.167 slash commands available and drops retired commands", () => {
+    const ids = codexDefaultCapabilities.slashCommands?.map((cmd) => cmd.id) ?? [];
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "status",
+        "model",
+        "presets",
+        "daybreak",
+        "review",
+        "compact",
+        "permissions",
+        "agents",
+        "subagents",
+        "voice",
+        "worktree",
+        "memories",
+      ]),
+    );
+    expect(ids).not.toContain("personality");
+    expect(ids).not.toContain("sandbox-add-read-dir");
+    expect(ids).not.toContain("fast");
+    expect(ids).not.toContain("agent");
   });
 
   it("advertises 272k, 400k, and 1M context windows with a 400k default", () => {

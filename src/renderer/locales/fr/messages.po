@@ -8428,6 +8428,10 @@ msgstr "Finance"
 msgid "Find"
 msgstr "Rechercher"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
+msgid "Find \"{pattern}\" in {url}"
+msgstr "Rechercher « {pattern} » dans {url}"
+
 #: src/renderer/components/find/ChatFindBar.tsx
 msgid "Find in chat"
 msgstr "Rechercher dans le chat"
@@ -8436,6 +8440,7 @@ msgstr "Rechercher dans le chat"
 msgid "Find in diff"
 msgstr "Rechercher dans la différence"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserFindBar.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Find in page"
@@ -9797,6 +9802,10 @@ msgstr "Amélioré"
 msgid "Improved in {version}"
 msgstr "Amélioré dans {version}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+#~ msgid "in {scope}"
+#~ msgstr "dans {scope}"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "In progress"
 msgstr "En cours"
@@ -10803,6 +10812,7 @@ msgstr "Liée"
 msgid "Linux"
 msgstr "Linux"
 
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -13926,6 +13936,10 @@ msgstr "Ouvrir sur le serveur source"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #~ msgid "Open over SSH"
 #~ msgstr "Ouvrir via SSH"
+
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
+msgid "Open page"
+msgstr "Ouvrir la page"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -17942,6 +17956,7 @@ msgstr "SDK non installé"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18116,6 +18131,11 @@ msgstr "Rechercher des fils, commandes, paramètres et fichiers…"
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Search titles, messages and folders"
 msgstr "Rechercher dans les titres, messages et dossiers"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "Search: \"{query}\" in {scope}"
+msgstr "Rechercher : « {query} » dans {scope}"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 #~ msgid "Search…"
