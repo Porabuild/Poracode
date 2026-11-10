@@ -80,6 +80,7 @@ import {
   type TerminalConnectionCapabilities,
 } from "./terminalCapabilities";
 import { forgetCertPin, normalizeEndpoint } from "./pairing";
+import { remoteServerFailureMessage } from "./failureMessage";
 import { deleteRefreshTokenFromVault } from "./refreshTokens";
 import {
   disposeEnvironmentParentSession,
@@ -307,6 +308,24 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         setRemoteServerFailure(connectionKey, "offline", message);
         return;
       }
+    }
+    if (!server.accessToken && server.transport?.kind !== "environment") {
+      // WebKit can fail to restore the vault during startup. Retry through
+      // credential custody before sending requests with an empty bearer; it
+      // adopts the saved pair under the existing ownership and endpoint fences.
+      try {
+        await clientForServer(server).refreshTokens();
+      } catch (error) {
+        if (canContinue()) {
+          setRemoteServerFailure(
+            connectionKey,
+            "error",
+            remoteServerFailureMessage(error, sharedMsg("remote.server.unreachable")),
+          );
+        }
+        return;
+      }
+      if (!canContinue()) return;
     }
     // WS3 #6: probe the environment while the first snapshot refresh is
     // in flight — one RTT saved per cold connect. Environment failures

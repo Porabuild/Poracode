@@ -60,6 +60,18 @@ afterEach(() => {
 });
 
 describe("refresh subjects own disjoint vault roots", () => {
+  it("persists the first refresh grant before an access token has created the vault key", async () => {
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    await deleteVaultDatabase();
+
+    await expect(writeRefreshTokenToVault(directSubject, "first-refresh")).resolves.toBe(true);
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    await hydrateRefreshTokens({ subjects: [directSubject] });
+    expect(refreshTokenForSubject(directSubject)).toBe("first-refresh");
+  });
+
   it("keeps every accepted direct root, including opaque grant-shaped ids", () => {
     expect(refreshSubjectVaultKey(directSubject)).toBe("refresh.direct-connection");
     expect(refreshSubjectVaultKey(remoteSubject)).toBe(

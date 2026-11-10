@@ -334,13 +334,13 @@ describe("connection incarnation across store re-pair and removal", () => {
           });
         });
         await vi.waitFor(() => expect(held).toBe(true));
-        await rePairVia("direct");
+        const rePairing = rePairVia("direct");
         await vi.waitFor(async () => {
           expect(await getDesktopToken(PARENT_KEY)).toBe("fresh-access");
         });
 
         gate.resolve();
-        await inFlight;
+        await Promise.all([inFlight, rePairing]);
         await expectVault(connectionSubject, "fresh-grant");
         __resetTokenVaultForTest();
         expect(await getDesktopToken(PARENT_KEY)).toBe("fresh-access");

@@ -39,7 +39,11 @@ import {
   remoteServerHostSession,
 } from "./eventSocketRegistry";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
-import { nextRemoteHostUpdateSequence, setRemoteHostUpdateReconnectSeq } from "./connectionRefresh";
+import {
+  nextRemoteHostUpdateSequence,
+  remoteHostUpdateReconnectSeq,
+  setRemoteHostUpdateReconnectSeq,
+} from "./connectionRefresh";
 import { terminalCapabilitiesFromEnvironment } from "./terminalCapabilities";
 import { disposeEnvironmentParentSession } from "./environmentSessions";
 import {
@@ -56,6 +60,7 @@ import type {
   StartRemoteServerEventStream,
 } from "./storeClient";
 import type { RemoteServerRecord } from "./types";
+import { SharedCredentialRefusedError } from "./sharedCredentials";
 
 /**
  * Standalone-attach session memo (in-memory only, never persisted): the
@@ -162,6 +167,8 @@ function splitPairingCredential(value: string): {
 }
 
 export interface PairingActionDeps extends RemoteServersStoreApi {
+  readonly flushPersistence: () => Promise<void>;
+  readonly setRemoteServerFailure: RemoteServerClientBindings["setRemoteServerFailure"];
   readonly checkHostUpdateInBackground: RemoteServerClientBindings["checkHostUpdateInBackground"];
   readonly startRemoteServerEventStream: StartRemoteServerEventStream;
   readonly closeRemoteServerEventSocket: (desktopId: string) => void;
@@ -171,6 +178,8 @@ export function createPairingActions(deps: PairingActionDeps) {
   const {
     set,
     get,
+    flushPersistence,
+    setRemoteServerFailure,
     checkHostUpdateInBackground,
     startRemoteServerEventStream,
     closeRemoteServerEventSocket,
@@ -274,21 +283,23 @@ export function createPairingActions(deps: PairingActionDeps) {
     // vault so the 24-hour access token can rotate transparently after
     // this session. Older hosts without the refresh grant simply omit the
     // field — nothing to store then.
+    let refreshPersistence: Promise<boolean | void>;
     if (tokenResult.refreshToken) {
       rememberRefreshToken(connectionId, tokenResult.refreshToken);
-      void writeRefreshTokenToVault(
+      refreshPersistence = writeRefreshTokenToVault(
         connectionRefreshSubject(connectionId),
         tokenResult.refreshToken,
         incarnation,
       );
     } else {
-      void deleteRefreshTokenFromVault(connectionRefreshSubject(connectionId));
+      refreshPersistence = deleteRefreshTokenFromVault(connectionRefreshSubject(connectionId));
     }
     // Gate 6 item 4.2: pin the QR-asserted certificate fingerprint (TOFU
     // anchored by the link the desktop itself rendered) beside the server
     // record. Re-pairing with a fresh QR replaces the pin.
     if (input.certFingerprint) rememberCertPin(connectionId, input.certFingerprint);
-    setRemoteHostUpdateReconnectSeq(connectionId, nextRemoteHostUpdateSequence());
+    const reconnectSeq = nextRemoteHostUpdateSequence();
+    setRemoteHostUpdateReconnectSeq(connectionId, reconnectSeq);
     closeRemoteServerEventSocket(connectionId);
     bumpRemoteServerGeneration(connectionId);
     // The new cache id already makes an earlier pairing's tail unreachable, so
@@ -305,7 +316,7 @@ export function createPairingActions(deps: PairingActionDeps) {
       runtime: {
         ...state.runtime,
         [connectionId]: {
-          status: "online",
+          status: "connecting",
           projects: snapshot.projects,
           threads: snapshot.threads,
           agentStatuses,
@@ -323,6 +334,14 @@ export function createPairingActions(deps: PairingActionDeps) {
     clearRemoteThreadAppliedSeqs(connectionId);
     forgetHistoryBaselines(remoteServerHostSession(connectionId));
     syncDesktopBrowserBridgeClient(get());
+    const refreshPersisted = await refreshPersistence;
+    await flushPersistence();
+    if (remoteHostUpdateReconnectSeq(connectionId) !== reconnectSeq) return record;
+    if (refreshPersisted === false) {
+      const error = new SharedCredentialRefusedError();
+      setRemoteServerFailure(connectionId, "error", error.message);
+      throw error;
+    }
     await startRemoteServerEventStream(record, terminalCapabilitiesFromEnvironment(environment));
     checkHostUpdateInBackground(record);
     return record;

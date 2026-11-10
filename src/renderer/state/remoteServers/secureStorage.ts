@@ -236,6 +236,8 @@ export interface RemoteServersDurableChanges {
 }
 
 export interface SecureRemoteServersStorage<S> extends PersistStorage<S> {
+  /** Waits for this realm's accepted metadata and bearer writes to settle. */
+  flush(): Promise<void>;
   /** Records a bearer that credential custody already committed for this
    * realm, so persisting the store does not write it to the vault again. */
   acknowledgeBearer(connectionKey: string, accessToken: string): void;
@@ -458,6 +460,7 @@ export function createSecureRemoteServersStorage<S extends StateWithServers>(
   };
 
   return {
+    flush: () => writeQueue,
     async getItem(name): Promise<StorageValue<S> | null> {
       await writeQueue;
       return withSharedStorageLock(name, async () => {
