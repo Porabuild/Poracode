@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { RemoteClientError } from "@/shared/remote/client";
+import { RemoteClientError, remoteMutationMayHaveCommitted } from "@/shared/remote/client";
 import type { Project, Thread } from "@/shared/contracts";
 
 const mocks = vi.hoisted(() => ({
@@ -246,6 +246,97 @@ describe("performInitialThreadLaunch uncertain outcomes", () => {
 
     expect(mocks.notify).toHaveBeenCalledTimes(1);
     expect(mocks.reconcile).toHaveBeenCalledExactlyOnceWith(thread);
+  });
+
+  it("reports a definite launch error without an uncertainty warning when reconciliation finds the thread failed", async () => {
+    const thread = createRemoteThread();
+    mocks.appState.threads = [thread];
+    mocks.startThread.mockRejectedValue(
+      new RemoteClientError("Internal server error.", 500, "internal_error", {
+        requestPhase: "dispatched",
+        requestMayHaveCommitted: true,
+      }),
+    );
+    mocks.reconcile.mockImplementation(async () => {
+      mocks.appState.threads = [
+        { ...thread, status: "error", attention: "error", errorMessage: "Provider quota exceeded" },
+      ];
+      return true;
+    });
+
+    const failure = await performInitialThreadLaunch({
+      thread,
+      projectLocation,
+      prompt: "build it",
+      initialSize: { cols: 80, rows: 24 },
+    }).catch((reason: unknown) => reason);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toBe("Provider quota exceeded");
+    expect(remoteMutationMayHaveCommitted(failure)).toBe(false);
+    expect(mocks.reconcile).toHaveBeenCalledExactlyOnceWith(thread);
+    expect(mocks.notify).not.toHaveBeenCalled();
+    expect(mocks.captureThreadStarted).not.toHaveBeenCalled();
+  });
+
+  it("keeps uncertainty when reconciliation fails on an already-errored or resumed thread", async () => {
+    const erroredThread = createRemoteThread({
+      status: "error",
+      attention: "error",
+      errorMessage: "Earlier error",
+      sessionRef: { providerSessionId: "ses-1", discoveredAt: "2026-11-10T00:00:00.000Z" },
+    });
+    mocks.appState.threads = [erroredThread];
+    mocks.reconcile.mockResolvedValue(false);
+    mocks.startThread.mockRejectedValue(
+      new RemoteClientError("timed out", 0, "timeout", {
+        requestPhase: "dispatched",
+        requestMayHaveCommitted: true,
+      }),
+    );
+
+    const failure = await performInitialThreadLaunch({
+      thread: erroredThread,
+      projectLocation,
+      prompt: "resume turn",
+      initialSize: { cols: 80, rows: 24 },
+    }).catch((reason: unknown) => reason);
+
+    expect(remoteMutationMayHaveCommitted(failure)).toBe(true);
+    expect(mocks.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps uncertainty when reconciliation shows an errored row that already has a sessionRef", async () => {
+    const thread = createRemoteThread();
+    mocks.appState.threads = [thread];
+    mocks.startThread.mockRejectedValue(
+      new RemoteClientError("timed out", 0, "timeout", {
+        requestPhase: "dispatched",
+        requestMayHaveCommitted: true,
+      }),
+    );
+    mocks.reconcile.mockImplementation(async () => {
+      mocks.appState.threads = [
+        {
+          ...thread,
+          status: "error",
+          attention: "error",
+          errorMessage: "Mid-turn failure",
+          sessionRef: { providerSessionId: "ses-live", discoveredAt: "2026-11-10T00:00:00.000Z" },
+        },
+      ];
+      return true;
+    });
+
+    const failure = await performInitialThreadLaunch({
+      thread,
+      projectLocation,
+      prompt: "build it",
+      initialSize: { cols: 80, rows: 24 },
+    }).catch((reason: unknown) => reason);
+
+    expect(remoteMutationMayHaveCommitted(failure)).toBe(true);
+    expect(mocks.notify).toHaveBeenCalledTimes(1);
   });
 
   it("does not touch uncertainty handling on a successful start", async () => {

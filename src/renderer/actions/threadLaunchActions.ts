@@ -2,18 +2,20 @@ import {
   settleClientSubmission,
   materializeDraftSegments,
   clientDraftRetirementError,
+  markDraftLaunchErrorNotified,
 } from "./clientDraftSubmission";
 import { isClientDraftAsset } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import {
   dropPendingThreadLaunch,
-  notePendingThreadLaunch,
   peekPendingThreadLaunch,
+  rearmPendingThreadLaunch,
   retainPendingThreadLaunch,
-  markPendingThreadCreated,
 } from "@/renderer/state/threadLaunchIntents";
 import { withThreadConfigSubmission } from "./threadConfigSubmission";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
+import { RemoteClientError } from "@/shared/remote/clientErrors";
+import { THREAD_LAUNCH_FAILED_REFUSAL_CODE } from "@/shared/threadLaunchRefusal";
 import type {
   Project,
   ProjectLocation,
@@ -296,8 +298,9 @@ async function performInitialThreadLaunchPending(
           !isRemoteCommandOutcomeUncertainError(error) &&
           (!hadUncertainEpisode || isRemoteCommandOutcomeAuthoritativelyResolved(error))
         ) {
-          notePendingThreadLaunch(thread.id, pendingRootLaunch.isNewWorktree);
-          if (pendingRootLaunch.metadataCreated) markPendingThreadCreated(thread.id);
+          rearmPendingThreadLaunch(thread.id, {
+            metadataCreated: pendingRootLaunch.metadataCreated === true,
+          });
         }
         throw error;
       }
@@ -369,17 +372,31 @@ async function performInitialThreadLaunchPending(
     }
   } catch (error) {
     // The host may have started the session without being able to confirm it.
-    // Keep the optimistic launch state, explain the uncertainty, and run one
-    // bounded authoritative read — never a resend. The error still propagates
-    // so launch catches do not paint a definite failure.
+    // Reconcile once before surfacing uncertainty: if a fresh launch's host
+    // row authoritatively settled into `status === "error"`, report that
+    // definite failure directly instead of claiming the outcome is unknown.
     if (isRemoteCommandOutcomeUncertainError(error)) {
       releasePendingInput?.();
+      const didReconcile = await reconcileThreadCommandOutcome(thread);
+      const reconciled = useAppStore.getState().threads.find((row) => row.id === thread.id);
+      if (
+        didReconcile &&
+        !providerSwitch &&
+        !resumableSessionRef &&
+        thread.status !== "error" &&
+        reconciled?.status === "error" &&
+        reconciled.sessionRef === undefined
+      ) {
+        rearmPendingThreadLaunch(thread.id, { metadataCreated: true });
+        throw new RemoteClientError(
+          reconciled.errorMessage || friendlyError(error),
+          422,
+          THREAD_LAUNCH_FAILED_REFUSAL_CODE,
+          { cause: error, requestMayHaveCommitted: false },
+        );
+      }
       notifyThreadCommandOutcomeUncertain();
-      // A retained launch keeps its operation id and exact original body for
-      // an explicit retry. The bounded read is evidence/row convergence only:
-      // absence is never used to mint a fresh identity because the provider
-      // may already have received the prompt before the failure.
-      await reconcileThreadCommandOutcome(thread);
+      markDraftLaunchErrorNotified(error);
     }
     throw error;
   }
@@ -447,7 +464,9 @@ async function startThreadFromDraftPending(
       msg`This project's remote server is offline. Reconnect it to start a thread.`,
     );
     toast.danger(message);
-    throw new Error(message);
+    const offlineError = new Error(message);
+    markDraftLaunchErrorNotified(offlineError);
+    throw offlineError;
   }
 
   const isHomeScope = isHomeProject(project);
@@ -495,6 +514,7 @@ async function startThreadFromDraftPending(
     } catch (error) {
       markThreadLaunchFailed(pendingThread.id, error);
       toast.danger(friendlyError(error));
+      markDraftLaunchErrorNotified(error);
       throw error;
     }
   }
@@ -535,6 +555,7 @@ async function startThreadFromDraftPending(
         });
       }
       toast.danger(message);
+      markDraftLaunchErrorNotified(error);
       throw error;
     }
   }
@@ -689,11 +710,30 @@ export function markThreadLaunchFailed(threadId: string, error: unknown): void {
   // for an explicit retry. Only an authoritative removal drops the intent.
   const thread = store.threads.find((row) => row.id === threadId);
   const message = friendlyError(error);
-  store.applyRuntimeEvent(threadId, {
-    type: "error",
-    threadId,
-    message,
-  });
+  const existingIds = store.runtimeItemIdsByThread?.[threadId];
+  const existingItems = store.runtimeItemsByIdByThread?.[threadId];
+  let hasMatchingCurrentTurnError = false;
+  if (existingIds && existingItems) {
+    for (let index = existingIds.length - 1; index >= 0; index -= 1) {
+      const item = existingItems[existingIds[index]!];
+      if (!item) continue;
+      if (item.type === "user_message") break;
+      if (item.type === "error") {
+        const payload = item.payload as { message?: string; severity?: string } | undefined;
+        if (payload?.severity !== "warning" && payload?.message?.trim() === message.trim()) {
+          hasMatchingCurrentTurnError = true;
+          break;
+        }
+      }
+    }
+  }
+  if (!hasMatchingCurrentTurnError) {
+    store.applyRuntimeEvent(threadId, {
+      type: "error",
+      threadId,
+      message,
+    });
+  }
   store.updateThreadRuntime(threadId, {
     status: "error",
     attention: "error",

@@ -14,7 +14,6 @@ import {
 } from "@/host/db";
 import { ipcProcedureMap, parseRemoteProcedureResultValue } from "@/shared/ipc";
 import { FILE_SAVE_CONFLICT_MESSAGE } from "@/shared/fileSaveErrors";
-import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
 import { RemoteHttpError } from "../auth";
 import { assertRemoteGitMutationExperimentSafe } from "../experimentOwnership";
 import type { RemoteServerContext } from "./context";
@@ -24,7 +23,11 @@ import { runRemoteCommand } from "./remoteCommandIdempotency";
 import { authorizeProjectProcedurePayload } from "./projectProcedureAuthorization";
 import { isProjectWatchProcedure, runProjectWatchProcedure } from "./projectWatchProcedure";
 import { requireCurrentRemoteProtocolVersion } from "./writerProtocolAdmission";
-import { applyRemoteThreadSwitch } from "./threadSwitch";
+import {
+  applyRemoteThreadSwitch,
+  isPlainThreadStartPreEffectFailure,
+  rethrowPlainThreadStartRefusal,
+} from "./threadSwitch";
 
 /**
  * Generic desktop-supervisor passthrough. The PWA reuses desktop-backed
@@ -128,35 +131,39 @@ export async function runRemoteProcedure(
       // the validated union narrows to the start payload here.
       const startPayload = parsedPayload as IpcProcedurePayload<"startThread">;
       const principalId = ctx.security.requireBearerSession(req, []).session.sessionId;
-      raw = await runRemoteCommand({
-        commandId: remoteCommandId(req),
-        route: `procedure:${name}`,
-        principalId,
-        requestPayload: startPayload,
-        // A plain start has no effect before supervisor admission. A switch
-        // retargets the durable row first, so a later refusal is uncertain.
-        ...(startPayload.providerSwitch
-          ? {}
-          : { isPreEffectFailure: isHostResourceAdmissionRefusal }),
-        operation: (markDispatched) => {
-          if (startPayload.providerSwitch) {
-            if (!startPayload.threadId) {
-              throw new RemoteHttpError(
-                "thread_id_required",
-                "A provider switch requires an existing thread id.",
-                400,
+      try {
+        raw = await runRemoteCommand({
+          commandId: remoteCommandId(req),
+          route: `procedure:${name}`,
+          principalId,
+          requestPayload: startPayload,
+          // A plain start has no effect before supervisor admission. A switch
+          // retargets the durable row first, so a later refusal is uncertain.
+          ...(startPayload.providerSwitch
+            ? {}
+            : { isPreEffectFailure: isPlainThreadStartPreEffectFailure }),
+          operation: (markDispatched) => {
+            if (startPayload.providerSwitch) {
+              if (!startPayload.threadId) {
+                throw new RemoteHttpError(
+                  "thread_id_required",
+                  "A provider switch requires an existing thread id.",
+                  400,
+                );
+              }
+              return applyRemoteThreadSwitch(
+                ctx,
+                { ...startPayload, threadId: startPayload.threadId },
+                markDispatched,
               );
             }
-            return applyRemoteThreadSwitch(
-              ctx,
-              { ...startPayload, threadId: startPayload.threadId },
-              markDispatched,
-            );
-          }
-          markDispatched();
-          return ctx.options.callSupervisor("startThread", startPayload);
-        },
-      });
+            markDispatched();
+            return ctx.options.callSupervisor("startThread", startPayload);
+          },
+        });
+      } catch (error) {
+        rethrowPlainThreadStartRefusal(error, startPayload.providerSwitch);
+      }
     } else if (isProjectWatchProcedure(procedure)) {
       // The supervisor's project watcher is shared by every client; these
       // procedures go through the host's per-owner leases instead. The guard

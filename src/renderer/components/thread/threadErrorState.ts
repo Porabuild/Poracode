@@ -60,7 +60,24 @@ export function selectThreadErrorDockStates(
     const dock = item.type === "error" ? getThreadErrorDockStateForItem(item) : null;
     if (dock) sinceLastUser.push(dock);
   }
-  const result = sinceLastUser.length === 0 ? EMPTY_ERROR_DOCK_STATES : sinceLastUser.reverse();
+  const ordered = sinceLastUser.length === 0 ? EMPTY_ERROR_DOCK_STATES : sinceLastUser.reverse();
+  const deduped: ThreadErrorDockState[] = [];
+  for (const dock of ordered) {
+    const previous = deduped[deduped.length - 1];
+    if (
+      previous &&
+      previous.message === dock.message &&
+      previous.severity === dock.severity &&
+      previous.reason === dock.reason
+    ) {
+      if (dock.sourceItemId !== previous.sourceItemId) {
+        deduped[deduped.length - 1] = dock;
+      }
+      continue;
+    }
+    deduped.push(dock);
+  }
+  const result = deduped.length === 0 ? EMPTY_ERROR_DOCK_STATES : deduped;
   errorDockStatesCache.set(threadId, { itemIds, result });
   return result;
 }

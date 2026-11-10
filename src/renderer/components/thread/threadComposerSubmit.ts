@@ -4,6 +4,7 @@ import {
   materializeDraftSegments,
   dispatchDraftSubmission,
   acceptDraftSubmission,
+  retireFailedDraftSubmission,
   waitForClientSubmission,
   type DraftSubmission,
 } from "@/renderer/actions/clientDraftSubmission";
@@ -178,7 +179,15 @@ export function submitComposerPrompt(
           return didOpen;
         });
         if (!opened) {
-          await updateClientSubmission(submission.id, "failed");
+          if (
+            ctx.isCurrentSession() &&
+            JSON.stringify(ctx.latestSegmentsRef.current) === draftAtSubmit &&
+            JSON.stringify(attachments.getDraftAttachments()) === attachmentsAtSubmit
+          ) {
+            await retireFailedDraftSubmission(submission.id);
+          } else {
+            await updateClientSubmission(submission.id, "failed");
+          }
           return false;
         }
         await acceptDraftSubmission(submission, () => {
@@ -197,13 +206,22 @@ export function submitComposerPrompt(
         });
         return true;
       } catch (error) {
-        if (!opened) {
-          const { readClientSubmission } =
-            await import("@/renderer/state/composerDrafts/clientDraftDatabase");
+        if (!opened && !isRemoteCommandOutcomeUncertainError(error)) {
           if (
-            (await readClientSubmission(submission.id).catch(() => undefined))?.state === "prepared"
-          )
-            await updateClientSubmission(submission.id, "failed").catch(() => undefined);
+            ctx.isCurrentSession() &&
+            JSON.stringify(ctx.latestSegmentsRef.current) === draftAtSubmit &&
+            JSON.stringify(attachments.getDraftAttachments()) === attachmentsAtSubmit
+          ) {
+            await retireFailedDraftSubmission(submission.id);
+          } else {
+            const { readClientSubmission } =
+              await import("@/renderer/state/composerDrafts/clientDraftDatabase");
+            if (
+              (await readClientSubmission(submission.id).catch(() => undefined))?.state ===
+              "prepared"
+            )
+              await updateClientSubmission(submission.id, "failed").catch(() => undefined);
+          }
         }
         throw error;
       }
@@ -461,28 +479,34 @@ export function submitComposerPrompt(
           await updateClientSubmission(submission.id, "failed").catch(() => undefined);
       }
       if (ctx.resumesInterruptedTurn) {
-        if (!isRemoteCommandOutcomeUncertainError(error)) toast.danger(friendlyError(error));
+        if (!isRemoteCommandOutcomeUncertainError(error)) {
+          if (submission) await retireFailedDraftSubmission(submission.id);
+          toast.danger(friendlyError(error));
+        }
         return;
       }
-      // Leave the prompt intact so the user can retry.
+      if (isRemoteCommandOutcomeUncertainError(error)) {
+        // The command may have committed: the send action already reconciled
+        // once and showed the localized uncertainty explanation. Keep the
+        // optimistic paint and the outbox recovery snapshot, but do not
+        // restore the composer — a blind resend could duplicate the effect.
+        return;
+      }
+      // Leave the prompt intact so the user can retry, and retire the outbox
+      // copy whenever the editor/draft already keeps this exact message.
       const saved = useAppStore.getState().threadDraftContents[thread.id];
-      if (
+      const keepSubmittedDraft =
         !saved ||
         sameEditor() ||
         (ctx.isCurrentSession() &&
           ctx.latestSegmentsRef.current.length === 0 &&
-          attachments.getDraftAttachments().length === 0)
-      )
+          attachments.getDraftAttachments().length === 0);
+      if (keepSubmittedDraft) {
         useAppStore.getState().saveThreadDraftContent(thread.id, {
           segments: submittedInputSegments,
           attachments: submittedAttachments.map(storableAttachment),
         });
-      if (isRemoteCommandOutcomeUncertainError(error)) {
-        // The command may have committed: the send action already reconciled
-        // once and showed the localized uncertainty explanation. Keep the
-        // optimistic paint and the saved draft, but do not restore the
-        // composer — a blind resend could duplicate the effect.
-        return;
+        if (submission) await retireFailedDraftSubmission(submission.id);
       }
       if (
         ctx.isCurrentSession() &&

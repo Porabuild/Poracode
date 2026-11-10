@@ -97,4 +97,62 @@ describe("client draft recovery startup", () => {
     expect(failures).not.toHaveBeenCalled();
     expect(await listClientSubmissions()).toEqual([]);
   });
+
+  it("retires leftover uncertain project launch submissions from an earlier build while keeping the unsent draft", async () => {
+    const project = {
+      id: "p",
+      name: "Project",
+      location: { kind: "posix" as const, path: "/repo" },
+      createdAt: "2026-11-01",
+    };
+    const asset = stageClientDraftAsset(new Blob(["image"], { type: "image/png" }), "Image 1.png");
+    await asset.saved;
+    const draft = {
+      segments: content("Visible models").segments,
+      attachments: [
+        { id: "img", path: asset.path, name: "Image 1.png", isImage: true, mimeType: "image/png" },
+      ],
+    };
+    const submission = await preserveDraftSubmission({
+      kind: "project",
+      ownerId: project.id,
+      target: project,
+      content: draft,
+      segments: [
+        { kind: "attachment", path: asset.path, mimeType: "image/png" },
+        ...draft.segments,
+      ],
+      intent: "launch",
+      configuration: { model: "test" },
+    });
+    await updateClientSubmission(submission.id, "uncertain");
+
+    await initializeClientDraftRecovery();
+
+    expect(await listClientSubmissions()).toEqual([]);
+    expect(useAppStore.getState().draftContents[project.id]).toEqual(draft);
+    expect(await readClientDraftAsset(asset.path)).toMatchObject({ name: "Image 1.png" });
+  });
+
+  it("preserves uncertain thread submissions across startup even when the saved thread draft matches", async () => {
+    const storage = composerDraftStorage()!;
+    storage.save("thread", thread.id, content("in-flight prompt"));
+    await storage.flushRequired();
+    const submission = await preserveDraftSubmission({
+      kind: "thread",
+      ownerId: thread.id,
+      target: thread,
+      content: content("in-flight prompt"),
+      segments: content("in-flight prompt").segments,
+      intent: "send",
+      configuration: { config: thread.config },
+    });
+    await updateClientSubmission(submission.id, "uncertain");
+
+    await initializeClientDraftRecovery();
+
+    expect(await listClientSubmissions()).toEqual([
+      expect.objectContaining({ id: submission.id, state: "uncertain" }),
+    ]);
+  });
 });

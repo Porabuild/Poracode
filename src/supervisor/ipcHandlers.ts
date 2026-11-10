@@ -99,7 +99,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     getResourceAdmissionStatus: () => runtime.getResourceAdmissionStatus(),
     getTerminalShellSnapshots: () => threads.getTerminalShellSnapshots(),
     getAvailableWindowsShells: () => runtime.getAvailableWindowsShells(),
-    startThread: (payload) => threads.startThread(payload),
+    startThread: (payload) => threads.startThreadForIpc(payload),
     controlThreadExecution: (payload) => threads.controlThreadExecution(payload),
     reserveThreadExecution: (payload) => threads.reserveThreadExecution(payload),
     controlledThreadRequest: (payload) => threads.controlledThreadRequest(payload),
