@@ -5,8 +5,7 @@
  * the CLI downloads against.
  *
  * Usage:
- *   bun scripts/build-tui.mjs [--targets win32-x64,linux-x64] [--require]
- *   bun scripts/build-tui.mjs --manifest-only [--manifest-out <path>]
+ *   bun scripts/build-tui.mjs [--targets win32-x64,linux-x64] [--require] [--manifest-out <path>]
  *
  * Each target's compile pins its own `@opentui/core-<target>` package via a
  * resolver redirect, so every binary embeds exactly the native library for
@@ -43,7 +42,6 @@ const flagValue = (name) => {
   const index = args.indexOf(name);
   return index === -1 ? undefined : args[index + 1];
 };
-const manifestOnly = args.includes("--manifest-only");
 const requireAll = args.includes("--require");
 const manifestOut = flagValue("--manifest-out");
 const requested = flagValue("--targets")
@@ -142,28 +140,16 @@ async function makePluginRuntimePlugin() {
 }
 
 const assets = {};
-if (!manifestOnly) {
-  for (const target of targets) {
-    try {
-      assets[target] = await buildTarget(target);
-    } catch (error) {
-      if (requireAll) throw error;
-      const detail =
-        error instanceof Error && "logs" in error && Array.isArray(error.logs)
-          ? `\n${error.logs.map((log) => `  ${log.message}`).join("\n")}`
-          : "";
-      console.warn(`[tui:build] skipping ${target}: ${error.message}${detail}`);
-    }
-  }
-} else {
-  for (const target of targets) {
-    const file = join(distDir, target, assetName(target));
-    if (!existsSync(file)) continue;
-    assets[target] = {
-      name: assetName(target),
-      size: statSync(file).size,
-      sha256: sha256File(file),
-    };
+for (const target of targets) {
+  try {
+    assets[target] = await buildTarget(target);
+  } catch (error) {
+    if (requireAll) throw error;
+    const detail =
+      error instanceof Error && "logs" in error && Array.isArray(error.logs)
+        ? `\n${error.logs.map((log) => `  ${log.message}`).join("\n")}`
+        : "";
+    console.warn(`[tui:build] skipping ${target}: ${error.message}${detail}`);
   }
 }
 
