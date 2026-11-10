@@ -161,6 +161,7 @@ export function ThreadDocksPanel({
           gallery={gallery}
           threadId={threadId}
           artifacts={artifacts}
+          visible={visible}
         />
       ) : null,
     info: threadExists ? <ThreadWorkspaceDock key={threadId} threadId={threadId} /> : null,

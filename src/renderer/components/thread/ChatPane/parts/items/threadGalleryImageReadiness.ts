@@ -16,17 +16,19 @@ export function galleryImageResource(
     ? {
         key: environmentLocalImageKey(target),
         getSnapshot: () => readiness.resolvePath(target),
-        subscribe: (listener) => readiness.subscribePath(target, listener, "focus"),
-        request: () => {
-          readiness.requestPath(target, "focus");
+        subscribe: (listener, priority = "focus") =>
+          readiness.subscribePath(target, listener, priority),
+        request: (priority = "focus") => {
+          readiness.requestPath(target, priority);
         },
       }
     : {
         key: environmentImageRefKey(target),
         getSnapshot: () => readiness.resolveRef(target),
-        subscribe: (listener) => readiness.subscribeRef(target, listener, "focus"),
-        request: () => {
-          readiness.requestRef(target, "focus");
+        subscribe: (listener, priority = "focus") =>
+          readiness.subscribeRef(target, listener, priority),
+        request: (priority = "focus") => {
+          readiness.requestRef(target, priority);
         },
       };
 }

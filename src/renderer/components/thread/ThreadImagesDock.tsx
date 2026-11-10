@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { toast } from "@heroui/react";
 import { FileText, Images, ExternalLink } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
@@ -12,8 +12,12 @@ import { buildFileEditorContext, openFileInEditor } from "@/renderer/utils/gitHe
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { createChatPaneFileActions } from "./ChatPane/chatPaneFileActions";
 import type { ThreadArtifact } from "./threadArtifacts";
+import { useImageViewportPriority } from "@/renderer/components/common/useImageViewportPriority";
+import { useRenderOnNotify } from "@/renderer/state/remoteServers/useRemoteImageReadiness";
 
 const EMPTY_ARTIFACTS: readonly ThreadArtifact[] = [];
+const subscribeEmptyImage = () => () => undefined;
+const emptyImageSnapshot = () => "";
 
 /**
  * Right-panel "Images" section: a 2-row horizontal mosaic of every renderable
@@ -28,11 +32,13 @@ export function ThreadImagesDock({
   gallery,
   threadId,
   artifacts = EMPTY_ARTIFACTS,
+  visible = true,
 }: {
   gallery: readonly ThreadGalleryImage[];
   /** Enables live gallery updates in the open lightbox when provided. */
   threadId?: string | undefined;
   artifacts?: readonly ThreadArtifact[];
+  visible?: boolean;
 }) {
   const { t } = useLingui();
   const [collapsed, setCollapsed] = useState(false);
@@ -137,16 +143,7 @@ export function ThreadImagesDock({
                       className="group relative block h-24 w-40 overflow-hidden rounded-xl border border-[color:var(--border)] bg-[var(--composer-surface)] focus-visible:outline-2 focus-visible:outline-accent"
                       onClick={() => openThreadGallery(gallery, undefined, index, threadId)}
                     >
-                      {img.src ? (
-                        <DownsampledThumb
-                          src={img.src}
-                          alt={img.alt || ""}
-                          cssPx={160}
-                          fit="cover"
-                          resolutionScale={2}
-                          className="size-full rounded-[inherit] object-cover [image-rendering:high-quality]"
-                        />
-                      ) : null}
+                      <ThreadImageThumbnail image={img} visible={visible} />
                       <span
                         aria-hidden="true"
                         className="pointer-events-none absolute inset-0 rounded-[inherit] bg-foreground/0 transition-colors duration-150 group-hover:bg-foreground/10"
@@ -160,5 +157,36 @@ export function ThreadImagesDock({
         ) : null}
       </div>
     </ThreadDockSection>
+  );
+}
+
+function ThreadImageThumbnail({ image, visible }: { image: ThreadGalleryImage; visible: boolean }) {
+  const resource = image.resource;
+  const { viewportRef, priority } = useImageViewportPriority(visible && resource !== undefined);
+  const active = visible && resource !== undefined && priority === "foreground";
+  const onNotify = useRenderOnNotify();
+  const resolvedSrc = useSyncExternalStore(
+    active
+      ? (listener) => resource.subscribe(onNotify(listener), "foreground")
+      : subscribeEmptyImage,
+    active ? resource.getSnapshot : emptyImageSnapshot,
+  );
+  useEffect(() => {
+    if (active && !resolvedSrc) resource.request("foreground");
+  });
+  const src = resource ? resolvedSrc : image.src;
+  return (
+    <span ref={viewportRef} className="block size-full">
+      {src ? (
+        <DownsampledThumb
+          src={src}
+          alt={image.alt || ""}
+          cssPx={160}
+          fit="cover"
+          resolutionScale={2}
+          className="size-full rounded-[inherit] object-cover [image-rendering:high-quality]"
+        />
+      ) : null}
+    </span>
   );
 }
