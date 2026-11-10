@@ -80,7 +80,6 @@ import {
   type TerminalConnectionCapabilities,
 } from "./terminalCapabilities";
 import { forgetCertPin, normalizeEndpoint } from "./pairing";
-import { remoteServerFailureMessage } from "./failureMessage";
 import { deleteRefreshTokenFromVault } from "./refreshTokens";
 import {
   disposeEnvironmentParentSession,
@@ -172,6 +171,7 @@ export function __resetConnectAllForTest(): void {
 export interface SessionReconnectActionDeps extends RemoteServersStoreApi {
   readonly setRemoteServerFailure: RemoteServerClientBindings["setRemoteServerFailure"];
   readonly clientForServer: RemoteServerClientBindings["clientForServer"];
+  readonly restoreStoredCredentials: RemoteServerClientBindings["restoreStoredCredentials"];
   readonly withClient: RemoteServerClientBindings["withClient"];
   readonly disposeSessionRenewal: RemoteServerClientBindings["disposeSessionRenewal"];
   readonly checkHostUpdateInBackground: RemoteServerClientBindings["checkHostUpdateInBackground"];
@@ -186,6 +186,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     get,
     setRemoteServerFailure,
     clientForServer,
+    restoreStoredCredentials,
     withClient,
     disposeSessionRenewal,
     checkHostUpdateInBackground,
@@ -255,6 +256,17 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       remoteHostUpdateReconnectSeq(connectionKey) === reconnectGeneration && shouldContinue();
     let server = persistedServer;
     let initialTerminalCapabilities: TerminalConnectionCapabilities | undefined;
+    try {
+      const restore = restoreStoredCredentials(connectionKey);
+      if (restore) await restore;
+      if (!canContinue()) return;
+      const current = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+      if (!current) return;
+      server = current;
+    } catch (error) {
+      if (canContinue()) setRemoteServerFailure(connectionKey, "error", friendlyError(error));
+      return;
+    }
     if (server.transport?.kind === "environment") {
       // The environment endpoint is the parent proxy prefix, re-derived from
       // the CURRENT parent authority on every connect (a remote parent record
@@ -308,24 +320,6 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         setRemoteServerFailure(connectionKey, "offline", message);
         return;
       }
-    }
-    if (!server.accessToken && server.transport?.kind !== "environment") {
-      // WebKit can fail to restore the vault during startup. Retry through
-      // credential custody before sending requests with an empty bearer; it
-      // adopts the saved pair under the existing ownership and endpoint fences.
-      try {
-        await clientForServer(server).refreshTokens();
-      } catch (error) {
-        if (canContinue()) {
-          setRemoteServerFailure(
-            connectionKey,
-            "error",
-            remoteServerFailureMessage(error, sharedMsg("remote.server.unreachable")),
-          );
-        }
-        return;
-      }
-      if (!canContinue()) return;
     }
     // WS3 #6: probe the environment while the first snapshot refresh is
     // in flight — one RTT saved per cold connect. Environment failures

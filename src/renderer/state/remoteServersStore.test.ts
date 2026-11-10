@@ -1,3 +1,4 @@
+import "fake-indexeddb/auto";
 import {
   forgetThreadRuntimeWindow,
   hydrateThreadRuntimeItems,
@@ -98,6 +99,13 @@ import {
 } from "@/renderer/browser/browserMirror";
 import { useBrowserPanelStore } from "./browserPanelStore";
 import { dynamicActivate } from "@/renderer/i18n/i18n";
+
+// Keep IndexedDB's task scheduler real while controlling connection deadlines.
+function useFakeConnectionTimers(): void {
+  vi.useFakeTimers({
+    toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"],
+  });
+}
 
 async function invokeRemoteRoute<Name extends IpcProcedureName>(
   procedure: Name,
@@ -972,7 +980,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("waits for the installed host version before restoring the connection", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const environment = vi
       .fn<RemoteDesktopClient["environment"]>()
       .mockResolvedValueOnce(makeEnvironment("1.0"))
@@ -1088,7 +1096,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("stops waiting when the updated host does not reconnect in time", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const environment = vi.fn<RemoteDesktopClient["environment"]>(() => new Promise(() => {}));
     useRemoteServersStore
       .getState()
@@ -1130,7 +1138,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("bounds the connection refresh after the updated version appears", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const environment = vi
       .fn<RemoteDesktopClient["environment"]>()
       .mockResolvedValueOnce(makeEnvironment("1.1"))
@@ -1393,7 +1401,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("clears the restart watch when the server is paired again mid-restart", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     useRemoteServersStore
       .getState()
       .setClientFactory(factoryFor(makeClient({ installHostUpdate: async () => {} })));
@@ -1759,7 +1767,7 @@ describe("useRemoteServersStore", () => {
     await useRemoteServersStore
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     try {
       socketFactory.mock.results[0]!.value.onclose?.({ code: 1006 });
       await useRemoteServersStore.getState().reconnectServer("d1");
@@ -3063,7 +3071,7 @@ describe("useRemoteServersStore", () => {
     expect(socketFactory).toHaveBeenCalledTimes(1);
     snapshot.mockClear();
     sync.dispatchRemoteSupervisorEvent.mockClear();
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
 
     sockets[0]?.onmessage?.({
       data: JSON.stringify({
@@ -3374,7 +3382,7 @@ describe("useRemoteServersStore", () => {
     // Live turn: rt-1 and rt-2 start working. The dispatcher is mocked in this
     // file, so apply its exact `thread-state` mutation and assert the live
     // state the stale refresh must preserve before the GET resolves.
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const applyLiveThreadState = (remoteId: string, status: Thread["status"]): void => {
       const event = {
         type: "thread-state" as const,
@@ -3467,7 +3475,7 @@ describe("useRemoteServersStore", () => {
       useAppStore.getState().threads.find((thread) => thread.id === remoteThreadId("d1", "rt-1"))
         ?.status;
 
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     sockets[0]?.onmessage?.({
       data: JSON.stringify({
         type: "event",
@@ -3509,7 +3517,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("reconnects the server event stream from the latest seen seq", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const sockets: RemoteSocketLike[] = [];
     let ticketSeq = 0;
     const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => ({
@@ -3587,7 +3595,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("reconnects an event stream that closed at its session deadline right away, like any transport loss", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
       const socket = makeSocket();
@@ -3612,7 +3620,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("retries any other unauthorized close at the slower authorization interval", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
       const socket = makeSocket();
@@ -3633,7 +3641,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("retries an unauthorized websocket ticket at the slower authorization interval while a grant is held", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const sockets: RemoteSocketLike[] = [];
     const websocketTicket = vi
       .fn<RemoteDesktopClient["websocketTicket"]>()
@@ -3671,7 +3679,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("retires the connection when an unauthorized websocket ticket has no grant left", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const sockets: RemoteSocketLike[] = [];
     const websocketTicket = vi
       .fn<RemoteDesktopClient["websocketTicket"]>()
@@ -3703,7 +3711,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("marks a server offline when its event stream reconnect cannot reach it", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const sockets: RemoteSocketLike[] = [];
     const websocketTicket = vi
       .fn<RemoteDesktopClient["websocketTicket"]>()
@@ -3735,7 +3743,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("times out and reconnects a server event stream whose handshake never opens", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
       const socket = makeSocket({ readyState: 0, onopen: null });
@@ -3762,7 +3770,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("reconnects a half-open server event stream when its health pong never arrives", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
       const socket = makeSocket({
@@ -3794,7 +3802,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("keeps the server event stream online after its correlated health pong", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const send = vi.fn<(data: string) => void>();
     const socket = makeSocket({ send, readyState: 1 });
     useRemoteServersStore.getState().setSocketFactory(() => socket);
@@ -3815,7 +3823,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("does not health-probe sockets that cannot send", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const socket = makeSocket({ readyState: 1 });
     const socketFactory = vi.fn<RemoteSocketFactory>(() => socket);
     useRemoteServersStore.getState().setSocketFactory(socketFactory);
@@ -4512,7 +4520,7 @@ describe("useRemoteServersStore", () => {
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
     snapshot.mockClear();
     sync.dispatchRemoteSupervisorEvent.mockClear();
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
 
     socket.onmessage?.({
       data: JSON.stringify({
@@ -4555,7 +4563,7 @@ describe("useRemoteServersStore", () => {
       runtimeSummariesByThread: {},
       updatedAt: "later",
     });
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
 
     socket.onmessage?.({
       data: JSON.stringify({
@@ -4598,7 +4606,7 @@ describe("useRemoteServersStore", () => {
       runtimeSummariesByThread: {},
       updatedAt: "later",
     });
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
 
     socket.onmessage?.({
       data: JSON.stringify({
@@ -4761,7 +4769,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("reconnects the shared server socket from the latest seen event seq", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     let ticketSeq = 0;
     const sockets: RemoteSocketLike[] = [];
     const websocketTicket = vi.fn<RemoteDesktopClient["websocketTicket"]>(
@@ -4937,7 +4945,7 @@ describe("useRemoteServersStore", () => {
   });
 
   it("keeps the shared server event socket alive after manual thread close", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<(url: string) => RemoteSocketLike>(() => {
       const socket: RemoteSocketLike = {
@@ -5566,7 +5574,7 @@ describe("useRemoteServersStore", () => {
 
   // ── Finding #5: debounced refresh coalesces a burst ─────────────────
   it("coalesces a burst of qualifying events into a single snapshot refresh", async () => {
-    vi.useFakeTimers();
+    useFakeConnectionTimers();
     const socket: RemoteSocketLike = { close: vi.fn<() => void>(), onmessage: null, onclose: null };
     const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => ({
       snapshotSeq: 2,
