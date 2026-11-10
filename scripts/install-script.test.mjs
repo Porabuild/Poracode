@@ -42,6 +42,8 @@ function publishRelease(base, version, options = {}) {
   const stage = join(base, `stage-${version}`);
   mkdirSync(join(stage, "bin"), { recursive: true });
   mkdirSync(join(stage, "lib"), { recursive: true });
+  mkdirSync(join(stage, "runtime"), { recursive: true });
+  writeFileSync(join(stage, "runtime", "node"), '#!/bin/sh\nexec node "$@"\n', { mode: 0o755 });
   writeFileSync(
     join(stage, "standalone.json"),
     `${JSON.stringify(
@@ -59,7 +61,10 @@ function publishRelease(base, version, options = {}) {
   writeFileSync(
     join(stage, "bin", "poracode"),
     `#!/bin/sh\n` +
-      `if [ -n "\${PORACODE_FAKE_LOG:-}" ]; then printf '%s\\n' "$*" >> "$PORACODE_FAKE_LOG"; fi\n` +
+      `if [ -n "\${PORACODE_FAKE_LOG:-}" ]; then\n` +
+      `  if [ "$1" = update ]; then printf '%s | profile=%s\\n' "$*" "\${PORACODE_BASE_DIR:-}" >> "$PORACODE_FAKE_LOG";\n` +
+      `  else printf '%s\\n' "$*" >> "$PORACODE_FAKE_LOG"; fi\n` +
+      `fi\n` +
       `if [ "$1" = "tui" ] && [ "\${PORACODE_FAKE_TUI_FAIL:-}" = "1" ]; then exit 1; fi\n` +
       `if [ "$1" = "--version" ]; then\n` +
       `  if [ -n "\${PORACODE_FAKE_VERSION_FAIL:-}" ]; then\n` +
@@ -189,7 +194,11 @@ void test("a registered service never has its current release switched directly"
   publishRelease(context.base, "2.1.0");
   publishRelease(context.base, "2.2.0");
   assert.equal(install(context, { PORACODE_VERSION: "2.1.0", PORACODE_NO_TUI: "1" }).status, 0);
-  writeFileSync(join(context.prefix, "service-registration.json"), "{}\n");
+  const profile = join(context.root, "custom profile");
+  writeFileSync(
+    join(context.prefix, "service-registration.json"),
+    JSON.stringify({ profileNamespace: profile }),
+  );
   const log = join(context.root, "commands.log");
   const result = install(context, {
     PORACODE_VERSION: "2.2.0",
@@ -199,6 +208,22 @@ void test("a registered service never has its current release switched directly"
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /service upgrade did not select/u);
   assert.match(readFileSync(log, "utf8"), /update 2\.2\.0 --prefix/u);
+  assert.ok(readFileSync(log, "utf8").includes(`profile=${profile}`));
+  assert.equal(readlinkSync(join(context.prefix, "current")), "releases/2.1.0");
+});
+
+void test("a nightly installer never upgrades a registered stable service", posixOnly, () => {
+  const context = setup();
+  publishRelease(context.base, "2.1.0");
+  publishRelease(context.base, "2.2.0-nightly.202611100001");
+  assert.equal(install(context, { PORACODE_VERSION: "2.1.0", PORACODE_NO_TUI: "1" }).status, 0);
+  writeFileSync(join(context.prefix, "service-registration.json"), "{}\n");
+  const result = install(context, {
+    PORACODE_VERSION: "2.2.0-nightly.202611100001",
+    PORACODE_NO_TUI: "1",
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /stable and nightly require separate prefixes/u);
   assert.equal(readlinkSync(join(context.prefix, "current")), "releases/2.1.0");
 });
 

@@ -196,39 +196,49 @@ export interface PrepareOwnedHostRootOptions {
   readonly allowNonCustodialNamespace?: boolean;
 }
 
+/** Check whether a profile can start without creating or modifying its data root. */
+export function inspectOwnedHostRootAdmission(
+  paths: HostRootPaths,
+  options: PrepareOwnedHostRootOptions = {},
+): HostRootManifest | undefined {
+  assertHostRootDirectories(paths);
+  const existing = readHostRootManifest(paths);
+  if (existing) {
+    if (existing.source.activation === "required") {
+      throw new HostActivationRequiredError(paths);
+    }
+    return existing;
+  }
+  if (existsSync(paths.dataRoot) && readdirSync(paths.dataRoot).length > 0) {
+    throw new Error("The owned Poracode root contains state without a valid host-root manifest.");
+  }
+  const namespaceHasDatabase = existsSync(join(paths.profileNamespace, "state.sqlite"));
+  const isToolingDirectory = (entry: string): boolean => {
+    if (!NON_CUSTODIAL_NAMESPACE_DIRECTORIES.has(entry)) return false;
+    try {
+      return lstatSync(join(paths.profileNamespace, entry)).isDirectory();
+    } catch {
+      return false;
+    }
+  };
+  if (
+    existsSync(paths.profileNamespace) &&
+    readdirSync(paths.profileNamespace).some((entry) => !isToolingDirectory(entry)) &&
+    !(options.allowNonCustodialNamespace && !namespaceHasDatabase)
+  ) {
+    throw new HostImportRequiredError(paths);
+  }
+  return undefined;
+}
+
 /** Only a genuinely empty namespace can activate without an import review. */
 export function prepareOwnedHostRoot(
   lease: HostOwnerLease,
   options: PrepareOwnedHostRootOptions = {},
 ): HostRootManifest {
   lease.assertActive();
-  assertHostRootDirectories(lease.paths);
-  const existing = readHostRootManifest(lease.paths);
-  if (existing) {
-    if (existing.source.activation === "required") {
-      throw new HostActivationRequiredError(lease.paths);
-    }
-    return existing;
-  }
-  if (existsSync(lease.paths.dataRoot) && readdirSync(lease.paths.dataRoot).length > 0) {
-    throw new Error("The owned Poracode root contains state without a valid host-root manifest.");
-  }
-  const namespaceHasDatabase = existsSync(join(lease.paths.profileNamespace, "state.sqlite"));
-  const isToolingDirectory = (entry: string): boolean => {
-    if (!NON_CUSTODIAL_NAMESPACE_DIRECTORIES.has(entry)) return false;
-    try {
-      return lstatSync(join(lease.paths.profileNamespace, entry)).isDirectory();
-    } catch {
-      return false;
-    }
-  };
-  if (
-    existsSync(lease.paths.profileNamespace) &&
-    readdirSync(lease.paths.profileNamespace).some((entry) => !isToolingDirectory(entry)) &&
-    !(options.allowNonCustodialNamespace && !namespaceHasDatabase)
-  ) {
-    throw new HostImportRequiredError(lease.paths);
-  }
+  const existing = inspectOwnedHostRootAdmission(lease.paths, options);
+  if (existing) return existing;
   mkdirSync(lease.paths.dataRoot, { recursive: true, mode: 0o700 });
   // mode is a no-op on Windows; owner-only ACLs make the root private there.
   restrictToOwner(lease.paths.dataRoot);

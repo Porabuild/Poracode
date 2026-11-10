@@ -5,7 +5,7 @@ import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { requestOwnerShutdown } from "./ownerShutdown";
-import { probeLeaseKernelLock } from "./serverDoctorIo";
+import { probeLeaseKernelLock, redactDiagnosticLine } from "./serverDoctorIo";
 import { serviceNodeExecutable } from "./serverStandaloneRuntime";
 import {
   acquireServerUpgradeLock,
@@ -141,10 +141,10 @@ export interface ServiceLifecycleDeps extends ServerServiceManagerDeps {
   readonly sleep?: (ms: number) => Promise<void>;
 }
 export class ServiceOwnerChangedBeforeRetirementError extends ServerServiceRefusedError {
-  constructor() {
-    super(
-      "The service state changed before migration could retire it; retry after inspecting its status.",
-    );
+  constructor(
+    message = "The service state changed before migration could retire it; retry after inspecting its status.",
+  ) {
+    super(message);
     this.name = "ServiceOwnerChangedBeforeRetirementError";
   }
 }
@@ -174,18 +174,12 @@ export function qualifyRegisteredOwner(
     );
 }
 
-export async function stopRegisteredOwner(
-  registration: ServerServiceRegistration,
-  lock: Pick<ServerUpgradeLock, "assertHeld">,
-  deps: ServiceLifecycleDeps = {},
-  selectedOwner?: RunningOwnerProbe,
-): Promise<void> {
-  const paths = resolveHostRootPaths(registration.profileNamespace);
-  const state = qualifyLoadedService(registration, deps);
-  const owner =
-    selectedOwner ?? (await (deps.probe ?? probeRunningOwner)(paths, { pinGeneration: true }));
-  if (deps.expectedOwner) {
-    const expected = deps.expectedOwner;
+export function assertExpectedServiceOwner(
+  expected: ServiceLifecycleDeps["expectedOwner"],
+  owner: RunningOwnerProbe | null,
+  state: Record<string, string>,
+): void {
+  if (expected) {
     const retired =
       expected.allowRetired &&
       expected.generation !== null &&
@@ -201,6 +195,29 @@ export async function stopRegisteredOwner(
       throw new ServiceOwnerChangedBeforeRetirementError();
     }
   }
+}
+
+export async function stopRegisteredOwner(
+  registration: ServerServiceRegistration,
+  lock: Pick<ServerUpgradeLock, "assertHeld">,
+  deps: ServiceLifecycleDeps = {},
+  selectedOwner?: RunningOwnerProbe,
+): Promise<void> {
+  const paths = resolveHostRootPaths(registration.profileNamespace);
+  let state: ReturnType<typeof qualifyLoadedService>;
+  let owner: RunningOwnerProbe | null;
+  try {
+    state = qualifyLoadedService(registration, deps);
+    owner =
+      selectedOwner ?? (await (deps.probe ?? probeRunningOwner)(paths, { pinGeneration: true }));
+  } catch (error) {
+    if (deps.expectedOwner)
+      throw new ServiceOwnerChangedBeforeRetirementError(
+        `The service state changed before migration could retire it; inspect status and retry. ${redactDiagnosticLine(error instanceof Error ? error.message : String(error))}`,
+      );
+    throw error;
+  }
+  assertExpectedServiceOwner(deps.expectedOwner, owner, state);
   const initialGeneration =
     owner?.generation ?? (deps.readOwner ?? readHostOwnerRecord)(paths)?.generation;
   lock.assertHeld();

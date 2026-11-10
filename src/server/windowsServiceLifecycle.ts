@@ -2,11 +2,13 @@ import { randomBytes } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
-import { probeLeaseKernelLock } from "./serverDoctorIo";
+import { probeLeaseKernelLock, redactDiagnosticLine } from "./serverDoctorIo";
 import { serviceNodeExecutable } from "./serverStandaloneRuntime";
 import {
   stopRegisteredOwner,
   qualifyRegisteredOwner,
+  assertExpectedServiceOwner,
+  ServiceOwnerChangedBeforeRetirementError,
   type ServiceCliOptions,
   type ServiceLifecycleDeps,
 } from "./serverService";
@@ -191,6 +193,16 @@ export async function uninstallWindowsService(
         "The saved service definition was changed; preserve it for inspection.",
       );
   }
+  if (native.task && deps.expectedOwner) {
+    const current = await (deps.probe ?? probeRunningOwner)(paths, { pinGeneration: true });
+    assertExpectedServiceOwner(
+      deps.expectedOwner,
+      current,
+      qualifyLoadedService(registration, deps),
+    );
+    lock.assertHeld();
+  }
+  const initialState = registration.state;
   registration = { ...registration, state: "removing" };
   lock.assertHeld();
   writeServiceRegistration(registration);
@@ -205,8 +217,53 @@ export async function uninstallWindowsService(
     },
   };
   if (native.task) {
-    mutateServiceManager("disable", registration, held, deps);
-    await stopRegisteredOwner(registration, held, deps, owner ?? undefined);
+    const restoreInstalled = (): string | undefined => {
+      held.assertHeld();
+      const restored = { ...registration, state: "installed" as const };
+      writeServiceRegistration(restored);
+      const restoredBytes = JSON.stringify(restored);
+      const restoredLock = {
+        assertHeld: () => {
+          lock.assertHeld();
+          if (JSON.stringify(readServiceRegistration(restored.installPrefix)) !== restoredBytes)
+            throw new ServerServiceRefusedError("Service registration changed during restoration.");
+        },
+      };
+      if (native.task!.enabled) {
+        try {
+          mutateServiceManager("enable", restored, restoredLock, deps);
+        } catch {
+          return "The task could not be re-enabled automatically; inspect its status before retrying.";
+        }
+      }
+      return undefined;
+    };
+    try {
+      mutateServiceManager("disable", registration, held, deps);
+    } catch (error) {
+      if (deps.expectedOwner && initialState === "installed") {
+        const warning = restoreInstalled();
+        const detail = redactDiagnosticLine(error instanceof Error ? error.message : String(error));
+        throw new ServiceOwnerChangedBeforeRetirementError(
+          `The native task could not be disabled before migration: ${detail}. ${warning ?? "The registration was restored; inspect its status and retry."}`,
+        );
+      }
+      throw error;
+    }
+    try {
+      await stopRegisteredOwner(registration, held, deps, owner ?? undefined);
+    } catch (error) {
+      if (
+        error instanceof ServiceOwnerChangedBeforeRetirementError &&
+        initialState === "installed"
+      ) {
+        // No shutdown was attempted. Restore custody even if re-enablement
+        // requires manual attention, so status and stop remain available.
+        const warning = restoreInstalled();
+        if (warning) throw new ServiceOwnerChangedBeforeRetirementError(warning);
+      }
+      throw error;
+    }
     mutateServiceManager("remove", registration, held, deps);
   }
   const after = controlWindowsService(

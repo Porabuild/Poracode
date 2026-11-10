@@ -13,6 +13,7 @@ import { defaultCliStorageRoot } from "../../packages/poracode-cli/lib/installPa
 import { readStandaloneRuntimeMarker } from "../../scripts/server-release-install.mjs";
 import { readInstalledServiceRelease, readServiceRegistration } from "./serverServiceRegistration";
 import { acquireServerUpgradeLock, type ServerUpgradeLock } from "./serverUpgradeLock";
+import { readCliInstallMigration } from "./cliInstallMigrationJournal";
 
 /** lsof's exit 1 with no output means there are no open files under the tree. */
 function noOpenFiles(directory: string): boolean {
@@ -55,6 +56,12 @@ export function relocateLegacyTooling(input: {
   const oldServer = join(legacy, "server");
   const oldRuntime = join(legacy, "runtime");
   const registration = (input.readRegistration ?? readServiceRegistration)(input.prefix);
+  const previousConfigs = [
+    readCliInstallMigration(input.prefix),
+    readCliInstallMigration(input.prefix, "profile"),
+  ]
+    .map((journal) => journal?.oldConfigPath)
+    .filter((path): path is string => !!path);
   const moved: string[] = [];
   const retained: string[] = [];
   const idle = input.isIdle ?? noOpenFiles;
@@ -68,7 +75,11 @@ export function relocateLegacyTooling(input: {
       retained.push(source);
       continue;
     }
-    if (registration?.configPath && contains(realpathSync(source), registration.configPath)) {
+    if (
+      [registration?.configPath, ...previousConfigs].some(
+        (path) => path && contains(realpathSync(source), path),
+      )
+    ) {
       retained.push(source);
       continue;
     }

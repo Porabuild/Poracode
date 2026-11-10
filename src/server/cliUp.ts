@@ -28,7 +28,10 @@ import {
 import { defaultInstallerPrefix, resolveInstallerPrefix, SelfUpdateError } from "./installerPrefix";
 import { readStandaloneRuntimeMarker } from "../../scripts/server-release-install.mjs";
 import { installServiceRelease } from "./cliServiceInstall";
-import { compareCliReleaseVersions } from "./cliReleaseVersion";
+import { compareCliReleaseVersions, isNightlyRelease } from "./cliReleaseVersion";
+import { assertChannelProfileNamespace, serviceProfileForRelease } from "./cliProfileNamespace";
+import { migrateLegacyService } from "./cliInstallMigration";
+import { migrateDefaultLegacyInstall } from "./cliLegacyMigrationCli";
 import { runSelfUpdate } from "./cliSelfUpdate";
 import { refusePendingCliInstallMigration } from "./cliInstallMigrationJournal";
 import { runConfigure } from "./cliConfigure";
@@ -303,9 +306,12 @@ export async function runUp(
     readonly readRegistration?: (prefix: string) => ServerServiceRegistration | null;
     readonly installServiceRelease?: typeof installServiceRelease;
     readonly updateServiceRelease?: typeof runSelfUpdate;
+    readonly migrateService?: typeof migrateLegacyService;
+    readonly migrateDefaultInstall?: typeof migrateDefaultLegacyInstall;
+    readonly explicitProfile?: boolean;
   },
 ): Promise<UpResult> {
-  const serviceTarget = resolveUpServicePrefix(options, {
+  let serviceTarget = resolveUpServicePrefix(options, {
     releaseRoot: deps.releaseRoot,
     ...(deps.env !== undefined ? { env: deps.env } : {}),
     ...(deps.home !== undefined ? { home: deps.home } : {}),
@@ -369,15 +375,6 @@ export async function runUp(
     refusePendingCliInstallMigration(serviceTarget.prefix);
     const platform = deps.platform ?? process.platform;
     const env = deps.env ?? process.env;
-    if (serviceTarget.fallback && platform !== "win32" && !env.PORACODE_INSTALL_DIR?.trim()) {
-      const legacyPrefix = join(deps.home ?? homedir(), ".poracode", "server");
-      const legacyRegistration = readServiceRegistration(legacyPrefix);
-      if (legacyRegistration && legacyPrefix !== serviceTarget.prefix) {
-        throw new Error(
-          `An existing service still uses ${legacyPrefix}. Run its poracode update or rerun the one-line installer to migrate it before using this CLI for up. Nothing was changed.`,
-        );
-      }
-    }
     const version =
       deps.version ??
       (() => {
@@ -387,6 +384,67 @@ export async function runUp(
           return undefined;
         }
       })();
+    if (version) assertChannelProfileNamespace(version, deps.profile, deps.home);
+    let legacyRestartConfirmed = false;
+    if (serviceTarget.fallback && platform !== "win32" && !env.PORACODE_INSTALL_DIR?.trim()) {
+      const legacyPrefix = join(deps.home ?? homedir(), ".poracode", "server");
+      const legacyRegistration = readServiceRegistration(legacyPrefix);
+      if (legacyRegistration && legacyPrefix !== serviceTarget.prefix) {
+        const previous = resolveInstallerPrefix({
+          explicitPrefix: legacyPrefix,
+          releaseRoot: deps.releaseRoot,
+        });
+        if (!version || isNightlyRelease(version) !== isNightlyRelease(previous.currentVersion)) {
+          throw new Error(
+            "Stable and nightly use separate profiles and prefixes; the existing service was not changed.",
+          );
+        }
+        const desired =
+          serviceProfileForRelease(
+            version,
+            legacyRegistration.profileNamespace,
+            deps.home ?? homedir(),
+          ) ?? legacyRegistration.profileNamespace;
+        if (desired !== resolveHostRootPaths(deps.profile).profileNamespace)
+          throw new Error(
+            "The existing service belongs to a different profile; nothing was changed.",
+          );
+        const running = await (deps.ownerRunning ?? defaultOwnerRunning)(
+          legacyRegistration.profileNamespace,
+        );
+        if (running && interactive && !(await (deps.confirmRestart ?? confirmServiceRestart)()))
+          throw new Error("Nothing was changed; the existing service keeps its current profile.");
+        legacyRestartConfirmed = running && interactive;
+        const migrated = await (deps.migrateDefaultInstall ?? migrateDefaultLegacyInstall)({
+          releaseRoot: deps.releaseRoot,
+          env,
+          ...(deps.home ? { home: deps.home } : {}),
+          platform,
+          installIfMissing: true,
+          allowRunning: true,
+          ...(deps.explicitProfile ? { explicitProfile: deps.profile } : {}),
+        });
+        if (!migrated || migrated.profile !== desired)
+          throw new Error(
+            "The existing service migration did not complete; inspect its migration journal.",
+          );
+        const installed = resolveInstallerPrefix({
+          explicitPrefix: migrated.prefix,
+          releaseRoot: deps.releaseRoot,
+        });
+        serviceTarget = {
+          prefix: installed.prefix,
+          fallback: true,
+          needsInstall: false,
+          currentVersion: installed.currentVersion,
+        };
+        notes.push(
+          `Moved the existing service to ${desired}; its previous profile and data were preserved.`,
+        );
+        if (running && !interactive)
+          notes.push("The profile change stopped any running agent turns.");
+      }
+    }
     if (serviceTarget.needsInstall) {
       if (version === undefined) {
         throw new Error(
@@ -421,19 +479,63 @@ export async function runUp(
             registration.state === "prepared" ? "installed" : "removed"
           }. Finish removing it with poracode service uninstall --prefix ${serviceTarget.prefix} --recover, then run poracode up again. Nothing was changed.`,
         );
+      let migrationRestartConfirmed = legacyRestartConfirmed;
       if (
         registration !== null &&
         registration.profileNamespace !== resolveHostRootPaths(deps.profile).profileNamespace
       ) {
-        throw new Error(
-          `The background service uses profile ${registration.profileNamespace}, not ${deps.profile}. ` +
-            `Use --base-dir ${registration.profileNamespace} to manage the existing service, or choose a separate --prefix. Nothing was changed.`,
-        );
+        const home = deps.home ?? homedir();
+        const selectedVersion = serviceTarget.currentVersion ?? version;
+        const selectedProfile = resolveHostRootPaths(deps.profile).profileNamespace;
+        const expected =
+          selectedVersion &&
+          serviceProfileForRelease(selectedVersion, registration.profileNamespace, home);
+        if (expected && selectedProfile === expected) {
+          const running = await (deps.ownerRunning ?? defaultOwnerRunning)(
+            registration.profileNamespace,
+          );
+          if (running && interactive && !(await (deps.confirmRestart ?? confirmServiceRestart)())) {
+            throw new Error("Nothing was changed; the existing service keeps its current profile.");
+          }
+          migrationRestartConfirmed = running && interactive;
+          const result = await (deps.migrateService ?? migrateLegacyService)({
+            oldPrefix: serviceTarget.prefix,
+            newPrefix: serviceTarget.prefix,
+            releaseRoot: deps.releaseRoot,
+            targetProfile: selectedProfile,
+            allowRunning: true,
+            ...(deps.home ? { home: deps.home } : {}),
+          });
+          registration = (deps.readRegistration ?? readServiceRegistration)(serviceTarget.prefix);
+          if (!registration || registration.profileNamespace !== selectedProfile)
+            throw new Error(
+              "The service profile migration did not complete; inspect its migration journal.",
+            );
+          notes.push(
+            `Moved the service to ${selectedProfile}; the previous profile and its data were preserved.`,
+          );
+          if (result.wasRunning && !interactive)
+            notes.push("The profile change stopped any running agent turns.");
+        } else {
+          throw new Error(
+            `The background service uses profile ${registration.profileNamespace}, not ${deps.profile}. ` +
+              `Use --base-dir ${registration.profileNamespace} to manage the existing service, or choose a separate --prefix. Nothing was changed.`,
+          );
+        }
       }
       const order =
         version !== undefined && serviceTarget.currentVersion !== undefined
           ? compareCliReleaseVersions(version, serviceTarget.currentVersion)
           : undefined;
+      if (
+        version &&
+        serviceTarget.currentVersion &&
+        isNightlyRelease(version) !== isNightlyRelease(serviceTarget.currentVersion)
+      ) {
+        throw new Error(
+          "Stable and nightly use separate profiles and prefixes; the existing service was not changed.",
+        );
+      }
       if (
         serviceTarget.fallback &&
         version !== undefined &&
@@ -461,6 +563,7 @@ export async function runUp(
         if (
           ownerRunning &&
           interactive &&
+          !migrationRestartConfirmed &&
           !(await (deps.confirmRestart ?? confirmServiceRestart)())
         ) {
           throw new Error(
@@ -557,8 +660,9 @@ export async function runUpCli(
   options: UpCliOptions,
   profile: string,
   releaseRoot: string,
+  explicitProfile = false,
 ): Promise<void> {
-  const result = await runUp(options, { profile, releaseRoot });
+  const result = await runUp(options, { profile, releaseRoot, explicitProfile });
   if (result.configured.length > 0) {
     process.stdout.write(
       `Saved remote access settings: ${result.configured.filter((arg) => arg.startsWith("--")).join(" ")}\n`,

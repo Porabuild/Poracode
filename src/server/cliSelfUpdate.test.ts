@@ -157,6 +157,17 @@ describe("self-update helpers", () => {
 });
 
 describe.runIf(posix)("runSelfUpdate", () => {
+  it("refuses a channel change before downloading or touching the stable profile", async () => {
+    const context = fixture();
+    await expect(
+      runSelfUpdate(
+        { version: "2.0.0-nightly.202611100001", json: false },
+        { releaseRoot: join(context.prefix, "releases", "1.0.0"), fetchImpl: context.fetchImpl },
+      ),
+    ).rejects.toThrow(/separate profiles/u);
+    expect(context.requests).toEqual([]);
+    expect(readlinkSync(join(context.prefix, "current"))).toBe("releases/1.0.0");
+  });
   it("refuses an automatic downgrade while preserving the selected release", async () => {
     const context = fixture();
     const result = await runSelfUpdate(
@@ -217,17 +228,22 @@ describe.runIf(posix)("runSelfUpdate", () => {
         writeFileSync(
           join(context.prefix, "legacy-install-migration.json"),
           JSON.stringify({
-            formatVersion: 1,
+            formatVersion: 2,
             oldPrefix: "/old",
             newPrefix: context.prefix,
-            profile: "/profile",
+            oldProfile: "/profile",
+            newProfile: "/profile-nightly",
             oldNonce: "a".repeat(48),
             newNonce: "b".repeat(48),
-            registrationId: `poracode-${"c".repeat(32)}`,
+            oldRegistrationId: `poracode-${"c".repeat(32)}`,
+            newRegistrationId: `poracode-${"d".repeat(32)}`,
             account: { kind: "uid", id: "1" },
-            configPath: null,
-            releaseVersion: "1.0.0",
-            entrypointSha256: "d".repeat(64),
+            oldConfigPath: null,
+            newConfigPath: null,
+            oldReleaseVersion: "1.0.0",
+            oldEntrypointSha256: "d".repeat(64),
+            newReleaseVersion: "1.0.0",
+            newEntrypointSha256: "d".repeat(64),
             ownerGeneration: null,
             nativeMainPid: "0",
             nativeState: "inactive",

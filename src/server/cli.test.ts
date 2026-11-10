@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { homedir } from "node:os";
 import {
   parseActivateCliOptions,
   parseBackupCliOptions,
@@ -31,6 +32,7 @@ describe("desktop packaged CLI entry", () => {
   };
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     process.argv = originalArgv;
     process.exitCode = originalExitCode;
   });
@@ -81,6 +83,31 @@ describe("desktop packaged CLI entry", () => {
     expect(process.exitCode).toBe(1);
     expect(output.mock.calls.map(([value]) => String(value)).join("")).toContain("Remote access");
   });
+
+  it.each([
+    ["2.0.0-nightly.202611100001", ".poracode"],
+    ["2.0.0", ".poracode-nightly"],
+  ])(
+    "refuses the other channel's default profile for desktop build %s",
+    (version, otherProfile) => {
+      vi.stubEnv("PORACODE_BASE_DIR", "");
+      process.argv = [
+        "electron",
+        "bootstrap.mjs",
+        "--base-dir",
+        join(homedir(), otherProfile),
+        "configure",
+        "--port",
+        "1234",
+      ];
+      const output = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+      runDesktopCli({ formatVersion: 1, build: { ...build, version } });
+      expect(process.exitCode).toBe(1);
+      expect(output.mock.calls.map(([value]) => String(value)).join("")).toContain(
+        "other channel's default profile",
+      );
+    },
+  );
 });
 
 describe("standalone completion routing", () => {

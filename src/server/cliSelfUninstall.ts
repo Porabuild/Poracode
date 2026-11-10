@@ -55,6 +55,7 @@ const MANAGED_PREFIX_ENTRIES = new Set([
   "upgrade-journal.json",
   "upgrade.lock",
   "legacy-install-migration.json",
+  "service-profile-migration.json",
   ".legacy-migration",
 ]);
 

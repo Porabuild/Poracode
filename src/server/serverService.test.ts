@@ -36,7 +36,7 @@ import {
   renderServiceDefinition,
   serviceDefinitionHash,
 } from "./serverServiceManager";
-import type { RunningOwnerProbe } from "./serverUpgradeIdentity";
+import { RunningOwnerUnreachableError, type RunningOwnerProbe } from "./serverUpgradeIdentity";
 import { registeredServiceUpgradeIo } from "./serverServiceUpgrade";
 import { defaultUpgradeIo } from "./serverUpgrade";
 import {
@@ -959,6 +959,60 @@ describe("version-2 Windows registered service custody", () => {
     expect(existsSync(join(f.prefix, "service-launcher-v1.exe"))).toBe(false);
     expect(existsSync(f.release)).toBe(true);
   });
+
+  it.each(["ready", "starting", "native inspection", "post-disable inspection"])(
+    "restores a Windows registration if a %s task starts during disable",
+    async (phase) => {
+      const f = fixture("win32");
+      await f.execute("install");
+      f.windowsCalls.length = 0;
+      let raced = false;
+      let inspectionFailed = false;
+      f.onWindowsRequest((request) => {
+        if (
+          request.operation === "inspect" &&
+          raced &&
+          phase === "post-disable inspection" &&
+          !inspectionFailed
+        ) {
+          inspectionFailed = true;
+          throw new Error("An orphaned launcher/host remains");
+        }
+        if (request.operation === "disable" && !raced) {
+          raced = true;
+          f.startOwner();
+          if (phase === "native inspection") throw new Error("An orphaned launcher/host remains");
+        }
+      });
+      const expectedOwner = {
+        generation: null,
+        mainPid: "0",
+        state: "inactive",
+        allowRetired: false,
+      };
+      const probe: NonNullable<ServiceLifecycleDeps["probe"]> = async (...args) => {
+        if (raced && phase === "starting")
+          throw new RunningOwnerUnreachableError("owner is still starting");
+        return f.probe(...args);
+      };
+      await expect(
+        runServerService(f.profile, f.options("uninstall"), { ...f.deps, expectedOwner, probe }),
+      ).rejects.toThrow(
+        phase === "native inspection"
+          ? /could not be disabled/u
+          : /state changed before migration/u,
+      );
+      expect(readServiceRegistration(f.prefix)?.state).toBe("installed");
+      expect(f.owner).not.toBeNull();
+      expect(f.shutdown).not.toHaveBeenCalled();
+      expect(f.windowsCalls.map((call) => call.operation)).toContain("enable");
+      f.onWindowsRequest(() => {});
+      await f.execute("stop");
+      await expect(
+        runServerService(f.profile, f.options("uninstall"), { ...f.deps, expectedOwner }),
+      ).resolves.toMatchObject({ state: "not-installed" });
+    },
+  );
 
   it("keeps prepared nonce/helper/config across failure and refuses recovery retargeting", async () => {
     const f = fixture("win32"),

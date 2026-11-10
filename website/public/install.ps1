@@ -16,6 +16,7 @@
 #   PORACODE_RELEASE_BASE_URL  mirror for releases/download (default: GitHub)
 #   PORACODE_NO_MODIFY_PATH=1  never edit the user PATH
 #   PORACODE_NO_TUI=1          skip downloading the terminal UI during install
+#   PORACODE_MIGRATE_SERVICE=1 allow stopping a running service for migration
 #
 # Profile data (projects, threads, settings) lives outside the prefix and is
 # never touched by this script.
@@ -90,10 +91,29 @@
     try { return ((& $cmd --version 2>$null) | Select-Object -Last 1) } catch { return $null }
   }
 
+  function Invoke-ProfileMigration([string] $command) {
+    $helpText = & $command migrate-install --help 2>$null
+    if ($LASTEXITCODE -eq 0 -and (($helpText -join "`n") -match "migrate-install")) {
+      & $command migrate-install
+      if ($LASTEXITCODE -ne 0) { Fail "the service profile migration did not finish; inspect it before retrying" }
+      return $true
+    }
+    return $false
+  }
+
+  $pendingProfileMigration = Test-Path (Join-Path $prefix "service-profile-migration.json")
+  if ($pendingProfileMigration) {
+    if (-not (Test-Path $launcher)) { Fail "the pending service migration has no usable current CLI" }
+    $pendingProfileMigration = -not (Invoke-ProfileMigration $launcher)
+  }
   $serviceRegistered = $false
   try { $null = [System.IO.File]::GetAttributes((Join-Path $prefix "service-registration.json")); $serviceRegistered = $true } catch { }
   $priorVersion = Get-InstalledVersion $current
   if ($serviceRegistered -and -not $priorVersion) { Fail "the registered service has no usable current release; inspect its registration before retrying" }
+  if ($serviceRegistered -and (($priorVersion -match '-nightly\.') -ne ($version -match '-nightly\.'))) {
+    Fail "stable and nightly require separate prefixes and profiles; the existing service was not changed"
+  }
+  if ($serviceRegistered -and -not $pendingProfileMigration) { $null = Invoke-ProfileMigration $launcher }
 
   if ($serviceRegistered -and $priorVersion -eq $version) {
     $releaseDir = $current
@@ -166,12 +186,35 @@
     }
   }
 
+  if ($pendingProfileMigration -or $serviceRegistered) {
+    $candidateCommand = Join-Path $releaseDir "bin\poracode.cmd"
+    $supported = Invoke-ProfileMigration $candidateCommand
+    if ($pendingProfileMigration -and -not $supported) { Fail "the pending service migration needs a newer CLI; the existing service was not changed" }
+    if ($pendingProfileMigration) {
+      $serviceRegistered = Test-Path (Join-Path $prefix "service-registration.json")
+      $priorVersion = Get-InstalledVersion $current
+      if ($serviceRegistered -and -not $priorVersion) { Fail "the recovered service has no usable current release" }
+      if ($serviceRegistered -and (($priorVersion -match '-nightly\.') -ne ($version -match '-nightly\.'))) {
+        Fail "stable and nightly require separate prefixes and profiles; the recovered service was not changed"
+      }
+    }
+  }
+
   # A registered service owns its current link and must use the upgrade
   # protocol (drain, backup, candidate admission) before switching versions.
   if ($serviceRegistered) {
     if ($priorVersion -ne $version) {
       Say "Upgrading the registered service safely..."
-      & $launcher update $version --prefix $prefix
+      $registration = Get-Content (Join-Path $prefix "service-registration.json") -Raw | ConvertFrom-Json
+      $previousBase = $env:PORACODE_BASE_DIR
+      try {
+        # The CLI compares canonical paths (including junctions and nonexistent
+        # suffixes). Preserve an explicit spelling so it can validate the scope.
+        if (-not $previousBase) { $env:PORACODE_BASE_DIR = $registration.profileNamespace }
+        & $launcher update $version --prefix $prefix
+      } finally {
+        $env:PORACODE_BASE_DIR = $previousBase
+      }
       if ($LASTEXITCODE -ne 0 -or (Get-InstalledVersion $current) -ne $version) {
         Fail "the registered service could not be upgraded; inspect it before retrying"
       }
@@ -197,6 +240,8 @@
       if ($LASTEXITCODE -ne 0) { Fail "could not link $current to $releaseDir" }
     }
   }
+
+  if ($serviceRegistered) { $null = Invoke-ProfileMigration $launcher }
 
   # A small shim on PATH; never replace a poracode.cmd this installer does not own.
   New-Item -ItemType Directory -Force -Path $binDir | Out-Null

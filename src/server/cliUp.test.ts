@@ -2,6 +2,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -739,6 +740,47 @@ describe("runUp", () => {
     expect(steps.events).toEqual([]);
   });
 
+  it("moves an existing nightly service from the stable default to the nightly profile", async () => {
+    const context = installedPrefix();
+    const stable = join(context.root, ".poracode");
+    const nightly = join(context.root, ".poracode-nightly");
+    const markerPath = join(context.release, "standalone.json");
+    const marker = JSON.parse(readFileSync(markerPath, "utf8"));
+    marker.version = "2.0.0-nightly.202611091529";
+    writeFileSync(markerPath, JSON.stringify(marker));
+    let registration = {
+      ...installedServiceRegistration(context.prefix),
+      profileNamespace: stable,
+    };
+    const steps = recorder();
+    let confirmations = 0;
+    const result = await runUp(
+      { reachability: "local", service: true, pair: false },
+      {
+        profile: nightly,
+        releaseRoot: context.release,
+        home: context.root,
+        ...steps,
+        ...quiet,
+        interactive: true,
+        ownerRunning: async () => true,
+        confirmRestart: async () => {
+          confirmations += 1;
+          return true;
+        },
+        readRegistration: () => registration,
+        migrateService: async (input) => {
+          expect(input.targetProfile).toBe(nightly);
+          registration = { ...registration, profileNamespace: nightly };
+          return { profile: nightly, wasRunning: true };
+        },
+      },
+    );
+    expect(confirmations).toBe(1);
+    expect(result.notes.join("\n")).toContain("previous profile and its data were preserved");
+    expect(registration.profileNamespace).toBe(nightly);
+  });
+
   it("refuses an unversioned checkout before changing settings or installing a service", async () => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), "poracode-up-plain-")));
     roots.push(root);
@@ -886,6 +928,28 @@ describe("runUp", () => {
     );
     expect(update).not.toHaveBeenCalled();
     expect(result.notes.join("\n")).toContain("Keeping the newer installed Poracode 2.0.0");
+  });
+
+  it("refuses a cross-channel up before changing an explicitly selected profile", async () => {
+    const context = installedPrefix();
+    const external = join(context.root, "external");
+    mkdirSync(external);
+    const steps = recorder();
+    await expect(
+      runUp(
+        { reachability: "tailnet", service: true, pair: false },
+        {
+          profile: context.profile,
+          releaseRoot: external,
+          version: "2.1.0-nightly.202611100001",
+          env: { PORACODE_INSTALL_DIR: context.prefix },
+          readRegistration: () => installedServiceRegistration(context.prefix),
+          ...steps,
+          ...quiet,
+        },
+      ),
+    ).rejects.toThrow(/separate profiles and prefixes/u);
+    expect(steps.events).toEqual([]);
   });
 });
 

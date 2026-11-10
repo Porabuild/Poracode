@@ -444,7 +444,7 @@ const COMMAND_HELP: Record<string, string> = {
   "install-command":
     "  install-command\n    Install a persistent command using the shared runtime prefix; existing foreign commands are preserved.\n",
   "migrate-install":
-    "  migrate-install\n    Resume migration of the old default CLI prefix and its service without changing its profile.\n",
+    "  migrate-install\n    Resume CLI installation and channel-profile migration without moving profile data.\n",
   "install-activate":
     "  install-activate PREFIX RELEASE\n    Select an installed release while holding the prefix lifecycle lock.\n",
   uninstall:

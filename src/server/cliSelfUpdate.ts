@@ -22,7 +22,7 @@ import { SERVER_SERVICE_REGISTRATION_FILE } from "./serverServiceRegistration";
 import { upgradeServerPrefix } from "./serverUpgrade";
 import type { UpgradeCliOptions, UpgradeResult } from "./serverUpgradeContract";
 import { acquireServerUpgradeLock } from "./serverUpgradeLock";
-import { compareCliReleaseVersions } from "./cliReleaseVersion";
+import { compareCliReleaseVersions, isNightlyRelease } from "./cliReleaseVersion";
 import { refusePendingCliInstallMigration } from "./cliInstallMigrationJournal";
 import { sha256OfFile } from "./cliArtifactDigest";
 import { copyVerifiedRuntime, verifiedLauncherCache } from "./cliServiceRuntimeCache";
@@ -246,6 +246,11 @@ export async function runSelfUpdate(
     ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : {}),
   });
   const base = { version, previous: install.currentVersion, prefix: install.prefix };
+  if (isNightlyRelease(version) !== isNightlyRelease(install.currentVersion)) {
+    throw new SelfUpdateError(
+      "Stable and nightly use separate profiles. Install the other channel in a separate prefix instead of switching this installation.",
+    );
+  }
   if (deps.onlyIfNewer) {
     const order = compareCliReleaseVersions(version, install.currentVersion);
     if (order === undefined)

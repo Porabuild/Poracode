@@ -92,7 +92,11 @@ import { connectHostAdministration, runAdminCli, reportAdminError } from "./cliA
 import { runSelfUpdateCli } from "./cliSelfUpdate";
 import { runSelfUninstallCli } from "./cliSelfUninstall";
 import { parseUpCliOptions, runUpCli } from "./cliUp";
-import { defaultCliProfileNamespace, legacyProfileNotice } from "./cliProfileNamespace";
+import {
+  assertChannelProfileNamespace,
+  defaultCliProfileNamespace,
+  legacyProfileNotice,
+} from "./cliProfileNamespace";
 import { installCliCommand } from "./cliInstallCommand";
 import { migrateDefaultLegacyInstall } from "./cliLegacyMigrationCli";
 import { activateInstalledRelease } from "./cliInstallActivate";
@@ -753,6 +757,28 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
       return;
     }
   }
+  if (
+    ![
+      "status-json",
+      "doctor",
+      "logs",
+      "backup",
+      "stop",
+      "migrate-install",
+      "install-command",
+    ].includes(command) &&
+    !(command === "service" && ["status", "stop", "uninstall"].includes(args[1] ?? ""))
+  ) {
+    try {
+      assertChannelProfileNamespace(
+        capturedBuild?.version ?? resolveServerVersion().version,
+        profileNamespace(),
+      );
+    } catch (error) {
+      reportAdminError(error, args.includes("--json"));
+      return;
+    }
+  }
   if (capturedBuild && command === "up") {
     reportAdminError(
       new Error(
@@ -874,6 +900,10 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
                                             ? await migrateDefaultLegacyInstall({
                                                 releaseRoot,
                                                 installIfMissing: true,
+                                                allowRunning: true,
+                                                ...(explicitProfile
+                                                  ? { explicitProfile: profileNamespace() }
+                                                  : {}),
                                               })
                                             : null;
                                         if (migration?.profile && !explicitProfile)
@@ -914,11 +944,18 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
                                         : command === "migrate-install"
                                           ? migrateDefaultLegacyInstall({
                                               releaseRoot: resolve(__dirname, ".."),
+                                              ...(explicitProfile
+                                                ? { explicitProfile: profileNamespace() }
+                                                : {}),
                                             }).then((result) => {
                                               if (result) {
                                                 process.stderr.write(
-                                                  `Moved the active CLI and service to ${result.prefix}; existing profile data was kept.\n`,
+                                                  `Active CLI installation: ${result.prefix}.\n`,
                                                 );
+                                                if (result.profile)
+                                                  process.stderr.write(
+                                                    `Service profile: ${result.profile}. The previous profile was left untouched; run poracode up and pair devices for this profile if needed.\n`,
+                                                  );
                                                 if (result.moved.length)
                                                   process.stderr.write(
                                                     `Archived legacy CLI files at ${result.moved.join(", ")}.\n`,
@@ -934,6 +971,7 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
                                                 parseUpCliOptions(args.slice(1)),
                                                 profileNamespace(),
                                                 resolve(__dirname, ".."),
+                                                explicitProfile,
                                               )
                                             : serve(
                                                 parseServeCliOptions(args),

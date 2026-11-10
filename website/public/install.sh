@@ -17,6 +17,7 @@
 #   PORACODE_RELEASE_BASE_URL  mirror for releases/download (default: GitHub)
 #   PORACODE_NO_MODIFY_PATH=1  never edit shell startup files
 #   PORACODE_NO_TUI=1          skip downloading the terminal UI during install
+#   PORACODE_MIGRATE_SERVICE=1 allow stopping a running service for migration
 #
 # Profile data (projects, threads, settings) lives outside the prefix and is
 # never touched by this script.
@@ -152,13 +153,19 @@ main() {
   release_dir="${releases_dir}/${version}"
   launcher_target="${prefix}/current/bin/poracode"
   legacy_candidate=0
+  pending_migration=0
   if [ -z "${PORACODE_INSTALL_DIR:-}" ] && [ -d "$HOME/.poracode/server/current" ]; then legacy_candidate=1; fi
-  if [ -e "${prefix}/legacy-install-migration.json" ] || [ -L "${prefix}/legacy-install-migration.json" ]; then
+  if [ -e "${prefix}/legacy-install-migration.json" ] || [ -L "${prefix}/legacy-install-migration.json" ] ||
+     [ -e "${prefix}/service-profile-migration.json" ] || [ -L "${prefix}/service-profile-migration.json" ]; then
     [ -x "${prefix}/current/bin/poracode" ] || fail "the pending installation migration has no usable current CLI; inspect it before retrying"
     say "Checking the previous installation migration..."
-    "${prefix}/current/bin/poracode" migrate-install </dev/null ||
-      fail "the previous installation migration did not finish; inspect it before retrying"
-    legacy_candidate=0
+    if "${prefix}/current/bin/poracode" migrate-install --help </dev/null 2>/dev/null | grep -q 'migrate-install'; then
+      "${prefix}/current/bin/poracode" migrate-install </dev/null ||
+        fail "the previous installation migration did not finish; inspect it before retrying"
+      legacy_candidate=0
+    else
+      pending_migration=1
+    fi
   fi
   if [ "$legacy_candidate" = 1 ] && [ ! -e "$HOME/.poracode/server/service-registration.json" ] &&
     [ -L "${bin_dir}/poracode" ] && [ "$(readlink "${bin_dir}/poracode")" = "$launcher_target" ]; then
@@ -169,6 +176,14 @@ main() {
     service_registered=1
     prior_version="$(installed_version "${prefix}/current" || true)"
     [ -n "$prior_version" ] || fail "the registered service has no usable current release; inspect its registration before retrying"
+    prior_train=stable; next_train=stable
+    case "$prior_version" in *-nightly.*) prior_train=nightly ;; esac
+    case "$version" in *-nightly.*) next_train=nightly ;; esac
+    [ "$prior_train" = "$next_train" ] || fail "stable and nightly require separate prefixes and profiles; the existing service was not changed"
+    if "${prefix}/current/bin/poracode" migrate-install --help </dev/null 2>/dev/null | grep -q 'migrate-install'; then
+      "${prefix}/current/bin/poracode" migrate-install </dev/null ||
+        fail "service profile migration did not finish; inspect it before retrying"
+    fi
   fi
 
   if [ "$service_registered" = 1 ] && [ "$prior_version" = "$version" ]; then
@@ -248,14 +263,40 @@ $reason"
     staging=""
   fi
 
+  if [ "$pending_migration" = 1 ] || [ "$service_registered" = 1 ]; then
+    if "$release_dir/bin/poracode" migrate-install --help </dev/null 2>/dev/null | grep -q 'migrate-install'; then
+      "$release_dir/bin/poracode" migrate-install </dev/null ||
+        fail "service profile migration did not finish; inspect it before retrying"
+      if [ "$pending_migration" = 1 ]; then
+        service_registered=0
+        if [ -e "${prefix}/service-registration.json" ]; then service_registered=1; fi
+        prior_version="$(installed_version "${prefix}/current" || true)"
+        [ "$service_registered" = 0 ] || [ -n "$prior_version" ] || fail "the recovered service has no usable current release"
+        prior_train=stable; next_train=stable
+        case "$prior_version" in *-nightly.*) prior_train=nightly ;; esac
+        case "$version" in *-nightly.*) next_train=nightly ;; esac
+        [ "$service_registered" = 0 ] || [ "$prior_train" = "$next_train" ] || fail "stable and nightly require separate prefixes and profiles; the recovered service was not changed"
+      fi
+    elif [ "$pending_migration" = 1 ] || { [ "$service_registered" = 1 ] && [ "$prior_version" != "$version" ]; }; then
+      fail "this older release cannot safely migrate the service profile; install a current release first"
+    fi
+  fi
+
   if [ -d "${prefix}/current" ] && [ ! -L "${prefix}/current" ]; then
     fail "${prefix}/current is a directory, not a release link; move it aside and retry"
   fi
   if [ "$service_registered" = 1 ]; then
     if [ "$prior_version" != "$version" ]; then
       say "Upgrading the registered service safely..."
-      "${prefix}/current/bin/poracode" update "$version" --prefix "$prefix" ||
-        fail "the registered service could not be upgraded; its current release was not replaced by the installer"
+      if [ -n "${PORACODE_BASE_DIR:-}" ]; then
+        "$release_dir/bin/poracode" update "$version" --prefix "$prefix" ||
+          fail "the registered service could not be upgraded; its current release was not replaced by the installer"
+      else
+        service_profile="$("$release_dir/runtime/node" -e 'const fs=require("node:fs"); const p=require("node:path"); const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(typeof r.profileNamespace!=="string" || !p.isAbsolute(r.profileNamespace) || /[\r\n]/.test(r.profileNamespace)) process.exit(1); process.stdout.write(r.profileNamespace);' "${prefix}/service-registration.json")" ||
+          fail "the registered service profile could not be read; no update was attempted"
+        PORACODE_BASE_DIR="$service_profile" "$release_dir/bin/poracode" update "$version" --prefix "$prefix" ||
+          fail "the registered service could not be upgraded; its current release was not replaced by the installer"
+      fi
       [ "$(installed_version "${prefix}/current" || true)" = "$version" ] ||
         fail "the service upgrade did not select ${version}; inspect the service before retrying"
     fi
@@ -282,6 +323,11 @@ $reason"
     elif [ -d "$HOME/.poracode/server/current" ]; then
       fail "this older release cannot migrate the existing installation; install a current release first"
     fi
+  fi
+  if [ -e "${prefix}/service-registration.json" ] &&
+     "$release_dir/bin/poracode" migrate-install --help </dev/null 2>/dev/null | grep -q 'migrate-install'; then
+    "$release_dir/bin/poracode" migrate-install </dev/null ||
+      fail "service profile migration did not finish; inspect it before retrying"
   fi
 
   # Link the command, never replacing a `poracode` this installer does not own
