@@ -26,13 +26,66 @@ import {
   validateRuntimeArchive,
 } from "../lib/archive.mjs";
 import { downloadArtifact } from "../lib/artifact.mjs";
-import { acquireInstallLock, readReadyMarker } from "../lib/cache.mjs";
+import { acquireInstallLock, readReadyMarker, resolveRuntimeCacheRoot } from "../lib/cache.mjs";
+import { defaultCliInstallPrefix } from "../lib/installPaths.mjs";
+import { offerCommandInstall } from "../lib/installOffer.mjs";
 import { execServer, launcherVersion, resolveRuntimeDir, runCli } from "../lib/launcher.mjs";
 import { parseRuntimeManifest } from "../lib/manifest.mjs";
 import { ensureRuntime } from "../lib/install.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const tempDirs = [];
+
+void test("runtime cache is shared across profiles and old cache entries remain untouched", () => {
+  const home = tempDir("poracode-cache-path-");
+  const oldCache = join(home, ".poracode", "runtime", "2.0.0", "linux-x64");
+  mkdirSync(oldCache, { recursive: true });
+  writeFileSync(join(oldCache, ".poracode-runtime.json"), "old cache");
+  const root = join(home, ".local", "share", "poracode");
+  assert.equal(defaultCliInstallPrefix({ env: {}, home, platform: "linux" }), join(root, "server"));
+  assert.equal(
+    resolveRuntimeCacheRoot({ PORACODE_BASE_DIR: join(home, "other") }, home, "linux"),
+    join(root, "runtime-cache"),
+  );
+  assert.equal(readFileSync(join(oldCache, ".poracode-runtime.json"), "utf8"), "old cache");
+  assert.equal(
+    resolveRuntimeCacheRoot({ PORACODE_RUNTIME_CACHE_DIR: join(home, "override") }, home, "linux"),
+    join(home, "override"),
+  );
+  assert.equal(
+    defaultCliInstallPrefix({
+      env: { LOCALAPPDATA: "C:\\Users\\u\\AppData\\Local" },
+      home: "C:\\Users\\u",
+      platform: "win32",
+    }),
+    "C:\\Users\\u\\AppData\\Local\\Poracode\\server",
+  );
+});
+
+void test("the npm launcher offers a command only in a bare interactive session", async () => {
+  const home = tempDir("poracode-install-offer-");
+  const calls = [];
+  const common = {
+    env: {},
+    home,
+    platform: "linux",
+    prompt: async () => {
+      calls.push("prompt");
+      return "yes";
+    },
+    install: async () => {
+      calls.push("install");
+    },
+  };
+  assert.equal(await offerCommandInstall({ ...common, interactive: false }), false);
+  assert.deepEqual(calls, []);
+  assert.equal(await offerCommandInstall({ ...common, interactive: true }), true);
+  assert.deepEqual(calls, ["prompt", "install"]);
+  mkdirSync(join(home, ".local", "bin"), { recursive: true });
+  writeFileSync(join(home, ".local", "bin", "poracode"), "foreign");
+  assert.equal(await offerCommandInstall({ ...common, interactive: true }), false);
+  assert.deepEqual(calls, ["prompt", "install"]);
+});
 after(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
@@ -1347,6 +1400,35 @@ void test("runCli forwards the selected profile to the runtime without forwardin
   assert.deepEqual(captured.args.slice(1), ["auth", "list", "--json"]);
   assert.equal(captured.options.env.PORACODE_BASE_DIR, profile);
   assert.equal(env.PORACODE_BASE_DIR, undefined);
+});
+
+void test("launcher cache custody reaches install commands but not foreground servers", async () => {
+  const root = tempDir("poracode-cli-custody-");
+  const { tarball, sha256: artifactSha } = buildRuntimeTarball(root);
+  const env = {
+    PORACODE_SERVER_TARBALL: tarball,
+    PORACODE_SERVER_TARBALL_SHA256: artifactSha,
+    PORACODE_RUNTIME_TARGET: "test-x64",
+    PORACODE_RUNTIME_CACHE_DIR: join(root, "cache"),
+    PORACODE_LAUNCHER_RUNTIME_ROOT: "stale-parent-value",
+  };
+  const captured = [];
+  const spawnImpl = (_command, _args, options) => {
+    captured.push(options.env);
+    const child = new EventEmitter();
+    child.kill = () => {};
+    queueMicrotask(() => child.emit("exit", 0, null));
+    return child;
+  };
+  await runCli(["up", "--local-only"], {
+    env,
+    installOptions: { run: hermeticRun, npm: "npm" },
+    spawnImpl,
+  });
+  await runCli(["serve"], { env, installOptions: { run: hermeticRun, npm: "npm" }, spawnImpl });
+  assert.equal(captured[0].PORACODE_LAUNCHER_RUNTIME_SHA256, artifactSha);
+  assert.equal(captured[1].PORACODE_LAUNCHER_RUNTIME_ROOT, undefined);
+  assert.equal(captured[1].PORACODE_LAUNCHER_RUNTIME_SHA256, undefined);
 });
 
 void test("parseRuntimeManifest reads formats 1 and 2 and pins standalone archives in 2", () => {

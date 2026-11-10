@@ -1,8 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, rmSync } from "node:fs";
+import { realpathSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
-import Database from "better-sqlite3";
-import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/nativeBinding";
+import { readProfileSchemaVersion } from "./serverUpgradeSchema";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
@@ -61,6 +60,8 @@ import { stopUpgradeCandidate } from "./serverUpgradeCandidateStop";
 import { registeredServiceUpgradeIo } from "./serverServiceUpgrade";
 import { releaseNodeExecutable } from "./serverStandaloneRuntime";
 import { installServerRelease } from "../../scripts/server-release-install.mjs";
+import { refusePendingCliInstallMigration } from "./cliInstallMigrationJournal";
+import { assertChannelProfileNamespace } from "./cliProfileNamespace";
 import {
   DEFAULT_QUALIFICATION_TIMEOUT_MS,
   OWNER_POLL_MS,
@@ -123,30 +124,6 @@ function messageOf(error: unknown): string {
 function currentHostRootPaths(): HostRootPaths {
   const baseDir = process.env.PORACODE_BASE_DIR?.trim() || resolvePoracodeBaseDir();
   return resolveHostRootPaths(baseDir);
-}
-
-function readProfileSchemaVersion(paths: HostRootPaths): number | null {
-  const databasePath = join(paths.dataRoot, "state.sqlite");
-  if (!existsSync(databasePath)) return null;
-  let database: InstanceType<typeof Database> | undefined;
-  try {
-    database = new Database(databasePath, {
-      ...resolveBetterSqliteNativeBindingOptions(),
-      readonly: true,
-      fileMustExist: true,
-      timeout: 5_000,
-    });
-    const row = database
-      .prepare<[], { value: string }>("SELECT value FROM app_state WHERE key = 'schema_version'")
-      .get();
-    if (!row) return 0;
-    const version = Number(row.value);
-    if (!Number.isInteger(version) || version < 0)
-      throw new UpgradeRefusedError("The profile database reports an invalid schema version.");
-    return version;
-  } finally {
-    database?.close();
-  }
 }
 
 function runCandidateDoctor(releaseDir: string): UpgradeDoctorResult {
@@ -383,6 +360,20 @@ export async function upgradeServerPrefix(
     resumed: false,
   };
   try {
+    refusePendingCliInstallMigration(prefix);
+    if (options.expectedCurrentDir !== undefined) {
+      let current: string | undefined;
+      try {
+        current = realpathSync(join(prefix, "current"));
+      } catch {
+        // A missing or dangling link is also a changed selection.
+      }
+      if (current !== options.expectedCurrentDir) {
+        throw new UpgradeRefusedError(
+          "The current release changed before the automatic update acquired its lock; retry.",
+        );
+      }
+    }
     io = await registeredServiceUpgradeIo(
       io,
       prefix,
@@ -424,6 +415,7 @@ async function runUpgrade(
           "(package.json version and lib/server.cjs are required).",
       );
     }
+    assertChannelProfileNamespace(expected.version, currentHostRootPaths().profileNamespace);
     const doctor = io.doctor(context.releaseDir);
     if (!doctor.ok) {
       removeReleaseDir(context);
