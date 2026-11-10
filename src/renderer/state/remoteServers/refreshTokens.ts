@@ -378,9 +378,9 @@ function enqueueRefreshSlotWrite<Result>(
  * Strict persist: resolves `true` only once the encrypted record is committed.
  * A missing IndexedDB/crypto key or a failed transaction resolves `false`
  * (existing best-effort callers `void` the result; migration counts only
- * `true` as persisted). With an owner, the write is refused when that owner no
- * longer owns the subject, including after encryption. Writes are serialized,
- * and a re-pair may supersede a retired incarnation's pending writes.
+ * `true` as persisted). Ownership is checked when accepting the write. An
+ * accepted save may finish after its temporary owner is released; queued
+ * removal still wins, and a successful re-pair retires the old queue epoch.
  */
 export function writeRefreshTokenToVault(
   subject: RefreshSubject,
@@ -390,8 +390,7 @@ export function writeRefreshTokenToVault(
   if (owner && !ownsRefreshSubject(subject, owner)) return Promise.resolve(false);
   const key = refreshSubjectVaultKey(subject);
   const epoch = refreshWriteEpochs.get(key);
-  const isCurrent = () =>
-    refreshWriteEpochs.get(key) === epoch && (!owner || ownsRefreshSubject(subject, owner));
+  const isCurrent = () => refreshWriteEpochs.get(key) === epoch;
   return enqueueRefreshSlotWrite(subject, async () => {
     try {
       if (!isCurrent()) return false;

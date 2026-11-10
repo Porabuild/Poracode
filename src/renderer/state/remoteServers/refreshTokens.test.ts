@@ -116,6 +116,26 @@ describe("refresh subjects own disjoint vault roots", () => {
 });
 
 describe("strict vault persistence", () => {
+  it("finishes an accepted grant save after its temporary pairing owner is released", async () => {
+    const owner = acquireRefreshSubjectOwnership(managedSubject);
+    const gate = Promise.withResolvers<void>();
+    const started = Promise.withResolvers<void>();
+    const encrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(async (...args) => {
+      started.resolve();
+      await gate.promise;
+      return encrypt(...args);
+    });
+    const saving = writeRefreshTokenToVault(managedSubject, "accepted-grant", owner);
+    await started.promise;
+    releaseRefreshSubjectOwnership(managedSubject, owner);
+    gate.resolve();
+    expect(await saving).toBe(true);
+    __resetRefreshTokensForTest();
+    await hydrateRefreshTokens({ subjects: [managedSubject] });
+    expect(refreshTokenForSubject(managedSubject)).toBe("accepted-grant");
+  });
+
   it.each([true, false])(
     "preserves a re-pair after older writes and deletion resume (owned write: %s)",
     async (owned) => {
