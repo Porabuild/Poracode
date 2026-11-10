@@ -11237,7 +11237,7 @@ msgstr "Niedriger Kontrast"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Verringert die Helligkeit unterstützter Displays, solange die Abdeckung sichtbar ist, und stellt die vorherige Helligkeit wieder her, sobald der Mac wieder gesperrt wird."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "Computer"
 
@@ -21317,7 +21317,7 @@ msgstr "Die Entsperrregel für den Bildschirm dieses Macs wurde angepasst, zum B
 msgid "this machine"
 msgstr "dieser Computer"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "Dieser Computer"
 

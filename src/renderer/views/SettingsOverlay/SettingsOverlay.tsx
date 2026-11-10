@@ -10,6 +10,7 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useMachines } from "@/renderer/state/machines";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
+import { FloatingScopeBar } from "@/renderer/components/machineScope/FloatingScopeBar";
 import { agentStatusNeedsAuthAttention } from "@/shared/agentSelection";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
@@ -33,6 +34,11 @@ import { ShortcutsSettings } from "./parts/ShortcutsSettings";
 import { TerminalSettings } from "./parts/TerminalSettings";
 import { ThreadSettings } from "./parts/ThreadSettings";
 import { ArchivedThreadsSettings } from "./parts/ArchivedThreadsSettings";
+import {
+  ArchivedThreadsMachinePicker,
+  LOCAL_ARCHIVE_MACHINE_ID,
+  type ArchivedThreadsScopeProps,
+} from "./parts/ArchivedThreadsMachinePicker";
 import { ChangelogSettings } from "./parts/ChangelogSettings";
 import { AboutSettings } from "./parts/AboutSettings";
 import { DevSettings } from "./parts/DevSettings";
@@ -88,7 +94,6 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   browser: () => <BrowserSettings />,
   usage: () => <UsageSettings />,
   import: () => <ImportSettings />,
-  archived: () => <ArchivedThreadsSettings />,
   changelog: () => <ChangelogSettings />,
   about: () => <AboutSettings />,
   dev: () => <DevSettings />,
@@ -125,6 +130,7 @@ function renderSection(
   activeSection: SettingsSection,
   onSectionChange: (section: SettingsSection) => void,
   onOpenDesktopSettings: (desktopId: string) => void,
+  archiveScope: ArchivedThreadsScopeProps,
 ): ReactNode {
   let section: ReactNode;
   if (activeSection === "acpRegistry") {
@@ -138,6 +144,8 @@ function renderSection(
         onOpenProfile={(kind) => onSectionChange(`agents:${kind}`)}
       />
     );
+  } else if (activeSection === "archived") {
+    section = <ArchivedThreadsSettings {...archiveScope} />;
   } else if (activeSection === "remoteServers") {
     section = <RemoteServersSettings onOpenDesktopSettings={onOpenDesktopSettings} />;
   } else {
@@ -195,6 +203,8 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     requestedSection === null ? "root" : "main",
   );
   const [mobileDesktopParent, setMobileDesktopParent] = useState<"root" | "connections">("root");
+  const [archiveMachineId, setArchiveMachineId] = useState(LOCAL_ARCHIVE_MACHINE_ID);
+  const archiveScope = { machineId: archiveMachineId, onMachineChange: setArchiveMachineId };
   const firstServer = useRemoteServersStore((state) => state.servers[0]);
   const chooseSettingsHost = useSettingsHostStore((state) => state.choose);
   const selectedDesktop = useSettingsHostServer() ?? firstServer;
@@ -304,13 +314,18 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   const remoteSession = isRemoteSession();
   const isMachineScopedSection =
     activeSection === "agentsGeneral" || activeSection.startsWith("agents:");
-  const scopeBar = isMachineScopedSection ? (
-    <AgentsMachineBar />
-  ) : remoteSession && HOST_SCOPED_SECTIONS.has(activeSection) ? (
-    <SettingsHostBar />
-  ) : !remoteSession && activeSection === "usage" ? (
-    <UsageHostBar />
-  ) : null;
+  const scopeBar =
+    activeSection === "archived" ? (
+      <FloatingScopeBar>
+        <ArchivedThreadsMachinePicker {...archiveScope} />
+      </FloatingScopeBar>
+    ) : isMachineScopedSection ? (
+      <AgentsMachineBar />
+    ) : remoteSession && HOST_SCOPED_SECTIONS.has(activeSection) ? (
+      <SettingsHostBar />
+    ) : !remoteSession && activeSection === "usage" ? (
+      <UsageHostBar />
+    ) : null;
   // Mirrors the bars' own render condition: a floating pill only appears once
   // there is a second machine (or host) to pick, and only then does the scroll
   // area need to reserve room so its last rows are not covered by it.
@@ -328,6 +343,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       setMobileDesktopParent("connections");
       setMobileScreen("desktop");
     },
+    archiveScope,
   );
   const showMobileDesktopPicker =
     compactLayout && remoteSession && selectedDesktop !== undefined && mobileScreen === "desktop";

@@ -11237,7 +11237,7 @@ msgstr "낮은 대비"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "보호 화면이 표시되는 동안 지원되는 디스플레이의 밝기를 낮추고, Mac이 다시 잠기면 이전 밝기로 복원합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "기기"
 
@@ -21317,7 +21317,7 @@ msgstr "이 Mac의 화면 잠금 해제 규칙이 기기 관리 등으로 사용
 msgid "this machine"
 msgstr "이 기기"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "이 기기"
 

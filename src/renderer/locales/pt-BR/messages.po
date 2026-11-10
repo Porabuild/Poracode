@@ -11237,7 +11237,7 @@ msgstr "Contraste baixo"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Reduz o brilho das telas compatíveis enquanto a cobertura estiver visível e restaura o brilho anterior quando o Mac for bloqueado novamente."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "Máquina"
 
@@ -21317,7 +21317,7 @@ msgstr "A regra de desbloqueio de tela deste Mac foi personalizada, por exemplo 
 msgid "this machine"
 msgstr "esta máquina"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "Esta máquina"
 

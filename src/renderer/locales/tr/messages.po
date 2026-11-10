@@ -11237,7 +11237,7 @@ msgstr "Düşük kontrast"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Koruma ekranı görünürken desteklenen ekranların parlaklığını azaltır ve Mac yeniden kilitlendiğinde önceki parlaklığı geri yükler."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "Makine"
 
@@ -21317,7 +21317,7 @@ msgstr "Bu Mac'in ekran kilidi açma kuralı, örneğin cihaz yönetimi tarafın
 msgid "this machine"
 msgstr "bu makine"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "Bu makine"
 
