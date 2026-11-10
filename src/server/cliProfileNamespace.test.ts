@@ -53,7 +53,7 @@ describe("standalone CLI profile defaults", () => {
   });
 
   it("refuses either channel against the other default but permits a custom profile", () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-channel-profile-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-channel-profile-")));
     try {
       const alias = join(home, "alias");
       symlinkSync(home, alias, "junction");
@@ -72,7 +72,7 @@ describe("standalone CLI profile defaults", () => {
   });
 
   it("honors case-sensitive volumes for an uncreated custom profile", () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-channel-case-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-channel-case-")));
     try {
       const left = join(home, ".PORACODE");
       const right = join(home, ".poracode");
@@ -84,7 +84,7 @@ describe("standalone CLI profile defaults", () => {
   });
 
   it("detects case lookup in an initially empty directory without leaving a probe", () => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), "poracode-channel-empty-")));
+    const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-channel-empty-")));
     try {
       writeFileSync(join(root, "CaseMarker"), "");
       const home = join(root, "empty");
@@ -99,7 +99,7 @@ describe("standalone CLI profile defaults", () => {
   });
 
   it("uses the actual parent directory's case behavior for a default namespace", () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-channel-case-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-channel-case-")));
     try {
       writeFileSync(join(home, "CaseMarker"), "");
       const otherCase = join(home, ".PORACODE");

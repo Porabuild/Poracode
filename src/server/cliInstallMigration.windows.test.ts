@@ -22,7 +22,7 @@ import type { ServiceCliOptions, ServiceLifecycleDeps } from "./serverService";
 
 describe.runIf(process.platform === "win32")("Windows in-place service profile migration", () => {
   it("requires a stopped task before moving to the nightly profile, preserving stable data", async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-win-profile-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-win-profile-")));
     try {
       const prefix = join(home, "server");
       const stable = join(home, ".poracode");
@@ -101,11 +101,14 @@ describe.runIf(process.platform === "win32")("Windows in-place service profile m
           writeServiceRegistration(registration(profile, deps!.registrationNonce!));
         return {};
       };
+      const alias = join(home, "home-alias");
+      symlinkSync(home, alias, "junction");
       const input = {
-        oldPrefix: prefix,
-        newPrefix: prefix,
-        releaseRoot: release,
-        targetProfile: nightly,
+        oldPrefix: join(alias, "server"),
+        newPrefix: join(alias, "server"),
+        releaseRoot: join(alias, "server", "releases", "old"),
+        targetProfile: join(alias, ".poracode-nightly"),
+        home,
         allowRunning: true,
         service,
         assertTargetAvailable: async () => ({ assertActive() {}, release() {} }),

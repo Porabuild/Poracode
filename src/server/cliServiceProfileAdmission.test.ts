@@ -25,7 +25,7 @@ function fakeDoctor(
 
 describe("service destination profile admission", () => {
   it("accepts a free profile but refuses an owner or existing native definition", async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-profile-admission-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-profile-admission-")));
     try {
       const profile = join(home, ".poracode-nightly");
       const account = { kind: "uid" as const, id: "1000" };
@@ -49,19 +49,33 @@ describe("service destination profile admission", () => {
       const directory = join(home, ".config", "systemd", "user");
       mkdirSync(directory, { recursive: true });
       writeFileSync(
-        join(directory, `${serviceRegistrationId(profile, account)}.service`),
+        join(
+          directory,
+          `${serviceRegistrationId(resolveHostRootPaths(profile).profileNamespace, account)}.service`,
+        ),
         "foreign",
       );
-      await expect(
-        assertServiceProfileAvailable(profile, account, candidate, deps),
-      ).rejects.toThrow(/already exists/u);
+      const unexpected = await assertServiceProfileAvailable(
+        profile,
+        account,
+        candidate,
+        deps,
+      ).then(
+        (result) => {
+          result.release();
+          return null;
+        },
+        (error: unknown) => error,
+      );
+      expect(unexpected).toBeInstanceOf(Error);
+      expect(String(unexpected)).toMatch(/already exists/u);
     } finally {
       rmSync(home, { recursive: true, force: true });
     }
   });
 
   it("refuses a legacy desktop profile and an OS-sealed owned profile before migration", async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-profile-desktop-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-profile-desktop-")));
     try {
       const account = { kind: "uid" as const, id: "1000" };
       const candidate = fakeDoctor(home);
@@ -95,7 +109,7 @@ describe("service destination profile admission", () => {
   });
 
   it("refuses both a pending migration and a newer schema in existing nightly data", async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-profile-schema-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-profile-schema-")));
     try {
       const profile = join(home, "nightly");
       const paths = resolveHostRootPaths(profile);
@@ -134,7 +148,7 @@ describe("service destination profile admission", () => {
   });
 
   it("refuses invalid destination configuration or candidate diagnostics before service retirement", async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-profile-config-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-profile-config-")));
     try {
       const profile = join(home, "nightly");
       const account = { kind: "uid" as const, id: "1000" };
@@ -166,7 +180,7 @@ describe("service destination profile admission", () => {
   });
 
   it("checks the systemd manager's inherited network environment", async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-profile-manager-env-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-profile-manager-env-")));
     try {
       const profile = join(home, "nightly");
       const candidate = fakeDoctor(home);
@@ -191,7 +205,7 @@ describe("service destination profile admission", () => {
   });
 
   it("requires the systemd manager's matching key for environment-backed credentials", async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-profile-env-key-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-profile-env-key-")));
     try {
       const profile = join(home, "nightly");
       const paths = resolveHostRootPaths(profile);
@@ -240,7 +254,7 @@ describe("service destination profile admission", () => {
   });
 
   it("does not treat the invoking Windows shell's key as the task environment", async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), "poracode-profile-win-env-")));
+    const home = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-profile-win-env-")));
     try {
       const profile = join(home, "nightly");
       const paths = resolveHostRootPaths(profile);

@@ -16,6 +16,7 @@ import type { ServerServiceRegistration } from "./serverServiceRegistration";
 import { ServerServiceRefusedError } from "./serverServiceRegistration";
 import { pairWhenReady, parseUpCliOptions, runUp, runUpCli } from "./cliUp";
 import { describeUpReachability } from "./cliUpReachability";
+import { canonicalHostPath } from "@/backend/ownership/hostRootPaths";
 
 const roots: string[] = [];
 afterEach(() => {
@@ -25,7 +26,7 @@ afterEach(() => {
 
 /** An installer-managed prefix with one self-contained release. */
 function installedPrefix() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "poracode-up-")));
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-up-")));
   roots.push(root);
   const prefix = join(root, "prefix");
   const release = join(prefix, "releases", "2.0.0");
@@ -87,7 +88,7 @@ function installedServiceRegistration(
   return {
     state,
     registrationId: "poracode-0123456789abcdef0123456789abcdef",
-    profileNamespace: join(dirname(prefix), "profile"),
+    profileNamespace: canonicalHostPath(join(dirname(prefix), "profile")),
     installPrefix: prefix,
   } as unknown as ServerServiceRegistration;
 }
@@ -212,6 +213,27 @@ describe("runUp", () => {
     expect(steps.services).toEqual(["start"]);
     expect(result.service).toBe("running");
     expect(result.reachability).toBe("tailnet");
+  });
+
+  it("accepts a registered profile through a directory alias", async () => {
+    const context = installedPrefix();
+    const alias = join(context.root, "home-alias");
+    symlinkSync(context.root, alias, process.platform === "win32" ? "junction" : "dir");
+    const steps = recorder();
+    const result = await runUp(
+      { reachability: "local", service: true, pair: false },
+      {
+        profile: join(alias, "profile"),
+        releaseRoot: context.release,
+        ...steps,
+        readRegistration: () => installedServiceRegistration(context.prefix),
+        lingerEnabled: () => true,
+        platform: "linux",
+        ...quiet,
+      },
+    );
+    expect(steps.services).toEqual(["start"]);
+    expect(result.service).toBe("running");
   });
 
   it("does not rewrite settings when a flag repeats the saved choice", async () => {
@@ -650,8 +672,8 @@ describe("runUp", () => {
     );
     expect(result.reachability).toBe("tailnet");
     expect(result.reachable).toBe(false);
-    expect(result.notes.join("\n")).toMatch(
-      new RegExp(`poracode service restart --prefix ${context.prefix}`, "u"),
+    expect(result.notes.join("\n")).toContain(
+      `poracode service restart --prefix ${context.prefix}`,
     );
   });
 
@@ -782,7 +804,7 @@ describe("runUp", () => {
   });
 
   it("refuses an unversioned checkout before changing settings or installing a service", async () => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), "poracode-up-plain-")));
+    const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-up-plain-")));
     roots.push(root);
     const releaseRoot = join(root, "runtime");
     mkdirSync(releaseRoot, { recursive: true });
@@ -808,7 +830,7 @@ describe("runUp", () => {
 
   it("provisions the running nightly release before starting a service", async () => {
     for (const platform of ["linux", "win32"] as const) {
-      const root = realpathSync(mkdtempSync(join(tmpdir(), "poracode-up-nightly-")));
+      const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-up-nightly-")));
       roots.push(root);
       const releaseRoot = join(root, "runtime");
       mkdirSync(releaseRoot, { recursive: true });
@@ -848,7 +870,7 @@ describe("runUp", () => {
 
   it("uses the one-line installer's prefix for the service from another install", async () => {
     const context = installedPrefix();
-    const root = realpathSync(mkdtempSync(join(tmpdir(), "poracode-up-foreign-")));
+    const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-up-foreign-")));
     roots.push(root);
     const releaseRoot = join(root, "runtime");
     mkdirSync(releaseRoot, { recursive: true });
