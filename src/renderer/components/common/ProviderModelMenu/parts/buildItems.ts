@@ -311,6 +311,7 @@ function getProviderModelCache(capability: AgentCapability): ProviderModelCache 
   const models: ModelEntry[] = [];
   const modelById = new Map<string, ModelEntry>();
   for (const model of capability.models) {
+    if (modelById.has(model.id)) continue;
     const entry = makeModelEntry(
       model.id,
       model.label,
