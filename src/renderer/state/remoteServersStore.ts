@@ -251,6 +251,8 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       const pairing = createPairingActions({
         set,
         get,
+        flushPersistence: remoteServersStorage.flush,
+        setRemoteServerFailure,
         checkHostUpdateInBackground,
         startRemoteServerEventStream,
         closeRemoteServerEventSocket,
@@ -495,7 +497,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // `homeThreadWorkspaceIds` is additive too: a v2 document without the
       // field hydrates empty, entries are merged per full thread id, and older
       // apps ignore the key, so the document version stays 2.
-      // Token rotation updates existing bearer slots through secure storage;
+      // Pairing persistence and token rotation reuse the bearer/refresh slots;
       // v1/v2 records and encrypted vault keys remain valid without a bump.
       // `recentHistoryCacheId` is additive local cache metadata (no credential):
       // records without it stay valid, gain one after their next verified

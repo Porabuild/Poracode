@@ -179,8 +179,8 @@ async function encryptRefreshToken(
   token: string,
 ): Promise<{ iv: Uint8Array<ArrayBuffer>; data: ArrayBuffer } | null> {
   if (typeof crypto === "undefined" || typeof crypto.subtle === "undefined") return null;
-  const cryptoKey = await refreshVaultCryptoKey();
-  if (!cryptoKey) return null;
+  // Fresh pairing can save its grant before its bearer creates the shared key.
+  const cryptoKey = (await refreshVaultCryptoKey()) ?? (await vaultCryptoKey());
   return encryptWithKey(cryptoKey, token);
 }
 

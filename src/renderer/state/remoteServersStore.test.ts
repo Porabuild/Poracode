@@ -356,6 +356,7 @@ function makeClient(opts?: {
     // the certificate pin to every client it builds.
     setTokenLifecycle: () => {},
     setCertFingerprintPin: () => {},
+    refreshTokens: async () => null,
     exchangePairingCredential: async () => ({
       accessToken: "acc-token",
       tokenType: "Bearer" as const,

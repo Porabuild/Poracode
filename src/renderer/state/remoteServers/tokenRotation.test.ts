@@ -1,6 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RemoteDesktopClient, type RemoteFetch } from "@/shared/remote/client";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import {
   __resetRemoteServersStoreForTest,
   useRemoteServersStore,
@@ -16,6 +17,9 @@ import {
 import { __resetTokenVaultForTest, getDesktopToken, setDesktopToken } from "./tokenVault";
 import type { RemoteClientFactory, RemoteServerRecord } from "./types";
 import { createRemoteServerClientBindings } from "./storeClient";
+import { failVaultKeyReads, webKitKeyRestoreError } from "./webKitResultFailure.testFixtures";
+import * as refreshTokens from "./refreshTokens";
+import { SharedCredentialRefusedError } from "./sharedCredentials";
 
 const STORAGE_KEY = "poracode-remote-servers";
 const CONNECTION_ID = "paired-connection";
@@ -51,7 +55,33 @@ function host(refreshGate: Promise<void> = Promise.resolve()) {
    * grant exchange still succeeds, but every bearer is refused. */
   let refuseAllBearers = false;
   const fetch = vi.fn<RemoteFetch>(async (url, init) => {
-    if (new URL(String(url)).pathname === "/oauth/token") {
+    const path = new URL(String(url)).pathname;
+    if (path === "/.well-known/poracode/environment") {
+      return json(200, {
+        protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
+        desktopId: record.desktopId,
+        label: record.label,
+        appVersion: "2.0.0",
+        auth: {
+          policy: "remote-reachable",
+          bootstrapMethods: ["one-time-token"],
+          sessionMethods: ["bearer-access-token"],
+          scopes: record.scopes,
+        },
+        endpoints: { httpBaseUrl: ENDPOINT, wsBaseUrl: "wss://paired.example/" },
+      });
+    }
+    if (path === "/oauth/token") {
+      const body = JSON.parse(String(init?.body)) as { grantType: string; refreshToken?: string };
+      if (body.grantType === "pairing-token") {
+        return json(200, {
+          accessToken,
+          refreshToken,
+          tokenType: "Bearer",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          scopes: record.scopes,
+        });
+      }
       refreshAttempts += 1;
       if (refreshMode === "refused") {
         return json(401, { error: { code: "invalid_refresh_token", message: "Invalid grant." } });
@@ -63,7 +93,6 @@ function host(refreshGate: Promise<void> = Promise.resolve()) {
         return json(429, { error: { code: "rate_limited", message: "Too many attempts." } });
       }
       await refreshGate;
-      const body = JSON.parse(String(init?.body)) as { grantType: string; refreshToken: string };
       if (body.grantType !== "refresh_token" || body.refreshToken !== refreshToken) {
         return json(401, { error: { code: "invalid_refresh_token", message: "Invalid grant." } });
       }
@@ -77,11 +106,26 @@ function host(refreshGate: Promise<void> = Promise.resolve()) {
         scopes: ["session:read"],
       });
     }
-    expect(new URL(String(url)).pathname).toBe("/api/auth/websocket-ticket");
     const authorization = new Headers(init?.headers).get("authorization");
     if (refuseAllBearers || authorization !== `Bearer ${accessToken}`) {
       return json(401, { error: { code: "invalid_access_token", message: "Expired bearer." } });
     }
+    if (path === "/api/snapshot") {
+      return json(200, {
+        snapshotSeq: 1,
+        projects: [],
+        threads: [],
+        runtimeSummariesByThread: {},
+        updatedAt: "now",
+      });
+    }
+    if (path === "/api/agent-statuses") {
+      return json(200, { windows: [], wsl: [], updatedAt: "now" });
+    }
+    if (path === "/api/host/describe") {
+      return json(404, { error: { code: "not_found", message: "Older host." } });
+    }
+    expect(path).toBe("/api/auth/websocket-ticket");
     return json(200, { ticket: "ticket", expiresAt: "2099-01-01T00:00:00.000Z" });
   });
   return {
@@ -106,14 +150,17 @@ function host(refreshGate: Promise<void> = Promise.resolve()) {
   };
 }
 
-async function loadReleasedPairing(fetch: RemoteFetch): Promise<void> {
+async function loadReleasedPairing(
+  fetch: RemoteFetch,
+  accessToken = "expired-access",
+): Promise<void> {
   useRemoteServersStore
     .getState()
     .setClientFactory((endpoint, token) => new RemoteDesktopClient(endpoint, token, fetch));
   // Flush setup writes before seeding the previously released v2 metadata and
   // its existing vault slots. No re-pair or schema migration is required.
   await storage.getItem(STORAGE_KEY);
-  await setDesktopToken(CONNECTION_ID, "expired-access");
+  await setDesktopToken(CONNECTION_ID, accessToken);
   await writeRefreshTokenToVault(subject, "refresh-0");
   localStorage.setItem(
     STORAGE_KEY,
@@ -130,7 +177,7 @@ async function loadReleasedPairing(fetch: RemoteFetch): Promise<void> {
   );
   await useRemoteServersStore.persist.rehydrate();
   await hydrateRefreshTokens({ subjects: [subject] });
-  expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("expired-access");
+  expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe(accessToken);
   expect(refreshTokenForSubject(subject)).toBe("refresh-0");
 }
 
@@ -161,6 +208,151 @@ afterEach(async () => {
 });
 
 describe("persisted connection token rotation", () => {
+  it("reports a failed refresh-grant save instead of opening a green connection", async () => {
+    const server = host();
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(
+        (endpoint, token) => new RemoteDesktopClient(endpoint, token, server.fetch),
+      );
+    const socket = vi.fn<() => never>(() => {
+      throw new Error("A failed pairing must not open a socket.");
+    });
+    useRemoteServersStore.getState().setSocketFactory(socket);
+    const persist = vi
+      .spyOn(refreshTokens, "writeRefreshTokenToVault")
+      .mockResolvedValueOnce(false);
+    try {
+      await expect(
+        useRemoteServersStore.getState().pairServer({ endpoint: ENDPOINT, token: "pair-qa" }),
+      ).rejects.toBeInstanceOf(SharedCredentialRefusedError);
+      expect(useRemoteServersStore.getState().runtime[record.desktopId]?.status).toBe("error");
+      expect(socket).not.toHaveBeenCalled();
+    } finally {
+      persist.mockRestore();
+    }
+  });
+
+  it("keeps fresh pairing pending until its credentials and metadata survive a cold reopen", async () => {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase("lightcode-mobile-vault");
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+    const server = host();
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(
+        (endpoint, token) => new RemoteDesktopClient(endpoint, token, server.fetch),
+      );
+    useRemoteServersStore.getState().setSocketFactory(() => ({
+      close: vi.fn<() => void>(),
+      send: vi.fn<(data: string) => void>(),
+      readyState: 1,
+      onmessage: null,
+      onclose: null,
+    }));
+    await storage.getItem(STORAGE_KEY);
+    const started = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const realEncrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+    const encrypt = vi.spyOn(crypto.subtle, "encrypt").mockImplementation(async (...args) => {
+      if (new TextDecoder().decode(args[2]) === "access-0") {
+        started.resolve();
+        await release.promise;
+      }
+      return realEncrypt(...args);
+    });
+    const pairing = useRemoteServersStore.getState().pairServer({
+      endpoint: ENDPOINT,
+      token: "pair-qa",
+    });
+    try {
+      await started.promise;
+      expect(useRemoteServersStore.getState().runtime[record.desktopId]?.status).toBe("connecting");
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).state.servers).toEqual([]);
+    } finally {
+      release.resolve();
+      await pairing;
+      encrypt.mockRestore();
+    }
+    expect(useRemoteServersStore.getState().runtime[record.desktopId]?.status).toBe("online");
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).state.servers).toEqual([
+      expect.objectContaining({ connectionId: record.desktopId, accessToken: "" }),
+    ]);
+    __resetRemoteServersStoreForTest();
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    await useRemoteServersStore.persist.rehydrate();
+    expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("access-0");
+    expect(refreshTokenForSubject(connectionRefreshSubject(record.desktopId))).toBe("refresh-0");
+    await expect(
+      useRemoteServersStore
+        .getState()
+        .withClient(record.desktopId, (client) => client.websocketTicket()),
+    ).resolves.toBe("ticket");
+  });
+
+  it.each([
+    ["access-0", "startup"],
+    ["expired-access", "startup"],
+    ["access-0", "reconnect"],
+    ["expired-access", "reconnect"],
+  ] as const)(
+    "recovers a saved %s bearer during %s after WebKit could not restore the vault",
+    async (accessToken, stage) => {
+      const server = host();
+      await loadReleasedPairing(server.fetch, accessToken);
+      useRemoteServersStore.getState().setSocketFactory(() => ({
+        close: vi.fn<() => void>(),
+        send: vi.fn<(data: string) => void>(),
+        readyState: 1,
+        onmessage: null,
+        onclose: null,
+      }));
+      await storage.getItem(STORAGE_KEY);
+      __resetRefreshTokensForTest();
+      __resetTokenVaultForTest();
+      const escaped: unknown[] = [];
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const get = failVaultKeyReads(webKitKeyRestoreError(), escaped);
+      try {
+        await useRemoteServersStore.persist.rehydrate();
+        expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("");
+        expect(refreshTokenForSubject(subject)).toBeUndefined();
+        if (stage === "reconnect") {
+          await useRemoteServersStore.getState().connectAll();
+        }
+        expect(useRemoteServersStore.getState().runtime[CONNECTION_ID]?.status).toBe(
+          stage === "reconnect" ? "error" : undefined,
+        );
+        expect(escaped).toEqual([]);
+      } finally {
+        get.mockRestore();
+        warn.mockRestore();
+      }
+
+      if (stage === "startup") await useRemoteServersStore.getState().connectAll();
+      else await useRemoteServersStore.getState().reconnectServer(CONNECTION_ID);
+      expect(useRemoteServersStore.getState().runtime[CONNECTION_ID]?.status).toBe("online");
+      expect(refreshTokenForSubject(subject)).toBe(
+        accessToken === "access-0" ? "refresh-0" : "refresh-1",
+      );
+      expect(server.refreshAttempts()).toBe(accessToken === "access-0" ? 0 : 1);
+      await storage.getItem(STORAGE_KEY);
+      expect(localStorage.getItem(STORAGE_KEY)).not.toContain("access-0");
+      expect(localStorage.getItem(STORAGE_KEY)).not.toContain("refresh-0");
+      // A second cold reopen reads the same released metadata and vault slots.
+      __resetRemoteServersStoreForTest();
+      __resetRefreshTokensForTest();
+      __resetTokenVaultForTest();
+      await useRemoteServersStore.persist.rehydrate();
+      await useRemoteServersStore.getState().connectAll();
+      expect(useRemoteServersStore.getState().runtime[CONNECTION_ID]?.status).toBe("online");
+      expect(server.refreshAttempts()).toBe(accessToken === "access-0" ? 0 : 1);
+    },
+  );
+
   it("reuses the rotated bearer across sequential clients instead of exhausting refresh limits", async () => {
     const server = host();
     await loadReleasedPairing(server.fetch);
