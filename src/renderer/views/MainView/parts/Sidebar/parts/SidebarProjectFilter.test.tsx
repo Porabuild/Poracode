@@ -100,13 +100,7 @@ describe("SidebarProjectFilter", () => {
     fireEvent.pointerEnter(connection, { pointerType: "mouse" });
     const tooltip = await screen.findByRole("tooltip");
     expect(tooltip).toHaveTextContent("MacBook 16");
-    expect(within(tooltip).getByTitle("Online")).toHaveClass(
-      "bg-success",
-      "right-0",
-      "bottom-0",
-      "ring-1",
-      "ring-background",
-    );
+    expect(within(tooltip).getByTitle("Online")).toHaveClass("bg-success", "right-0", "bottom-0");
     expect(tooltip).not.toHaveTextContent("Online");
     fireEvent.pointerLeave(connection, { pointerType: "mouse" });
   });
@@ -140,7 +134,7 @@ describe("SidebarProjectFilter", () => {
 
     const connection = within(rows[1]!).getByRole("img", { name: "Local, MacBook 16" });
     expect(connection.querySelector(".lucide-server")).toBeInTheDocument();
-    expect(within(connection).getByTitle("Online")).toHaveClass("bg-success", "ring-background");
+    expect(within(connection).getByTitle("Online")).toHaveClass("bg-success");
     expect(rows[2]!.querySelector("[data-project-connection]")).toBeNull();
     fireEvent.pointerMove(document.body, { pointerType: "mouse" });
     fireEvent.pointerEnter(connection, { pointerType: "mouse" });

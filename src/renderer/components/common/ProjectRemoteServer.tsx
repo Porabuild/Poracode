@@ -106,8 +106,8 @@ export function ProjectRemoteServerIcon(props: {
   return (
     <RemoteServerIcon
       status={info.serverName ? (info.status ?? "offline") : null}
-      className={props.className ?? "size-3 text-muted/60"}
-      {...(props.dotClassName ? { dotClassName: props.dotClassName } : {})}
+      className={props.className ?? "size-2.5 text-muted/60"}
+      dotClassName={props.dotClassName ?? "size-1"}
     />
   );
 }
@@ -189,13 +189,13 @@ export function ProjectSelectorIcon(props: {
   return <ProjectLocationIcon location={props.project.location} className={props.className} />;
 }
 
-const CHIP_SIZE = {
-  /** The flat list's 10px row tags, where even the dense glyph reads heavy. */
-  xs: { icon: "size-2.5 text-muted/60", dot: "size-1", name: "max-w-20 text-muted/60" },
+const CHIP_NAME_CLASS = {
+  /** The flat list's 10px row tags. */
+  xs: "max-w-20 text-muted/60",
   /** Dense sidebar rows, where the chip inherits a 10px tag. */
-  sm: { icon: "size-3 text-muted/60", dot: "size-1.5", name: "max-w-20 text-muted/60" },
+  sm: "max-w-20 text-muted/60",
   /** Menu rows: own type scale for the name, but the same compact glyph. */
-  md: { icon: "size-2.5 text-muted/60", dot: "size-1", name: "max-w-24 text-xs text-muted/60" },
+  md: "max-w-24 text-xs text-muted/60",
 } as const;
 
 /**
@@ -205,16 +205,16 @@ const CHIP_SIZE = {
  */
 export function ProjectRemoteServerChip(props: {
   info: ProjectRemoteServerInfo;
-  size?: keyof typeof CHIP_SIZE;
+  size?: keyof typeof CHIP_NAME_CLASS;
 }) {
   const { info } = props;
   if (!info.isRemote && !info.serverName) return null;
-  const size = CHIP_SIZE[props.size ?? "sm"];
+  const nameClassName = CHIP_NAME_CLASS[props.size ?? "sm"];
   return (
     <>
-      <ProjectRemoteServerIcon info={info} className={size.icon} dotClassName={size.dot} />
+      <ProjectRemoteServerIcon info={info} />
       {info.serverName ? (
-        <span className={`shrink-0 truncate ${size.name}`}>{info.serverName}</span>
+        <span className={`shrink-0 truncate ${nameClassName}`}>{info.serverName}</span>
       ) : null}
     </>
   );
