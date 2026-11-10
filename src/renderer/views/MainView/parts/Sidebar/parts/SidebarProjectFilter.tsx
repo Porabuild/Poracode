@@ -503,7 +503,7 @@ export function SidebarProjectFilter(props: {
                     />
                     <span className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="min-w-0 truncate">{project.name}</span>
-                      <span className="shrink-0 text-[8px] text-muted">{rowCount(row)}</span>
+                      <span className="shrink-0 text-[10px] text-muted">{rowCount(row)}</span>
                     </span>
                     {row.environments.length > 1 ? (
                       <ProjectEnvironmentIndicator
@@ -683,7 +683,7 @@ export function SidebarProjectFilter(props: {
                 <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                   <Label className="min-w-0 truncate">{project.name}</Label>
-                  <span className="shrink-0 text-[8px] text-muted">{rowCount(row)}</span>
+                  <span className="shrink-0 text-[10px] text-muted">{rowCount(row)}</span>
                 </div>
                 <ProjectEnvironmentIndicator members={row.environments} machineFor={machineFor} />
                 <Dropdown.ItemIndicator />
