@@ -16,6 +16,8 @@ import {
   dbInsertScheduleRun,
   dbInterruptScheduleRuns,
   dbListThreadIds,
+  dbBeginWorktreeObservation,
+  dbReconcileProjectWorktrees,
   dbUpdateScheduleRun,
   dbGetScheduleRun,
   dbUpsertThread,
@@ -231,6 +233,15 @@ export class BackendDurableServices {
       getProject: dbGetProject,
       getProjects: dbGetProjects,
       onPatch: options.onGitPatch,
+      beginWorktreeObservation: (projectId) => {
+        const observation = dbBeginWorktreeObservation(projectId);
+        return (worktrees) => {
+          const changedIds = dbReconcileProjectWorktrees(projectId, worktrees, observation);
+          if (changedIds === null) return false;
+          if (changedIds.length > 0) options.publishThreadsChanged?.(changedIds);
+          return true;
+        };
+      },
     });
     this.forgeActivityService = new ForgeActivityService({
       getThread: dbGetThread,

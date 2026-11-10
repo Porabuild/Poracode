@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { emptyGitStateSnapshot, gitTargetKey, pullRequestKey } from "@/shared/gitState";
+import type { GitWorktreeInfo } from "@/shared/contracts";
 import { worktreeScriptShellId } from "@/shared/worktreeScriptShell";
+import { RemoteHttpError } from "../auth";
 import type { RemoteBroadcastEvent, RemoteServerContext } from "./context";
 import {
   buildHostScriptWithExitOnSuccess,
@@ -13,6 +15,7 @@ import {
 vi.mock("@/host/db", () => ({
   dbGetProjects: vi.fn<() => unknown[]>(),
   dbGetThreads: vi.fn<() => unknown[]>(),
+  dbGetState: vi.fn<() => null>(() => null),
 }));
 
 import { dbGetProjects, dbGetThreads } from "@/host/db";
@@ -26,6 +29,19 @@ function createContext(
     options: { callSupervisor } as RemoteServerContext["options"],
     waitForSupervisorEvent,
   } as RemoteServerContext;
+}
+
+const linkedWorktree: GitWorktreeInfo = {
+  path: "/repo/wt",
+  branch: "feat/x",
+  commit: "abc123",
+  isMain: false,
+};
+
+function removalSupervisor(worktrees: GitWorktreeInfo[] = [linkedWorktree]) {
+  return vi.fn<RemoteServerContext["options"]["callSupervisor"]>(async (name) =>
+    name === "gitListWorktrees" ? ({ worktrees } as never) : (undefined as never),
+  );
 }
 
 describe("host worktree lifecycle", () => {
@@ -139,9 +155,7 @@ describe("host worktree lifecycle", () => {
         createdAt: "2026-01-01T00:00:00.000Z",
       },
     ]);
-    const callSupervisor = vi.fn<RemoteServerContext["options"]["callSupervisor"]>(
-      async () => undefined as never,
-    );
+    const callSupervisor = removalSupervisor();
     const prompt = {
       type: "thread-output" as const,
       threadId: "shell",
@@ -195,9 +209,7 @@ describe("host worktree lifecycle", () => {
         createdAt: "2026-01-01T00:00:00.000Z",
       },
     ]);
-    const callSupervisor = vi.fn<RemoteServerContext["options"]["callSupervisor"]>(
-      async () => undefined as never,
-    );
+    const callSupervisor = removalSupervisor();
     const waitForSupervisorEvent = vi.fn<RemoteServerContext["waitForSupervisorEvent"]>(
       async () =>
         ({
@@ -222,6 +234,247 @@ describe("host worktree lifecycle", () => {
       expect.objectContaining({ path: "/repo/wt" }),
     );
   });
+
+  it.each([
+    { name: "renamed branch", path: "/repo/wt", branch: "feat/renamed" },
+    { name: "moved worktree", path: "/repo/moved-wt", branch: "feat/x" },
+  ])("removes a $name using Git's current registration", async ({ path, branch }) => {
+    vi.mocked(dbGetProjects).mockReturnValue([
+      {
+        id: "project-1",
+        name: "Repo",
+        createdAt: "2026-01-01",
+        location: { kind: "posix", path: "/repo" },
+      },
+    ]);
+    const callSupervisor = removalSupervisor([{ ...linkedWorktree, path, branch }]);
+    await removeHostWorktree(createContext(callSupervisor), {
+      projectId: "project-1",
+      worktreePath: "/repo/wt",
+      worktreeBranch: "feat/x",
+    });
+    expect(callSupervisor).toHaveBeenCalledWith("gitRemoveWorktree", {
+      projectLocation: { kind: "posix", path: "/repo" },
+      path,
+      force: true,
+      deleteBranch: false,
+      expectedBranch: branch,
+    });
+    expect(callSupervisor).toHaveBeenCalledWith("gitDeleteBranch", {
+      projectLocation: { kind: "posix", path: "/repo" },
+      branch,
+      force: true,
+    });
+  });
+
+  it.each(["missing", "detached"])(
+    "does not delete a stale branch for a %s worktree",
+    async (kind) => {
+      vi.mocked(dbGetProjects).mockReturnValue([
+        {
+          id: "project-1",
+          name: "Repo",
+          createdAt: "2026-01-01",
+          location: { kind: "posix", path: "/repo" },
+        },
+      ]);
+      const callSupervisor = removalSupervisor(
+        kind === "missing" ? [] : [{ ...linkedWorktree, branch: "detached" }],
+      );
+      await removeHostWorktree(createContext(callSupervisor), {
+        projectId: "project-1",
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feat/x",
+      });
+      expect(callSupervisor).not.toHaveBeenCalledWith("gitDeleteBranch", expect.anything());
+      const removedPaths = callSupervisor.mock.calls.flatMap(([name, payload]) =>
+        name === "gitRemoveWorktree" ? [(payload as { path: string }).path] : [],
+      );
+      expect(removedPaths).toEqual(kind === "missing" ? [] : ["/repo/wt"]);
+    },
+  );
+
+  it("refuses the main worktree before running cleanup", async () => {
+    vi.mocked(dbGetProjects).mockReturnValue([
+      {
+        id: "project-1",
+        name: "Repo",
+        createdAt: "2026-01-01",
+        location: { kind: "posix", path: "/repo" },
+        scripts: { cleanupScript: "cleanup", actions: [] },
+      },
+    ]);
+    const callSupervisor = removalSupervisor([{ ...linkedWorktree, isMain: true }]);
+    await expect(
+      removeHostWorktree(createContext(callSupervisor), {
+        projectId: "project-1",
+        worktreePath: "/repo/wt",
+      }),
+    ).rejects.toThrow("Cannot remove the main worktree.");
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves a moved worktree with an additional linked sibling", async () => {
+    vi.mocked(dbGetProjects).mockReturnValue([
+      {
+        id: "project-1",
+        name: "Repo",
+        createdAt: "2026-01-01",
+        location: { kind: "posix", path: "/repo" },
+      },
+    ]);
+    vi.mocked(dbGetThreads).mockReturnValue([
+      { id: "selected", projectId: "project-1", worktreePath: "/repo/wt" },
+      { id: "sibling", projectId: "project-1", worktreePath: "/repo/moved-wt" },
+    ] as never);
+    const callSupervisor = removalSupervisor([{ ...linkedWorktree, path: "/repo/moved-wt" }]);
+    await expect(
+      removeHostWorktree(createContext(callSupervisor), {
+        projectId: "project-1",
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feat/x",
+        expectedThreadIds: ["selected"],
+      }),
+    ).rejects.toMatchObject({ code: "worktree_threads_changed" });
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletes the branch observed after the cleanup script", async () => {
+    vi.mocked(dbGetProjects).mockReturnValue([
+      {
+        id: "project-1",
+        name: "Repo",
+        createdAt: "2026-01-01",
+        location: { kind: "posix", path: "/repo" },
+        scripts: { actions: [], cleanupScript: "cleanup" },
+      },
+    ]);
+    let branch = "feat/x";
+    const callSupervisor = vi.fn<RemoteServerContext["options"]["callSupervisor"]>(async (name) => {
+      if (name === "gitListWorktrees")
+        return { worktrees: [{ ...linkedWorktree, branch }] } as never;
+      if (name === "writeTerminal") branch = "feat/after-cleanup";
+      return undefined as never;
+    });
+    const waitForSupervisorEvent = vi
+      .fn<RemoteServerContext["waitForSupervisorEvent"]>()
+      .mockResolvedValueOnce({
+        type: "thread-output",
+        threadId: "shell",
+        data: "\u001B]133;B\u001B\\",
+        outputLength: 1,
+        terminalInstanceId: "gen",
+      })
+      .mockResolvedValueOnce({ type: "thread-exited", threadId: "shell", exitCode: 0 });
+    await removeHostWorktree(createContext(callSupervisor, waitForSupervisorEvent), {
+      projectId: "project-1",
+      worktreePath: "/repo/wt",
+      worktreeBranch: "feat/x",
+    });
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "gitRemoveWorktree",
+      expect.objectContaining({ expectedBranch: "feat/after-cleanup" }),
+    );
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "gitDeleteBranch",
+      expect.objectContaining({ branch: "feat/after-cleanup" }),
+    );
+    expect(callSupervisor).not.toHaveBeenCalledWith(
+      "gitDeleteBranch",
+      expect.objectContaining({ branch: "feat/x" }),
+    );
+  });
+
+  it("retains an intermediate-path sibling created during cleanup before another move", async () => {
+    vi.mocked(dbGetProjects).mockReturnValue([
+      {
+        id: "project-1",
+        name: "Repo",
+        createdAt: "2026-01-01",
+        location: { kind: "posix", path: "/repo" },
+        scripts: { actions: [], cleanupScript: "cleanup" },
+      },
+    ]);
+    const selected = { id: "selected", projectId: "project-1", worktreePath: "/repo/old-wt" };
+    vi.mocked(dbGetThreads).mockReturnValue([selected] as never);
+    let path = "/repo/middle-wt";
+    const callSupervisor = vi.fn<RemoteServerContext["options"]["callSupervisor"]>(async (name) => {
+      if (name === "gitListWorktrees") return { worktrees: [{ ...linkedWorktree, path }] } as never;
+      if (name === "writeTerminal") {
+        vi.mocked(dbGetThreads).mockReturnValue([
+          selected,
+          { ...selected, id: "sibling", worktreePath: path },
+        ] as never);
+        path = "/repo/final-wt";
+      }
+      return undefined as never;
+    });
+    const waitForSupervisorEvent = vi
+      .fn<RemoteServerContext["waitForSupervisorEvent"]>()
+      .mockResolvedValueOnce({
+        type: "thread-output",
+        threadId: "shell",
+        data: "\u001B]133;B\u001B\\",
+        outputLength: 1,
+        terminalInstanceId: "gen",
+      })
+      .mockResolvedValueOnce({ type: "thread-exited", threadId: "shell", exitCode: 0 });
+    await expect(
+      removeHostWorktree(createContext(callSupervisor, waitForSupervisorEvent), {
+        projectId: "project-1",
+        worktreePath: selected.worktreePath,
+        worktreeBranch: "feat/x",
+        expectedThreadIds: [selected.id],
+      }),
+    ).rejects.toMatchObject({ code: "worktree_threads_changed" });
+    expect(callSupervisor).not.toHaveBeenCalledWith("gitRemoveWorktree", expect.anything());
+  });
+
+  it.each([false, true])(
+    "reconciles a concurrent branch change with bounded retries (continuous=%s)",
+    async (continuous) => {
+      vi.mocked(dbGetProjects).mockReturnValue([
+        {
+          id: "project-1",
+          name: "Repo",
+          createdAt: "2026-01-01",
+          location: { kind: "posix", path: "/repo" },
+        },
+      ]);
+      let branch = "feat/x";
+      let attempts = 0;
+      const callSupervisor = vi.fn<RemoteServerContext["options"]["callSupervisor"]>(
+        async (name) => {
+          if (name === "gitListWorktrees")
+            return { worktrees: [{ ...linkedWorktree, branch }] } as never;
+          if (name === "gitRemoveWorktree") {
+            attempts += 1;
+            if (continuous || attempts === 1) {
+              const previous = branch;
+              branch = `${branch}-renamed`;
+              throw new Error(`Expected worktree branch ${previous}, but found ${branch}`);
+            }
+          }
+          return undefined as never;
+        },
+      );
+      const removal = removeHostWorktree(createContext(callSupervisor), {
+        projectId: "project-1",
+        worktreePath: "/repo/wt",
+        worktreeBranch: "feat/x",
+      });
+      const result = await removal.then(
+        () => null,
+        (error: unknown) => (error instanceof RemoteHttpError ? error.code : String(error)),
+      );
+      expect(result).toBe(continuous ? "worktree_remove_failed" : null);
+      expect(attempts).toBe(continuous ? 3 : 2);
+      const deletedBranches = callSupervisor.mock.calls.flatMap(([name, payload]) =>
+        name === "gitDeleteBranch" ? [(payload as { branch: string }).branch] : [],
+      );
+      expect(deletedBranches).toEqual(continuous ? [] : ["feat/x-renamed"]);
+    },
+  );
 
   it("writes after a late spawn reset when the scrollback already has a prompt", async () => {
     vi.mocked(dbGetProjects).mockReturnValue([

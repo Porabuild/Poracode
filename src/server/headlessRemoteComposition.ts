@@ -665,6 +665,8 @@ export async function composeHeadlessRemoteHost(
       // B1: the durable gap/notice store is this composition's own backend
       // host, so the capability is advertised and the routes serve real state.
       runtimeHistoryGap: createRuntimeHistoryGapPort(backendHost),
+      runThreadMutation: (threadId, operation) =>
+        supervisorClient.runThreadMutation(threadId, operation),
       truncateThreadRuntime: (threadId, itemId) => {
         backendHost.truncateThreadRuntime(threadId, itemId);
       },

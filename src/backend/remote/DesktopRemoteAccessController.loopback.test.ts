@@ -179,7 +179,10 @@ afterEach(async () => {
 });
 
 async function fixture(
-  overrides: { readonly projectWatchLeases?: ProjectWatchLeases } = {},
+  overrides: {
+    readonly projectWatchLeases?: ProjectWatchLeases;
+    readonly runThreadMutation?: RemoteAccessServerOptions["runThreadMutation"];
+  } = {},
 ): Promise<DesktopRemoteAccessController> {
   const root = mkdtempSync(join(tmpdir(), "poracode-desktop-loopback-"));
   const controller = createDesktopRemoteAccessController({
@@ -238,12 +241,16 @@ describe("managed always-on loopback server", () => {
     });
   });
 
-  it("hands every rebuilt server the same durable project watch registry", async () => {
+  it("hands every rebuilt server the same durable watch and thread mutation services", async () => {
     const projectWatchLeases = new ProjectWatchLeases({
       call: async () => undefined,
       getProject: () => undefined,
     });
-    const controller = await fixture({ projectWatchLeases });
+    const runThreadMutation: NonNullable<RemoteAccessServerOptions["runThreadMutation"]> = async (
+      _id,
+      operation,
+    ) => operation();
+    const controller = await fixture({ projectWatchLeases, runThreadMutation });
     await controller.startIfEnabled();
     await controller.setEnabled(true);
     await controller.setEnabled(false);
@@ -252,6 +259,7 @@ describe("managed always-on loopback server", () => {
     });
     for (const server of h.servers) {
       expect(server.options.projectWatches).toBe(projectWatchLeases);
+      expect(server.options.runThreadMutation).toBe(runThreadMutation);
     }
   });
 

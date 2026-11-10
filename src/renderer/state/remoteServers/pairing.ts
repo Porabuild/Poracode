@@ -46,13 +46,18 @@ import {
 } from "./connectionRefresh";
 import { terminalCapabilitiesFromEnvironment } from "./terminalCapabilities";
 import { disposeEnvironmentParentSession } from "./environmentSessions";
+import { disposeDirectImageSession } from "./directImages";
 import {
   acquireConnectionIncarnation,
+  commitSharedCredential,
   connectionRefreshSubject,
-  deleteRefreshTokenFromVault,
+  forgetRefreshTokenForSubject,
+  ownsConnectionIncarnation,
+  readSharedCredential,
   rememberRefreshToken,
-  writeRefreshTokenToVault,
 } from "./refreshTokens";
+import { SharedCredentialRefusedError } from "./sharedCredentials";
+import { noteDesktopTokenCommitted } from "./tokenVault";
 import type { SshConnectionConfig } from "@/shared/ssh";
 import type {
   RemoteServerClientBindings,
@@ -60,7 +65,6 @@ import type {
   StartRemoteServerEventStream,
 } from "./storeClient";
 import type { RemoteServerRecord } from "./types";
-import { SharedCredentialRefusedError } from "./sharedCredentials";
 
 /**
  * Standalone-attach session memo (in-memory only, never persisted): the
@@ -167,7 +171,7 @@ function splitPairingCredential(value: string): {
 }
 
 export interface PairingActionDeps extends RemoteServersStoreApi {
-  readonly flushPersistence: () => Promise<void>;
+  readonly persistPairing: (server: RemoteServerRecord) => Promise<void>;
   readonly setRemoteServerFailure: RemoteServerClientBindings["setRemoteServerFailure"];
   readonly checkHostUpdateInBackground: RemoteServerClientBindings["checkHostUpdateInBackground"];
   readonly startRemoteServerEventStream: StartRemoteServerEventStream;
@@ -178,11 +182,11 @@ export function createPairingActions(deps: PairingActionDeps) {
   const {
     set,
     get,
-    flushPersistence,
     setRemoteServerFailure,
     checkHostUpdateInBackground,
     startRemoteServerEventStream,
     closeRemoteServerEventSocket,
+    persistPairing,
   } = deps;
 
   const pairAtEndpoint = async (input: {
@@ -253,6 +257,7 @@ export function createPairingActions(deps: PairingActionDeps) {
     // resurrect its grant nor overwrite this one, and the new pin/token are
     // adopted by the next parent lookup.
     disposeEnvironmentParentSession(connectionId);
+    disposeDirectImageSession(connectionId);
     const incarnation = acquireConnectionIncarnation(connectionId);
     let record: RemoteServerRecord = {
       connectionId,
@@ -279,20 +284,45 @@ export function createPairingActions(deps: PairingActionDeps) {
     } catch {
       // Fail closed: pairing still succeeds without a describe.
     }
-    // Gate 6 item 4.6 (S6): persist the refresh half in the encrypted
-    // vault so the 24-hour access token can rotate transparently after
-    // this session. Older hosts without the refresh grant simply omit the
-    // field — nothing to store then.
-    let refreshPersistence: Promise<boolean | void>;
+    const pendingRuntime = {
+      status: "connecting" as const,
+      projects: snapshot.projects,
+      threads: snapshot.threads,
+      agentStatuses,
+    };
+    set((state) => ({ runtime: { ...state.runtime, [connectionId]: pendingRuntime } }));
+    const rejectPairing = (): never => {
+      const failure = new SharedCredentialRefusedError();
+      if (ownsConnectionIncarnation(connectionId, incarnation)) {
+        setRemoteServerFailure(connectionId, "error", failure.message);
+      }
+      throw failure;
+    };
+    // Commit both halves before publishing a successful pairing. A failed
+    // vault write must not leave a green, memory-only connection which loses
+    // its credentials when the installed PWA restarts. Existing vault slots
+    // and legacy hosts without refresh grants keep the same format.
+    const subject = connectionRefreshSubject(connectionId);
+    // Re-pairing retires the old incarnation and must not wait for its
+    // suspended refresh lock/encryption; its late commit is fenced by CAS.
+    const previous = await readSharedCredential(subject, connectionId);
+    if (!ownsConnectionIncarnation(connectionId, incarnation)) return record;
+    if (previous.status === "failed") rejectPairing();
+    const outcome = await commitSharedCredential({
+      subject,
+      expected: previous.status === "ok" ? previous.refreshSlot : null,
+      refreshToken: tokenResult.refreshToken,
+      bearer: { connectionKey: connectionId, accessToken: tokenResult.accessToken },
+      isCurrent: () => ownsConnectionIncarnation(connectionId, incarnation),
+      supersedePendingWrites: true,
+    });
+    if (!ownsConnectionIncarnation(connectionId, incarnation)) return record;
+    if (outcome !== "committed") rejectPairing();
+    noteDesktopTokenCommitted(connectionId, tokenResult.accessToken);
     if (tokenResult.refreshToken) {
       rememberRefreshToken(connectionId, tokenResult.refreshToken);
-      refreshPersistence = writeRefreshTokenToVault(
-        connectionRefreshSubject(connectionId),
-        tokenResult.refreshToken,
-        incarnation,
-      );
     } else {
-      refreshPersistence = deleteRefreshTokenFromVault(connectionRefreshSubject(connectionId));
+      forgetRefreshTokenForSubject(subject);
     }
     // Gate 6 item 4.2: pin the QR-asserted certificate fingerprint (TOFU
     // anchored by the link the desktop itself rendered) beside the server
@@ -306,6 +336,14 @@ export function createPairingActions(deps: PairingActionDeps) {
     // the purge only reclaims it: a failed cleanup is never a leak, and pairing
     // must not wait on (or fail with) optional derived-cache I/O.
     void purgeRecentHistoryForConnection(connectionId);
+    try {
+      await persistPairing(record);
+    } catch {
+      if (!ownsConnectionIncarnation(connectionId, incarnation)) return record;
+      rejectPairing();
+    }
+    if (!ownsConnectionIncarnation(connectionId, incarnation)) return record;
+    if (remoteHostUpdateReconnectSeq(connectionId) !== reconnectSeq) return record;
     set((state) => ({
       servers: [...state.servers.filter((s) => s.connectionId !== connectionId), record],
       lastKnownProjects: replaceCachedProjects(
@@ -315,12 +353,7 @@ export function createPairingActions(deps: PairingActionDeps) {
       ),
       runtime: {
         ...state.runtime,
-        [connectionId]: {
-          status: "connecting",
-          projects: snapshot.projects,
-          threads: snapshot.threads,
-          agentStatuses,
-        },
+        [connectionId]: pendingRuntime,
       },
     }));
     syncRemoteAppRows(connectionId, snapshot.projects, snapshot.threads);
@@ -334,14 +367,6 @@ export function createPairingActions(deps: PairingActionDeps) {
     clearRemoteThreadAppliedSeqs(connectionId);
     forgetHistoryBaselines(remoteServerHostSession(connectionId));
     syncDesktopBrowserBridgeClient(get());
-    const refreshPersisted = await refreshPersistence;
-    await flushPersistence();
-    if (remoteHostUpdateReconnectSeq(connectionId) !== reconnectSeq) return record;
-    if (refreshPersisted === false) {
-      const error = new SharedCredentialRefusedError();
-      setRemoteServerFailure(connectionId, "error", error.message);
-      throw error;
-    }
     await startRemoteServerEventStream(record, terminalCapabilitiesFromEnvironment(environment));
     checkHostUpdateInBackground(record);
     return record;

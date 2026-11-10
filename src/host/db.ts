@@ -51,6 +51,7 @@ export type {
 } from "./db/catalogIntents";
 
 export { dbGetProjectNotes, dbSetProjectNotes } from "./db/notes";
+export { dbBeginWorktreeObservation, dbReconcileProjectWorktrees } from "./db/worktreeLinks";
 
 export {
   dbArchiveDoneThreads,

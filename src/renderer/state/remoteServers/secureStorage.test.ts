@@ -134,6 +134,33 @@ describe("secure remote-server persistence", () => {
     );
   });
 
+  it("commits a fresh pairing after a failed save without restoring the previous plaintext bearer", async () => {
+    const storage = createSecureRemoteServersStorage<PersistedState>();
+    await storage.getItem("servers");
+    const old = { ...server("web-1", "retired-plaintext"), platform: "win32" as const };
+    const other = server("other-host", "");
+    localStorage.setItem("servers", JSON.stringify(stateValue([old, other])));
+    await setDesktopToken("web-1", "fresh-bearer");
+    const fresh = server("web-1", "fresh-bearer");
+    const quotaFailure = vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
+      throw new DOMException("Storage full", "QuotaExceededError");
+    });
+    await expect(storage.setItem("servers", stateValue([fresh]))).rejects.toThrow("Storage full");
+    quotaFailure.mockRestore();
+
+    await storage.commitPairing(fresh);
+    expect(localStorage.getItem("servers")).not.toContain("retired-plaintext");
+    __resetTokenVaultForTest();
+    const coldStorage = createSecureRemoteServersStorage<PersistedState>();
+    const restored = await coldStorage.getItem("servers");
+    expect(restored?.state.servers[0]).toMatchObject({
+      desktopId: "web-1",
+      accessToken: "fresh-bearer",
+    });
+    expect(restored?.state.servers[0]?.platform).toBeUndefined();
+    expect(restored?.state.servers[1]).toEqual(other);
+  });
+
   it("encrypts browser bearer tokens outside localStorage and restores them", async () => {
     const storage = createSecureRemoteServersStorage<PersistedState>();
     await storage.setItem("servers", value(server("web-1", "browser-secret")));
